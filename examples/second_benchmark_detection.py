@@ -27,7 +27,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI, NuScenes, NuScenesMini
 from torch_pointcloud.datasets.kitti import KITTI_CLASSES
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
-from torch_pointcloud.metrics import average_precision3d, box_matches, nuscenes_detection_metrics
+from torch_pointcloud.metrics import box_matches, kitti_average_precision, nuscenes_detection_metrics
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DetectionModel, create_model
 from torch_pointcloud.utils.box3d import nms3d, projected_ignore_mask
@@ -44,7 +44,6 @@ SEED = 42
 KITTI_SCORE_THRESHOLD = 0.1
 KITTI_NMS_IOU = 0.01
 KITTI_DETECTION_CLASSES = ("Car", "Pedestrian", "Cyclist")
-KITTI_IOU = {0: 0.7, 1: 0.5, 2: 0.5}
 # Van / Person_sitting and harder-than-moderate boxes (occlusion > 1, truncation > 0.3, 2D height < 25 px) are ignored.
 KITTI_TRANSFORM = T.RelabelBoxes(
     keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
@@ -95,16 +94,7 @@ def evaluate_kitti(model: DetectionModel, dataloader: PointCloudDataLoader, devi
         }
         matches.append(box_matches(preds, target))
 
-    per_class = average_precision3d(
-        matches,
-        iou_threshold=KITTI_IOU,
-        average="none",
-        class_names=KITTI_DETECTION_CLASSES,
-        interpolation="r11",
-    )
-    metrics = {f"AP/{name}": ap for name, ap in per_class.items()}
-    metrics["mAP"] = average_precision3d(matches, iou_threshold=KITTI_IOU, interpolation="r11")
-    return metrics
+    return kitti_average_precision(matches, class_names=KITTI_DETECTION_CLASSES)
 
 
 @torch.no_grad()
@@ -148,13 +138,17 @@ def evaluate_nuscenes(model: DetectionModel, dataloader: PointCloudDataLoader, d
     pred_velocity = torch.cat([p["velocity"] for p in preds])
 
     return nuscenes_detection_metrics(
-        torch.cat([torch.cat([p["boxes"], p["velocity"]], dim=1) for p in preds]),
-        torch.cat([p["scores"] for p in preds]),
-        pred_labels,
-        torch.cat([p["batch"] + offset for p, offset in zip(preds, offsets)]),
-        torch.cat([torch.cat([t["boxes"], v], dim=1) for t, v in zip(targets, gt_velocities)]),
-        torch.cat([t["labels"] for t in targets]),
-        torch.cat([t["batch"] + offset for t, offset in zip(targets, offsets)]),
+        {
+            "boxes": torch.cat([torch.cat([p["boxes"], p["velocity"]], dim=1) for p in preds]),
+            "scores": torch.cat([p["scores"] for p in preds]),
+            "labels": pred_labels,
+            "batch": torch.cat([p["batch"] + offset for p, offset in zip(preds, offsets)]),
+        },
+        {
+            "boxes": torch.cat([torch.cat([t["boxes"], v], dim=1) for t, v in zip(targets, gt_velocities)]),
+            "labels": torch.cat([t["labels"] for t in targets]),
+            "batch": torch.cat([t["batch"] + offset for t, offset in zip(targets, offsets)]),
+        },
         class_names=NUSCENES_DETECTION_CLASSES,
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),

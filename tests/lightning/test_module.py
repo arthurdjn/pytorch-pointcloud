@@ -16,8 +16,8 @@ from torch_pointcloud.lightning import (
     LitSemanticSegmentationModel,
     PointCloudDataModule,
 )
-from torch_pointcloud.lightning.metrics import AveragePrecision3D
-from torch_pointcloud.metrics import average_precision3d, box_matches
+from torch_pointcloud.lightning.metrics import BoxAveragePrecision
+from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SemanticSegmentationModel, register_model
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, Task
 from torch_pointcloud.utils.box3d import projected_ignore_mask
@@ -1014,7 +1014,7 @@ def test_detection_eval_ignore_mask_flows_into_ap_as_functional(monkeypatch: pyt
         "image_shape": image_shape[None],
     }
     out = module.validation_step(batch, batch_idx=0)
-    metric = AveragePrecision3D(iou_per_class={0: 0.5})
+    metric = BoxAveragePrecision(iou_per_class={0: 0.5})
     metric.update(out["preds"], out["target"])
 
     unmasked: Detection3D = {
@@ -1025,10 +1025,10 @@ def test_detection_eval_ignore_mask_flows_into_ap_as_functional(monkeypatch: pyt
     }
     masked: Detection3D = {**unmasked, "ignore_mask": projected_ignore_mask(decoded["boxes"], calib, image_shape)}
     target: Boxes3D = {"boxes": batch["box"], "labels": batch["label"], "batch": batch["batch_box"]}
-    expected = average_precision3d([box_matches(masked, target)], iou_threshold={0: 0.5})
+    expected = box_average_precision([box_matches(masked, target)], iou_threshold={0: 0.5})
     assert metric.compute() == {"AP/0": expected, "mAP": expected}
     assert metric.compute()["AP/0"] == pytest.approx(1.0)
-    assert average_precision3d([box_matches(unmasked, target)], iou_threshold={0: 0.5}) == pytest.approx(0.5)
+    assert box_average_precision([box_matches(unmasked, target)], iou_threshold={0: 0.5}) == pytest.approx(0.5)
 
 
 def test_detection_nms_rotated_saved_to_hparams_default_false() -> None:

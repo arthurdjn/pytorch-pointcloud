@@ -90,7 +90,7 @@ BENCHMARKS = [
     ),
     pytest.param("utonia_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV_SCATTER, id="utonia/scannet"),
     pytest.param(
-        "ptv3_benchmark_segmentation.py",
+        "point_transformer_v3_benchmark_segmentation.py",
         ("--model", "ptv3-base.scannet20.pointcept", "--limit", "1"),
         marks=_GPU_SPCONV_SCATTER,
         id="ptv3/scannet",
@@ -182,7 +182,7 @@ BENCHMARKS = [
         id="votenet/scannet",
     ),
     pytest.param(
-        "3detr_benchmark_detection.py",
+        "threedetr_benchmark_detection.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER_SCATTER,
         id="3detr/scannet",

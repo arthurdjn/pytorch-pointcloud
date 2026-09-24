@@ -69,9 +69,9 @@ $RUN examples/point_m2ae_benchmark_part_segmentation.py --root "$ROOT" --model p
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet_benchmark_detection.py --root "$ROOT" --model votenet.sunrgbd.fair
 $RUN examples/votenet_benchmark_detection.py --root "$ROOT" --model votenet.scannet.fair
-$RUN examples/3detr_benchmark_detection.py --root "$ROOT" --model 3detr.sunrgbd.fair
-$RUN examples/3detr_benchmark_detection.py --root "$ROOT" --model 3detr.scannet.fair
-$RUN examples/3detr_benchmark_detection.py --root "$ROOT" --model 3detr-m.scannet.fair
+$RUN examples/threedetr_benchmark_detection.py --root "$ROOT" --model 3detr.sunrgbd.fair
+$RUN examples/threedetr_benchmark_detection.py --root "$ROOT" --model 3detr.scannet.fair
+$RUN examples/threedetr_benchmark_detection.py --root "$ROOT" --model 3detr-m.scannet.fair
 
 # Outdoor detection (KITTI, nuScenes)
 $RUN examples/pointpillars_benchmark_detection.py --root "$ROOT" --model pointpillars.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
@@ -134,9 +134,9 @@ $RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointne
 
 # Segmentation with TTA (ScanNet, S3DIS)
 $RUN examples/spunet_benchmark_segmentation.py --root "$ROOT" --model spunet-v1m1.scannet20.pointcept --sw-batch-size 8
-$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet20.pointcept --sw-batch-size 8
-$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
-$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
+$RUN examples/point_transformer_v3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet20.pointcept --sw-batch-size 8
+$RUN examples/point_transformer_v3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
+$RUN examples/point_transformer_v3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
 $RUN examples/sonata_benchmark_segmentation.py --root "$ROOT" --model sonata-lp.scannet20.fair --sw-batch-size 4
 $RUN examples/concerto_benchmark_segmentation.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia_benchmark_segmentation.py --root "$ROOT" --model utonia-lp.scannet20.pointcept --sw-batch-size 2

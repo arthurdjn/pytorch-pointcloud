@@ -8,9 +8,9 @@ from torch import Tensor, nn
 
 from torch_pointcloud.lightning import (
     BNMomentumScheduler,
+    BoxMeanAveragePrecision,
     LitClassificationModel,
     LitDetectionModel,
-    MeanAveragePrecision3D,
     MetricCallback,
 )
 from torch_pointcloud.models import ClassificationModel, DetectionModel, SemanticSegmentationModel, register_model
@@ -312,11 +312,11 @@ def test_metric_callback_real_metric_ignores_extra_step_keys(
 
 
 def test_metric_callback_logs_detection_map(trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A perfect detection scored through `MetricCallback` + `MeanAveragePrecision3D` logs `mAP@t = 1.0`."""
+    """A perfect detection scored through `MetricCallback` + `BoxMeanAveragePrecision` logs `mAP@t = 1.0`."""
     module = _det_module()
     log = Mock()
     monkeypatch.setattr(module, "log", log)
-    callback = MetricCallback(metric=MeanAveragePrecision3D(iou_thresholds=(0.25, 0.5)), name="mAP", stages=("val",))
+    callback = MetricCallback(metric=BoxMeanAveragePrecision(iou_thresholds=(0.25, 0.5)), name="mAP", stages=("val",))
     preds = {
         "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
         "scores": torch.tensor([0.9]),

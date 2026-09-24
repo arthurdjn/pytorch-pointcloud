@@ -1,7 +1,7 @@
 """Training criteria for detection, segmentation, and generative models."""
 
 from .anchor import AnchorLoss, MultiHeadAnchorLoss
-from .center import CenterLoss, SparseCenterLoss
+from .centerpoint import CenterPointLoss, SparseCenterPointLoss
 from .chamfer import chamfer_distance
 from .lovasz import LovaszLoss
 from .pointrcnn import PointRCNNLoss
@@ -12,12 +12,12 @@ from .votenet import VoteNetLoss
 
 __all__ = [
     "AnchorLoss",
-    "CenterLoss",
+    "CenterPointLoss",
     "ThreeDETRLoss",
     "LovaszLoss",
     "MultiHeadAnchorLoss",
     "PointRCNNLoss",
-    "SparseCenterLoss",
+    "SparseCenterPointLoss",
     "SumLoss",
     "TransFusionLoss",
     "VoteNetLoss",

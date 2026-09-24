@@ -41,7 +41,13 @@ def _data(batch_size: int = 2, num_queries: int = 20, size: int = 24) -> Tuple[D
 
 
 def _loss() -> TransFusionLoss:
-    return TransFusionLoss(_NUM_CLASSES, _POINT_CLOUD_RANGE, _VOXEL_SIZE, _STRIDE, code_weights=_CODE_WEIGHTS)
+    return TransFusionLoss(
+        _NUM_CLASSES,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=_STRIDE,
+        code_weights=_CODE_WEIGHTS,
+    )
 
 
 def _perfect_output(boxes: Tensor, labels: Tensor, num_queries: int = 4) -> Dict[str, Tensor]:

@@ -80,7 +80,7 @@ class MetricCallback(Callback):
     passthrough); entries matching a parameter name of the metric's `update` signature (inspected once at construction)
     are forwarded as keyword arguments and the rest are ignored, so each metric declares the inputs it consumes.
 
-    A metric whose `compute` returns a dict (e.g. `MeanAveragePrecision3D` returning `mAP@0.25` / `mAP@0.5`)
+    A metric whose `compute` returns a dict (e.g. `BoxMeanAveragePrecision` returning `mAP@0.25` / `mAP@0.5`)
     is logged one entry per key as `{stage}/{key}`; a scalar metric is logged as `{stage}/{name}`.
 
     Args:
@@ -90,7 +90,7 @@ class MetricCallback(Callback):
         preds_key: Key in the step output holding predictions (logits, probabilities, labels, or detections).
         target_key: Key in the step output holding the targets.
         batch_key: Optional key in the step output holding the per-point shape index, forwarded as a third
-            positional argument to `metric.update` (packed multi-shape metrics like `InstancePartMeanIoU`
+            positional argument to `metric.update` (packed multi-shape metrics like `InstancePartMeanIntersectionOverUnion`
             need it). Leave `None` for two-argument metrics.
         prog_bar: Whether to show the metric on the progress bar.
     """

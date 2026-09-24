@@ -24,7 +24,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI
 from torch_pointcloud.datasets.kitti import KITTI_CLASSES
-from torch_pointcloud.metrics import average_precision3d, box_matches
+from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DetectionModel, create_model
 from torch_pointcloud.utils.box3d import nms3d, projected_ignore_mask
@@ -78,7 +78,7 @@ def evaluate(model: DetectionModel, dataloader: PointCloudDataLoader, device: st
         }
         matches.append(box_matches(preds, target))
 
-    per_class = average_precision3d(
+    per_class = box_average_precision(
         matches,
         iou_threshold=KITTI_IOU,
         average="none",
@@ -86,7 +86,7 @@ def evaluate(model: DetectionModel, dataloader: PointCloudDataLoader, device: st
         interpolation="r11",
     )
     metrics = {f"AP/{name}": ap for name, ap in per_class.items()}
-    metrics["mAP"] = average_precision3d(matches, iou_threshold=KITTI_IOU, interpolation="r11")
+    metrics["mAP"] = box_average_precision(matches, iou_threshold=KITTI_IOU, interpolation="r11")
     return metrics
 
 

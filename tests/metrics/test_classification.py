@@ -51,6 +51,14 @@ def test_confusion_matrix_ignore_index() -> None:
     assert torch.equal(cm, torch.eye(3, dtype=torch.long))
 
 
+def test_confusion_matrix_ignores_several_indices() -> None:
+    preds = torch.tensor([0, 1, 2, 2])
+    target = torch.tensor([0, 1, 2, 3])
+    cm = confusion_matrix(preds, target, num_classes=4, ignore_index=[1, 3])
+    assert cm.sum() == 2
+    assert cm[0, 0] == 1 and cm[2, 2] == 1
+
+
 def test_confusion_matrix_shape_and_dtype() -> None:
     preds = torch.tensor([0, 1, 2])
     target = torch.tensor([0, 1, 2])

@@ -12,7 +12,7 @@ def confusion_matrix(
     preds: Tensor,
     target: Tensor,
     num_classes: int,
-    ignore_index: Optional[int] = None,
+    ignore_index: Union[int, Sequence[int], None] = None,
 ) -> Tensor:
     r"""Compute the confusion matrix.
 
@@ -20,7 +20,7 @@ def confusion_matrix(
         preds: Predicted class indices, shape $(N,)$.
         target: Ground truth class indices, shape $(N,)$.
         num_classes: Total number of classes.
-        ignore_index: Class index to exclude from computation.
+        ignore_index: Class index, or indices, whose points are excluded from the matrix.
 
     Returns:
         Confusion matrix of shape $(\text{num\_classes}, \text{num\_classes})$ where
@@ -28,7 +28,8 @@ def confusion_matrix(
         predicted as class `j`.
     """
     if ignore_index is not None:
-        mask = target != ignore_index
+        ignored = torch.as_tensor([ignore_index] if isinstance(ignore_index, int) else list(ignore_index))
+        mask = ~torch.isin(target, ignored.to(target.device))
         preds = preds[mask]
         target = target[mask]
 

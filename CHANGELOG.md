@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Renamed `CenterLoss` and `SparseCenterLoss` to `CenterPointLoss` and `SparseCenterPointLoss`, in `losses.centerpoint`.
+- Renamed the loss weights to `<term>_weight` (the 3DETR `loss_*_weight`, TransFusion `hm_weight` / `bbox_weight` to `heatmap_weight` / `loc_weight`, VoteNet `loss_scale` to `loss_weight`) and the TransFusion `hungarian_*_cost` to `matcher_*_cost`, and made every loss argument after `num_classes` keyword-only.
+- Renamed `average_precision3d` to `box_average_precision`, and the Lightning metrics `AveragePrecision3D`, `MeanAveragePrecision3D` and `InstancePartMeanIoU` to `BoxAveragePrecision`, `BoxMeanAveragePrecision` and `InstancePartMeanIntersectionOverUnion`.
+- Updated `nuscenes_detection_metrics` to take `(preds, target)` like `box_matches`, and `confusion_matrix(ignore_index)` to accept several indices.
+- Added `kitti_average_precision`, the KITTI 3D detection protocol used by the PointPillars and SECOND benchmarks.
+- Renamed the `3detr_*` and `ptv3_*` examples after their model modules (`threedetr_*`, `point_transformer_v3_*`).
+- Added the class names to the OctFormer and PTv3 ScanNet checkpoints, and `SCANNET200_CLASSES`.
 - Made the dataset arguments after `root` keyword-only everywhere (ModelNet, ScanNet, ScanObjectNN and `NuScenes(split)` were positional).
 - Updated `ParisLille3D`, `Toronto3D` and `ShapeNetPart` to default to the train split like the other datasets, and typed every `split` as a `Literal`.
 - Renamed `RepeatDataset(loop)` to `k`.

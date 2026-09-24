@@ -12,7 +12,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
-from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
@@ -1738,6 +1738,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
         url="hf://torch-pointcloud/ptv3-base.scannet200.pointcept/resolve/1f1232df7e827ff72dd7cd038763e75516494462/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 34.99, "OA": 83.27},
+        classes=SCANNET200_CLASSES,
         author="pointcept",
         license="MIT",
     ),

@@ -4,8 +4,8 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import CenterLoss, SparseCenterLoss
-from torch_pointcloud.losses.center import _reg_l1_loss
+from torch_pointcloud.losses import CenterPointLoss, SparseCenterPointLoss
+from torch_pointcloud.losses.centerpoint import _reg_l1_loss
 from torch_pointcloud.utils.data import DataKeys
 
 _POINT_CLOUD_RANGE = (-12.0, -12.0, -2.0, 12.0, 12.0, 4.0)
@@ -86,8 +86,13 @@ def _perfect_dense_output(box: Tensor, size: int = 24) -> Dict[str, Tensor]:
 
 
 def test_center_loss_perfect_predictions_regression_terms_zero() -> None:
-    loss_fn = CenterLoss(
-        1, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8, iou_weight=1.0
+    loss_fn = CenterPointLoss(
+        1,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+        iou_weight=1.0,
     )
     box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.4])
     batch: Dict[str, Any] = {
@@ -107,8 +112,13 @@ def test_center_loss_perfect_predictions_regression_terms_zero() -> None:
 
 def test_center_loss_iou_targets_skip_degenerate_boxes() -> None:
     """A degenerate first GT box (skipped by the target assigner) must not shift later IoU targets."""
-    loss_fn = CenterLoss(
-        1, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8, iou_weight=1.0
+    loss_fn = CenterPointLoss(
+        1,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+        iou_weight=1.0,
     )
     box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.0])
     degenerate = torch.tensor([0.0, 0.0, 0.0, 0.0, 2.0, 1.5, 0.0])
@@ -122,7 +132,13 @@ def test_center_loss_iou_targets_skip_degenerate_boxes() -> None:
 
 
 def test_center_loss_returns_scalar_dict() -> None:
-    loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
+    loss_fn = CenterPointLoss(
+        3,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+    )
     output, batch = _dense_data()
     out = loss_fn(output, batch)
     for key in ("loss", "hm_loss", "loc_loss"):
@@ -132,8 +148,13 @@ def test_center_loss_returns_scalar_dict() -> None:
 
 
 def test_center_loss_iou_branch() -> None:
-    loss_fn = CenterLoss(
-        3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8, iou_weight=1.0
+    loss_fn = CenterPointLoss(
+        3,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+        iou_weight=1.0,
     )
     output, batch = _dense_data()
     out = loss_fn(output, batch)
@@ -142,7 +163,13 @@ def test_center_loss_iou_branch() -> None:
 
 
 def test_center_loss_backward() -> None:
-    loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
+    loss_fn = CenterPointLoss(
+        3,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+    )
     output, batch = _dense_data()
     for value in output.values():
         value.requires_grad_(True)
@@ -154,11 +181,23 @@ def test_center_loss_backward() -> None:
 def test_center_loss_rejects_velocity_code_weights() -> None:
     """The dense head predicts no velocity codes, so a length-10 `code_weights` must raise, not crash later."""
     with pytest.raises(ValueError, match="`code_weights` must have length 8"):
-        CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8 + [0.2, 0.2])
+        CenterPointLoss(
+            3,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=1,
+            code_weights=[1.0] * 8 + [0.2, 0.2],
+        )
 
 
 def test_center_loss_no_boxes_is_finite() -> None:
-    loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
+    loss_fn = CenterPointLoss(
+        3,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+    )
     output, batch = _dense_data()
     batch[DataKeys.BOX] = batch[DataKeys.BOX][:0]
     batch[DataKeys.LABEL] = batch[DataKeys.LABEL][:0]
@@ -168,8 +207,12 @@ def test_center_loss_no_boxes_is_finite() -> None:
 
 def test_sparse_center_loss_returns_scalar_dict() -> None:
     groups = [[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]]
-    loss_fn = SparseCenterLoss(
-        groups, (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 8, code_weights=[1.0] * 8 + [0.2, 0.2]
+    loss_fn = SparseCenterPointLoss(
+        groups,
+        point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
+        voxel_size=(0.075, 0.075, 0.2),
+        feature_map_stride=8,
+        code_weights=[1.0] * 8 + [0.2, 0.2],
     )
     output, batch = _sparse_data(groups)
     out = loss_fn(output, batch)
@@ -181,8 +224,12 @@ def test_sparse_center_loss_returns_scalar_dict() -> None:
 
 def test_sparse_center_loss_backward() -> None:
     groups = [[0, 1]]
-    loss_fn = SparseCenterLoss(
-        groups, (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 8, code_weights=[1.0] * 8 + [0.2, 0.2]
+    loss_fn = SparseCenterPointLoss(
+        groups,
+        point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
+        voxel_size=(0.075, 0.075, 0.2),
+        feature_map_stride=8,
+        code_weights=[1.0] * 8 + [0.2, 0.2],
     )
     output, batch = _sparse_data(groups)
     batch[DataKeys.LABEL] = torch.tensor([0, 1, 0])  # 0-based global classes {0, 1}
@@ -211,7 +258,13 @@ def test_reg_l1_loss_non_finite_target_codes_are_neutralized() -> None:
 
 
 def test_center_loss_zero_height_box_is_finite() -> None:
-    loss_fn = CenterLoss(3, _POINT_CLOUD_RANGE, _VOXEL_SIZE, feature_map_stride=1, code_weights=[1.0] * 8)
+    loss_fn = CenterPointLoss(
+        3,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+    )
     output, batch = _dense_data()
     batch[DataKeys.BOX][0, 5] = 0.0
     assert torch.isfinite(loss_fn(output, batch)["loss"])
@@ -219,8 +272,12 @@ def test_center_loss_zero_height_box_is_finite() -> None:
 
 def test_sparse_center_loss_zero_height_box_is_finite() -> None:
     groups = [[0, 1]]
-    loss_fn = SparseCenterLoss(
-        groups, (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 8, code_weights=[1.0] * 8 + [0.2, 0.2]
+    loss_fn = SparseCenterPointLoss(
+        groups,
+        point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
+        voxel_size=(0.075, 0.075, 0.2),
+        feature_map_stride=8,
+        code_weights=[1.0] * 8 + [0.2, 0.2],
     )
     output, batch = _sparse_data(groups)
     batch[DataKeys.LABEL] = torch.tensor([0, 1, 0])
@@ -231,8 +288,12 @@ def test_sparse_center_loss_zero_height_box_is_finite() -> None:
 def test_sparse_center_loss_empty_mid_batch_scene_is_finite() -> None:
     """A batch element with zero occupied voxels (an empty or out-of-range cloud) must not crash the gather."""
     groups = [[0, 1]]
-    loss_fn = SparseCenterLoss(
-        groups, (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 8, code_weights=[1.0] * 8 + [0.2, 0.2]
+    loss_fn = SparseCenterPointLoss(
+        groups,
+        point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
+        voxel_size=(0.075, 0.075, 0.2),
+        feature_map_stride=8,
+        code_weights=[1.0] * 8 + [0.2, 0.2],
     )
     output, batch = _sparse_data(groups)
     output["voxel_indices"][:, 0] = output["voxel_indices"][:, 0] * 2  # {0, 1} -> {0, 2}, leaving scene 1 empty

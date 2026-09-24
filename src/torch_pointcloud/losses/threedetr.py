@@ -80,7 +80,7 @@ class ThreeDETRLoss(nn.Module):
     same weighted objective, and the per-layer losses are summed:
 
     - **Semantic classification:** per-query weighted cross-entropy over the $C + 1$ class logits, with
-      unmatched queries assigned the background slot and that slot down-weighted by `loss_no_object_weight`.
+      unmatched queries assigned the background slot and that slot down-weighted by `no_object_weight`.
     - **Center:** $L_1$ distance between matched query and box centers in the normalized frame.
     - **Size:** $L_1$ distance between matched query and box sizes in the normalized frame.
     - **Angle:** cross-entropy on the heading bin plus a Huber loss on the in-bin residual, over matches.
@@ -100,15 +100,15 @@ class ThreeDETRLoss(nn.Module):
         matcher_giou_cost: Matcher weight on the negative generalized 3D IoU.
         matcher_center_cost: Matcher weight on the normalized-center $L_1$ distance.
         matcher_objectness_cost: Matcher weight on the negative objectness.
-        loss_giou_weight: Weight of the GIoU term in the total. The reference trains with $0$ (the GIoU
+        giou_weight: Weight of the GIoU term in the total. The reference trains with $0$ (the GIoU
             drives only the matcher); note the rotated-box GIoU (scenes with non-zero headings) is
             computed without gradients, so a non-zero weight trains only axis-aligned scenes.
-        loss_sem_cls_weight: Weight of the semantic-classification term in the total.
-        loss_no_object_weight: Cross-entropy weight of the background class.
-        loss_angle_cls_weight: Weight of the heading-bin classification term in the total.
-        loss_angle_reg_weight: Weight of the heading-residual regression term in the total.
-        loss_center_weight: Weight of the center term in the total.
-        loss_size_weight: Weight of the size term in the total.
+        sem_cls_weight: Weight of the semantic-classification term in the total.
+        no_object_weight: Cross-entropy weight of the background class.
+        angle_cls_weight: Weight of the heading-bin classification term in the total.
+        angle_reg_weight: Weight of the heading-residual regression term in the total.
+        center_weight: Weight of the center term in the total.
+        size_weight: Weight of the size term in the total.
     """
 
     semcls_weights: Tensor
@@ -116,19 +116,19 @@ class ThreeDETRLoss(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        num_heading_bins: int,
         *,
+        num_heading_bins: int,
         matcher_cls_cost: float = 1.0,
         matcher_giou_cost: float = 2.0,
         matcher_center_cost: float = 0.0,
         matcher_objectness_cost: float = 0.0,
-        loss_giou_weight: float = 0.0,
-        loss_sem_cls_weight: float = 1.0,
-        loss_no_object_weight: float = 0.2,
-        loss_angle_cls_weight: float = 0.1,
-        loss_angle_reg_weight: float = 0.5,
-        loss_center_weight: float = 5.0,
-        loss_size_weight: float = 1.0,
+        giou_weight: float = 0.0,
+        sem_cls_weight: float = 1.0,
+        no_object_weight: float = 0.2,
+        angle_cls_weight: float = 0.1,
+        angle_reg_weight: float = 0.5,
+        center_weight: float = 5.0,
+        size_weight: float = 1.0,
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
@@ -137,15 +137,15 @@ class ThreeDETRLoss(nn.Module):
         self.matcher_giou_cost = matcher_giou_cost
         self.matcher_center_cost = matcher_center_cost
         self.matcher_objectness_cost = matcher_objectness_cost
-        self.loss_giou_weight = loss_giou_weight
-        self.loss_sem_cls_weight = loss_sem_cls_weight
-        self.loss_angle_cls_weight = loss_angle_cls_weight
-        self.loss_angle_reg_weight = loss_angle_reg_weight
-        self.loss_center_weight = loss_center_weight
-        self.loss_size_weight = loss_size_weight
+        self.giou_weight = giou_weight
+        self.sem_cls_weight = sem_cls_weight
+        self.angle_cls_weight = angle_cls_weight
+        self.angle_reg_weight = angle_reg_weight
+        self.center_weight = center_weight
+        self.size_weight = size_weight
 
         semcls_weights = torch.ones(num_classes + 1)
-        semcls_weights[-1] = loss_no_object_weight
+        semcls_weights[-1] = no_object_weight
         self.register_buffer("semcls_weights", semcls_weights)
 
     def forward(self, output: Dict[str, Any], batch: Dict[str, Any]) -> Dict[str, Tensor]:
@@ -178,12 +178,12 @@ class ThreeDETRLoss(nn.Module):
         for layer in layers:
             layer_losses = self._layer_loss(layer, targets, num_boxes, has_gt, rotated)
             total = total + (
-                self.loss_giou_weight * layer_losses["loss_giou"]
-                + self.loss_sem_cls_weight * layer_losses["loss_sem_cls"]
-                + self.loss_angle_cls_weight * layer_losses["loss_angle_cls"]
-                + self.loss_angle_reg_weight * layer_losses["loss_angle_reg"]
-                + self.loss_center_weight * layer_losses["loss_center"]
-                + self.loss_size_weight * layer_losses["loss_size"]
+                self.giou_weight * layer_losses["loss_giou"]
+                + self.sem_cls_weight * layer_losses["loss_sem_cls"]
+                + self.angle_cls_weight * layer_losses["loss_angle_cls"]
+                + self.angle_reg_weight * layer_losses["loss_angle_reg"]
+                + self.center_weight * layer_losses["loss_center"]
+                + self.size_weight * layer_losses["loss_size"]
             )
             for name, weight in _COMPONENT_WEIGHTS.items():
                 components[name] = components[name] + getattr(self, weight) * layer_losses[name]
@@ -464,10 +464,10 @@ _COMPONENT_NAMES = (
 )
 
 _COMPONENT_WEIGHTS = {
-    "loss_sem_cls": "loss_sem_cls_weight",
-    "loss_center": "loss_center_weight",
-    "loss_size": "loss_size_weight",
-    "loss_angle_cls": "loss_angle_cls_weight",
-    "loss_angle_reg": "loss_angle_reg_weight",
-    "loss_giou": "loss_giou_weight",
+    "loss_sem_cls": "sem_cls_weight",
+    "loss_center": "center_weight",
+    "loss_size": "size_weight",
+    "loss_angle_cls": "angle_cls_weight",
+    "loss_angle_reg": "angle_reg_weight",
+    "loss_giou": "giou_weight",
 }

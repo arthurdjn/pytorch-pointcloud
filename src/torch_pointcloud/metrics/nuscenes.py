@@ -7,6 +7,8 @@ import numpy as np
 import torch
 from torch import Tensor
 
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
+
 _TP_KEYS = ("trans", "scale", "orient", "vel", "attr")
 
 
@@ -149,13 +151,8 @@ def filter_boxes_by_range(boxes: Tensor, labels: Tensor, ranges: Sequence[float]
 
 
 def nuscenes_detection_metrics(
-    pred_boxes: Tensor,
-    pred_scores: Tensor,
-    pred_labels: Tensor,
-    pred_batch: Tensor,
-    gt_boxes: Tensor,
-    gt_labels: Tensor,
-    gt_batch: Tensor,
+    preds: Detection3D,
+    target: Boxes3D,
     *,
     class_names: Sequence[str],
     gt_num_points: Optional[Tensor] = None,
@@ -190,14 +187,11 @@ def nuscenes_detection_metrics(
     attributes are absent (on either side), AVE / AAE fall back to the full penalty of $1.0$ per class.
 
     Args:
-        pred_boxes: Predicted boxes $(M, 7)$ of $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, or $(M, 9)$
-            with $(v_x, v_y)$ velocity columns appended.
-        pred_scores: Per-box confidence, shape $(M,)$.
-        pred_labels: Per-box class index into `class_names`, shape $(M,)$.
-        pred_batch: Per-box sample index, shape $(M,)$.
-        gt_boxes: Ground-truth boxes $(K, 7)$ or $(K, 9)$, like `pred_boxes`.
-        gt_labels: Per-box class index into `class_names`, shape $(K,)$.
-        gt_batch: Per-box sample index, shape $(K,)$.
+        preds: Predicted `boxes` $(M, 7)$ of $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, or $(M, 9)$ with
+            $(v_x, v_y)$ velocity columns appended, with their `scores`, `labels` (class index into
+            `class_names`) and `batch` (sample index), each $(M,)$.
+        target: Ground-truth `boxes` $(K, 7)$ or $(K, 9)$, like the predictions, with their `labels` and
+            `batch`, each $(K,)$.
         class_names: Class name per label index; `barrier` and `traffic_cone` get their official special
             handling by name.
         gt_num_points: Optional per-box point count, shape $(K,)$; boxes with exactly $0$ points are
@@ -221,16 +215,21 @@ def nuscenes_detection_metrics(
     Example:
         ```pycon
         >>> zero = torch.tensor([0])
-        >>> pred_boxes = torch.tensor([[0.25, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
-        >>> gt_boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
-        >>> metrics = nuscenes_detection_metrics(
-        ...     pred_boxes, torch.tensor([0.9]), zero, zero, gt_boxes, zero, zero, class_names=["car"]
-        ... )
+        >>> preds = {
+        ...     "boxes": torch.tensor([[0.25, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        ...     "scores": torch.tensor([0.9]),
+        ...     "labels": zero,
+        ...     "batch": zero,
+        ... }
+        >>> target = {"boxes": torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]]), "labels": zero, "batch": zero}
+        >>> metrics = nuscenes_detection_metrics(preds, target, class_names=["car"])
         >>> f"{metrics['AP/car']:.2f} {metrics['mATE']:.2f} {metrics['NDS']:.3f}"
         '1.00 0.25 0.775'
 
         ```
     """
+    pred_boxes, pred_scores, pred_labels, pred_batch = preds["boxes"], preds["scores"], preds["labels"], preds["batch"]
+    gt_boxes, gt_labels, gt_batch = target["boxes"], target["labels"], target["batch"]
     if class_ranges is None:
         class_ranges = {
             "car": 50.0,
