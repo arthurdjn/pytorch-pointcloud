@@ -14,7 +14,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseConvBlock, SubMConv3dResidualBlock
 from torch_pointcloud.layers.anchors import separate_branch
-from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
+from torch_pointcloud.layers.bev_backbone import BEVResidualBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
@@ -689,9 +689,9 @@ class VoxelMambaDetection(DetectionModel):
             norm_epsilon=self.norm_epsilon,
         )
 
-    def configure_backbone(self) -> BaseBEVResBackbone:
+    def configure_backbone(self) -> BEVResidualBackbone:
         """Build the residual 2D BEV backbone."""
-        return BaseBEVResBackbone(
+        return BEVResidualBackbone(
             self.bev_channels,
             self.layer_nums,
             self.layer_strides,

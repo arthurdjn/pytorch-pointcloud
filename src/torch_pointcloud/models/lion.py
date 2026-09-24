@@ -16,7 +16,7 @@ from torch_geometric.nn.dense.linear import Linear
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
-from torch_pointcloud.layers.bev_backbone import BaseBEVResBackbone
+from torch_pointcloud.layers.bev_backbone import BEVResidualBackbone
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
@@ -1277,9 +1277,9 @@ class LIONDetection(DetectionModel):
             expand=self.expand,
         )
 
-    def configure_backbone(self) -> BaseBEVResBackbone:
+    def configure_backbone(self) -> BEVResidualBackbone:
         """Build the residual 2D BEV backbone."""
-        return BaseBEVResBackbone(
+        return BEVResidualBackbone(
             self.channels * 2,
             self.layer_nums,
             self.layer_strides,

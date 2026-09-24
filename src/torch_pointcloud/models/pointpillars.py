@@ -13,12 +13,12 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers.anchors import (
-    AnchorHeadMulti,
+    AnchorHead,
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
-    AnchorHeadSingle,
+    MultiGroupAnchorHead,
 )
-from torch_pointcloud.layers.bev_backbone import BaseBEVBackbone
+from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D
 
@@ -26,10 +26,10 @@ from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
 
 
-class PFNLayer(nn.Module):
+class PillarFeatureLayer(nn.Module):
     r"""Single pillar feature-net layer: a per-point PyG `MLP` and pillar max-pool.
 
-    Mirrors the reference `PFNLayer`. For non-final layers the pooled feature is concatenated back
+    Mirrors the reference `PillarFeatureLayer`. For non-final layers the pooled feature is concatenated back
     onto every point (so the output width is doubled before the next layer).
 
     Args:
@@ -85,7 +85,7 @@ class PillarFeatureNet(nn.Module):
     r"""Pillar feature encoder (`PillarVFE`).
 
     Augments each point in a pillar with its offset to the pillar's point-cluster mean and to the
-    pillar center, then applies a stack of [`PFNLayer`][torch_pointcloud.models.pointpillars.PFNLayer]s.
+    pillar center, then applies a stack of [`PillarFeatureLayer`][torch_pointcloud.models.pointpillars.PillarFeatureLayer]s.
 
     Args:
         in_channels: Raw point feature channels (e.g. $4$ for $x, y, z, \text{intensity}$).
@@ -117,7 +117,7 @@ class PillarFeatureNet(nn.Module):
 
         self.pfn_layers = nn.ModuleList()
         for i in range(len(num_filters) - 1):
-            layer = PFNLayer(
+            layer = PillarFeatureLayer(
                 num_filters[i],
                 num_filters[i + 1],
                 last_layer=(i >= len(num_filters) - 2),
@@ -302,9 +302,9 @@ class PointPillarsDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_backbone(self) -> BaseBEVBackbone:
+    def configure_backbone(self) -> BEVBackbone:
         """Build the 2D BEV backbone."""
-        return BaseBEVBackbone(
+        return BEVBackbone(
             self.feat_channels[-1],
             self.layer_nums,
             self.layer_strides,
@@ -322,9 +322,9 @@ class PointPillarsDetection(DetectionModel):
         """Channel count $C$ of the BEV feature map entering the head."""
         return self.backbone.num_bev_features
 
-    def configure_head(self) -> AnchorHeadSingle:
+    def configure_head(self) -> AnchorHead:
         """Build the single-group anchor head."""
-        return AnchorHeadSingle(
+        return AnchorHead(
             self.backbone.num_bev_features,
             self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
@@ -354,7 +354,7 @@ class PointPillarsDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadOutput) -> Detection3D:
-        r"""Decode a forward output into raw per-anchor detections (see `AnchorHeadSingle.decode`)."""
+        r"""Decode a forward output into raw per-anchor detections (see `AnchorHead.decode`)."""
         return self.head.decode(out)
 
 
@@ -364,7 +364,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
     (`cbgs_pp_multihead`). Same pillar trunk as
     [`PointPillarsDetection`][torch_pointcloud.models.pointpillars.PointPillarsDetection]
-    but with an [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti] head (per-group
+    but with an [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead] head (per-group
     heads, sincos + velocity box code). Input points carry 5 features ($x, y, z, \text{intensity},
     \Delta t$ from 10-sweep aggregation).
 
@@ -455,9 +455,9 @@ class PointPillarsMultiHeadDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_backbone(self) -> BaseBEVBackbone:
+    def configure_backbone(self) -> BEVBackbone:
         """Build the 2D BEV backbone."""
-        return BaseBEVBackbone(
+        return BEVBackbone(
             self.feat_channels[-1],
             self.layer_nums,
             self.layer_strides,
@@ -475,9 +475,9 @@ class PointPillarsMultiHeadDetection(DetectionModel):
         """Channel count $C$ of the BEV feature map entering the head."""
         return self.backbone.num_bev_features
 
-    def configure_head(self) -> AnchorHeadMulti:
+    def configure_head(self) -> MultiGroupAnchorHead:
         """Build the multi-group anchor head."""
-        return AnchorHeadMulti(
+        return MultiGroupAnchorHead(
             self.backbone.num_bev_features,
             self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
@@ -512,7 +512,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadMultiOutput) -> Detection3D:
-        r"""Decode a forward output into raw per-anchor detections (see `AnchorHeadMulti.decode`)."""
+        r"""Decode a forward output into raw per-anchor detections (see `MultiGroupAnchorHead.decode`)."""
         return self.head.decode(out)
 
 

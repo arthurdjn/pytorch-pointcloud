@@ -1,8 +1,9 @@
-"""Dense and sparse voxelization with trilinear devoxelization for packed point clouds."""
+"""Dense and sparse voxelization, FNV voxel hashing, and trilinear devoxelization for packed point clouds."""
 
 import functools
-from typing import TYPE_CHECKING, Literal, Sequence, Tuple, overload
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
 
+import numpy as np
 import torch
 from torch import IntTensor, Tensor
 from torch_geometric.nn.pool import voxel_grid
@@ -272,3 +273,96 @@ def hard_voxelize(
         num_points_list.append(num_points)
 
     return torch.cat(voxels_list, dim=0), torch.cat(voxel_indices_list, dim=0), torch.cat(num_points_list, dim=0)
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[False] = False,
+    return_counts: Literal[False] = False,
+) -> Tensor: ...
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[True],
+    return_counts: Literal[False] = False,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[False] = False,
+    return_counts: Literal[True],
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: Literal[True],
+    return_counts: Literal[True],
+) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+
+def voxel_grid_fnv(
+    pos: Tensor,
+    size: float,
+    start: Optional[Tensor] = None,
+    *,
+    return_inverse: bool = False,
+    return_counts: bool = False,
+) -> Union[Tensor, Tuple[Tensor, ...]]:
+    r"""FNV-1a 64-bit hash of integer voxel-grid coordinates. $(N, D) \to (N,)$.
+
+    Args:
+        pos: Point positions of shape $(N, D)$.
+        size: Voxel side length in the same units as `pos`.
+        start: Optional voxel-grid origin. When `None`, the grid origin is implicit via the
+            internal `pos_grid -= pos_grid.min(0)` shift.
+        return_inverse: If `True`, also return the per-point consecutive voxel index in $[0, V)$,
+            following the semantics of `torch.unique(..., return_inverse=True)`.
+        return_counts: If `True`, also return the per-voxel point count of shape $(V,)$.
+
+    Returns:
+        `hashed` of shape $(N,)$ when both flags are `False`. With `return_inverse=True` adds
+        `inverse` of shape $(N,)$; with `return_counts=True` adds `count` of shape $(V,)$; both
+        flags enabled returns `(hashed, inverse, count)`.
+    """
+    if start is not None:
+        pos_grid = torch.floor((pos - start) / size).int()
+    else:
+        pos_grid = torch.floor(pos / size).int()
+    pos_grid -= pos_grid.min(0).values
+
+    # FNV-1a 64-bit hash (numpy uint64 for correct overflow semantics)
+    arr = pos_grid.cpu().numpy().astype(np.uint64)
+    hashed = np.full(arr.shape[0], 14695981039346656037, dtype=np.uint64)
+    for j in range(arr.shape[1]):
+        hashed *= np.uint64(1099511628211)
+        hashed = np.bitwise_xor(hashed, arr[:, j])
+
+    hashed_tensor = torch.from_numpy(hashed.view(np.int64)).to(pos.device)
+    if not return_inverse and not return_counts:
+        return hashed_tensor
+
+    inverse, _ = consecutive_cluster(hashed_tensor)
+    if return_inverse and return_counts:
+        return hashed_tensor, inverse, torch.bincount(inverse)
+    if return_inverse:
+        return hashed_tensor, inverse
+    return hashed_tensor, torch.bincount(inverse)

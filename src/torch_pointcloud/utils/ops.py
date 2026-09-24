@@ -1,22 +1,16 @@
-"""Tensor operations on packed batches: safe division, softmax, voxel hashing, interpolation, and decimation."""
+"""Tensor operations on packed batches: safe division, softmax, permutations, decimation, and padding."""
 
-from typing import TYPE_CHECKING, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 
-import numpy as np
 import torch
 from torch import Tensor
-from torch_geometric.nn.pool.consecutive import consecutive_cluster
 
-from .conversion import ensure_option
-from .imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
-from .types import OptTensor
+from .imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
-    from torch_cluster import knn
     from torch_scatter import scatter
 
 scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
-knn, _ = optional_import("torch_cluster", name="knn", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("nan")) -> Tensor:
@@ -82,99 +76,6 @@ def softmax(x: Tensor, batch: Tensor, dim: int = 0) -> Tensor:
     return out / out_sum
 
 
-@overload
-def voxel_grid_fnv(
-    pos: Tensor,
-    size: float,
-    start: Optional[Tensor] = None,
-    *,
-    return_inverse: Literal[False] = False,
-    return_counts: Literal[False] = False,
-) -> Tensor: ...
-
-
-@overload
-def voxel_grid_fnv(
-    pos: Tensor,
-    size: float,
-    start: Optional[Tensor] = None,
-    *,
-    return_inverse: Literal[True],
-    return_counts: Literal[False] = False,
-) -> Tuple[Tensor, Tensor]: ...
-
-
-@overload
-def voxel_grid_fnv(
-    pos: Tensor,
-    size: float,
-    start: Optional[Tensor] = None,
-    *,
-    return_inverse: Literal[False] = False,
-    return_counts: Literal[True],
-) -> Tuple[Tensor, Tensor]: ...
-
-
-@overload
-def voxel_grid_fnv(
-    pos: Tensor,
-    size: float,
-    start: Optional[Tensor] = None,
-    *,
-    return_inverse: Literal[True],
-    return_counts: Literal[True],
-) -> Tuple[Tensor, Tensor, Tensor]: ...
-
-
-def voxel_grid_fnv(
-    pos: Tensor,
-    size: float,
-    start: Optional[Tensor] = None,
-    *,
-    return_inverse: bool = False,
-    return_counts: bool = False,
-) -> Union[Tensor, Tuple[Tensor, ...]]:
-    r"""FNV-1a 64-bit hash of integer voxel-grid coordinates. $(N, D) \to (N,)$.
-
-    Args:
-        pos: Point positions of shape $(N, D)$.
-        size: Voxel side length in the same units as `pos`.
-        start: Optional voxel-grid origin. When `None`, the grid origin is implicit via the
-            internal `pos_grid -= pos_grid.min(0)` shift.
-        return_inverse: If `True`, also return the per-point consecutive voxel index in $[0, V)$,
-            following the semantics of `torch.unique(..., return_inverse=True)`.
-        return_counts: If `True`, also return the per-voxel point count of shape $(V,)$.
-
-    Returns:
-        `hashed` of shape $(N,)$ when both flags are `False`. With `return_inverse=True` adds
-        `inverse` of shape $(N,)$; with `return_counts=True` adds `count` of shape $(V,)$; both
-        flags enabled returns `(hashed, inverse, count)`.
-    """
-    if start is not None:
-        pos_grid = torch.floor((pos - start) / size).int()
-    else:
-        pos_grid = torch.floor(pos / size).int()
-    pos_grid -= pos_grid.min(0).values
-
-    # FNV-1a 64-bit hash (numpy uint64 for correct overflow semantics)
-    arr = pos_grid.cpu().numpy().astype(np.uint64)
-    hashed = np.full(arr.shape[0], 14695981039346656037, dtype=np.uint64)
-    for j in range(arr.shape[1]):
-        hashed *= np.uint64(1099511628211)
-        hashed = np.bitwise_xor(hashed, arr[:, j])
-
-    hashed_tensor = torch.from_numpy(hashed.view(np.int64)).to(pos.device)
-    if not return_inverse and not return_counts:
-        return hashed_tensor
-
-    inverse, _ = consecutive_cluster(hashed_tensor)
-    if return_inverse and return_counts:
-        return hashed_tensor, inverse, torch.bincount(inverse)
-    if return_inverse:
-        return hashed_tensor, inverse
-    return hashed_tensor, torch.bincount(inverse)
-
-
 def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Tensor:
     r"""Index of the first occurrence of each cluster id in a consecutive cluster tensor.
 
@@ -203,79 +104,6 @@ def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Te
     perm = torch.arange(n, device=cluster.device)
     first = torch.full((num_clusters,), n, dtype=torch.long, device=cluster.device)
     return first.scatter_reduce_(0, cluster, perm, reduce="amin")
-
-
-def knn_interpolate(
-    x: Tensor,
-    pos_x: Tensor,
-    pos_y: Tensor,
-    batch_x: OptTensor = None,
-    batch_y: OptTensor = None,
-    k: int = 3,
-    num_workers: int = 1,
-    weighting: Literal["squared", "inverse"] = "squared",
-    eps: float = 1e-16,
-) -> Tensor:
-    r"""k-NN interpolation with inverse-distance weighting.
-
-    From :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a
-    Metric Space](https://arxiv.org/abs/1706.02413).
-
-    For each point $y$ with position $\mathbf{p}(y)$, its
-    interpolated features $\mathbf{f}(y)$ are given by
-
-    $$
-        \mathbf{f}(y) = \frac{\sum_{i=1}^k w(x_i) \mathbf{f}(x_i)}{\sum_{i=1}^k
-        w(x_i)}
-    $$
-
-    where $\{ x_1, \ldots, x_k \}$ are the $k$ nearest points to $y$ and
-    the weights $w(x_i)$ depend on the chosen `weighting` scheme:
-
-    - `"squared"` (default, `torch_geometric` convention):
-      $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))^2$
-    - `"inverse"` (PointNet++ `three_interpolation` convention):
-      $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))$
-
-    Note:
-        Adapted from the `torch_geometric` package. Requires `torch-cluster`.
-
-    Args:
-        x: Node feature matrix $\mathbf{X} \in \mathbb{R}^{N \times F}$.
-        pos_x: Node position matrix $\in \mathbb{R}^{N \times d}$.
-        pos_y: Upsampled node position matrix $\in \mathbb{R}^{M \times d}$.
-        batch_x: Batch vector $\mathbf{b_x} \in \{ 0, \ldots, B-1 \}^N$,
-            assigning each node from $\mathbf{X}$ to a specific example.
-        batch_y: Batch vector $\mathbf{b_y} \in \{ 0, \ldots, B-1 \}^M$,
-            assigning each node from $\mathbf{Y}$ to a specific example.
-        k: Number of neighbors.
-        num_workers: Number of workers for computation. Has no effect when
-            `batch_x` or `batch_y` is not `None`, or the input lies on GPU.
-        weighting: Weighting scheme for neighbors. `"squared"` for $1/d^2$
-            weights (`torch_geometric` default) or `"inverse"` for $1/d$
-            weights (PointNet++ convention).
-        eps: Small value to avoid division by zero.
-
-    Returns:
-        Interpolated features $\in \mathbb{R}^{M \times F}$.
-    """
-    weighting = ensure_option(weighting, ("squared", "inverse"), name="weighting")
-
-    with torch.no_grad():
-        assign_index = knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
-        y_idx, x_idx = assign_index[0], assign_index[1]
-        diff = pos_x[x_idx] - pos_y[y_idx]
-        squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
-
-        if weighting == "squared":
-            weights = 1.0 / (squared_distance + eps)
-        else:
-            dist = squared_distance.sqrt()
-            weights = 1.0 / (dist + eps)
-
-    y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
-    y = y / scatter(weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
-    return y
 
 
 @torch.no_grad()

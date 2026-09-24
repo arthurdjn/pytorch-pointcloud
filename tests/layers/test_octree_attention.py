@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.layers.octree_attention import RPE, OctreeAttention, OctreeT
+from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
 from torch_pointcloud.utils.octree import build_octree
 
@@ -40,14 +40,14 @@ def test_octree_t_repr() -> None:
 
 
 def test_rpe_forward() -> None:
-    rpe = RPE(patch_size=4, num_heads=2, dilation=1)
+    rpe = OctreeRelativePositionEncoding(patch_size=4, num_heads=2, dilation=1)
     pos = torch.randint(-2, 3, (2, 4, 4, 3))
     out = rpe(pos)
     assert out.shape == (2, 2, 4, 4)
 
 
 def test_rpe_table_initialized_nonzero() -> None:
-    rpe = RPE(patch_size=4, num_heads=2, dilation=1)
+    rpe = OctreeRelativePositionEncoding(patch_size=4, num_heads=2, dilation=1)
     assert bool(rpe.rpe_table.abs().sum() > 0)
 
 

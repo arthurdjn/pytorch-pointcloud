@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Made `import torch_pointcloud` lazy: subpackages load on first access, so importing `transforms` or `datasets` no longer loads the models and spconv.
+- Renamed `BaseBEVBackbone`, `BaseBEVResBackbone`, `BasicBlock2d`, `AnchorHeadSingle`, `AnchorHeadMulti`, `MultiGroupSingleHead`, `PFNLayer` and `RPE` to `BEVBackbone`, `BEVResidualBackbone`, `ResidualBlock2d`, `AnchorHead`, `MultiGroupAnchorHead`, `AnchorGroupHead`, `PillarFeatureLayer` and `OctreeRelativePositionEncoding`.
+- Moved `utils.ops.voxel_grid_fnv` to `utils.voxelization`, `utils.ops.knn_interpolate` to `utils.cluster`, and `layers.ensure_msg_list` / `ensure_msg_list_size` to `utils.conversion`, and renamed `utils.neighbors` to `utils.density`.
 - Added `input_keys` to the registry, the batch keys each model's `forward` takes, read by `LitModel` by default, and `utils.data.select_inputs`.
 - Made `task` optional in `create_model` when the name is registered under a single task.
 - Added `ModelInfoDict`, the type of `create_model(..., return_info=True)` info, with the resolved `task` and `input_keys`, and typed the registered `transform` as a `Transform`.

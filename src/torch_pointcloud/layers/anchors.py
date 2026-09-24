@@ -6,9 +6,9 @@ A packed-format port of the anchor head from
 - [`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors]: axis-aligned anchor
   generation; residuals are decoded with
   `decode_box_residuals`.
-- [`AnchorHeadSingle`][torch_pointcloud.layers.anchors.AnchorHeadSingle]: the single-stage anchor
+- [`AnchorHead`][torch_pointcloud.layers.anchors.AnchorHead]: the single-stage anchor
   head (per-anchor class logits, box residuals and a direction bin).
-- [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]: the multi-group
+- [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead]: the multi-group
   separate-head variant (sincos + velocity box code) used by the nuScenes detectors.
 - [`separate_branch`][torch_pointcloud.layers.anchors.separate_branch]: the per-attribute
   `SeparateHead` branch builder, also used by the Voxel Mamba center head.
@@ -34,7 +34,7 @@ from torch_pointcloud.utils.types import Detection3D
 
 
 class AnchorHeadOutput(TypedDict):
-    r"""Raw and decoded predictions of [`AnchorHeadSingle`][torch_pointcloud.layers.anchors.AnchorHeadSingle]."""
+    r"""Raw and decoded predictions of [`AnchorHead`][torch_pointcloud.layers.anchors.AnchorHead]."""
 
     cls: Tensor
     box: Tensor
@@ -189,8 +189,8 @@ def assign_anchor_targets(
     }
 
 
-class AnchorHeadSingle(nn.Module):
-    r"""Single-stage anchor head (`AnchorHeadSingle`).
+class AnchorHead(nn.Module):
+    r"""Single-stage anchor head.
 
     Three $1\times1$ convs predict, per anchor, class logits, 7-DoF box residuals and a direction
     bin. At inference the residuals are decoded against the precomputed anchors and the predicted
@@ -321,7 +321,7 @@ class AnchorHeadSingle(nn.Module):
 
 
 class AnchorHeadMultiOutput(TypedDict):
-    r"""Predictions of [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti]."""
+    r"""Predictions of [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead]."""
 
     cls: List[Tensor]
     box: List[Tensor]
@@ -394,8 +394,8 @@ def separate_branch(
     return nn.Sequential(*layers)
 
 
-class MultiGroupSingleHead(nn.Module):
-    r"""One RPN head of [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti].
+class AnchorGroupHead(nn.Module):
+    r"""One RPN head of [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead].
 
     A `SeparateHead`-style head over the shared feature: a classification branch plus one regression
     branch per box-code group (`reg`, `height`, `size`, `angle`, `velo`), whose outputs are
@@ -482,10 +482,10 @@ class MultiGroupSingleHead(nn.Module):
         return cls_preds, box_preds
 
 
-class AnchorHeadMulti(nn.Module):
-    r"""Multi-group anchor head (`AnchorHeadMulti`, separate-multihead).
+class MultiGroupAnchorHead(nn.Module):
+    r"""Multi-group anchor head, one separate head per group of classes.
 
-    A shared conv feeds several [`MultiGroupSingleHead`][torch_pointcloud.layers.anchors.MultiGroupSingleHead]s,
+    A shared conv feeds several [`AnchorGroupHead`][torch_pointcloud.layers.anchors.AnchorGroupHead]s,
     one per class group. Anchors (7-DoF, padded to the box-code size) are decoded with
     `decode_box_residuals` (sincos heading,
     velocity deltas); per-head class scores stay separate (with their global label mapping) for
@@ -575,7 +575,7 @@ class AnchorHeadMulti(nn.Module):
             # The reference per-group SeparateHead uses default BatchNorm hyperparameters (eps 1e-5),
             # unlike the trunk / shared conv (eps 1e-3); `norm_kwargs` is left at the default so a
             # converted checkpoint stays bit-exact.
-            head = MultiGroupSingleHead(
+            head = AnchorGroupHead(
                 shared_conv_num_filter,
                 len(group),
                 num_anchors,
@@ -596,7 +596,7 @@ class AnchorHeadMulti(nn.Module):
         box_list: List[Tensor] = []
         label_mapping: List[Tensor] = []
         for head in self.rpn_heads:
-            assert isinstance(head, MultiGroupSingleHead)
+            assert isinstance(head, AnchorGroupHead)
             cls_preds, box_preds = head(shared)
             cls_list.append(cls_preds)
             box_list.append(box_preds)

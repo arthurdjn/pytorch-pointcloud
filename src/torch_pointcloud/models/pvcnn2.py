@@ -14,14 +14,9 @@ from torch_geometric.typing import OptTensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
-from torch_pointcloud.layers.pointnet2_blocks import (
-    PointNet2FeaturePropagation,
-    PointNet2SetAbstraction,
-    ensure_msg_list,
-    ensure_msg_list_size,
-)
+from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
-from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.conversion import ensure_msg_list, ensure_msg_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict
 

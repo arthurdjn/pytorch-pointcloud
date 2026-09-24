@@ -31,10 +31,9 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.utils.cluster import knn
+from torch_pointcloud.utils.cluster import knn, knn_interpolate
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SemanticSegmentationModel
