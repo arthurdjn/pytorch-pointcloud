@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.7 (2026-09-24)
+
 - Renamed `CenterLoss` and `SparseCenterLoss` to `CenterPointLoss` and `SparseCenterPointLoss`, in `losses.centerpoint`.
 - Renamed the loss weights to `<term>_weight` (the 3DETR `loss_*_weight`, TransFusion `hm_weight` / `bbox_weight` to `heatmap_weight` / `loc_weight`, VoteNet `loss_scale` to `loss_weight`) and the TransFusion `hungarian_*_cost` to `matcher_*_cost`, and made every loss argument after `num_classes` keyword-only.
 - Renamed `average_precision3d` to `box_average_precision`, and the Lightning metrics `AveragePrecision3D`, `MeanAveragePrecision3D` and `InstancePartMeanIoU` to `BoxAveragePrecision`, `BoxMeanAveragePrecision` and `InstancePartMeanIntersectionOverUnion`.
