@@ -25,6 +25,7 @@ from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.metrics import average_precision3d, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import VoteNetDetection, create_model
+from torch_pointcloud.models.votenet import EncodeVoteNetTargets, GenerateVoteLabels
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -58,11 +59,11 @@ def train_transform(model: VoteNetDetection) -> T.Compose:
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
             T.RandomSample(keys=[DataKeys.POS, "height"], num_samples=NUM_POINTS),
-            T.GenerateVoteLabels(pos_key=DataKeys.POS, box_key=DataKeys.BOX),
+            GenerateVoteLabels(pos_key=DataKeys.POS, box_key=DataKeys.BOX),
             T.RandomFlip(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, axes=(0,)),
             T.RandomRotate(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, angle_range=(-30.0, 30.0)),
             T.RandomScale(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, scale_range=(0.85, 1.15)),
-            T.EncodeVoteNetTargets(
+            EncodeVoteNetTargets(
                 box_key=DataKeys.BOX,
                 num_heading_bins=model.num_heading_bins,
                 max_num_obj=64,

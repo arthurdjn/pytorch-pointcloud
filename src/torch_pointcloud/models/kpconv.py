@@ -1400,7 +1400,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
             keys=[DataKeys.COLOR, DataKeys.SEGMENT],
             reduce=["mean", "first"],
             size=0.03,
-            method="pyg",
+            method="grid",
             dst_inverse_key=DataKeys.INVERSE,
         ),
         T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),

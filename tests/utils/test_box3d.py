@@ -6,10 +6,13 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.box3d import (
+    angle_to_class,
     box3d_overlap,
     box_corners,
     boxes_iou3d,
     boxes_iou_bev,
+    class_to_angle,
+    class_to_size,
     count_points_in_boxes,
     nms3d,
     projected_ignore_mask,
@@ -329,3 +332,32 @@ def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None
     assert torch.equal(
         nms3d(boxes, scores, 0.2, rotated=rotated)[:7], nms3d(boxes, scores, 0.2, rotated=rotated, max_keep=7)
     )
+
+
+def test_angle_to_class_roundtrip() -> None:
+    angles = torch.tensor([0.0, 0.6, 2.5, math.pi])
+    cls, residual = angle_to_class(angles, 12)
+    recovered = class_to_angle(cls, residual, 12) % (2 * math.pi)
+    assert torch.allclose(recovered, angles % (2 * math.pi), atol=1e-5)
+
+
+def test_class_to_angle_matches_bin_center_plus_residual() -> None:
+    heading_class = torch.tensor([0, 3, 11])
+    heading_residual = torch.tensor([0.05, -0.1, 0.2])
+    angle = class_to_angle(heading_class, heading_residual, 12)
+    expected = heading_class.to(heading_residual.dtype) * (2 * math.pi / 12) + heading_residual
+    assert torch.allclose(angle, expected)
+
+
+def test_class_to_angle_single_bin_decodes_zero() -> None:
+    heading_class = torch.zeros(4, dtype=torch.long)
+    heading_residual = torch.randn(4)
+    assert torch.equal(class_to_angle(heading_class, heading_residual, 1), torch.zeros(4))
+
+
+def test_class_to_size_adds_residual_to_template() -> None:
+    mean_sizes = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    size_class = torch.tensor([0, 1, 0])
+    size_residual = torch.tensor([[0.1, -0.2, 0.3], [0.0, 0.5, -0.5], [-0.4, 0.0, 0.1]])
+    size = class_to_size(size_class, size_residual, mean_sizes)
+    assert torch.allclose(size, mean_sizes[size_class] + size_residual)

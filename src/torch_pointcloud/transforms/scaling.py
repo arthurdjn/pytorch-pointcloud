@@ -15,7 +15,6 @@ RescaleMethod = Literal["centroid", "bbox", "centroid_extent", "min_sphere"]
 __all__ = [
     "Normalize",
     "Rescale",
-    "RescaleMethod",
 ]
 
 

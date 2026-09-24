@@ -258,14 +258,8 @@ def test_abs_default() -> None:
     result = T.Abs(keys=["pos"])(data)
     assert torch.equal(result["pos"], torch.tensor([1.0, 2.0, 3.0]))
     assert result["other"] is sentinel.other
-    # default inplace=False does not mutate input
+    # the input is not mutated
     assert torch.equal(pos, torch.tensor([-1.0, 2.0, -3.0]))
-
-
-def test_abs_inplace_mutates() -> None:
-    pos = torch.tensor([-1.0, -2.0])
-    T.Abs(keys=["pos"], inplace=True)({"pos": pos})
-    assert torch.equal(pos, torch.tensor([1.0, 2.0]))
 
 
 def test_abs_multiple_keys() -> None:

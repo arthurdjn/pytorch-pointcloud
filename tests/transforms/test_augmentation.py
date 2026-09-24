@@ -236,7 +236,7 @@ def test_random_color_jitter_int_dtype_preserved() -> None:
 
 def test_random_color_drop_returns_constant() -> None:
     color = torch.rand(10, 3)
-    out = F.random_color_drop(color, fill=0.5)
+    out = F.color_drop(color, fill=0.5)
     assert torch.allclose(out, torch.full_like(color, 0.5))
 
 
@@ -290,7 +290,7 @@ def test_random_color_jitter_float_255_without_flag_raises() -> None:
 
 def test_random_color_drop_uint8_fill_rescaled_to_255_range() -> None:
     color = torch.full((4, 3), 200, dtype=torch.uint8)
-    out = F.random_color_drop(color)
+    out = F.color_drop(color)
     assert out.dtype == torch.uint8
     assert torch.all(out == 127)
 
@@ -298,7 +298,7 @@ def test_random_color_drop_uint8_fill_rescaled_to_255_range() -> None:
 def test_random_color_drop_float_255_without_flag_raises() -> None:
     color = torch.full((4, 3), 200.0)
     with pytest.raises(ValueError, match="int_color"):
-        F.random_color_drop(color)
+        F.color_drop(color)
 
 
 def test_color_auto_contrast_uint8_stretches_to_255() -> None:

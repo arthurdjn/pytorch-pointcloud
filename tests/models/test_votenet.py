@@ -1,13 +1,21 @@
+import math
 from typing import Any, Dict
 
 import pytest
 import torch
 from torch import Tensor
 
+import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.votenet import VoteNetDetection, VoteNetOutput, VotingModule
-from torch_pointcloud.transforms.functional import class_to_angle, class_to_size
+from torch_pointcloud.models.votenet import (
+    EncodeVoteNetTargets,
+    GenerateVoteLabels,
+    VoteNetDetection,
+    VoteNetOutput,
+    VotingModule,
+)
+from torch_pointcloud.utils.box3d import class_to_angle, class_to_size
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
 
 pytestmark = [
@@ -254,3 +262,130 @@ def test_votenet_output_feeds_loss_directly() -> None:
     result = loss_fn(output, gt)
     assert result["loss"].ndim == 0
     assert torch.isfinite(result["loss"])
+
+
+def _box(heading: float = 0.0) -> Tensor:
+    return torch.tensor([[1.0, 0.5, 0.3, 0.8, 0.6, 0.4, heading]])
+
+
+def test_generate_vote_labels_overlapping_boxes_get_distinct_votes() -> None:
+    boxes = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
+            [0.25, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
+        ]
+    )
+    pos = torch.tensor([[0.1, 0.0, 0.0], [-0.4, 0.0, 0.0], [5.0, 5.0, 5.0]])
+    out = GenerateVoteLabels(oriented=False)({"pos": pos, "box": boxes})
+    votes = out["vote_label"]
+    # Inside both boxes: slot 0 votes for box 0, slot 1 for box 1, slot 2 repeats the first vote.
+    assert torch.allclose(votes[0, 0:3], boxes[0, 0:3] - pos[0])
+    assert torch.allclose(votes[0, 3:6], boxes[1, 0:3] - pos[0])
+    assert torch.allclose(votes[0, 6:9], votes[0, 0:3])
+    # Inside box 0 only: its offset is tiled into all three slots.
+    assert torch.allclose(votes[1], (boxes[0, 0:3] - pos[1]).repeat(3))
+    assert out["vote_label_mask"].tolist() == [1, 1, 0]
+
+
+def test_generate_vote_labels_oriented_containment_is_counterclockwise() -> None:
+    heading = math.pi / 4
+    rotation = F.rotation_matrix(heading, axis=2)
+    box = torch.tensor([[0.0, 0.0, 0.0, 2.0, 0.5, 1.0, heading]])
+    pos = torch.tensor([[0.9, 0.2, 0.0]]) @ rotation.T  # inside only if the heading rotates counterclockwise
+    out = GenerateVoteLabels(oriented=True)({"pos": pos, "box": box})
+    assert out["vote_label_mask"].tolist() == [1]
+
+
+def test_generate_vote_labels_marks_in_and_out() -> None:
+    box = _box(heading=0.0)
+    pts = torch.tensor([[1.0, 0.5, 0.3], [5.0, 5.0, 5.0]])
+    data = {"pos": pts, "box": box.clone()}
+    out = GenerateVoteLabels(oriented=True, gt_vote_factor=3)(data)
+    assert out["vote_label"].shape == (2, 9)
+    assert out["vote_label_mask"].tolist() == [1, 0]
+    assert torch.allclose(out["vote_label"][0, 0:3], box[0, 0:3] - pts[0])
+    assert torch.allclose(out["vote_label"][0, 0:3], out["vote_label"][0, 3:6])
+    assert torch.allclose(out["vote_label"][0, 0:3], out["vote_label"][0, 6:9])
+    assert torch.allclose(out["vote_label"][1], torch.zeros(9))
+
+
+def test_generate_vote_labels_oriented_vs_axis_aligned() -> None:
+    box = _box(heading=math.pi / 4)
+    corner = torch.tensor([[1.0 + 0.38, 0.5 + 0.28, 0.3]])
+    data_axis = {"pos": corner.clone(), "box": box.clone()}
+    data_oriented = {"pos": corner.clone(), "box": box.clone()}
+    out_axis = GenerateVoteLabels(oriented=False)(data_axis)
+    out_oriented = GenerateVoteLabels(oriented=True)(data_oriented)
+    assert out_axis["vote_label_mask"].item() == 1
+    assert out_oriented["vote_label_mask"].item() == 0
+
+
+def test_encode_votenet_targets_shapes_and_roundtrip() -> None:
+    mean = torch.ones(10, 3) * 0.5
+    box = _box(heading=0.6)
+    data = {"box": box.clone(), "label": torch.tensor([2])}
+    out = EncodeVoteNetTargets(num_heading_bins=12, mean_sizes=mean, max_num_obj=64)(data)
+    assert out["center_label"].shape == (64, 3)
+    assert out["heading_class_label"].shape == (64,)
+    assert out["heading_residual_label"].shape == (64,)
+    assert out["size_class_label"].shape == (64,)
+    assert out["size_residual_label"].shape == (64, 3)
+    assert out["sem_cls_label"].shape == (64,)
+    assert out["box_label_mask"].shape == (64,)
+    assert out["box_label_mask"].sum().item() == 1
+    assert out["size_class_label"][0].item() == 2
+    assert out["sem_cls_label"][0].item() == 2
+    assert torch.allclose(out["center_label"][0], box[0, 0:3])
+    recovered = class_to_size(out["size_class_label"][:1], out["size_residual_label"][:1], mean)
+    assert torch.allclose(recovered[0], box[0, 3:6], atol=1e-5)
+
+
+def test_encode_votenet_targets_truncates_to_max_num_obj() -> None:
+    mean = torch.ones(10, 3) * 0.5
+    boxes = _box(heading=0.0).repeat(5, 1)
+    data = {"box": boxes, "label": torch.ones(5, dtype=torch.long)}
+    out = EncodeVoteNetTargets(num_heading_bins=12, mean_sizes=mean, max_num_obj=3)(data)
+    assert out["center_label"].shape == (3, 3)
+    assert out["box_label_mask"].sum().item() == 3
+
+
+def test_vote_then_encode_keeps_boxes_and_writes_all_labels() -> None:
+    mean = torch.ones(10, 3) * 0.5
+    pos = torch.rand(2048, 3) * 4
+    boxes = torch.tensor(
+        [
+            [1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.2],
+            [2.0, 2.0, 1.0, 1.2, 1.0, 0.8, 0.0],
+        ]
+    )
+    data = {"pos": pos.clone(), "box": boxes.clone(), "label": torch.tensor([3, 1])}
+    data = GenerateVoteLabels(pos_key="pos", box_key="box")(data)
+    out = EncodeVoteNetTargets(box_key="box", num_heading_bins=12, mean_sizes=mean, max_num_obj=64)(data)
+
+    assert torch.equal(out["box"], boxes)
+    assert out["vote_label"].shape == (2048, 9)
+    assert out["vote_label_mask"].shape == (2048,)
+
+    shapes = {
+        "center_label": (64, 3),
+        "heading_class_label": (64,),
+        "heading_residual_label": (64,),
+        "size_class_label": (64,),
+        "size_residual_label": (64, 3),
+        "sem_cls_label": (64,),
+        "box_label_mask": (64,),
+    }
+    for key, shape in shapes.items():
+        assert out[key].shape == shape
+
+    assert out["heading_class_label"].dtype == torch.long
+    assert out["size_class_label"].dtype == torch.long
+    assert out["sem_cls_label"].dtype == torch.long
+    assert out["center_label"].dtype == torch.float32
+    assert out["size_residual_label"].dtype == torch.float32
+    assert out["box_label_mask"].dtype == torch.float32
+
+    assert out["box_label_mask"][:2].tolist() == [1.0, 1.0]
+    assert out["box_label_mask"][2:].sum().item() == 0.0
+    assert out["sem_cls_label"][:2].tolist() == [3, 1]
+    assert out["size_class_label"][:2].tolist() == [3, 1]

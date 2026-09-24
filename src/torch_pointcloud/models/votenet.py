@@ -12,10 +12,12 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
 from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
+from torch_pointcloud.transforms.base import DictTransform
+from torch_pointcloud.transforms.box import points_in_oriented_box
+from torch_pointcloud.utils.box3d import angle_to_class, class_to_angle, class_to_size
 from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
@@ -567,12 +569,12 @@ class VoteNetDetection(DetectionModel):
 
         heading_class = out["heading_scores"].argmax(dim=-1)
         heading_residual = out["heading_residuals"].gather(2, heading_class.unsqueeze(-1)).squeeze(-1)
-        angle = -F.class_to_angle(heading_class, heading_residual, self.num_heading_bins)
+        angle = -class_to_angle(heading_class, heading_residual, self.num_heading_bins)
 
         size_class = out["size_scores"].argmax(dim=-1)
         size_gather = size_class.view(batch_size, num_proposals, 1, 1).expand(-1, -1, 1, 3)
         size_residual = out["size_residuals"].gather(2, size_gather).squeeze(2)
-        size = F.class_to_size(size_class.reshape(-1), size_residual.reshape(-1, 3), self.mean_sizes)
+        size = class_to_size(size_class.reshape(-1), size_residual.reshape(-1, 3), self.mean_sizes)
 
         boxes = torch.cat([out["center"], size.view(batch_size, num_proposals, 3), angle.unsqueeze(-1)], dim=-1)
         objectness = out["objectness_scores"].softmax(dim=-1)[..., 1]
@@ -620,6 +622,202 @@ _SUNRGBD_MEAN_SIZES = [
     [0.404671, 1.071108, 1.688889],
     [0.765840, 1.398258, 0.472728],
 ]
+
+
+class GenerateVoteLabels(DictTransform):
+    r"""Generate per-point vote offsets and a vote mask from oriented GT boxes.
+
+    Each point collects the offsets to the centers of the first `gt_vote_factor` boxes containing it, in box
+    order, matching the VoteNet ScanNet and SUN RGB-D vote layout: a point inside fewer boxes repeats its
+    first offset in the unfilled slots, so the min-over-votes loss can credit either center on overlapping
+    objects. Points inside no box receive zero offsets and a zero mask. Boxes are $(K, 7)$ rows
+    $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ with full extents and heading in radians counterclockwise about
+    $+z$. When `oriented` is `True` containment is yaw-aware, otherwise an axis-aligned test is used.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.points_in_oriented_box`
+
+    ![GenerateVoteLabels before / after](../../assets/transforms/generate_vote_labels.png)
+
+    Args:
+        pos_key: Key of the $(N, 3)$ coordinate tensor.
+        box_key: Key of the $(K, 7)$ box tensor (full extents, counterclockwise heading).
+        dst_vote_key: Key to write the $(N, 3 G)$ vote offsets to.
+        dst_mask_key: Key to write the $(N,)$ vote mask to.
+        oriented: If `True`, use yaw-aware containment, otherwise an axis-aligned test.
+        gt_vote_factor: Number $G$ of vote slots per point.
+        allow_missing_keys: If `True`, return the data unchanged when `pos_key` or `box_key` is missing
+            instead of raising.
+    """
+
+    def __init__(
+        self,
+        pos_key: str = "pos",
+        box_key: str = "box",
+        dst_vote_key: str = "vote_label",
+        dst_mask_key: str = "vote_label_mask",
+        oriented: bool = True,
+        gt_vote_factor: int = 3,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__([pos_key, box_key], allow_missing_keys)
+        self.pos_key = pos_key
+        self.box_key = box_key
+        self.dst_vote_key = dst_vote_key
+        self.dst_mask_key = dst_mask_key
+        self.oriented = oriented
+        self.gt_vote_factor = gt_vote_factor
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if self.pos_key not in d or self.box_key not in d:
+            if self.allow_missing_keys:
+                return d
+
+            missing = self.pos_key if self.pos_key not in d else self.box_key
+            raise KeyError(f"Key {missing!r} was missing in the data and `allow_missing_keys==False`.")
+
+        pos = d[self.pos_key]
+        boxes = d[self.box_key]
+        n = pos.shape[0]
+        num_slots = self.gt_vote_factor
+        votes = torch.zeros(n, 3 * num_slots, device=pos.device, dtype=pos.dtype)
+        mask = torch.zeros(n, device=pos.device, dtype=torch.long)
+        counts = torch.zeros(n, device=pos.device, dtype=torch.long)
+
+        for k in range(boxes.shape[0]):
+            box = boxes[k]
+            if self.oriented:
+                half_box = torch.cat([box[0:3], box[3:6] / 2, box[6:7]])
+                inside = points_in_oriented_box(pos, half_box)
+            else:
+                inside = ((pos - box[0:3]).abs() <= box[3:6] / 2).all(dim=1)
+            mask[inside] = 1
+            idx = (inside & (counts < num_slots)).nonzero(as_tuple=True)[0]
+            offsets = box[0:3] - pos[idx]
+            first = counts[idx] == 0
+            votes[idx[first]] = offsets[first].repeat(1, num_slots)
+            rest = idx[~first]
+            cols = counts[rest, None] * 3 + torch.arange(3, device=pos.device)
+            votes[rest[:, None], cols] = offsets[~first]
+            counts[inside] += 1
+
+        d[self.dst_vote_key] = votes
+        d[self.dst_mask_key] = mask
+        return d
+
+
+class EncodeVoteNetTargets(DictTransform):
+    r"""Encode oriented GT boxes into the padded label tensors the VoteNet loss consumes.
+
+    Each $(K, 7)$ box row $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ (full extents) and its class from
+    `class_key` are converted to fixed-size $(M, \ldots)$ targets where $M$ is `max_num_obj`. Headings are
+    binned with `angle_to_class`. The size class is the semantic class and the size residual is computed
+    against `mean_sizes` (full edge lengths).
+
+    See Also:
+        `torch_pointcloud.utils.box3d.angle_to_class`,
+        `torch_pointcloud.utils.box3d.class_to_size`
+
+    ![EncodeVoteNetTargets before / after](../../assets/transforms/encode_votenet_targets.png)
+
+    Args:
+        box_key: Key of the $(K, 7)$ box tensor (full extents).
+        class_key: Key of the $(K,)$ per-box class tensor.
+        dst_center_key: Key to write the $(M, 3)$ center labels to.
+        dst_heading_class_key: Key to write the $(M,)$ heading class labels to.
+        dst_heading_residual_key: Key to write the $(M,)$ heading residual labels to.
+        dst_size_class_key: Key to write the $(M,)$ size class labels to.
+        dst_size_residual_key: Key to write the $(M, 3)$ size residual labels to.
+        dst_sem_cls_key: Key to write the $(M,)$ semantic class labels to.
+        dst_box_mask_key: Key to write the $(M,)$ box mask to.
+        num_heading_bins: Number of heading bins.
+        mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
+        max_num_obj: Padded number of objects $M$.
+        allow_missing_keys: If `True`, return the data unchanged when `box_key` or `class_key` is missing
+            instead of raising.
+
+    Raises:
+        ValueError: If `mean_sizes` is not provided.
+    """
+
+    def __init__(
+        self,
+        box_key: str = "box",
+        class_key: str = "label",
+        dst_center_key: str = "center_label",
+        dst_heading_class_key: str = "heading_class_label",
+        dst_heading_residual_key: str = "heading_residual_label",
+        dst_size_class_key: str = "size_class_label",
+        dst_size_residual_key: str = "size_residual_label",
+        dst_sem_cls_key: str = "sem_cls_label",
+        dst_box_mask_key: str = "box_label_mask",
+        num_heading_bins: int = 12,
+        mean_sizes: Optional[Union[Tensor, Sequence[Sequence[float]]]] = None,
+        max_num_obj: int = 64,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__([box_key, class_key], allow_missing_keys)
+        if mean_sizes is None:
+            raise ValueError("mean_sizes must be provided with full edge lengths of shape (C, 3).")
+
+        self.box_key = box_key
+        self.class_key = class_key
+        self.dst_center_key = dst_center_key
+        self.dst_heading_class_key = dst_heading_class_key
+        self.dst_heading_residual_key = dst_heading_residual_key
+        self.dst_size_class_key = dst_size_class_key
+        self.dst_size_residual_key = dst_size_residual_key
+        self.dst_sem_cls_key = dst_sem_cls_key
+        self.dst_box_mask_key = dst_box_mask_key
+        self.num_heading_bins = num_heading_bins
+        self.mean_sizes = torch.as_tensor(mean_sizes, dtype=torch.float32)
+        self.max_num_obj = max_num_obj
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in (self.box_key, self.class_key):
+            if key not in d:
+                if self.allow_missing_keys:
+                    return d
+                raise KeyError(f"Key {key!r} was missing in the data and `allow_missing_keys==False`.")
+
+        boxes = d[self.box_key]
+        classes = d[self.class_key]
+        device = boxes.device
+        dtype = boxes.dtype
+        m = self.max_num_obj
+        k = min(boxes.shape[0], m)
+        mean_sizes = self.mean_sizes.to(device=device, dtype=dtype)
+
+        center = torch.zeros(m, 3, device=device, dtype=dtype)
+        heading_class = torch.zeros(m, device=device, dtype=torch.long)
+        heading_residual = torch.zeros(m, device=device, dtype=dtype)
+        size_class = torch.zeros(m, device=device, dtype=torch.long)
+        size_residual = torch.zeros(m, 3, device=device, dtype=dtype)
+        sem_cls = torch.zeros(m, device=device, dtype=torch.long)
+        box_mask = torch.zeros(m, device=device, dtype=dtype)
+
+        if k > 0:
+            valid = boxes[:k]
+            sem = classes[:k].long()
+            center[:k] = valid[:, 0:3]
+            cls, residual = angle_to_class(valid[:, 6], self.num_heading_bins)
+            heading_class[:k] = cls
+            heading_residual[:k] = residual
+            size_class[:k] = sem
+            size_residual[:k] = valid[:, 3:6] - mean_sizes[sem]
+            sem_cls[:k] = sem
+            box_mask[:k] = 1
+
+        d[self.dst_center_key] = center
+        d[self.dst_heading_class_key] = heading_class
+        d[self.dst_heading_residual_key] = heading_residual
+        d[self.dst_size_class_key] = size_class
+        d[self.dst_size_residual_key] = size_residual
+        d[self.dst_sem_cls_key] = sem_cls
+        d[self.dst_box_mask_key] = box_mask
+        return d
 
 
 @register_model(

@@ -502,14 +502,3 @@ def test_divisible_pad_replicate_inverse() -> None:
     k = 3
     padded_idxs, inverse, padded_batch = F.divisible_pad(batch, k, pad_fill="replicate", return_inverse=True)
     assert torch.equal(batch, padded_batch[inverse])
-
-
-def test_split_batch() -> None:
-    """Test that the split batch function splits the batch into smaller chunks below a maximum size."""
-    batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 3])
-    max_size = 3
-
-    expected_split_batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 4])
-
-    splitted_batch = F.split_batch(batch, max_size)
-    assert torch.equal(splitted_batch, expected_split_batch)

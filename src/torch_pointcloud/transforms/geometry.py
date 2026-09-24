@@ -21,7 +21,6 @@ __all__ = [
     "EstimateNormals",
     "Quantize",
     "Shift",
-    "ShiftMethod",
 ]
 
 

@@ -407,15 +407,15 @@ class FarthestPointSample(DictTransform):
 
 def random_dropout_mask(
     n: int,
-    p_drop: float,
+    drop_ratio: float,
     device: Optional[torch.device] = None,
     generator: Optional[torch.Generator] = None,
 ) -> Tensor:
-    """Return a boolean keep-mask of length `n` where each entry is kept with probability `1 - p_drop`.
+    """Return a boolean keep-mask of length `n` where each entry is kept with probability `1 - drop_ratio`.
 
     Args:
         n: Number of points.
-        p_drop: Probability of dropping a point. Must be in $[0, 1)$.
+        drop_ratio: Probability of dropping a point. Must be in $[0, 1)$.
         device: Output device.
         generator: Random generator for reproducibility.
 
@@ -423,20 +423,21 @@ def random_dropout_mask(
         Boolean tensor of shape $(n,)$.
 
     Raises:
-        ValueError: If `p_drop` is not in `[0, 1)`.
+        ValueError: If `drop_ratio` is not in `[0, 1)`.
     """
-    if not 0.0 <= p_drop < 1.0:
-        raise ValueError(f"p_drop must be in [0, 1); got {p_drop}.")
+    if not 0.0 <= drop_ratio < 1.0:
+        raise ValueError(f"drop_ratio must be in [0, 1); got {drop_ratio}.")
     device = device or torch.device("cpu")
     rand = torch.rand(n, device=device, generator=generator)
-    return rand >= p_drop
+    return rand >= drop_ratio
 
 
 class RandomDropout(DictTransform, Randomizable):
     """Randomly drop a fraction of points across all listed keys.
 
     The same boolean keep-mask is applied to every key so per-point
-    correspondence is preserved. Sampling is once per call.
+    correspondence is preserved. Sampling is once per call, with a drop ratio drawn uniformly from
+    `drop_ratio_range`.
 
     === "Object"
 
@@ -451,8 +452,8 @@ class RandomDropout(DictTransform, Randomizable):
 
     Args:
         keys: Keys to subset. All must share the same leading dimension $N$.
-        p_drop: Fraction of points to drop per call (uniform across points).
-            Must lie in $[0, 1)$.
+        drop_ratio_range: Min and max fraction of points to drop; `(r, r)` drops a fixed fraction. Must lie in
+            $[0, 1)$.
         p: Probability of applying the transform.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
         dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
@@ -463,19 +464,19 @@ class RandomDropout(DictTransform, Randomizable):
     def __init__(
         self,
         keys: KeyCollection,
-        p_drop: float = 0.1,
+        drop_ratio_range: Tuple[float, float] = (0.1, 0.1),
         p: float = 1.0,
         seed: Optional[int] = None,
         dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        if not 0.0 <= p_drop < 1.0:
-            raise ValueError(f"p_drop must be in [0, 1); got {p_drop}.")
+        if not 0.0 <= drop_ratio_range[0] <= drop_ratio_range[1] < 1.0:
+            raise ValueError(f"drop_ratio_range must satisfy 0 <= min <= max < 1; got {drop_ratio_range}.")
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
-        self.p_drop = p_drop
+        self.drop_ratio_range = drop_ratio_range
         self.p = p
         self.set_random_state(seed)
         self.dst_index_key = dst_index_key
@@ -493,7 +494,9 @@ class RandomDropout(DictTransform, Randomizable):
                 data[self.dst_index_key] = torch.arange(n, device=device)
             return data
 
-        keep = random_dropout_mask(n, self.p_drop, device=device, generator=self.R)
+        lo, hi = self.drop_ratio_range
+        drop_ratio = torch.empty(1).uniform_(lo, hi, generator=self.R).item()
+        keep = random_dropout_mask(n, drop_ratio, device=device, generator=self.R)
         for key in self.iter_keys(data):
             data[key] = data[key][keep]
 

@@ -25,7 +25,6 @@ __all__ = [
     "OneHot",
     "OnesLike",
     "Reduce",
-    "ReduceOp",
     "Relabel",
     "RenameItems",
     "Scale",
@@ -801,18 +800,16 @@ class Abs(DictTransform):
 
     Args:
         keys: The keys to make absolute.
-        inplace: Whether to perform the operation in place.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
-    def __init__(self, keys: KeyCollection, inplace: bool = False, allow_missing_keys: bool = False) -> None:
+    def __init__(self, keys: KeyCollection, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.inplace = inplace
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.iter_keys(d):
-            d[key] = absolute(d[key], inplace=self.inplace)
+            d[key] = absolute(d[key])
         return d
 
 
