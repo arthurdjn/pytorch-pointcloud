@@ -5012,6 +5012,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.scaling.minimal_enclosing_ball" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        minimal_enclosing_ball
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.scaling.rescale" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        rescale
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.scaling.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        normalize
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5753,6 +5786,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.scaling.minimal_enclosing_ball" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        minimal_enclosing_ball
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.scaling.rescale" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        rescale
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.scaling.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        normalize
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5860,7 +5926,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Rescale&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/scaling.py#L20-L73&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.scaling.Rescale">Rescale</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L163-L216&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.scaling.Rescale">Rescale</a></code></b>
           –
           <div class="doc-md-description">
             <p>Center a point set and rescale it to a unit extent.</p>
@@ -5870,7 +5936,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Normalize&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/scaling.py#L76-L107&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.scaling.Normalize">Normalize</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L243-L274&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.scaling.Normalize">Normalize</a></code></b>
           –
           <div class="doc-md-description">
             <p>Normalize dictionary tensor entries: <span class="arithmatex">\(x' = (x - \mu) / \max(\sigma, \epsilon)\)</span>.</p>
@@ -5902,13 +5968,13 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Rescale</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/scaling.py#L20-L73" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L163-L216" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.scaling.Rescale" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Rescale</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">keys</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span><span class="p">,</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">eps</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-06</span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">method</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.functional.RescaleMethod">RescaleMethod</span></span> <span class="o">=</span> <span class="s2">&quot;centroid&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">method</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.scaling.RescaleMethod">RescaleMethod</span></span> <span class="o">=</span> <span class="s2">&quot;centroid&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
 </code></pre></div>
@@ -5918,7 +5984,7 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
 
 
 
@@ -5999,7 +6065,7 @@ same statistics. Four methods, each pairing a center and a denominator:</p>
         </li>
         <li class="doc-section-item field-body">
             <b><code>method</code></b>
-              (<code><span title="torch_pointcloud.transforms.functional.RescaleMethod">RescaleMethod</span></code>, default:
+              (<code><span title="torch_pointcloud.transforms.scaling.RescaleMethod">RescaleMethod</span></code>, default:
                   <code>&#39;centroid&#39;</code>
 )
           –
@@ -6062,7 +6128,7 @@ the keys are not present in the data.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Normalize</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/scaling.py#L76-L107" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L243-L274" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.scaling.Normalize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Normalize</span><span class="p">(</span>
@@ -6079,7 +6145,7 @@ the keys are not present in the data.</p>
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
 
 
 
@@ -6170,6 +6236,270 @@ each tensor.</p>
 
 </div>
 
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.transforms.scaling.minimal_enclosing_ball" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">minimal_enclosing_ball</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L48-L78" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.scaling.minimal_enclosing_ball" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">minimal_enclosing_ball</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">points</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compute the smallest ball enclosing a point set (Welzl's move-to-front algorithm).</p>
+<p>The recursion only descends on the support set (at most <span class="arithmatex">\(C + 1\)</span> points), so the depth is bounded by the
+dimension while the point loop stays iterative; points already known to be inside are moved to the front so
+that later checks succeed early.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>points</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Tensor of shape <span class="arithmatex">\((N, C)\)</span> with <span class="arithmatex">\(N \geq 1\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]</code>
+          –
+          <div class="doc-md-description">
+            <p>The ball center <span class="arithmatex">\((C,)\)</span> and its radius (a scalar), in the dtype and on the device of <code>points</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>Input: <span class="arithmatex">\((N, C)\)</span></li>
+<li>Output: <span class="arithmatex">\((C,)\)</span> and <span class="arithmatex">\(()\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">functional</span> <span class="k">as</span> <span class="n">F</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">points</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">center</span><span class="p">,</span> <span class="n">radius</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">minimal_enclosing_ball</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>  <span class="c1"># tensor([0., 0., 0.]), tensor(1.)</span>
+</code></pre></div>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.transforms.scaling.rescale" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">rescale</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L81-L160" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.scaling.rescale" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">rescale</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">points</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">eps</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-06</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">method</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.scaling.RescaleMethod">RescaleMethod</span></span> <span class="o">=</span> <span class="s2">&quot;centroid&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Center a point set and rescale it to a unit extent.</p>
+<p>Operates along the point dimension <code>dim=-2</code>. Pairs a centering step with a
+scale-by-extent step that share the same statistics. The scale denominator is a
+single statistic over <strong>all</strong> leading dimensions, so the input is treated as one
+point cloud: rescale packed batches per sample (pre-collate), never on
+concatenated clouds.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>points</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Tensor of shape <span class="arithmatex">\((\ldots, N, C)\)</span> with <span class="arithmatex">\(C \geq 1\)</span>; min/max and means are over <span class="arithmatex">\(N\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>eps</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1e-06</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Small constant added to the scale denominator for numerical stability.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>method</code></b>
+              (<code><span title="torch_pointcloud.transforms.scaling.RescaleMethod">RescaleMethod</span></code>, default:
+                  <code>&#39;centroid&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <ul>
+<li><code>"centroid"</code>: subtract the mean over points, then divide by the max Euclidean
+  distance from the centroid plus <span class="arithmatex">\(\epsilon\)</span>:</li>
+</ul>
+<p>$$
+  \mathbf{x} \leftarrow \frac{\mathbf{x} - \boldsymbol{\mu}}{\max_i |\mathbf{x}_i - \boldsymbol{\mu}|_2 + \epsilon}
+  $$</p>
+<ul>
+<li><code>"bbox"</code>: subtract the axis-aligned bounding-box midpoint (midrange center),
+  then divide by half the longest edge of that box plus <span class="arithmatex">\(\epsilon\)</span> (matches common
+  ModelNet-style normalization):</li>
+</ul>
+<p>$$
+  \mathbf{c} = \frac{\mathbf{x}<em _max="\max">{\min} + \mathbf{x}</em>, \quad
+  r = \frac{1}{2}\max_j (x_{\max,j} - x_{\min,j}) + \epsilon, \quad
+  \mathbf{x} \leftarrow \frac{\mathbf{x} - \mathbf{c}}{r}
+  $$}}{2</p>
+<ul>
+<li><code>"centroid_extent"</code>: subtract the centroid then divide by the longest axis-aligned
+  span (the convention used by the published RandLA-Net Toronto-3D /
+  Semantic3D checkpoints):</li>
+</ul>
+<p>$$
+  \mathbf{x} \leftarrow \frac{\mathbf{x} - \boldsymbol{\mu}}{\max_j (x_{\max,j} - x_{\min,j}) + \epsilon}
+  $$</p>
+<ul>
+<li><code>"min_sphere"</code>: subtract the center of the minimal enclosing sphere of all points and divide by
+  its radius plus <span class="arithmatex">\(\epsilon\)</span> (see <code>minimal_enclosing_ball</code>; the OctFormer ModelNet40 normalization).</li>
+</ul>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Normalized tensor, same shape as <code>points</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="ValueError">ValueError</span></code>
+            –
+          <div class="doc-md-description">
+            <p>If <code>method</code> is not <code>"centroid"</code>, <code>"bbox"</code>, <code>"centroid_extent"</code>, or <code>"min_sphere"</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.transforms.scaling.normalize" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">normalize</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/scaling.py#L219-L240" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.scaling.normalize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">normalize</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">mean</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span> <span class="n"><span title="float">float</span></span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">std</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span> <span class="n"><span title="float">float</span></span><span class="p">],</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">eps</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-07</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Per-channel standardization: <span class="arithmatex">\(x' = (x - \mu) / \max(\sigma, \epsilon)\)</span>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>x</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Input tensor. The last dimension is treated as the channel dim.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>mean</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Sequence">Sequence</span>[<span title="float">float</span>], <span title="float">float</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Per-channel mean(s). Broadcast against the last dimension.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>std</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Sequence">Sequence</span>[<span title="float">float</span>], <span title="float">float</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Per-channel standard deviation(s).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>eps</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1e-07</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Lower bound on <span class="arithmatex">\(\sigma\)</span> to prevent division by zero.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Standardized tensor, same shape as <code>x</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
 
 
 

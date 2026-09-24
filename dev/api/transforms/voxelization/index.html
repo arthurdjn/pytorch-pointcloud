@@ -5110,6 +5110,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        divisible_pad
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.voxelization.split_batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        split_batch
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5841,6 +5863,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        divisible_pad
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.voxelization.split_batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        split_batch
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5948,7 +5992,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DivisiblePad&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/voxelization.py#L44-L147&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.DivisiblePad">DivisiblePad</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L278-L381&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.DivisiblePad">DivisiblePad</a></code></b>
           –
           <div class="doc-md-description">
             <p>Pad per-point tensors so each batch is divisible by <code>num_samples</code>.</p>
@@ -5958,7 +6002,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;HardVoxelize&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/voxelization.py#L150-L251&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.HardVoxelize">HardVoxelize</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L384-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.HardVoxelize">HardVoxelize</a></code></b>
           –
           <div class="doc-md-description">
             <p>Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.</p>
@@ -5968,7 +6012,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Voxelize&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/voxelization.py#L254-L423&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.Voxelize">Voxelize</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L488-L657&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.Voxelize">Voxelize</a></code></b>
           –
           <div class="doc-md-description">
             <p>Voxelize a point cloud by grid-binning and per-voxel reduction.</p>
@@ -6115,12 +6159,12 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DivisiblePad</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/voxelization.py#L44-L147" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L278-L381" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.DivisiblePad" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">DivisiblePad</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_samples</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.functional.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">ref_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></span><span class="p">,</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">batch_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.BATCH">BATCH</span></span><span class="p">,</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -6134,10 +6178,10 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
 
 
 
@@ -6181,7 +6225,7 @@ once and gather predictions back to the source rows.</p>
         </li>
         <li class="doc-section-item field-body">
             <b><code>pad_fill</code></b>
-              (<code><span title="torch_pointcloud.transforms.functional.PadFill">PadFill</span></code>, default:
+              (<code><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></code>, default:
                   <code>&#39;cycle&#39;</code>
 )
           –
@@ -6298,7 +6342,7 @@ is missing instead of raising.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">HardVoxelize</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/voxelization.py#L150-L251" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L384-L485" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.HardVoxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">HardVoxelize</span><span class="p">(</span>
@@ -6320,7 +6364,7 @@ is missing instead of raising.</p>
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
 
 
 
@@ -6513,7 +6557,7 @@ batch index is all zeros), and adds three keys while keeping <code>pos</code> / 
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Voxelize</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/voxelization.py#L254-L423" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L488-L657" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.voxelization.Voxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Voxelize</span><span class="p">(</span>
@@ -6551,10 +6595,10 @@ batch index is all zeros), and adds three keys while keeping <code>pos</code> / 
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ab418246c838917fe1fdf097ac5c6cdd9e0fce5d/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
 
 
 
@@ -6765,6 +6809,264 @@ not one of its allowed values.</p>
 
 </div>
 
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.transforms.voxelization.divisible_pad" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">divisible_pad</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L71-L228" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+          <div class="doc-overloads">
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">divisible_pad</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">divisible_pad</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+</code></pre></div>          </div>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">divisible_pad</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Pad the batch indices of a tensor to make them divisible by a given integer.</p>
+<p>Consider a batch with three samples of sizes 2, 7, and 4, and <code>k=4</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>batch:  [0 0 | 1 1 1 1 1 1 1 | 2 2 2 2]
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>size:     2          7            4
+</code></pre></div>
+<p><strong>Mode</strong> controls <em>which</em> batches get padded (<code>·</code> = padded slot):</p>
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mode=&quot;all&quot;    [0 0 · · | 1 1 1 1 1 1 1 · | 2 2 2 2]
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                 2→4          7→8             4 (ok)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>mode=&quot;below&quot;  [0 0 · · | 1 1 1 1 1 1 1 | 2 2 2 2]
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>                 2→4  ↑        7 (≥k)       4 (ok)
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>                only &lt;k
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>mode=&quot;above&quot;  [0 0 | 1 1 1 1 1 1 1 · | 2 2 2 2]
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                2        7→8  ↑           4 (ok)
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>              (&lt;k)      only ≥k
+</code></pre></div>
+<p><strong>Pad fill</strong> controls <em>how</em> padded slots are filled.  Given batch 1
+with 7 elements (<code>A B C D E F G</code>) and <code>k=4</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Original patches:  [A B C D] [E F G ·]
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                    patch₀    patch₁ (incomplete)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>pad_fill=&quot;cycle&quot;      → [A B C D] [E F G A]
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  Cycles from the start                  ↑ wraps to A
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>pad_fill=&quot;replicate&quot;  → [A B C D] [E F G D]
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  Copies from previous patch             ↑ same position as D
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  at same offset
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>pad_fill=&quot;random&quot;     → [A B C D] [E F G ?]
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  Random sample from the batch           ↑ uniform over {A..G}
+</code></pre></div>
+<p>When <code>batch_size &lt; k</code> there is no previous patch, so <code>"replicate"</code>
+falls back to <code>"cycle"</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>batch 0 (size 2, k=4):  [A B · ·]
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pad_fill=&quot;cycle&quot;      → [A B A B]
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pad_fill=&quot;replicate&quot;  → [A B A B]   (same, no prior patch)
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>pad_fill=&quot;random&quot;     → [A B ? ?]
+</code></pre></div>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>batch</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>The batch indices of the tensor. Rows of the same batch must be contiguous (grouped, as
+produced by packed-batch collation); the batch values themselves may be non-consecutive.
+Interleaved orderings (e.g. <code>[0, 1, 0, 1]</code>) are not supported and silently mix samples.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>k</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>The integer to make the batch indices divisible by.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>mode</code></b>
+              (<code><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></code>, default:
+                  <code>&#39;all&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>The mode to use for padding.
+- <code>"below"</code>: Pad only batches with fewer than <code>k</code> elements.
+- <code>"above"</code>: Pad only batches with <code>k</code> or more elements.
+- <code>"all"</code>: Pad all batches to be divisible by <code>k</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>pad_fill</code></b>
+              (<code><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></code>, default:
+                  <code>&#39;cycle&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Strategy for filling padding slots.
+- <code>"cycle"</code>: Cycle through original indices from the start of
+  the batch (<code>indices[0], indices[1], ...</code>).
+- <code>"replicate"</code>: Copy indices from the previous patch at the
+  same relative offset.  When the last group of <code>k</code> elements is
+  incomplete, the missing positions are filled with the
+  corresponding positions from the preceding full group.  Falls
+  back to <code>"cycle"</code> when there is no preceding group (i.e. the
+  batch has fewer than <code>k</code> elements).
+- <code>"random"</code>: Sample padded indices uniformly with replacement from
+  within the batch's original indices. Consumes <code>generator</code> if given.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>return_inverse</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether to return the inverse of the padded indices.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>generator</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Generator">Generator</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Optional <code>torch.Generator</code> for reproducibility (used only by
+<code>pad_fill="random"</code>).</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
+          –
+          <div class="doc-md-description">
+            <p>Returns a tuple of <code>(indices, padded_batch)</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
+          –
+          <div class="doc-md-description">
+            <p>If <code>return_inverse</code> is <code>True</code>, returns <code>(indices, inverse_indices, padded_batch)</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.transforms.voxelization.split_batch" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">split_batch</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7f1f1fbf9c0bd612ecdb2fd01bb1eef66eb0f1c8/src/torch_pointcloud/transforms/voxelization.py#L231-L275" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.voxelization.split_batch" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">split_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">max_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Split batches into multiple sub-batches of a given size.</p>
+
+
+<details class="note" open>
+  <summary>Note</summary>
+  <p>The batch is only splitted if it is larger than the given size.
+If not, the batch is returned as is.</p>
+</details>
+
+<details class="note" open>
+  <summary>Note</summary>
+  <p>If you want to split batches smaller than the given size,
+you can use the <code>divisible_pad</code> function before splitting the batch.</p>
+</details>
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>batch</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>The batch indices of the points.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>max_size</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>The maximum size of the sub-batches.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>The sub-batch indices.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">split_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">max_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
 
 
 
