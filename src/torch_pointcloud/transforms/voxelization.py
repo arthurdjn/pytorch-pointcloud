@@ -1,8 +1,9 @@
 """Transforms that voxelize the points or pad them to a voxel grid."""
 
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, get_args
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
 
 import torch
+from torch import Tensor
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 
@@ -14,8 +15,12 @@ from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 from torch_pointcloud.utils.voxelization import hard_voxelize
 
-from . import functional as F
 from .base import DictTransform
+
+PadMode = Literal["below", "above", "all"]
+
+PadFill = Literal["cycle", "replicate", "random"]
+
 
 VoxelMethod = Literal["fnv", "pyg"]
 """Allowed values for `Voxelize.method` (voxel-id hashing scheme)."""
@@ -39,6 +44,235 @@ __all__ = [
     "VoxelReduce",
     "Voxelize",
 ]
+
+
+@overload
+def divisible_pad(
+    batch: Tensor,
+    k: int,
+    mode: PadMode = "all",
+    pad_fill: PadFill = "cycle",
+    return_inverse: Literal[False] = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def divisible_pad(
+    batch: Tensor,
+    k: int,
+    mode: PadMode = "all",
+    pad_fill: PadFill = "cycle",
+    return_inverse: Literal[True] = ...,
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+
+@torch.no_grad()
+def divisible_pad(
+    batch: Tensor,
+    k: int,
+    mode: PadMode = "all",
+    pad_fill: PadFill = "cycle",
+    return_inverse: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Union[Tuple[Tensor, Tensor], Tuple[Tensor, Tensor, Tensor]]:
+    """Pad the batch indices of a tensor to make them divisible by a given integer.
+
+    Consider a batch with three samples of sizes 2, 7, and 4, and `k=4`:
+
+    ```text
+    batch:  [0 0 | 1 1 1 1 1 1 1 | 2 2 2 2]
+    size:     2          7            4
+    ```
+
+    **Mode** controls *which* batches get padded (`·` = padded slot):
+
+    ```text
+    mode="all"    [0 0 · · | 1 1 1 1 1 1 1 · | 2 2 2 2]
+                     2→4          7→8             4 (ok)
+
+    mode="below"  [0 0 · · | 1 1 1 1 1 1 1 | 2 2 2 2]
+                     2→4  ↑        7 (≥k)       4 (ok)
+                    only <k
+
+    mode="above"  [0 0 | 1 1 1 1 1 1 1 · | 2 2 2 2]
+                    2        7→8  ↑           4 (ok)
+                  (<k)      only ≥k
+    ```
+
+    **Pad fill** controls *how* padded slots are filled.  Given batch 1
+    with 7 elements (`A B C D E F G`) and `k=4`:
+
+    ```text
+    Original patches:  [A B C D] [E F G ·]
+                        patch₀    patch₁ (incomplete)
+
+    pad_fill="cycle"      → [A B C D] [E F G A]
+      Cycles from the start                  ↑ wraps to A
+
+    pad_fill="replicate"  → [A B C D] [E F G D]
+      Copies from previous patch             ↑ same position as D
+      at same offset
+
+    pad_fill="random"     → [A B C D] [E F G ?]
+      Random sample from the batch           ↑ uniform over {A..G}
+    ```
+
+    When `batch_size < k` there is no previous patch, so `"replicate"`
+    falls back to `"cycle"`:
+
+    ```text
+    batch 0 (size 2, k=4):  [A B · ·]
+    pad_fill="cycle"      → [A B A B]
+    pad_fill="replicate"  → [A B A B]   (same, no prior patch)
+    pad_fill="random"     → [A B ? ?]
+    ```
+
+    Args:
+        batch: The batch indices of the tensor. Rows of the same batch must be contiguous (grouped, as
+            produced by packed-batch collation); the batch values themselves may be non-consecutive.
+            Interleaved orderings (e.g. `[0, 1, 0, 1]`) are not supported and silently mix samples.
+        k: The integer to make the batch indices divisible by.
+        mode: The mode to use for padding.
+            - `"below"`: Pad only batches with fewer than `k` elements.
+            - `"above"`: Pad only batches with `k` or more elements.
+            - `"all"`: Pad all batches to be divisible by `k`.
+        pad_fill: Strategy for filling padding slots.
+            - `"cycle"`: Cycle through original indices from the start of
+              the batch (`indices[0], indices[1], ...`).
+            - `"replicate"`: Copy indices from the previous patch at the
+              same relative offset.  When the last group of `k` elements is
+              incomplete, the missing positions are filled with the
+              corresponding positions from the preceding full group.  Falls
+              back to `"cycle"` when there is no preceding group (i.e. the
+              batch has fewer than `k` elements).
+            - `"random"`: Sample padded indices uniformly with replacement from
+              within the batch's original indices. Consumes `generator` if given.
+        return_inverse: Whether to return the inverse of the padded indices.
+        generator: Optional `torch.Generator` for reproducibility (used only by
+            `pad_fill="random"`).
+
+    Returns:
+        Returns a tuple of `(indices, padded_batch)`.
+        If `return_inverse` is `True`, returns `(indices, inverse_indices, padded_batch)`.
+    """
+    if mode not in get_args(PadMode):
+        raise ValueError(f"Unknown mode: {mode!r}. Expected one of {get_args(PadMode)}.")
+    if pad_fill not in get_args(PadFill):
+        raise ValueError(f"Unknown pad_fill: {pad_fill!r}. Expected one of {get_args(PadFill)}.")
+
+    device = batch.device
+
+    # Get total (unique) batches and their counts
+    # NOTE: using .unique() instead of .bincount() ensures that we can handle non-consecutive batch indices
+    unique_batches, counts = torch.unique(batch, return_counts=True)
+    num_batches = len(unique_batches)
+
+    # Calculate required padding for each batch such that each batch is a multiple of k
+    remainder = counts % k
+    padding_needed = torch.zeros_like(remainder)
+
+    if mode == "all":
+        padding_needed[remainder > 0] = k - remainder[remainder > 0]
+    elif mode == "below":
+        mask = (counts < k) & (remainder > 0)
+        padding_needed[mask] = k - remainder[mask]
+    elif mode == "above":
+        mask = (counts >= k) & (remainder > 0)
+        padding_needed[mask] = k - remainder[mask]
+
+    # Calculate new (padded) batch sizes with their starting indices
+    # so that we can map original indices and batch to their padded counterparts
+    new_batch_sizes = counts + padding_needed
+    batch_start_idx = torch.cat([torch.tensor([0], device=device), torch.cumsum(counts, dim=0)[:-1]])
+    new_batch_start_idx = torch.cat([torch.tensor([0], device=device), torch.cumsum(new_batch_sizes, dim=0)[:-1]])
+
+    # Create indices and new batch tensors
+    total_new_size = int(torch.sum(new_batch_sizes).item())
+    indices = torch.zeros(total_new_size, dtype=torch.long, device=device)
+    inverse_indices = torch.zeros(len(batch), dtype=torch.long, device=device)
+    padded_batch = torch.zeros(total_new_size, dtype=batch.dtype, device=device)
+
+    for i in range(num_batches):
+        original_start = int(batch_start_idx[i].item())
+        new_start = int(new_batch_start_idx[i].item())
+        pad_size = int(padding_needed[i].item())
+        batch_size = int(counts[i].item())
+
+        indices[new_start : new_start + batch_size] = torch.arange(original_start, original_start + batch_size)
+
+        if pad_size > 0:
+            if pad_fill == "random":
+                offsets = torch.randint(high=batch_size, size=(pad_size,), generator=generator, device=device)
+                indices[new_start + batch_size : new_start + batch_size + pad_size] = original_start + offsets
+            elif pad_fill == "replicate" and batch_size > k:
+                rem = batch_size % k
+                last_patch_start = new_start + batch_size - rem
+                prev_patch_start = last_patch_start - k
+                src_start = prev_patch_start + rem
+                indices[new_start + batch_size : new_start + batch_size + pad_size] = indices[
+                    src_start : src_start + pad_size
+                ]
+            else:
+                original_indices = torch.arange(original_start, original_start + batch_size)
+                cycle_indices = original_indices[torch.arange(pad_size) % batch_size]
+                indices[new_start + batch_size : new_start + batch_size + pad_size] = cycle_indices
+
+        inverse_indices[original_start : original_start + batch_size] = torch.arange(new_start, new_start + batch_size)
+        padded_batch[new_start : new_start + new_batch_sizes[i]] = unique_batches[i]
+
+    if return_inverse:
+        return indices, inverse_indices, padded_batch
+
+    return indices, padded_batch
+
+
+@torch.no_grad()
+def split_batch(batch: Tensor, max_size: int) -> Tensor:
+    """Split batches into multiple sub-batches of a given size.
+
+    Note:
+        The batch is only splitted if it is larger than the given size.
+        If not, the batch is returned as is.
+
+    Note:
+        If you want to split batches smaller than the given size,
+        you can use the `divisible_pad` function before splitting the batch.
+
+    Args:
+        batch: The batch indices of the points.
+        max_size: The maximum size of the sub-batches.
+
+    Returns:
+        The sub-batch indices.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> batch = torch.tensor([0, 0, 0, 1, 1, 1, 1, 2, 2, 3])
+        >>> split_batch(batch, max_size=2)
+        tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])
+
+        ```
+    """
+    device = batch.device
+    _, batch_counts = torch.unique(batch, return_counts=True)
+    sub_counts = torch.div(batch_counts + max_size - 1, max_size, rounding_mode="floor")
+    sub_offsets = torch.cumsum(torch.cat([torch.zeros(1, device=device, dtype=torch.long), sub_counts[:-1]]), dim=0)
+    sub_idxs = torch.zeros_like(batch)
+
+    offset = 0
+    for i, batch_count in enumerate(batch_counts):
+        idxs = slice(offset, offset + batch_count)
+        # Get the relative sub-batch indices (starting from 0)
+        relative_sub_idxs = torch.div(torch.arange(batch_count, device=device), max_size, rounding_mode="floor")
+        # Assign the relative sub-batch indices,
+        # making sure they are contiguous from already assigned sub-batches
+        sub_idxs[idxs] = relative_sub_idxs + sub_offsets[i]
+        offset += batch_count
+
+    return sub_idxs
 
 
 class DivisiblePad(DictTransform, Randomizable):
@@ -96,7 +330,7 @@ class DivisiblePad(DictTransform, Randomizable):
     def __init__(
         self,
         num_samples: int,
-        pad_fill: "F.PadFill" = "cycle",
+        pad_fill: PadFill = "cycle",
         ref_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
         seed: Optional[int] = None,
@@ -127,7 +361,7 @@ class DivisiblePad(DictTransform, Randomizable):
             batch = d[self.batch_key]
         else:
             batch = torch.zeros(n, dtype=torch.long, device=ref.device)
-        indices, inverse_indices, padded_batch = F.divisible_pad(
+        indices, inverse_indices, padded_batch = divisible_pad(
             batch,
             k=self.num_samples,
             mode="all",

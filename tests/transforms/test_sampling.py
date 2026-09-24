@@ -1,10 +1,12 @@
-from typing import Any, Dict
-from unittest.mock import sentinel
+from typing import Any, Dict, Tuple
+from unittest.mock import MagicMock, Mock, patch, sentinel
 
 import pytest
 import torch
+from torch import Tensor
 
 import torch_pointcloud.transforms as T
+import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
 
 
@@ -275,3 +277,171 @@ def test_p_skipped_sampler_writes_identity_index(transform: T.DictTransform) -> 
     prior = torch.tensor([9, 8, 7, 6, 5])
     out = transform({"pos": pos, "index": prior})
     assert torch.equal(out["index"], prior)
+
+
+@pytest.fixture
+def sample_mesh() -> Tuple[Tensor, Tensor]:
+    vertices = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    face = torch.tensor(
+        [
+            [0, 1, 2],
+            [0, 2, 3],
+        ]
+    )
+    return vertices, face
+
+
+def test_random_sample_default_without_replacement() -> None:
+    """Default `replace=False` samples without duplicates."""
+    tensor = torch.arange(10, dtype=torch.float32).reshape(10, 1)
+    result = F.random_sample(tensor, num_samples=5)
+    assert result.shape == (5, 1)
+    # Without replacement, all sampled values are unique.
+    assert result.unique().numel() == 5
+
+
+def test_random_sample_return_indices() -> None:
+    """random_sample returns both the sampled tensor and indices when return_indices=True."""
+    tensor = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+    sampled, indices = F.random_sample(tensor, num_samples=3, return_indices=True)
+
+    assert sampled.shape == (3, 2)
+    assert indices.shape == (3,)
+    assert torch.equal(sampled, tensor[indices])
+
+
+def test_random_sample_oversample_without_replace_upsamples() -> None:
+    tensor = torch.tensor([[1.0], [2.0]])
+    result = F.random_sample(tensor, num_samples=10)
+    assert result.shape == (10, 1)
+
+
+def test_random_sample_oversample_with_replace_ok() -> None:
+    tensor = torch.tensor([[1.0], [2.0]])
+    result = F.random_sample(tensor, num_samples=10, replace=True)
+    assert result.shape == (10, 1)
+
+
+def test_random_sample_empty_raises() -> None:
+    tensor = torch.empty(0, 3)
+    with pytest.raises(ValueError, match="empty tensor"):
+        F.random_sample(tensor, num_samples=4)
+
+
+def test_random_sample_empty_zero_samples_ok() -> None:
+    tensor = torch.empty(0, 3)
+    result = F.random_sample(tensor, num_samples=0)
+    assert result.shape == (0, 3)
+
+
+def test_random_sample_seed_reproducibility() -> None:
+    """Test that random_sample produces identical results with the same seed."""
+    tensor = torch.randn(100, 3)
+    generator = torch.Generator()
+
+    generator.manual_seed(42)
+    a = F.random_sample(tensor, num_samples=20, generator=generator)
+    generator.manual_seed(42)
+    b = F.random_sample(tensor, num_samples=20, generator=generator)
+    assert torch.equal(a, b)
+
+
+def test_random_sample_face_vertices(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+    """Test that the random sample vertices function returns the correct shape."""
+    vertices, face = sample_mesh
+    num_samples = 10
+
+    sampled = F.random_sample_face_vertices(vertices, face, num_samples)
+    assert sampled.shape == (num_samples, 3)
+
+
+def test_random_sample_face_vertices_with_normals(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+    """Test that the random sample vertices function returns the correct shape with normal."""
+    vertices, face = sample_mesh
+    num_samples = 10
+
+    sampled, normal = F.random_sample_face_vertices(vertices, face, num_samples, return_normals=True)
+    assert sampled.shape == (num_samples, 3)
+    assert normal.shape == (num_samples, 3)
+    assert torch.allclose(torch.norm(normal, dim=1), torch.ones(num_samples))
+
+
+def test_random_sample_face_vertices_seed_reproducibility(sample_mesh: Tuple[Tensor, Tensor]) -> None:
+    """Test that random_sample_face_vertices produces identical results with the same seed."""
+    vertices, face = sample_mesh
+    generator = torch.Generator()
+
+    generator.manual_seed(42)
+    a = F.random_sample_face_vertices(vertices, face, num_samples=10, generator=generator)
+    generator.manual_seed(42)
+    b = F.random_sample_face_vertices(vertices, face, num_samples=10, generator=generator)
+    assert torch.equal(a, b)
+
+
+def test_random_sample_face_vertices_single_face() -> None:
+    """Test random_sample_face_vertices with a single-face mesh."""
+    vertices = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    face = torch.tensor([[0, 1, 2]])
+    sampled = F.random_sample_face_vertices(vertices, face, num_samples=5)
+    assert sampled.shape == (5, 3)
+
+
+@patch("torch_pointcloud.transforms.sampling.fps")
+def test_farthest_point_sample_with_num_samples(mock_fps: Mock) -> None:
+    """Test that farthest_point_sample delegates to fps with num_samples."""
+    pos = MagicMock()
+    num_samples = 10
+
+    result = F.farthest_point_sample(pos, num_samples=num_samples)
+
+    mock_fps.assert_called_once_with(pos, num_nodes=num_samples, ratio=None, random_start=False)
+    assert result is mock_fps.return_value
+
+
+@patch("torch_pointcloud.transforms.sampling.fps")
+def test_farthest_point_sample_with_ratio(mock_fps: Mock) -> None:
+    """Test that farthest_point_sample delegates to fps with ratio."""
+    pos = MagicMock()
+    ratio = 0.5
+
+    result = F.farthest_point_sample(pos, ratio=ratio)
+
+    mock_fps.assert_called_once_with(pos, num_nodes=None, ratio=ratio, random_start=False)
+    assert result is mock_fps.return_value
+
+
+@patch("torch_pointcloud.transforms.sampling.fps")
+def test_farthest_point_sample_random_start(mock_fps: Mock) -> None:
+    """Test that farthest_point_sample delegates to fps with random_start."""
+    pos = MagicMock()
+
+    result = F.farthest_point_sample(pos, num_samples=5, random_start=True)
+
+    mock_fps.assert_called_once_with(pos, num_nodes=5, ratio=None, random_start=True)
+    assert result is mock_fps.return_value
+
+
+def test_random_dropout_mask_keep_rate() -> None:
+    g = torch.Generator().manual_seed(0)
+    mask = F.random_dropout_mask(10000, p_drop=0.3, generator=g)
+    rate = mask.float().mean().item()
+    assert abs(rate - 0.7) < 0.05  # within statistical noise
+
+
+def test_random_dropout_mask_invalid_p_drop() -> None:
+    with pytest.raises(ValueError, match=r"\[0, 1\)"):
+        F.random_dropout_mask(10, p_drop=1.0)
+
+
+def test_shuffle_indices_is_permutation() -> None:
+    g = torch.Generator().manual_seed(0)
+    perm = F.shuffle_indices(20, generator=g)
+    assert perm.dtype == torch.long
+    assert sorted(perm.tolist()) == list(range(20))

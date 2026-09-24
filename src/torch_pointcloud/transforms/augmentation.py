@@ -1,16 +1,17 @@
 """Random geometric and color augmentations."""
 
 import math
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import torch
+from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection
 
-from . import functional as F
 from .base import DictTransform
+from .geometry import rotate_vectors, rotation_matrix
 
 __all__ = [
     "RandomColorAutoContrast",
@@ -26,6 +27,27 @@ __all__ = [
     "RandomScale",
     "RandomShift",
 ]
+
+
+def rotate_boxes(boxes: Tensor, rotation: Tensor, angle: float) -> Tensor:
+    r"""Rotate oriented 3D boxes about the up axis.
+
+    Box centers are rotated by `rotation` (`centers @ rotation.transpose(-1, -2)`) and the heading is
+    incremented by `angle`, so a counterclockwise rotation about $+z$ keeps the counterclockwise heading
+    aligned with the jointly rotated points. Sizes are unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$.
+        rotation: A $3 \times 3$ rotation matrix rotating by `angle` counterclockwise about the $z$ axis.
+        angle: Rotation angle in **radians**, added to the heading.
+
+    Returns:
+        The rotated box tensor of shape $(K, 7)$.
+    """
+    boxes = boxes.clone()
+    boxes[:, 0:3] = boxes[:, 0:3] @ rotation.to(boxes).transpose(-1, -2)
+    boxes[:, 6] = boxes[:, 6] + angle
+    return boxes
 
 
 class RandomRotate(DictTransform, Randomizable):
@@ -99,14 +121,32 @@ class RandomRotate(DictTransform, Randomizable):
 
         lo, hi = self.angle_range
         angle = math.radians(torch.empty(1).uniform_(lo, hi, generator=self.R).item())
-        rotation = F.rotation_matrix(angle, self.axis)
+        rotation = rotation_matrix(angle, self.axis)
         box_key = self.box_key
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
-            data[self.dst_box_key] = F.rotate_boxes(data[box_key], rotation, angle)
+            data[self.dst_box_key] = rotate_boxes(data[box_key], rotation, angle)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.rotate_vectors(data[key], rotation)
+            data[dst_key] = rotate_vectors(data[key], rotation)
         return data
+
+
+def scale_boxes(boxes: Tensor, scale: Union[float, Tensor]) -> Tensor:
+    r"""Scale oriented 3D boxes by an isotropic factor.
+
+    Both centers and extents (columns $0$ to $6$) are multiplied by `scale`. Heading is unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 7)$.
+        scale: Isotropic scalar factor applied to centers and sizes.
+
+    Returns:
+        The scaled box tensor of shape $(K, 7)$.
+    """
+    boxes = boxes.clone()
+    factor = scale.to(boxes) if isinstance(scale, Tensor) else scale
+    boxes[:, 0:6] = boxes[:, 0:6] * factor
+    return boxes
 
 
 class RandomScale(DictTransform, Randomizable):
@@ -187,7 +227,7 @@ class RandomScale(DictTransform, Randomizable):
             scale = torch.empty(1).uniform_(lo, hi, generator=self.R)
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
-            data[self.dst_box_key] = F.scale_boxes(data[box_key], scale.to(data[box_key]))
+            data[self.dst_box_key] = scale_boxes(data[box_key], scale.to(data[box_key]))
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             if self.anisotropic and x.shape[-1] != scale.numel():
@@ -197,6 +237,49 @@ class RandomScale(DictTransform, Randomizable):
                 )
             data[dst_key] = x * scale.to(x.dtype).to(x.device)
         return data
+
+
+def flip_boxes(boxes: Tensor, axis: int) -> Tensor:
+    r"""Flip oriented 3D boxes along a spatial axis.
+
+    Boxes are stored as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ with full extents and heading
+    in radians counterclockwise about $+z$ from $+x$. A flip negates the center component along `axis`. A
+    flip along `axis` $0$ (the $yz$ plane) maps the heading to $\pi - \theta$; a flip along `axis` $1$ (the
+    $xz$ plane) maps the heading to $-\theta$. Sizes are unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 7)$.
+        axis: Center axis index to negate (0=X, 1=Y).
+
+    Returns:
+        The flipped box tensor of shape $(K, 7)$.
+    """
+    boxes = boxes.clone()
+    boxes[:, axis] = -boxes[:, axis]
+    if axis == 0:
+        boxes[:, 6] = math.pi - boxes[:, 6]
+    elif axis == 1:
+        boxes[:, 6] = -boxes[:, 6]
+    return boxes
+
+
+def flip_vectors(x: Tensor, axis: int) -> Tensor:
+    r"""Flip a packed field of 3D vectors along a spatial axis.
+
+    Negates component `axis` of every contiguous triple of the last dimension, so it handles both a plain
+    $(N, 3)$ field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. VoteNet
+    vote offsets $(\text{center} - \text{point})$) alike.
+
+    Args:
+        x: Vector field of shape $(N, 3)$ or $(N, 3 G)$.
+        axis: Axis index within each triple to negate.
+
+    Returns:
+        The flipped tensor with the same shape as `x`.
+    """
+    x = x.clone()
+    x[..., axis::3] = -x[..., axis::3]
+    return x
 
 
 class RandomFlip(DictTransform, Randomizable):
@@ -270,14 +353,37 @@ class RandomFlip(DictTransform, Randomizable):
             assert self.dst_box_key is not None
             box = data[box_key]
             for axis in flipped:
-                box = F.flip_boxes(box, axis)
+                box = flip_boxes(box, axis)
             data[self.dst_box_key] = box
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             for axis in flipped:
-                x = F.flip_vectors(x, axis)
+                x = flip_vectors(x, axis)
             data[dst_key] = x
         return data
+
+
+def random_jitter(
+    x: Tensor,
+    sigma: float = 0.01,
+    clip: Optional[float] = 0.05,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Add Gaussian noise to `x`, optionally clipped.
+
+    Args:
+        x: Input tensor.
+        sigma: Standard deviation of the Gaussian noise.
+        clip: If not `None`, clip the noise to `[-clip, clip]`.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Jittered tensor with the same shape as `x`.
+    """
+    noise = torch.empty_like(x).normal_(mean=0.0, std=sigma, generator=generator)
+    if clip is not None:
+        noise = noise.clamp(min=-clip, max=clip)
+    return x + noise
 
 
 class RandomJitter(DictTransform, Randomizable):
@@ -333,8 +439,25 @@ class RandomJitter(DictTransform, Randomizable):
             return data
 
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.random_jitter(data[key], self.sigma, self.clip, generator=self.R)
+            data[dst_key] = random_jitter(data[key], self.sigma, self.clip, generator=self.R)
         return data
+
+
+def shift_boxes(boxes: Tensor, shift: Tensor) -> Tensor:
+    r"""Translate oriented 3D boxes by a fixed offset.
+
+    Centers (columns $0$ to $3$) are offset by `shift`. Sizes and heading are unchanged.
+
+    Args:
+        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$.
+        shift: Translation vector of shape $(3,)$.
+
+    Returns:
+        The shifted box tensor of shape $(K, 7)$.
+    """
+    boxes = boxes.clone()
+    boxes[:, 0:3] = boxes[:, 0:3] + shift.to(boxes)
+    return boxes
 
 
 class RandomShift(DictTransform, Randomizable):
@@ -406,7 +529,7 @@ class RandomShift(DictTransform, Randomizable):
         shift = torch.empty(d).uniform_(lo, hi, generator=self.R)
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
-            data[self.dst_box_key] = F.shift_boxes(data[box_key], shift[:3])
+            data[self.dst_box_key] = shift_boxes(data[box_key], shift[:3])
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             if x.shape[-1] != shift.numel():
@@ -416,6 +539,97 @@ class RandomShift(DictTransform, Randomizable):
                 )
             data[dst_key] = x + shift.to(x.dtype).to(x.device)
         return data
+
+
+def _color_max(color: Tensor, int_color: bool) -> float:
+    """Resolve the color range maximum from the tensor dtype, validating the `int_color` flag."""
+    if color.dtype == torch.uint8 or int_color:
+        return 255.0
+    if color.numel() > 0 and float(color.max()) > 1.0:
+        raise ValueError(
+            f"Float colors with `int_color=False` must lie in [0, 1], but got a maximum of {float(color.max()):.4g}. "
+            "Pass `int_color=True` for [0, 255] float colors, or divide by 255 first."
+        )
+    return 1.0
+
+
+def color_jitter(
+    color: Tensor,
+    brightness: Optional[float] = None,
+    contrast: Optional[float] = None,
+    saturation: Optional[float] = None,
+    int_color: bool = False,
+) -> Tensor:
+    """Apply brightness, contrast, and saturation factors to colors, in that order.
+
+    Each factor multiplies its component directly (`1.0` is identity); `None`
+    skips the component entirely.
+
+    Args:
+        color: Color tensor of shape $(N, 3)$.
+        brightness: Multiplicative brightness factor (e.g. `1.2` brightens by 20%).
+        contrast: Contrast factor, scaling the deviation from the per-channel mean.
+        saturation: Saturation factor, scaling the deviation from the per-point
+            grayscale luminance.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag.
+
+    Returns:
+        Jittered colors with the same shape and dtype as `color`.
+
+    Raises:
+        ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
+    """
+    max_val = _color_max(color, int_color)
+    out = color.float() / max_val
+
+    if brightness is not None:
+        out = out * brightness
+    if contrast is not None:
+        mean = out.mean(dim=0, keepdim=True)
+        out = (out - mean) * contrast + mean
+    if saturation is not None:
+        # Luminance per point, broadcast across channels.
+        gray = (out * torch.tensor([0.299, 0.587, 0.114], device=out.device)).sum(dim=-1, keepdim=True)
+        out = (out - gray) * saturation + gray
+
+    out = out.clamp(0.0, 1.0) * max_val
+    return out.to(color.dtype)
+
+
+def random_color_jitter(
+    color: Tensor,
+    brightness: float = 0.0,
+    contrast: float = 0.0,
+    saturation: float = 0.0,
+    int_color: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Jitter colors by brightness, contrast, and saturation, in that order.
+
+    Each strength is a relative delta sampled uniformly from `[-x, x]` and
+    applied multiplicatively (`out = x * factor`) via `color_jitter`.
+
+    Args:
+        color: Color tensor of shape $(N, 3)$.
+        brightness: Max relative brightness change. `0.2` means ±20%.
+        contrast: Max relative contrast change.
+        saturation: Max relative saturation change. Saturation moves toward
+            (or away from) the per-channel grayscale luminance.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Jittered colors with the same shape and dtype as `color`.
+
+    Raises:
+        ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
+    """
+    b = torch.empty(1).uniform_(1 - brightness, 1 + brightness, generator=generator).item() if brightness > 0 else None
+    c = torch.empty(1).uniform_(1 - contrast, 1 + contrast, generator=generator).item() if contrast > 0 else None
+    s = torch.empty(1).uniform_(1 - saturation, 1 + saturation, generator=generator).item() if saturation > 0 else None
+    return color_jitter(color, brightness=b, contrast=c, saturation=s, int_color=int_color)
 
 
 class RandomColorJitter(DictTransform, Randomizable):
@@ -477,7 +691,7 @@ class RandomColorJitter(DictTransform, Randomizable):
         contrast = torch.empty(1).uniform_(1 - c, 1 + c, generator=self.R).item() if c > 0 else None
         saturation = torch.empty(1).uniform_(1 - s, 1 + s, generator=self.R).item() if s > 0 else None
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.color_jitter(
+            data[dst_key] = color_jitter(
                 data[key],
                 brightness=brightness,
                 contrast=contrast,
@@ -485,6 +699,31 @@ class RandomColorJitter(DictTransform, Randomizable):
                 int_color=self.int_color,
             )
         return data
+
+
+def random_color_drop(
+    color: Tensor,
+    fill: float = 0.5,
+    int_color: bool = False,
+) -> Tensor:
+    """Replace colors with a constant gray value (drops chromatic information).
+
+    Args:
+        color: Color tensor of shape $(N, 3)$.
+        fill: Replacement value, expressed in the range implied by `int_color` (`[0, 1]` when
+            `False`, `[0, 255]` when `True`). It is rescaled to the input's actual range when
+            that differs, so the default `0.5` fills `127` on `uint8` colors.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag.
+
+    Returns:
+        Tensor of the same shape and dtype as `color`, filled with the rescaled `fill`.
+
+    Raises:
+        ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
+    """
+    flag_max = 255.0 if int_color else 1.0
+    return torch.full_like(color, fill * _color_max(color, int_color) / flag_max)
 
 
 class RandomColorDrop(DictTransform, Randomizable):
@@ -536,8 +775,26 @@ class RandomColorDrop(DictTransform, Randomizable):
             return data
 
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.random_color_drop(data[key], fill=self.fill, int_color=self.int_color)
+            data[dst_key] = random_color_drop(data[key], fill=self.fill, int_color=self.int_color)
         return data
+
+
+def color_grayscale(color: Tensor, int_color: bool = False) -> Tensor:
+    """Convert RGB colors to grayscale using the BT.601 luminance weights.
+
+    Args:
+        color: Color tensor of shape $(N, 3)$.
+        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+
+    Returns:
+        Tensor with the same shape and dtype as `color`, with R=G=B = luminance.
+    """
+    weights = torch.tensor([0.299, 0.587, 0.114], device=color.device)
+    if int_color:
+        lum = (color.float() * weights).sum(dim=-1, keepdim=True)
+        return lum.expand_as(color).to(color.dtype)
+    lum = (color * weights).sum(dim=-1, keepdim=True)
+    return lum.expand_as(color).to(color.dtype)
 
 
 class RandomColorGrayScale(DictTransform, Randomizable):
@@ -580,8 +837,39 @@ class RandomColorGrayScale(DictTransform, Randomizable):
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.color_grayscale(data[key], int_color=self.int_color)
+            data[dst_key] = color_grayscale(data[key], int_color=self.int_color)
         return data
+
+
+def color_auto_contrast(color: Tensor, blend: float = 0.5, int_color: bool = False) -> Tensor:
+    """Stretch per-cloud color range to the full `[0, max]` interval, then blend.
+
+    For each channel, the min becomes 0 and the max becomes `max_val`. The
+    output is then linearly blended with the original by `blend`
+    (`blend=1.0` is the fully stretched version, `blend=0.0` is the input).
+
+    Args:
+        color: Color tensor of shape $(N, 3)$.
+        blend: Blend weight in `[0, 1]`.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag.
+
+    Returns:
+        Auto-contrast tensor with the same shape and dtype as `color`.
+
+    Raises:
+        ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
+    """
+    if color.shape[0] == 0:
+        return color
+    max_val = _color_max(color, int_color)
+    out = color.float()
+    lo = out.min(dim=0).values
+    hi = out.max(dim=0).values
+    scale = max_val / (hi - lo).clamp(min=1e-6)
+    stretched = (out - lo) * scale
+    blended = blend * stretched + (1.0 - blend) * out
+    return blended.clamp(0.0, max_val).to(color.dtype)
 
 
 class RandomColorAutoContrast(DictTransform, Randomizable):
@@ -629,7 +917,7 @@ class RandomColorAutoContrast(DictTransform, Randomizable):
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.color_auto_contrast(data[key], blend=self.blend, int_color=self.int_color)
+            data[dst_key] = color_auto_contrast(data[key], blend=self.blend, int_color=self.int_color)
         return data
 
 
@@ -692,9 +980,29 @@ class RandomRotateChoice(DictTransform, Randomizable):
         angle_deg = self.angles[idx]
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            R = F.rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
-            data[dst_key] = F.rotate_vectors(x, R)
+            R = rotation_matrix(math.radians(angle_deg), self.axis, device=x.device)
+            data[dst_key] = rotate_vectors(x, R)
         return data
+
+
+def color_shift(color: Tensor, shift: Tensor, int_color: bool = False) -> Tensor:
+    """Add a per-channel offset to colors, clamped to the valid color range.
+
+    Args:
+        color: Color tensor of shape $(N, 3)$.
+        shift: Per-channel offset of shape $(3,)$, in the same range as the colors.
+        int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
+            `uint8` colors are always treated as `[0, 255]` regardless of the flag.
+
+    Returns:
+        Shifted colors with the same shape and dtype as `color`.
+
+    Raises:
+        ValueError: If `color` is a float tensor with values above 1 while `int_color=False`.
+    """
+    max_val = _color_max(color, int_color)
+    out = color.float() + shift.to(color.device)
+    return out.clamp(0.0, max_val).to(color.dtype)
 
 
 class RandomColorShift(DictTransform, Randomizable):
@@ -748,8 +1056,84 @@ class RandomColorShift(DictTransform, Randomizable):
         lo, hi = self.shift_range
         shift = torch.empty(3).uniform_(lo, hi, generator=self.R)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.color_shift(data[key], shift, int_color=self.int_color)
+            data[dst_key] = color_shift(data[key], shift, int_color=self.int_color)
         return data
+
+
+def random_elastic_distortion(
+    pos: Tensor,
+    granularity: float = 0.2,
+    magnitude: float = 0.4,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    r"""Apply a smooth random displacement field to `pos`.
+
+    Implements the elastic distortion recipe common in sparse-voxel indoor
+    segmentation pipelines: sample Gaussian noise on a coarse 3D grid (cells of
+    side `granularity`), smooth it with two passes of a $3 \times 3 \times 3$ mean filter,
+    trilinear-interpolate the smoothed displacement at each point, and add it
+    to the position. Net effect is a locally-coherent, low-frequency
+    deformation that preserves nearby-point relationships.
+
+    Args:
+        pos: Input positions of shape $(N, 3)$.
+        granularity: Size of the noise grid cells (in the same units as `pos`).
+            Smaller values give higher-frequency distortion.
+        magnitude: Standard deviation of the per-cell Gaussian noise (in the
+            same units as `pos`). Larger values give stronger deformation.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Distorted positions of shape $(N, 3)$.
+    """
+    if pos.shape[0] == 0:
+        return pos
+    if pos.shape[-1] != 3:
+        raise ValueError(f"random_elastic_distortion expects shape (N, 3); got {tuple(pos.shape)}.")
+
+    pos_min = pos.min(dim=0).values
+    pos_max = pos.max(dim=0).values
+    extent = (pos_max - pos_min).clamp(min=granularity)
+
+    # Noise grid with node spacing `granularity` and one pad node on each side for safe interpolation
+    grid_int = (extent / granularity).ceil().to(torch.long) + 3
+    grid_x, grid_y, grid_z = (int(grid_int[i].item()) for i in range(3))
+
+    # Sample noise on the coarse grid: (N, C, D, H, W) for grid_sample input
+    noise = (
+        torch.randn(
+            1,
+            3,
+            grid_z,
+            grid_y,
+            grid_x,
+            generator=generator,
+            device=pos.device,
+            dtype=torch.float32,
+        )
+        * magnitude
+    )
+
+    # Smooth via two passes of 3x3x3 mean filter
+    for _ in range(2):
+        noise = torch.nn.functional.avg_pool3d(noise, kernel_size=3, stride=1, padding=1)
+
+    # Node j sits at pos_min + granularity * (j - 1), so one grid cell spans exactly `granularity`.
+    # grid_sample's grid last dim is (x, y, z) which indexes (W, H, D) of the input.
+    index = (pos - pos_min) / granularity + 1.0
+    normalized = 2.0 * index / (grid_int.to(pos.dtype) - 1.0) - 1.0
+    sample_grid = normalized.to(noise.dtype).view(1, 1, 1, -1, 3)
+
+    displacement = torch.nn.functional.grid_sample(
+        noise,
+        sample_grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
+    )
+    # displacement: (1, 3, 1, 1, N) -> (N, 3)
+    displacement = displacement.squeeze(2).squeeze(2).squeeze(0).T
+    return pos + displacement.to(pos.dtype)
 
 
 class RandomElasticDistortion(DictTransform, Randomizable):
@@ -816,7 +1200,7 @@ class RandomElasticDistortion(DictTransform, Randomizable):
             return data
         reference = data[first_key]
         displacement = (
-            F.random_elastic_distortion(reference, self.granularity, self.magnitude, generator=self.R) - reference
+            random_elastic_distortion(reference, self.granularity, self.magnitude, generator=self.R) - reference
         )
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]

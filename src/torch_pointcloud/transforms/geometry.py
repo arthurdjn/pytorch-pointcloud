@@ -1,15 +1,19 @@
 """Transforms that move points or derive geometric quantities."""
 
-from typing import Any, Dict, Optional, Sequence, get_args
+import math
+from typing import Any, Dict, Literal, Optional, Sequence, get_args
 
 import torch
+from torch import Tensor
 
+from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
-from . import functional as F
 from .base import DictTransform
-from .functional import ShiftMethod
+
+ShiftMethod = Literal["bbox", "centroid", "min"]
+
 
 __all__ = [
     "AlignAxis",
@@ -20,6 +24,65 @@ __all__ = [
     "Shift",
     "ShiftMethod",
 ]
+
+
+def estimate_normals(
+    pos: Tensor,
+    k: int = 16,
+    batch: Optional[Tensor] = None,
+    orient_to_centroid: bool = False,
+) -> Tensor:
+    r"""Estimate per-point unit surface normals by local PCA.
+
+    For each point the normal is the eigenvector of the smallest eigenvalue of the covariance of its $k$
+    nearest neighbors, i.e. the direction of least variance (the local tangent-plane normal).
+
+    PCA gives no canonical orientation. By default the sign is the arbitrary-but-deterministic sign returned by
+    `torch.linalg.eigh`. With `orient_to_centroid`, each normal is flipped to point towards its cloud's
+    centroid, which approximates the inward-facing orientation of meshes scanned from inside a room (S3DIS,
+    ScanNet) and matters when the consuming model was trained on oriented normals.
+
+    Args:
+        pos: Point coordinates of shape $(N, 3)$.
+        k: Number of nearest neighbors (the point itself included) used per local PCA. Must not exceed the
+            number of points in the smallest cloud.
+        batch: Optional $(N,)$ batch index so neighbors never cross cloud boundaries.
+        orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid.
+
+    Returns:
+        Unit normals of shape $(N, 3)$.
+
+    Raises:
+        ValueError: If `pos` has fewer than `k` points.
+
+    Shape:
+        - Input: $(N, 3)$
+        - Output: $(N, 3)$
+    """
+    num_points = pos.shape[0]
+    if num_points < k:
+        raise ValueError(f"estimate_normals requires at least k points for the k-NN PCA; got N={num_points}, k={k}.")
+    neighbor_index = knn(pos, pos, k, batch_x=batch, batch_y=batch)[1].view(num_points, k)
+    neighbors = pos[neighbor_index]
+    centered = neighbors - neighbors.mean(dim=1, keepdim=True)
+    covariance = centered.transpose(1, 2) @ centered / k
+    _, eigenvectors = torch.linalg.eigh(covariance)
+    normals = eigenvectors[..., 0]
+
+    if orient_to_centroid:
+        if batch is None:
+            centroid = pos.mean(dim=0, keepdim=True)
+        else:
+            num_clouds = int(batch.max()) + 1
+            counts = torch.zeros(num_clouds, device=pos.device, dtype=pos.dtype)
+            counts.index_add_(0, batch, torch.ones(num_points, device=pos.device, dtype=pos.dtype))
+            sums = torch.zeros(num_clouds, 3, device=pos.device, dtype=pos.dtype)
+            sums.index_add_(0, batch, pos)
+            centroid = (sums / counts.unsqueeze(1))[batch]
+        flip = ((centroid - pos) * normals).sum(dim=-1, keepdim=True) < 0
+        normals = torch.where(flip, -normals, normals)
+
+    return normals
 
 
 class EstimateNormals(DictTransform):
@@ -69,13 +132,72 @@ class EstimateNormals(DictTransform):
         d = dict(data)
         batch = d.get(self.batch_key) if self.batch_key is not None else None
         for key, normal_key in self.iter_keys(d, self.normal_key):
-            d[normal_key] = F.estimate_normals(
+            d[normal_key] = estimate_normals(
                 d[key],
                 k=self.k,
                 batch=batch,
                 orient_to_centroid=self.orient_to_centroid,
             )
         return d
+
+
+def shift(
+    x: Tensor,
+    method: ShiftMethod,
+    dim: int = 0,
+    axes: Optional[Sequence[int]] = None,
+) -> Tensor:
+    r"""Subtract a data-driven offset from `x`.
+
+    The offset is computed from `x` itself along the reduction dimension `dim`:
+
+    | `method`     | Offset                                           |
+    | ------------ | ------------------------------------------------ |
+    | `"bbox"`     | Midrange: `(min + max) / 2`                      |
+    | `"centroid"` | Mean across the reduced dimension                |
+    | `"min"`      | Per-axis minimum (shifts to the positive octant) |
+
+    When `axes` is given, only those axis-indices of the offset are non-zero,
+    so axes not listed are left untouched. This is the composable knob for
+    mixed-method shifts:
+
+    ```{.python notest}
+    # Center XY at the bbox midpoint and Z at the minimum
+    x = F.shift(x, method="bbox", axes=[0, 1])
+    x = F.shift(x, method="min",  axes=[2])
+    ```
+
+    The two calls touch disjoint axes, so they commute.
+
+    Args:
+        x: Input tensor.
+        method: How the offset is computed. See the table.
+        dim: The dimension to reduce over when computing the offset.
+        axes: Last-dim axis indices to shift. `None` (default) shifts every axis.
+
+    Returns:
+        The shifted tensor, same shape as `x`. Returns `x` unchanged when
+        `x.size(dim) == 0`.
+
+    Raises:
+        ValueError: If `method` is not one of `"bbox"`, `"centroid"`, `"min"`.
+    """
+    if method not in get_args(ShiftMethod):
+        raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(ShiftMethod)}.")
+    if x.size(dim) == 0:
+        return x
+    if method == "bbox":
+        offset = (x.min(dim=dim).values + x.max(dim=dim).values) / 2
+    elif method == "centroid":
+        offset = x.mean(dim=dim)
+    else:  # "min"
+        offset = x.min(dim=dim).values
+    if axes is not None:
+        full_offset = torch.zeros_like(offset)
+        axes_idx = torch.tensor(tuple(axes), device=offset.device, dtype=torch.long)
+        full_offset.index_copy_(0, axes_idx, offset.index_select(0, axes_idx))
+        offset = full_offset
+    return x - offset
 
 
 class Shift(DictTransform):
@@ -162,7 +284,7 @@ class Shift(DictTransform):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
-            data[dst_key] = F.shift(x, method=method, dim=self.dim, axes=self.axes)
+            data[dst_key] = shift(x, method=method, dim=self.dim, axes=self.axes)
         return data
 
 
@@ -274,6 +396,39 @@ class BBoxCenter(DictTransform):
         return data
 
 
+def quantize(pos: Tensor, size: float) -> Tensor:
+    r"""Integer voxel-grid coordinates of every point, without reducing the cloud.
+
+    Each point maps to $\lfloor p / s \rfloor$ shifted so the per-axis minimum is $0$; points sharing a voxel
+    get equal coordinates and every input row is kept. This is the coordinate a voxel-partition protocol feeds
+    to a sparse model for each raw point (`Voxelize(pos_reduce="grid")` produces the same coordinates for the
+    one representative it keeps per voxel).
+
+    Args:
+        pos: Point positions of shape $(N, D)$.
+        size: Voxel side length in the units of `pos`.
+
+    Returns:
+        Long tensor of shape $(N, D)$ (empty input returns an empty $(0, D)$ tensor).
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import functional as F
+
+        pos = torch.tensor([[0.0, 0.0, 0.0], [0.03, 0.0, 0.0], [0.05, 0.0, 0.0]])
+        F.quantize(pos, size=0.02)  # tensor([[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+        ```
+    """
+    if size <= 0.0:
+        raise ValueError(f"`size` must be > 0, got {size}.")
+
+    pos_grid = torch.floor(pos / size).long()
+    if pos_grid.shape[0] == 0:
+        return pos_grid
+    return pos_grid - pos_grid.min(dim=0).values
+
+
 class Quantize(DictTransform):
     r"""Integer voxel-grid coordinates of every point, keeping the cloud at full resolution.
 
@@ -325,8 +480,39 @@ class Quantize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = F.quantize(data[key], self.size)
+            data[dst_key] = quantize(data[key], self.size)
         return data
+
+
+def axis_min_offset(x: Tensor, axis: int, quantile: Optional[float] = None) -> Tensor:
+    r"""Per-point offset from a floor reference along a chosen coordinate axis.
+
+    For positions of shape $(N, D)$ and an axis $a \in [0, D)$, returns a
+    tensor of shape $(N, 1)$ whose entries are $x_{i, a} - r$ where the floor
+    reference $r$ is either the strict minimum $\min_j x_{j, a}$ (default) or, when
+    `quantile` is given, the empirical quantile $Q_{q}(x_{\cdot, a})$. A small
+    positive quantile (e.g. $q = 0.0099$, the `np.percentile(z, 0.99)` used by
+    VoteNet) yields an outlier-robust floor estimate. Useful for extracting
+    "height above the local floor" as a per-point feature.
+
+    Args:
+        x: Input tensor of shape $(N, D)$.
+        axis: Axis index in the last dimension.
+        quantile: Optional quantile $q \in [0, 1]$ for the floor reference. When
+            `None`, the strict per-axis minimum is used (equivalent to $q = 0$).
+
+    Returns:
+        Tensor of shape $(N, 1)$ with the same dtype as `x`. Returns an empty
+        $(0, 1)$ tensor when `x` is empty.
+    """
+    col = x[:, axis]
+    if col.numel() == 0:
+        return col.unsqueeze(-1).to(x.dtype)
+    if quantile is None:
+        ref = col.min()
+    else:
+        ref = torch.quantile(col.float(), quantile).to(col.dtype)
+    return (col - ref).unsqueeze(-1).to(x.dtype)
 
 
 class AxisMinOffset(DictTransform):
@@ -399,5 +585,51 @@ class AxisMinOffset(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key, axis in self.iter_keys(data, self.dst_keys, self.axis):
-            data[dst_key] = F.axis_min_offset(data[key], axis=axis, quantile=self.quantile)
+            data[dst_key] = axis_min_offset(data[key], axis=axis, quantile=self.quantile)
         return data
+
+
+def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] = None) -> Tensor:
+    r"""$3 \times 3$ rotation matrix for `angle` radians around an axis-aligned axis.
+
+    Args:
+        angle: Rotation angle in **radians**.
+        axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
+        device: Output device. Defaults to CPU.
+
+    Returns:
+        Rotation matrix of shape $(3, 3)$.
+
+    Raises:
+        ValueError: If `axis` is not in `{0, 1, 2}`.
+    """
+    if axis not in (0, 1, 2):
+        raise ValueError(f"axis must be 0, 1, or 2; got {axis}.")
+    c = math.cos(angle)
+    s = math.sin(angle)
+    R = torch.eye(3, device=device, dtype=torch.float32)
+    i, j = [(1, 2), (2, 0), (0, 1)][axis]
+    R[i, i] = c
+    R[j, j] = c
+    R[i, j] = -s
+    R[j, i] = s
+    return R
+
+
+def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
+    r"""Rotate a packed field of 3D vectors by a rotation matrix.
+
+    Each contiguous triple of the last dimension rotates as a vector, so it handles both a plain $(N, 3)$
+    field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. VoteNet vote
+    offsets) alike.
+
+    Args:
+        x: Vector field of shape $(N, 3)$ or $(N, 3 G)$.
+        rotation: A $3 \times 3$ rotation matrix.
+
+    Returns:
+        The rotated tensor with the same shape as `x`.
+    """
+    triples = x.reshape(*x.shape[:-1], -1, 3)
+    triples = triples @ rotation.to(x).transpose(-1, -2)
+    return triples.reshape(x.shape)
