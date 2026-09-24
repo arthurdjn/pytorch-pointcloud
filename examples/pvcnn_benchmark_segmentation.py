@@ -47,9 +47,9 @@ TRANSFORM = T.Compose(
 INFERER_TRANSFORM = T.Compose(
     [
         T.BBoxCenter(keys=DataKeys.BLOCK_BBOX, dst_keys=DataKeys.BLOCK_CENTER),
-        T.CopyItems(keys=DataKeys.POS, names=DataKeys.NORM_POS),
-        T.DivideKey(keys=DataKeys.NORM_POS, div_keys="coord_max"),
-        T.SubtractKey(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
+        T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.NORM_POS),
+        T.DivideItems(keys=DataKeys.NORM_POS, div_keys="coord_max"),
+        T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
         T.ToFloat(keys=DataKeys.COLOR),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),
         T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X, dim=1),

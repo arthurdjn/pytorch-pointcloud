@@ -1029,7 +1029,7 @@ _SCANNET_TRANSFORM = T.Compose(
     [
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
-            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
             allow_missing_keys=True,
         ),
         T.RandomSample(
@@ -1043,7 +1043,7 @@ _SCANNET_TRANSFORM = T.Compose(
 
 _SUNRGBD_TRANSFORM = T.Compose(
     [
-        T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+        T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
         T.RandomSample(
             keys=[DataKeys.POS, DataKeys.COLOR],
             num_samples=20000,

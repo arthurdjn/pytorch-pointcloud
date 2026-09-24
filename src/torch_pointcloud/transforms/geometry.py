@@ -16,7 +16,6 @@ ShiftMethod = Literal["bbox", "centroid", "min"]
 
 
 __all__ = [
-    "AlignAxis",
     "AxisMinOffset",
     "BBoxCenter",
     "EstimateNormals",
@@ -105,7 +104,7 @@ class EstimateNormals(DictTransform):
 
     Args:
         keys: Coordinate keys to estimate normals from.
-        normal_key: Keys under which to store the normals (one per coordinate key). Defaults to `normal`.
+        dst_keys: Keys under which to store the normals (one per coordinate key). Defaults to `normal`.
         k: Number of nearest neighbors (the point itself included) per local PCA.
         orient_to_centroid: If `True`, flip each normal to point towards its cloud's centroid (approximates
             the inward-facing normals of meshes scanned from inside a room).
@@ -116,14 +115,14 @@ class EstimateNormals(DictTransform):
     def __init__(
         self,
         keys: KeyCollection,
-        normal_key: KeyCollection = "normal",
+        dst_keys: KeyCollection = "normal",
         k: int = 16,
         orient_to_centroid: bool = False,
         batch_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.normal_key = ensure_tuple_size(normal_key, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys, len(self.keys))
         self.k = k
         self.orient_to_centroid = orient_to_centroid
         self.batch_key = batch_key
@@ -131,8 +130,8 @@ class EstimateNormals(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         batch = d.get(self.batch_key) if self.batch_key is not None else None
-        for key, normal_key in self.iter_keys(d, self.normal_key):
-            d[normal_key] = estimate_normals(
+        for key, dst_key in self.iter_keys(d, self.dst_keys):
+            d[dst_key] = estimate_normals(
                 d[key],
                 k=self.k,
                 batch=batch,
@@ -285,62 +284,6 @@ class Shift(DictTransform):
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
             data[dst_key] = shift(x, method=method, dim=self.dim, axes=self.axes)
-        return data
-
-
-class AlignAxis(DictTransform):
-    """Shift dictionary tensor entries so that the minimum along a chosen axis is zero.
-
-    Empty inputs (`N=0`) are returned unchanged.
-
-    === "Object"
-
-        ![AlignAxis on an object](../../assets/transforms/align_axis.png)
-
-    === "Scene"
-
-        ![AlignAxis on a room](../../assets/transforms/align_axis_scene.png)
-
-    Args:
-        keys: The keys to align.
-        dim: The coordinate axis to align.
-        inplace: Whether to modify the tensor in place. Non-contiguous inputs are
-            materialized to contiguous via `.contiguous()` before the in-place op,
-            so the caller's original tensor may not be mutated in that case.
-        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
-    """
-
-    def __init__(
-        self,
-        keys: KeyCollection,
-        dim: int = -1,
-        inplace: bool = False,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.dim = dim
-        self.inplace = inplace
-
-    def transform(self, data: dict) -> dict:
-        data = dict(data)
-
-        for key in self.iter_keys(data):
-            x = data[key]
-            if not torch.is_tensor(x):
-                raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
-
-            if x.shape[0] == 0:
-                data[key] = x
-                continue
-
-            if self.inplace:
-                x = x.contiguous()
-            else:
-                x = x.clone()
-
-            x[:, self.dim] -= x[:, self.dim].min()
-            data[key] = x
-
         return data
 
 

@@ -41,7 +41,7 @@ def test_relabel() -> None:
 
 def test_rename_items() -> None:
     data = {"old": sentinel.value, "keep": sentinel.other}
-    transform = T.RenameItems(keys=["old"], names=["new"])
+    transform = T.RenameItems(keys=["old"], dst_keys=["new"])
     result = transform(data)
 
     assert "old" not in result
@@ -51,7 +51,7 @@ def test_rename_items() -> None:
 
 def test_copy_items() -> None:
     data = {"src": torch.tensor([1.0, 2.0]), "keep": sentinel.other}
-    transform = T.CopyItems(keys=["src"], names=["dst"])
+    transform = T.CopyItems(keys=["src"], dst_keys=["dst"])
     result = transform(data)
 
     assert torch.equal(result["dst"], result["src"])
@@ -276,17 +276,17 @@ def test_abs_multiple_keys() -> None:
     assert result["c"] is sentinel.c
 
 
-def test_subtract_key() -> None:
+def test_subtract_items() -> None:
     data = {"a": torch.tensor([5.0, 6.0]), "b": torch.tensor([1.0, 2.0])}
-    transform = T.SubtractKey(keys=["a"], sub_keys=["b"])
+    transform = T.SubtractItems(keys=["a"], sub_keys=["b"])
     result = transform(data)
 
     assert torch.equal(result["a"], torch.tensor([4.0, 4.0]))
 
 
-def test_divide_key() -> None:
+def test_divide_items() -> None:
     data = {"a": torch.tensor([6.0, 8.0]), "b": torch.tensor([2.0, 4.0])}
-    transform = T.DivideKey(keys=["a"], div_keys=["b"])
+    transform = T.DivideItems(keys=["a"], div_keys=["b"])
     result = transform(data)
 
     assert torch.equal(result["a"], torch.tensor([3.0, 2.0]))

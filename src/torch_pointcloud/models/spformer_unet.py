@@ -527,13 +527,13 @@ class SPFormerUNetSegmentation(SemanticSegmentationModel):
     transform=T.Compose(
         [
             T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
-            T.CopyItems(keys=DataKeys.POS, names="pos_centered"),
+            T.CopyItems(keys=DataKeys.POS, dst_keys="pos_centered"),
             T.Shift(keys="pos_centered", method="centroid"),
             T.Cat(keys=[DataKeys.COLOR, "pos_centered"], dst_key=DataKeys.X, dim=1),
             T.Shift(keys=DataKeys.POS, method="min"),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
-                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
             T.Voxelize(
@@ -569,14 +569,14 @@ def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
     transform=T.Compose(
         [
             T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
-            T.CopyItems(keys=DataKeys.POS, names="pos_centered"),
+            T.CopyItems(keys=DataKeys.POS, dst_keys="pos_centered"),
             T.Shift(keys="pos_centered", method="centroid"),
             T.Cat(keys=[DataKeys.COLOR, "pos_centered"], dst_key=DataKeys.X, dim=1),
             T.Shift(keys=DataKeys.POS, method="min"),
             T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
-                names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
             T.Voxelize(

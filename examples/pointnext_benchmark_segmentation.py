@@ -73,7 +73,7 @@ INFERER_TRANSFORM = T.Compose(
     [
         T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
         T.Shift(keys=DataKeys.POS, method="centroid"),
-        T.AlignAxis(keys=DataKeys.POS, dim=2),
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),
         T.Normalize(
             keys=DataKeys.COLOR, mean=[0.5136457, 0.49523646, 0.44921124], std=[0.18308958, 0.18415008, 0.19252081]

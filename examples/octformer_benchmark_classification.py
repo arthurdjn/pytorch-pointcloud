@@ -53,7 +53,7 @@ SAMPLE_TRANSFORM = T.Compose(
         T.RandomSampleFaceVertices(
             keys=DataKeys.POS,
             face_key=DataKeys.FACE,
-            normal_key=DataKeys.NORMAL,
+            dst_normal_key=DataKeys.NORMAL,
             num_samples=NUM_SAMPLES,
         ),
         T.Shift(keys=DataKeys.POS, method="bbox"),
@@ -70,7 +70,7 @@ EVAL_TRANSFORM = T.Compose(
         T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
         T.BuildOctree(
             pos_key=DataKeys.POS,
-            octree_key=DataKeys.OCTREE,
+            dst_octree_key=DataKeys.OCTREE,
             depth=6,
             full_depth=2,
             batch_size=1,

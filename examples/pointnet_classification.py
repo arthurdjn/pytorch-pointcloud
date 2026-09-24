@@ -139,7 +139,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
             T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
                 face_key=DataKeys.FACE,
-                normal_key=DataKeys.NORMAL,
+                dst_normal_key=DataKeys.NORMAL,
                 num_samples=args.num_points,
             ),
         ]

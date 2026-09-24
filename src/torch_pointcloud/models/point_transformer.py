@@ -1015,14 +1015,14 @@ def _point_transformer_seg_transforms(
         T.Divide(keys=DataKeys.COLOR, divisor=255),
     ]
     if estimate_normals:
-        steps.append(T.EstimateNormals(keys=DataKeys.POS, normal_key=DataKeys.NORMAL, orient_to_centroid=True))
+        steps.append(T.EstimateNormals(keys=DataKeys.POS, dst_keys=DataKeys.NORMAL, orient_to_centroid=True))
     steps.append(T.Cat(keys=list(feature_keys), dst_key=DataKeys.X, dim=1))
     if relabel_labels is not None:
         steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
     steps += [
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
-            names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
             allow_missing_keys=True,
         ),
         T.Voxelize(
@@ -1094,7 +1094,7 @@ def point_transformer_scannet20(**hparams: Any) -> PointTransformerSegmentation:
     weights=None,
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],

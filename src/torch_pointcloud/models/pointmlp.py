@@ -923,7 +923,7 @@ def pointmlp_elite_seg(**hparams: Any) -> PointMLPSegmentation:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -952,7 +952,7 @@ def pointmlp_base_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -984,7 +984,7 @@ def pointmlp_elite_modelnet40_clf(**hparams: Any) -> PointMLPClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -1013,7 +1013,7 @@ def pointmlp_base_scanobjectnn_clf(**hparams: Any) -> PointMLPClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],

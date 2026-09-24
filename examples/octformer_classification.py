@@ -154,7 +154,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
             T.RandomSampleFaceVertices(
                 keys=DataKeys.POS,
                 face_key=DataKeys.FACE,
-                normal_key=DataKeys.NORMAL,
+                dst_normal_key=DataKeys.NORMAL,
                 num_samples=args.num_points,
             ),
             T.Shift(keys=DataKeys.POS, method="bbox"),
@@ -165,7 +165,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
             T.ToTensor(keys=[DataKeys.POS, DataKeys.NORMAL], dtype=torch.float32),
             T.BuildOctree(
                 pos_key=DataKeys.POS,
-                octree_key=DataKeys.OCTREE,
+                dst_octree_key=DataKeys.OCTREE,
                 depth=6,
                 full_depth=2,
                 batch_size=1,

@@ -39,7 +39,7 @@ class RelabelBoxes(DictTransform):
 
     All keys in `keys` (the box tensor and every per-box attribute, including those named in
     `ignore_fields`) are filtered together by the keep mask so they stay row-aligned. The output adds the
-    boolean `ignore_mask_key` consumed by `box_matches`, which excuses an unmatched prediction only on ignore
+    boolean `dst_ignore_mask_key` consumed by `box_matches`, which excuses an unmatched prediction only on ignore
     boxes labeled with its class.
 
     ![RelabelBoxes before / after](../../assets/transforms/relabel_boxes.png)
@@ -55,7 +55,7 @@ class RelabelBoxes(DictTransform):
             detection class they excuse (e.g. KITTI `Van` to the `Car` class index).
         ignore_fields: Per-attribute inclusive ranges `{key: (low, high)}` (use `None` for an open side);
             a foreground box outside any range becomes an ignore region.
-        ignore_mask_key: Output key for the written boolean ignore mask.
+        dst_ignore_mask_key: Output key for the written boolean ignore mask.
         allow_missing_keys: If `True`, skip missing keys instead of raising.
 
     Example:
@@ -86,7 +86,7 @@ class RelabelBoxes(DictTransform):
         label_key: str = DataKeys.LABEL,
         ignore_mapping: Optional[Dict[int, int]] = None,
         ignore_fields: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
-        ignore_mask_key: str = "ignore_mask",
+        dst_ignore_mask_key: str = "ignore_mask",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -94,7 +94,7 @@ class RelabelBoxes(DictTransform):
         self.label_key = label_key
         self.ignore_mapping = {int(k): int(v) for k, v in (ignore_mapping or {}).items()}
         self.ignore_fields = dict(ignore_fields or {})
-        self.ignore_mask_key = ignore_mask_key
+        self.dst_ignore_mask_key = dst_ignore_mask_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -123,7 +123,7 @@ class RelabelBoxes(DictTransform):
         for key in self.iter_keys(d):
             d[key] = d[key][keep]
         d[self.label_key] = new_labels[keep]
-        d[self.ignore_mask_key] = ignore[keep]
+        d[self.dst_ignore_mask_key] = ignore[keep]
         return d
 
 
@@ -241,8 +241,8 @@ class GenerateVoteLabels(DictTransform):
     Args:
         pos_key: Key of the $(N, 3)$ coordinate tensor.
         box_key: Key of the $(K, 7)$ box tensor (full extents, counterclockwise heading).
-        vote_key: Key to write the $(N, 3 G)$ vote offsets to.
-        mask_key: Key to write the $(N,)$ vote mask to.
+        dst_vote_key: Key to write the $(N, 3 G)$ vote offsets to.
+        dst_mask_key: Key to write the $(N,)$ vote mask to.
         oriented: If `True`, use yaw-aware containment, otherwise an axis-aligned test.
         gt_vote_factor: Number $G$ of vote slots per point.
         allow_missing_keys: If `True`, return the data unchanged when `pos_key` or `box_key` is missing
@@ -253,8 +253,8 @@ class GenerateVoteLabels(DictTransform):
         self,
         pos_key: str = "pos",
         box_key: str = "box",
-        vote_key: str = "vote_label",
-        mask_key: str = "vote_label_mask",
+        dst_vote_key: str = "vote_label",
+        dst_mask_key: str = "vote_label_mask",
         oriented: bool = True,
         gt_vote_factor: int = 3,
         allow_missing_keys: bool = False,
@@ -262,8 +262,8 @@ class GenerateVoteLabels(DictTransform):
         super().__init__([pos_key, box_key], allow_missing_keys)
         self.pos_key = pos_key
         self.box_key = box_key
-        self.vote_key = vote_key
-        self.mask_key = mask_key
+        self.dst_vote_key = dst_vote_key
+        self.dst_mask_key = dst_mask_key
         self.oriented = oriented
         self.gt_vote_factor = gt_vote_factor
 
@@ -301,8 +301,8 @@ class GenerateVoteLabels(DictTransform):
             votes[rest[:, None], cols] = offsets[~first]
             counts[inside] += 1
 
-        d[self.vote_key] = votes
-        d[self.mask_key] = mask
+        d[self.dst_vote_key] = votes
+        d[self.dst_mask_key] = mask
         return d
 
 
@@ -380,13 +380,13 @@ class EncodeVoteNetTargets(DictTransform):
     Args:
         box_key: Key of the $(K, 7)$ box tensor (full extents).
         class_key: Key of the $(K,)$ per-box class tensor.
-        center_key: Key to write the $(M, 3)$ center labels to.
-        heading_class_key: Key to write the $(M,)$ heading class labels to.
-        heading_residual_key: Key to write the $(M,)$ heading residual labels to.
-        size_class_key: Key to write the $(M,)$ size class labels to.
-        size_residual_key: Key to write the $(M, 3)$ size residual labels to.
-        sem_cls_key: Key to write the $(M,)$ semantic class labels to.
-        box_mask_key: Key to write the $(M,)$ box mask to.
+        dst_center_key: Key to write the $(M, 3)$ center labels to.
+        dst_heading_class_key: Key to write the $(M,)$ heading class labels to.
+        dst_heading_residual_key: Key to write the $(M,)$ heading residual labels to.
+        dst_size_class_key: Key to write the $(M,)$ size class labels to.
+        dst_size_residual_key: Key to write the $(M, 3)$ size residual labels to.
+        dst_sem_cls_key: Key to write the $(M,)$ semantic class labels to.
+        dst_box_mask_key: Key to write the $(M,)$ box mask to.
         num_heading_bins: Number of heading bins.
         mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
         max_num_obj: Padded number of objects $M$.
@@ -401,13 +401,13 @@ class EncodeVoteNetTargets(DictTransform):
         self,
         box_key: str = "box",
         class_key: str = "label",
-        center_key: str = "center_label",
-        heading_class_key: str = "heading_class_label",
-        heading_residual_key: str = "heading_residual_label",
-        size_class_key: str = "size_class_label",
-        size_residual_key: str = "size_residual_label",
-        sem_cls_key: str = "sem_cls_label",
-        box_mask_key: str = "box_label_mask",
+        dst_center_key: str = "center_label",
+        dst_heading_class_key: str = "heading_class_label",
+        dst_heading_residual_key: str = "heading_residual_label",
+        dst_size_class_key: str = "size_class_label",
+        dst_size_residual_key: str = "size_residual_label",
+        dst_sem_cls_key: str = "sem_cls_label",
+        dst_box_mask_key: str = "box_label_mask",
         num_heading_bins: int = 12,
         mean_sizes: Optional[Union[Tensor, Sequence[Sequence[float]]]] = None,
         max_num_obj: int = 64,
@@ -419,13 +419,13 @@ class EncodeVoteNetTargets(DictTransform):
 
         self.box_key = box_key
         self.class_key = class_key
-        self.center_key = center_key
-        self.heading_class_key = heading_class_key
-        self.heading_residual_key = heading_residual_key
-        self.size_class_key = size_class_key
-        self.size_residual_key = size_residual_key
-        self.sem_cls_key = sem_cls_key
-        self.box_mask_key = box_mask_key
+        self.dst_center_key = dst_center_key
+        self.dst_heading_class_key = dst_heading_class_key
+        self.dst_heading_residual_key = dst_heading_residual_key
+        self.dst_size_class_key = dst_size_class_key
+        self.dst_size_residual_key = dst_size_residual_key
+        self.dst_sem_cls_key = dst_sem_cls_key
+        self.dst_box_mask_key = dst_box_mask_key
         self.num_heading_bins = num_heading_bins
         self.mean_sizes = torch.as_tensor(mean_sizes, dtype=torch.float32)
         self.max_num_obj = max_num_obj
@@ -466,11 +466,11 @@ class EncodeVoteNetTargets(DictTransform):
             sem_cls[:k] = sem
             box_mask[:k] = 1
 
-        d[self.center_key] = center
-        d[self.heading_class_key] = heading_class
-        d[self.heading_residual_key] = heading_residual
-        d[self.size_class_key] = size_class
-        d[self.size_residual_key] = size_residual
-        d[self.sem_cls_key] = sem_cls
-        d[self.box_mask_key] = box_mask
+        d[self.dst_center_key] = center
+        d[self.dst_heading_class_key] = heading_class
+        d[self.dst_heading_residual_key] = heading_residual
+        d[self.dst_size_class_key] = size_class
+        d[self.dst_size_residual_key] = size_residual
+        d[self.dst_sem_cls_key] = sem_cls
+        d[self.dst_box_mask_key] = box_mask
         return d

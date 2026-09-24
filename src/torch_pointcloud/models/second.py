@@ -580,7 +580,7 @@ class SECONDMultiHeadDetection(DetectionModel):
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
-                feat_key=DataKeys.X,
+                feature_key=DataKeys.X,
                 voxel_size=(0.05, 0.05, 0.1),
                 point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
                 max_num_points=5,
@@ -621,7 +621,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
             T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
-                feat_key=DataKeys.X,
+                feature_key=DataKeys.X,
                 voxel_size=(0.1, 0.1, 0.2),
                 point_cloud_range=(-51.2, -51.2, -5.0, 51.2, 51.2, 3.0),
                 max_num_points=10,

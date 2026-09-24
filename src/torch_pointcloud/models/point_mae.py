@@ -845,7 +845,7 @@ class PointMAEPretraining(PretrainingModel):
 
 _MODELNET_TRANSFORM = T.Compose(
     [
-        T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+        T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
         T.FarthestPointSample(
             pos_key=DataKeys.POS,
             keys=[DataKeys.NORMAL],
@@ -904,7 +904,7 @@ def point_mae_base_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -1048,7 +1048,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],

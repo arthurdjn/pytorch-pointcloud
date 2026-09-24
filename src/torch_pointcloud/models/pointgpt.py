@@ -713,7 +713,7 @@ def _modelnet_transforms(num_samples: int) -> Callable:
     return T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -728,7 +728,7 @@ def _modelnet_transforms(num_samples: int) -> Callable:
 def _scanobjectnn_transforms() -> Callable:
     return T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 num_samples=2048,

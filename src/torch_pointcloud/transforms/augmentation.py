@@ -25,7 +25,7 @@ __all__ = [
     "RandomRotate",
     "RandomRotateChoice",
     "RandomScale",
-    "RandomShift",
+    "RandomTranslate",
 ]
 
 
@@ -443,28 +443,28 @@ class RandomJitter(DictTransform, Randomizable):
         return data
 
 
-def shift_boxes(boxes: Tensor, shift: Tensor) -> Tensor:
+def translate_boxes(boxes: Tensor, translation: Tensor) -> Tensor:
     r"""Translate oriented 3D boxes by a fixed offset.
 
-    Centers (columns $0$ to $3$) are offset by `shift`. Sizes and heading are unchanged.
+    Centers (columns $0$ to $3$) are offset by `translation`. Sizes and heading are unchanged.
 
     Args:
         boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$.
-        shift: Translation vector of shape $(3,)$.
+        translation: Translation vector of shape $(3,)$.
 
     Returns:
         The shifted box tensor of shape $(K, 7)$.
     """
     boxes = boxes.clone()
-    boxes[:, 0:3] = boxes[:, 0:3] + shift.to(boxes)
+    boxes[:, 0:3] = boxes[:, 0:3] + translation.to(boxes)
     return boxes
 
 
-class RandomShift(DictTransform, Randomizable):
+class RandomTranslate(DictTransform, Randomizable):
     """Translate listed keys (and optionally oriented boxes) by a uniformly random vector.
 
     Sampling is done once per call: all listed keys and the optional box are shifted by the same
-    translation vector. Pass `box_key` to also shift a $(K, 7)$ oriented-box tensor (centers only;
+    translation vector. Pass `box_key` to also translate a $(K, 7)$ oriented-box tensor (centers only;
     sizes and heading unchanged).
 
     List only point-like keys. Do not list direction vectors such as `normal`: directions are
@@ -472,20 +472,20 @@ class RandomShift(DictTransform, Randomizable):
 
     === "Object"
 
-        ![RandomShift on an object](../../assets/transforms/random_shift.png)
+        ![RandomTranslate on an object](../../assets/transforms/random_translate.png)
 
     === "Scene"
 
-        ![RandomShift on a room](../../assets/transforms/random_shift_scene.png)
+        ![RandomTranslate on a room](../../assets/transforms/random_translate_scene.png)
 
     See Also:
-        `torch_pointcloud.transforms.functional.shift_boxes`
+        `torch_pointcloud.transforms.functional.translate_boxes`
 
     Args:
-        keys: Keys to shift. Point-like keys only; do not list direction vectors such as `normal`.
-        shift_range: Min and max per-axis translation.
+        keys: Keys to translate. Point-like keys only; do not list direction vectors such as `normal`.
+        translation_range: Min and max per-axis translation.
         p: Probability of applying the transform.
-        box_key: Optional key of a $(K, 7)$ oriented-box tensor to shift jointly.
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to translate jointly.
         dst_keys: Where to store the shifted tensors.
         dst_box_key: Where to store the shifted boxes. Defaults to `box_key` (in-place).
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
@@ -495,7 +495,7 @@ class RandomShift(DictTransform, Randomizable):
     def __init__(
         self,
         keys: KeyCollection,
-        shift_range: Tuple[float, float] = (-0.2, 0.2),
+        translation_range: Tuple[float, float] = (-0.2, 0.2),
         p: float = 1.0,
         box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
@@ -507,7 +507,7 @@ class RandomShift(DictTransform, Randomizable):
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
         super().__init__(keys, allow_missing_keys)
-        self.shift_range = shift_range
+        self.translation_range = translation_range
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -519,25 +519,25 @@ class RandomShift(DictTransform, Randomizable):
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
 
-        lo, hi = self.shift_range
+        lo, hi = self.translation_range
         box_key = self.box_key
         has_box = box_key is not None and box_key in data
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and not has_box:
             return data
         d = data[first_key].shape[-1] if first_key is not None else 3
-        shift = torch.empty(d).uniform_(lo, hi, generator=self.R)
+        translation = torch.empty(d).uniform_(lo, hi, generator=self.R)
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
-            data[self.dst_box_key] = shift_boxes(data[box_key], shift[:3])
+            data[self.dst_box_key] = translate_boxes(data[box_key], translation[:3])
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            if x.shape[-1] != shift.numel():
+            if x.shape[-1] != translation.numel():
                 raise ValueError(
-                    f"RandomShift draws one offset per channel of the first key ({shift.numel()}); "
+                    f"RandomTranslate draws one offset per channel of the first key ({translation.numel()}); "
                     f"key '{key}' has {x.shape[-1]} channels."
                 )
-            data[dst_key] = x + shift.to(x.dtype).to(x.device)
+            data[dst_key] = x + translation.to(x.dtype).to(x.device)
         return data
 
 

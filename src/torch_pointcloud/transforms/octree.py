@@ -27,7 +27,7 @@ class BuildOctree(DictTransform):
 
     Args:
         pos_key: Key holding the point positions.
-        octree_key: Key under which the octree is stored.
+        dst_octree_key: Key under which the octree is stored.
         depth: Octree depth.
         full_depth: Full depth of the octree.
         batch_size: Batch size.
@@ -35,14 +35,14 @@ class BuildOctree(DictTransform):
         feature_key: Key holding point features.
         label_key: Key holding per-point labels.
         batch_key: Key holding batch indices.
-        points_key: Key under which the octree points are stored.
+        dst_points_key: Key under which the octree points are stored.
     """
 
     def __init__(
         self,
         *,
         pos_key: str,
-        octree_key: str,
+        dst_octree_key: str,
         depth: int,
         full_depth: int = 2,
         batch_size: int = 1,
@@ -50,22 +50,22 @@ class BuildOctree(DictTransform):
         feature_key: str | None = None,
         label_key: str | None = None,
         batch_key: str | None = None,
-        points_key: str | None = None,
+        dst_points_key: str | None = None,
     ) -> None:
         super().__init__([], False)
-        if points_key is not None and points_key == octree_key:
-            raise ValueError(f"`points_key` and `octree_key` must be different, got {points_key!r}.")
+        if dst_points_key is not None and dst_points_key == dst_octree_key:
+            raise ValueError(f"`dst_points_key` and `dst_octree_key` must be different, got {dst_points_key!r}.")
 
         self.pos_key = pos_key
         self.depth = depth
-        self.octree_key = octree_key
+        self.dst_octree_key = dst_octree_key
         self.full_depth = full_depth
         self.batch_size = batch_size
         self.normal_key = normal_key
         self.feature_key = feature_key
         self.label_key = label_key
         self.batch_key = batch_key
-        self.points_key = points_key
+        self.dst_points_key = dst_points_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
@@ -88,9 +88,9 @@ class BuildOctree(DictTransform):
             return_points=True,
         )
 
-        data[self.octree_key] = octree
-        if self.points_key is not None:
-            data[self.points_key] = points
+        data[self.dst_octree_key] = octree
+        if self.dst_points_key is not None:
+            data[self.dst_points_key] = points
 
         return data
 

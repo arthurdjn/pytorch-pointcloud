@@ -13,7 +13,7 @@ from .augmentation import (
     random_jitter,
     rotate_boxes,
     scale_boxes,
-    shift_boxes,
+    translate_boxes,
 )
 from .box import angle_to_class, class_to_angle, class_to_size, points_in_oriented_box
 from .geometry import axis_min_offset, estimate_normals, quantize, rotate_vectors, rotation_matrix, shift
@@ -70,7 +70,7 @@ __all__ = [
     "rotation_matrix",
     "scale_boxes",
     "shift",
-    "shift_boxes",
+    "translate_boxes",
     "shuffle_indices",
     "sphere_mask",
     "split_batch",

@@ -1128,7 +1128,7 @@ class HierarchicalEncoderMAE(nn.Module):
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS),
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL],
@@ -1172,7 +1172,7 @@ def point_m2ae_base_modelnet40(**kwargs: Any) -> PointM2AEClassification:
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 num_samples=2048,
@@ -1215,7 +1215,7 @@ def point_m2ae_base_scanobjectnn_hardest(**kwargs: Any) -> PointM2AEClassificati
     ),
     transform=T.Compose(
         [
-            T.CopyItems(keys=DataKeys.POS, names=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 num_samples=2048,
@@ -1258,7 +1258,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
     transform=T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], names=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
