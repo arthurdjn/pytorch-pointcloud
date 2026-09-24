@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.ops import voxel_grid_fnv
+from torch_pointcloud.utils.voxelization import voxel_grid_fnv
 
 from ._utils import apply_transform, check_batch_alignment, index_select_dict
 from .inferer import Inferer

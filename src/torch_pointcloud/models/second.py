@@ -14,12 +14,12 @@ from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers import SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.anchors import (
-    AnchorHeadMulti,
+    AnchorHead,
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
-    AnchorHeadSingle,
+    MultiGroupAnchorHead,
 )
-from torch_pointcloud.layers.bev_backbone import BaseBEVBackbone
+from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
@@ -201,11 +201,11 @@ class SECONDDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_backbone(self) -> BaseBEVBackbone:
+    def configure_backbone(self) -> BEVBackbone:
         """Build the 2D BEV backbone."""
         # height compression folds the sparse-z output (D=2) into the channel dim
         bev_input_channels = self.backbone_3d.out_channels * 2
-        return BaseBEVBackbone(
+        return BEVBackbone(
             bev_input_channels,
             self.layer_nums,
             self.layer_strides,
@@ -223,9 +223,9 @@ class SECONDDetection(DetectionModel):
         """Channel count $C$ of the BEV feature map entering the head."""
         return self.backbone.num_bev_features
 
-    def configure_head(self) -> AnchorHeadSingle:
+    def configure_head(self) -> AnchorHead:
         """Build the single-group anchor head."""
-        return AnchorHeadSingle(
+        return AnchorHead(
             self.backbone.num_bev_features,
             self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
@@ -269,7 +269,7 @@ class SECONDDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadOutput) -> Detection3D:
-        r"""Decode a forward output into raw per-anchor detections (see `AnchorHeadSingle.decode`)."""
+        r"""Decode a forward output into raw per-anchor detections (see `AnchorHead.decode`)."""
         return self.head.decode(out)
 
 
@@ -407,7 +407,7 @@ class SECONDMultiHeadDetection(DetectionModel):
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
     (`cbgs_second_multihead`). A residual sparse 3D backbone
     ([`VoxelResBackbone8x`][torch_pointcloud.models.second.VoxelResBackbone8x]) feeds the shared 2D
-    BEV backbone and an [`AnchorHeadMulti`][torch_pointcloud.layers.anchors.AnchorHeadMulti] head.
+    BEV backbone and an [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead] head.
     Input points carry 5 features ($x, y, z, \text{intensity}, \Delta t$).
 
     Args:
@@ -492,10 +492,10 @@ class SECONDMultiHeadDetection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_backbone(self) -> BaseBEVBackbone:
+    def configure_backbone(self) -> BEVBackbone:
         """Build the 2D BEV backbone."""
         bev_input_channels = self.backbone_3d.out_channels * 2
-        return BaseBEVBackbone(
+        return BEVBackbone(
             bev_input_channels,
             self.layer_nums,
             self.layer_strides,
@@ -513,9 +513,9 @@ class SECONDMultiHeadDetection(DetectionModel):
         """Channel count $C$ of the BEV feature map entering the head."""
         return self.backbone.num_bev_features
 
-    def configure_head(self) -> AnchorHeadMulti:
+    def configure_head(self) -> MultiGroupAnchorHead:
         """Build the multi-group anchor head."""
-        return AnchorHeadMulti(
+        return MultiGroupAnchorHead(
             self.backbone.num_bev_features,
             self.num_classes,
             (self.grid_size[0], self.grid_size[1]),
@@ -559,7 +559,7 @@ class SECONDMultiHeadDetection(DetectionModel):
 
     @torch.no_grad()
     def decode(self, out: AnchorHeadMultiOutput) -> Detection3D:
-        r"""Decode a forward output into raw per-anchor detections (see `AnchorHeadMulti.decode`)."""
+        r"""Decode a forward output into raw per-anchor detections (see `MultiGroupAnchorHead.decode`)."""
         return self.head.decode(out)
 
 

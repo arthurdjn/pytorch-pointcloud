@@ -21,7 +21,7 @@ scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCAT
 scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
 
 
-class PFNLayer(nn.Module):
+class PillarFeatureLayer(nn.Module):
     r"""Pillar feature net layer (the reference's `PFNLayerV2`): linear + norm + ReLU with a per-voxel max-pool.
 
     Non-final layers halve their output width and concatenate the pooled feature back onto every
@@ -96,7 +96,7 @@ class DynamicMeanVFE(nn.Module):
         feat_channels = in_channels + 6
         widths = [feat_channels, *num_filters]
         self.pfn_layers = nn.ModuleList(
-            PFNLayer(widths[i], widths[i + 1], last=i >= len(widths) - 2) for i in range(len(widths) - 1)
+            PillarFeatureLayer(widths[i], widths[i + 1], last=i >= len(widths) - 2) for i in range(len(widths) - 1)
         )
         self.out_channels = num_filters[-1]
 

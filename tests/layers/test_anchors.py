@@ -1,9 +1,9 @@
 import torch
 
 from torch_pointcloud.layers.anchors import (
-    AnchorHeadMulti,
+    AnchorHead,
     AnchorHeadMultiOutput,
-    AnchorHeadSingle,
+    MultiGroupAnchorHead,
     assign_anchor_targets,
 )
 from torch_pointcloud.utils.box3d import decode_box_residuals, encode_box_residuals
@@ -75,8 +75,8 @@ def test_assign_force_match_below_threshold() -> None:
     assert (out["cls_labels"] > 0).sum().item() == 1
 
 
-def _make_multi_head() -> AnchorHeadMulti:
-    return AnchorHeadMulti(
+def _make_multi_head() -> MultiGroupAnchorHead:
+    return MultiGroupAnchorHead(
         8,
         2,
         (4, 4),
@@ -123,8 +123,14 @@ def test_anchor_head_multi_forward_decode_velocity_matches_batch_box() -> None:
 def test_anchor_head_single_decode_has_no_velocity() -> None:
     """The 7-DoF single head (no velocity in the box code) decodes without a `velocity` key."""
     torch.manual_seed(0)
-    head = AnchorHeadSingle(
-        8, 1, (4, 4), RANGE, anchor_sizes=[[4.0, 2.0, 1.5]], anchor_bottom_heights=[0.0], feature_map_stride=1
+    head = AnchorHead(
+        8,
+        1,
+        (4, 4),
+        RANGE,
+        anchor_sizes=[[4.0, 2.0, 1.5]],
+        anchor_bottom_heights=[0.0],
+        feature_map_stride=1,
     ).eval()
     with torch.no_grad():
         out = head(torch.randn(2, 8, 4, 4))

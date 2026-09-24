@@ -21,10 +21,9 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
-from torch_pointcloud.utils.cluster import fps, knn, knn_graph
+from torch_pointcloud.utils.cluster import fps, knn, knn_graph, knn_interpolate
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.ops import knn_interpolate
 from torch_pointcloud.utils.types import FeaturesDict, MessagePassingParams
 
 

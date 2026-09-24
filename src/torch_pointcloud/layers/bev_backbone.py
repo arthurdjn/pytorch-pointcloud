@@ -1,6 +1,6 @@
 r"""SSD-style 2D BEV backbones shared by the voxel detectors (PointPillars, SECOND, Voxel Mamba).
 
-Packed-format ports of the `BaseBEVBackbone` / `BaseBEVResBackbone` blocks from
+Packed-format ports of the `BEVBackbone` / `BEVResidualBackbone` blocks from
 :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 """
 
@@ -14,7 +14,7 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 
 
-class BasicBlock2d(nn.Module):
+class ResidualBlock2d(nn.Module):
     r"""Residual 2D conv block (the reference's `BasicBlock`) of the BEV residual backbone.
 
     Args:
@@ -58,8 +58,8 @@ class BasicBlock2d(nn.Module):
         return out if self.act is None else self.act(out)
 
 
-class BaseBEVBackbone(nn.Module):
-    r"""SSD-style multi-scale 2D BEV backbone (`BaseBEVBackbone`).
+class BEVBackbone(nn.Module):
+    r"""SSD-style multi-scale 2D BEV backbone.
 
     Each level downsamples the BEV pseudo-image with a strided $3\times3$ conv followed by
     `layer_nums` residual-free $3\times3$ convs, then upsamples back to a common stride; the level
@@ -134,12 +134,12 @@ class BaseBEVBackbone(nn.Module):
         return torch.cat(ups, dim=1) if len(ups) > 1 else ups[0]
 
 
-class BaseBEVResBackbone(nn.Module):
-    r"""Residual SSD-style 2D BEV backbone (`BaseBEVResBackbone`) used by Voxel Mamba.
+class BEVResidualBackbone(nn.Module):
+    r"""Residual SSD-style 2D BEV backbone used by Voxel Mamba.
 
-    Same scaffolding as [`BaseBEVBackbone`][torch_pointcloud.layers.bev_backbone.BaseBEVBackbone] (per-level
+    Same scaffolding as [`BEVBackbone`][torch_pointcloud.layers.bev_backbone.BEVBackbone] (per-level
     block then upsample, concatenated), but each level is a stack of residual
-    [`BasicBlock2d`][torch_pointcloud.layers.bev_backbone.BasicBlock2d]s instead of plain $3\times3$ convs.
+    [`ResidualBlock2d`][torch_pointcloud.layers.bev_backbone.ResidualBlock2d]s instead of plain $3\times3$ convs.
 
     Args:
         input_channels: Channels of the input BEV feature map.
@@ -176,12 +176,16 @@ class BaseBEVResBackbone(nn.Module):
         self.deblocks = nn.ModuleList()
         for idx in range(len(layer_nums)):
             level: List[nn.Module] = [
-                BasicBlock2d(
-                    c_in_list[idx], num_filters[idx], stride=layer_strides[idx], downsample=True, **block_kwargs
+                ResidualBlock2d(
+                    c_in_list[idx],
+                    num_filters[idx],
+                    stride=layer_strides[idx],
+                    downsample=True,
+                    **block_kwargs,
                 )
             ]
             for _ in range(layer_nums[idx]):
-                level.append(BasicBlock2d(num_filters[idx], num_filters[idx], **block_kwargs))
+                level.append(ResidualBlock2d(num_filters[idx], num_filters[idx], **block_kwargs))
             self.blocks.append(nn.Sequential(*level))
 
             stride = upsample_strides[idx]

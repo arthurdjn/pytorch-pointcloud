@@ -228,7 +228,7 @@ _init_signature = inspect.signature(OctreeT.__init__)
 OctreeT.__signature__ = _init_signature.replace(parameters=list(_init_signature.parameters.values())[1:])
 
 
-class RPE(nn.Module):
+class OctreeRelativePositionEncoding(nn.Module):
     r"""Relative Position Encoding (RPE) module used within the `OctreeAttention` module.
 
     Args:
@@ -307,7 +307,7 @@ class OctreeAttention(nn.Module):
         self.use_rpe = use_rpe
         self.scale = qk_scale or (channels // num_heads) ** -0.5
 
-        self.rpe = RPE(patch_size, num_heads, dilation) if use_rpe else None
+        self.rpe = OctreeRelativePositionEncoding(patch_size, num_heads, dilation) if use_rpe else None
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(channels, channels)

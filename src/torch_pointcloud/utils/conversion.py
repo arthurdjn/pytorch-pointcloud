@@ -751,3 +751,72 @@ def convert_to_numpy(data: Any, /, strict: bool = True) -> Any:
         )
 
     return data
+
+
+def ensure_msg_list(items: Sequence[Any], extra_msg: str = "") -> List[List[List[Any]]]:
+    """Utility function to ensure that items are converted in nested lists compatible
+    with Multi-Scale Grouping (MSG) mode.
+    This function will convert a list of list into a list of list of list.
+
+    Example:
+        Let's say we have designed a network where the first two SA blocks are
+        not using MSG mode, but the last SA block is using MSG mode.
+
+        Calling `ensure_msg_list` will make sure the provided channels are compliant
+        with the MSG mode.
+
+        ```pycon
+        >>> sa_channels = [[32, 64], [128, 256], [[256, 512, 512], [256, 512, 1024]]]
+        >>> ensure_msg_list(sa_channels)
+        [[[32, 64]], [[128, 256]], [[256, 512, 512], [256, 512, 1024]]]
+
+        ```
+    """
+    items = ensure_list(items, recursive=True)
+
+    result = []
+    if not is_iterable(items):
+        raise ValueError(f"Expected a sequence, got {type(items).__name__}. {extra_msg}")
+
+    for i, item in enumerate(items):
+        if not is_iterable(item):
+            raise ValueError(f"Expected a sequence, got {type(item).__name__} at index {i} from {items}. {extra_msg}")
+
+        # Check if the item is already a list of lists
+        if all(is_iterable(subitem) for subitem in item):
+            result.append(item)
+        elif all(not is_iterable(subitem) for subitem in item):
+            result.append([item])
+        else:
+            raise ValueError(
+                "Expected either all items to be iterable or non-iterable, "
+                f"got a mix of both at index {i} from {items}. {extra_msg}"
+            )
+
+    return result  # type: ignore[return-value]
+
+
+def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -> Sequence[Any]:
+    """Validate the length of a sequence, then nest it for Multi-Scale Grouping (MSG) compatibility.
+
+    Args:
+        value: Sequence of per-block channel specifications.
+        size: Expected number of elements in `value`.
+        extra_msg: Extra context appended to the error message.
+
+    Returns:
+        The value converted to a list of lists of lists (one inner list per grouping scale).
+
+    Raises:
+        ValueError: If `value` does not have exactly `size` elements.
+
+    Example:
+        ```pycon
+        >>> ensure_msg_list_size([[32, 64], [64, 128]], size=2)
+        [[[32, 64]], [[64, 128]]]
+
+        ```
+    """
+    if len(value) != size:
+        raise ValueError(f"Expected a list of size {size}, got {len(value)}. {extra_msg}")
+    return ensure_msg_list(value, extra_msg=extra_msg)
