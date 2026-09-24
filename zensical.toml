@@ -261,12 +261,12 @@ nav = [
             { "box" = "api/transforms/box.md" },
             { "functional" = "api/transforms/functional.md" },
             { "geometry" = "api/transforms/geometry.md" },
-            { "keys" = "api/transforms/keys.md" },
             { "masking" = "api/transforms/masking.md" },
             { "mixing" = "api/transforms/mixing.md" },
             { "octree" = "api/transforms/octree.md" },
             { "sampling" = "api/transforms/sampling.md" },
             { "scaling" = "api/transforms/scaling.md" },
+            { "utils" = "api/transforms/utils.md" },
             { "voxelization" = "api/transforms/voxelization.md" },
         ] },
         { Utils = [

@@ -82,12 +82,12 @@ MODULE_OPTIONS = {
     "torch_pointcloud.transforms.base": {"inherited_members": "false"},
     "torch_pointcloud.transforms.box": {"inherited_members": "false"},
     "torch_pointcloud.transforms.geometry": {"inherited_members": "false"},
-    "torch_pointcloud.transforms.keys": {"inherited_members": "false"},
     "torch_pointcloud.transforms.masking": {"inherited_members": "false"},
     "torch_pointcloud.transforms.mixing": {"inherited_members": "false"},
     "torch_pointcloud.transforms.octree": {"inherited_members": "false"},
     "torch_pointcloud.transforms.sampling": {"inherited_members": "false"},
     "torch_pointcloud.transforms.scaling": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.utils": {"inherited_members": "false"},
     "torch_pointcloud.transforms.voxelization": {"inherited_members": "false"},
 }
 
