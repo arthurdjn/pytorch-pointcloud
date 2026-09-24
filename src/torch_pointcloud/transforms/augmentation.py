@@ -701,7 +701,7 @@ class RandomColorJitter(DictTransform, Randomizable):
         return data
 
 
-def random_color_drop(
+def color_drop(
     color: Tensor,
     fill: float = 0.5,
     int_color: bool = False,
@@ -732,7 +732,7 @@ class RandomColorDrop(DictTransform, Randomizable):
     ![RandomColorDrop before / after](../../assets/transforms/color_drop.png)
 
     See Also:
-        `torch_pointcloud.transforms.functional.random_color_drop`
+        `torch_pointcloud.transforms.functional.color_drop`
 
     Args:
         keys: Color keys to drop.
@@ -775,7 +775,7 @@ class RandomColorDrop(DictTransform, Randomizable):
             return data
 
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = random_color_drop(data[key], fill=self.fill, int_color=self.int_color)
+            data[dst_key] = color_drop(data[key], fill=self.fill, int_color=self.int_color)
         return data
 
 

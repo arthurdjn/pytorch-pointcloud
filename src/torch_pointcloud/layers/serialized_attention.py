@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers.rope import Point3DRoPE
-from torch_pointcloud.transforms.functional import divisible_pad, split_batch
+from torch_pointcloud.transforms.functional import divisible_pad
 from torch_pointcloud.transforms.voxelization import PadMode
 from torch_pointcloud.utils.conversion import batch_to_offset
 from torch_pointcloud.utils.imports import _FLASH_ATTN_GITHUB_URL, optional_import
@@ -20,6 +20,53 @@ if TYPE_CHECKING:
 
 
 flash_attn, _FLASH_ATTN_AVAILABLE = optional_import("flash_attn", url=_FLASH_ATTN_GITHUB_URL)
+
+
+@torch.no_grad()
+def split_batch(batch: Tensor, max_size: int) -> Tensor:
+    """Split batches into multiple sub-batches of a given size.
+
+    Note:
+        The batch is only splitted if it is larger than the given size.
+        If not, the batch is returned as is.
+
+    Note:
+        If you want to split batches smaller than the given size,
+        you can use the `divisible_pad` function before splitting the batch.
+
+    Args:
+        batch: The batch indices of the points.
+        max_size: The maximum size of the sub-batches.
+
+    Returns:
+        The sub-batch indices.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> batch = torch.tensor([0, 0, 0, 1, 1, 1, 1, 2, 2, 3])
+        >>> split_batch(batch, max_size=2)
+        tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])
+
+        ```
+    """
+    device = batch.device
+    _, batch_counts = torch.unique(batch, return_counts=True)
+    sub_counts = torch.div(batch_counts + max_size - 1, max_size, rounding_mode="floor")
+    sub_offsets = torch.cumsum(torch.cat([torch.zeros(1, device=device, dtype=torch.long), sub_counts[:-1]]), dim=0)
+    sub_idxs = torch.zeros_like(batch)
+
+    offset = 0
+    for i, batch_count in enumerate(batch_counts):
+        idxs = slice(offset, offset + batch_count)
+        # Get the relative sub-batch indices (starting from 0)
+        relative_sub_idxs = torch.div(torch.arange(batch_count, device=device), max_size, rounding_mode="floor")
+        # Assign the relative sub-batch indices,
+        # making sure they are contiguous from already assigned sub-batches
+        sub_idxs[idxs] = relative_sub_idxs + sub_offsets[i]
+        offset += batch_count
+
+    return sub_idxs
 
 
 class RelativePositionalEncoding(nn.Module):

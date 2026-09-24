@@ -9,6 +9,7 @@ from torch_pointcloud.layers.serialized_attention import (
     SerializedAttention,
     SerializedAttentionRoPE,
     SerializedAttentionRPE,
+    split_batch,
 )
 from torch_pointcloud.transforms.functional import divisible_pad
 
@@ -210,3 +211,14 @@ def test_serialized_attention_variants_accept_non_consecutive_batch_ids() -> Non
     for attn in attns:
         out_gapped = attn(x, pos_grid, gapped, pos=pos)
         assert torch.equal(out_gapped, attn(x, pos_grid, consecutive, pos=pos))
+
+
+def test_split_batch() -> None:
+    """Test that the split batch function splits the batch into smaller chunks below a maximum size."""
+    batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 3])
+    max_size = 3
+
+    expected_split_batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 4])
+
+    splitted_batch = split_batch(batch, max_size)
+    assert torch.equal(splitted_batch, expected_split_batch)

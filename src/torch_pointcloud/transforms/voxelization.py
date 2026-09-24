@@ -22,7 +22,7 @@ PadMode = Literal["below", "above", "all"]
 PadFill = Literal["cycle", "replicate", "random"]
 
 
-VoxelMethod = Literal["fnv", "pyg"]
+VoxelMethod = Literal["fnv", "grid"]
 """Allowed values for `Voxelize.method` (voxel-id hashing scheme)."""
 
 VoxelReduce = Literal["mean", "min", "max", "sum", "first"]
@@ -39,9 +39,6 @@ scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER
 __all__ = [
     "DivisiblePad",
     "HardVoxelize",
-    "VoxelMethod",
-    "VoxelPosReduce",
-    "VoxelReduce",
     "Voxelize",
 ]
 
@@ -226,53 +223,6 @@ def divisible_pad(
         return indices, inverse_indices, padded_batch
 
     return indices, padded_batch
-
-
-@torch.no_grad()
-def split_batch(batch: Tensor, max_size: int) -> Tensor:
-    """Split batches into multiple sub-batches of a given size.
-
-    Note:
-        The batch is only splitted if it is larger than the given size.
-        If not, the batch is returned as is.
-
-    Note:
-        If you want to split batches smaller than the given size,
-        you can use the `divisible_pad` function before splitting the batch.
-
-    Args:
-        batch: The batch indices of the points.
-        max_size: The maximum size of the sub-batches.
-
-    Returns:
-        The sub-batch indices.
-
-    Examples:
-        ```pycon
-        >>> import torch
-        >>> batch = torch.tensor([0, 0, 0, 1, 1, 1, 1, 2, 2, 3])
-        >>> split_batch(batch, max_size=2)
-        tensor([0, 0, 1, 2, 2, 3, 3, 4, 4, 5])
-
-        ```
-    """
-    device = batch.device
-    _, batch_counts = torch.unique(batch, return_counts=True)
-    sub_counts = torch.div(batch_counts + max_size - 1, max_size, rounding_mode="floor")
-    sub_offsets = torch.cumsum(torch.cat([torch.zeros(1, device=device, dtype=torch.long), sub_counts[:-1]]), dim=0)
-    sub_idxs = torch.zeros_like(batch)
-
-    offset = 0
-    for i, batch_count in enumerate(batch_counts):
-        idxs = slice(offset, offset + batch_count)
-        # Get the relative sub-batch indices (starting from 0)
-        relative_sub_idxs = torch.div(torch.arange(batch_count, device=device), max_size, rounding_mode="floor")
-        # Assign the relative sub-batch indices,
-        # making sure they are contiguous from already assigned sub-batches
-        sub_idxs[idxs] = relative_sub_idxs + sub_offsets[i]
-        offset += batch_count
-
-    return sub_idxs
 
 
 class DivisiblePad(DictTransform, Randomizable):
@@ -514,12 +464,13 @@ class Voxelize(DictTransform, Randomizable):
         pos_key: Key holding the positions to sub-sample.
         pos_reduce: How to reduce positions per voxel (`mean`/`min`/`max`/`sum`/`first`/`grid`).
         size: Voxel edge length in the same units as the positions. Must be positive.
-        method: Voxel-id hashing scheme (`fnv` matches FNV-1a-based reference pipelines; `pyg` is the default).
+        method: How voxel ids are computed, which fixes the output voxel order: `grid` (the default) uses the
+            linear grid index, `fnv` an FNV-1a hash of the grid coordinates, as hash-based reference pipelines do.
         reduce: Per-key reduction for `keys`. `None` (the default) resolves per key to `mean` for
             floating-point tensors and `first` for integer tensors (e.g. `segment`). Integer keys keep
             their dtype: non-`first` reductions compute in float and cast back. The `first`
             representative is the first point of each voxel in input order, deterministic across
-            devices (unless `random_sample=True`).
+            devices (unless `random_first=True`).
         keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
         dst_inverse_key: Key for the source-to-voxel row map (see the module docs on sampling keys); composes
             with any prior value at the same key. `None` (the default) disables it.
@@ -527,12 +478,12 @@ class Voxelize(DictTransform, Randomizable):
             model needs both real-valued positions (e.g. for rotary position embedding) and integer grid
             coordinates (for serialization / sparse-conv stems); with `pos_reduce="grid"` it holds the same grid
             as `pos_key`.
-        random_sample: If `True`, the per-voxel representative used by `reduce="first"`
+        random_first: If `True`, the per-voxel representative used by `reduce="first"`
             (and the `pos`/`grid_pos` derivations) is chosen *randomly* within each
             voxel on every call. Per-voxel random sampling is a meaningful
             training augmentation; leave
             `False` (default) for deterministic validation.
-        seed: Seed for the random voxel representative (`random_sample`);
+        seed: Seed for the random voxel representative (`random_first`);
             `None` draws from the global generator (see `Randomizable`).
         allow_missing_keys: If `True`, return the data unchanged when `pos_key` is missing and skip absent `keys`.
 
@@ -546,12 +497,12 @@ class Voxelize(DictTransform, Randomizable):
         pos_key: str,
         pos_reduce: VoxelPosReduce,
         size: float,
-        method: VoxelMethod = "pyg",
+        method: VoxelMethod = "grid",
         reduce: Optional[ValueCollection[VoxelReduce]] = None,
         keys: Optional[KeyCollection] = None,
         dst_inverse_key: Optional[str] = None,
         dst_pos_grid_key: Optional[str] = None,
-        random_sample: bool = False,
+        random_first: bool = False,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -574,7 +525,7 @@ class Voxelize(DictTransform, Randomizable):
         self.method = method
         self.dst_inverse_key = dst_inverse_key
         self.dst_pos_grid_key = dst_pos_grid_key
-        self.random_sample = random_sample
+        self.random_first = random_first
         self.set_random_state(seed)
 
     def _random_perm(self, cluster: torch.Tensor, num_clusters: int) -> torch.Tensor:
@@ -622,8 +573,7 @@ class Voxelize(DictTransform, Randomizable):
         start = torch.floor(pos.min(dim=0).values / self.size) * self.size
 
         if self.method == "fnv":
-            # This method is supported only for debugging and reproducibility against FNV-hash-based
-            # grid subsampling. This method might be removed in the future (?)
+            # FNV-1a hashing reproduces the voxel order of hash-based reference pipelines.
             cluster = voxel_grid_fnv(pos, size=self.size, start=start)
         else:
             cluster = voxel_grid(pos, size=self.size, start=start)
@@ -631,7 +581,7 @@ class Voxelize(DictTransform, Randomizable):
         cluster, _ = consecutive_cluster(cluster)
         num_clusters = int(cluster.max().item()) + 1
 
-        if self.random_sample:
+        if self.random_first:
             perm = self._random_perm(cluster, num_clusters=num_clusters)
         else:
             perm = first_permutation(cluster, num_clusters=num_clusters)

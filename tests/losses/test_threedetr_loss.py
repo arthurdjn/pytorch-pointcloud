@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.losses import ThreeDETRLoss
-from torch_pointcloud.transforms.functional import angle_to_class
+from torch_pointcloud.utils.box3d import angle_to_class
 from torch_pointcloud.utils.data import DataKeys
 
 _NUM_CLASSES = 3

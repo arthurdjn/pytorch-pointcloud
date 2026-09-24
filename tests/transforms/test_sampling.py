@@ -110,7 +110,9 @@ def test_farthest_point_sample_ratio() -> None:
 def test_random_dropout_preserves_correspondence() -> None:
     pos = torch.arange(20, dtype=torch.float32).reshape(10, 2)
     color = torch.arange(10, dtype=torch.float32).reshape(10, 1)
-    out = T.RandomDropout(keys=("pos", "color"), p_drop=0.5, seed=0)({"pos": pos.clone(), "color": color.clone()})
+    out = T.RandomDropout(keys=("pos", "color"), drop_ratio_range=(0.5, 0.5), seed=0)(
+        {"pos": pos.clone(), "color": color.clone()}
+    )
     assert out["pos"].shape[0] == out["color"].shape[0]
     # Surviving (pos, color) pairs match the original mapping.
     for i in range(out["pos"].shape[0]):
@@ -118,9 +120,11 @@ def test_random_dropout_preserves_correspondence() -> None:
         assert out["color"][i].item() == src_idx
 
 
-def test_random_dropout_invalid_p_drop() -> None:
-    with pytest.raises(ValueError, match=r"p_drop"):
-        T.RandomDropout(keys="pos", p_drop=1.0)
+def test_random_dropout_invalid_drop_ratio_range() -> None:
+    with pytest.raises(ValueError, match=r"drop_ratio_range"):
+        T.RandomDropout(keys="pos", drop_ratio_range=(1.0, 1.0))
+    with pytest.raises(ValueError, match=r"drop_ratio_range"):
+        T.RandomDropout(keys="pos", drop_ratio_range=(0.3, 0.2))
 
 
 def test_shuffle_point_preserves_correspondence_and_count() -> None:
@@ -196,7 +200,10 @@ SELECTION_SAMPLERS = [
     pytest.param(
         T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5, dst_index_key="index"), id="RemoveNearOrigin"
     ),
-    pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5, dst_index_key="index"), id="RandomDropout"),
+    pytest.param(
+        T.RandomDropout(keys=["pos", "color"], drop_ratio_range=(0.5, 0.5), dst_index_key="index"),
+        id="RandomDropout",
+    ),
     pytest.param(T.ShufflePoint(keys=["pos", "color"], dst_index_key="index"), id="ShufflePoint"),
     pytest.param(T.ApplyMask(keys=["pos", "color"], mask_key="mask", dst_index_key="index"), id="ApplyMask"),
     pytest.param(T.Slice(keys=["pos", "color"], stop=4, dst_index_key="index"), id="Slice"),
@@ -212,7 +219,7 @@ DEFAULT_SELECTION_SAMPLERS = [
     ),
     pytest.param(T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0)), id="SphereCrop"),
     pytest.param(T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5), id="RemoveNearOrigin"),
-    pytest.param(T.RandomDropout(keys=["pos", "color"], p_drop=0.5), id="RandomDropout"),
+    pytest.param(T.RandomDropout(keys=["pos", "color"], drop_ratio_range=(0.5, 0.5)), id="RandomDropout"),
     pytest.param(T.ShufflePoint(keys=["pos", "color"]), id="ShufflePoint"),
     pytest.param(T.ApplyMask(keys=["pos", "color"], mask_key="mask"), id="ApplyMask"),
     pytest.param(T.Slice(keys=["pos", "color"], stop=4), id="Slice"),
@@ -268,7 +275,7 @@ def test_slice_column_writes_no_index() -> None:
 @pytest.mark.parametrize(
     "transform",
     [
-        T.RandomDropout(keys=["pos"], p_drop=0.5, p=0.0, dst_index_key="index"),
+        T.RandomDropout(keys=["pos"], drop_ratio_range=(0.5, 0.5), p=0.0, dst_index_key="index"),
         T.ShufflePoint(keys=["pos"], p=0.0, dst_index_key="index"),
         T.SphereCrop(pos_key="pos", radius=1.0, p=0.0, dst_index_key="index"),
     ],
@@ -434,14 +441,14 @@ def test_farthest_point_sample_random_start(mock_fps: Mock) -> None:
 
 def test_random_dropout_mask_keep_rate() -> None:
     g = torch.Generator().manual_seed(0)
-    mask = F.random_dropout_mask(10000, p_drop=0.3, generator=g)
+    mask = F.random_dropout_mask(10000, drop_ratio=0.3, generator=g)
     rate = mask.float().mean().item()
     assert abs(rate - 0.7) < 0.05  # within statistical noise
 
 
-def test_random_dropout_mask_invalid_p_drop() -> None:
+def test_random_dropout_mask_invalid_drop_ratio() -> None:
     with pytest.raises(ValueError, match=r"\[0, 1\)"):
-        F.random_dropout_mask(10, p_drop=1.0)
+        F.random_dropout_mask(10, drop_ratio=1.0)
 
 
 def test_shuffle_indices_is_permutation() -> None:
