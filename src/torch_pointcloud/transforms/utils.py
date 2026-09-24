@@ -1,14 +1,14 @@
 """Transforms that rename, copy, convert or combine the entries of a sample dict, and element-wise arithmetic."""
 
-from typing import Any, Dict, Literal, Optional, Sequence, get_args
+from typing import Any, Dict, Literal, Optional, Sequence, Union, get_args
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
-from . import functional as F
 from .base import DictTransform
 
 ReduceOp = Literal["min", "max", "mean", "sum"]
@@ -146,6 +146,50 @@ class ToDevice(DictTransform):
         return data
 
 
+def relabel(
+    labels: Tensor,
+    mapping: Union[Sequence[int], Dict[int, int]],
+    default: int = 0,
+) -> Tensor:
+    """Remap integer labels via a lookup table.
+
+    `mapping` can be either:
+
+    - a sequence of source values (1:1): each value at index $i$ is mapped to $i$;
+    - a `dict[int, int]` (general source → target): supports N-to-1 merges
+      (e.g. SemanticKITTI's `moving-car` and `car` both → 0).
+
+    Source values not listed in `mapping` are set to `default`.
+
+    Args:
+        labels: Integer label tensor (any integer dtype). Output preserves dtype.
+        mapping: Source-value listing (1:1) or explicit `{source: target}` dict (N:1).
+        default: Value assigned to source values not listed in `mapping`.
+
+    Returns:
+        Remapped tensor with the same shape and dtype as `labels`.
+
+    Raises:
+        ValueError: If `mapping` is empty.
+    """
+    if isinstance(mapping, dict):
+        table: Dict[int, int] = {int(k): int(v) for k, v in mapping.items()}
+    else:
+        table = {int(v): i for i, v in enumerate(mapping)}
+    if not table:
+        raise ValueError("relabel requires at least one source value in `mapping`.")
+    sorted_sources = sorted(table.keys())
+    src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)
+    tgt = torch.tensor([table[s] for s in sorted_sources], dtype=torch.long, device=labels.device)
+    labels_long = labels.long()
+    idx = torch.searchsorted(src, labels_long)
+    idx_clamped = idx.clamp(max=src.numel() - 1)
+    hit = src[idx_clamped] == labels_long
+    dst = torch.full_like(labels_long, default)
+    dst[hit] = tgt[idx_clamped[hit]]
+    return dst.to(labels.dtype)
+
+
 class Relabel(DictTransform):
     """Remap integer labels in dictionary entries via a lookup table.
 
@@ -210,7 +254,7 @@ class Relabel(DictTransform):
             tensor = data[key]
             if not isinstance(tensor, torch.Tensor):
                 raise TypeError(f"Expected torch.Tensor for key {key!r}, got {type(tensor).__name__}")
-            data[key] = F.relabel(tensor, self.labels, default=self.default)
+            data[key] = relabel(tensor, self.labels, default=self.default)
 
         return data
 
@@ -715,11 +759,37 @@ class SubtractKey(DictTransform):
         return data
 
 
+def absolute(x: Tensor, inplace: bool = False) -> Tensor:
+    """Make the input tensor absolute.
+
+    Args:
+        x: The input tensor.
+
+    Returns:
+        The absolute tensor.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> x = torch.tensor([-1.0, 2.0, -3.0])
+        >>> F.absolute(x)
+        tensor([1., 2., 3.])
+
+        ```
+    """
+    if inplace:
+        x.abs_()
+        return x
+
+    return x.abs()
+
+
 class Abs(DictTransform):
     """Make dictionary tensor entries absolute.
 
     See Also:
-        `torch_pointcloud.transforms.functional.abs`
+        `torch_pointcloud.transforms.functional.absolute`
 
     === "Object"
 
@@ -742,7 +812,7 @@ class Abs(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.iter_keys(d):
-            d[key] = F.abs(d[key], inplace=self.inplace)
+            d[key] = absolute(d[key], inplace=self.inplace)
         return d
 
 

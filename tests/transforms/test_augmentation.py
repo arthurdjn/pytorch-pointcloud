@@ -2,6 +2,7 @@ import pytest
 import torch
 
 import torch_pointcloud.transforms as T
+import torch_pointcloud.transforms.functional as F
 
 
 def test_random_rotate_pos_and_normal_share_rotation() -> None:
@@ -200,3 +201,191 @@ def test_random_shift_rejects_mismatched_key_widths() -> None:
     t = T.RandomShift(keys=["pos", "intensity"], shift_range=(-0.1, 0.1), p=1.0)
     with pytest.raises(ValueError, match="one offset per channel"):
         t({"pos": torch.rand(5, 3), "intensity": torch.rand(5, 1)})
+
+
+def test_random_jitter_clipped() -> None:
+    pos = torch.zeros(100, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_jitter(pos, sigma=1.0, clip=0.1, generator=g)
+    assert out.abs().max().item() <= 0.1 + 1e-6
+
+
+def test_random_jitter_no_clip() -> None:
+    pos = torch.zeros(1000, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_jitter(pos, sigma=0.1, clip=None, generator=g)
+    # Without clip some samples should exceed 0.1.
+    assert out.abs().max().item() > 0.1
+
+
+def test_random_color_jitter_preserves_range() -> None:
+    color = torch.rand(50, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_jitter(color, brightness=0.5, contrast=0.5, saturation=0.3, generator=g)
+    assert out.min().item() >= 0.0
+    assert out.max().item() <= 1.0
+    assert out.shape == color.shape
+
+
+def test_random_color_jitter_int_dtype_preserved() -> None:
+    color = (torch.rand(10, 3) * 255).to(torch.uint8)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_jitter(color, brightness=0.2, int_color=True, generator=g)
+    assert out.dtype == torch.uint8
+
+
+def test_random_color_drop_returns_constant() -> None:
+    color = torch.rand(10, 3)
+    out = F.random_color_drop(color, fill=0.5)
+    assert torch.allclose(out, torch.full_like(color, 0.5))
+
+
+def test_color_grayscale_makes_channels_equal() -> None:
+    color = torch.rand(10, 3)
+    out = F.color_grayscale(color)
+    assert torch.allclose(out[:, 0], out[:, 1])
+    assert torch.allclose(out[:, 1], out[:, 2])
+
+
+def test_color_grayscale_uses_bt601_weights() -> None:
+    # Pure red (1, 0, 0) gives luminance 0.299.
+    color = torch.tensor([[1.0, 0.0, 0.0]])
+    out = F.color_grayscale(color)
+    assert torch.allclose(out, torch.full_like(color, 0.299), atol=1e-5)
+
+
+def test_color_auto_contrast_full_blend_stretches_range() -> None:
+    color = torch.tensor([[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]])
+    out = F.color_auto_contrast(color, blend=1.0)
+    assert torch.allclose(out.min(dim=0).values, torch.zeros(3), atol=1e-5)
+    assert torch.allclose(out.max(dim=0).values, torch.ones(3), atol=1e-5)
+
+
+def test_color_auto_contrast_zero_blend_is_identity() -> None:
+    color = torch.tensor([[0.25, 0.25, 0.25], [0.75, 0.75, 0.75]])
+    out = F.color_auto_contrast(color, blend=0.0)
+    assert torch.allclose(out, color, atol=1e-5)
+
+
+def test_random_color_jitter_uint8_keeps_255_scale_by_default() -> None:
+    color = torch.tensor([[200, 100, 50], [30, 60, 90]], dtype=torch.uint8)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_color_jitter(color, brightness=0.2, generator=g)
+    assert out.dtype == torch.uint8
+    # uint8 colors keep their [0, 255] scale instead of collapsing to all-1s.
+    assert out.float().max().item() > 100.0
+
+
+def test_random_color_jitter_float_unit_range_passthrough_at_zero_strength() -> None:
+    color = torch.rand(10, 3)
+    out = F.random_color_jitter(color)
+    assert torch.allclose(out, color, atol=1e-6)
+
+
+def test_random_color_jitter_float_255_without_flag_raises() -> None:
+    color = torch.tensor([[200.0, 100.0, 50.0]])
+    with pytest.raises(ValueError, match="int_color"):
+        F.random_color_jitter(color, brightness=0.2)
+
+
+def test_random_color_drop_uint8_fill_rescaled_to_255_range() -> None:
+    color = torch.full((4, 3), 200, dtype=torch.uint8)
+    out = F.random_color_drop(color)
+    assert out.dtype == torch.uint8
+    assert torch.all(out == 127)
+
+
+def test_random_color_drop_float_255_without_flag_raises() -> None:
+    color = torch.full((4, 3), 200.0)
+    with pytest.raises(ValueError, match="int_color"):
+        F.random_color_drop(color)
+
+
+def test_color_auto_contrast_uint8_stretches_to_255() -> None:
+    color = torch.tensor([[10, 10, 10], [110, 110, 110]], dtype=torch.uint8)
+    out = F.color_auto_contrast(color, blend=1.0)
+    assert out.dtype == torch.uint8
+    assert out.min().item() == 0
+    assert out.max().item() == 255
+
+
+def test_color_auto_contrast_float_255_without_flag_raises() -> None:
+    color = torch.tensor([[10.0, 10.0, 10.0], [110.0, 110.0, 110.0]])
+    with pytest.raises(ValueError, match="int_color"):
+        F.color_auto_contrast(color, blend=1.0)
+
+
+def test_color_auto_contrast_empty_passthrough() -> None:
+    color = torch.zeros(0, 3)
+    out = F.color_auto_contrast(color, blend=1.0)
+    assert out.shape == (0, 3)
+
+
+def test_color_shift_adds_offset_and_clamps() -> None:
+    color = torch.full((4, 3), 0.5)
+    out = F.color_shift(color, torch.tensor([0.1, -0.2, 0.6]))
+    assert torch.allclose(out, torch.tensor([0.6, 0.3, 1.0]).expand(4, 3))
+
+
+def test_color_shift_uint8_clamps_to_255_range() -> None:
+    color = torch.full((4, 3), 250, dtype=torch.uint8)
+    out = F.color_shift(color, torch.full((3,), 10.0))
+    assert out.dtype == torch.uint8
+    assert torch.all(out == 255)
+
+
+def test_color_shift_float_255_without_flag_raises() -> None:
+    color = torch.full((4, 3), 200.0)
+    with pytest.raises(ValueError, match="int_color"):
+        F.color_shift(color, torch.zeros(3))
+
+
+def test_functional_random_elastic_distortion_changes_positions() -> None:
+    pos = torch.randn(200, 3)
+    g = torch.Generator().manual_seed(0)
+    out = F.random_elastic_distortion(pos, granularity=0.5, magnitude=0.1, generator=g)
+    assert out.shape == pos.shape
+    # Should not be identity at any reasonable magnitude.
+    assert (out - pos).abs().max().item() > 0.0
+
+
+def test_random_elastic_distortion_preserves_local_structure() -> None:
+    """Nearby points should still be nearby after distortion (low-frequency field)."""
+    pos = torch.tensor([[0.0, 0.0, 0.0], [0.001, 0.0, 0.0]])
+    g = torch.Generator().manual_seed(0)
+    out = F.random_elastic_distortion(pos, granularity=0.5, magnitude=0.5, generator=g)
+    # Displacement at two very close points should also be very close.
+    delta_in = (pos[0] - pos[1]).norm().item()
+    delta_out = (out[0] - out[1]).norm().item()
+    assert abs(delta_out - delta_in) < 0.01
+
+
+def test_random_elastic_distortion_cell_size_matches_granularity() -> None:
+    """Noise-grid nodes are spaced exactly `granularity` apart: points on nodes get the node's noise value."""
+    granularity = 0.5
+    magnitude = 0.4
+    pos = torch.tensor([[0.0, 0.0, 0.0], [0.5, 0.5, 0.5]])
+    out = F.random_elastic_distortion(
+        pos,
+        granularity=granularity,
+        magnitude=magnitude,
+        generator=torch.Generator().manual_seed(0),
+    )
+    noise = torch.randn(1, 3, 4, 4, 4, generator=torch.Generator().manual_seed(0)) * magnitude
+    for _ in range(2):
+        noise = torch.nn.functional.avg_pool3d(noise, kernel_size=3, stride=1, padding=1)
+    # pos_min sits on grid node (1, 1, 1); one step of `granularity` per axis lands on node (2, 2, 2).
+    assert torch.allclose(out[0], pos[0] + noise[0, :, 1, 1, 1], atol=1e-4)
+    assert torch.allclose(out[1], pos[1] + noise[0, :, 2, 2, 2], atol=1e-4)
+
+
+def test_random_elastic_distortion_empty_passthrough() -> None:
+    pos = torch.empty(0, 3)
+    out = F.random_elastic_distortion(pos, granularity=0.2, magnitude=0.4)
+    assert out.shape == (0, 3)
+
+
+def test_random_elastic_distortion_wrong_shape_raises() -> None:
+    pos = torch.randn(10, 2)
+    with pytest.raises(ValueError, match=r"\(N, 3\)"):
+        F.random_elastic_distortion(pos, granularity=0.2, magnitude=0.4)

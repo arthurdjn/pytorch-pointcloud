@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Moved every function of `torch_pointcloud.transforms.functional` next to its transform in the themed modules; `functional` imports them all.
+- Renamed `functional.abs` to `absolute`.
 - Split `torch_pointcloud.transforms.transforms` into `base`, `sampling`, `masking`, `geometry`, `scaling`, `utils`, `voxelization`, `octree`, `augmentation`, `box` and `mixing`; `torch_pointcloud.transforms` exports the same names.
 - Removed `DataKeys.SEMANTIC`, `REFLECTANCE` and `ROOM_MAX`: `ParisLille3D` emits `intensity` and the S3DIS blocks `scene_max`, like the other datasets.
 - Renamed `DataKeys.POINTS` to `OCTREE_POINTS`.

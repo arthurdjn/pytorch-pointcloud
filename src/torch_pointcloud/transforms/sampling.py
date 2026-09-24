@@ -1,16 +1,17 @@
 """Transforms that select a subset of the points."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional, Tuple, Union, overload
 
 import torch
 from torch import Tensor
 
+from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection
 
-from . import functional as F
 from .base import DictTransform
+from .masking import sphere_mask
 
 __all__ = [
     "FarthestPointSample",
@@ -21,6 +22,70 @@ __all__ = [
     "Slice",
     "SphereCrop",
 ]
+
+
+@overload
+def random_sample(
+    tensor: Tensor,
+    num_samples: int,
+    return_indices: Literal[True],
+    replace: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def random_sample(
+    tensor: Tensor,
+    num_samples: int,
+    return_indices: Literal[False] = False,
+    replace: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor: ...
+
+
+def random_sample(
+    tensor: Tensor,
+    num_samples: int,
+    return_indices: bool = False,
+    replace: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    r"""Randomly sample a fixed number of values from a tensor.
+
+    Note:
+        The data is sampled uniformly along `dim=0`.
+
+    Args:
+        tensor: The input tensor of shape $(N, \ldots)$.
+        num_samples: The number of values to sample.
+        return_indices: Whether to return the indices of the sampled values.
+        replace: If `True`, sample with replacement (duplicates allowed). If `False`,
+            sample without replacement when $N \geq \text{num\_samples}$; when
+            $\text{num\_samples} > N$ the draw falls back to replacement so the output
+            always has `num_samples` rows.
+        generator: The generator for the random number generator.
+
+    Returns:
+        If `return_indices` is `True`, the function returns a tuple of the sampled values and their indices.
+        Otherwise, it returns the sampled values.
+
+    Raises:
+        ValueError: If `num_samples > 0` and the input is empty.
+    """
+    n = tensor.size(0)
+    if num_samples == 0:
+        indices = torch.empty(0, dtype=torch.long, device=tensor.device)
+    elif n == 0:
+        raise ValueError(f"Cannot sample {num_samples} values from an empty tensor (N=0).")
+    elif replace or num_samples > n:
+        indices = torch.randint(0, n, (num_samples,), generator=generator, device=tensor.device)
+    else:
+        indices = torch.randperm(n, generator=generator, device=tensor.device)[:num_samples]
+
+    if return_indices:
+        return tensor[indices], indices
+    return tensor[indices]
 
 
 class RandomSample(DictTransform, Randomizable):
@@ -78,7 +143,7 @@ class RandomSample(DictTransform, Randomizable):
             first_key = next(iterator)
         except StopIteration:
             return d
-        sampled_tensor, indices = F.random_sample(
+        sampled_tensor, indices = random_sample(
             d[first_key],
             self.num_samples,
             return_indices=True,
@@ -92,6 +157,92 @@ class RandomSample(DictTransform, Randomizable):
             prior = d.get(self.dst_index_key)
             d[self.dst_index_key] = indices if prior is None else prior[indices]
         return d
+
+
+@overload
+def random_sample_face_vertices(
+    vertices: Tensor,
+    face: Tensor,
+    num_samples: int,
+    return_normals: Literal[True],
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+@overload
+def random_sample_face_vertices(
+    vertices: Tensor,
+    face: Tensor,
+    num_samples: int,
+    return_normals: Literal[False] = False,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor: ...
+
+
+@overload
+def random_sample_face_vertices(
+    vertices: Tensor,
+    face: Tensor,
+    num_samples: int,
+    return_normals: bool,
+    generator: Optional[torch.Generator] = None,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]: ...
+
+
+def random_sample_face_vertices(
+    vertices: Tensor,
+    face: Tensor,
+    num_samples: int,
+    return_normals: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face),
+    using:
+
+    Note:
+        The data is sampled uniformly from the mesh.
+
+    Args:
+        vertices: The input tensor.
+        face: The input tensor.
+        num_samples: The number of vertices to sample.
+        return_normals: Whether to return the normal of the sampled vertices.
+        generator: The generator for the random number generator.
+
+    Returns:
+        If `return_normals` is `True`, the function returns a tuple of the sampled vertices and their normal.
+        Otherwise, it returns the sampled vertices.
+    """
+    pos_max = vertices.abs().max()
+    vertices = vertices / pos_max
+
+    v01 = vertices[face[:, 1]] - vertices[face[:, 0]]
+    v02 = vertices[face[:, 2]] - vertices[face[:, 0]]
+    areas = v01.cross(v02, dim=1)
+    areas = areas.norm(p=2, dim=1).abs() / 2
+
+    probs = areas / areas.sum()
+    samples = torch.multinomial(probs, num_samples, replacement=True, generator=generator)
+    face = face[samples]
+
+    frac = torch.rand(num_samples, 2, device=vertices.device, generator=generator)
+    mask = frac.sum(dim=-1) > 1
+    frac[mask] = 1 - frac[mask]
+
+    v01 = vertices[face[:, 1]] - vertices[face[:, 0]]
+    v02 = vertices[face[:, 2]] - vertices[face[:, 0]]
+
+    if return_normals:
+        normal = torch.nn.functional.normalize(v01.cross(v02, dim=1), p=2)
+
+    vertices = vertices[face[:, 0]]
+    vertices += frac[:, :1] * v01
+    vertices += frac[:, 1:] * v02
+    vertices = vertices * pos_max
+
+    if return_normals:
+        return vertices, normal
+    return vertices
 
 
 class RandomSampleFaceVertices(DictTransform, Randomizable):
@@ -130,7 +281,7 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, face_key, normal_key in self.iter_keys(data, self.face_key, self.normal_key):
-            pos, normal = F.random_sample_face_vertices(
+            pos, normal = random_sample_face_vertices(
                 data[key],
                 data[face_key],
                 self.num_samples,
@@ -141,6 +292,43 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
             if normal_key is not None:
                 data[normal_key] = normal
         return data
+
+
+def farthest_point_sample(
+    pos: Tensor,
+    num_samples: Optional[int] = None,
+    ratio: Optional[float] = None,
+    random_start: bool = False,
+) -> Tensor:
+    """Farthest-point sampling (FPS) from a tensor of positions.
+
+    Thin wrapper around `torch_pointcloud.utils.cluster.fps`, provided for
+    convenience and naming symmetry with `random_sample`.
+
+    See Also:
+        `torch_pointcloud.utils.cluster.fps` for more details and advanced usage.
+
+    Args:
+        pos: The input tensor of shape $(N, D)$.
+        num_samples: The number of points to sample.
+        ratio: The ratio of points to sample.
+        random_start: Whether to start the sampling from a random point.
+
+    Returns:
+        The indices of the sampled points.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.transforms.functional import farthest_point_sample
+        >>> pos = torch.randn(100, 3)
+        >>> idx = farthest_point_sample(pos, num_samples=10)  # doctest: +SKIP
+        >>> print(idx.shape)  # doctest: +SKIP
+        torch.Size([10])
+
+        ```
+    """
+    return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
 
 class FarthestPointSample(DictTransform):
@@ -203,8 +391,11 @@ class FarthestPointSample(DictTransform):
             if self.allow_missing_keys:
                 return d
             raise KeyError(f"`FarthestPointSample` requires {self.pos_key!r} in data.")
-        indices = F.farthest_point_sample(
-            d[self.pos_key], num_samples=self.num_samples, ratio=self.ratio, random_start=self.random_start
+        indices = farthest_point_sample(
+            d[self.pos_key],
+            num_samples=self.num_samples,
+            ratio=self.ratio,
+            random_start=self.random_start,
         )
         for key in self.iter_keys(d):
             d[key] = d[key][indices]
@@ -212,6 +403,33 @@ class FarthestPointSample(DictTransform):
             prior = d.get(self.dst_index_key)
             d[self.dst_index_key] = indices if prior is None else prior[indices]
         return d
+
+
+def random_dropout_mask(
+    n: int,
+    p_drop: float,
+    device: Optional[torch.device] = None,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Return a boolean keep-mask of length `n` where each entry is kept with probability `1 - p_drop`.
+
+    Args:
+        n: Number of points.
+        p_drop: Probability of dropping a point. Must be in $[0, 1)$.
+        device: Output device.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Boolean tensor of shape $(n,)$.
+
+    Raises:
+        ValueError: If `p_drop` is not in `[0, 1)`.
+    """
+    if not 0.0 <= p_drop < 1.0:
+        raise ValueError(f"p_drop must be in [0, 1); got {p_drop}.")
+    device = device or torch.device("cpu")
+    rand = torch.rand(n, device=device, generator=generator)
+    return rand >= p_drop
 
 
 class RandomDropout(DictTransform, Randomizable):
@@ -275,7 +493,7 @@ class RandomDropout(DictTransform, Randomizable):
                 data[self.dst_index_key] = torch.arange(n, device=device)
             return data
 
-        keep = F.random_dropout_mask(n, self.p_drop, device=device, generator=self.R)
+        keep = random_dropout_mask(n, self.p_drop, device=device, generator=self.R)
         for key in self.iter_keys(data):
             data[key] = data[key][keep]
 
@@ -373,7 +591,7 @@ class SphereCrop(DictTransform, Randomizable):
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
         pos = data[self.pos_key].float()
         center = self._resolve_center(pos)
-        mask = F.sphere_mask(pos, center, self.radius, dim=-1)
+        mask = sphere_mask(pos, center, self.radius, dim=-1)
         if self.max_nodes is not None and int(mask.sum()) > self.max_nodes:
             dist = (pos - center).norm(dim=-1)
             keep = torch.topk(dist, self.max_nodes, largest=False).indices
@@ -456,6 +674,25 @@ class Slice(DictTransform):
         return data
 
 
+def shuffle_indices(
+    n: int,
+    device: Optional[torch.device] = None,
+    generator: Optional[torch.Generator] = None,
+) -> Tensor:
+    """Return a random permutation of `[0, n)`.
+
+    Args:
+        n: Sequence length.
+        device: Output device.
+        generator: Random generator for reproducibility.
+
+    Returns:
+        Long tensor of shape $(n,)$.
+    """
+    device = device or torch.device("cpu")
+    return torch.randperm(n, device=device, generator=generator)
+
+
 class ShufflePoint(DictTransform, Randomizable):
     """Randomly permute the order of points across listed keys.
 
@@ -509,7 +746,7 @@ class ShufflePoint(DictTransform, Randomizable):
             if self.dst_index_key is not None and self.dst_index_key not in data:
                 data[self.dst_index_key] = torch.arange(n, device=device)
             return data
-        perm = F.shuffle_indices(n, device=device, generator=self.R)
+        perm = shuffle_indices(n, device=device, generator=self.R)
         for key in self.iter_keys(data):
             data[key] = data[key][perm]
         if self.dst_index_key is not None:

@@ -9,7 +9,8 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers.rope import Point3DRoPE
-from torch_pointcloud.transforms.functional import PadMode, divisible_pad, split_batch
+from torch_pointcloud.transforms.functional import divisible_pad, split_batch
+from torch_pointcloud.transforms.voxelization import PadMode
 from torch_pointcloud.utils.conversion import batch_to_offset
 from torch_pointcloud.utils.imports import _FLASH_ATTN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor

@@ -4,6 +4,7 @@ import pytest
 import torch
 
 import torch_pointcloud.transforms as T
+import torch_pointcloud.transforms.functional as F
 
 
 def test_set_value() -> None:
@@ -289,3 +290,75 @@ def test_divide_key() -> None:
     result = transform(data)
 
     assert torch.equal(result["a"], torch.tensor([3.0, 2.0]))
+
+
+def test_abs_basic() -> None:
+    """Test that abs returns the absolute values."""
+    x = torch.tensor([-1.0, 2.0, -3.0, 0.0])
+    result = F.absolute(x)
+    expected = torch.tensor([1.0, 2.0, 3.0, 0.0])
+    assert torch.equal(result, expected)
+
+
+def test_abs_already_positive() -> None:
+    """Test abs on already positive values returns unchanged tensor."""
+    x = torch.tensor([1.0, 2.0, 3.0])
+    result = F.absolute(x)
+    assert torch.equal(result, x)
+
+
+def test_abs_not_inplace_by_default() -> None:
+    """Test that abs is not in-place by default."""
+    x = torch.tensor([-1.0, -2.0])
+    original = x.clone()
+    result = F.absolute(x)
+    assert torch.equal(x, original)
+    assert torch.equal(result, torch.tensor([1.0, 2.0]))
+
+
+def test_abs_inplace() -> None:
+    """Test that abs modifies tensor in-place when inplace=True."""
+    x = torch.tensor([-1.0, -2.0, 3.0])
+    result = F.absolute(x, inplace=True)
+    expected = torch.tensor([1.0, 2.0, 3.0])
+    assert torch.equal(x, expected)
+    assert result is x
+
+
+def test_abs_multidimensional() -> None:
+    """Test abs on a multi-dimensional tensor."""
+    x = torch.tensor([[-1.0, 2.0], [-3.0, 4.0]])
+    result = F.absolute(x)
+    expected = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    assert torch.equal(result, expected)
+
+
+def test_relabel_one_to_one_mapping() -> None:
+    labels = torch.tensor([1, 2, 5, 255])
+    out = F.relabel(labels, mapping=[1, 2, 5], default=255)
+    assert out.tolist() == [0, 1, 2, 255]
+
+
+def test_relabel_n_to_one_mapping_via_dict() -> None:
+    # SemanticKITTI-style merge: moving-car (252) and car (10) both → 0
+    labels = torch.tensor([10, 252, 11, 9999])
+    out = F.relabel(labels, mapping={10: 0, 252: 0, 11: 1}, default=255)
+    assert out.tolist() == [0, 0, 1, 255]
+
+
+def test_functional_relabel_preserves_dtype() -> None:
+    labels = torch.tensor([0, 1, 2, 7], dtype=torch.int32)
+    out = F.relabel(labels, mapping=[0, 1, 2], default=99)
+    assert out.dtype == torch.int32
+
+
+def test_relabel_sparse_sources_no_oom() -> None:
+    labels = torch.tensor([2**20, 5, 2**18, 0])
+    out = F.relabel(labels, mapping={2**20: 0, 5: 1, 2**18: 2}, default=255)
+    assert out.tolist() == [0, 1, 2, 255]
+
+
+def test_relabel_empty_mapping_raises() -> None:
+    labels = torch.tensor([1, 2, 3])
+    with pytest.raises(ValueError, match="at least one source"):
+        F.relabel(labels, mapping=[])

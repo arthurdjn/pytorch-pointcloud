@@ -1,5 +1,6 @@
 """Transforms that build and encode 3D box targets."""
 
+import math
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import torch
@@ -8,8 +9,9 @@ from torch import Tensor
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import KeyCollection
 
-from . import functional as F
 from .base import DictTransform
+from .geometry import rotation_matrix
+from .utils import relabel
 
 __all__ = [
     "EncodeVoteNetTargets",
@@ -116,7 +118,7 @@ class RelabelBoxes(DictTransform):
 
         keep = foreground | is_ignore
         ignore = is_ignore | (foreground & hard)
-        new_labels = F.relabel(labels, {**self.ignore_mapping, **self.mapping}, default=-1)
+        new_labels = relabel(labels, {**self.ignore_mapping, **self.mapping}, default=-1)
 
         for key in self.iter_keys(d):
             d[key] = d[key][keep]
@@ -198,6 +200,29 @@ class InstanceToBox(DictTransform):
         return torch.stack(boxes), torch.stack(classes)
 
 
+def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:
+    r"""Test which points lie inside a single oriented 3D box.
+
+    The point offsets relative to the box center are rotated into the box frame by $-\theta$ about $+z$, then
+    compared against the half-extents with an axis-aligned bounding-box test. The heading $\theta$ is in
+    radians counterclockwise about $+z$. For a box with zero heading this reduces to a plain axis-aligned
+    test.
+
+    Args:
+        pos: Coordinate tensor of shape $(N, 3)$.
+        box: A single box of shape $(7,)$ as $[c_x, c_y, c_z, h_x, h_y, h_z, \theta]$ with **half**-extents.
+
+    Returns:
+        A boolean mask of shape $(N,)$ that is `True` for points inside the box.
+    """
+    center = box[0:3]
+    half = box[3:6]
+    heading = box[6]
+    rotation = rotation_matrix(float(-heading), axis=2, device=pos.device).to(pos.dtype)
+    local = (pos - center) @ rotation.transpose(-1, -2)
+    return (local.abs() <= half).all(dim=1)
+
+
 class GenerateVoteLabels(DictTransform):
     r"""Generate per-point vote offsets and a vote mask from oriented GT boxes.
 
@@ -263,7 +288,7 @@ class GenerateVoteLabels(DictTransform):
             box = boxes[k]
             if self.oriented:
                 half_box = torch.cat([box[0:3], box[3:6] / 2, box[6:7]])
-                inside = F.points_in_oriented_box(pos, half_box)
+                inside = points_in_oriented_box(pos, half_box)
             else:
                 inside = ((pos - box[0:3]).abs() <= box[3:6] / 2).all(dim=1)
             mask[inside] = 1
@@ -279,6 +304,63 @@ class GenerateVoteLabels(DictTransform):
         d[self.vote_key] = votes
         d[self.mask_key] = mask
         return d
+
+
+def angle_to_class(angle: Tensor, num_heading_bins: int) -> Tuple[Tensor, Tensor]:
+    r"""Convert continuous heading angles to discrete bin classes and residuals.
+
+    The range $[0, 2\pi)$ is split into `num_heading_bins` equal bins centered at
+    $0, 1 \cdot (2\pi / N), \ldots, (N - 1) \cdot (2\pi / N)$. The returned class and residual satisfy
+    $\text{class} \cdot (2\pi / N) + \text{residual} = \text{angle}$.
+
+    Args:
+        angle: Heading angles in radians of shape $(K,)$.
+        num_heading_bins: Number of heading bins $N$.
+
+    Returns:
+        A tuple of the per-angle class indices (long, shape $(K,)$) and residual angles (shape $(K,)$).
+    """
+    two_pi = 2 * math.pi
+    angle_per_class = two_pi / num_heading_bins
+    angle = angle % two_pi
+    shifted = (angle + angle_per_class / 2) % two_pi
+    # The division can round up to exactly N when `shifted` sits a float ulp below 2 pi; clamp keeps the
+    # class in range.
+    cls = (shifted / angle_per_class).long().clamp(max=num_heading_bins - 1)
+    residual = shifted - (cls.to(angle.dtype) * angle_per_class + angle_per_class / 2)
+    return cls, residual
+
+
+def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_bins: int) -> Tensor:
+    r"""Invert `angle_to_class`: recover continuous heading angles from bin classes and residuals.
+
+    A single bin (`num_heading_bins == 1`, axis-aligned boxes) always decodes to a heading of $0$.
+
+    Args:
+        heading_class: Bin class indices (long) of shape $(K,)$.
+        heading_residual: Per-angle residuals of shape $(K,)$.
+        num_heading_bins: Number of heading bins $N$.
+
+    Returns:
+        The recovered heading angles of shape $(K,)$.
+    """
+    if num_heading_bins == 1:
+        return torch.zeros_like(heading_residual)
+    return heading_class.to(heading_residual.dtype) * (2 * math.pi / num_heading_bins) + heading_residual
+
+
+def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor) -> Tensor:
+    r"""Recover full box edge lengths from a size class index and residual (inverse of the size encoding).
+
+    Args:
+        size_class: Size class indices (long) of shape $(K,)$.
+        size_residual: Per-axis residuals of shape $(K, 3)$.
+        mean_sizes: Template sizes of shape $(C, 3)$ holding full edge lengths per class.
+
+    Returns:
+        The recovered full edge lengths of shape $(K, 3)$.
+    """
+    return mean_sizes.to(size_residual)[size_class.long()] + size_residual
 
 
 class EncodeVoteNetTargets(DictTransform):
@@ -376,7 +458,7 @@ class EncodeVoteNetTargets(DictTransform):
             valid = boxes[:k]
             sem = classes[:k].long()
             center[:k] = valid[:, 0:3]
-            cls, residual = F.angle_to_class(valid[:, 6], self.num_heading_bins)
+            cls, residual = angle_to_class(valid[:, 6], self.num_heading_bins)
             heading_class[:k] = cls
             heading_residual[:k] = residual
             size_class[:k] = sem
