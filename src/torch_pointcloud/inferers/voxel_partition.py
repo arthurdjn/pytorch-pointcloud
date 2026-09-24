@@ -1,9 +1,11 @@
 r"""K-pass voxel-partition inferer with per-point scatter-back aggregation."""
 
+import math
 from typing import Any, Callable, Dict, List, Literal, Optional
 
 import torch
 from torch import Tensor
+from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.voxelization import voxel_grid_fnv
@@ -36,7 +38,7 @@ class VoxelPartitionInferer(Inferer):
             grid coordinates, feature stacking). If it changes the row count (pad, voxelize, ...)
             it must record a source-to-predictor index map under `inverse_key` so the inferer can
             gather predictions back to the sub-cloud's points.
-        sub_batch_size: Number of sub-clouds packed into one predictor call via `collate`.
+        sw_batch_size: Number of sub-clouds packed into one predictor call via `collate`.
             `>1` amortises FPS / radius costs on the GPU.
         softmax: If `True`, softmax each predictor output before scatter-summing.
         aggregate: `"mean"` divides each point's accumulated predictions by the number of sub-clouds it
@@ -54,12 +56,13 @@ class VoxelPartitionInferer(Inferer):
             `torch.manual_seed` seeds the inferer together with the transforms. An int is offset by the
             number of calls the instance has made: repeated calls (e.g. `TTAInferer` views) draw
             different shuffles, and a fresh instance replays the same sequence.
+        progress: If `True`, show a `tqdm` progress bar per batch element.
 
     Example:
         ```python
         from torch_pointcloud.inferers import VoxelPartitionInferer
 
-        inferer = VoxelPartitionInferer(voxel_size=0.04, sub_batch_size=4, transform=model.transforms)
+        inferer = VoxelPartitionInferer(voxel_size=0.04, sw_batch_size=4, transform=model.transforms)
         logits = inferer(room, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
@@ -68,30 +71,32 @@ class VoxelPartitionInferer(Inferer):
         self,
         voxel_size: float,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
-        sub_batch_size: int = 1,
+        sw_batch_size: int = 1,
         softmax: bool = False,
         aggregate: Literal["mean", "sum"] = "mean",
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
         inverse_key: Optional[str] = None,
         seed: Optional[int] = None,
+        progress: bool = False,
     ) -> None:
         if voxel_size <= 0.0:
             raise ValueError(f"`voxel_size` must be > 0, got {voxel_size}.")
-        if sub_batch_size < 1:
-            raise ValueError(f"`sub_batch_size` must be >= 1, got {sub_batch_size}.")
+        if sw_batch_size < 1:
+            raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
         if aggregate not in ("mean", "sum"):
             raise ValueError(f"`aggregate` must be 'mean' or 'sum', got {aggregate!r}.")
 
         self.voxel_size = voxel_size
         self.transform = transform
-        self.sub_batch_size = sub_batch_size
+        self.sw_batch_size = sw_batch_size
         self.softmax = softmax
         self.aggregate = aggregate
         self.pos_key = pos_key
         self.batch_key = batch_key
         self.inverse_key = inverse_key
         self.seed = seed
+        self.progress = progress
         self._num_calls = 0
 
     @torch.no_grad()
@@ -133,8 +138,14 @@ class VoxelPartitionInferer(Inferer):
                 idx_sort[starts + (i % count)][torch.randperm(v, generator=rng)] for i in range(k)
             ]
 
-            for start in range(0, k, self.sub_batch_size):
-                chunk = sub_indices[start : start + self.sub_batch_size]
+            for start in tqdm(
+                range(0, k, self.sw_batch_size),
+                total=math.ceil(k / self.sw_batch_size),
+                desc=f"batch {int(b)}",
+                leave=False,
+                disable=not self.progress,
+            ):
+                chunk = sub_indices[start : start + self.sw_batch_size]
                 samples: List[Dict[str, Any]] = []
                 inverse_maps: List[Optional[Tensor]] = []
                 for idx in chunk:

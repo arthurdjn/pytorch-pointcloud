@@ -10,6 +10,7 @@ from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.datasets.semantickitti import (
     SEMANTIC_KITTI_LABEL_NAMES,
     SEMANTIC_KITTI_SEQUENCES_PER_SPLIT,
+    SemanticKittiSplit,
     load_semantickitti_labels,
     load_semantickitti_scan,
 )
@@ -47,14 +48,17 @@ def test_load_semantickitti_labels(datasets_dir: Path) -> None:
 
 
 @pytest.mark.parametrize("split", ALL_SPLITS)
-def test_semantickitti_dataset_not_found(split: str) -> None:
+def test_semantickitti_dataset_not_found(split: SemanticKittiSplit) -> None:
     """Raises a clear error when the dataset directory is missing."""
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = SemanticKITTI(root="not-found", split=split)
 
 
 @pytest.mark.parametrize("split", ALL_SPLITS)
-def test_semantickitti_dataset_raw_files_exist(datasets_dir_factory: Callable[..., Path], split: str) -> None:
+def test_semantickitti_dataset_raw_files_exist(
+    datasets_dir_factory: Callable[..., Path],
+    split: SemanticKittiSplit,
+) -> None:
     """Happy path: the dataset can locate the raw files for each split present in the fixture."""
     datasets_dir = datasets_dir_factory("SemanticKITTI/raw/**/*")
 
@@ -106,7 +110,7 @@ def test_semantickitti_dataset_default_split_is_train() -> None:
 
     # And bogus splits raise ValueError, not RuntimeError.
     with pytest.raises(ValueError, match="Unknown split"):
-        _ = SemanticKITTI(root="not-found", split="bogus")
+        _ = SemanticKITTI(root="not-found", split="bogus")  # type: ignore[arg-type]
 
 
 def test_semantickitti_dataset_invalid_sequence(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -117,7 +121,10 @@ def test_semantickitti_dataset_invalid_sequence(datasets_dir_factory: Callable[.
 
 
 @pytest.mark.parametrize("split", SPLITS_WITH_LABELS)
-def test_semantickitti_dataset_returns_labels(datasets_dir_factory: Callable[..., Path], split: str) -> None:
+def test_semantickitti_dataset_returns_labels(
+    datasets_dir_factory: Callable[..., Path],
+    split: SemanticKittiSplit,
+) -> None:
     """For splits with `.label` files, samples include `segment` + `instance`."""
     datasets_dir = datasets_dir_factory("SemanticKITTI/raw/**/*")
     available = {"00", "08", "11"}

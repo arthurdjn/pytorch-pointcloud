@@ -300,7 +300,7 @@ class SemanticKITTI(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Union[SemanticKittiSplit, str] = "train",
+        split: SemanticKittiSplit = "train",
         sequences: Optional[ValueCollection[Union[SemanticKittiSequence, str]]] = None,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     ) -> None:

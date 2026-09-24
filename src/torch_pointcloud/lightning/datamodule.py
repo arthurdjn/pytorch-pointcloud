@@ -42,7 +42,7 @@ class PointCloudDataModule(LightningDataModule):
     """LightningDataModule wrapping point cloud datasets with the packed-batch collate.
 
     Each dataset is passed through as-is. To lengthen an epoch,
-    wrap the training dataset with `torch_pointcloud.datasets.RepeatDataset(dataset, loop=k)`
+    wrap the training dataset with `torch_pointcloud.datasets.RepeatDataset(dataset, k=...)`
     before passing it in.
 
     Loaders are built with `torch_pointcloud.utils.data.PointCloudDataLoader`, which collates to the

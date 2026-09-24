@@ -721,7 +721,7 @@ class ScanNet(PointCloudDataset):
         show_progress: Whether to show a progress bar during processing.
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
         accept_terms: Confirm that you have signed the ScanNet terms of use (`terms_url`). When left `False`,
-            `download` asks for the confirmation on the terminal.
+            `download` asks for the confirmation on the terminal, once in every process that triggers the download.
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/,
@@ -797,6 +797,7 @@ class ScanNet(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
+        *,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         label_name: str = "nyu40class",
@@ -1238,7 +1239,7 @@ class ScanNet20(ScanNet):
         show_progress: Whether to show a progress bar during processing.
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
         accept_terms: Confirm that you have signed the ScanNet terms of use (`terms_url`). When left `False`,
-            `download` asks for the confirmation on the terminal.
+            `download` asks for the confirmation on the terminal, once in every process that triggers the download.
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
@@ -1256,6 +1257,7 @@ class ScanNet20(ScanNet):
     def __init__(
         self,
         root: PathLike,
+        *,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         use_axis_alignment: bool = True,
@@ -1346,7 +1348,7 @@ class ScanNet200(ScanNet):
         show_progress: Whether to show a progress bar during processing.
         num_workers: Worker processes for preprocessing, or `None` for sequential processing.
         accept_terms: Confirm that you have signed the ScanNet terms of use (`terms_url`). When left `False`,
-            `download` asks for the confirmation on the terminal.
+            `download` asks for the confirmation on the terminal, once in every process that triggers the download.
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
@@ -1363,7 +1365,8 @@ class ScanNet200(ScanNet):
 
     def __init__(
         self,
-        root: str,
+        root: PathLike,
+        *,
         version: Literal["v1", "v2"] = "v2",
         split: Literal["train", "test", "val"] = "train",
         use_axis_alignment: bool = True,

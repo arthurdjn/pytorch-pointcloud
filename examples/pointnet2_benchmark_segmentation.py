@@ -43,11 +43,11 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 
 BLOCK_SIZE = 1.0
-SW_BATCH_SIZE = 16
+XU_YAN_SW_BATCH_SIZE = 16
 BLOCK_NUM_POINTS = 4096
 NUM_VOTES = 3
 VOXEL_SIZE = 0.04
-SUB_BATCH_SIZE = 4
+OPENPOINTS_SW_BATCH_SIZE = 4
 
 XU_YAN_TRANSFORM = T.Compose(
     [
@@ -87,11 +87,11 @@ def build_xu_yan_inferer(inferer_transform: T.Transform, sw_batch_size: int, see
     return TTAInferer(base=blocks, num_passes=NUM_VOTES)
 
 
-def build_openpoints_inferer(inferer_transform: T.Transform, seed: int, sub_batch_size: int) -> Inferer:
+def build_openpoints_inferer(inferer_transform: T.Transform, seed: int, sw_batch_size: int) -> Inferer:
     return VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
         transform=inferer_transform,
-        sub_batch_size=sub_batch_size,
+        sw_batch_size=sw_batch_size,
         seed=seed,
     )
 
@@ -134,8 +134,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
-    parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Blocks per forward.")
-    parser.add_argument("--sub-batch-size", default=SUB_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
+    parser.add_argument(
+        "--sw-batch-size",
+        default=None,
+        type=int,
+        help="Voxel fragments (openpoints) or blocks (xu-yan) per forward; defaults to 4 or 16.",
+    )
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
@@ -155,9 +159,9 @@ def main() -> None:
     transform, inferer_transform, build_inferer = PROTOCOLS[args.model]
     inferer_transform = inferer_transform or model_info["transform"]
     if build_inferer is build_openpoints_inferer:
-        inferer = build_openpoints_inferer(inferer_transform, args.seed, args.sub_batch_size)
+        inferer = build_openpoints_inferer(inferer_transform, args.seed, args.sw_batch_size or OPENPOINTS_SW_BATCH_SIZE)
     else:
-        inferer = build_xu_yan_inferer(inferer_transform, args.sw_batch_size, args.seed)
+        inferer = build_xu_yan_inferer(inferer_transform, args.sw_batch_size or XU_YAN_SW_BATCH_SIZE, args.seed)
 
     dataset: Dataset = S3DIS(
         root=args.root,

@@ -38,6 +38,14 @@ def test_tta_single_pass_with_identity_compose_equals_base() -> None:
     assert torch.allclose(out_tta, out_base)
 
 
+def test_tta_progress_does_not_change_the_output() -> None:
+    data = _toy_data()
+    predictor = _pos_logits(num_classes=4)
+    quiet = TTAInferer(base=SimpleInferer(), num_passes=2)(data, predictor=predictor)
+    shown = TTAInferer(base=SimpleInferer(), num_passes=2, progress=True)(data, predictor=predictor)
+    assert torch.equal(quiet, shown)
+
+
 def test_tta_mean_of_identical_passes_equals_one_pass() -> None:
     """With a no-op rotation (angle range collapsed to 0), four passes produce
     four identical logits whose mean equals one pass."""

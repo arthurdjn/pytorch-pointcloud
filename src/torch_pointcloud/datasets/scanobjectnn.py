@@ -69,6 +69,14 @@ class ScanObjectNN(PointCloudDataset):
     The dataset is released under a terms-of-use agreement (`terms_url`): accept it, then pass
     `download=True, accept_terms=True` (or answer the prompt `download=True` alone raises on the terminal), or place
     the `h5_files` folder under `raw` by hand.
+
+    The registered checkpoints name the benchmark splits by tag (`*.scanobjectnn-<tag>.*`):
+
+    | Tag       | Arguments                                         |
+    | --------- | ------------------------------------------------- |
+    | `objbg`   | `background=True`                                 |
+    | `objonly` | `background=False`                                |
+    | `hardest` | `background=True, variant="augmentedrot_scale75"` |
     """
 
     data_url = "https://hkust-vgd.ust.hk/scanobjectnn/"
@@ -81,6 +89,7 @@ class ScanObjectNN(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
+        *,
         train: bool = True,
         partition: ScanObjectNNPartition = "main",
         background: bool = False,

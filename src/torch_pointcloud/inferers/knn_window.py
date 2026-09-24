@@ -309,7 +309,7 @@ class KNNWindowInferer(Inferer):
 
         # EMA aggregation: outputs calibrated probabilities directly.
         inferer = KNNWindowInferer(roi_num_points=65_536, overlap=0.5, aggregate="ema")
-        probs = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
+        probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
 

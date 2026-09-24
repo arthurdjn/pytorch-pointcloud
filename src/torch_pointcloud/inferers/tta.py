@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Union
 
 import torch
 from torch import Tensor
+from tqdm import tqdm
 
 from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate, RandomScale, Transform
 from torch_pointcloud.utils.data import DataKeys
@@ -62,6 +63,7 @@ class TTAInferer(Inferer):
             `False` when the base inferer already returns probabilities (e.g.
             `SlidingWindowInferer(softmax=True)`).
         pos_key: Dict key for the position tensor (used for the empty-output fallback).
+        progress: If `True`, show a `tqdm` progress bar over the passes.
 
     Example:
         A 4-pass TTA over random Z rotations and X/Y flips:
@@ -77,7 +79,7 @@ class TTAInferer(Inferer):
         ])
         inferer = TTAInferer(base=base, transforms=aug, num_passes=4,
                              aggregate="mean")
-        probs = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
+        probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
 
         Enumerated 8-view TTA (ScanNet ablation):
@@ -99,6 +101,7 @@ class TTAInferer(Inferer):
         ema_smoothing: float = 0.95,
         softmax: bool = False,
         pos_key: str = DataKeys.POS,
+        progress: bool = False,
     ) -> None:
         if transforms is None or callable(transforms):
             self._sequence: Optional[Sequence[TransformFn]] = None
@@ -134,6 +137,7 @@ class TTAInferer(Inferer):
         self.ema_smoothing = ema_smoothing
         self.softmax = softmax
         self.pos_key = pos_key
+        self.progress = progress
 
     @torch.no_grad()
     def forward(
@@ -152,7 +156,7 @@ class TTAInferer(Inferer):
         else:
             passes.extend([self._sample] * self.num_passes)
 
-        for aug in passes:
+        for aug in tqdm(passes, desc="TTA", leave=False, disable=not self.progress):
             data_aug = dict(data) if aug is None else aug(dict(data))
             pass_output = self.base(data_aug, predictor)
             if self.softmax:

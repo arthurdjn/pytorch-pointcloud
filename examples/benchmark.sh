@@ -96,47 +96,47 @@ $RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-bas
 $RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-deform.s3dis-area5.hugues-thomas
 $RUN examples/kpconv_benchmark_segmentation.py --root "$ROOT" --model kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas
 $RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area5.xu-yan --areas Area_5
-$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area1.openpoints --areas Area_1 --sub-batch-size 4
-$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area2.openpoints --areas Area_2 --sub-batch-size 1
-$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area3.openpoints --areas Area_3 --sub-batch-size 4
-$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area4.openpoints --areas Area_4 --sub-batch-size 4
-$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area5.openpoints --areas Area_5 --sub-batch-size 4
-$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area6.openpoints --areas Area_6 --sub-batch-size 4
+$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 4
+$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1
+$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area3.openpoints --areas Area_3 --sw-batch-size 4
+$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area4.openpoints --areas Area_4 --sw-batch-size 4
+$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 4
+$RUN examples/pointnet2_benchmark_segmentation.py --root "$ROOT" --model pointnet2.s3dis-area6.openpoints --areas Area_6 --sw-batch-size 4
 $RUN examples/randlanet_benchmark_segmentation.py --root "$ROOT" --model randlanet.semantickitti.tsung-han-wu
 $RUN examples/spvcnn_benchmark_segmentation.py --root "$ROOT" --model spvcnn-119gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn_benchmark_segmentation.py --root "$ROOT" --model spvcnn-47gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn_benchmark_segmentation.py --root "$ROOT" --model spvcnn-30gmacs.semantickitti.mit-han-lab
 $RUN examples/octformer_benchmark_segmentation.py --root "$ROOT" --model octformer-base.scannet20.octree-nn
 $RUN examples/octformer_benchmark_segmentation.py --root "$ROOT" --model octformer-base.scannet200.octree-nn
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area1.openpoints --areas Area_1 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area2.openpoints --areas Area_2 --sub-batch-size 1
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area3.openpoints --areas Area_3 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area4.openpoints --areas Area_4 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area5.openpoints --areas Area_5 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area6.openpoints --areas Area_6 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area1.openpoints --areas Area_1 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area2.openpoints --areas Area_2 --sub-batch-size 1
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area3.openpoints --areas Area_3 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area4.openpoints --areas Area_4 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area5.openpoints --areas Area_5 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area6.openpoints --areas Area_6 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area1.openpoints --areas Area_1 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area2.openpoints --areas Area_2 --sub-batch-size 1
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area3.openpoints --areas Area_3 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area4.openpoints --areas Area_4 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area5.openpoints --areas Area_5 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area6.openpoints --areas Area_6 --sub-batch-size 8
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area1.openpoints --areas Area_1 --sub-batch-size 2
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area2.openpoints --areas Area_2 --sub-batch-size 1
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area3.openpoints --areas Area_3 --sub-batch-size 2
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area4.openpoints --areas Area_4 --sub-batch-size 2
-$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area5.openpoints --areas Area_5 --sub-batch-size 2
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area3.openpoints --areas Area_3 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area4.openpoints --areas Area_4 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-sm.s3dis-area6.openpoints --areas Area_6 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area3.openpoints --areas Area_3 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area4.openpoints --areas Area_4 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-base.s3dis-area6.openpoints --areas Area_6 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area3.openpoints --areas Area_3 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area4.openpoints --areas Area_4 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-lg.s3dis-area6.openpoints --areas Area_6 --sw-batch-size 8
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 2
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area3.openpoints --areas Area_3 --sw-batch-size 2
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area4.openpoints --areas Area_4 --sw-batch-size 2
+$RUN examples/pointnext_benchmark_segmentation.py --root "$ROOT" --model pointnext-xl.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 2
 
 # Segmentation with TTA (ScanNet, S3DIS)
-$RUN examples/spunet_benchmark_segmentation.py --root "$ROOT" --model spunet-v1m1.scannet20.pointcept --sub-batch-size 8
-$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet20.pointcept --sub-batch-size 8
-$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sub-batch-size 8
-$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sub-batch-size 1
-$RUN examples/sonata_benchmark_segmentation.py --root "$ROOT" --model sonata-lp.scannet20.fair --sub-batch-size 4
-$RUN examples/concerto_benchmark_segmentation.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sub-batch-size 2
-$RUN examples/utonia_benchmark_segmentation.py --root "$ROOT" --model utonia-lp.scannet20.pointcept --sub-batch-size 2
+$RUN examples/spunet_benchmark_segmentation.py --root "$ROOT" --model spunet-v1m1.scannet20.pointcept --sw-batch-size 8
+$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet20.pointcept --sw-batch-size 8
+$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
+$RUN examples/ptv3_benchmark_segmentation.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
+$RUN examples/sonata_benchmark_segmentation.py --root "$ROOT" --model sonata-lp.scannet20.fair --sw-batch-size 4
+$RUN examples/concerto_benchmark_segmentation.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
+$RUN examples/utonia_benchmark_segmentation.py --root "$ROOT" --model utonia-lp.scannet20.pointcept --sw-batch-size 2

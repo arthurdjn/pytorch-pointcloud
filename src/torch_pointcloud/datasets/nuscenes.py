@@ -6,7 +6,7 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, FrozenSet, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, FrozenSet, List, Literal, Optional, Sequence, Tuple, get_args
 
 import numpy as np
 import torch
@@ -33,7 +33,8 @@ NUSCENES_DETECTION_CLASSES = (
     "traffic_cone",
 )
 
-NUSCENES_SPLITS = ("train", "val", "test", "mini_train", "mini_val")
+NuScenesSplit = Literal["train", "val", "test", "mini_train", "mini_val"]
+NUSCENES_SPLITS: Tuple[str, ...] = get_args(NuScenesSplit)
 
 # The official `val` scenes of `v1.0-trainval` (nuscenes-devkit `nuscenes.utils.splits.val`).
 # `train` is the rest.
@@ -558,8 +559,8 @@ class NuScenes(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
-        split: Optional[str] = "train",
         *,
+        split: Optional[NuScenesSplit] = "train",
         version: Optional[str] = None,
         max_sweeps: int = 10,
         classes: Sequence[str] = NUSCENES_DETECTION_CLASSES,
@@ -803,7 +804,7 @@ class NuScenesMini(NuScenes):
     ) -> None:
         super().__init__(
             root,
-            None,
+            split=None,
             version=version,
             max_sweeps=max_sweeps,
             classes=classes,
