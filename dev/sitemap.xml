@@ -277,7 +277,7 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/anchor/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/losses/center/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/centerpoint/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/chamfer/</loc>
@@ -311,6 +311,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/metrics/instance_segmentation/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/metrics/kitti/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/metrics/nuscenes/</loc>

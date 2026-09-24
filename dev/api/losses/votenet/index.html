@@ -3125,14 +3125,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../center/" class="md-nav__link">
+      <a href="../centerpoint/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  center
+  centerpoint
 
     
   </span>
@@ -3549,6 +3549,33 @@
     
   
   instance_segmentation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../metrics/kitti/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kitti
 
     
   </span>
@@ -5838,7 +5865,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/votenet.py#L33-L264&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss">VoteNetLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/losses/votenet.py#L33-L264&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss">VoteNetLoss</a></code></b>
           –
           <div class="doc-md-description">
             <p>Multi-task VoteNet detection loss (vote, objectness, box, semantic).</p>
@@ -5870,19 +5897,19 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/votenet.py#L33-L264" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/losses/votenet.py#L33-L264" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.votenet.VoteNetLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoteNetLoss</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_heading_bins</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_size_clusters</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">mean_sizes</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]]],</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">num_heading_bins</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">num_size_clusters</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">mean_sizes</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]]],</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">near_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">far_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">objectness_weights</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">loss_scale</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">loss_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
 </code></pre></div>
 
@@ -5903,6 +5930,14 @@ each object seed's vote toward its object center (the closest of up to three can
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
+            <b><code>num_classes</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of semantic classes.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
             <b><code>num_heading_bins</code></b>
               (<code><span title="int">int</span></code>)
           –
@@ -5916,14 +5951,6 @@ each object seed's vote toward its object center (the closest of up to three can
           –
           <div class="doc-md-description">
             <p>Number of size templates.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_classes</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of semantic classes.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -5965,7 +5992,7 @@ each object seed's vote toward its object center (the closest of up to three can
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>loss_scale</code></b>
+            <b><code>loss_weight</code></b>
               (<code><span title="float">float</span></code>, default:
                   <code>10.0</code>
 )
@@ -5993,7 +6020,7 @@ each object seed's vote toward its object center (the closest of up to three can
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/votenet.py#L82-L124&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/losses/votenet.py#L82-L124&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Compute the VoteNet loss and its components.</p>
@@ -6024,7 +6051,7 @@ each object seed's vote toward its object center (the closest of up to three can
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/votenet.py#L82-L124" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/losses/votenet.py#L82-L124" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.votenet.VoteNetLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>

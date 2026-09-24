@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/metrics/nuscenes/">
       
       
-        <link rel="prev" href="../instance_segmentation/">
+        <link rel="prev" href="../kitti/">
       
       
         <link rel="next" href="../segmentation/">
@@ -3123,14 +3123,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/center/" class="md-nav__link">
+      <a href="../../losses/centerpoint/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  center
+  centerpoint
 
     
   </span>
@@ -3493,6 +3493,33 @@
     
   
   instance_segmentation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kitti/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kitti
 
     
   </span>
@@ -5884,7 +5911,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;filter_boxes_by_range&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/metrics/nuscenes.py#L128-L148&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.nuscenes.filter_boxes_by_range">filter_boxes_by_range</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/nuscenes.py#L130-L150&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.nuscenes.filter_boxes_by_range">filter_boxes_by_range</a></code></b>
             –
             <div class="doc-md-description">
               <p>Mask of boxes whose BEV center distance from the sensor origin is strictly below their class range.</p>
@@ -5894,7 +5921,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;nuscenes_detection_metrics&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/metrics/nuscenes.py#L151-L323&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.nuscenes.nuscenes_detection_metrics">nuscenes_detection_metrics</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/nuscenes.py#L153-L322&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.nuscenes.nuscenes_detection_metrics">nuscenes_detection_metrics</a></code></b>
             –
             <div class="doc-md-description">
               <p>The nuScenes detection metrics: per-class AP, mAP, the five TP errors and the NDS.</p>
@@ -5904,7 +5931,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;nuscenes_velocity_attributes&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/metrics/nuscenes.py#L326-L404&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.nuscenes.nuscenes_velocity_attributes">nuscenes_velocity_attributes</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/nuscenes.py#L325-L403&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.nuscenes.nuscenes_velocity_attributes">nuscenes_velocity_attributes</a></code></b>
             –
             <div class="doc-md-description">
               <p>Derive per-box nuScenes attribute ids from predicted velocities (the standard speed heuristic).</p>
@@ -5934,7 +5961,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">filter_boxes_by_range</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/metrics/nuscenes.py#L128-L148" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/nuscenes.py#L130-L150" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.metrics.nuscenes.filter_boxes_by_range" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">filter_boxes_by_range</span><span class="p">(</span>
@@ -6007,29 +6034,30 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">nuscenes_detection_metrics</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/metrics/nuscenes.py#L151-L323" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/nuscenes.py#L153-L322" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.metrics.nuscenes.nuscenes_detection_metrics" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">nuscenes_detection_metrics</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pred_boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pred_scores</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">pred_labels</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pred_batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">gt_boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">gt_labels</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">gt_batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">class_names</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">],</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">gt_num_points</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">pred_attributes</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">gt_attributes</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">class_ranges</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Mapping">Mapping</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">dist_thresholds</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">),</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">tp_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="n">max_boxes_per_sample</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="n">min_recall</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">min_precision</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">preds</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">target</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Boxes3D&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/utils/types.py#L30-L43&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Boxes3D">Boxes3D</a></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">class_names</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">],</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">gt_num_points</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">pred_attributes</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">gt_attributes</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">class_ranges</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Mapping">Mapping</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">dist_thresholds</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">),</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">tp_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">max_boxes_per_sample</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">min_recall</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">min_precision</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6057,60 +6085,28 @@ attributes are absent (on either side), AVE / AAE fall back to the full penalty 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-            <b><code>pred_boxes</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
+            <b><code>preds</code></b>
+              (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>)
           –
           <div class="doc-md-description">
-            <p>Predicted boxes <span class="arithmatex">\((M, 7)\)</span> of <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span>, or <span class="arithmatex">\((M, 9)\)</span>
-with <span class="arithmatex">\((v_x, v_y)\)</span> velocity columns appended.</p>
+            <p>Predicted <code>boxes</code> <span class="arithmatex">\((M, 7)\)</span> of <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span>, or <span class="arithmatex">\((M, 9)\)</span> with
+<span class="arithmatex">\((v_x, v_y)\)</span> velocity columns appended, with their <code>scores</code>, <code>labels</code> (class index into
+<code>class_names</code>) and <code>batch</code> (sample index), each <span class="arithmatex">\((M,)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>pred_scores</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
+            <b><code>target</code></b>
+              (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Boxes3D&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/utils/types.py#L30-L43&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Boxes3D">Boxes3D</a></code>)
           –
           <div class="doc-md-description">
-            <p>Per-box confidence, shape <span class="arithmatex">\((M,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pred_labels</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-box class index into <code>class_names</code>, shape <span class="arithmatex">\((M,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pred_batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-box sample index, shape <span class="arithmatex">\((M,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>gt_boxes</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Ground-truth boxes <span class="arithmatex">\((K, 7)\)</span> or <span class="arithmatex">\((K, 9)\)</span>, like <code>pred_boxes</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>gt_labels</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-box class index into <code>class_names</code>, shape <span class="arithmatex">\((K,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>gt_batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-box sample index, shape <span class="arithmatex">\((K,)\)</span>.</p>
+            <p>Ground-truth <code>boxes</code> <span class="arithmatex">\((K, 7)\)</span> or <span class="arithmatex">\((K, 9)\)</span>, like the predictions, with their <code>labels</code> and
+<code>batch</code>, each <span class="arithmatex">\((K,)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6241,13 +6237,16 @@ traffic_cone/barrier). A name missing from the mapping is not range-filtered.</p
 <details class="example" open>
   <summary>Example</summary>
   <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">zero</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">pred_boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">gt_boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">metrics</span> <span class="o">=</span> <span class="n">nuscenes_detection_metrics</span><span class="p">(</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">... </span>    <span class="n">pred_boxes</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.9</span><span class="p">]),</span> <span class="n">zero</span><span class="p">,</span> <span class="n">zero</span><span class="p">,</span> <span class="n">gt_boxes</span><span class="p">,</span> <span class="n">zero</span><span class="p">,</span> <span class="n">zero</span><span class="p">,</span> <span class="n">class_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;car&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">... </span><span class="p">)</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="gp">&gt;&gt;&gt; </span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;AP/car&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;mATE&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;NDS&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="go">&#39;1.00 0.25 0.775&#39;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">preds</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">... </span>    <span class="s2">&quot;boxes&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]),</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">... </span>    <span class="s2">&quot;scores&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.9</span><span class="p">]),</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">... </span>    <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">... </span>    <span class="s2">&quot;batch&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="gp">... </span><span class="p">}</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">target</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;boxes&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]),</span> <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">,</span> <span class="s2">&quot;batch&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">}</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">metrics</span> <span class="o">=</span> <span class="n">nuscenes_detection_metrics</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">class_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;car&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="gp">&gt;&gt;&gt; </span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;AP/car&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;mATE&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;NDS&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="go">&#39;1.00 0.25 0.775&#39;</span>
 </code></pre></div>
 </details>
 
@@ -6262,7 +6261,7 @@ traffic_cone/barrier). A name missing from the mapping is not range-filtered.</p
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">nuscenes_velocity_attributes</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/metrics/nuscenes.py#L326-L404" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/nuscenes.py#L325-L403" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.metrics.nuscenes.nuscenes_velocity_attributes" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">nuscenes_velocity_attributes</span><span class="p">(</span>
@@ -6406,7 +6405,7 @@ id space of the <code>pred_attributes</code> / <code>gt_attributes</code> argume
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../instance_segmentation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: instance_segmentation">
+          <a href="../kitti/" class="md-footer__link md-footer__link--prev" aria-label="Previous: kitti">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6416,7 +6415,7 @@ id space of the <code>pred_attributes</code> / <code>gt_attributes</code> argume
                 Previous
               </span>
               <div class="md-ellipsis">
-                instance_segmentation
+                kitti
               </div>
             </div>
           </a>

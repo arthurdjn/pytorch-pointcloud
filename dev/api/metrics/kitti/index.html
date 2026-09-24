@@ -12,13 +12,13 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/losses/center/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/metrics/kitti/">
       
       
-        <link rel="prev" href="../anchor/">
+        <link rel="prev" href="../instance_segmentation/">
       
       
-        <link rel="next" href="../chamfer/">
+        <link rel="next" href="../nuscenes/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>center - PyTorch PointCloud</title>
+        <title>KITTI - PyTorch PointCloud</title>
       
     
     
@@ -103,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="center - PyTorch PointCloud">
+  <meta property="og:title" content="KITTI - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/losses/center/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/metrics/kitti/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="center - PyTorch PointCloud">
+  <meta name="twitter:title" content="KITTI - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.losses.center.CenterLoss" class="md-skip">
+        <a href="#torch_pointcloud.metrics.kitti.kitti_average_precision" class="md-skip">
           Skip to content
         </a>
       
@@ -298,7 +298,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              center
+              KITTI
             
           </span>
         </div>
@@ -3011,6 +3011,339 @@
                 
   
   
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_7" id="__nav_7_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Losses
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Losses
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/anchor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  anchor
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/centerpoint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  centerpoint
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/chamfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  chamfer
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/threedetr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  threedetr
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/lovasz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  lovasz
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/pointrcnn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  pointrcnn
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/sum/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  sum
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/transfusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  transfusion
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../losses/votenet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  votenet
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -3034,17 +3367,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_7" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_8" checked>
         
           
-          <label class="md-nav__link" for="__nav_7_7" id="__nav_7_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_8" id="__nav_7_8_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-  Losses
+  Metrics
 
     
   </span>
@@ -3054,12 +3387,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_7_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_8">
             <span class="md-nav__icon md-icon"></span>
             
   
-  Losses
+  Metrics
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -3098,14 +3431,68 @@
   
   
     <li class="md-nav__item">
-      <a href="../anchor/" class="md-nav__link">
+      <a href="../classification/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  anchor
+  classification
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  detection
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../instance_segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  instance_segmentation
 
     
   </span>
@@ -3139,7 +3526,7 @@
   <span class="md-ellipsis">
     
   
-  center
+  kitti
 
     
   </span>
@@ -3156,7 +3543,7 @@
   <span class="md-ellipsis">
     
   
-  center
+  kitti
 
     
   </span>
@@ -3182,21 +3569,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.losses.center.CenterLoss" class="md-nav__link">
+  <a href="#torch_pointcloud.metrics.kitti.kitti_average_precision" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        CenterLoss
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.losses.center.SparseCenterLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        SparseCenterLoss
+        kitti_average_precision
       </span>
     </span>
   </a>
@@ -3219,367 +3595,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../chamfer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  chamfer
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../threedetr/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  threedetr
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../lovasz/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  lovasz
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pointrcnn/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  pointrcnn
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../sum/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  sum
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../transfusion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  transfusion
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../votenet/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  votenet
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_8" >
-        
-          
-          <label class="md-nav__link" for="__nav_7_8" id="__nav_7_8_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Metrics
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_8">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-  Metrics
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../metrics/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Overview
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../metrics/classification/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  classification
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../metrics/detection/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  detection
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../metrics/instance_segmentation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  instance_segmentation
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../metrics/nuscenes/" class="md-nav__link">
+      <a href="../nuscenes/" class="md-nav__link">
         
   
   
@@ -3606,7 +3622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/segmentation/" class="md-nav__link">
+      <a href="../segmentation/" class="md-nav__link">
         
   
   
@@ -5732,21 +5748,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.losses.center.CenterLoss" class="md-nav__link">
+  <a href="#torch_pointcloud.metrics.kitti.kitti_average_precision" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        CenterLoss
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.losses.center.SparseCenterLoss" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        SparseCenterLoss
+        kitti_average_precision
       </span>
     </span>
   </a>
@@ -5808,7 +5813,7 @@
           
   
   <span class="md-ellipsis">
-    Losses
+    Metrics
   </span>
 
         </a>
@@ -5831,9 +5836,9 @@
   
 
 
-  <h1 id="__skip">center</h1>
+  <h1 id="__skip">KITTI</h1>
 
-<p><a href="" id="torch_pointcloud.losses.center"></a></p>
+<p><a href="" id="torch_pointcloud.metrics.kitti"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -5843,203 +5848,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>Center-based 3D detection losses: dense (CenterHead) and fully sparse (VoxelNeXt) heatmap objectives.</p>
-
-
-
-
-
-
-
-
-
-
-<p><span class="doc-section-title">Classes:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CenterLoss&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L101-L255&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.center.CenterLoss">CenterLoss</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Dense center-based detection loss (CenterHead / Voxel Mamba).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseCenterLoss&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L350-L494&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.center.SparseCenterLoss">SparseCenterLoss</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Fully sparse center-based detection loss (VoxelNeXt).</p>
-          </div>
-        </li>
-    </ul>
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.losses.center.CenterLoss" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">CenterLoss</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L101-L255" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.losses.center.CenterLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CenterLoss</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">point_cloud_range</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">feature_map_stride</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">code_weights</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">cls_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">loc_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">iou_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">gaussian_overlap</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">min_radius</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">num_max_objs</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
-
-
-
-        <p>Dense center-based detection loss (CenterHead / Voxel Mamba).</p>
-<p>Reference: <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/2006.11275">Center-based 3D Object Detection and Tracking</a>.</p>
-<p>Ground-truth boxes are splatted onto a per-class BEV Gaussian heatmap and their regression code
-(sub-cell center offset, <span class="arithmatex">\(z\)</span>, log extents and <span class="arithmatex">\((\cos\theta, \sin\theta)\)</span>) is recorded at each peak
-cell. The heatmap is supervised by the penalty-reduced center focal loss and the regression maps by
-a masked, code-weighted <span class="arithmatex">\(L_1\)</span> read back at those cells. When the head emits an <code>iou</code> map an optional
-<span class="arithmatex">\(L_1\)</span> term regresses it toward the 3D IoU (rescaled to <span class="arithmatex">\([-1, 1]\)</span>) between the decoded prediction and
-its matched box.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>num_classes</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of heatmap channels.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>point_cloud_range</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Range <span class="arithmatex">\((x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>voxel_size</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel size <span class="arithmatex">\((v_x, v_y, v_z)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>feature_map_stride</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Stride from the voxel grid to the BEV feature map.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>code_weights</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-code regression weight, length <span class="arithmatex">\(8\)</span> (the head predicts no velocity codes).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>cls_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Multiplier on the heatmap focal loss.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loc_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.25</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Multiplier on the summed regression loss.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>iou_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Multiplier on the optional IoU-branch loss (<span class="arithmatex">\(0\)</span> disables it).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>gaussian_overlap</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Min-overlap passed to the Gaussian-radius solver.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>min_radius</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>2</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Lower clamp on the integer splat radius.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_max_objs</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>500</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Per-scene object-target capacity.</p>
-          </div>
-        </li>
-    </ul>
+        <p>The KITTI 3D object detection protocol: per-class AP at the official IoU thresholds.</p>
 
 
 
@@ -6052,20 +5861,19 @@ its matched box.</p>
 
 
 
-<p><span class="doc-section-title">Methods:</span></p>
+<p><span class="doc-section-title">Functions:</span></p>
     <ul>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;kitti_average_precision&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L163-L219&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.center.CenterLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/kitti.py#L10-L51&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.metrics.kitti.kitti_average_precision">kitti_average_precision</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Compute the dense center loss and its components.</p>
+              <p>The KITTI 3D detection metrics: per-class AP at the official IoU thresholds, and their mean.</p>
             </div>
           </li>
     </ul>
-
 
 
 
@@ -6085,40 +5893,55 @@ its matched box.</p>
 <div class="doc doc-object doc-function">
 
 
-<h4 id="torch_pointcloud.losses.center.CenterLoss.forward" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
+<h3 id="torch_pointcloud.metrics.kitti.kitti_average_precision" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">kitti_average_precision</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L163-L219" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/kitti.py#L10-L51" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.losses.center.CenterLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+<a href="#torch_pointcloud.metrics.kitti.kitti_average_precision" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">kitti_average_precision</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">matches</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;BoxMatches&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/detection.py#L70-L91&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../detection/#torch_pointcloud.metrics.detection.BoxMatches">BoxMatches</a></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">class_names</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="s2">&quot;Car&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">&quot;Pedestrian&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="s2">&quot;Cyclist&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="p">),</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Compute the dense center loss and its components.</p>
+        <p>The KITTI 3D detection metrics: per-class AP at the official IoU thresholds, and their mean.</p>
+<p>Each class is matched at its KITTI IoU threshold (<code>Car</code> at <span class="arithmatex">\(0.7\)</span>, <code>Pedestrian</code> and <code>Cyclist</code> at <span class="arithmatex">\(0.5\)</span>), and AP
+interpolates precision at the 11 recall points <span class="arithmatex">\(0.0, 0.1, \ldots, 1.0\)</span> of the KITTI benchmark. <code>mAP</code> averages the
+per-class APs.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-            <b><code>output</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>)
+            <b><code>matches</code></b>
+              (<code><span title="typing.Sequence">Sequence</span>[<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;BoxMatches&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/metrics/detection.py#L70-L91&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../detection/#torch_pointcloud.metrics.detection.BoxMatches">BoxMatches</a>]</code>)
           –
           <div class="doc-md-description">
-            <p>Head maps <code>heatmap</code> <span class="arithmatex">\((B, C, H, W)\)</span>, <code>center</code> <span class="arithmatex">\((B, 2, H, W)\)</span>, <code>center_z</code> <span class="arithmatex">\((B, 1, H, W)\)</span>,
-<code>dim</code> <span class="arithmatex">\((B, 3, H, W)\)</span>, <code>rot</code> <span class="arithmatex">\((B, 2, H, W)\)</span> and optionally <code>iou</code> <span class="arithmatex">\((B, 1, H, W)\)</span>.</p>
+            <p>The <code>box_matches</code> records of every evaluated scene, with labels indexing <code>class_names</code>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
+            <b><code>class_names</code></b>
+              (<code><span title="typing.Sequence">Sequence</span>[<span title="str">str</span>]</code>, default:
+                  <code>(&#39;Car&#39;, &#39;Pedestrian&#39;, &#39;Cyclist&#39;)</code>
+)
           –
           <div class="doc-md-description">
-            <p>Packed GT (<code>DataKeys.BOX</code>, <code>DataKeys.LABEL</code>, <code>DataKeys.BATCH_BOX</code>).</p>
+            <p>Class name per label index, each one of <code>Car</code>, <code>Pedestrian</code> and <code>Cyclist</code>.</p>
           </div>
         </li>
     </ul>
@@ -6127,270 +5950,32 @@ its matched box.</p>
 <p><span class="doc-section-title">Returns:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
+              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="float">float</span>]</code>
           –
           <div class="doc-md-description">
-            <p>A dict with the scalar <code>loss</code> and detached <code>hm_loss</code>, <code>loc_loss</code> (and <code>iou_loss</code> when enabled).</p>
+            <p><code>AP/&lt;class&gt;</code> for every class, and <code>mAP</code>.</p>
           </div>
         </li>
     </ul>
 
 
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.losses.center.SparseCenterLoss" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SparseCenterLoss</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L350-L494" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.losses.center.SparseCenterLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SparseCenterLoss</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">class_groups</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]],</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">point_cloud_range</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">feature_map_stride</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">code_weights</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">cls_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">loc_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">gaussian_overlap</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">min_radius</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">num_max_objs</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">box_matches</span><span class="p">,</span> <span class="n">kitti_average_precision</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">zero</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">preds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;boxes&quot;</span><span class="p">:</span> <span class="n">boxes</span><span class="p">,</span> <span class="s2">&quot;scores&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.9</span><span class="p">]),</span> <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">,</span> <span class="s2">&quot;batch&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">}</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">target</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;boxes&quot;</span><span class="p">:</span> <span class="n">boxes</span><span class="p">,</span> <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">,</span> <span class="s2">&quot;batch&quot;</span><span class="p">:</span> <span class="n">zero</span><span class="p">}</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">metrics</span> <span class="o">=</span> <span class="n">kitti_average_precision</span><span class="p">([</span><span class="n">box_matches</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">target</span><span class="p">)])</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">metrics</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="go">[&#39;AP/Car&#39;, &#39;AP/Cyclist&#39;, &#39;AP/Pedestrian&#39;, &#39;mAP&#39;]</span>
 </code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
-
-
-
-        <p>Fully sparse center-based detection loss (VoxelNeXt).</p>
-<p>Reference: <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/2303.11301">VoxelNeXt</a>.</p>
-<p>The head predicts CenterPoint-style attributes directly on the occupied BEV voxels rather than a
-dense map, so targets are drawn only at those voxels: the per-class heatmap is a Gaussian in squared
-voxel distance and each object's regression code is anchored to its nearest occupied voxel. The
-heatmap is supervised by the penalty-reduced center focal loss and the gathered regression rows by a
-masked, code-weighted <span class="arithmatex">\(L_1\)</span>. Classes are split into groups, one sparse head each.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>class_groups</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Zero-based global class-index groups, one per head (e.g. <code>[[0], [1, 2], ...]</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>point_cloud_range</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Range <span class="arithmatex">\((x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>voxel_size</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel size <span class="arithmatex">\((v_x, v_y, v_z)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>feature_map_stride</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Stride from the voxel grid to the BEV feature map.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>code_weights</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-code regression weight, length <span class="arithmatex">\(8 + \text{extra}\)</span> (e.g. <span class="arithmatex">\(10\)</span> with velocity).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>cls_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Multiplier on the heatmap focal loss.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loc_weight</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.25</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Multiplier on the summed regression loss.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>gaussian_overlap</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Min-overlap passed to the Gaussian-radius solver.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>min_radius</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>2</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Lower clamp on the integer splat radius.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_max_objs</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>500</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Per-scene object-target capacity.</p>
-          </div>
-        </li>
-    </ul>
-
-
-
-
-
-
-
-
-
-
-
-
-<p><span class="doc-section-title">Methods:</span></p>
-    <ul>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L411-L483&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.center.SparseCenterLoss.forward">forward</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Compute the sparse center loss summed over class groups.</p>
-            </div>
-          </li>
-    </ul>
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="torch_pointcloud.losses.center.SparseCenterLoss.forward" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/losses/center.py#L411-L483" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.losses.center.SparseCenterLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Compute the sparse center loss summed over class groups.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>output</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>A <code>VoxelNeXtHeadOutput</code>: per-group lists <code>hm</code> <span class="arithmatex">\((V, n_g)\)</span>, <code>center</code> <span class="arithmatex">\((V, 2)\)</span>,
-<code>center_z</code> <span class="arithmatex">\((V, 1)\)</span>, <code>dim</code> <span class="arithmatex">\((V, 3)\)</span>, <code>rot</code> <span class="arithmatex">\((V, 2)\)</span>, <code>vel</code> <span class="arithmatex">\((V, 2)\)</span> and shared
-<code>voxel_indices</code> <span class="arithmatex">\((V, 3)\)</span> with columns <span class="arithmatex">\((\text{batch}, y, x)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed GT (<code>DataKeys.BOX</code>, <code>DataKeys.LABEL</code>, <code>DataKeys.BATCH_BOX</code>).</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
-          –
-          <div class="doc-md-description">
-            <p>A dict with the scalar <code>loss</code> and detached <code>hm_loss</code>, <code>loc_loss</code>.</p>
-          </div>
-        </li>
-    </ul>
-
+</details>
 
     </div>
 
 </div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
 
 
 
@@ -6442,7 +6027,7 @@ masked, code-weighted <span class="arithmatex">\(L_1\)</span>. Classes are split
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../anchor/" class="md-footer__link md-footer__link--prev" aria-label="Previous: anchor">
+          <a href="../instance_segmentation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: instance_segmentation">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6452,20 +6037,20 @@ masked, code-weighted <span class="arithmatex">\(L_1\)</span>. Classes are split
                 Previous
               </span>
               <div class="md-ellipsis">
-                anchor
+                instance_segmentation
               </div>
             </div>
           </a>
         
         
           
-          <a href="../chamfer/" class="md-footer__link md-footer__link--next" aria-label="Next: chamfer">
+          <a href="../nuscenes/" class="md-footer__link md-footer__link--next" aria-label="Next: nuscenes">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                chamfer
+                nuscenes
               </div>
             </div>
             <div class="md-footer__button md-icon">
