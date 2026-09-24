@@ -430,10 +430,40 @@
         <loc>https://pytorch-pointcloud.org/latest/api/transforms/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/augmentation/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/base/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/box/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/transforms/functional/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/transforms/transforms/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/geometry/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/masking/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/mixing/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/octree/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/sampling/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/scaling/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/utils/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/transforms/voxelization/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/</loc>

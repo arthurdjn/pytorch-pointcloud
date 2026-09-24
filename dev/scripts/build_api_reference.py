@@ -3,7 +3,7 @@
 Each stub is a one-liner that hands rendering off to mkdocstrings:
 
 ```markdown
-::: torch_pointcloud.transforms.transforms
+::: torch_pointcloud.transforms.sampling
 ```
 
 The actual summary tables (classes / functions per module) are produced by
@@ -78,7 +78,17 @@ DISPLAY_TITLES = {
 # `DictTransform.iter_keys` is inherited unchanged by every transform; render it once, on its own class.
 MODULE_OPTIONS = {
     "torch_pointcloud.transforms": {"inherited_members": "false"},
-    "torch_pointcloud.transforms.transforms": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.augmentation": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.base": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.box": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.geometry": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.masking": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.mixing": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.octree": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.sampling": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.scaling": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.utils": {"inherited_members": "false"},
+    "torch_pointcloud.transforms.voxelization": {"inherited_members": "false"},
 }
 
 
