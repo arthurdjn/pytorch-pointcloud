@@ -23,7 +23,7 @@ class SimpleInferer(Inferer):
         from torch_pointcloud.inferers import SimpleInferer
 
         inferer = SimpleInferer()
-        logits = inferer(data, predictor=lambda d: model(d["pos"], d["pos"], d["batch"]))
+        logits = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
 

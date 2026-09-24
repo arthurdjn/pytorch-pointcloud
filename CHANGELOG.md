@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Made the dataset arguments after `root` keyword-only everywhere (ModelNet, ScanNet, ScanObjectNN and `NuScenes(split)` were positional).
+- Updated `ParisLille3D`, `Toronto3D` and `ShapeNetPart` to default to the train split like the other datasets, and typed every `split` as a `Literal`.
+- Renamed `RepeatDataset(loop)` to `k`.
+- Updated `SlidingWindowInferer(softmax)` to default to `False` like the other inferers.
+- Renamed `VoxelPartitionInferer(sub_batch_size)` to `sw_batch_size`, and added `progress` to `VoxelPartitionInferer` and `TTAInferer`.
 - Made `import torch_pointcloud` lazy: subpackages load on first access, so importing `transforms` or `datasets` no longer loads the models and spconv.
 - Renamed `BaseBEVBackbone`, `BaseBEVResBackbone`, `BasicBlock2d`, `AnchorHeadSingle`, `AnchorHeadMulti`, `MultiGroupSingleHead`, `PFNLayer` and `RPE` to `BEVBackbone`, `BEVResidualBackbone`, `ResidualBlock2d`, `AnchorHead`, `MultiGroupAnchorHead`, `AnchorGroupHead`, `PillarFeatureLayer` and `OctreeRelativePositionEncoding`.
 - Moved `utils.ops.voxel_grid_fnv` to `utils.voxelization`, `utils.ops.knn_interpolate` to `utils.cluster`, and `layers.ensure_msg_list` / `ensure_msg_list_size` to `utils.conversion`, and renamed `utils.neighbors` to `utils.density`.

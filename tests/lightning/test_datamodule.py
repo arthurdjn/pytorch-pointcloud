@@ -73,15 +73,15 @@ def test_datamodule_eval_batch_size_defaults_to_batch_size() -> None:
 
 
 def test_repeat_dataset_lengthens_epoch() -> None:
-    """`RepeatDataset(dataset, loop=k)` lengthens an epoch by k. The datamodule
-    treats it as any other dataset; the loop concept is owned by the dataset wrapper."""
+    """`RepeatDataset(dataset, k=k)` lengthens an epoch k times. The datamodule
+    treats it as any other dataset; the repetition is owned by the dataset wrapper."""
     from torch_pointcloud.datasets import RepeatDataset
     from torch_pointcloud.lightning import PointCloudDataModule
 
     base = DummySegmentationDataset(3)
-    dm = PointCloudDataModule(train_dataset=RepeatDataset(base, loop=4), batch_size=1, num_workers=0)
+    dm = PointCloudDataModule(train_dataset=RepeatDataset(base, k=4), batch_size=1, num_workers=0)
     loader = dm.train_dataloader()
-    # 3 samples * 4 loops = 12, divided into batches of 1, with drop_last=True.
+    # 3 samples * 4 repeats = 12, divided into batches of 1, with drop_last=True.
     assert len(loader) == 12
 
 
@@ -198,7 +198,7 @@ def test_setup_threads_transform_through_repeat_and_concat_wrappers() -> None:
     inner = DummySegmentationDataset(2)
     first, second = DummySegmentationDataset(2), DummySegmentationDataset(2)
     dm = PointCloudDataModule(
-        train_dataset=RepeatDataset(inner, loop=2),
+        train_dataset=RepeatDataset(inner, k=2),
         val_dataset=ConcatDataset([first, second]),
         batch_size=1,
         num_workers=0,

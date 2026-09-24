@@ -118,7 +118,7 @@ class Toronto3D(PointCloudDataset):
 
     Args:
         root: Dataset root. Files are read from `<root>/Toronto3D/raw/<file>.ply`.
-        split: One of `"train"` / `"val"` / `"test"` / `"trainval"` / `"all"`.
+        split: One of `"train"` (the default) / `"val"` / `"test"` / `"trainval"` / `"all"`.
             Test labels are publicly available so val and test are the same file
             (`L002.ply`).
         files: Optional explicit list of file names. Overrides `split`.
@@ -148,7 +148,7 @@ class Toronto3D(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Toronto3DSplit = "test",
+        split: Toronto3DSplit = "train",
         files: Optional[Sequence[str]] = None,
         utm_offset: Sequence[float] = TORONTO3D_UTM_OFFSET,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,

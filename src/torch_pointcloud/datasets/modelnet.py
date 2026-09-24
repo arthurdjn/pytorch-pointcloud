@@ -131,6 +131,7 @@ class _ModelNet(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
+        *,
         train: bool = True,
         classes: Union[str, Sequence[str]] = "all",
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -376,6 +377,7 @@ class ModelNetNormalResampled(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
+        *,
         variant: Literal["10", "40"],
         train: bool = True,
         classes: Union[str, Sequence[str]] = "all",
@@ -569,6 +571,7 @@ class ModelNet40Hdf5(PointCloudDataset):
     def __init__(
         self,
         root: PathLike,
+        *,
         train: bool = True,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,

@@ -14,7 +14,7 @@ Results (val mIoU):
 
 Usage:
     uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.scannet20.pointcept --limit 5
-    uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.s3dis-area5.pointcept --sub-batch-size 1
+    uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
 """
 
 import argparse
@@ -41,7 +41,7 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.02
-SUB_BATCH_SIZE = 8
+SW_BATCH_SIZE = 8
 
 INFERER_TRANSFORM = T.Compose(
     [
@@ -77,13 +77,13 @@ def scannet_transform(num_classes: int) -> T.Compose:
     )
 
 
-def build_inferer(views: List[T.Compose], sub_batch_size: int, seed: int) -> Inferer:
+def build_inferer(views: List[T.Compose], sw_batch_size: int, seed: int) -> Inferer:
     base = VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
         aggregate="sum",
-        sub_batch_size=sub_batch_size,
+        sw_batch_size=sw_batch_size,
         seed=seed,
     )
     return TTAInferer(base=base, transforms=views, aggregate="mean")
@@ -119,7 +119,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
-    parser.add_argument("--sub-batch-size", default=SUB_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
+    parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
     parser.add_argument("--download", action="store_true", help="Download the dataset if missing.")
@@ -146,7 +146,7 @@ def main() -> None:
             force_process=args.force_process,
             num_workers=args.num_workers,
         )
-        inferer = build_inferer(S3DIS_VIEWS, args.sub_batch_size, args.seed)
+        inferer = build_inferer(S3DIS_VIEWS, args.sw_batch_size, args.seed)
     else:
         print(f"Benchmarking model {args.model!r} on ScanNet!")
         scannet = ScanNet200 if num_classes == 200 else ScanNet20
@@ -159,7 +159,7 @@ def main() -> None:
             num_workers=args.num_workers,
             use_axis_alignment=False,
         )
-        inferer = build_inferer(simple_tta_transforms(), args.sub_batch_size, args.seed)
+        inferer = build_inferer(simple_tta_transforms(), args.sw_batch_size, args.seed)
 
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))

@@ -16,17 +16,17 @@ class DummyIndexDataset(Dataset):
         return index
 
 
-def test_repeat_dataset_len_multiplies_by_loop() -> None:
-    dataset = RepeatDataset(DummyIndexDataset(4), loop=3)
+def test_repeat_dataset_len_multiplies_by_k() -> None:
+    dataset = RepeatDataset(DummyIndexDataset(4), k=3)
     assert len(dataset) == 12
 
 
-def test_repeat_dataset_loop_one_is_identity() -> None:
-    dataset = RepeatDataset(DummyIndexDataset(5), loop=1)
+def test_repeat_dataset_k_one_is_identity() -> None:
+    dataset = RepeatDataset(DummyIndexDataset(5), k=1)
     assert len(dataset) == 5
     assert [dataset[i] for i in range(5)] == [0, 1, 2, 3, 4]
 
 
 def test_repeat_dataset_index_wraps_around_base_dataset() -> None:
-    dataset = RepeatDataset(DummyIndexDataset(3), loop=2)
+    dataset = RepeatDataset(DummyIndexDataset(3), k=2)
     assert [dataset[i] for i in range(6)] == [0, 1, 2, 0, 1, 2]

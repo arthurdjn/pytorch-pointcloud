@@ -33,7 +33,7 @@ def test_voxel_partition_uniform_voxels_average_to_their_own_x() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = VoxelPartitionInferer(voxel_size=voxel_size, sub_batch_size=2, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionInferer(voxel_size=voxel_size, sw_batch_size=2, seed=0)(data, predictor=predictor)
     assert out.shape == (n_per_voxel * n_voxels, 1)
     assert torch.allclose(out.squeeze(-1).float(), data[DataKeys.POS][:, 0])
 
@@ -63,7 +63,7 @@ def test_voxel_partition_every_point_participates_at_least_once() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.ones(window[DataKeys.POS].size(0), 2)
 
-    out = VoxelPartitionInferer(voxel_size=1.0, sub_batch_size=4, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=4, seed=0)(data, predictor=predictor)
     assert torch.all(out > 0)
 
 
@@ -74,9 +74,20 @@ def test_voxel_partition_seed_is_reproducible() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :2].clone()
 
-    out_a = VoxelPartitionInferer(voxel_size=1.0, sub_batch_size=2, seed=42)(data, predictor=predictor)
-    out_b = VoxelPartitionInferer(voxel_size=1.0, sub_batch_size=2, seed=42)(data, predictor=predictor)
+    out_a = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=42)(data, predictor=predictor)
+    out_b = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=42)(data, predictor=predictor)
     assert torch.equal(out_a, out_b)
+
+
+def test_voxel_partition_progress_does_not_change_the_output() -> None:
+    data = _make_grid(n_per_voxel=3, n_voxels=5, voxel_size=1.0)
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return window[DataKeys.POS][:, :2].clone()
+
+    quiet = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=0)(data, predictor=predictor)
+    shown = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=0, progress=True)(data, predictor=predictor)
+    assert torch.equal(quiet, shown)
 
 
 def test_voxel_partition_softmax_yields_probabilities() -> None:
@@ -151,7 +162,7 @@ def test_voxel_partition_batched_matches_per_scene() -> None:
 
     def run(pos: Tensor, batch: Tensor) -> Tensor:
         data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: batch}
-        return VoxelPartitionInferer(voxel_size=0.25, sub_batch_size=2, seed=0)(data, predictor=predictor)
+        return VoxelPartitionInferer(voxel_size=0.25, sw_batch_size=2, seed=0)(data, predictor=predictor)
 
     out_joint = run(torch.cat([pos_a, pos_b]), torch.cat([torch.zeros(20), torch.ones(30)]).long())
     out_a = run(pos_a, torch.zeros(20, dtype=torch.long))
@@ -179,7 +190,7 @@ def test_voxel_partition_with_divisible_pad_recovers_per_point_input() -> None:
     out = VoxelPartitionInferer(
         voxel_size=1.0,
         transform=T.DivisiblePad(num_samples=8, dst_inverse_key=DataKeys.INVERSE),
-        sub_batch_size=2,
+        sw_batch_size=2,
         inverse_key=DataKeys.INVERSE,
         seed=0,
     )(data, predictor=predictor)
@@ -202,11 +213,11 @@ def test_voxel_partition_row_altering_transform_raises() -> None:
 
 
 def test_voxel_partition_validates_args() -> None:
-    """Constructor rejects `voxel_size <= 0` and `sub_batch_size < 1`."""
+    """Constructor rejects `voxel_size <= 0` and `sw_batch_size < 1`."""
     with pytest.raises(ValueError, match="voxel_size"):
         VoxelPartitionInferer(voxel_size=0.0)
-    with pytest.raises(ValueError, match="sub_batch_size"):
-        VoxelPartitionInferer(voxel_size=1.0, sub_batch_size=0)
+    with pytest.raises(ValueError, match="sw_batch_size"):
+        VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=0)
     with pytest.raises(ValueError, match="aggregate"):
         VoxelPartitionInferer(voxel_size=1.0, aggregate="max")  # type: ignore[arg-type]
 

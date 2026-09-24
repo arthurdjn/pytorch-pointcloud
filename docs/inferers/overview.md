@@ -14,7 +14,7 @@ scene = {
 }
 model = create_model(...)
 
-inferer = SlidingWindowInferer(block_size=5.0)
+inferer = SlidingWindowInferer(block_size=5.0, softmax=True)
 scores = inferer(scene, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
 ```
 

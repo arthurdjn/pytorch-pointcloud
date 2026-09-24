@@ -82,7 +82,7 @@ def test_parislille3d_dataset_custom_files_override_split(datasets_dir_factory: 
     datasets_dir = datasets_dir_factory("ParisLille3D/raw/**/*")
     custom = ("Lille1_1.ply", "Paris.ply")
     dataset = ParisLille3D(root=datasets_dir, files=custom)
-    # `files=` ignores `split=` (which kept its "val" default).
+    # `files=` ignores `split=` (which kept its "train" default).
     assert dataset.files == custom
     assert len(dataset) == 2
 

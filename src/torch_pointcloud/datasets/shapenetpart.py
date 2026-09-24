@@ -87,7 +87,7 @@ class ShapeNetPart(PointCloudDataset):
 
     Args:
         root: Dataset root directory.
-        split: One of "train", "val", "test".
+        split: One of `"train"` (the default), `"val"`, `"test"`.
         categories: Which categories to expose. Defaults to all 16.
         transform: Callable applied to each sample in `__getitem__`.
         force_process: Re-pack raw data even if processed files exist.
@@ -139,7 +139,7 @@ class ShapeNetPart(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Literal["train", "val", "test"],
+        split: Literal["train", "val", "test"] = "train",
         categories: Optional[Union[List[ShapeNetCategory], ShapeNetCategory]] = None,
         transform: Optional[TransformLike] = None,
         force_process: bool = False,

@@ -313,7 +313,7 @@ class S3DIS(PointCloudDataset):
         num_workers: Number of worker processes for parallel room processing. If `None`,
             rooms are processed sequentially.
         accept_terms: Confirm that you have accepted the S3DIS terms of use (`terms_url`). When left `False`,
-            `download` asks for the confirmation on the terminal.
+            `download` asks for the confirmation on the terminal, once in every process that triggers the download.
 
     Example:
         Assuming you have downloaded the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/,
@@ -706,7 +706,7 @@ class S3DISHdf5(PointCloudDataset):
             the HDF5 files are used directly).
         show_progress: Whether to show progress bars during download and loading.
         accept_terms: Confirm that you have accepted the S3DIS terms of use (`terms_url`). When left `False`,
-            `download` asks for the confirmation on the terminal.
+            `download` asks for the confirmation on the terminal, once in every process that triggers the download.
 
     Example:
         Assuming you have downloaded the HDF5 files from https://shapenet.cs.stanford.edu/media/,

@@ -102,7 +102,7 @@ class ParisLille3D(PointCloudDataset):
 
     Args:
         root: Dataset root. Files are read from `<root>/ParisLille3D/raw/<file>.ply`.
-        split: One of `"train"` / `"val"` / `"trainval"` / `"all"`. The 10-class
+        split: One of `"train"` (the default) / `"val"` / `"trainval"` / `"all"`. The 10-class
             benchmark holds out `Lille2.ply` as the val split; the public test files
             (`test_10_classes/`) have no labels and are not loaded here.
         files: Optional explicit list of file names. Overrides `split`.
@@ -120,7 +120,7 @@ class ParisLille3D(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: ParisLille3DSplit = "val",
+        split: ParisLille3DSplit = "train",
         files: Optional[Sequence[str]] = None,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     ) -> None:
