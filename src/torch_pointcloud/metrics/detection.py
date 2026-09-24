@@ -92,7 +92,7 @@ class BoxMatches(TypedDict):
 
 
 def box_matches(preds: Detection3D, target: Boxes3D) -> BoxMatches:
-    r"""Match one batch of box predictions to its ground truth, the record scored by `average_precision3d`.
+    r"""Match one batch of box predictions to its ground truth, the record scored by `box_average_precision`.
 
     Which ground-truth box a prediction overlaps most, and by how much, depends on neither the IoU threshold
     nor on what the other predictions matched. The oriented IoU is therefore paid here, once per batch and on
@@ -125,7 +125,7 @@ def box_matches(preds: Detection3D, target: Boxes3D) -> BoxMatches:
         >>> match = box_matches(preds, {"boxes": boxes[:1], "labels": index[:1], "batch": index[:1]})
         >>> match["pred_iou"].tolist(), match["pred_gt"].tolist()
         ([1.0, 0.0], [0, 0])
-        >>> average_precision3d([match], iou_threshold=0.5)
+        >>> box_average_precision([match], iou_threshold=0.5)
         1.0
 
         ```
@@ -235,7 +235,7 @@ def _ranked_ap(
 
 
 @overload
-def average_precision3d(
+def box_average_precision(
     matches: Sequence[BoxMatches],
     *,
     iou_threshold: Union[float, Mapping[int, float]] = ...,
@@ -247,7 +247,7 @@ def average_precision3d(
 
 
 @overload
-def average_precision3d(
+def box_average_precision(
     matches: Sequence[BoxMatches],
     *,
     iou_threshold: Union[float, Mapping[int, float]] = ...,
@@ -259,7 +259,7 @@ def average_precision3d(
 
 
 @overload
-def average_precision3d(
+def box_average_precision(
     matches: Sequence[BoxMatches],
     *,
     iou_threshold: Union[float, Mapping[int, float]] = ...,
@@ -270,7 +270,7 @@ def average_precision3d(
 ) -> Dict[str, float]: ...
 
 
-def average_precision3d(
+def box_average_precision(
     matches: Sequence[BoxMatches],
     *,
     iou_threshold: Union[float, Mapping[int, float]] = 0.5,
@@ -317,11 +317,11 @@ def average_precision3d(
         >>> labels, batch = torch.tensor([0, 1]), torch.tensor([0, 0])
         >>> preds = {"boxes": boxes, "scores": torch.tensor([0.9, 0.4]), "labels": labels, "batch": batch}
         >>> matches = [box_matches(preds, {"boxes": boxes[:1], "labels": labels[:1], "batch": batch[:1]})]
-        >>> average_precision3d(matches, iou_threshold=0.25)
+        >>> box_average_precision(matches, iou_threshold=0.25)
         1.0
-        >>> average_precision3d(matches, iou_threshold={0: 0.7, 1: 0.5}, average="none")
+        >>> box_average_precision(matches, iou_threshold={0: 0.7, 1: 0.5}, average="none")
         tensor([1., 0.], dtype=torch.float64)
-        >>> average_precision3d(matches, average="none", class_names=["Car", "Cyclist"])
+        >>> box_average_precision(matches, average="none", class_names=["Car", "Cyclist"])
         {'Car': 1.0, 'Cyclist': nan}
 
         ```

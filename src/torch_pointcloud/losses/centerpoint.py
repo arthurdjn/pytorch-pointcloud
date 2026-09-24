@@ -98,7 +98,7 @@ def _densify_gt(
     return boxes_per_scene, labels_per_scene
 
 
-class CenterLoss(nn.Module):
+class CenterPointLoss(nn.Module):
     r"""Dense center-based detection loss (CenterHead / Voxel Mamba).
 
     Reference: :arxiv: [Center-based 3D Object Detection and Tracking](https://arxiv.org/abs/2006.11275).
@@ -129,10 +129,10 @@ class CenterLoss(nn.Module):
     def __init__(
         self,
         num_classes: int,
+        *,
         point_cloud_range: Sequence[float],
         voxel_size: Sequence[float],
         feature_map_stride: int,
-        *,
         code_weights: Sequence[float],
         cls_weight: float = 1.0,
         loc_weight: float = 0.25,
@@ -347,7 +347,7 @@ def _assign_sparse_scene(
     return heatmap, reg_targets, inds, mask
 
 
-class SparseCenterLoss(nn.Module):
+class SparseCenterPointLoss(nn.Module):
     r"""Fully sparse center-based detection loss (VoxelNeXt).
 
     Reference: :arxiv: [VoxelNeXt](https://arxiv.org/abs/2303.11301).
@@ -376,10 +376,10 @@ class SparseCenterLoss(nn.Module):
     def __init__(
         self,
         class_groups: Sequence[Sequence[int]],
+        *,
         point_cloud_range: Sequence[float],
         voxel_size: Sequence[float],
         feature_map_stride: int,
-        *,
         code_weights: Sequence[float],
         cls_weight: float = 1.0,
         loc_weight: float = 0.25,

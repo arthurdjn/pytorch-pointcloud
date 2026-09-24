@@ -13,8 +13,8 @@ Results (val mIoU):
     | ptv3-base.s3dis-area5.pointcept | 73.6      | 72.06 / 91.16    |
 
 Usage:
-    uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.scannet20.pointcept --limit 5
-    uv run --no-sync python examples/ptv3_benchmark_segmentation.py --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
+    uv run --no-sync python examples/point_transformer_v3_benchmark_segmentation.py --model ptv3-base.scannet20.pointcept --limit 5
+    uv run --no-sync python examples/point_transformer_v3_benchmark_segmentation.py --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
 """
 
 import argparse

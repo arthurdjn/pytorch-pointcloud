@@ -5,6 +5,7 @@ import torch
 
 from torch_pointcloud.metrics import nuscenes_detection_metrics
 from torch_pointcloud.metrics.nuscenes import filter_boxes_by_range, nuscenes_velocity_attributes
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 
 def _box(x: float, y: float, yaw: float = 0.0) -> list[float]:
@@ -25,13 +26,14 @@ def test_nuscenes_detection_metrics_ap_distinct_per_threshold() -> None:
     gt_boxes = torch.tensor([_box(0.0, 0.0), _box(10.0, 0.0), _box(20.0, 0.0), _box(0.0, 30.0)])
     gt_labels = torch.tensor([0, 0, 0, 1])
     batch = torch.zeros(4, dtype=torch.long)
-    args = (pred_boxes, pred_scores, pred_labels, batch, gt_boxes, gt_labels, batch)
+    preds: Detection3D = {"boxes": pred_boxes, "scores": pred_scores, "labels": pred_labels, "batch": batch}
+    target: Boxes3D = {"boxes": gt_boxes, "labels": gt_labels, "batch": batch}
     names = ("car", "pedestrian")
     for threshold, ap in {0.5: 0.0, 1.0: 23.0 / 90.0, 2.0: 56.0 / 90.0, 4.0: 1.0}.items():
-        out = nuscenes_detection_metrics(*args, class_names=names, dist_thresholds=(threshold,))
+        out = nuscenes_detection_metrics(preds, target, class_names=names, dist_thresholds=(threshold,))
         assert out["AP/car"] == pytest.approx(ap)
         assert out["AP/pedestrian"] == pytest.approx(1.0)
-    out = nuscenes_detection_metrics(*args, class_names=names)
+    out = nuscenes_detection_metrics(preds, target, class_names=names)
     assert out["AP/car"] == pytest.approx(169.0 / 360.0)
     assert out["mAP"] == pytest.approx(529.0 / 720.0)
 
@@ -49,13 +51,13 @@ def test_nuscenes_detection_metrics_101_point_interpolation_hand_derived() -> No
     pred_scores = torch.tensor([0.9, 0.8, 0.7, 0.6])
     gt_boxes = torch.tensor([_box(0.0, 0.0), _box(10.0, 0.0), _box(20.0, 0.0)])
     out = nuscenes_detection_metrics(
-        pred_boxes,
-        pred_scores,
-        torch.zeros(4, dtype=torch.long),
-        torch.zeros(4, dtype=torch.long),
-        gt_boxes,
-        torch.zeros(3, dtype=torch.long),
-        torch.zeros(3, dtype=torch.long),
+        {
+            "boxes": pred_boxes,
+            "scores": pred_scores,
+            "labels": torch.zeros(4, dtype=torch.long),
+            "batch": torch.zeros(4, dtype=torch.long),
+        },
+        {"boxes": gt_boxes, "labels": torch.zeros(3, dtype=torch.long), "batch": torch.zeros(3, dtype=torch.long)},
         class_names=("car",),
         dist_thresholds=(2.0,),
     )
@@ -73,13 +75,13 @@ def test_nuscenes_detection_metrics_greedy_closest_consumes_gt() -> None:
     pred_boxes = torch.tensor([_box(1.2, 0.0), _box(-0.5, 0.0)])
     gt_boxes = torch.tensor([_box(0.0, 0.0), _box(3.0, 0.0), _box(40.0, 0.0)])
     out = nuscenes_detection_metrics(
-        pred_boxes,
-        torch.tensor([0.9, 0.8]),
-        torch.zeros(2, dtype=torch.long),
-        torch.zeros(2, dtype=torch.long),
-        gt_boxes,
-        torch.zeros(3, dtype=torch.long),
-        torch.zeros(3, dtype=torch.long),
+        {
+            "boxes": pred_boxes,
+            "scores": torch.tensor([0.9, 0.8]),
+            "labels": torch.zeros(2, dtype=torch.long),
+            "batch": torch.zeros(2, dtype=torch.long),
+        },
+        {"boxes": gt_boxes, "labels": torch.zeros(3, dtype=torch.long), "batch": torch.zeros(3, dtype=torch.long)},
         class_names=("car",),
         dist_thresholds=(2.0,),
     )
@@ -100,7 +102,9 @@ def test_nuscenes_detection_metrics_tp_errors_hand_values() -> None:
     pred_boxes = torch.tensor([[1.0, 0.0, 0.5, 2.0, 2.0, 1.5, -0.2]])
     zero = torch.tensor([0])
     out = nuscenes_detection_metrics(
-        pred_boxes, torch.tensor([0.9]), zero, zero, gt_boxes, zero, zero, class_names=("car",)
+        {"boxes": pred_boxes, "scores": torch.tensor([0.9]), "labels": zero, "batch": zero},
+        {"boxes": gt_boxes, "labels": zero, "batch": zero},
+        class_names=("car",),
     )
     assert out["AP/car"] == pytest.approx(0.5)
     assert out["mATE"] == pytest.approx(1.0)
@@ -123,13 +127,8 @@ def test_nuscenes_detection_metrics_barrier_orientation_modulo_pi() -> None:
     attributes = torch.tensor([2])
     for name, aoe in (("barrier", 0.3), ("car", math.pi - 0.3)):
         out = nuscenes_detection_metrics(
-            pred_boxes,
-            torch.tensor([0.9]),
-            zero,
-            zero,
-            gt_boxes,
-            zero,
-            zero,
+            {"boxes": pred_boxes, "scores": torch.tensor([0.9]), "labels": zero, "batch": zero},
+            {"boxes": gt_boxes, "labels": zero, "batch": zero},
             class_names=(name,),
             pred_attributes=attributes,
             gt_attributes=attributes,
@@ -158,19 +157,21 @@ def test_nuscenes_detection_metrics_range_and_num_points_filters() -> None:
     pred_boxes = torch.tensor([_box(10.0, 0.0), _box(60.0, 0.0)])
     pred_scores = torch.tensor([0.9, 0.95])
     gt_boxes = torch.tensor([_box(10.0, 0.0), _box(60.0, 0.0), _box(20.0, 0.0)])
-    args = (
-        pred_boxes,
-        pred_scores,
-        torch.zeros(2, dtype=torch.long),
-        torch.zeros(2, dtype=torch.long),
-        gt_boxes,
-        torch.zeros(3, dtype=torch.long),
-        torch.zeros(3, dtype=torch.long),
-    )
-    out = nuscenes_detection_metrics(*args, class_names=("car",), gt_num_points=torch.tensor([5, 7, 0]))
+    preds: Detection3D = {
+        "boxes": pred_boxes,
+        "scores": pred_scores,
+        "labels": torch.zeros(2, dtype=torch.long),
+        "batch": torch.zeros(2, dtype=torch.long),
+    }
+    target: Boxes3D = {
+        "boxes": gt_boxes,
+        "labels": torch.zeros(3, dtype=torch.long),
+        "batch": torch.zeros(3, dtype=torch.long),
+    }
+    out = nuscenes_detection_metrics(preds, target, class_names=("car",), gt_num_points=torch.tensor([5, 7, 0]))
     assert out["AP/car"] == pytest.approx(1.0)
     assert out["mATE"] == pytest.approx(0.0, abs=1e-7)
-    out = nuscenes_detection_metrics(*args, class_names=("car",))
+    out = nuscenes_detection_metrics(preds, target, class_names=("car",))
     assert out["AP/car"] == pytest.approx(4.0 / 9.0)
 
 
@@ -181,13 +182,13 @@ def test_nuscenes_detection_metrics_max_boxes_per_sample_cap() -> None:
     gt_boxes = torch.tensor([_box(0.0, 0.0)])
     zero = torch.tensor([0])
     out = nuscenes_detection_metrics(
-        pred_boxes,
-        torch.tensor([0.9, 0.8]),
-        torch.zeros(2, dtype=torch.long),
-        torch.zeros(2, dtype=torch.long),
-        gt_boxes,
-        zero,
-        zero,
+        {
+            "boxes": pred_boxes,
+            "scores": torch.tensor([0.9, 0.8]),
+            "labels": torch.zeros(2, dtype=torch.long),
+            "batch": torch.zeros(2, dtype=torch.long),
+        },
+        {"boxes": gt_boxes, "labels": zero, "batch": zero},
         class_names=("car",),
         max_boxes_per_sample=1,
     )
@@ -197,13 +198,13 @@ def test_nuscenes_detection_metrics_max_boxes_per_sample_cap() -> None:
     gt_boxes = pred_boxes.clone()
     batch = torch.tensor([0, 1])
     out = nuscenes_detection_metrics(
-        pred_boxes,
-        torch.tensor([0.9, 0.8]),
-        torch.zeros(2, dtype=torch.long),
-        batch,
-        gt_boxes,
-        torch.zeros(2, dtype=torch.long),
-        batch,
+        {
+            "boxes": pred_boxes,
+            "scores": torch.tensor([0.9, 0.8]),
+            "labels": torch.zeros(2, dtype=torch.long),
+            "batch": batch,
+        },
+        {"boxes": gt_boxes, "labels": torch.zeros(2, dtype=torch.long), "batch": batch},
         class_names=("car",),
         max_boxes_per_sample=1,
     )
@@ -220,13 +221,8 @@ def test_nuscenes_detection_metrics_nds_identity() -> None:
     gt_boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.5, 1.0, 0.0]])
     zero = torch.tensor([0])
     out = nuscenes_detection_metrics(
-        gt_boxes.clone(),
-        torch.tensor([0.9]),
-        zero,
-        zero,
-        gt_boxes,
-        zero,
-        zero,
+        {"boxes": gt_boxes.clone(), "scores": torch.tensor([0.9]), "labels": zero, "batch": zero},
+        {"boxes": gt_boxes, "labels": zero, "batch": zero},
         class_names=("car",),
         pred_attributes=torch.tensor([1]),
         gt_attributes=torch.tensor([1]),
@@ -236,13 +232,8 @@ def test_nuscenes_detection_metrics_nds_identity() -> None:
     assert out["NDS"] == pytest.approx(1.0)
     pred_boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.5, 1.0, 2.0]])
     out = nuscenes_detection_metrics(
-        pred_boxes,
-        torch.tensor([0.9]),
-        zero,
-        zero,
-        gt_boxes,
-        zero,
-        zero,
+        {"boxes": pred_boxes, "scores": torch.tensor([0.9]), "labels": zero, "batch": zero},
+        {"boxes": gt_boxes, "labels": zero, "batch": zero},
         class_names=("car",),
         pred_attributes=torch.tensor([2]),
         gt_attributes=torch.tensor([1]),
@@ -257,13 +248,8 @@ def test_nuscenes_detection_metrics_void_attribute_and_missing_velocity_penalty(
     gt_boxes = torch.tensor([_box(0.0, 0.0)])
     zero = torch.tensor([0])
     out = nuscenes_detection_metrics(
-        gt_boxes.clone(),
-        torch.tensor([0.9]),
-        zero,
-        zero,
-        gt_boxes,
-        zero,
-        zero,
+        {"boxes": gt_boxes.clone(), "scores": torch.tensor([0.9]), "labels": zero, "batch": zero},
+        {"boxes": gt_boxes, "labels": zero, "batch": zero},
         class_names=("car",),
         pred_attributes=torch.tensor([3]),
         gt_attributes=torch.tensor([-1]),

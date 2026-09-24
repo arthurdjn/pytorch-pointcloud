@@ -14,6 +14,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES, SCANNET_UNK_CLS
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock, _disable_triton
@@ -1065,6 +1066,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         url="hf://torch-pointcloud/octformer-base.scannet20.octree-nn/resolve/440db325abc54ef7645b0e6db3dbafb65b76fe71/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 74.78, "OA": 90.90},
+        classes=[SCANNET_UNK_CLS, *SCANNET20_CLASSES],
         author="octree-nn",
         license="MIT",
     ),
@@ -1135,6 +1137,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         url="hf://torch-pointcloud/octformer-base.scannet200.octree-nn/resolve/d19137dd693b614d3c70c9364bec2c2d43f0cd4f/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 31.71, "OA": 82.00},
+        classes=[SCANNET_UNK_CLS, *SCANNET200_CLASSES],
         author="octree-nn",
         license="MIT",
     ),

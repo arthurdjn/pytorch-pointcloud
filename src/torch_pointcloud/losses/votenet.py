@@ -41,29 +41,29 @@ class VoteNetLoss(nn.Module):
     each object seed's vote toward its object center (the closest of up to three candidate votes).
 
     Args:
+        num_classes: Number of semantic classes.
         num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for SUN RGB-D).
         num_size_clusters: Number of size templates.
-        num_classes: Number of semantic classes.
         mean_sizes: Per-template mean box size, shape $(\text{num\_size\_cluster}, 3)$.
         near_threshold: Distance (meters) below which a proposal is a positive object match.
         far_threshold: Distance (meters) above which a proposal is a negative match.
         objectness_weights: Cross-entropy class weights $[\text{negative}, \text{positive}]$.
-        loss_scale: Global multiplier applied to the summed loss.
+        loss_weight: Global multiplier applied to the summed loss.
     """
 
     mean_sizes: Tensor
 
     def __init__(
         self,
+        num_classes: int,
+        *,
         num_heading_bins: int,
         num_size_clusters: int,
-        num_classes: int,
         mean_sizes: Union[Tensor, List[List[float]]],
-        *,
         near_threshold: float = 0.3,
         far_threshold: float = 0.6,
         objectness_weights: Tuple[float, float] = (0.2, 0.8),
-        loss_scale: float = 10.0,
+        loss_weight: float = 10.0,
     ) -> None:
         super().__init__()
         self.num_heading_bins = num_heading_bins
@@ -72,7 +72,7 @@ class VoteNetLoss(nn.Module):
         self.near_threshold = near_threshold
         self.far_threshold = far_threshold
         self.objectness_weights = objectness_weights
-        self.loss_scale = loss_scale
+        self.loss_weight = loss_weight
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
         if mean.shape != (num_size_clusters, 3):
@@ -106,7 +106,7 @@ class VoteNetLoss(nn.Module):
         )
 
         box_loss = center + 0.1 * heading_cls + heading_res + 0.1 * size_cls + size_res
-        total = self.loss_scale * (vote_loss + 0.5 * objectness_loss + box_loss + 0.1 * sem_cls)
+        total = self.loss_weight * (vote_loss + 0.5 * objectness_loss + box_loss + 0.1 * sem_cls)
         obj_acc = self._objectness_accuracy(output["objectness_scores"], objectness_label, objectness_mask)
 
         return {

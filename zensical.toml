@@ -199,7 +199,7 @@ nav = [
         { Losses = [
             { "Overview" = "api/losses/index.md" },
             { "anchor" = "api/losses/anchor.md" },
-            { "center" = "api/losses/center.md" },
+            { "centerpoint" = "api/losses/centerpoint.md" },
             { "chamfer" = "api/losses/chamfer.md" },
             { "threedetr" = "api/losses/threedetr.md" },
             { "lovasz" = "api/losses/lovasz.md" },
@@ -213,6 +213,7 @@ nav = [
             { "classification" = "api/metrics/classification.md" },
             { "detection" = "api/metrics/detection.md" },
             { "instance_segmentation" = "api/metrics/instance_segmentation.md" },
+            { "kitti" = "api/metrics/kitti.md" },
             { "nuscenes" = "api/metrics/nuscenes.md" },
             { "segmentation" = "api/metrics/segmentation.md" },
         ] },

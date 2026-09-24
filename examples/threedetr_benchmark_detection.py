@@ -11,8 +11,8 @@ Results (mAP@0.25 / mAP@0.5):
     | 3detr-m.scannet.fair | 65.0 / 47.0 | 65.46 / 47.26    |
 
 Usage:
-    uv run --no-sync python examples/3detr_benchmark_detection.py --model 3detr-m.scannet.fair
-    uv run --no-sync python examples/3detr_benchmark_detection.py --model 3detr.sunrgbd.fair --limit 5
+    uv run --no-sync python examples/threedetr_benchmark_detection.py --model 3detr-m.scannet.fair
+    uv run --no-sync python examples/threedetr_benchmark_detection.py --model 3detr.sunrgbd.fair --limit 5
 """
 
 import argparse
@@ -27,7 +27,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet, SunRGBD
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_LABELS
-from torch_pointcloud.metrics import average_precision3d, box_matches
+from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import ThreeDETRDetection, create_model
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
@@ -76,7 +76,9 @@ def evaluate(model: ThreeDETRDetection, dataloader: PointCloudDataLoader, device
         }
         matches.append(box_matches(preds, target))
 
-    return {f"mAP@{threshold:g}": average_precision3d(matches, iou_threshold=threshold) for threshold in IOU_THRESHOLDS}
+    return {
+        f"mAP@{threshold:g}": box_average_precision(matches, iou_threshold=threshold) for threshold in IOU_THRESHOLDS
+    }
 
 
 def parse_args() -> argparse.Namespace:

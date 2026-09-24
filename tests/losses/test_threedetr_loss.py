@@ -81,13 +81,13 @@ _LABELS = torch.tensor([0, 2])
 def test_threedetr_loss_giou_weight_defaults_to_zero() -> None:
     """The reference recipe trains with the GIoU term disabled; the GIoU still drives the matcher cost."""
     loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1)
-    assert loss_fn.loss_giou_weight == 0.0
+    assert loss_fn.giou_weight == 0.0
     assert loss_fn.matcher_giou_cost == 2.0
 
 
 def test_threedetr_loss_perfect_axis_aligned_predictions_near_zero() -> None:
     angles = torch.zeros(2)
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, loss_giou_weight=1.0)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_heading_bins=1)
     out = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -angles, _LABELS))
     for key in ("loss_center", "loss_size", "loss_giou", "loss_angle_cls", "loss_angle_reg"):
@@ -99,7 +99,7 @@ def test_threedetr_loss_perfect_axis_aligned_predictions_near_zero() -> None:
 
 def test_threedetr_loss_perturbed_predictions_are_larger() -> None:
     angles = torch.zeros(2)
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, loss_giou_weight=1.0)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_heading_bins=1)
     batch = _batch(_CENTERS, _SIZES, -angles, _LABELS)
     perfect = loss_fn(_output(layer), batch)
@@ -174,7 +174,7 @@ def test_threedetr_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch:
     """CCW library headings are negated into native space, so an all-positive batch must still take the
     rotated GIoU branch."""
     headings = torch.tensor([0.8, 1.2])
-    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12, loss_giou_weight=1.0)
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12, giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, -headings, _LABELS, num_queries=4, num_heading_bins=12)
     seen: List[bool] = []
     original = ThreeDETRLoss._giou3d

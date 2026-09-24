@@ -70,13 +70,13 @@ class TransFusionLoss(nn.Module):
         num_proposals: Number of object queries per scene.
         gaussian_overlap: Min-overlap passed to the Gaussian-radius solver.
         min_radius: Lower clamp on the integer splat radius.
-        hungarian_cls_cost: Weight of the focal classification term in the matching cost.
-        hungarian_reg_cost: Weight of the normalized center-$L_1$ term in the matching cost.
-        hungarian_iou_cost: Weight of the 3D-IoU term in the matching cost.
+        matcher_cls_cost: Weight of the focal classification term in the matching cost.
+        matcher_reg_cost: Weight of the normalized center-$L_1$ term in the matching cost.
+        matcher_iou_cost: Weight of the 3D-IoU term in the matching cost.
         code_weights: Per-code regression weight, length $10$; the last two (velocity) default to $0$.
         cls_weight: Multiplier on the classification term.
-        bbox_weight: Multiplier on the box-regression term.
-        hm_weight: Multiplier on the heatmap term.
+        loc_weight: Multiplier on the box-regression term.
+        heatmap_weight: Multiplier on the heatmap term.
         iou_weight: Multiplier on the IoU-rescore term.
         focal_alpha: Focal positive/negative balance (classification loss and matching cost).
         focal_gamma: Focal focusing exponent (classification loss and matching cost).
@@ -87,20 +87,20 @@ class TransFusionLoss(nn.Module):
     def __init__(
         self,
         num_classes: int,
+        *,
         point_cloud_range: Sequence[float],
         voxel_size: Sequence[float],
         feature_map_stride: int,
-        *,
         num_proposals: int = 200,
         gaussian_overlap: float = 0.1,
         min_radius: int = 2,
-        hungarian_cls_cost: float = 0.15,
-        hungarian_reg_cost: float = 0.25,
-        hungarian_iou_cost: float = 0.25,
+        matcher_cls_cost: float = 0.15,
+        matcher_reg_cost: float = 0.25,
+        matcher_iou_cost: float = 0.25,
         code_weights: Sequence[float] = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0),
         cls_weight: float = 1.0,
-        bbox_weight: float = 0.25,
-        hm_weight: float = 1.0,
+        loc_weight: float = 0.25,
+        heatmap_weight: float = 1.0,
         iou_weight: float = 0.5,
         focal_alpha: float = 0.25,
         focal_gamma: float = 2.0,
@@ -116,12 +116,12 @@ class TransFusionLoss(nn.Module):
         self.num_proposals = num_proposals
         self.gaussian_overlap = gaussian_overlap
         self.min_radius = min_radius
-        self.hungarian_cls_cost = hungarian_cls_cost
-        self.hungarian_reg_cost = hungarian_reg_cost
-        self.hungarian_iou_cost = hungarian_iou_cost
+        self.matcher_cls_cost = matcher_cls_cost
+        self.matcher_reg_cost = matcher_reg_cost
+        self.matcher_iou_cost = matcher_iou_cost
         self.cls_weight = cls_weight
-        self.bbox_weight = bbox_weight
-        self.hm_weight = hm_weight
+        self.loc_weight = loc_weight
+        self.heatmap_weight = heatmap_weight
         self.iou_weight = iou_weight
         self.focal_alpha = focal_alpha
         self.focal_gamma = focal_gamma
@@ -169,7 +169,7 @@ class TransFusionLoss(nn.Module):
                 for b in range(batch_size)
             ]
         )
-        heatmap_loss = _gaussian_focal_loss(_clamp_sigmoid(output["dense_heatmap"]), hm_target) * self.hm_weight
+        heatmap_loss = _gaussian_focal_loss(_clamp_sigmoid(output["dense_heatmap"]), hm_target) * self.heatmap_weight
 
         labels = center.new_full((batch_size, num_queries), self.num_classes, dtype=torch.long)
         bbox_targets = center.new_zeros((batch_size, num_queries, 10))
@@ -189,7 +189,7 @@ class TransFusionLoss(nn.Module):
             iou_terms.append((output["iou"][b, 0, pos_inds] - (iou * 2 - 1)).abs().sum())
 
         cls_loss = self._cls_loss(output["heatmap"], labels, num_pos) * self.cls_weight
-        bbox_loss = self._bbox_loss(output, bbox_targets, bbox_weights, num_pos) * self.bbox_weight
+        bbox_loss = self._bbox_loss(output, bbox_targets, bbox_weights, num_pos) * self.loc_weight
         iou_sum = torch.stack(iou_terms).sum() if iou_terms else center.new_zeros(())
         iou_loss = iou_sum / max(num_pos, 1) * self.iou_weight
 
@@ -242,14 +242,14 @@ class TransFusionLoss(nn.Module):
         prob = cls_logits.sigmoid()
         neg = -(1 - prob + _LOG_EPS).log() * (1 - self.focal_alpha) * prob.pow(self.focal_gamma)
         pos = -(prob + _LOG_EPS).log() * self.focal_alpha * (1 - prob).pow(self.focal_gamma)
-        cls_cost = (pos[:, gt_labels] - neg[:, gt_labels]) * self.hungarian_cls_cost
+        cls_cost = (pos[:, gt_labels] - neg[:, gt_labels]) * self.matcher_cls_cost
 
         pc_start = decoded.new_tensor(self.point_cloud_range[0:2])
         pc_range = decoded.new_tensor(self.point_cloud_range[3:5]) - pc_start
         reg_cost = torch.cdist((decoded[:, :2] - pc_start) / pc_range, (gt_boxes[:, :2] - pc_start) / pc_range, p=1)
-        reg_cost = reg_cost * self.hungarian_reg_cost
+        reg_cost = reg_cost * self.matcher_reg_cost
 
-        iou_cost = -boxes_iou3d(decoded, gt_boxes[:, :7]) * self.hungarian_iou_cost
+        iou_cost = -boxes_iou3d(decoded, gt_boxes[:, :7]) * self.matcher_iou_cost
 
         cost = cls_cost + reg_cost + iou_cost
         row, col = linear_sum_assignment(cost.detach().cpu().numpy())

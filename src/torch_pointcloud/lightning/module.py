@@ -339,7 +339,7 @@ class LitDetectionModel(LitModel):
       (optional `min_points` filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou`
       on the rotated BEV IoU when `nms_rotated`, and the indoor per-class expansion when `decode` emits
       `class_probs`), and pair the result with the
-      ground truth for a `MetricCallback` (e.g. `MeanAveragePrecision3D`, `AveragePrecision3D`); any other
+      ground truth for a `MetricCallback` (e.g. `BoxMeanAveragePrecision`, `BoxAveragePrecision`); any other
       per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is filtered alongside the boxes and kept
       in the predictions dict, and when the batch carries `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked
       per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px `projected_ignore_mask` of the surviving boxes is

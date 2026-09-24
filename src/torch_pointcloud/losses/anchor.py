@@ -112,8 +112,8 @@ class AnchorLoss(nn.Module):
 
     Args:
         num_classes: Number of foreground classes.
-        voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         feature_map_stride: BEV feature-map stride of the head.
@@ -141,8 +141,8 @@ class AnchorLoss(nn.Module):
         self,
         num_classes: int,
         *,
-        voxel_size: Sequence[float],
         point_cloud_range: Sequence[float],
+        voxel_size: Sequence[float],
         anchor_sizes: Sequence[Sequence[float]],
         anchor_bottom_heights: Sequence[float],
         feature_map_stride: int,
@@ -333,8 +333,8 @@ class MultiHeadAnchorLoss(nn.Module):
         class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`), matching the head's
             `head_class_groups`; the classes in each group share one head, and the flattened groups must
             enumerate the classes $0 \ldots C - 1$ in ascending order (the anchor / head layout).
-        voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$ (used with `point_cloud_range` to size the anchor grid).
         anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
         feature_map_stride: BEV feature-map stride of the head.
@@ -360,8 +360,8 @@ class MultiHeadAnchorLoss(nn.Module):
         num_classes: int,
         *,
         class_groups: Sequence[Sequence[int]],
-        voxel_size: Sequence[float],
         point_cloud_range: Sequence[float],
+        voxel_size: Sequence[float],
         anchor_sizes: Sequence[Sequence[float]],
         anchor_bottom_heights: Sequence[float],
         feature_map_stride: int,

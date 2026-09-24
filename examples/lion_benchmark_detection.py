@@ -105,13 +105,17 @@ def evaluate(model: LIONDetection, dataloader: PointCloudDataLoader, device: str
     pred_labels = torch.cat([p["labels"] for p in preds])
     pred_velocity = torch.cat([p["velocity"] for p in preds])
     return nuscenes_detection_metrics(
-        torch.cat([torch.cat([p["boxes"], p["velocity"]], dim=1) for p in preds]),
-        torch.cat([p["scores"] for p in preds]),
-        pred_labels,
-        torch.cat([p["batch"] + offset for p, offset in zip(preds, offsets)]),
-        torch.cat([torch.cat([t["boxes"], v], dim=1) for t, v in zip(targets, gt_velocities)]),
-        torch.cat([t["labels"] for t in targets]),
-        torch.cat([t["batch"] + offset for t, offset in zip(targets, offsets)]),
+        {
+            "boxes": torch.cat([torch.cat([p["boxes"], p["velocity"]], dim=1) for p in preds]),
+            "scores": torch.cat([p["scores"] for p in preds]),
+            "labels": pred_labels,
+            "batch": torch.cat([p["batch"] + offset for p, offset in zip(preds, offsets)]),
+        },
+        {
+            "boxes": torch.cat([torch.cat([t["boxes"], v], dim=1) for t, v in zip(targets, gt_velocities)]),
+            "labels": torch.cat([t["labels"] for t in targets]),
+            "batch": torch.cat([t["batch"] + offset for t, offset in zip(targets, offsets)]),
+        },
         class_names=NUSCENES_DETECTION_CLASSES,
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),

@@ -9,7 +9,7 @@ from torch import Tensor
 
 from torch_pointcloud.datasets.shapenetpart import ShapeNetPart
 from torch_pointcloud.metrics import (
-    average_precision3d,
+    box_average_precision,
     box_matches,
     instance_average_precision,
     nuscenes_detection_metrics,
@@ -27,10 +27,10 @@ else:
     Metric, _ = optional_import("torchmetrics", "Metric", url=_TORCHMETRICS_GITHUB_URL)
 
 
-class MeanAveragePrecision3D(Metric):
+class BoxMeanAveragePrecision(Metric):
     r"""Packed 3D-detection mean average precision as a `torchmetrics` metric.
 
-    A stateful wrapper of `average_precision3d`: each `update` reduces one batch's packed predictions
+    A stateful wrapper of `box_average_precision`: each `update` reduces one batch's packed predictions
     and ground truth to its compact `box_matches` record, and `compute` returns `{"mAP@t": ...}` (averaged
     over the classes present in the targets) for each IoU threshold. An `ignore_mask` passed to `update`
     is used as the predictions' `ignore_mask` entry, excluding the flagged predictions from scoring
@@ -78,7 +78,7 @@ class MeanAveragePrecision3D(Metric):
         """Score the accumulated batches and return one `mAP@t` entry per IoU threshold."""
         out: Dict[str, float] = {}
         for threshold in self.iou_thresholds:
-            out[f"mAP@{threshold:g}"] = average_precision3d(
+            out[f"mAP@{threshold:g}"] = box_average_precision(
                 self.matches,
                 iou_threshold=threshold,
                 interpolation=self.interpolation,
@@ -86,10 +86,10 @@ class MeanAveragePrecision3D(Metric):
         return out
 
 
-class AveragePrecision3D(Metric):
+class BoxAveragePrecision(Metric):
     r"""Packed 3D-detection per-class average precision as a `torchmetrics` metric.
 
-    A stateful wrapper of `average_precision3d`: each `update` reduces one batch's packed predictions and
+    A stateful wrapper of `box_average_precision`: each `update` reduces one batch's packed predictions and
     ground truth to its compact `box_matches` record, and `compute` returns one `AP/<class>` entry per
     class plus their mean as `mAP`, each class matched at its own IoU threshold (the KITTI / nuScenes
     convention, e.g. Car@0.7 and Pedestrian/Cyclist@0.5). Targets may carry an `ignore_mask` so predictions
@@ -142,7 +142,7 @@ class AveragePrecision3D(Metric):
 
     def compute(self) -> Dict[str, float]:
         """Score the accumulated batches and return one `AP/<class>` entry per class plus their `mAP`."""
-        per_class = average_precision3d(
+        per_class = box_average_precision(
             self.matches,
             iou_threshold=self.iou_per_class,
             average="none",
@@ -152,7 +152,7 @@ class AveragePrecision3D(Metric):
         for label in self.iou_per_class:
             name = self.class_names[label] if self.class_names is not None else str(label)
             out[f"AP/{name}"] = float(per_class[label])
-        out["mAP"] = average_precision3d(
+        out["mAP"] = box_average_precision(
             self.matches,
             iou_threshold=self.iou_per_class,
             interpolation=self.interpolation,
@@ -300,13 +300,17 @@ class NuScenesDetection(Metric):
             )
 
         return nuscenes_detection_metrics(
-            pred_boxes,
-            torch.cat(self.pred_scores) if self.pred_scores else empty_boxes.new_zeros((0,)),
-            pred_labels,
-            torch.cat(self.pred_batch) if self.pred_batch else empty_ids,
-            torch.cat(self.gt_boxes) if self.gt_boxes else empty_boxes,
-            torch.cat(self.gt_labels) if self.gt_labels else empty_ids,
-            torch.cat(self.gt_batch) if self.gt_batch else empty_ids,
+            {
+                "boxes": pred_boxes,
+                "scores": torch.cat(self.pred_scores) if self.pred_scores else empty_boxes.new_zeros((0,)),
+                "labels": pred_labels,
+                "batch": torch.cat(self.pred_batch) if self.pred_batch else empty_ids,
+            },
+            {
+                "boxes": torch.cat(self.gt_boxes) if self.gt_boxes else empty_boxes,
+                "labels": torch.cat(self.gt_labels) if self.gt_labels else empty_ids,
+                "batch": torch.cat(self.gt_batch) if self.gt_batch else empty_ids,
+            },
             class_names=self.class_names,
             gt_num_points=torch.cat(self.gt_num_points) if self.gt_num_points else None,
             pred_attributes=pred_attributes,
@@ -392,7 +396,7 @@ class InstanceAveragePrecision(Metric):
         return out
 
 
-class InstancePartMeanIoU(Metric):
+class InstancePartMeanIntersectionOverUnion(Metric):
     r"""ShapeNetPart instance / class mean IoU as a `torchmetrics` metric.
 
     A stateful wrapper of `part_intersection_over_union`: each shape is scored only over the part labels its category owns
