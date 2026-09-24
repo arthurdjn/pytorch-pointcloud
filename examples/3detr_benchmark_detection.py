@@ -102,6 +102,7 @@ def main() -> None:
     set_determinism(tf32=False)
 
     model, model_info = create_model(args.model, task="detection", pretrained=True, return_info=True)
+    assert model_info["transform"] is not None
     assert isinstance(model, ThreeDETRDetection)
 
     dataset: Dataset

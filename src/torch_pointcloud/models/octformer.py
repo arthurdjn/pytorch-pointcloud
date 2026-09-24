@@ -982,6 +982,7 @@ def _octformer_base_seg(**hparams: Any) -> OctFormerSegmentation:
 @register_model(
     name="octformer-base.modelnet40.octree-nn",
     task="classification",
+    input_keys=("x", "octree", "octree.depth"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/octformer-base.modelnet40.octree-nn/resolve/41f770a172a246227c92b9196e7ec1bf80e6ce41/model.safetensors",
         dataset="modelnet40",
@@ -1068,6 +1069,7 @@ def octformer_base_modelnet40_clf(**hparams: Any) -> OctFormerClassification:
         license="MIT",
     ),
     task="semantic-segmentation",
+    input_keys=("x", "octree", "octree.depth", "pos", "batch"),
     hparams=dict(
         in_channels=10,
         num_classes=21,
@@ -1137,6 +1139,7 @@ def octformer_base_scannet_seg(**hparams: Any) -> OctFormerSegmentation:
         license="MIT",
     ),
     task="semantic-segmentation",
+    input_keys=("x", "octree", "octree.depth", "pos", "batch"),
     hparams=dict(
         in_channels=10,
         num_classes=201,
@@ -1199,6 +1202,7 @@ def octformer_base_scannet200_seg(**hparams: Any) -> OctFormerSegmentation:
 @register_model(
     name="octformer-lg",
     task="semantic-segmentation",
+    input_keys=("x", "octree", "octree.depth", "pos", "batch"),
     hparams=dict(
         stem_channels=(48, 96, 192),
         encoder_channels=(192, 384, 768, 768),
@@ -1235,6 +1239,7 @@ def octformer_lg_seg(**hparams: Any) -> OctFormerSegmentation:
 @register_model(
     name="octformer-sm",
     task="semantic-segmentation",
+    input_keys=("x", "octree", "octree.depth", "pos", "batch"),
     hparams=dict(
         stem_channels=(24, 48, 96),
         encoder_channels=(96, 192, 384, 384),

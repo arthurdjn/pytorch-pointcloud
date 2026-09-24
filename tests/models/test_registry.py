@@ -9,6 +9,7 @@ from torch import Tensor, nn
 
 from torch_pointcloud.models import (
     ClassificationModel,
+    ModelInfoDict,
     SemanticSegmentationModel,
     WeightsDict,
     create_model,
@@ -115,6 +116,45 @@ def test_create_model_return_info_returns_tuple() -> None:
     model, info = create_model("dummy.classification", task="classification", return_info=True)
     assert isinstance(model, DummyClassificationModel)
     assert info["name"] == "dummy.classification"
+
+
+def test_create_model_infers_the_task_of_a_unique_name() -> None:
+    model, info = create_model("dummy.classification", return_info=True)
+    assert isinstance(model, DummyClassificationModel)
+    assert info["task"] == "classification"
+
+
+def test_create_model_return_info_is_a_model_info_dict() -> None:
+    _, info = create_model("dummy.classification", return_info=True)
+    assert set(info) == set(ModelInfoDict.__annotations__)
+    assert info["input_keys"] == ("x", "pos", "batch")
+
+
+def test_create_model_without_task_raises_for_a_name_under_several_tasks() -> None:
+    register_model("dummy.classification", task="semantic-segmentation")(_dummy_segmentation)
+    try:
+        with pytest.raises(ValueError, match="registered under tasks 'classification' and 'semantic-segmentation'"):
+            create_model("dummy.classification")
+    finally:
+        _REGISTERED_MODELS["semantic-segmentation"].pop("dummy.classification", None)
+
+
+def test_create_model_without_task_unknown_name_suggests_close_matches() -> None:
+    with pytest.raises(ValueError, match="is not registered. Did you mean 'dummy.classification'"):
+        create_model("dummy.classifiction")
+
+
+def test_register_model_stores_input_keys() -> None:
+    register_model(
+        "dummy-keys.classification",
+        task="classification",
+        input_keys=["x", "pos_grid", "batch"],
+    )(_dummy_classification)
+    try:
+        entry = _REGISTERED_MODELS["classification"]["dummy-keys.classification"]
+        assert entry["input_keys"] == ("x", "pos_grid", "batch")
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-keys.classification", None)
 
 
 def test_create_model_pretrained_without_weights_raises() -> None:

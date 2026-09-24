@@ -1,4 +1,5 @@
 # mypy: disable-error-code="list-item"
+from types import SimpleNamespace
 from typing import Any, List
 
 import pytest
@@ -6,7 +7,7 @@ import torch
 from torch.utils.data import Dataset, get_worker_info
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, collate, set_random_states
+from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, collate, select_inputs, set_random_states
 
 
 def test_collate_empty_returns_empty_dict() -> None:
@@ -385,3 +386,23 @@ def test_set_random_states_reseeds_only_seeded_objects() -> None:
     assert next_seed == 8
     assert seeded.R is not None and seeded.R.initial_seed() == 7
     assert unseeded.R is None
+
+
+def test_select_inputs_follows_the_key_order() -> None:
+    data = {"x": torch.rand(4, 2), "pos": torch.rand(4, 3), "batch": torch.zeros(4, dtype=torch.long)}
+    x, pos, batch = select_inputs(data, ("x", "pos", "batch"))
+    assert x is data["x"] and pos is data["pos"] and batch is data["batch"]
+
+
+def test_select_inputs_missing_x_is_none() -> None:
+    assert select_inputs({"pos": torch.rand(4, 3)}, ("x", "pos"))[0] is None
+
+
+def test_select_inputs_missing_key_raises() -> None:
+    with pytest.raises(KeyError, match="'pos_grid' not found"):
+        select_inputs({"pos": torch.rand(4, 3)}, ("x", "pos_grid"))
+
+
+def test_select_inputs_dotted_key_reads_an_attribute() -> None:
+    octree = SimpleNamespace(depth=6)
+    assert select_inputs({"octree": octree}, ("octree", "octree.depth")) == [octree, 6]

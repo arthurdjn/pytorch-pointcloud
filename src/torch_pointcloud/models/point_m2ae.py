@@ -1248,6 +1248,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
 @register_model(
     "point-m2ae-base.shapenetpart.renrui-zhang",
     task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.shapenetpart.renrui-zhang/resolve/539d06ae3865cd6c47bee941ff674e0db4148d1e/model.safetensors",
         dataset="shapenetpart",

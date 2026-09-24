@@ -10,9 +10,8 @@ from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
-from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.data import DataKeys, select_inputs
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
-from torch_pointcloud.utils.misc import deep_getattr
 from torch_pointcloud.utils.ops import offset_index
 from torch_pointcloud.utils.optim import generate_param_groups
 from torch_pointcloud.utils.types import Boxes3D
@@ -21,8 +20,6 @@ if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
 else:
     LightningModule, _ = optional_import("lightning.pytorch", "LightningModule", url=_LIGHTNING_GITHUB_URL)
-
-_MISSING = object()
 
 
 class LitModel(LightningModule):
@@ -46,9 +43,8 @@ class LitModel(LightningModule):
             every test prediction goes through an inferer. Training and validation are unaffected. The
             inferer may return probabilities instead of logits (torchmetrics handles both), so no `test/loss`
             is logged.
-        input_keys: Batch-dict keys passed positionally to the model's forward. A dotted key
-            (e.g. `octree.depth`) resolves an attribute. A key missing from the batch raises, except
-            `x`: a batch without point features resolves it to `None` (models accept `x=None`).
+        input_keys: Batch-dict keys passed positionally to the model's forward (see `select_inputs`); `None` (the
+            default) uses the registered `input_keys` of the model.
         target_key: Batch-dict key for the per-cloud label.
         metric_input_keys: Batch-dict keys copied as-is into the `validation_step` / `test_step` output
             dict, alongside the predictions and targets, for metrics whose `update` consumes extra inputs
@@ -69,7 +65,7 @@ class LitModel(LightningModule):
         scheduler: Optional[Callable[..., Any]] = None,
         criterion: Optional[nn.Module] = None,
         inferer: Optional[Inferer] = None,
-        input_keys: Sequence[str] = ("x", "pos", "batch"),
+        input_keys: Optional[Sequence[str]] = None,
         target_key: str = DataKeys.LABEL,
         metric_input_keys: Sequence[str] = (),
         scheduler_interval: str = "epoch",
@@ -91,7 +87,7 @@ class LitModel(LightningModule):
         self.save_hyperparameters(
             {
                 "name": name,
-                "input_keys": list(input_keys),
+                "input_keys": list(input_keys if input_keys is not None else info["input_keys"]),
                 "target_key": str(target_key),
                 "metric_input_keys": list(metric_input_keys),
                 "scheduler_interval": scheduler_interval,
@@ -101,18 +97,7 @@ class LitModel(LightningModule):
         )
 
     def forward(self, batch: Dict[str, Any]) -> Union[Tensor, Dict[str, Tensor]]:
-        inputs = []
-        for key in self.hparams["input_keys"]:
-            value = deep_getattr(batch, key, default=_MISSING)
-            if value is _MISSING:
-                if key != "x":
-                    raise KeyError(
-                        f"Input key {key!r} not found in the batch (available keys: {sorted(batch)}); "
-                        "check the module's `input_keys`."
-                    )
-                value = None
-            inputs.append(value)
-        return self.model(*inputs)
+        return self.model(*select_inputs(batch, self.hparams["input_keys"]))
 
     def predict(self, batch: Dict[str, Any]) -> Tensor:
         """Forward the batch and return the logits tensor (the predictor handed to the inferer)."""
@@ -301,8 +286,8 @@ class LitSemanticSegmentationModel(_LitSegmentationModel):
 class LitPartSegmentationModel(_LitSegmentationModel):
     """LightningModule for a part segmentation model, built from the registry.
 
-    The model also reads the one-hot object category: list it in `input_keys`, e.g.
-    `("x", "pos", "batch", "category")`.
+    The model also reads the one-hot object category, which the registered `input_keys` of part segmentation models
+    list (`("x", "pos", "batch", "category")`).
 
     Args:
         name: Registered part segmentation model name; built via `create_model(name, task="part-segmentation")`.

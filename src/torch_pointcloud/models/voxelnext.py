@@ -570,6 +570,7 @@ class VoxelNeXtDetection(DetectionModel):
 @register_model(
     "voxelnext.nuscenes.openpcdet",
     task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/voxelnext.nuscenes.openpcdet/resolve/8de82cf9f2e011023016e145009debc815b0e0b1/model.safetensors",
         dataset="nuscenes",

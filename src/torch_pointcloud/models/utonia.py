@@ -296,6 +296,7 @@ def _utonia_encoder_hparams() -> Dict[str, Any]:
 @register_model(
     "utonia.pretrain.pointcept",
     task="pretraining",
+    input_keys=("x", "pos_grid", "batch", "pos"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/utonia.pretrain.pointcept/resolve/33e4b0c0c25e4400ba420d9d9d373daba3433f67/model.safetensors",
         author="pointcept",
@@ -311,6 +312,7 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "utonia-lp.scannet20.pointcept",
     task="semantic-segmentation",
+    input_keys=("x", "pos", "pos_grid", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/utonia-lp.scannet20.pointcept/resolve/1811ef3a4de3df47bf17b932f07eb72e80472e37/model.safetensors",
         dataset="scannet20",

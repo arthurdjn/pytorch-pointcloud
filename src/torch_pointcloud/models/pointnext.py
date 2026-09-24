@@ -2018,6 +2018,7 @@ _SHAPENETPART_VARIANT_HPARAMS = {
 @register_model(
     "pointnext-sm.shapenetpart.openpoints",
     task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.shapenetpart.openpoints/resolve/5149d99e21da44d3fd24e67b6fb2a612f2c92a3e/model.safetensors",
         dataset="shapenetpart",
@@ -2035,6 +2036,7 @@ def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
 @register_model(
     "pointnext-sm-c64.shapenetpart.openpoints",
     task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c64.shapenetpart.openpoints/resolve/030359b2b0af6a03f70bbe27f7e719177ced3581/model.safetensors",
         dataset="shapenetpart",
@@ -2052,6 +2054,7 @@ def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
 @register_model(
     "pointnext-sm-c160.shapenetpart.openpoints",
     task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c160.shapenetpart.openpoints/resolve/87f26001939b4553c8977ea9bfa73e1124a96921/model.safetensors",
         dataset="shapenetpart",

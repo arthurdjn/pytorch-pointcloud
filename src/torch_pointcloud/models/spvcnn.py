@@ -1097,7 +1097,7 @@ class SPVCNNSegmentation(SemanticSegmentationModel):
         return self.forward_head(x_points.F)
 
 
-def _spvcnn_semantickitti_transforms() -> Callable:
+def _spvcnn_semantickitti_transforms() -> T.Compose:
     return T.Compose(
         [
             # SemanticKITTI 19-class learning_map used by the pretrained checkpoints.
