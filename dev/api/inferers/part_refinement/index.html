@@ -5889,7 +5889,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PartRefinementInferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/part_refinement.py#L113-L164&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.part_refinement.PartRefinementInferer">PartRefinementInferer</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/part_refinement.py#L113-L164&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.part_refinement.PartRefinementInferer">PartRefinementInferer</a></code></b>
           –
           <div class="doc-md-description">
             <p>Nearest-neighbor refinement of part labels on top of another inferer.</p>
@@ -5906,7 +5906,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;part_refinement_inference&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/part_refinement.py#L19-L110&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.part_refinement.part_refinement_inference">part_refinement_inference</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/part_refinement.py#L19-L110&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.part_refinement.part_refinement_inference">part_refinement_inference</a></code></b>
             –
             <div class="doc-md-description">
               <p>Nearest-neighbor refinement of part labels on top of another inferer.</p>
@@ -5936,14 +5936,14 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PartRefinementInferer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/part_refinement.py#L113-L164" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/part_refinement.py#L113-L164" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.inferers.part_refinement.PartRefinementInferer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PartRefinementInferer</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">base</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Inferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></span><span class="p">,</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></span><span class="p">,</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">part_ids</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">min_count</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">num_neighbors</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
@@ -5958,7 +5958,7 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Inferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></code></p>
 
 
 
@@ -6019,7 +6019,7 @@ the shape's category does not own) by a nearest-neighbor majority vote, returnin
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">part_refinement_inference</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/part_refinement.py#L19-L110" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/part_refinement.py#L19-L110" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.inferers.part_refinement.part_refinement_inference" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">part_refinement_inference</span><span class="p">(</span>
@@ -6029,7 +6029,7 @@ the shape's category does not own) by a nearest-neighbor majority vote, returnin
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">base</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Inferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">part_ids</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">min_count</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">num_neighbors</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">11</span><span class="p">,</span>
@@ -6074,7 +6074,7 @@ per-shape category under <code>category_key</code>.</p>
               (<code><span title="typing.Optional">Optional</span>[<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Inferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/a7a511f49ffb475f459c4b614b3cea93f62a807a/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a>]</code>, default:
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/82bda264ceaa9d41b23a73b593e9c574d30daa09/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a>]</code>, default:
                   <code>None</code>
 )
           –
