@@ -481,6 +481,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/utils/data/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/density/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/geometry/</loc>
       </url>
       <url>
@@ -497,9 +500,6 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/misc/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/neighbors/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/octree/</loc>

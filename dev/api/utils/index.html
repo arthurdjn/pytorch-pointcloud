@@ -5220,6 +5220,33 @@
   
   
     <li class="md-nav__item">
+      <a href="./density/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  density
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="./geometry/" class="md-nav__link">
         
   
@@ -5363,33 +5390,6 @@
     
   
   misc
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="./neighbors/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  neighbors
 
     
   </span>
@@ -5768,7 +5768,7 @@
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.utils.cluster" href="cluster/#torch_pointcloud.utils.cluster">cluster</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Neighbor search and grouping: kNN, FPS, radius queries, and local grids.</p>
+            <p>Neighbor search and grouping: kNN, FPS, radius queries, local grids, and kNN interpolation.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -5783,6 +5783,13 @@
           –
           <div class="doc-md-description">
             <p>Data loading: standard sample keys, packed-batch collation, worker seeding, and the point cloud data loader.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.utils.density" href="density/#torch_pointcloud.utils.density">density</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Gaussian kernel density estimation over packed batches.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -5828,13 +5835,6 @@
           </div>
         </li>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.utils.neighbors" href="neighbors/#torch_pointcloud.utils.neighbors">neighbors</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Gaussian kernel density estimation over packed batches.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.utils.octree" href="octree/#torch_pointcloud.utils.octree">octree</a></code></b>
           –
           <div class="doc-md-description">
@@ -5845,7 +5845,7 @@
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.utils.ops" href="ops/#torch_pointcloud.utils.ops">ops</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Tensor operations on packed batches: safe division, softmax, voxel hashing, interpolation, and decimation.</p>
+            <p>Tensor operations on packed batches: safe division, softmax, permutations, decimation, and padding.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -5887,7 +5887,7 @@
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.utils.voxelization" href="voxelization/#torch_pointcloud.utils.voxelization">voxelization</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Dense and sparse voxelization with trilinear devoxelization for packed point clouds.</p>
+            <p>Dense and sparse voxelization, FNV voxel hashing, and trilinear devoxelization for packed point clouds.</p>
           </div>
         </li>
     </ul>
