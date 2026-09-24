@@ -5867,7 +5867,7 @@ predictions are combined by a weighted mean or an exponential moving average (EM
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;KNNWindowInferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/knn_window.py#L295-L373&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.knn_window.KNNWindowInferer">KNNWindowInferer</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/knn_window.py#L295-L373&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.knn_window.KNNWindowInferer">KNNWindowInferer</a></code></b>
           –
           <div class="doc-md-description">
             <p>Iterative KNN-window inferer for large-scale point cloud segmentation.</p>
@@ -5884,7 +5884,7 @@ predictions are combined by a weighted mean or an exponential moving average (EM
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;knn_window_inference&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/knn_window.py#L55-L292&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.knn_window.knn_window_inference">knn_window_inference</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/knn_window.py#L55-L292&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.knn_window.knn_window_inference">knn_window_inference</a></code></b>
             –
             <div class="doc-md-description">
               <p>Iterative KNN-window inference for large-scale point cloud segmentation.</p>
@@ -5914,7 +5914,7 @@ predictions are combined by a weighted mean or an exponential moving average (EM
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">KNNWindowInferer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/knn_window.py#L295-L373" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/knn_window.py#L295-L373" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.inferers.knn_window.KNNWindowInferer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">KNNWindowInferer</span><span class="p">(</span>
@@ -5942,7 +5942,7 @@ predictions are combined by a weighted mean or an exponential moving average (EM
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Inferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></code></p>
 
 
 
@@ -5961,7 +5961,7 @@ numbers, and a fresh instance replays the same sequence.</p>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># EMA aggregation: outputs calibrated probabilities directly.</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">inferer</span> <span class="o">=</span> <span class="n">KNNWindowInferer</span><span class="p">(</span><span class="n">roi_num_points</span><span class="o">=</span><span class="mi">65_536</span><span class="p">,</span> <span class="n">overlap</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">aggregate</span><span class="o">=</span><span class="s2">&quot;ema&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">probs</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">model</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]))</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">probs</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">model</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]))</span>
 </code></pre></div>
 </details>
 
@@ -6006,7 +6006,7 @@ numbers, and a fresh instance replays the same sequence.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">knn_window_inference</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/knn_window.py#L55-L292" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/knn_window.py#L55-L292" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.inferers.knn_window.knn_window_inference" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">knn_window_inference</span><span class="p">(</span>

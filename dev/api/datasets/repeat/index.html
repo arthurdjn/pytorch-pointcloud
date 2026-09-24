@@ -5838,10 +5838,10 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;RepeatDataset&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/datasets/repeat.py#L8-L27&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.repeat.RepeatDataset">RepeatDataset</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/datasets/repeat.py#L8-L27&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.repeat.RepeatDataset">RepeatDataset</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Repeats a dataset <code>loop</code> times so one epoch iterates it <code>loop</code> times.</p>
+            <p>Repeats a dataset <code>k</code> times so one epoch iterates it <code>k</code> times.</p>
           </div>
         </li>
     </ul>
@@ -5870,10 +5870,10 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">RepeatDataset</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/datasets/repeat.py#L8-L27" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/datasets/repeat.py#L8-L27" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.datasets.repeat.RepeatDataset" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">RepeatDataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">:</span> <span class="n"><span title="torch.utils.data.Dataset">Dataset</span></span><span class="p">,</span> <span class="n">loop</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">RepeatDataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">:</span> <span class="n"><span title="torch.utils.data.Dataset">Dataset</span></span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5882,7 +5882,7 @@
 
 
 
-        <p>Repeats a dataset <code>loop</code> times so one epoch iterates it <code>loop</code> times.</p>
+        <p>Repeats a dataset <code>k</code> times so one epoch iterates it <code>k</code> times.</p>
 <p>Lengthens an epoch (and thus the number of optimizer steps per epoch)
 without otherwise changing training.</p>
 
@@ -5898,7 +5898,7 @@ without otherwise changing training.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>loop</code></b>
+            <b><code>k</code></b>
               (<code><span title="int">int</span></code>)
           –
           <div class="doc-md-description">

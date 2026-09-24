@@ -5838,7 +5838,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoxelPartitionInferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/voxel_partition.py#L15-L179&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.voxel_partition.VoxelPartitionInferer">VoxelPartitionInferer</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/voxel_partition.py#L17-L190&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.inferers.voxel_partition.VoxelPartitionInferer">VoxelPartitionInferer</a></code></b>
           –
           <div class="doc-md-description">
             <p><span class="arithmatex">\(K\)</span>-pass voxel-partition inferer with scatter-back aggregation.</p>
@@ -5870,7 +5870,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoxelPartitionInferer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/voxel_partition.py#L15-L179" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/voxel_partition.py#L17-L190" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.inferers.voxel_partition.VoxelPartitionInferer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoxelPartitionInferer</span><span class="p">(</span>
@@ -5878,14 +5878,15 @@
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">transform</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">[[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]],</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">sub_batch_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">sw_batch_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">softmax</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">aggregate</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;sum&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">pos_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></span><span class="p">,</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">batch_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.BATCH">BATCH</span></span><span class="p">,</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">inverse_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">progress</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5893,7 +5894,7 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Inferer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/530383fde97285c3a5c658e3f68f36dc9f26d4d4/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/d59b87b90f8d078ab09692b6d9e37bef5ae7c18a/src/torch_pointcloud/inferers/inferer.py#L10-L94&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../inferer/#torch_pointcloud.inferers.inferer.Inferer">Inferer</a></code></p>
 
 
 
@@ -5936,7 +5937,7 @@ gather predictions back to the sub-cloud's points.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>sub_batch_size</code></b>
+            <b><code>sw_batch_size</code></b>
               (<code><span title="int">int</span></code>, default:
                   <code>1</code>
 )
@@ -6016,6 +6017,16 @@ number of calls the instance has made: repeated calls (e.g. <code>TTAInferer</co
 different shuffles, and a fresh instance replays the same sequence.</p>
           </div>
         </li>
+        <li class="doc-section-item field-body">
+            <b><code>progress</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>If <code>True</code>, show a <code>tqdm</code> progress bar per batch element.</p>
+          </div>
+        </li>
     </ul>
 
 
@@ -6023,7 +6034,7 @@ different shuffles, and a fresh instance replays the same sequence.</p>
   <summary>Example</summary>
   <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.inferers</span><span class="w"> </span><span class="kn">import</span> <span class="n">VoxelPartitionInferer</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">inferer</span> <span class="o">=</span> <span class="n">VoxelPartitionInferer</span><span class="p">(</span><span class="n">voxel_size</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span> <span class="n">sub_batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">transforms</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">inferer</span> <span class="o">=</span> <span class="n">VoxelPartitionInferer</span><span class="p">(</span><span class="n">voxel_size</span><span class="o">=</span><span class="mf">0.04</span><span class="p">,</span> <span class="n">sw_batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">transforms</span><span class="p">)</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">logits</span> <span class="o">=</span> <span class="n">inferer</span><span class="p">(</span><span class="n">room</span><span class="p">,</span> <span class="n">predictor</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">model</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">]))</span>
 </code></pre></div>
 </details>
