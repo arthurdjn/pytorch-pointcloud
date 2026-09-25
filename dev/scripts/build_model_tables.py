@@ -1,7 +1,7 @@
 """Sync the model checkpoint catalog from the registry into a CSV.
 
-The registry says which checkpoints exist, whether they ship weights, their dataset and license, and those
-columns are refreshed on every run. The measured columns (`reference`, what the reference implementation
+The registry says which checkpoints exist, whether they ship weights, their dataset, license and measured metrics,
+and those columns are refreshed on every run. The measured columns (`reference`, what the reference implementation
 publishes, and `score`, what this package measures with the reference protocol) live in the CSV and are
 preserved per checkpoint. `params` (millions of parameters) is computed once per new checkpoint by
 instantiating the architecture and then kept, so a run without new checkpoints is fast.
@@ -33,6 +33,7 @@ COLUMNS = [
     "metric",
     "reference",
     "score",
+    "metrics",
 ]
 KEPT_COLUMNS = ["params", "reference", "score"]
 TASK_ORDER: Dict[Task, int] = {
@@ -99,6 +100,7 @@ def registry_rows(kept: Dict[Tuple[str, str], Dict[str, str]]) -> List[Dict[str,
                     "metric": metric_name(task, dataset),
                     "reference": previous.get("reference", ""),
                     "score": previous.get("score", ""),
+                    "metrics": " · ".join(f"{k} {v:.2f}" for k, v in ((weights or {}).get("metrics") or {}).items()),
                 }
             )
     return rows

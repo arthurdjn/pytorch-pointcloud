@@ -846,17 +846,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#using-a-real-dataset" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Using a real dataset
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#data-conventions" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1197,17 +1186,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#using-a-real-dataset" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Using a real dataset
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#data-conventions" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1246,7 +1224,6 @@
 
 
 <h1 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Anchor link to this section">&para;</a></h1>
-<p>This page will help you get started and run a pretrained model on a point cloud.</p>
 <h2 id="run-a-pretrained-model">Run a pretrained model<a class="headerlink" href="#run-a-pretrained-model" title="Anchor link to this section">&para;</a></h2>
 <p>The example reads one object of the ModelNet40 test set, which
 <a href="../api/datasets/modelnet/"><code>ModelNetNormalResampled</code></a> downloads on first use:</p>
@@ -1290,41 +1267,10 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>      guitar  0.00
 </code></pre></div>
 <p><img alt="Six committed sample objects, each captioned with the class this checkpoint gives it" src=".././assets/tasks/classification.png" /></p>
-<p>The packed-batch convention comes from <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
-</span> PyTorch Geometric: instead of zero-padding clouds to a common size, we concatenate them and tag each point with its sample index. See <a href="#data-conventions">Data conventions</a> below.</p>
-<h2 id="using-a-real-dataset">Using a real dataset<a class="headerlink" href="#using-a-real-dataset" title="Anchor link to this section">&para;</a></h2>
-<p>The same model, over a whole dataset. <code>ModelNetNormalResampled</code> is what this checkpoint was trained on: each shape
-ships as 10,000 surface points with their normals, which is why the snippet above builds a <code>normal</code> key.
-It downloads on first use.</p>
-<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelNetNormalResampled</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">PointCloudDataLoader</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ModelNetNormalResampled</span><span class="p">(</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> 
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;40&quot;</span><span class="p">,</span> 
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="n">train</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="n">download</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> 
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">transform</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;transform&quot;</span><span class="p">],</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="p">)</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">dataloader</span> <span class="o">=</span> <span class="n">PointCloudDataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">dataloader</span><span class="p">:</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>        <span class="n">logits</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">),</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;batch&quot;</span><span class="p">])</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        <span class="n">preds</span> <span class="o">=</span> <span class="n">logits</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># (32,) one class per cloud</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>        <span class="k">break</span>
-</code></pre></div>
-<p><code>PointCloudDataLoader</code> is a <code>DataLoader</code> with the packed-batch <code>collate</code> wired in: per-point tensors are
-concatenated along the batch axis and a <code>batch</code> index is built for you, while scene-level tensors (<code>label</code>)
-are stacked.</p>
 <h2 id="data-conventions">Data conventions<a class="headerlink" href="#data-conventions" title="Anchor link to this section">&para;</a></h2>
-<p>All point clouds use a <strong>packed (flat-batch) format</strong> (a.k.a. <strong>ragged tensors</strong>). This is what <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
-</span> PyTorch Geometric uses.
-For a batch of <span class="arithmatex">\(B\)</span> samples with <span class="arithmatex">\(N_i\)</span> points each (<span class="arithmatex">\(N = N_1 + N_2 + \ldots + N_B\)</span>):</p>
+<p>Point clouds use the <strong>packed</strong> format of <span class="twemoji"><svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232.55 231.14"><defs><style>.cls-1{fill:#42a5f5;}.cls-2{fill:#1e88e5;}.cls-3{fill:#1565c0;}.cls-4{fill:#6d44c6;}.cls-5{fill:#f57c00;}.cls-6{fill:#512da8;}.cls-7{fill:#ff9800;}.cls-8{fill:#ffc107;}.cls-9{fill:#815fe0;}</style></defs><path class="cls-1" d="M157,76.77a9.87,9.87,0,0,1-.13-1.53L133,71.75a11.13,11.13,0,0,1-7.79,8.65L128,105.7a11.07,11.07,0,0,1,5.15,1.75l25.67-26.4A11.07,11.07,0,0,1,157,76.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M123.69,106.18l-2.77-25.36a11.13,11.13,0,0,1-5.79-2.32L87.94,109a11,11,0,0,1,3.27,5.63h24.85A11.12,11.12,0,0,1,123.69,106.18Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M47.25,114.57l21,53.7a11.12,11.12,0,0,1,11.08,5.65l26.46-8.76a11.06,11.06,0,0,1,2.22-8.11L84.18,127.66a10.09,10.09,0,0,1-1.75.51,11.18,11.18,0,0,1-13.05-8.91,11.32,11.32,0,0,1-.11-3L51,110.49A11,11,0,0,1,47.25,114.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M145.15,191a11.16,11.16,0,0,1,8.29-6.86c.3-.06.59,0,.88-.08L157.41,147a11.08,11.08,0,0,1-5.22-3.63l-25.08,16.13a11.06,11.06,0,0,1,.67,2.23,11.14,11.14,0,0,1-20.7,7.48L80.61,178c0,.33.07.66.08,1Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M93.59,51.34a11.1,11.1,0,0,1-6.23-.63L49.74,98a11,11,0,0,1,2.5,5.13,11.17,11.17,0,0,1,.07,3.31l18.14,5.73a11,11,0,0,1,13.77-5.37l28.09-31.54A11.35,11.35,0,0,1,111,71.82a11.06,11.06,0,0,1,2.3-9L98.89,48.71A11,11,0,0,1,93.59,51.34Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M168.74,85.79l-4.87,39.95a11.16,11.16,0,0,1,6.68,5.21l32.54-7.58a11.08,11.08,0,0,1,2-6.81L174,84.09a9.44,9.44,0,0,1-5.23,1.7Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M176.28,40.75l-73.76,1.3a10.92,10.92,0,0,1-1,3.24L116.62,60a11,11,0,0,1,16.29,7.39L157.45,71a11,11,0,0,1,13.71-7l9-17A11.06,11.06,0,0,1,176.28,40.75Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M135.49,124a11,11,0,0,1-6.42,3.79,11.52,11.52,0,0,1-2.4.18l-5.78,25.51a11.18,11.18,0,0,1,3.85,2.5l25.48-16.39c-.1-.35-.24-.68-.31-1a11,11,0,0,1,.62-6.17Z" transform="translate(-7.19 -3.6)"/><path class="cls-2" d="M159.6,125.41l4.89-40.14A11.24,11.24,0,0,1,161.84,84l-25.67,26.4a10.89,10.89,0,0,1,1.41,9.8l15.26,8.51a11,11,0,0,1,6-3.26C159.08,125.43,159.34,125.44,159.6,125.41Z" transform="translate(-7.19 -3.6)"/><path class="cls-3" d="M111.21,154.21a11.08,11.08,0,0,1,3.53-1.36,11.53,11.53,0,0,1,1.93-.17L122.49,127a11.14,11.14,0,0,1-6.45-8.09l-24.68,0a11.14,11.14,0,0,1-3.49,6.55Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M150.43,205a10.86,10.86,0,0,1-6.07-9.81L80,183.2a11.13,11.13,0,0,1-8.36,7.08,10.88,10.88,0,0,1-3.46.05L57.83,217.14l84.05,17.6Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M64.12,189a11.07,11.07,0,0,1,0-19.39L43.27,116.13a11.16,11.16,0,0,1-8.07-1.63L7.57,143.05l46.7,71.44Z" transform="translate(-7.19 -3.6)"/><path class="cls-6" d="M166.64,195.69a11.16,11.16,0,0,1-9.06,10.44,10.88,10.88,0,0,1-3.06.1l-7.79,27.17,68.49-44.77Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M195.73,31.31a10.94,10.94,0,0,1,2.42,5,11.12,11.12,0,0,1-5.62,11.81l20.39,63.77a11.14,11.14,0,0,1,12.26,9,11.26,11.26,0,0,1,.19,2.23l14.37,3L215.9,6.57Z" transform="translate(-7.19 -3.6)"/><path class="cls-4" d="M224.49,127.33A11.07,11.07,0,0,1,209,132.8L164.05,188a10.91,10.91,0,0,1,1.95,3.42l54.3-7.9,19.16-53.09Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M32.12,111.53a11,11,0,0,1-1.83-4.31,11.18,11.18,0,0,1,8.91-13,11,11,0,0,1,7.19,1.11L83.75,48.37a11.1,11.1,0,0,1-2.6-3.87L24.37,55.2,7.19,137.28Z" transform="translate(-7.19 -3.6)"/><path class="cls-5" d="M208.85,113.24,188.46,49.47a11.13,11.13,0,0,1-4.54-.41l-9,17A11,11,0,0,1,177,81.13l31.12,32.47C208.39,113.46,208.63,113.36,208.85,113.24Z" transform="translate(-7.19 -3.6)"/><path class="cls-8" d="M106.12,3.6l71.7,28.76a11,11,0,0,1,14.62-3.73L212.6,3.85Z" transform="translate(-7.19 -3.6)"/><path class="cls-7" d="M80.36,40.29a11.14,11.14,0,0,1,22-2.52l73.87-1.3s0-.09,0-.14L98.15,5,29.53,49.87Z" transform="translate(-7.19 -3.6)"/><path class="cls-9" d="M205.67,130.1a11,11,0,0,1-1.62-2.55L171.92,135a11.14,11.14,0,0,1-9,12.4,11.4,11.4,0,0,1-1.3.11l-3.11,36.9a11.43,11.43,0,0,1,2.18.88Z" transform="translate(-7.19 -3.6)"/></svg>
+</span> PyTorch Geometric: instead of zero-padding clouds to a common size, they
+are concatenated and each point is tagged with its sample index. For <span class="arithmatex">\(B\)</span> samples of <span class="arithmatex">\(N_i\)</span> points (<span class="arithmatex">\(N = N_1 + \ldots + N_B\)</span>):</p>
 <p><img alt="Three clouds of different sizes as a list of tensors, as one padded tensor, and packed" src=".././assets/animations/batch_modes.webp" /></p>
 <table>
 <thead>
@@ -1350,23 +1296,9 @@ For a batch of <span class="arithmatex">\(B\)</span> samples with <span class="a
 <td><span class="arithmatex">\((N,)\)</span></td>
 <td>Per-point batch index <span class="arithmatex">\((0, \ldots, B-1)\)</span></td>
 </tr>
-<tr>
-<td><code>normal</code>, <code>color</code></td>
-<td><span class="arithmatex">\((N, 3)\)</span></td>
-<td>Per-point attributes</td>
-</tr>
-<tr>
-<td><code>segment</code></td>
-<td><span class="arithmatex">\((N,)\)</span></td>
-<td>Per-point semantic label</td>
-</tr>
-<tr>
-<td><code>label</code></td>
-<td><span class="arithmatex">\((B,)\)</span></td>
-<td>Scene / object-level label</td>
-</tr>
 </tbody>
 </table>
+<p>Datasets emit the other keys (<code>normal</code>, <code>color</code>, <code>segment</code>, <code>label</code>, ...), listed on the <a href="../datasets/overview/#dict-keys">Datasets</a> page.</p>
 
 
 

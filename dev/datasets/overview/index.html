@@ -1435,70 +1435,19 @@
         <circle class="dot" cx="121.39" cy="41.69" r="14.05" />
     </g>
 </svg>
-</span> <code>torch-pointcloud</code> provides several datasets for benchmarking and training. Each dataset returns a single <code>dict</code> (the format consumed by <a href="../../transforms/overview/">transforms</a>) and integrates with <code>torch.utils.data.DataLoader</code> via the <code>collate</code> helper in <code>torch_pointcloud.utils.data</code>.</p>
-<p>Datasets with an automatic download take <code>download=True</code>; the others must be downloaded manually. S3DIS, ScanNet and ScanObjectNN are released under terms of use: read and accept them (each class links its <code>terms_url</code>), then pass <code>accept_terms=True</code> next to <code>download=True</code>, or answer the confirmation <code>download</code> asks for on the terminal. Datasets that preprocess their data keep the original files in <code>raw</code> and the cache <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 167.29 200.00">
-    <metadata>
-        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-                 xmlns:dc="http://purl.org/dc/elements/1.1/"
-                 xmlns:cc="http://creativecommons.org/ns#">
-            <cc:Work rdf:about="">
-                <dc:title>pytorch-pointcloud-mini - torch-pointcloud</dc:title>
-                <dc:description>Project mark of torch-pointcloud.</dc:description>
-                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
-                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
-                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
-                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
-            </cc:Work>
-        </rdf:RDF>
-    </metadata>
-    <g fill="#EE4C2C">
-        <circle class="dot" cx="148.61" cy="85.49" r="11.73" />
-        <circle class="dot" cx="155.27" cy="112.94" r="12.01" />
-        <circle class="dot" cx="150.81" cy="140.84" r="12.24" />
-        <circle class="dot" cx="135.91" cy="164.84" r="12.41" />
-        <circle class="dot" cx="112.90" cy="181.23" r="12.52" />
-        <circle class="dot" cx="85.35" cy="187.45" r="12.55" />
-        <circle class="dot" cx="57.53" cy="182.55" r="12.50" />
-        <circle class="dot" cx="33.76" cy="167.28" r="12.38" />
-        <circle class="dot" cx="17.74" cy="144.01" r="12.20" />
-        <circle class="dot" cx="11.95" cy="116.36" r="11.95" />
-        <circle class="dot" cx="17.30" cy="88.62" r="11.66" />
-        <circle class="dot" cx="32.95" cy="65.10" r="11.33" />
-        <circle class="dot" cx="51.71" cy="46.34" r="11.04" />
-        <circle class="dot" cx="67.42" cy="30.63" r="8.78" />
-        <circle class="dot" cx="81.61" cy="16.43" r="6.65" />
-        <circle class="dot" cx="93.78" cy="4.27" r="4.27" />
-        <circle class="dot" cx="121.39" cy="41.69" r="14.05" />
-    </g>
-</svg>
-</span> <code>torch-pointcloud</code> builds from them in <code>processed</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>data
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── ModelNet40
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── raw
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   │   ├── airplane
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   │   ├── bathtub
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   │   ├── ...
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   │   └── xbox
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   └── processed
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│       ├── train.pt
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│       └── test.pt
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└── ...
+</span> <code>torch-pointcloud</code> provides loaders for the common point cloud benchmarks. Each sample is one <code>dict</code>, the format
+<a href="../../transforms/overview/">transforms</a> consume.</p>
+<p>Datasets with an automatic download take <code>download=True</code>; the others must be downloaded manually. S3DIS, ScanNet and
+ScanObjectNN are released under terms of use: read them (each class links its <code>terms_url</code>), then pass
+<code>accept_terms=True</code> next to <code>download=True</code>. The original files are kept in <code>root/&lt;dataset&gt;/raw</code>, and the cache built
+from them in <code>processed</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelNet40</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">PointCloudDataLoader</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ModelNet40</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">dataloader</span> <span class="o">=</span> <span class="n">PointCloudDataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
 </code></pre></div>
-<p>To use them:</p>
-<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelNet40</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">collate</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ModelNet40</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">dataloader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">collate_fn</span><span class="o">=</span><span class="n">collate</span><span class="p">)</span>
-</code></pre></div>
-<p><code>PointCloudDataLoader</code> is the same <code>DataLoader</code> with the <code>collate</code> helper already applied.</p>
-<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">PointCloudDataLoader</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelNet40</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ModelNet40</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">train</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">dataloader</span> <span class="o">=</span> <span class="n">PointCloudDataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
-</code></pre></div>
+<p><code>PointCloudDataLoader</code> is a <code>DataLoader</code> using the packed-batch <code>collate</code> of <code>torch_pointcloud.utils.data</code>.</p>
 <h2 id="tasks">Tasks<a class="headerlink" href="#tasks" title="Anchor link to this section">&para;</a></h2>
 <div class="grid cards">
 <ul>
@@ -1698,14 +1647,6 @@
 </tbody>
 </table>
 <p>After <code>collate</code>, per-point tensors are concatenated along axis 0 and a <code>batch</code> key of shape <span class="arithmatex">\((N,)\)</span> gives each point's source scene.</p>
-<div class="admonition warning">
-<p class="admonition-title">Color conventions vary per dataset</p>
-<p><code>color</code> is uint8 in <span class="arithmatex">\([0, 255]\)</span> for the raw-value loaders (<code>S3DIS</code>, <code>ScanNet</code>, <code>Toronto3D</code>, <code>Semantic3D</code>, <code>SunRGBD</code>) and float32 in <span class="arithmatex">\([0, 1]\)</span> for <code>S3DISHdf5</code>, which ships pre-normalized values.</p>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Ignore-index conventions vary per dataset</p>
-<p>Unlabeled points use label 0 (<code>&lt;unk&gt;</code> / outdoor conventions, e.g. <code>ScanNet</code>), -1 (indoor no-instance and class-subset remaps, e.g. <code>S3DIS</code>), or 255 (the <code>SemanticKITTI</code> remap example).</p>
-</div>
 
 
 

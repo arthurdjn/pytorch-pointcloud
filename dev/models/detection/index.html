@@ -995,6 +995,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#checkpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Checkpoints
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1337,6 +1348,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         Train from scratch
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Checkpoints
       </span>
     </span>
   </a>
@@ -1740,6 +1762,91 @@
 <p class="admonition-title">Training and evaluation relabel differently</p>
 <p>The training transform maps <code>Car</code>, <code>Pedestrian</code> and <code>Cyclist</code> to <span class="arithmatex">\(0, 1, 2\)</span> and stops there. Evaluation adds <code>ignore_mapping={1: 0, 4: 1}</code> so <code>Van</code> and <code>Person_sitting</code> become ignore regions; at training those rows would enter the anchor targets as real <code>Car</code> and <code>Pedestrian</code> ground truth.</p>
 </div>
+<h2 id="checkpoints">Checkpoints<a class="headerlink" href="#checkpoints" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Checkpoint</th>
+<th>Params (M)</th>
+<th>Metrics</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../api/models/threedetr/"><code>3detr-m.scannet.fair</code></a></td>
+<td>7.44</td>
+<td>mAP@0.25 65.46 · mAP@0.5 47.26</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/threedetr/"><code>3detr.scannet.fair</code></a></td>
+<td>7.31</td>
+<td>mAP@0.25 61.37 · mAP@0.5 38.43</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/threedetr/"><code>3detr.sunrgbd.fair</code></a></td>
+<td>7.31</td>
+<td>mAP@0.25 58.08 · mAP@0.5 29.64</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/lion/"><code>lion-mamba.nuscenes.zhe-liu</code></a></td>
+<td>16.12</td>
+<td>mAP 68.78 · NDS 72.32</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/pointpillars/"><code>pointpillars-multihead.nuscenes.openpcdet</code></a></td>
+<td>6.08</td>
+<td>mAP 44.34 · NDS 57.08</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/pointpillars/"><code>pointpillars.kitti.openpcdet</code></a></td>
+<td>4.83</td>
+<td>mAP 64.16 · AP/Car 77.35 · AP/Pedestrian 52.39 · AP/Cyclist 62.74</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/pointrcnn/"><code>pointrcnn.kitti.openpcdet</code></a></td>
+<td>4.04</td>
+<td>mAP 69.29 · AP/Car 78.67 · AP/Pedestrian 56.94 · AP/Cyclist 72.27</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/second/"><code>second-multihead.nuscenes.openpcdet</code></a></td>
+<td>9.04</td>
+<td>mAP 50.75 · NDS 61.89</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/second/"><code>second.kitti.openpcdet</code></a></td>
+<td>5.33</td>
+<td>mAP 66.26 · AP/Car 78.63 · AP/Pedestrian 52.98 · AP/Cyclist 67.16</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><a href="../../api/models/votenet/"><code>votenet.scannet.fair</code></a></td>
+<td>0.95</td>
+<td>mAP@0.25 57.65 · mAP@0.5 34.10</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><a href="../../api/models/votenet/"><code>votenet.sunrgbd.fair</code></a></td>
+<td>0.95</td>
+<td>mAP@0.25 58.81 · mAP@0.5 34.15</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><a href="../../api/models/voxelnext/"><code>voxelnext.nuscenes.openpcdet</code></a></td>
+<td>7.98</td>
+<td>mAP 61.20 · NDS 66.81</td>
+<td>Apache-2.0</td>
+</tr>
+</tbody>
+</table>
 
 
 
