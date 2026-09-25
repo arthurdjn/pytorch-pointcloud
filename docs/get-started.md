@@ -1,7 +1,5 @@
 # Quick Start
 
-This page will help you get started and run a pretrained model on a point cloud.
-
 ## Run a pretrained model
 
 The example reads one object of the ModelNet40 test set, which
@@ -52,54 +50,17 @@ for index, score in zip(top.indices[0].tolist(), top.values[0].tolist()):
 
 ![Six committed sample objects, each captioned with the class this checkpoint gives it](./assets/tasks/classification.png)
 
-The packed-batch convention comes from :pyg: PyTorch Geometric: instead of zero-padding clouds to a common size, we concatenate them and tag each point with its sample index. See [Data conventions](#data-conventions) below.
-
-## Using a real dataset
-
-The same model, over a whole dataset. `ModelNetNormalResampled` is what this checkpoint was trained on: each shape
-ships as 10,000 surface points with their normals, which is why the snippet above builds a `normal` key.
-It downloads on first use.
-
-```{.python notest}
-import torch
-import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.utils.data import PointCloudDataLoader
-
-
-dataset = ModelNetNormalResampled(
-    root="data", 
-    variant="40", 
-    train=False, 
-    download=True, 
-    transform=info["transform"],
-)
-
-dataloader = PointCloudDataLoader(dataset, batch_size=32)
-
-with torch.no_grad():
-    for data in dataloader:
-        logits = model(data.get("x"), data["pos"], data["batch"])
-        preds = logits.argmax(dim=-1)  # (32,) one class per cloud
-        break
-```
-
-`PointCloudDataLoader` is a `DataLoader` with the packed-batch `collate` wired in: per-point tensors are
-concatenated along the batch axis and a `batch` index is built for you, while scene-level tensors (`label`)
-are stacked.
-
 ## Data conventions
 
-All point clouds use a **packed (flat-batch) format** (a.k.a. **ragged tensors**). This is what :pyg: PyTorch Geometric uses.
-For a batch of $B$ samples with $N_i$ points each ($N = N_1 + N_2 + \ldots + N_B$):
+Point clouds use the **packed** format of :pyg: PyTorch Geometric: instead of zero-padding clouds to a common size, they
+are concatenated and each point is tagged with its sample index. For $B$ samples of $N_i$ points ($N = N_1 + \ldots + N_B$):
 
 ![Three clouds of different sizes as a list of tensors, as one padded tensor, and packed](./assets/animations/batch_modes.webp)
 
-| Tensor            | Shape    | Description                              |
-| ----------------- | -------- | ---------------------------------------- |
-| `pos`             | $(N, 3)$ | 3D coordinates, all points concatenated  |
-| `x`               | $(N, C)$ | Per-point features                       |
-| `batch`           | $(N,)$   | Per-point batch index $(0, \ldots, B-1)$ |
-| `normal`, `color` | $(N, 3)$ | Per-point attributes                     |
-| `segment`         | $(N,)$   | Per-point semantic label                 |
-| `label`           | $(B,)$   | Scene / object-level label               |
+| Tensor  | Shape    | Description                              |
+| ------- | -------- | ---------------------------------------- |
+| `pos`   | $(N, 3)$ | 3D coordinates, all points concatenated  |
+| `x`     | $(N, C)$ | Per-point features                       |
+| `batch` | $(N,)$   | Per-point batch index $(0, \ldots, B-1)$ |
+
+Datasets emit the other keys (`normal`, `color`, `segment`, `label`, ...), listed on the [Datasets](datasets/overview.md#dict-keys) page.

@@ -4,18 +4,11 @@ title: Tutorials
 
 # Tutorials
 
-Guided, runnable notebooks covering the library end to end. Each page is rendered from a Jupyter
-notebook committed under `docs/examples/`; open it in Colab or download it from the badges at the
-top of every tutorial.
-
-The three tiers build on each other. **Beginner** gets a pretrained model running and explains the
-conventions everything else assumes. **Intermediate** puts your own data and your own training loop
-in the middle. **Advanced** decodes a driving LiDAR sweep into oriented 3D boxes.
+Runnable notebooks covering the library end to end. Open them in Colab from the badge at the top of each page.
 
 ## Beginner
 
-Start here if you have not run a point cloud model before. The quickstart downloads ModelNet40 on first use;
-the scene tutorial reads a ScanNet scan, which requires accepting the ScanNet terms of use.
+The scene tutorial reads a ScanNet scan, which requires accepting the ScanNet terms of use.
 
 <div class="grid cards tutorial-cards" markdown>
 
@@ -41,7 +34,8 @@ the scene tutorial reads a ScanNet scan, which requires accepting the ScanNet te
 
 ## Intermediate
 
-See how to use the library with custom data and vanilla torch training loop.
+Your own data and a plain PyTorch training loop.
+
 <div class="grid cards tutorial-cards" markdown>
 
 -   :material-database-plus: __[Use your own data](04-custom-dataset.md)__
@@ -66,7 +60,8 @@ See how to use the library with custom data and vanilla torch training loop.
 
 ## Advanced
 
-See how to use this library for pratical challenges like 3D object detection.
+3D object detection on driving LiDAR.
+
 <div class="grid cards tutorial-cards" markdown>
 
 -   :material-car: __[Detect objects in driving LiDAR](07-driving-detection.md)__

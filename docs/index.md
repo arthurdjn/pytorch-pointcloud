@@ -44,40 +44,16 @@ A PyTorch library for deep learning on point clouds. Models for classification, 
 
 </div>
 
-## In a few lines
+## Why torch-pointcloud?
 
-The example reads one object of the ModelNet40 test set, downloaded on first use.
+`torch-pointcloud` is not a training framework: it packages point cloud models, their checkpoints, datasets and
+transforms as a library you import in your own PyTorch code. It complements the codebases the checkpoints come from.
 
-```{.python notest}
-import torch
-
-import torch_pointcloud as tp
-from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.utils.data import collate
-
-# Load pretrained checkpoint.
-model, info = tp.create_model(
-    "pointnet2-ssg.modelnet40.xu-yan",
-    task="classification",
-    pretrained=True,
-    return_info=True,
-)
-model = model.eval()
-
-# Get associated transform pipeline.
-transform = info["transform"]
-
-# Load a preprocessed sample and collate in packed format
-dataset = ModelNetNormalResampled(root="data", variant="40", train=False, download=True, transform=transform)
-data = collate([dataset[0]])
-
-# Run inference
-with torch.no_grad():
-    logits = model(None, data["pos"], data["batch"])
-
-print(f"Prediction: {logits.argmax().item()}")
-# Prediction: 0
-```
+|          | torch-pointcloud                   | Pointcept                    | OpenPCDet, MMDetection3D     | PyG                    |
+| -------- | ---------------------------------- | ---------------------------- | ---------------------------- | ---------------------- |
+| Kind     | Library                            | Research codebase            | Detection toolboxes          | Graph learning library |
+| Workflow | Import it in your own PyTorch code | Configs and training scripts | Configs and training scripts | Build your own models  |
+| Weights  | Ported from the original codebases | Its own checkpoints          | Its own checkpoints          | None for point clouds  |
 
 ## What's inside
 
@@ -115,6 +91,5 @@ print(f"Prediction: {logits.argmax().item()}")
 
 ## License
 
-Apache 2.0. See [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
-
-Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to non-commercial use. Most were trained on research-only datasets, whose terms also apply to the weights. See [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
+Apache 2.0, see [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE). Pretrained weights keep the
+license of their source, see [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).

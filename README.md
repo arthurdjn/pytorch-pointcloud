@@ -126,6 +126,19 @@ See the [examples](https://github.com/arthurdjn/pytorch-pointcloud/tree/main/exa
 
 <br>
 
+## Why torch-pointcloud?
+
+`torch-pointcloud` is not a training framework: it packages point cloud models, their checkpoints, datasets and
+transforms as a library you import in your own PyTorch code. It complements the codebases the checkpoints come from.
+
+|          | torch-pointcloud                   | Pointcept                    | OpenPCDet, MMDetection3D     | PyG                    |
+| -------- | ---------------------------------- | ---------------------------- | ---------------------------- | ---------------------- |
+| Kind     | Library                            | Research codebase            | Detection toolboxes          | Graph learning library |
+| Workflow | Import it in your own PyTorch code | Configs and training scripts | Configs and training scripts | Build your own models  |
+| Weights  | Ported from the original codebases | Its own checkpoints          | Its own checkpoints          | None for point clouds  |
+
+<br>
+
 ## Documentation
 
 The [documentation](https://pytorch-pointcloud.org/) covers [installation](https://pytorch-pointcloud.org/latest/installation/), a [get-started](https://pytorch-pointcloud.org/latest/get-started/) guide,
