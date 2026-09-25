@@ -46,14 +46,12 @@ A PyTorch library for deep learning on point clouds. Models for classification, 
 
 ## Why torch-pointcloud?
 
-`torch-pointcloud` is not a training framework: it packages point cloud models, their checkpoints, datasets and
-transforms as a library you import in your own PyTorch code. It complements the codebases the checkpoints come from.
-
-|          | torch-pointcloud                   | Pointcept                    | OpenPCDet, MMDetection3D     | PyG                    |
-| -------- | ---------------------------------- | ---------------------------- | ---------------------------- | ---------------------- |
-| Kind     | Library                            | Research codebase            | Detection toolboxes          | Graph learning library |
-| Workflow | Import it in your own PyTorch code | Configs and training scripts | Configs and training scripts | Build your own models  |
-| Weights  | Ported from the original codebases | Its own checkpoints          | Its own checkpoints          | None for point clouds  |
+`torch-pointcloud` is a library of pretrained models that makes common layers and backbones easy to reuse. It does
+not replace research-first codebases such as :github: [Pointcept](https://github.com/Pointcept/Pointcept), :github: [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) and
+:github: [MMDetection3D](https://github.com/open-mmlab/mmdetection3d); it complements them with a common interface that makes benchmarking and
+interoperability across architectures easier. It builds on :pyg: [PyG](https://pytorch-geometric.readthedocs.io/) for the packed batch format and the
+neighbor search, and adds what PyG does not ship for point clouds: the models, their weights, the datasets and the
+transforms.
 
 ## What's inside
 
