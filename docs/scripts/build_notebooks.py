@@ -21,6 +21,14 @@ REPO = "arthurdjn/pytorch-pointcloud"
 BRANCH = "main"
 DOCS_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = DOCS_DIR.parent
+# Model pages end with their task's checkpoint table, rendered by the `model_table` macro from `docs/data/models.csv`.
+MODEL_TABLES = {
+    "models/classification.ipynb": "classification",
+    "models/segmentation.ipynb": "semantic-segmentation",
+    "models/part-segmentation.ipynb": "part-segmentation",
+    "models/detection.ipynb": "detection",
+    "models/features.ipynb": "pretraining",
+}
 
 
 def badges(path: Path) -> str:
@@ -48,8 +56,12 @@ def insert_badges(markdown: str, path: Path) -> str:
 def render(path: Path, exporter: MarkdownExporter) -> Path:
     nb = nbformat.read(path, as_version=4)
     body, _ = exporter.from_notebook_node(nb)
+    markdown = insert_badges(body.strip(), path)
+    task = MODEL_TABLES.get(path.relative_to(DOCS_DIR).as_posix())
+    if task:
+        markdown += f'\n\n## Checkpoints\n\n{{{{ model_table("{task}") }}}}'
     out = path.with_suffix(".md")
-    out.write_text(insert_badges(body.strip(), path) + "\n")
+    out.write_text(markdown + "\n")
     return out
 
 

@@ -1,43 +1,22 @@
 # Datasets
 
-:pytorch-pointcloud-mini: `torch-pointcloud` provides several datasets for benchmarking and training. Each dataset returns a single `dict` (the format consumed by [transforms](../transforms/overview.md)) and integrates with `torch.utils.data.DataLoader` via the `collate` helper in `torch_pointcloud.utils.data`.
+:pytorch-pointcloud-mini: `torch-pointcloud` provides loaders for the common point cloud benchmarks. Each sample is one `dict`, the format
+[transforms](../transforms/overview.md) consume.
 
-Datasets with an automatic download take `download=True`; the others must be downloaded manually. S3DIS, ScanNet and ScanObjectNN are released under terms of use: read and accept them (each class links its `terms_url`), then pass `accept_terms=True` next to `download=True`, or answer the confirmation `download` asks for on the terminal. Datasets that preprocess their data keep the original files in `raw` and the cache :pytorch-pointcloud-mini: `torch-pointcloud` builds from them in `processed`:
-
-```text
-data
-├── ModelNet40
-│   ├── raw
-│   │   ├── airplane
-│   │   ├── bathtub
-│   │   ├── ...
-│   │   └── xbox
-│   └── processed
-│       ├── train.pt
-│       └── test.pt
-└── ...
-```
-
-To use them:
+Datasets with an automatic download take `download=True`; the others must be downloaded manually. S3DIS, ScanNet and
+ScanObjectNN are released under terms of use: read them (each class links its `terms_url`), then pass
+`accept_terms=True` next to `download=True`. The original files are kept in `root/<dataset>/raw`, and the cache built
+from them in `processed`.
 
 ```{.python notest}
-from torch.utils.data import DataLoader
 from torch_pointcloud.datasets import ModelNet40
-from torch_pointcloud.utils.data import collate
-
-dataset = ModelNet40(root="data", train=True, download=True)
-dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate)
-```
-
-`PointCloudDataLoader` is the same `DataLoader` with the `collate` helper already applied.
-
-```{.python notest}
 from torch_pointcloud.utils.data import PointCloudDataLoader
-from torch_pointcloud.datasets import ModelNet40
 
 dataset = ModelNet40(root="data", train=True, download=True)
 dataloader = PointCloudDataLoader(dataset, batch_size=32)
 ```
+
+`PointCloudDataLoader` is a `DataLoader` using the packed-batch `collate` of `torch_pointcloud.utils.data`.
 
 ## Tasks
 
@@ -112,9 +91,3 @@ All datasets emit dicts using the standard key conventions from `DataKeys` in `t
 | `face`     | $(F, 3)$ | Triangle indices (ModelNet / mesh datasets) |
 
 After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ gives each point's source scene.
-
-!!! warning "Color conventions vary per dataset"
-    `color` is uint8 in $[0, 255]$ for the raw-value loaders (`S3DIS`, `ScanNet`, `Toronto3D`, `Semantic3D`, `SunRGBD`) and float32 in $[0, 1]$ for `S3DISHdf5`, which ships pre-normalized values.
-
-!!! warning "Ignore-index conventions vary per dataset"
-    Unlabeled points use label 0 (`<unk>` / outdoor conventions, e.g. `ScanNet`), -1 (indoor no-instance and class-subset remaps, e.g. `S3DIS`), or 255 (the `SemanticKITTI` remap example).

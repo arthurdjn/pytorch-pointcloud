@@ -12,6 +12,7 @@ Assets and metadata are produced ahead of the build by `docs/scripts/build_paper
 (`make papers`), which scans the same call sites. A macro never reaches the network.
 """
 
+import csv
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -22,6 +23,7 @@ import jinja2
 DOCS_DIR = Path(__file__).resolve().parents[1]
 PAPERS_DIR = DOCS_DIR / "assets" / "papers"
 METADATA_PATH = DOCS_DIR / "data" / "papers.json"
+CATALOG_PATH = DOCS_DIR / "data" / "models.csv"
 
 CARD = """<div class="paper-card paper-card--page" markdown="1">
 {preview}
@@ -65,6 +67,7 @@ def define_env(env: Any) -> None:
         env: Macro environment supplied by the zensical macros extension.
     """
     env.macro(paper)
+    env.macro(model_table)
 
 
 @jinja2.pass_context
@@ -114,3 +117,34 @@ def paper(context: jinja2.runtime.Context, key: str, crop: Optional[float] = Non
         modifier=modifier,
         date=f" &middot; {meta['date']}" if meta else "",
     )
+
+
+@jinja2.pass_context
+def model_table(context: jinja2.runtime.Context, task: str) -> str:
+    """Render the pretrained checkpoints of a task from the model catalog `docs/data/models.csv`.
+
+    The catalog is synced from the registry by `docs/scripts/build_model_tables.py` (`make tables`), so the table
+    lists every registered checkpoint with the metrics this package measures.
+
+    Args:
+        task: Registry task, for example `classification` or `semantic-segmentation`.
+
+    Returns:
+        A Markdown table, one row per checkpoint.
+
+    Example:
+        ```markdown
+        {{ model_table("classification") }}
+        ```
+    """
+    with CATALOG_PATH.open() as f:
+        rows = [row for row in csv.DictReader(f) if row["task"] == task and row["pretrained"] == "true"]
+
+    page = context.get("page")
+    depth = len(PurePosixPath(page.path).parts) - 1 if page else 0
+    lines = ["| Checkpoint | Params (M) | Metrics | License |", "| --- | --- | --- | --- |"]
+    for row in rows:
+        api = "../" * depth + f"api/models/{row['architecture']}.md"
+        cells = [f"[`{row['checkpoint']}`]({api})", row["params"], row["metrics"] or "–", row["license"]]
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines)

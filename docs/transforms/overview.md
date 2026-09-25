@@ -2,12 +2,8 @@
 
 A transform takes one sample dict and returns a new one. `Compose` chains them, and a dataset applies the chain to every sample it loads. The API follows :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions.
 
-!!! question "Why a dict-based API?"
-    The dict-based API keeps composition flexible and makes the inputs and outputs of each transform explicit.
-
-    :pyg: PyTorch Geometric transforms, in contrast, take a `Data` object. That is limiting once you want to carry extra keys such as intensity or color, because every transform then has to handle every attribute the object holds, defaulting the ones you did not provide to `None`.
-
-    Transforms are designed to manipulate specific keys of the input data, which makes the operations explicit and easier to compose.
+Each transform reads and writes the keys you name, so a sample can carry any extra key (intensity, color, ...) without
+every transform handling it.
 
 ```python
 import torch
@@ -24,9 +20,6 @@ pipeline = T.Compose([
 
 scene = pipeline({"pos": pos, "color": color})
 ```
-
-!!! tip "Atomic operations"
-    Each transform is designed as an atomic operation to make it easier to compose and reuse.
 
 !!! note "Pretrained checkpoints"
     A pretrained checkpoint carries its own preprocessing in `info["transform"]`, for inference on its dataset.
