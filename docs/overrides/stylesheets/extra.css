@@ -401,6 +401,11 @@ a.pill.hero-pill {
   position: absolute;
   inset: 0;
 }
+/* Instant previews open on every internal link, and that overlay makes the whole card one, so a preview would cover
+   the card being clicked. The popup is a child of `body`; its host carries `aria-haspopup` while it is open */
+body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
+  display: none;
+}
 /* Links cited in the body sit above that overlay so they stay reachable */
 .md-typeset .grid.cards > ol > li > p:not(:first-child) a,
 .md-typeset .grid.cards > ul > li > p:not(:first-child) a {
