@@ -105,4 +105,4 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           JUPYTER_PLATFORM_DIRS=1 uv run --no-sync mike deploy --push --update-aliases "$VERSION" latest
-          uv run --no-sync mike set-default --push latest
+          uv run --no-sync mike set-default --push latest --template docs/overrides/redirect.html
