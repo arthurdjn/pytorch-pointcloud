@@ -122,4 +122,4 @@ jobs:
         run: |
           uv venv .venv-bare
           VIRTUAL_ENV=$PWD/.venv-bare uv pip install --torch-backend=cpu dist/*.whl
-          .venv-bare/bin/python -c "import torch_pointcloud; print(torch_pointcloud.__name__)"
+          .venv-bare/bin/python -c "import torch_pointcloud as tp; import torch_pointcloud.datasets, torch_pointcloud.inferers, torch_pointcloud.layers, torch_pointcloud.losses, torch_pointcloud.metrics, torch_pointcloud.models, torch_pointcloud.transforms, torch_pointcloud.utils; tp.create_model('pointnet2-ssg.modelnet40.xu-yan')"

@@ -468,7 +468,7 @@ def test_remove_near_origin_uses_sphere_mask_semantics() -> None:
         [
             [0.5, 0.0, 0.0],  # close (L2=0.5)
             [2.0, 0.0, 0.0],  # far (L2=2.0)
-            [0.6, 0.6, 0.6],  # L2 ≈ 1.04 — borderline
+            [0.6, 0.6, 0.6],  # L2 ≈ 1.04, borderline
         ]
     )
     filtered = F.remove_near_origin(pos, radius=1.0)

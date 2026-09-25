@@ -104,7 +104,7 @@ def test_semantickitti_dataset_processed_dir_aliases_raw(datasets_dir_factory: C
 
 
 def test_semantickitti_dataset_default_split_is_train() -> None:
-    """When split is omitted we should hit the default — `train`."""
+    """When split is omitted we should hit the default, `train`."""
     with pytest.raises(RuntimeError, match="Dataset not found"):
         _ = SemanticKITTI(root="not-found")
 
