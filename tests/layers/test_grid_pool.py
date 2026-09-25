@@ -2,13 +2,6 @@ import pytest
 import torch
 
 from torch_pointcloud.layers.grid_pool import GridPool
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
-
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = pytest.mark.skipif(
-    not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-scatter is not installed",
-)
 
 
 def test_grid_pool_basic() -> None:

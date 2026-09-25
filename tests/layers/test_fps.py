@@ -2,12 +2,12 @@ import pytest
 import torch
 
 from torch_pointcloud.layers.fps import FPS
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE,
-    reason="torch-cluster is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 
 

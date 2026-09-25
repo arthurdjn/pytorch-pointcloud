@@ -34,12 +34,12 @@ To develop `torch-pointcloud` on your machine, here are some tips:
    Hence, if you modify a Python file, you do not need to re-install the package again.
 
 1. Follow the [installation instructions](https://pytorch-pointcloud.org/latest/installation/) to install the PyG
-   kernels (`torch-scatter`, `torch-cluster`) for your PyTorch and CUDA versions. The other extensions (`spconv`,
+   kernels (`pyg-lib`) for your PyTorch and CUDA versions. The other extensions (`spconv`,
    `flash-attn`, `mamba`, `ocnn`, `torchsparse`, `sptr`) are optional and only necessary if you develop a feature that
    uses one of these libraries.
 
    ```bash
-   uv pip install pyg-lib torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
+   uv pip install pyg-lib -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
    ```
 
    where `${TORCH}` should be replaced by your PyTorch version (*e.g.*, `2.10.0`), and `${CUDA}` should be replaced by

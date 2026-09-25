@@ -1,16 +1,10 @@
 """Tensor operations on packed batches: safe division, softmax, permutations, decimation, and padding."""
 
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 from torch import Tensor
-
-from .imports import _TORCH_SCATTER_GITHUB_URL, optional_import
-
-if TYPE_CHECKING:
-    from torch_scatter import scatter
-
-scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
+from torch_geometric.utils import scatter
 
 
 def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("nan")) -> Tensor:
@@ -55,8 +49,7 @@ def softmax(x: Tensor, batch: Tensor, dim: int = 0) -> Tensor:
     The `batch` tensor must be of shape $(N,)$ and must be contiguous.
 
     Note:
-        This function is adapted from the `torch_geometric` package,
-        and requires the `torch-scatter` package.
+        This function is adapted from the `torch_geometric` package.
 
     Args:
         x: The x tensor of shape $(N, *)$.

@@ -6,15 +6,16 @@
 import math
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.nn.pool import voxel_grid
+from torch_geometric.nn.pool import radius, radius_graph, voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import CACHE_DIR
@@ -25,20 +26,11 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict
 
 from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 from .pointnet2 import PointNet2Decoder
-
-if TYPE_CHECKING:
-    from torch_cluster import radius, radius_graph
-    from torch_scatter import scatter
-
-radius, _ = optional_import("torch_cluster", name="radius", url=_TORCH_CLUSTER_GITHUB_URL)
-radius_graph, _ = optional_import("torch_cluster", name="radius_graph", url=_TORCH_CLUSTER_GITHUB_URL)
-scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 def create_kernel_points(
@@ -310,9 +302,9 @@ class KPConv(nn.Module):
             weights_k = weights[:, k].unsqueeze(1)  # [E, 1]
             weighted_x = weights_k * source_x  # [E, in_channels]
             transformed_x = torch.matmul(weighted_x, self.weight[k].to(x.dtype))
-            # Autocast makes the matmul low precision, but scatter's out= buffer requires a matching
-            # dtype, so cast back to output (fp32 under AMP) and accumulate the reduction there.
-            scatter(transformed_x.to(output.dtype), row, dim=0, out=output, reduce="sum")
+            # Autocast makes the matmul low precision, but `index_add_` requires a matching dtype,
+            # so cast back to output (fp32 under AMP) and accumulate the reduction there.
+            output.index_add_(0, row, transformed_x.to(output.dtype))
 
         return output
 

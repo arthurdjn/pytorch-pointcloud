@@ -129,9 +129,9 @@ def test_availability_flag_resolves_lazily_and_caches() -> None:
     module globals, so `import torch_pointcloud` does not probe every optional heavy dependency."""
     from torch_pointcloud.utils import imports
 
-    value = imports._TORCH_SCATTER_AVAILABLE
+    value = imports._PYG_LIB_AVAILABLE
     assert isinstance(value, bool)
-    assert vars(imports)["_TORCH_SCATTER_AVAILABLE"] is value
+    assert vars(imports)["_PYG_LIB_AVAILABLE"] is value
 
 
 def test_unknown_module_attribute_raises() -> None:

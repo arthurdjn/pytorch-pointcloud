@@ -1,22 +1,15 @@
 """Pooling and upsampling driven by point cloud serialization codes."""
 
 import math
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Tuple, Union, overload
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
+from torch_geometric.utils import segment
 
 from .act import create_act
 from .norms import create_norm
-
-if TYPE_CHECKING:
-    import torch_scatter
-
-
-torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class SerializedPool(nn.Module):
@@ -108,11 +101,11 @@ class SerializedPool(nn.Module):
         head_indices = indices[idx_ptr[:-1]]
 
         # Pool features, positions and batch indices
-        x = torch_scatter.segment_csr(self.proj(x)[indices], idx_ptr, reduce=self.reduce)
+        x = segment(self.proj(x)[indices], idx_ptr, reduce=self.reduce)
         pos_grid = pos_grid[head_indices] >> pooling_depth
         batch = batch[head_indices]
         pooled_code = pooled_code[:, head_indices]
-        pos = torch_scatter.segment_csr(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
+        pos = segment(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
 
         norm_kwargs = {} if condition is None else {"condition": condition}
         if self.norm is not None:

@@ -12,12 +12,12 @@ from torch_pointcloud.models.randlanet import (
     RandLANetSegmentation,
     random_max_pool,
 )
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
-    not (_TORCH_SCATTER_AVAILABLE and _TORCH_CLUSTER_AVAILABLE),
-    reason="torch-scatter or torch-cluster is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 
 

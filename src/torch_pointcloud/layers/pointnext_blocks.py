@@ -17,8 +17,7 @@ You can use it as follows:
 
 ```{.python notest}
 import torch
-from torch_cluster import radius_graph
-from torch_geometric.nn import MLP
+from torch_geometric.nn import MLP, radius_graph
 from torch_pointcloud.layers import PointNeXtConv
 
 torch.manual_seed(0)
@@ -37,13 +36,13 @@ out = conv(x, pos, edge_index)
 ```
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn import MLP, MessagePassing
+from torch_geometric.nn import MLP, MessagePassing, radius_graph
 from torch_geometric.nn.inits import reset
 from torch_geometric.typing import Adj, NoneType, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
@@ -51,15 +50,9 @@ from typing_extensions import Unpack
 
 from torch_pointcloud.utils.cluster import fps, radius
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 
 from .act import create_act
-
-if TYPE_CHECKING:
-    from torch_cluster import radius_graph
-
-radius_graph, _ = optional_import("torch_cluster", name="radius_graph", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 class _PlainLastActMLP(MLP):

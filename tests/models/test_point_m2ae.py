@@ -11,13 +11,11 @@ from torch_pointcloud.models.point_m2ae import (
     multi_scale_group,
 )
 from torch_pointcloud.utils.imports import (
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
 )
 
 pytestmark = [
-    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
-    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
+    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
 NUM_GROUPS = (512, 256, 64)

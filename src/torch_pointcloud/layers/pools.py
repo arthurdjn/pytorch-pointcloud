@@ -1,23 +1,17 @@
 """Per-segment pooling modules over packed batches and the `create_pool` / `create_adaptive_pool` factories."""
 
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence
+from typing import Any, Dict, Literal, Optional, Sequence
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
+from torch_geometric.utils import scatter
 
 from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
-if TYPE_CHECKING:
-    from torch_scatter import scatter
-
-scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
-
 
 class MaxPool(nn.Module):
-    r"""Per-segment max pooling over a packed batch, via `torch_scatter.scatter(reduce="max")`.
+    r"""Per-segment max pooling over a packed batch, via `torch_geometric.utils.scatter(reduce="max")`.
 
     Args:
         dim: Dimension along which to pool.
@@ -38,7 +32,7 @@ class MaxPool(nn.Module):
 
 
 class MinPool(nn.Module):
-    r"""Per-segment min pooling over a packed batch, via `torch_scatter.scatter(reduce="min")`.
+    r"""Per-segment min pooling over a packed batch, via `torch_geometric.utils.scatter(reduce="min")`.
 
     Args:
         dim: Dimension along which to pool.
@@ -59,7 +53,7 @@ class MinPool(nn.Module):
 
 
 class MeanPool(nn.Module):
-    r"""Per-segment mean pooling over a packed batch, via `torch_scatter.scatter(reduce="mean")`.
+    r"""Per-segment mean pooling over a packed batch, via `torch_geometric.utils.scatter(reduce="mean")`.
 
     Args:
         dim: Dimension along which to pool.
@@ -80,7 +74,7 @@ class MeanPool(nn.Module):
 
 
 class MulPool(nn.Module):
-    r"""Per-segment product pooling over a packed batch, via `torch_scatter.scatter(reduce="mul")`.
+    r"""Per-segment product pooling over a packed batch, via `torch_geometric.utils.scatter(reduce="mul")`.
 
     Args:
         dim: Dimension along which to pool.
@@ -101,7 +95,7 @@ class MulPool(nn.Module):
 
 
 class SumPool(nn.Module):
-    r"""Per-segment sum pooling over a packed batch, via `torch_scatter.scatter(reduce="sum")`.
+    r"""Per-segment sum pooling over a packed batch, via `torch_geometric.utils.scatter(reduce="sum")`.
 
     Args:
         dim: Dimension along which to pool.
@@ -119,48 +113,6 @@ class SumPool(nn.Module):
 
     def forward(self, x: Tensor, batch: Tensor) -> Tensor:
         return scatter(x, batch, dim=self.dim, dim_size=self.dim_size, reduce="sum")
-
-
-class SoftmaxPool(nn.Module):
-    r"""Per-segment softmax pooling, delegating `reduce="softmax"` to `torch_scatter.scatter`.
-
-    !!! warning
-        `torch_scatter.scatter` only accepts `sum` / `mean` / `min` / `max` / `mul` reductions,
-        so calling this module raises `ValueError` with current `torch_scatter` releases.
-
-    Args:
-        dim: Dimension along which to pool.
-        dim_size: Number of output segments $B$. `None` infers it from the segment index.
-    """
-
-    def __init__(self, dim: int = 0, dim_size: Optional[int] = None):
-        super().__init__()
-        self.dim = dim
-        self.dim_size = dim_size
-
-    def forward(self, x: Tensor, batch: Tensor) -> Tensor:
-        return scatter(x, batch, dim=self.dim, dim_size=self.dim_size, reduce="softmax")
-
-
-class LogSoftmaxPool(nn.Module):
-    r"""Per-segment log-softmax pooling, delegating `reduce="log_softmax"` to `torch_scatter.scatter`.
-
-    !!! warning
-        `torch_scatter.scatter` only accepts `sum` / `mean` / `min` / `max` / `mul` reductions,
-        so calling this module raises `ValueError` with current `torch_scatter` releases.
-
-    Args:
-        dim: Dimension along which to pool.
-        dim_size: Number of output segments $B$. `None` infers it from the segment index.
-    """
-
-    def __init__(self, dim: int = 0, dim_size: Optional[int] = None):
-        super().__init__()
-        self.dim = dim
-        self.dim_size = dim_size
-
-    def forward(self, x: Tensor, batch: Tensor) -> Tensor:
-        return scatter(x, batch, dim=self.dim, dim_size=self.dim_size, reduce="log_softmax")
 
 
 class CatPool(nn.Module):
@@ -206,8 +158,6 @@ PoolName = Literal[
     "mean",
     "mul",
     "sum",
-    "softmax",
-    "log_softmax",
 ]
 
 AdaptivePoolName = Literal[
@@ -224,8 +174,6 @@ _POOL_REGISTRY: Dict[PoolName, RegisteredModuleLike] = dict(
     mean=MeanPool,
     mul=MulPool,
     sum=SumPool,
-    softmax=SoftmaxPool,
-    log_softmax=LogSoftmaxPool,
 )
 
 _ADAPTIVE_POOL_REGISTRY: Dict[AdaptivePoolName, RegisteredModuleLike] = dict(
@@ -238,8 +186,8 @@ def create_pool(name: PoolLike, *args: Any, **kwargs: Any) -> nn.Module:
     """Resolve a packed-batch pooling module from a name, class, or instance.
 
     Args:
-        name: Pool name (`"max"`, `"min"`, `"mean"`, `"mul"`, `"sum"`, `"softmax"`,
-            `"log_softmax"`), a module class, or an existing instance (returned as-is).
+        name: Pool name (`"max"`, `"min"`, `"mean"`, `"mul"`, `"sum"`), a module class, or an existing instance
+            (returned as-is).
         *args: Positional arguments forwarded to the pool constructor.
         **kwargs: Keyword arguments forwarded to the pool constructor (`dim`, `dim_size`).
 

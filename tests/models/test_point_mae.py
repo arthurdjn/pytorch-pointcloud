@@ -8,14 +8,12 @@ from torch_pointcloud.models.point_mae import (
     PointMAEPretraining,
 )
 from torch_pointcloud.utils.imports import (
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
 )
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = [
-    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
-    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
+    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
 

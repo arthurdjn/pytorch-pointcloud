@@ -4,7 +4,6 @@
 """
 
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -22,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
@@ -31,19 +31,11 @@ from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.utils.cluster import knn, knn_graph
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import decimate_indices, softmax
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
-
-if TYPE_CHECKING:
-    from torch_scatter import scatter_add, scatter_max
-
-
-scatter_add, _ = optional_import("torch_scatter", "scatter_add", url=_TORCH_SCATTER_GITHUB_URL)
-scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 def random_max_pool(
@@ -70,7 +62,7 @@ def random_max_pool(
     decim_idx, decim_batch = decimate_indices(batch, factor, generator=generator)
     pos_decim = pos[decim_idx]
     edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
-    pooled, _ = scatter_max(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0))
+    pooled = scatter(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0), reduce="max")
     return pooled, pos_decim, decim_batch
 
 
@@ -155,7 +147,7 @@ class AttentivePooling(nn.Module):
     def forward(self, x: Tensor, dst_idx: Tensor, num_dst: int) -> Tensor:
         att_scores = softmax(self.fc(x), dst_idx)
         weighted = att_scores * x
-        out = scatter_add(weighted, dst_idx, dim=0, dim_size=num_dst)
+        out = scatter(weighted, dst_idx, dim=0, dim_size=num_dst, reduce="sum")
         return self.mlp(out)
 
 

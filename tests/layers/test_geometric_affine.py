@@ -8,11 +8,11 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
 from torch_pointcloud.utils.cluster import knn, knn_graph
-from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _PYG_LIB_AVAILABLE
 
 pytestmark = pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 
 

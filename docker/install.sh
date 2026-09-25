@@ -45,7 +45,7 @@ has_extra() {
 export UV_CONSTRAINT=/tmp/constraints.txt
 echo "torch==${TORCH_VERSION}+${CUDA_TAG}" >"${UV_CONSTRAINT}"
 
-MODULES=(torch_geometric torch_scatter torch_sparse torch_cluster torch_pointcloud)
+MODULES=(torch_geometric torch_pointcloud)
 
 echo ">>> Installing torch ${TORCH_VERSION} (${CUDA_TAG})"
 $PIP "torch==${TORCH_VERSION}+${CUDA_TAG}" --index-url "${TORCH_INDEX}"
@@ -59,13 +59,11 @@ else
 fi
 
 # `--only-binary` fails on a missing wheel instead of falling back to a source build from PyPI.
-echo ">>> Installing the PyG extensions (FPS, kNN, scatter pooling)"
-PYG=(torch-scatter torch-sparse torch-cluster)
 if has_extra pyg-lib; then
-    PYG+=(pyg-lib)
+    echo ">>> Installing the PyG kernels (FPS, kNN, radius search)"
+    $PIP --only-binary :all: pyg-lib -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+${CUDA_TAG}.html"
     MODULES+=(pyg_lib)
 fi
-$PIP --only-binary :all: "${PYG[@]}" -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+${CUDA_TAG}.html"
 
 ASTRAL=()
 if has_extra flash-attn; then

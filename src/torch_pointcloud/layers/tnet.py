@@ -1,21 +1,16 @@
 """T-Net alignment modules predicting affine transforms for point and feature spaces."""
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP, EdgeConv
+from torch_geometric.utils import scatter
 
 from torch_pointcloud.utils.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import AggrType
-
-if TYPE_CHECKING:
-    from torch_scatter import scatter
-
-scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class TNet(nn.Module):

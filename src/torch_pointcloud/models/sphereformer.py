@@ -20,6 +20,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseModule, SparseResidualBlock
@@ -32,7 +33,6 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _SPCONV_GITHUB_URL,
     _SPTR_GITHUB_URL,
-    _TORCH_SCATTER_GITHUB_URL,
     optional_import,
 )
 
@@ -40,13 +40,11 @@ if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from spconv.core import ConvAlgo
     from spconv.pytorch import SparseConvTensor
-    from torch_scatter import scatter_mean
 
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=_SPCONV_GITHUB_URL)
 ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo", url=_SPCONV_GITHUB_URL)
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
 sptr, _SPTR_AVAILABLE = optional_import("sptr", url=_SPTR_GITHUB_URL)
 
 
@@ -539,8 +537,8 @@ class SphereFormerUBlock(nn.Module):
             pair_in, pair_out = indice_pairs[0], indice_pairs[1]
             valid = pair_in != -1
             pair_in, pair_out = pair_in[valid].long(), pair_out[valid].long()
-            pos_next = scatter_mean(pos[pair_in], index=pair_out, dim=0)
-            batch_next = scatter_mean(batch.float()[pair_in], index=pair_out, dim=0)
+            pos_next = scatter(pos[pair_in], pair_out, dim=0, reduce="mean")
+            batch_next = scatter(batch.float()[pair_in], pair_out, dim=0, reduce="mean")
 
             out_decoder = self.unet(out_decoder, pos_next, batch_next.long())
             out_decoder = self.deconv(out_decoder)

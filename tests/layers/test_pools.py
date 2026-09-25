@@ -5,26 +5,15 @@ from torch import Tensor
 
 from torch_pointcloud.layers.pools import (
     CatPool,
-    LogSoftmaxPool,
     MaxPool,
     MeanPool,
     MinPool,
     MulPool,
-    SoftmaxPool,
     SumPool,
     create_adaptive_pool,
     create_pool,
 )
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
 
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = pytest.mark.skipif(
-    not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-scatter is not installed",
-)
-
-
-# softmax / log_softmax pools are registered but not supported by torch_scatter at runtime.
 _POOL_CLASSES = [MaxPool, MinPool, MeanPool, MulPool, SumPool]
 _POOL_NAMES = ["max", "min", "mean", "mul", "sum"]
 
@@ -55,22 +44,6 @@ def test_pool_forward_values(cls: type, expected: Tensor) -> None:
     x = torch.tensor([[1.0, 2.0], [3.0, 0.0], [2.0, 5.0]])
     batch = torch.tensor([0, 0, 1])
     torch.testing.assert_close(pool(x, batch), expected)
-
-
-@pytest.mark.parametrize(
-    "cls",
-    [
-        pytest.param(SoftmaxPool, id="softmax"),
-        pytest.param(LogSoftmaxPool, id="log_softmax"),
-    ],
-)
-def test_softmax_pools_are_unsupported_by_torch_scatter(cls: type) -> None:
-    """Registered but not runnable: `torch_scatter.scatter` rejects (log_)softmax reductions."""
-    pool = cls(dim=0, dim_size=None)
-    x = torch.randn(4, 2)
-    batch = torch.tensor([0, 0, 1, 1])
-    with pytest.raises(ValueError):
-        pool(x, batch)
 
 
 @pytest.mark.parametrize("name", _POOL_NAMES)

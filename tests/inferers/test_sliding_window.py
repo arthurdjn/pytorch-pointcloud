@@ -10,7 +10,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.inferers import SlidingWindowInferer, sliding_window_inference
 from torch_pointcloud.inferers.sliding_window import _assign_point_blocks
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def _grid_data(steps: int = 4, spacing: float = 1.0) -> Dict[str, Any]:
@@ -527,8 +527,8 @@ def test_sliding_window_drops_scene_level_inverse_before_window_transform() -> N
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_sliding_window_with_voxelize_gathers_predictions_back_to_source() -> None:
     """`Voxelize` + `inverse_key` end-to-end: voxel-resolution preds are gathered to source rows.

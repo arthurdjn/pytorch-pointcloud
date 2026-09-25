@@ -16,11 +16,10 @@ from torch_pointcloud.models.votenet import (
     VotingModule,
 )
 from torch_pointcloud.utils.box3d import class_to_angle, class_to_size
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 pytestmark = [
-    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
-    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch-scatter is not installed"),
+    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -30,7 +30,7 @@ def _knn_centers(pos_src: Tensor, centers: Tensor, k: int) -> Tensor:
     r"""Per-center $k$-nearest indices into `pos_src`.
 
     Uses `cdist + topk` directly instead of `torch_pointcloud.utils.cluster.knn`
-    because the latter falls back to `torch_cluster.knn` for large source clouds,
+    because the latter falls back to `torch_geometric.nn.pool.knn` for large source clouds,
     which has a hard $k \leq 100$ ceiling on CUDA. Since $M = \text{sw\_batch\_size}$
     is always small, the dense $(M, N)$ distance matrix is cheap.
 

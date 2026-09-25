@@ -1,15 +1,15 @@
 """Transforms that voxelize the points or pad them to a voxel grid."""
 
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, get_args, overload
 
 import torch
 from torch import Tensor
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
+from torch_geometric.utils import scatter
 
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import first_permutation
 from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
@@ -31,10 +31,6 @@ VoxelReduce = Literal["mean", "min", "max", "sum", "first"]
 VoxelPosReduce = Literal["mean", "min", "max", "sum", "first", "grid"]
 """Allowed values for `Voxelize.pos_reduce` (per-voxel reduction for positions; `"grid"` keeps integer voxel coords)."""
 
-if TYPE_CHECKING:
-    from torch_scatter import scatter
-
-scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 __all__ = [
     "DivisiblePad",

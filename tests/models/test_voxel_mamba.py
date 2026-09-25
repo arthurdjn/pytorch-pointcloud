@@ -13,13 +13,12 @@ from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _SPCONV_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
 )
 
 RANGE = (-74.88, -74.88, -2.0, 74.88, 74.88, 4.0)
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
 
-_FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE and _TORCH_SCATTER_AVAILABLE
+_FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE
 
 
 def test_build_hilbert_template_is_a_permutation() -> None:
@@ -83,7 +82,7 @@ def _make_inputs(n_per_scene: int = 6000, batch_size: int = 1) -> tuple[torch.Te
     return torch.cat(pos).to(DEVICE), torch.cat(x).to(DEVICE), torch.cat(batch).to(DEVICE)
 
 
-@pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv + torch_scatter")
+@pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv")
 def test_voxel_mamba_forward_shapes() -> None:
     model = create_model("voxel-mamba.waymo", task="detection").to(DEVICE).eval()
     assert isinstance(model, VoxelMambaDetection)
@@ -100,7 +99,7 @@ def test_voxel_mamba_forward_shapes() -> None:
     assert torch.isfinite(out["heatmap"]).all()
 
 
-@pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv + torch_scatter")
+@pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv")
 def test_voxel_mamba_decode() -> None:
     model = create_model("voxel-mamba.waymo", task="detection").to(DEVICE).eval()
     assert isinstance(model, VoxelMambaDetection)

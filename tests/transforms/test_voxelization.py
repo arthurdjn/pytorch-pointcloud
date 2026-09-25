@@ -4,12 +4,12 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
-from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxel_grid_basic() -> None:
     # Two points that fall in the same voxel + one in another voxel
@@ -27,8 +27,8 @@ def test_voxel_grid_basic() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxel_grid_with_dst_inverse_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -45,8 +45,8 @@ def test_voxel_grid_with_dst_inverse_key() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxel_grid_grid_pos_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -62,8 +62,8 @@ def test_voxel_grid_grid_pos_key() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxel_grid_grid_pos_reduce() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -76,8 +76,8 @@ def test_voxel_grid_grid_pos_reduce() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_default_reduce_works_and_keeps_integer_dtype() -> None:
     """`reduce=None` (the default) averages float keys and picks a representative for integer keys."""
@@ -95,8 +95,8 @@ def test_voxelize_default_reduce_works_and_keeps_integer_dtype() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_integer_key_non_first_reduce_stays_integer() -> None:
     pos = torch.tensor([[0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [1.9, 1.9, 1.9]])
@@ -109,8 +109,8 @@ def test_voxelize_integer_key_non_first_reduce_stays_integer() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_integer_min_max_exact_above_float32_precision() -> None:
     """Integer min/max reduce natively; a float32 detour would collapse values above $2^{24}$."""
@@ -127,8 +127,8 @@ def test_voxelize_integer_min_max_exact_above_float32_precision() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_first_reduce_picks_first_occurrence_in_input_order() -> None:
     """`first` is the stable first point per voxel, even when voxel members are interleaved."""
@@ -153,8 +153,8 @@ def test_voxelize_invalid_arguments_raise() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxel_grid_empty_passthrough(empty_scene: dict) -> None:
     out = T.Voxelize(
@@ -231,8 +231,8 @@ def test_divisible_pad_zero_points_passthrough() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_dst_inverse_key_composes_through_prior() -> None:
     """`Voxelize` composes its source-to-voxel map with an existing inverse via gather."""
@@ -253,8 +253,8 @@ def test_voxelize_dst_inverse_key_composes_through_prior() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_then_divisible_pad_chain_yields_single_combined_inverse() -> None:
     """Composing Voxelize -> DivisiblePad via a shared `dst_inverse_key` collapses to one map.
@@ -310,8 +310,8 @@ def test_hard_voxelize_stacks_points_per_voxel() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_default_does_not_write_inverse_key() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])
@@ -321,8 +321,8 @@ def test_voxelize_default_does_not_write_inverse_key() -> None:
 
 
 @pytest.mark.skipif(
-    not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE),
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 def test_voxelize_dst_pos_grid_key_written_for_every_pos_reduce() -> None:
     pos = torch.tensor([[0.05, 0.0, 0.0], [0.06, 0.0, 0.0], [1.0, 0.0, 0.0]])

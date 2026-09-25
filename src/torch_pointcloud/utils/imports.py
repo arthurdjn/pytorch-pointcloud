@@ -302,9 +302,6 @@ _MAMBA_SSM_GITHUB_URL = "https://github.com/state-spaces/mamba"
 _OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"
 _SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
 _SPTR_GITHUB_URL = "https://github.com/JIA-Lab-research/SparseTransformer"
-_TORCH_CLUSTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_cluster"
-_TORCH_SCATTER_GITHUB_URL = "https://github.com/rusty1s/pytorch_scatter"
-_TORCH_SPARSE_GITHUB_URL = "https://github.com/rusty1s/pytorch_sparse"
 _TORCHMETRICS_GITHUB_URL = "https://github.com/Lightning-AI/torchmetrics"
 _TORCHSPARSE_GITHUB_URL = "https://github.com/mit-han-lab/torchsparse"
 
@@ -317,10 +314,9 @@ _AVAILABILITY_FLAGS: Dict[str, Callable[[], bool]] = {
     "_LIGHTNING_AVAILABLE": partial(module_available, "lightning.pytorch"),
     "_MAMBA_SSM_AVAILABLE": partial(module_available, "mamba_ssm"),
     "_OCNN_AVAILABLE": partial(module_available, "ocnn"),
+    "_PYG_LIB_AVAILABLE": partial(module_available, "pyg_lib"),
     "_SPCONV_AVAILABLE": partial(module_available, "spconv.pytorch"),
     "_SPTR_AVAILABLE": partial(module_available, "sptr"),
-    "_TORCH_CLUSTER_AVAILABLE": partial(module_available, "torch_cluster"),
-    "_TORCH_SCATTER_AVAILABLE": partial(module_available, "torch_scatter"),
     "_TORCHSPARSE_AVAILABLE": partial(module_available, "torchsparse"),
 }
 

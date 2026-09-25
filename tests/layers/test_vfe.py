@@ -1,14 +1,6 @@
-import pytest
 import torch
 
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
-
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = pytest.mark.skipif(
-    not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-scatter is not installed",
-)
 
 
 def test_dynamic_mean_vfe_forward() -> None:

@@ -13,15 +13,13 @@ from torch_pointcloud.models.point_mamba import (
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
 )
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = [
     pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba_ssm is not available"),
-    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
-    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
+    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
 # The mamba_ssm selective-scan kernels only run on CUDA tensors, so every test that calls a

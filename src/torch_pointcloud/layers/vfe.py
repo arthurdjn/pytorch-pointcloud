@@ -4,21 +4,15 @@ A packed-format port of the `DynamicVoxelVFE` from
 :github: [gwenzhang/Voxel-Mamba](https://github.com/gwenzhang/Voxel-Mamba).
 """
 
-from typing import TYPE_CHECKING, Sequence, Tuple
+from typing import Sequence, Tuple
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP
+from torch_geometric.utils import scatter
 
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
-
-if TYPE_CHECKING:
-    from torch_scatter import scatter_max, scatter_mean
-
-scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PillarFeatureLayer(nn.Module):
@@ -52,7 +46,7 @@ class PillarFeatureLayer(nn.Module):
 
     def forward(self, inputs: Tensor, unq_inv: Tensor) -> Tensor:
         x = self.mlp(inputs)
-        x_max = scatter_max(x, unq_inv, dim=0)[0]
+        x_max = scatter(x, unq_inv, dim=0, reduce="max")
         if self.last:
             return x_max
         return torch.cat([x, x_max[unq_inv]], dim=1)
@@ -138,7 +132,7 @@ class DynamicMeanVFE(nn.Module):
         )
         unq_indices, unq_inv = torch.unique(merge, return_inverse=True)
 
-        points_mean = scatter_mean(pos, unq_inv, dim=0)
+        points_mean = scatter(pos, unq_inv, dim=0, reduce="mean")
         f_cluster = pos - points_mean[unq_inv]
         center = pos_grid.to(pos.dtype) * self.voxel_size + (self.voxel_size / 2 + self.point_cloud_range[:3])
         f_center = pos - center

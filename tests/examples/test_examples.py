@@ -13,9 +13,8 @@ from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
     _SPCONV_AVAILABLE,
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
 
@@ -29,75 +28,68 @@ _REQUIRES_TORCHSPARSE = pytest.mark.skipif(not _TORCHSPARSE_AVAILABLE, reason="t
 _REQUIRES_OCNN = pytest.mark.skipif(not _OCNN_AVAILABLE, reason="ocnn is not installed")
 _REQUIRES_DWCONV = pytest.mark.skipif(not _DWCONV_AVAILABLE, reason="dwconv is not installed")
 _REQUIRES_MAMBA = pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba-ssm is not installed")
-_REQUIRES_TORCH_CLUSTER = pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
-_REQUIRES_TORCH_SCATTER = pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch-scatter is not installed")
+_REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 
-_CLUSTER = (_REQUIRES_TORCH_CLUSTER,)
-_CLUSTER_SCATTER = (_REQUIRES_TORCH_CLUSTER, _REQUIRES_TORCH_SCATTER)
+_CLUSTER = (_REQUIRES_PYG_LIB,)
 _GPU_SPCONV = (_REQUIRES_SPCONV, _REQUIRES_CUDA)
-_GPU_SPCONV_SCATTER = (_REQUIRES_SPCONV, _REQUIRES_TORCH_SCATTER, _REQUIRES_CUDA)
 _GPU_TORCHSPARSE = (_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)
 _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
-_GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_TORCH_CLUSTER, _REQUIRES_TORCH_SCATTER)
+_GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
 # dataset here (SUN RGB-D, ModelNet40 HDF5, ScanNet200, the KITTI split files) and the unreleased SphereFormer
 # weights have no row.
 BENCHMARKS = [
     pytest.param("spunet_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV, id="spunet/scannet"),
-    pytest.param("kpconv_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER_SCATTER, id="kpconv/s3dis"),
-    pytest.param("pointnext_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER_SCATTER, id="pointnext/s3dis"),
+    pytest.param("kpconv_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
+    pytest.param("pointnext_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER, id="pointnext/s3dis"),
     pytest.param(
         "pointnext_benchmark_part_segmentation.py",
         ("--limit", "4"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointnext/shapenetpart",
     ),
     pytest.param(
         "pointnext_benchmark_classification.py",
         ("--model", "pointnext-sm.scanobjectnn-hardest.openpoints", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointnext/scanobjectnn",
     ),
     pytest.param(
         "pointnet2_benchmark_segmentation.py",
         ("--model", "pointnet2.s3dis-area5.xu-yan", "--limit", "1"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointnet2/s3dis-xu-yan",
     ),
     pytest.param(
         "pointnet2_benchmark_segmentation.py",
         ("--model", "pointnet2.s3dis-area5.openpoints", "--limit", "1"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointnet2/s3dis-openpoints",
     ),
     pytest.param(
         "pointnet2_benchmark_classification.py",
         ("--model", "pointnet2-msg.modelnet40.xu-yan", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointnet2/modelnet40",
     ),
     pytest.param(
         "pointnet2_benchmark_classification.py",
         ("--model", "pointnet2.scanobjectnn-hardest.openpoints", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointnet2/scanobjectnn",
     ),
-    pytest.param("pvcnn_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER_SCATTER, id="pvcnn/s3dis"),
-    pytest.param("sonata_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV_SCATTER, id="sonata/scannet"),
-    pytest.param(
-        "concerto_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV_SCATTER, id="concerto/scannet"
-    ),
-    pytest.param("utonia_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV_SCATTER, id="utonia/scannet"),
+    pytest.param("pvcnn_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER, id="pvcnn/s3dis"),
+    pytest.param("sonata_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV, id="sonata/scannet"),
+    pytest.param("concerto_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV, id="concerto/scannet"),
+    pytest.param("utonia_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_SPCONV, id="utonia/scannet"),
     pytest.param(
         "point_transformer_v3_benchmark_segmentation.py",
         ("--model", "ptv3-base.scannet20.pointcept", "--limit", "1"),
-        marks=_GPU_SPCONV_SCATTER,
+        marks=_GPU_SPCONV,
         id="ptv3/scannet",
     ),
-    pytest.param(
-        "randlanet_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER_SCATTER, id="randlanet/semantickitti"
-    ),
+    pytest.param("randlanet_benchmark_segmentation.py", ("--limit", "1"), marks=_CLUSTER, id="randlanet/semantickitti"),
     pytest.param(
         "spvcnn_benchmark_segmentation.py", ("--limit", "1"), marks=_GPU_TORCHSPARSE, id="spvcnn/semantickitti"
     ),
@@ -121,43 +113,43 @@ BENCHMARKS = [
     pytest.param(
         "point_bert_benchmark_classification.py",
         ("--model", "point-bert-base.modelnet40.xumin-yu", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_bert/modelnet40",
     ),
     pytest.param(
         "point_bert_benchmark_classification.py",
         ("--model", "point-bert-base.scanobjectnn-hardest.xumin-yu", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_bert/scanobjectnn",
     ),
     pytest.param(
         "point_mae_benchmark_classification.py",
         ("--model", "point-mae-base.modelnet40.yatian-pang", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_mae/modelnet40",
     ),
     pytest.param(
         "point_mae_benchmark_part_segmentation.py",
         ("--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_mae/shapenetpart",
     ),
     pytest.param(
         "point_m2ae_benchmark_classification.py",
         ("--model", "point-m2ae-base.modelnet40.renrui-zhang", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_m2ae/modelnet40",
     ),
     pytest.param(
         "point_m2ae_benchmark_part_segmentation.py",
         ("--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_m2ae/shapenetpart",
     ),
     pytest.param(
         "pointgpt_benchmark_classification.py",
         ("--model", "pointgpt-s.scanobjectnn-objonly.guangyan-chen", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointgpt/scanobjectnn",
     ),
     pytest.param(
@@ -169,22 +161,20 @@ BENCHMARKS = [
     pytest.param(
         "pointmlp_benchmark_classification.py",
         ("--model", "pointmlp-base.scanobjectnn-hardest.xu-ma", "--limit", "8"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="pointmlp/scanobjectnn",
     ),
-    pytest.param(
-        "pointconv_benchmark_classification.py", ("--limit", "8"), marks=_CLUSTER_SCATTER, id="pointconv/modelnet40"
-    ),
+    pytest.param("pointconv_benchmark_classification.py", ("--limit", "8"), marks=_CLUSTER, id="pointconv/modelnet40"),
     pytest.param(
         "votenet_benchmark_detection.py",
         ("--model", "votenet.scannet.fair", "--limit", "2"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="votenet/scannet",
     ),
     pytest.param(
         "threedetr_benchmark_detection.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="3detr/scannet",
     ),
     pytest.param(
@@ -211,7 +201,7 @@ BENCHMARKS = [
         marks=_GPU_SPCONV,
         id="pointpillars/nuscenes",
     ),
-    pytest.param("pointrcnn_benchmark_detection.py", ("--limit", "2"), marks=_CLUSTER_SCATTER, id="pointrcnn/kitti"),
+    pytest.param("pointrcnn_benchmark_detection.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
     pytest.param(
         "voxelnext_benchmark_detection.py",
         ("--split", "mini", "--limit", "2"),
@@ -228,103 +218,83 @@ _SMOKE = ("--limit-train-batches", "2", "--limit-test-batches", "2", "--epochs",
 TRAININGS = [
     pytest.param("dgcnn_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="dgcnn/cls"),
     pytest.param("dgcnn_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="dgcnn/seg"),
-    pytest.param(
-        "kpconv_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="kpconv/cls"
-    ),
-    pytest.param(
-        "kpconv_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="kpconv/seg"
-    ),
+    pytest.param("kpconv_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="kpconv/cls"),
+    pytest.param("kpconv_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="kpconv/seg"),
     pytest.param(
         "octformer_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_GPU_OCTREE, id="octformer/cls"
     ),
     pytest.param(
         "octformer_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_GPU_OCTREE, id="octformer/seg"
     ),
+    pytest.param("pointcnn_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pointcnn/cls"),
+    pytest.param("pointcnn_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pointcnn/seg"),
     pytest.param(
-        "pointcnn_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pointcnn/cls"
-    ),
-    pytest.param(
-        "pointcnn_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="pointcnn/seg"
-    ),
-    pytest.param(
-        "pointconv_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pointconv/cls"
+        "pointconv_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pointconv/cls"
     ),
     pytest.param(
         "point_mamba_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_GPU_MAMBA, id="point_mamba/cls"
     ),
+    pytest.param("pointmlp_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pointmlp/cls"),
+    pytest.param("pointmlp_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pointmlp/seg"),
     pytest.param(
-        "pointmlp_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pointmlp/cls"
+        "pointnet2_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pointnet2/cls"
     ),
     pytest.param(
-        "pointmlp_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="pointmlp/seg"
-    ),
-    pytest.param(
-        "pointnet2_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pointnet2/cls"
-    ),
-    pytest.param(
-        "pointnet2_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="pointnet2/seg"
+        "pointnet2_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pointnet2/seg"
     ),
     pytest.param("pointnet_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pointnet/cls"),
     pytest.param("pointnet_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pointnet/seg"),
     pytest.param(
-        "pointnext_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pointnext/cls"
+        "pointnext_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pointnext/cls"
     ),
     pytest.param(
-        "pointnext_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="pointnext/seg"
+        "pointnext_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pointnext/seg"
     ),
     pytest.param(
         "point_transformer_classification.py",
         (*_SMOKE, "--dataset", "modelnet10"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_transformer/cls",
     ),
     pytest.param(
         "point_transformer_segmentation.py",
         (*_SMOKE, "--dataset", "shapenetpart"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_transformer/seg",
     ),
     pytest.param(
         "point_transformer_v2_classification.py",
         (*_SMOKE, "--dataset", "modelnet10"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_transformer_v2/cls",
     ),
     pytest.param(
         "point_transformer_v2_segmentation.py",
         (*_SMOKE, "--dataset", "shapenetpart"),
-        marks=_CLUSTER_SCATTER,
+        marks=_CLUSTER,
         id="point_transformer_v2/seg",
     ),
     pytest.param(
         "point_transformer_v3_classification.py",
         (*_SMOKE, "--dataset", "modelnet10"),
-        marks=_GPU_SPCONV_SCATTER,
+        marks=_GPU_SPCONV,
         id="point_transformer_v3/cls",
     ),
     pytest.param(
         "point_transformer_v3_segmentation.py",
         (*_SMOKE, "--dataset", "shapenetpart"),
-        marks=_GPU_SPCONV_SCATTER,
+        marks=_GPU_SPCONV,
         id="point_transformer_v3/seg",
     ),
+    pytest.param("pvcnn2_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pvcnn2/cls"),
+    pytest.param("pvcnn2_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pvcnn2/seg"),
+    pytest.param("pvcnn_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="pvcnn/cls"),
+    pytest.param("pvcnn_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="pvcnn/seg"),
     pytest.param(
-        "pvcnn2_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pvcnn2/cls"
+        "randlanet_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="randlanet/cls"
     ),
     pytest.param(
-        "pvcnn2_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="pvcnn2/seg"
-    ),
-    pytest.param(
-        "pvcnn_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="pvcnn/cls"
-    ),
-    pytest.param(
-        "pvcnn_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="pvcnn/seg"
-    ),
-    pytest.param(
-        "randlanet_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER_SCATTER, id="randlanet/cls"
-    ),
-    pytest.param(
-        "randlanet_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER_SCATTER, id="randlanet/seg"
+        "randlanet_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="randlanet/seg"
     ),
     pytest.param(
         "spvcnn_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_GPU_TORCHSPARSE, id="spvcnn/cls"

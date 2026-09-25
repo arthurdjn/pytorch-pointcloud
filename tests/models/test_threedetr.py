@@ -8,11 +8,10 @@ from torch import Tensor
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.threedetr import ThreeDETRDetection, ThreeDETROutput
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE, _TORCH_SCATTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 pytestmark = [
-    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
-    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch-scatter is not installed"),
+    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

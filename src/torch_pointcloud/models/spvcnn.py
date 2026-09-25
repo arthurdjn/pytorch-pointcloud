@@ -25,6 +25,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
@@ -35,12 +36,11 @@ from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, _TORCHSPARSE_GITHUB_URL, optional_import
+from torch_pointcloud.utils.imports import _TORCHSPARSE_GITHUB_URL, optional_import
 
 from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
-    import torch_scatter
     import torchsparse
     import torchsparse.nn as spnn
     import torchsparse.nn.functional as spF
@@ -50,7 +50,6 @@ else:
     _PointTensorBase = object
 
 
-torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_URL)
 torchsparse, _IS_TORCHSPARSE_AVAILABLE = optional_import("torchsparse", url=_TORCHSPARSE_GITHUB_URL)
 spnn, _ = optional_import("torchsparse.nn", url=_TORCHSPARSE_GITHUB_URL)
 spF, _ = optional_import("torchsparse.nn.functional", url=_TORCHSPARSE_GITHUB_URL)
@@ -136,7 +135,7 @@ def initial_voxelize(z: "PointTensor", init_res: float = 1.0, after_res: float =
     sparse_pos = torch.unique(new_int_pos, dim=0)
     idx_query = _sphashquery(new_int_pos, sparse_pos).reshape(-1)
 
-    sparse_feat = torch_scatter.scatter_mean(z.F, idx_query.long(), dim=0)
+    sparse_feat = scatter(z.F, idx_query.long(), dim=0, reduce="mean")
     new_tensor = SparseTensor(sparse_feat, sparse_pos, 1)
     z._caches.idx_query[z.s] = idx_query
     z.C = new_float_pos
@@ -163,7 +162,7 @@ def point_to_voxel(x: "SparseTensor", z: "PointTensor") -> "SparseTensor":
     # Masking keeps the cached idx_query intact; an in-place clamp would destroy the -1 sentinel.
     idx_query = idx_query.reshape(-1)
     valid = idx_query >= 0
-    sparse_feat = torch_scatter.scatter_mean(z.F[valid], idx_query[valid].long(), dim=0, dim_size=x.C.shape[0])
+    sparse_feat = scatter(z.F[valid], idx_query[valid].long(), dim=0, dim_size=x.C.shape[0], reduce="mean")
     new_tensor = SparseTensor(sparse_feat, x.C, x.s)
     new_tensor._caches = x._caches
     return new_tensor

@@ -9,13 +9,6 @@ from torch_geometric.nn.dense.linear import Linear as PyGLinear
 
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNSegmentation
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
-
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = pytest.mark.skipif(
-    not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-scatter is not installed",
-)
 
 
 @pytest.fixture
@@ -144,7 +137,7 @@ def test_pvcnn_segmentation_num_classes_zero_head_is_identity_with_head_channels
 def test_pvconv_voxel_branch_uses_generic_act_and_norm() -> None:
     """Default PVConv builds its voxel branch from the generic `act` / `norm` kwargs.
 
-    No paper-specific defaults are baked into the block — `act="relu"` yields
+    No paper-specific defaults are baked into the block: `act="relu"` yields
     `nn.ReLU` and `norm="batch_norm"` (with `dim=3` inside Conv3dBlock) yields
     `nn.BatchNorm3d` with PyTorch's default eps.
     """
