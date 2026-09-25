@@ -82,14 +82,14 @@ def test_rescale(sample_points: Tensor) -> None:
 
 
 def test_functional_rescale_single_point() -> None:
-    """Test rescale with a single point — centroid subtraction should yield zero, eps prevents div-by-zero."""
+    """Test rescale with a single point: centroid subtraction should yield zero, eps prevents div-by-zero."""
     points = torch.tensor([[5.0, 3.0, 1.0]])
     normalized = F.rescale(points)
     assert torch.allclose(normalized, torch.zeros(1, 3), atol=1e-4)
 
 
 def test_rescale_all_zeros() -> None:
-    """Test rescale with all-zero points — eps prevents division by zero."""
+    """Test rescale with all-zero points: eps prevents division by zero."""
     points = torch.zeros(4, 3)
     normalized = F.rescale(points)
     assert torch.allclose(normalized, torch.zeros(4, 3))

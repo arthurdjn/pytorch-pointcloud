@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 
 from torch_pointcloud.datasets import (
     S3DIS,
+    ModelNet40,
     ModelNetNormalResampled,
     S3DISHdf5,
     ScanNet20,
@@ -29,6 +30,10 @@ def modelnet_resampled_dataset(transform: Optional[Callable] = None) -> ModelNet
         show_progress=False,
         transform=transform,
     )
+
+
+def modelnet40_dataset(transform: Optional[Callable] = None) -> ModelNet40:
+    return ModelNet40(root=DATASETS_DIR, train=False, show_progress=False, transform=transform)
 
 
 def scanobjectnn_dataset(transform: Optional[Callable] = None) -> ScanObjectNN:
@@ -107,6 +112,7 @@ def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI
 def dataset_factory() -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
     constructors: Dict[str, Callable[..., Dataset]] = {
+        "modelnet40": modelnet40_dataset,
         "modelnet_resampled": modelnet_resampled_dataset,
         "scanobjectnn": scanobjectnn_dataset,
         "shapenetpart": shapenetpart_dataset,

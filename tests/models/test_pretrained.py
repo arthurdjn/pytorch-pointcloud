@@ -56,6 +56,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnet2-ssg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
     ("pointnet2-msg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
     ("pointnet2.modelnet40.openpoints", "classification", "modelnet_resampled"),
+    ("octformer-base.modelnet40.octree-nn", "classification", "modelnet40"),
     ("point-mae-base.modelnet40.yatian-pang", "classification", "modelnet_resampled"),
     ("point-mae-base.modelnet40-8k.yatian-pang", "classification", "modelnet_resampled"),
     ("point-bert-base.modelnet40.xumin-yu", "classification", "modelnet_resampled"),
@@ -116,30 +117,26 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("octformer-base.scannet200.octree-nn", "semantic-segmentation", "scannet20"),
     ("dgcnn.scannet20.an-tao", "semantic-segmentation", "scannet20_blocks"),
     ("spunet-v1m1.scannet20.pointcept", "semantic-segmentation", "scannet20"),
+    # Self-supervised pretraining
+    ("point-mae-base.pretrain.yatian-pang", "pretraining", "modelnet_resampled"),
+    ("point-m2ae-base.pretrain.renrui-zhang", "pretraining", "modelnet_resampled"),
+    ("point-bert-base.dvae.xumin-yu", "pretraining", "modelnet_resampled"),
+    ("point-bert-base.pretrain.xumin-yu", "pretraining", "modelnet_resampled"),
+    ("point-mamba-base.pretrain.dingkang-liang", "pretraining", "modelnet_resampled"),
+    ("pointgpt-s.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
+    ("pointgpt-b.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
+    ("pointgpt-l.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
+    ("sonata-base.pretrain.fair", "pretraining", "scannet20"),
+    ("concerto-tiny.pretrain.pointcept", "pretraining", "scannet20"),
+    ("concerto-small.pretrain.pointcept", "pretraining", "scannet20"),
+    ("concerto-base.pretrain.pointcept", "pretraining", "scannet20"),
+    ("concerto-large.pretrain.pointcept", "pretraining", "scannet20"),
+    ("utonia.pretrain.pointcept", "pretraining", "scannet20"),
     # SemanticKITTI based models
     ("randlanet.semantickitti.tsung-han-wu", "semantic-segmentation", "semantickitti"),
     ("spvcnn-30gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-47gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
-]
-
-# Checkpoints without a value snapshot: a strict load still pins their `state_dict` keys.
-LOAD_ONLY_MODELS: List[str] = [
-    "concerto-tiny.pretrain.pointcept",
-    "concerto-small.pretrain.pointcept",
-    "concerto-base.pretrain.pointcept",
-    "concerto-large.pretrain.pointcept",
-    "octformer-base.modelnet40.octree-nn",
-    "point-bert-base.dvae.xumin-yu",
-    "point-bert-base.pretrain.xumin-yu",
-    "point-m2ae-base.pretrain.renrui-zhang",
-    "point-mae-base.pretrain.yatian-pang",
-    "point-mamba-base.pretrain.dingkang-liang",
-    "pointgpt-s.pretrain.guangyan-chen",
-    "pointgpt-b.pretrain.guangyan-chen",
-    "pointgpt-l.pretrain.guangyan-chen",
-    "sonata-base.pretrain.fair",
-    "utonia.pretrain.pointcept",
 ]
 
 
@@ -220,6 +217,10 @@ def test_pretrained_model(
     # Load the pretrained model
     model, info = create_model(model_name, task=task, pretrained=True, return_info=True)  # type: ignore[call-overload]
 
+    # Seed after `create_model`, whose random init would otherwise shift the draws: some transforms sample points
+    # and the pretraining models draw random masks.
+    torch.manual_seed(0)
+
     # Load the dataset / dataloader
     dataset = dataset_factory(dataset_name, transform=info["transform"])
     dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate)
@@ -236,15 +237,14 @@ def test_pretrained_model(
     with torch.no_grad():
         output = model(*select_inputs(data, info["input_keys"]))
 
+    # Pretraining models return several tensors: snapshot them all.
+    if isinstance(output, dict):
+        output = list(output.values())
+    if isinstance(output, (tuple, list)):
+        output = torch.cat([tensor.flatten().float() for tensor in output])
+
     # Ensure output matches snapshot
     _check_output(output, model_name, force_regen, models_dir)
-
-
-@pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", LOAD_ONLY_MODELS)
-def test_pretrained_weights_load(model_name: str) -> None:
-    _skip_if_deps_missing(model_name)
-    create_model(model_name, pretrained=True)
 
 
 @pytest.mark.pretrained
