@@ -331,12 +331,12 @@ def fps(
 
 def local_grid(src: Tensor, size: float, batch: Tensor | None = None) -> Tensor:
     r"""Applies local grid quantization to the source tensor as explained in the paper
-    [TorchSparse++: Efficient node Cloud Engine](https://openaccess.thecvf.com/content/CVPR2023W/WAD/papers/Tang_TorchSparse_Efficient_node_Cloud_Engine_CVPRW_2023_paper.pdf)
+    [TorchSparse++: Efficient Point Cloud Engine](https://openaccess.thecvf.com/content/CVPR2023W/WAD/papers/Tang_TorchSparse_Efficient_Point_Cloud_Engine_CVPRW_2023_paper.pdf)
     by Tang et al., which quantizes the source tensor to a local grid.
 
     Note:
-        If a batch tensor is provided, the function will apply the quantization to each batch separately,
-        ensuring the
+        If a batch tensor is provided, the quantization is applied to each sample separately, so the grid of every
+        sample starts at its own minimum cell.
 
     Args:
         src: The source tensor to quantize of shape $(N, *)$.
