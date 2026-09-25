@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed docstrings typos, and added notice about AI tool usage in CONTRIBUTING.
+
 ## 0.0.8 (2026-09-25)
 
 - Added a checkpoint table to every model page of the docs, generated from the registry, and a comparison with the research codebases to the README.
