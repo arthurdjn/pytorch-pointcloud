@@ -214,8 +214,8 @@ def register_model(
 def cache_path(url: str) -> Path:
     """Return the path a registered weight URL occupies in the models cache.
 
-    A Hub URL `hf://<namespace>/<repo>/resolve/<revision>/<file>` maps to `MODELS_DIR/<repo>/<file>`, so the cache
-    mirrors the repository. Any other URL maps to `MODELS_DIR/<path>`.
+    A Hub URL `hf://<namespace>/<repo>/resolve/<revision>/<file>` maps to `MODELS_DIR/<repo>/<revision>/<file>`, so a
+    checkpoint pinned to a new revision is downloaded again. Any other URL maps to `MODELS_DIR/<path>`.
 
     Args:
         url: The `url` of a registered `WeightsDict`.
@@ -238,7 +238,7 @@ def cache_path(url: str) -> Path:
             raise ValueError(
                 f"Expected a Hub URL of the form hf://<namespace>/<repo>/resolve/<revision>/<file>, got {url!r}."
             )
-        return Path(MODELS_DIR, match["repo"], match["file"])
+        return Path(MODELS_DIR, match["repo"], match["revision"], match["file"])
     return Path(MODELS_DIR, urlparse(url).path.lstrip("/"))
 
 

@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Removed `SoftmaxPool` and `LogSoftmaxPool`, and the `"softmax"` / `"log_softmax"` names of `create_pool`: both always raised.
+- Keyed the weights cache by the pinned revision (`<checkpoint>/<revision>/<file>`), so a checkpoint pinned to new weights downloads them instead of loading the stale file. Weights cached by 0.0.7 and earlier download once more.
 - Replaced the `torch-cluster`, `torch-scatter` and `torch-sparse` imports with their `torch_geometric` equivalents, and required `torch-geometric>=2.8`, so `pyg-lib` is the only PyG kernel package to install.
 
 ## 0.0.7 (2026-09-24)

@@ -123,6 +123,25 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
 ]
 
+# Checkpoints without a value snapshot: a strict load still pins their `state_dict` keys.
+LOAD_ONLY_MODELS: List[str] = [
+    "concerto-tiny.pretrain.pointcept",
+    "concerto-small.pretrain.pointcept",
+    "concerto-base.pretrain.pointcept",
+    "concerto-large.pretrain.pointcept",
+    "octformer-base.modelnet40.octree-nn",
+    "point-bert-base.dvae.xumin-yu",
+    "point-bert-base.pretrain.xumin-yu",
+    "point-m2ae-base.pretrain.renrui-zhang",
+    "point-mae-base.pretrain.yatian-pang",
+    "point-mamba-base.pretrain.dingkang-liang",
+    "pointgpt-s.pretrain.guangyan-chen",
+    "pointgpt-b.pretrain.guangyan-chen",
+    "pointgpt-l.pretrain.guangyan-chen",
+    "sonata-base.pretrain.fair",
+    "utonia.pretrain.pointcept",
+]
+
 
 def _skip_if_deps_missing(model_name: str) -> None:
     """Skip if a backend the model needs isn't installed / no CUDA."""
@@ -219,6 +238,13 @@ def test_pretrained_model(
 
     # Ensure output matches snapshot
     _check_output(output, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", LOAD_ONLY_MODELS)
+def test_pretrained_weights_load(model_name: str) -> None:
+    _skip_if_deps_missing(model_name)
+    create_model(model_name, pretrained=True)
 
 
 @pytest.mark.pretrained
