@@ -16,7 +16,7 @@ from torch_pointcloud.models import (
     list_models,
     register_model,
 )
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, cache_path
 
 
 class DummyClassificationModel(ClassificationModel):
@@ -100,7 +100,7 @@ def _register_pretrained_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
         task="classification",
         weights="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
     )(_dummy_classification)
-    weights_path = tmp_path / "dummy-pretrained" / "model.pt"
+    weights_path = tmp_path / "dummy-pretrained" / "main" / "model.pt"
     weights_path.parent.mkdir(parents=True)
     torch.save(DummyClassificationModel().state_dict(), weights_path)
     yield weights_path
@@ -365,7 +365,7 @@ def test_create_model_pretrained_downloads_missing_weights(tmp_path: Path, monke
 
     assert isinstance(model, DummyClassificationModel)
     assert download.call_args.args[0] == "https://huggingface.co/torch-pointcloud/dummy-download/resolve/v1.0/model.pt"
-    assert (tmp_path / "dummy-download" / "model.pt").exists()
+    assert (tmp_path / "dummy-download" / "v1.0" / "model.pt").exists()
     assert not list(tmp_path.rglob("*.part"))
 
 
@@ -384,4 +384,12 @@ def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeyp
     finally:
         _REGISTERED_MODELS["classification"].pop("dummy-offline.classification", None)
 
-    assert not (tmp_path / "dummy-offline" / "model.pt").exists()
+    assert not (tmp_path / "dummy-offline" / "main" / "model.pt").exists()
+
+
+def test_cache_path_is_keyed_by_revision() -> None:
+    """A checkpoint pinned to a new revision must not reuse the file cached for the previous one."""
+    old = cache_path("hf://torch-pointcloud/ckpt/resolve/aaa/model.safetensors")
+    new = cache_path("hf://torch-pointcloud/ckpt/resolve/bbb/model.safetensors")
+    assert old.parent.name == "aaa"
+    assert old != new
