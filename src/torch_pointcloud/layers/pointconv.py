@@ -1,25 +1,16 @@
 """PointConv message-passing convolutions, with and without density reweighting."""
 
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MessagePassing
-from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor
-from torch_geometric.utils import add_self_loops, remove_self_loops
+from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
+from torch_geometric.utils import add_self_loops, remove_self_loops, scatter
 from typing_extensions import Unpack
 
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, _TORCH_SPARSE_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import MessagePassingParams
-
-if TYPE_CHECKING:
-    import torch_sparse
-    from torch_scatter import scatter_max
-
-
-torch_sparse, _ = optional_import("torch_sparse", url=_TORCH_SPARSE_GITHUB_URL)
-scatter_max, _ = optional_import("torch_scatter", "scatter_max", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PointConv(MessagePassing):
@@ -153,7 +144,7 @@ class PointConvDensity(MessagePassing):
         h = self.local_nn(feat)
         w = self.weight_nn(pos_rel)
 
-        max_density, _ = scatter_max(density_j, index, dim=0)
+        max_density = scatter(density_j, index, dim=0, reduce="max")
         density_rel = density_j / (max_density[index])
         density_scale = self.density_nn(density_rel)
         h = h * density_scale

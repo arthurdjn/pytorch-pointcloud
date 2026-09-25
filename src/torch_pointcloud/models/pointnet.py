@@ -3,7 +3,7 @@
 {{ paper("1612.00593") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -16,15 +16,9 @@ from torch_pointcloud.layers import (
     create_pool,
 )
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 
 from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import register_model
-
-if TYPE_CHECKING:
-    from torch_scatter import scatter
-
-scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class PointNetEncoder(nn.Module):

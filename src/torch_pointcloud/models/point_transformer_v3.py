@@ -1101,7 +1101,7 @@ class PointTransformerV3Classification(ClassificationModel):
     This implementation is based on the original implementation from :github: [Pointcept](https://github.com/Pointcept/Pointcept).
 
     Important:
-        This model requires `spconv`, `torch-scatter` to be installed.
+        This model requires `spconv` to be installed.
         It is also recommended to install `flash-attn` for faster attention. The registered
         configurations construct with `use_flash_attn=True`, which requires `flash-attn` and a CUDA
         device; pass `use_flash_attn=False` to run without it. The xCPE sparse convolution still

@@ -56,7 +56,7 @@ dependencies = [
     "scipy>=1.10.0",
     # torch-geometric 2.8 runs its neighbor search and voxel grid through `pyg-lib>=0.6`, which is built for torch 2.8+.
     "torch>=2.8.0,<3.0.0",
-    "torch-geometric>=2.6.1",
+    "torch-geometric>=2.8.0",
     "tqdm>=4.67.1",
     "typing-extensions>=4.10.0",
 ]

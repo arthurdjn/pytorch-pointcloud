@@ -1,24 +1,17 @@
 """Neighbor search and grouping: kNN, FPS, radius queries, local grids, and kNN interpolation."""
 
-from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Union, overload
+from typing import List, Literal, Optional, Tuple, Union, overload
 
 import torch
 import torch.nn.functional as F
+import torch_geometric.nn.pool as pool
 from torch import Tensor
+from torch_geometric.utils import scatter
 
 from torch_pointcloud.config import FPS_RANDOM_START, KNN_DENSE_BUDGET
 
 from .conversion import ensure_option
-from .imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from .types import OptTensor
-
-if TYPE_CHECKING:
-    import torch_cluster
-    from torch_scatter import scatter, scatter_min
-
-scatter, _ = optional_import("torch_scatter", name="scatter", url=_TORCH_SCATTER_GITHUB_URL)
-scatter_min, _ = optional_import("torch_scatter", name="scatter_min", url=_TORCH_SCATTER_GITHUB_URL)
-torch_cluster, _ = optional_import("torch_cluster", url=_TORCH_CLUSTER_GITHUB_URL)
 
 
 def _check_sorted_batch(batch: Tensor, name: str) -> None:
@@ -46,17 +39,17 @@ def knn(
     batch_size: Optional[int] = None,
 ) -> Tensor:
     r"""Find the $k$ nearest neighbors in $x$ for each point in $y$.
-    This function is a wrapper around the `torch_cluster.knn` function, and supports the same arguments.
+    This function is a wrapper around the `torch_geometric.nn.pool.knn` function, and supports the same arguments.
     However, in case the `batch_x` and `batch_y` tensors are provided, and the samples have the same number of nodes,
     this function uses a more efficient implementation that is significantly faster on GPU using `torch.cdist` + `topk`.
 
     Important:
         If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
-        (both the dense fast path and `torch_cluster` require it); unsorted batches raise a `ValueError`.
+        (both the dense fast path and `torch_geometric` require it); unsorted batches raise a `ValueError`.
 
     Note:
         When a point of $y$ coincides with a point of $x$ (e.g. `knn(pos, pos, k)`), the query point
-        itself counts among the $k$ neighbors, matching `torch_cluster.knn`.
+        itself counts among the $k$ neighbors, matching `torch_geometric.nn.pool.knn`.
 
     Args:
         x: The source tensor to find the nearest neighbors of shape $(N, *)$.
@@ -78,8 +71,8 @@ def knn(
     if batch_y is not None:
         _check_sorted_batch(batch_y, "batch_y")
 
-    def _torch_cluster_knn() -> Tensor:
-        return torch_cluster.knn(
+    def _sparse_knn() -> Tensor:
+        return pool.knn(
             x=x,
             y=y,
             k=k,
@@ -91,22 +84,22 @@ def knn(
         )
 
     if batch_x is None or batch_y is None:
-        return _torch_cluster_knn()
+        return _sparse_knn()
 
     counts_x = batch_x.bincount()
     counts_y = batch_y.bincount()
 
     if counts_x.numel() == 0 or not (counts_x[0] == counts_x).all() or not (counts_y[0] == counts_y).all():
-        return _torch_cluster_knn()
+        return _sparse_knn()
 
     N_x = int(counts_x[0].item())
     N_y = int(counts_y[0].item())
     B = counts_x.numel()
 
     # cdist materialises the full $(B, N, N)$ distance matrix; fall back to the
-    # streaming `torch_cluster` implementation for larger clouds.
+    # streaming `torch_geometric` implementation for larger clouds.
     if B * N_x * N_y > KNN_DENSE_BUDGET or N_x < k:
-        return _torch_cluster_knn()
+        return _sparse_knn()
 
     x_3d = x.view(B, N_x, -1)
     y_3d = y.view(B, N_y, -1)
@@ -139,14 +132,14 @@ def knn_graph(
 ) -> Tensor:
     r"""Compute the kNN graph of $x$.
 
-    This function is a drop-in for `torch_cluster.knn_graph`, except that when the
+    This function is a drop-in for `torch_geometric.nn.pool.knn_graph`, except that when the
     `batch` tensor partitions the points into uniformly-sized samples this function
     uses a `torch.cdist` + `topk` implementation that is significantly faster on GPU
-    than the underlying `torch_cluster.knn_graph`.
+    than the underlying `torch_geometric.nn.pool.knn_graph`.
 
     Important:
         If provided, the `batch` tensor must be sorted in non-decreasing order (both the dense
-        fast path and `torch_cluster` require it); an unsorted batch raises a `ValueError`.
+        fast path and `torch_geometric` require it); an unsorted batch raises a `ValueError`.
 
     Args:
         x: The input tensor of shape $(N, *)$.
@@ -157,8 +150,8 @@ def knn_graph(
         flow: Either `"source_to_target"` (PyG default, `edge_index = (src, dst)`
             where `src` is the neighbor and `dst` is the central point) or `"target_to_source"`.
         cosine: Whether to use cosine distance.
-        num_workers: Forwarded to the `torch_cluster` fallback.
-        batch_size: Forwarded to the `torch_cluster` fallback.
+        num_workers: Forwarded to the `torch_geometric` fallback.
+        batch_size: Forwarded to the `torch_geometric` fallback.
 
     Returns:
         Edge index of shape $(2, k \cdot N)$.
@@ -167,8 +160,8 @@ def knn_graph(
     if batch is not None:
         _check_sorted_batch(batch, "batch")
 
-    def _torch_cluster_knn_graph() -> Tensor:
-        return torch_cluster.knn_graph(
+    def _sparse_knn_graph() -> Tensor:
+        return pool.knn_graph(
             x=x,
             k=k,
             batch=batch,
@@ -180,21 +173,21 @@ def knn_graph(
         )
 
     if batch is None:
-        return _torch_cluster_knn_graph()
+        return _sparse_knn_graph()
 
     counts = batch.bincount()
     if counts.numel() == 0 or not (counts[0] == counts).all():
-        return _torch_cluster_knn_graph()
+        return _sparse_knn_graph()
 
     N = int(counts[0].item())
     B = counts.numel()
     if loop and N < k or not loop and N < k + 1:
-        return _torch_cluster_knn_graph()
+        return _sparse_knn_graph()
 
     # cdist materialises the full $(B, N, N)$ distance matrix; fall back to the
-    # streaming `torch_cluster` implementation for larger clouds.
+    # streaming `torch_geometric` implementation for larger clouds.
     if B * N * N > KNN_DENSE_BUDGET:
-        return _torch_cluster_knn_graph()
+        return _sparse_knn_graph()
 
     x_3d = x.view(B, N, -1)
     if cosine:
@@ -241,8 +234,8 @@ def fps(
     by Qi et al., which iteratively samples the most distant point with regard
     to the rest points.
 
-    This function is adapted from the `torch_cluster.fps` function and supports a sampling a
-    fixed number of nodes with the `num_nodes` argument.
+    This function wraps `torch_geometric.nn.pool.fps` and supports sampling a fixed number of nodes per sample
+    with the `num_nodes` argument.
 
     Important:
         If provided, the `batch` tensor is expected to be sorted.
@@ -292,34 +285,28 @@ def fps(
                 "at least one point per sample."
             )
 
-    if ratio is not None:
-        return torch_cluster.fps(
-            src,
-            batch=batch,
-            ratio=ratio,
-            random_start=random_start,
-            batch_size=batch_size,
-            ptr=ptr,
-        )
-
     if ptr is not None:
         ptr = torch.as_tensor(ptr, dtype=torch.long, device=src.device)
-        node_counts = ptr[1:] - ptr[:-1]
         if batch_size is None:
-            batch_size = node_counts.numel()
+            batch_size = ptr.numel() - 1
+        batch = torch.repeat_interleave(torch.arange(ptr.numel() - 1, device=src.device), ptr[1:] - ptr[:-1])
+
+    if ratio is not None and not (isinstance(ratio, Tensor) and ratio.numel() > 1):
+        return pool.fps(src, batch, ratio=float(ratio), random_start=random_start, batch_size=batch_size)
+
+    if batch is not None:
+        if batch_size is None:
+            batch_size = int(batch.max()) + 1
+        node_counts = batch.bincount(minlength=batch_size)
+        ptr = torch.cat([torch.zeros(1, dtype=torch.long, device=src.device), node_counts.cumsum(0)])
     else:
-        if batch is not None:
-            if batch_size is None:
-                batch_size = int(batch.max()) + 1
+        node_counts = torch.tensor([src.size(0)], device=src.device)
+        batch_size = 1
+        ptr = torch.tensor([0, src.size(0)], device=src.device)
 
-            node_counts = batch.bincount(minlength=batch_size)
-            ptr = torch.cat([torch.zeros(1, dtype=torch.long, device=src.device), node_counts.cumsum(0)])
-        else:
-            node_counts = torch.tensor([src.size(0)], device=src.device)
-            batch_size = 1
-            ptr = torch.tensor([0, src.size(0)], device=src.device)
-
-    if isinstance(num_nodes, (int, float)):
+    if isinstance(ratio, Tensor):
+        req_nodes = (node_counts.to(ratio.dtype) * ratio.to(src.device)).ceil().long()
+    elif isinstance(num_nodes, (int, float)):
         req_nodes = torch.full((batch_size,), int(num_nodes), dtype=torch.long, device=src.device)
     else:
         req_nodes = torch.as_tensor(num_nodes, dtype=torch.long, device=src.device)
@@ -328,8 +315,10 @@ def fps(
         elif req_nodes.size(0) != batch_size:
             raise ValueError(f"Size of `num_nodes` ({req_nodes.size(0)}) must match batch size ({batch_size}).")
 
-    req_ratios = req_nodes.float() / node_counts.float()
-    idx = torch_cluster.fps(src, ratio=req_ratios, random_start=random_start, ptr=ptr)
+    # FPS takes one ratio for the whole batch. It is greedy, so sampling every sample at the largest requested
+    # ratio and keeping the first `req_nodes` indices of each gives the same indices as a per-sample ratio.
+    max_ratio = (req_nodes.double() / node_counts.clamp(min=1).double()).max().item()
+    idx = pool.fps(src, batch, ratio=max_ratio, random_start=random_start, batch_size=batch_size)
 
     sampled_batch = torch.searchsorted(ptr, idx, right=True) - 1
     sampled_counts = sampled_batch.bincount(minlength=batch_size)
@@ -375,7 +364,7 @@ def local_grid(src: Tensor, size: float, batch: Tensor | None = None) -> Tensor:
     if batch is None:
         src_min, _ = src_quantized.min(0)
     else:
-        src_min, _ = scatter_min(src_quantized, batch, dim=0)
+        src_min = scatter(src_quantized, batch, dim=0, reduce="min")
         src_min = src_min[batch]
 
     return src_quantized - src_min
@@ -390,9 +379,9 @@ def radius(
     max_num_neighbors: int = 32,
     sort: bool = False,
 ) -> tuple[Tensor, Tensor]:
-    r"""`torch_cluster.radius` wrapper with an optional sort-by-source-index tie-breaker.
+    r"""`torch_geometric.nn.pool.radius` wrapper with an optional sort-by-source-index tie-breaker.
 
-    With `sort=False` (default) this just delegates to `torch_cluster.radius` and
+    With `sort=False` (default) this just delegates to `torch_geometric.nn.pool.radius` and
     returns edges in kernel-traversal order. With `sort=True`, when more than
     `max_num_neighbors` source points lie inside a ball, the $k$ smallest source
     indices are kept (PointNet++'s reference `query_ball_point` behavior). Pretrained
@@ -401,7 +390,7 @@ def radius(
 
     Important:
         If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
-        (`torch_cluster.radius` requires it); unsorted batches raise a `ValueError`.
+        (`torch_geometric.nn.pool.radius` requires it); unsorted batches raise a `ValueError`.
 
     Args:
         x: Source positions, shape $(N_x, d)$.
@@ -424,10 +413,10 @@ def radius(
     if batch_y is not None:
         _check_sorted_batch(batch_y, "batch_y")
     if not sort:
-        edge_index = torch_cluster.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
+        edge_index = pool.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
         return edge_index[0], edge_index[1]
 
-    # Custom sort-by-source-index ball query. Asking `torch_cluster.radius` for the
+    # Custom sort-by-source-index ball query. Asking `radius` for the
     # full `max_num_neighbors=Nx` over-allocates memory; instead we materialise the
     # squared-distance matrix per batch element (bounded by $(N_y^b \cdot N_x^b)$).
     device = x.device
@@ -598,7 +587,7 @@ def knn_interpolate(
       $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))$
 
     Note:
-        Adapted from the `torch_geometric` package. Requires `torch-cluster`.
+        Adapted from the `torch_geometric` package.
 
     Args:
         x: Node feature matrix $\mathbf{X} \in \mathbb{R}^{N \times F}$.
@@ -622,7 +611,7 @@ def knn_interpolate(
     weighting = ensure_option(weighting, ("squared", "inverse"), name="weighting")
 
     with torch.no_grad():
-        assign_index = torch_cluster.knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
+        assign_index = pool.knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
         y_idx, x_idx = assign_index[0], assign_index[1]
         diff = pos_x[x_idx] - pos_y[y_idx]
         squared_distance = (diff * diff).sum(dim=-1, keepdim=True)

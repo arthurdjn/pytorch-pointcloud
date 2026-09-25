@@ -15,10 +15,9 @@ from torch_pointcloud.utils.imports import (
     _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
     _SPCONV_AVAILABLE,
     _SPTR_AVAILABLE,
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
 from torch_pointcloud.utils.octree import build_octree
@@ -218,15 +217,15 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn")) and not _TORCH_CLUSTER_AVAILABLE:
-        pytest.skip("torch_cluster is not installed")
+    if model_name.startswith(("3detr", "pointrcnn")) and not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
     if model_name.startswith("sphereformer") and not (_SPCONV_AVAILABLE and _SPTR_AVAILABLE):
         pytest.skip("spconv or sptr is not installed")
 
 
-# Models whose `forward` cannot run on the synthetic `data_factory` input — they expect
+# Models whose `forward` cannot run on the synthetic `data_factory` input: they expect
 # serialized / octree-encoded inputs that the factory doesn't emit yet.
 _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
     {
@@ -353,8 +352,8 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize("model_name", CLASSIFICATION_MODELS)
 def test_classification_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
@@ -385,8 +384,8 @@ def test_classification_architecture(model_name: str, force_regen: bool, models_
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize("model_name", SEMANTIC_SEGMENTATION_MODELS)
 def test_semantic_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
@@ -417,8 +416,8 @@ def test_semantic_segmentation_architecture(model_name: str, force_regen: bool, 
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize("model_name", PART_SEGMENTATION_MODELS)
 def test_part_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
@@ -449,8 +448,8 @@ def test_part_segmentation_architecture(model_name: str, force_regen: bool, mode
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize("model_name", DETECTION_MODELS)
 def test_detection_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
@@ -482,8 +481,8 @@ def test_detection_architecture(model_name: str, force_regen: bool, models_dir_f
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize("model_name", PRETRAINING_MODELS)
 def test_pretraining_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
@@ -591,8 +590,8 @@ UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-b
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize(
     "model_name,task",
@@ -632,8 +631,8 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize(
     "model_name,task",
@@ -690,8 +689,8 @@ def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int =
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize(
     "model_name,model_kwargs",
@@ -794,8 +793,8 @@ def test_registered_weights_urls_name_the_hub_repo() -> None:
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize(
     "model_name,task",
@@ -853,8 +852,8 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
 
 
 @pytest.mark.skipif(
-    not _TORCH_CLUSTER_AVAILABLE and not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-cluster or torch-scatter is not installed",
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
 )
 @pytest.mark.parametrize(
     "model_name,task",

@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
@@ -22,7 +23,6 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _MAMBA_SSM_GITHUB_URL,
     _SPCONV_GITHUB_URL,
-    _TORCH_SCATTER_GITHUB_URL,
     optional_import,
 )
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -33,13 +33,11 @@ from ._registry import WeightsDict, register_model
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from mamba_ssm.ops.selective_scan_interface import mamba_inner_fn
-    from torch_scatter import scatter_add
 
 spconv, _IS_SPCONV_AVAILABLE = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 mamba_inner_fn, _ = optional_import(
     "mamba_ssm.ops.selective_scan_interface", "mamba_inner_fn", url=_MAMBA_SSM_GITHUB_URL
 )
-scatter_add, _ = optional_import("torch_scatter", "scatter_add", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class BiMamba(nn.Module):
@@ -386,7 +384,7 @@ class PatchMerging3D(nn.Module):
         merge_indices = pos[:, 0].int() * scale_xyz + pos[:, 3] * scale_yz + pos[:, 2] * scale_z + pos[:, 1]
         new_sparse_shape = [math.ceil(x.spatial_shape[i] / down_scale[2 - i]) for i in range(3)]
         unq_indices, unq_inv = torch.unique(merge_indices, return_inverse=True)
-        x_merge = scatter_add(final_diffusion_feats, unq_inv, dim=0)
+        x_merge = scatter(final_diffusion_feats, unq_inv, dim=0, reduce="sum")
 
         unq_indices = unq_indices.int()
         voxel_indices = torch.stack(

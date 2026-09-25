@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.utils.cluster import fps, group, knn, knn_graph, radius
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def test_fps_with_ratio_and_num_nodes() -> None:
@@ -14,33 +14,46 @@ def test_fps_with_ratio_and_num_nodes() -> None:
         fps(sentinel.src, ratio=sentinel.ratio, num_nodes=sentinel.num_nodes)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
-@patch("torch_pointcloud.utils.cluster.torch_cluster.fps")
+@patch("torch_pointcloud.utils.cluster.pool.fps")
 def test_fps_with_ratio(mock_fps: Mock) -> None:
-    """Test that the utility fps wraps the torch_cluster.fps function and passes the correct arguments."""
+    """Test that the utility fps wraps `torch_geometric.nn.pool.fps` and passes the correct arguments."""
     src = torch.randn(6, 3)
     batch = torch.zeros(6, dtype=torch.long)
     out = fps(
         src,
         batch=batch,
-        ratio=sentinel.ratio,
+        ratio=0.5,
         batch_size=sentinel.batch_size,
-        ptr=sentinel.ptr,
         random_start=sentinel.random_start,
     )
 
     mock_fps.assert_called_once()
     call = mock_fps.call_args
     assert call.args[0] is src
-    assert call.kwargs["batch"] is batch
-    assert call.kwargs["ratio"] is sentinel.ratio
+    assert call.args[1] is batch
+    assert call.kwargs["ratio"] == 0.5
     assert call.kwargs["random_start"] is sentinel.random_start
     assert call.kwargs["batch_size"] is sentinel.batch_size
-    assert call.kwargs["ptr"] is sentinel.ptr
     assert out is mock_fps.return_value
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_fps_num_nodes_matches_per_sample_fps() -> None:
+    """A fixed count on clouds of uneven sizes gives, per cloud, the indices of running FPS on that cloud alone."""
+    torch.manual_seed(0)
+    sizes = [7, 300, 64]
+    src = torch.randn(sum(sizes), 3)
+    batch = torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes))
+    ptr = [0, 7, 307, 371]
+
+    out = fps(src, batch, num_nodes=32, random_start=False)
+
+    expected = [fps(src[ptr[i] : ptr[i + 1]], num_nodes=32, random_start=False) + ptr[i] for i in range(len(sizes))]
+    assert torch.equal(out, torch.cat(expected))
+    assert torch.equal(fps(src, ptr=ptr, num_nodes=32, random_start=False), out)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_fps_with_num_nodes_repeat() -> None:
     """Test fps with num_nodes using real tensors.
     Verifies that if num_nodes > number of points, the first selected node is repeated."""
@@ -59,7 +72,7 @@ def test_fps_with_num_nodes_repeat() -> None:
     assert torch.equal(out[5:], torch.tensor([6, 7, 8, 6, 6]))
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_group_shapes_and_overloads() -> None:
     """group densifies a variable-length packed batch into a regular $(B, G, k, 3)$ tensor; the
     return_indices overload adds the flat neighbor index without changing center / neighborhood."""
@@ -78,7 +91,7 @@ def test_group_shapes_and_overloads() -> None:
     assert torch.equal(neighborhood, neighborhood_idx)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_group_recenters_on_its_centers() -> None:
     """Each neighborhood is recentered on its center, which is its own nearest neighbor, so every
     group contains an exactly-zero relative position."""
@@ -91,7 +104,7 @@ def test_group_recenters_on_its_centers() -> None:
     assert bool(has_self.all())
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_group_idx_indexes_packed_input() -> None:
     """The returned idx is the flat neighbor index into the packed input: gathering pos at idx and
     recentering reproduces the neighborhood exactly (two scenes of different sizes)."""
@@ -104,7 +117,7 @@ def test_group_idx_indexes_packed_input() -> None:
     assert torch.equal(gathered, neighborhood)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_group_scene_smaller_than_num_group() -> None:
     """A scene with fewer points than num_groups still densifies (FPS repeats points), so the packed
     $(B, G, k, 3)$ shape holds even for degenerate scenes mixed with normal ones."""
@@ -117,7 +130,7 @@ def test_group_scene_smaller_than_num_group() -> None:
     assert center.shape == (2, 64, 3)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_group_scene_smaller_than_group_size_raises() -> None:
     """A scene with fewer points than group_size cannot yield full k-NN neighborhoods, so group
     raises a clear ValueError instead of a reshape RuntimeError."""
@@ -129,7 +142,7 @@ def test_group_scene_smaller_than_group_size_raises() -> None:
         group(pos, batch, num_groups=64, group_size=32)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_group_deterministic_without_random_start() -> None:
     """random_start=False makes the grouping reproducible run-to-run."""
     torch.manual_seed(0)
@@ -147,7 +160,7 @@ def test_group_deterministic_without_random_start() -> None:
 def test_group_calls_fps_and_knn_with_correct_params(mock_fps: Mock, mock_knn: Mock) -> None:
     """group delegates to the internal fps / knn: fps gets the cloud, the batch, num_nodes=num_groups
     and the threaded random_start; knn gets the cloud, the FPS centers, group_size and the matching
-    per-sample batch indices. fps / knn are mocked, so no torch_cluster is needed."""
+    per-sample batch indices. fps / knn are mocked, so no pyg-lib is needed."""
     pos = torch.randn(8, 3)
     batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
     idx_center = torch.tensor([0, 1, 4, 5])
@@ -202,7 +215,7 @@ def test_radius_unsorted_batch_raises() -> None:
 
 
 def test_cluster_ops_reject_padded_input() -> None:
-    """A padded $(B, N, D)$ tensor must raise a packed-layout error, not fail deep inside torch-cluster."""
+    """A padded $(B, N, D)$ tensor must raise a packed-layout error, not fail deep inside the kernel."""
     padded = torch.randn(2, 8, 3)
     batch = torch.zeros(16, dtype=torch.long)
     with pytest.raises(ValueError, match="packed 2D tensor"):
@@ -217,7 +230,7 @@ def test_cluster_ops_reject_padded_input() -> None:
 
 def test_fps_empty_sample_raises() -> None:
     """A `batch` whose id range skips a sample (e.g. 1-based ids, or a cloud emptied by a mask) must raise a
-    contiguity error instead of failing deep inside torch-cluster."""
+    contiguity error instead of failing deep inside the kernel."""
     pos = torch.randn(8, 3)
     with pytest.raises(ValueError, match="no points for sample 0"):
         fps(pos, torch.ones(8, dtype=torch.long), num_nodes=2)
@@ -227,7 +240,7 @@ def test_fps_empty_sample_raises() -> None:
 
 def test_fps_src_batch_length_mismatch_raises() -> None:
     """A `src` / `batch` length mismatch must raise a ValueError naming both lengths, on the `ratio` path
-    too, instead of a bare AssertionError deep inside torch-cluster."""
+    too, instead of a bare AssertionError deep inside the kernel."""
     src = torch.randn(100, 3)
     batch = torch.zeros(90, dtype=torch.long)
     with pytest.raises(ValueError, match=r"Size of `src` \(100\) must match size of `batch` \(90\)"):
@@ -240,8 +253,8 @@ def _edge_set(edge_index: Tensor) -> set:
     return set(map(tuple, edge_index.t().tolist()))
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
-def test_knn_dense_fast_path_matches_torch_cluster(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_knn_dense_fast_path_matches_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     torch.manual_seed(0)
     x = torch.randn(20, 3)
     y = torch.randn(10, 3)
@@ -254,9 +267,9 @@ def test_knn_dense_fast_path_matches_torch_cluster(monkeypatch: pytest.MonkeyPat
     assert _edge_set(dense) == _edge_set(fallback)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 @pytest.mark.parametrize("loop", [pytest.param(False, id="no-loop"), pytest.param(True, id="loop")])
-def test_knn_graph_dense_fast_path_matches_torch_cluster(monkeypatch: pytest.MonkeyPatch, loop: bool) -> None:
+def test_knn_graph_dense_fast_path_matches_fallback(monkeypatch: pytest.MonkeyPatch, loop: bool) -> None:
     torch.manual_seed(0)
     x = torch.randn(16, 3)
     batch = torch.repeat_interleave(torch.arange(2), 8)
@@ -267,7 +280,7 @@ def test_knn_graph_dense_fast_path_matches_torch_cluster(monkeypatch: pytest.Mon
     assert _edge_set(dense) == _edge_set(fallback)
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_radius_returns_tuple_in_both_paths() -> None:
     torch.manual_seed(0)
     x = torch.randn(12, 3)
@@ -279,7 +292,7 @@ def test_radius_returns_tuple_in_both_paths() -> None:
     assert isinstance(out_sorted, tuple) and len(out_sorted) == 2
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_radius_sort_keeps_smallest_source_indices() -> None:
     # All 6 sources fall inside every ball; with k=3 and sort=True the 3 smallest
     # per-batch source indices are kept for every query.

@@ -10,13 +10,11 @@ from torch_pointcloud.models.pointgpt import (
 )
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
 )
 
 pytestmark = [
-    pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch_cluster is not available"),
-    pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not available"),
+    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
 

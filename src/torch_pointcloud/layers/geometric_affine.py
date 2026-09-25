@@ -1,28 +1,18 @@
 """PointMLP grouping convolution with geometric affine neighborhood normalization."""
 
-from typing import TYPE_CHECKING, Literal, Union
+from typing import Literal, Union
 
 import torch
 import torch.nn as nn
 import torch_geometric.nn.inits as inits
 from torch import Tensor
 from torch_geometric.nn import MessagePassing
-from torch_geometric.typing import Adj, SparseTensor
-from torch_geometric.utils import add_self_loops, remove_self_loops
+from torch_geometric.typing import Adj, SparseTensor, torch_sparse
+from torch_geometric.utils import add_self_loops, remove_self_loops, scatter
 from typing_extensions import Unpack
 
 from torch_pointcloud.utils.conversion import ensure_option
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, _TORCH_SPARSE_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import MessagePassingParams, OptTensor, PairTensor
-
-if TYPE_CHECKING:
-    import torch_sparse
-    from torch_scatter import scatter_mean
-
-
-torch_sparse, _ = optional_import("torch_sparse", url=_TORCH_SPARSE_GITHUB_URL)
-scatter_mean, _ = optional_import("torch_scatter", "scatter_mean", url=_TORCH_SCATTER_GITHUB_URL)
-
 
 NormalizeType = Literal["center", "anchor"]
 StdModeType = Literal["graph", "batch"]
@@ -137,7 +127,7 @@ class GeometricAffineConv(MessagePassing):
         if self.normalize == "anchor":
             mean = msg_i
         elif self.normalize == "center":
-            local_mean = scatter_mean(msg_j, index, dim=0)
+            local_mean = scatter(msg_j, index, dim=0, reduce="mean")
             mean = local_mean[index]
 
         msg = msg_j - mean
@@ -147,7 +137,7 @@ class GeometricAffineConv(MessagePassing):
         else:
             edge_batch = batch[index]
             sq_msg_mean_c = msg.pow(2).mean(dim=-1)
-            sigma_sq = scatter_mean(sq_msg_mean_c, edge_batch, dim=0)
+            sigma_sq = scatter(sq_msg_mean_c, edge_batch, dim=0, reduce="mean")
             sigma = torch.sqrt(sigma_sq + self.eps)
             msg = msg / sigma[edge_batch].view(-1, 1)
 

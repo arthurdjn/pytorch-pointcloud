@@ -3,13 +3,14 @@
 {{ paper("2210.05666") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_geometric.nn.pool import voxel_grid
+from torch_geometric.nn.pool import knn_graph, voxel_grid
+from torch_geometric.utils import scatter, segment
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import (
@@ -23,17 +24,8 @@ from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentat
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_GITHUB_URL, _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.ops import softmax
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
-
-if TYPE_CHECKING:
-    from torch_cluster import knn_graph
-    from torch_scatter import scatter_sum, segment_csr
-
-knn_graph, _ = optional_import("torch_cluster", name="knn_graph", url=_TORCH_CLUSTER_GITHUB_URL)
-scatter_sum, _ = optional_import("torch_scatter", name="scatter_sum", url=_TORCH_SCATTER_GITHUB_URL)
-segment_csr, _ = optional_import("torch_scatter", name="segment_csr", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class GroupedVectorAttention(nn.Module):
@@ -136,7 +128,7 @@ class GroupedVectorAttention(nn.Module):
         value = value.reshape(-1, self.num_groups, self.channels // self.num_groups)
         x = value * weight.unsqueeze(-1)
         x = x.reshape(-1, self.channels)
-        x = scatter_sum(x, col, dim=0)
+        x = scatter(x, col, dim=0, reduce="sum")
         return x
 
 
@@ -247,7 +239,7 @@ class PointTransformerV2GridPool(nn.Module):
 
         # NOTE: evaluate difference with this version
         # and the consecutive_cluster version in kpconv.py
-        start = segment_csr(
+        start = segment(
             pos,
             torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)]),
             reduce="min",
@@ -256,8 +248,8 @@ class PointTransformerV2GridPool(nn.Module):
         _, cluster, counts = torch.unique(cluster, sorted=True, return_inverse=True, return_counts=True)
         _, sorted_cluster_indices = torch.sort(cluster)
         idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
-        pos = segment_csr(pos[sorted_cluster_indices], idx_ptr, reduce="mean")
-        x = segment_csr(x[sorted_cluster_indices], idx_ptr, reduce=self.reduce)
+        pos = segment(pos[sorted_cluster_indices], idx_ptr, reduce="mean")
+        x = segment(x[sorted_cluster_indices], idx_ptr, reduce=self.reduce)
         batch = batch[idx_ptr[:-1]]
 
         if return_inverse:
@@ -733,8 +725,7 @@ class PointTransformerV2Classification(ClassificationModel):
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
 
     Note:
-        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) and
-        :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+        This implementation requires :github: [`pyg-lib`](https://github.com/pyg-team/pyg-lib) to be installed.
 
     Args:
         in_channels: Number of input channels.
@@ -944,8 +935,7 @@ class PointTransformerV2Segmentation(SemanticSegmentationModel):
     by Xiaoyang Wu, Yixing Lao, Li Jiang, Xihui Liu, Hengshuang Zhao.
 
     Note:
-        This implementation requires :github: [`torch-cluster`](https://github.com/rusty1s/pytorch_cluster) and
-        :github: [`torch-scatter`](https://github.com/rusty1s/pytorch_scatter) to be installed.
+        This implementation requires :github: [`pyg-lib`](https://github.com/pyg-team/pyg-lib) to be installed.
 
     Args:
         in_channels: Number of input channels.

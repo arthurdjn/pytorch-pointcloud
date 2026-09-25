@@ -78,17 +78,12 @@ A PyTorch library for deep learning on point clouds: models, pretrained weights,
 
 ## Installation
 
-Install the library with `pip` (or `uv`):
-
 ```bash
 pip install torch-pointcloud
 ```
 
-> [!IMPORTANT]
-> It is recommended that you install a pinned version of torch first and select the extra dependencies based on it (`pyg-lib`, `torch-cluster`, `torch-scatter`).
->
-> The other CUDA extensions (spconv, flash-attention, Mamba, ocnn, torchsparse) are only needed by the architectures
-> that use them. See the [Installation](https://pytorch-pointcloud.org/latest/installation/) page for more details.
+Most models also need `pyg-lib`, and some a CUDA extension (`spconv`, `flash-attn`, ...), built for your torch and
+CUDA versions. The [installation](https://pytorch-pointcloud.org/latest/installation/) page writes the commands.
 
 <br>
 
@@ -98,7 +93,7 @@ pip install torch-pointcloud
 import torch
 import torch_pointcloud as tp
 
-# Requires torch-cluster, torch-scatter
+# Requires pyg-lib
 model = tp.create_model(
     "pointnext-sm.scanobjectnn-hardest.openpoints",
     task="classification",
@@ -118,7 +113,7 @@ Each checkpoint ships the transform that turns a raw point cloud into what the n
 ```python
 import torch_pointcloud as tp
 
-# Requires torch-scatter, torch-cluster, spconv
+# Requires spconv and flash-attn
 model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="semantic-segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
 info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}

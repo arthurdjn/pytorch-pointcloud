@@ -2,13 +2,6 @@ import pytest
 import torch
 
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
-
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = pytest.mark.skipif(
-    not _TORCH_SCATTER_AVAILABLE,
-    reason="torch-scatter is not installed",
-)
 
 
 def test_serialized_pool_forward() -> None:

@@ -6,7 +6,7 @@ import torch
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.transforms import Voxelize
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def test_center_bbox() -> None:
@@ -53,7 +53,7 @@ def test_quantize() -> None:
     assert torch.equal(in_place["pos"], result["pos_grid"])
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster not installed")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_estimate_normals() -> None:
     grid = torch.linspace(-1.0, 1.0, 20)
     xx, yy = torch.meshgrid(grid, grid, indexing="ij")
@@ -161,7 +161,7 @@ def test_bbox_center_odd_length_raises() -> None:
 
 
 def test_estimate_normals_planar_patch() -> None:
-    pytest.importorskip("torch_cluster")
+    pytest.importorskip("pyg_lib")
     grid = torch.linspace(-1.0, 1.0, 20)
     xx, yy = torch.meshgrid(grid, grid, indexing="ij")
     plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
@@ -175,7 +175,7 @@ def test_estimate_normals_planar_patch() -> None:
 
 
 def test_estimate_normals_respects_batch() -> None:
-    pytest.importorskip("torch_cluster")
+    pytest.importorskip("pyg_lib")
     grid = torch.linspace(-1.0, 1.0, 20)
     xx, yy = torch.meshgrid(grid, grid, indexing="ij")
     plane = torch.stack([xx.reshape(-1), yy.reshape(-1), torch.zeros(400)], dim=1)
@@ -274,7 +274,7 @@ def test_quantize_grid_coordinates() -> None:
     assert torch.equal(out, torch.tensor([[0, 0, 0], [4, 0, 0], [5, 1, 0], [4, 0, 0]]))
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_quantize_matches_voxelize_grid_representatives() -> None:
     """Every kept voxel representative of `Voxelize(pos_reduce="grid")` carries the coordinates `quantize` gives it."""
     pos = torch.rand(200, 3) * 2.0 - 1.0

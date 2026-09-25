@@ -29,9 +29,8 @@ from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
     _SPCONV_AVAILABLE,
-    _TORCH_CLUSTER_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
 from torch_pointcloud.utils.voxelization import hard_voxelize
@@ -137,8 +136,8 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("torchsparse is not installed")
     if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
-    if model_name.startswith("pointgpt") and not _TORCH_CLUSTER_AVAILABLE:
-        pytest.skip("torch-cluster is not installed")
+    if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
     if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 
@@ -236,8 +235,8 @@ def test_pretrained_votenet(
     deterministic FPS is used; this still pins the pretrained weights + decode against regressions.
     The snapshot is the concatenation of the proposal `center`, `objectness_scores` and `sem_cls_scores`.
     """
-    if not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
-        pytest.skip("torch-cluster / torch-scatter is not installed")
+    if not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
 
     monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
@@ -278,8 +277,8 @@ def test_pretrained_threedetr(
     `angle_logits`, not the decoded `angle_continuous`: the decode argmaxes the angle bins and wraps the
     result through a ±pi branch cut, which flips under fp32 noise; the raw logits are continuous and stable.
     """
-    if not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
-        pytest.skip("torch-cluster / torch-scatter is not installed")
+    if not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
 
     monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
@@ -324,8 +323,8 @@ def test_pretrained_pointrcnn(
     `boxes[:, :6]`, not `boxes[:, 6]`: the stage-1 box coder reconstructs heading via `atan2`, whose ±pi
     branch cut flips a box near that heading under fp32 noise; the center/size residuals are stable.
     """
-    if not (_TORCH_CLUSTER_AVAILABLE and _TORCH_SCATTER_AVAILABLE):
-        pytest.skip("torch-cluster / torch-scatter is not installed")
+    if not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
 
     monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")

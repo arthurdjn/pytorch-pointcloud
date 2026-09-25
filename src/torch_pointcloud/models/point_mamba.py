@@ -21,6 +21,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
@@ -33,7 +34,6 @@ from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _MAMBA_SSM_GITHUB_URL,
-    _TORCH_SCATTER_GITHUB_URL,
     optional_import,
 )
 from torch_pointcloud.utils.serialization import SerializationOrder, serialize_pos
@@ -44,10 +44,8 @@ from ._registry import WeightsDict, register_model
 
 if TYPE_CHECKING:
     from mamba_ssm import Mamba
-    from torch_scatter import scatter
 
 Mamba, _ = optional_import("mamba_ssm", "Mamba", url=_MAMBA_SSM_GITHUB_URL)
-scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 RADIUS = 0.03162277660168379  # sqrt(1e-3)

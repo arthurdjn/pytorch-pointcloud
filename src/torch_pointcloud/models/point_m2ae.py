@@ -3,7 +3,7 @@
 {{ paper("2205.14401") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor, nn
@@ -16,16 +16,10 @@ from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.utils.cluster import group
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, PartSegmentationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
-
-if TYPE_CHECKING:
-    from torch_scatter import scatter
-
-scatter, _ = optional_import("torch_scatter", "scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class EncoderBlock(nn.Module):

@@ -5,28 +5,22 @@ via scatter operations.  This is an alternative to code-space pooling
 (`SerializedPooling`) used in PTV3 Mode 2 (Sonata) and Mode 3 (Utonia).
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_GITHUB_URL, optional_import
+from torch_geometric.utils import segment
 
 from .act import create_act
 from .norms import create_norm
-
-if TYPE_CHECKING:
-    import torch_scatter
-
-torch_scatter, _ = optional_import("torch_scatter", url=_TORCH_SCATTER_GITHUB_URL)
 
 
 class GridPool(nn.Module):
     """Grid-based downsampling that clusters points by quantized coordinates.
 
     Divides `pos_grid` by `stride`, groups unique voxels via
-    `torch.unique`, and reduces features with `torch_scatter.segment_csr`.
+    `torch.unique`, and reduces features with `torch_geometric.utils.segment`.
 
     Args:
         in_channels: Number of input feature channels.
@@ -106,9 +100,9 @@ class GridPool(nn.Module):
         idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
         head_indices = indices[idx_ptr[:-1]]
 
-        x_pooled = torch_scatter.segment_csr(self.proj(x)[indices], idx_ptr, reduce=self.reduce)
+        x_pooled = segment(self.proj(x)[indices], idx_ptr, reduce=self.reduce)
         batch_pooled = batch[head_indices]
-        pos_pooled = torch_scatter.segment_csr(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
+        pos_pooled = segment(pos[indices], idx_ptr, reduce="mean") if pos is not None else None
 
         norm_kwargs = {} if condition is None else {"condition": condition}
         if self.act_first:

@@ -7,7 +7,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
-from torch_pointcloud.utils.imports import _TORCH_CLUSTER_AVAILABLE
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def test_random_sample_preserves_correspondence() -> None:
@@ -86,7 +86,7 @@ def test_random_sample_face_vertices_determinism() -> None:
     assert torch.equal(a["vertices"], b["vertices"])
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_farthest_point_sample_num_samples() -> None:
     pos = torch.randn(20, 3)
     labels = torch.arange(20)
@@ -100,7 +100,7 @@ def test_farthest_point_sample_num_samples() -> None:
     assert set(result["label"].tolist()).issubset(set(labels.tolist()))
 
 
-@pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed")
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_farthest_point_sample_ratio() -> None:
     pos = torch.randn(10, 3)
     result = T.FarthestPointSample(pos_key="pos", ratio=0.5)({"pos": pos})
@@ -191,7 +191,7 @@ SELECTION_SAMPLERS = [
     pytest.param(
         T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=4, dst_index_key="index"),
         id="FarthestPointSample",
-        marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
+        marks=pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
     ),
     pytest.param(
         T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0), dst_index_key="index"),
@@ -215,7 +215,7 @@ DEFAULT_SELECTION_SAMPLERS = [
     pytest.param(
         T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=4),
         id="FarthestPointSample",
-        marks=pytest.mark.skipif(not _TORCH_CLUSTER_AVAILABLE, reason="torch-cluster is not installed"),
+        marks=pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
     ),
     pytest.param(T.SphereCrop(pos_key="pos", keys=["color"], radius=1.0, center=(0.0, 0.0, 0.0)), id="SphereCrop"),
     pytest.param(T.RemoveNearOrigin(pos_key="pos", keys=["color"], radius=0.5), id="RemoveNearOrigin"),

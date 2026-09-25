@@ -20,13 +20,12 @@ from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _SPCONV_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
 )
 
 RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
 
-_FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE and _TORCH_SCATTER_AVAILABLE
+_FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE
 _WEIGHTS = Path(MODELS_DIR, "lion", "lion-mamba.nuscenes.zhe-liu.safetensors")
 
 
@@ -216,7 +215,7 @@ def _make_inputs(scene_sizes: Sequence[int] = (30000,)) -> tuple[torch.Tensor, t
     return torch.cat(pos).to(DEVICE), torch.cat(x).to(DEVICE), torch.cat(batch).to(DEVICE)
 
 
-@pytest.mark.skipif(not _FULL_STACK, reason="LION forward needs CUDA + mamba_ssm + spconv + torch_scatter")
+@pytest.mark.skipif(not _FULL_STACK, reason="LION forward needs CUDA + mamba_ssm + spconv")
 def test_lion_forward_and_decode() -> None:
     model = create_model("lion-mamba.nuscenes.zhe-liu", task="detection").to(DEVICE).eval()
     assert isinstance(model, LIONDetection)
@@ -243,7 +242,7 @@ def test_lion_forward_and_decode() -> None:
     assert torch.equal(det_again["labels"], det["labels"])
 
 
-@pytest.mark.skipif(not _FULL_STACK, reason="LION forward needs CUDA + mamba_ssm + spconv + torch_scatter")
+@pytest.mark.skipif(not _FULL_STACK, reason="LION forward needs CUDA + mamba_ssm + spconv")
 @pytest.mark.skipif(not _WEIGHTS.exists(), reason="LION nuScenes weights not in local cache")
 def test_lion_pretrained_smoke() -> None:
     """Pretrained LION strict-loads and produces finite, in-range detections on a random scene."""

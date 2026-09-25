@@ -6,7 +6,6 @@ from torch import Tensor
 
 from torch_pointcloud.inferers import VoxelPartitionInferer
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _TORCH_SCATTER_AVAILABLE
 
 
 def _make_grid(n_per_voxel: int, n_voxels: int, voxel_size: float) -> Dict[str, Any]:
@@ -125,7 +124,6 @@ def test_voxel_partition_empty_scene_returns_zero_by_zero() -> None:
     assert out.shape == (0, 0)
 
 
-@pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch-scatter not installed")
 def test_voxel_partition_with_transform_applies_per_subcloud() -> None:
     """The optional `transform` is applied independently to each sub-cloud's data dict."""
     from torch_pointcloud import transforms as T

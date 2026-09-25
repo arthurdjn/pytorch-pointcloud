@@ -14,13 +14,12 @@ from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _SPCONV_AVAILABLE,
     _SPTR_AVAILABLE,
-    _TORCH_SCATTER_AVAILABLE,
+    package_available,
 )
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 requires_cuda = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
 requires_spconv = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
-requires_torch_scatter = pytest.mark.skipif(not _TORCH_SCATTER_AVAILABLE, reason="torch_scatter is not installed")
 requires_sptr = pytest.mark.skipif(not _SPTR_AVAILABLE, reason="sptr is not installed")
 
 
@@ -58,7 +57,6 @@ def model_seg() -> SphereFormerSegmentation:
 
 @requires_cuda
 @requires_spconv
-@requires_torch_scatter
 @requires_sptr
 def test_sphereformer_segmentation_forward(model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.eval()
@@ -69,7 +67,6 @@ def test_sphereformer_segmentation_forward(model_seg: SphereFormerSegmentation, 
 
 @requires_cuda
 @requires_spconv
-@requires_torch_scatter
 @requires_sptr
 def test_sphereformer_forward_keyword_order(model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.eval()
@@ -79,7 +76,6 @@ def test_sphereformer_forward_keyword_order(model_seg: SphereFormerSegmentation,
 
 @requires_cuda
 @requires_spconv
-@requires_torch_scatter
 @requires_sptr
 def test_sphereformer_forward_head_pre_logits(model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]) -> None:
     model_seg.eval()
@@ -92,7 +88,6 @@ def test_sphereformer_forward_head_pre_logits(model_seg: SphereFormerSegmentatio
 
 @requires_cuda
 @requires_spconv
-@requires_torch_scatter
 @requires_sptr
 def test_sphereformer_segmentation_reset_classifier(
     model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]
@@ -171,7 +166,7 @@ def test_sphereformer_ublock_head_dim_validation() -> None:
         )
 
 
-@pytest.mark.skipif(_SPTR_AVAILABLE, reason="sptr is installed")
+@pytest.mark.skipif(package_available("sptr"), reason="sptr is installed")
 def test_windowed_attention_without_sptr_raises_import_error() -> None:
     window = torch.tensor([0.3, 0.3, 0.3])
     with pytest.raises(ImportError, match="sptr"):
