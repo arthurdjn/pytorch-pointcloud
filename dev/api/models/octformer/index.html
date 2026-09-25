@@ -6023,7 +6023,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CPE&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L41-L79&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.CPE">CPE</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L41-L79&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.CPE">CPE</a></code></b>
           –
           <div class="doc-md-description">
             <p>Conditional positional encoding: a depthwise octree convolution followed by batch normalization.</p>
@@ -6033,7 +6033,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctFormerBlock&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L82-L155&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerBlock">OctFormerBlock</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L82-L155&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerBlock">OctFormerBlock</a></code></b>
           –
           <div class="doc-md-description">
             <p>Transformer block over octree patches: a <code>CPE</code> residual, octree attention and an MLP, both pre-normed.</p>
@@ -6043,7 +6043,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctFormerEncoderLayer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L158-L232&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerEncoderLayer">OctFormerEncoderLayer</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L158-L232&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerEncoderLayer">OctFormerEncoderLayer</a></code></b>
           –
           <div class="doc-md-description">
             <p>One encoder stage: an optional octree convolution downsampling followed by <code>depth</code> <code>OctFormerBlock</code> units.</p>
@@ -6053,7 +6053,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctFormerEncoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L235-L345&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerEncoder">OctFormerEncoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L235-L345&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerEncoder">OctFormerEncoder</a></code></b>
           –
           <div class="doc-md-description">
             <p>Stack of <code>OctFormerEncoderLayer</code> stages, each running one octree depth coarser than the previous one.</p>
@@ -6063,7 +6063,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctFormerDecoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L348-L409&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerDecoder">OctFormerDecoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L348-L409&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerDecoder">OctFormerDecoder</a></code></b>
           –
           <div class="doc-md-description">
             <p>Feature pyramid decoder: projects every encoder stage to <code>fpn_channels</code>, merges them top-down, and</p>
@@ -6073,7 +6073,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctreePatchEmbed&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L412-L475&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctreePatchEmbed">OctreePatchEmbed</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L412-L475&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctreePatchEmbed">OctreePatchEmbed</a></code></b>
           –
           <div class="doc-md-description">
             <p>Convolutional stem that embeds the octree signal, halving the resolution once per channel step.</p>
@@ -6083,7 +6083,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctFormerClassification&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L478-L710&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification">OctFormerClassification</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L478-L710&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification">OctFormerClassification</a></code></b>
           –
           <div class="doc-md-description">
             <p>OctFormer classification model from</p>
@@ -6093,7 +6093,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;OctFormerSegmentation&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L713-L950&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation">OctFormerSegmentation</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L713-L950&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation">OctFormerSegmentation</a></code></b>
           –
           <div class="doc-md-description">
             <p>OctFormer segmentation model from</p>
@@ -6125,7 +6125,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">CPE</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L41-L79" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L41-L79" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.CPE" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CPE</span><span class="p">(</span>
@@ -6187,7 +6187,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctFormerBlock</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L82-L155" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L82-L155" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerBlock" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctFormerBlock</span><span class="p">(</span>
@@ -6269,7 +6269,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctFormerEncoderLayer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L158-L232" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L158-L232" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerEncoderLayer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctFormerEncoderLayer</span><span class="p">(</span>
@@ -6351,7 +6351,7 @@ attend to neighboring and to spread-out patches in turn.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctFormerEncoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L235-L345" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L235-L345" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerEncoder" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctFormerEncoder</span><span class="p">(</span>
@@ -6432,7 +6432,7 @@ the first are returned in fine-to-coarse order, ready to be consumed by <code>Oc
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctFormerDecoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L348-L409" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L348-L409" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerDecoder" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctFormerDecoder</span><span class="p">(</span>
@@ -6500,7 +6500,7 @@ sums the results upsampled to the finest depth. <code>num_ups</code> octree deco
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctreePatchEmbed</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L412-L475" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L412-L475" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctreePatchEmbed" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctreePatchEmbed</span><span class="p">(</span>
@@ -6565,7 +6565,7 @@ sums the results upsampled to the finest depth. <code>num_ups</code> octree deco
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctFormerClassification</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L478-L710" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L478-L710" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerClassification" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctFormerClassification</span><span class="p">(</span>
@@ -6634,7 +6634,7 @@ features are pooled globally after the encoder for classification.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_stem&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L556-L569&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.configure_stem">configure_stem</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L556-L569&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.configure_stem">configure_stem</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>OctreePatchEmbed</code> stem.</p>
@@ -6644,7 +6644,7 @@ features are pooled globally after the encoder for classification.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L571-L596&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.configure_encoder">configure_encoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L571-L596&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.configure_encoder">configure_encoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>OctFormerEncoder</code> backbone.</p>
@@ -6654,7 +6654,7 @@ features are pooled globally after the encoder for classification.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;get_encoder_depth&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L687-L697&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.get_encoder_depth">get_encoder_depth</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L687-L697&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.get_encoder_depth">get_encoder_depth</a></code></b>
             –
             <div class="doc-md-description">
               <p>Octree depth at which the first encoder stage runs, once the stem downsamplings are accounted for.</p>
@@ -6664,7 +6664,7 @@ features are pooled globally after the encoder for classification.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;get_head_depth&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L699-L710&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.get_head_depth">get_head_depth</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L699-L710&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerClassification.get_head_depth">get_head_depth</a></code></b>
             –
             <div class="doc-md-description">
               <p>Octree depth of the encoder output, which is the depth the head pools over.</p>
@@ -6737,7 +6737,7 @@ features are pooled globally after the encoder for classification.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_stem</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L556-L569" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L556-L569" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerClassification.configure_stem" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_stem</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
@@ -6759,7 +6759,7 @@ features are pooled globally after the encoder for classification.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_encoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L571-L596" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L571-L596" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerClassification.configure_encoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_encoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
@@ -6781,7 +6781,7 @@ features are pooled globally after the encoder for classification.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_encoder_depth</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L687-L697" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L687-L697" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerClassification.get_encoder_depth" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_encoder_depth</span><span class="p">(</span><span class="n">depth</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="int">int</span></span>
@@ -6828,7 +6828,7 @@ features are pooled globally after the encoder for classification.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">get_head_depth</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L699-L710" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L699-L710" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerClassification.get_head_depth" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">get_head_depth</span><span class="p">(</span><span class="n">depth</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="int">int</span></span>
@@ -6884,7 +6884,7 @@ features are pooled globally after the encoder for classification.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">OctFormerSegmentation</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L713-L950" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L713-L950" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerSegmentation" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">OctFormerSegmentation</span><span class="p">(</span>
@@ -6952,7 +6952,7 @@ by Peng-Shuai Wang.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_stem&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L791-L803&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_stem">configure_stem</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L791-L803&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_stem">configure_stem</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>OctreePatchEmbed</code> stem.</p>
@@ -6962,7 +6962,7 @@ by Peng-Shuai Wang.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L805-L830&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_encoder">configure_encoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L805-L830&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_encoder">configure_encoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>OctFormerEncoder</code> backbone.</p>
@@ -6972,7 +6972,7 @@ by Peng-Shuai Wang.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_decoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L832-L847&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_decoder">configure_decoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L832-L847&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_decoder">configure_decoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>OctFormerDecoder</code>, with one upsampling per stem downsampling.</p>
@@ -7045,7 +7045,7 @@ by Peng-Shuai Wang.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_stem</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L791-L803" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L791-L803" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_stem" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_stem</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
@@ -7067,7 +7067,7 @@ by Peng-Shuai Wang.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_encoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L805-L830" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L805-L830" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_encoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_encoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
@@ -7089,7 +7089,7 @@ by Peng-Shuai Wang.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_decoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/7d29eaa95c120416298b2cdfa013f8f7d5e27944/src/torch_pointcloud/models/octformer.py#L832-L847" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c4ac1beb3d6189380a9f78c265e309e4bb38ce50/src/torch_pointcloud/models/octformer.py#L832-L847" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.octformer.OctFormerSegmentation.configure_decoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_decoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
