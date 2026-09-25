@@ -108,4 +108,16 @@ To build the documentation:
    make serve
    ```
 
+## AI-assisted development
+
+`torch-pointcloud` development started in 2023 and went through many refactors and rebuilds from the ground up to come up with an easy to use
+design and improved user experience. This project used AI coding tools (Claude Code) in mid-2026 to help in refactoring and
+maintaining a unified interface, which was difficult to track manually with little available time to work on.
+
+Manual non-regression tests were enforced to ensure model implementations stay the same. We also implemented and ran
+benchmarks manually to confirm implementations reached reference performances.
+
+Contributions written with AI assistance are welcome under the same terms: say so in the pull request, and make sure
+you understand and have run the code you submit.
+
 *This guide is adapted from the [PyG contributing guide](https://github.com/pyg-team/pytorch_geometric/blob/master/.github/CONTRIBUTING.md) (MIT License).*
