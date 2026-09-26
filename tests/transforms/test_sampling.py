@@ -100,7 +100,6 @@ def test_farthest_point_sample_num_samples() -> None:
     assert set(result["label"].tolist()).issubset(set(labels.tolist()))
 
 
-@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_farthest_point_sample_keeps_small_clouds_untouched() -> None:
     pos = torch.randn(8, 3)
     color = torch.randn(8, 3)
@@ -115,6 +114,7 @@ def test_farthest_point_sample_keeps_small_clouds_untouched() -> None:
         assert result["index"].tolist() == list(range(8))
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_farthest_point_sample_ratio() -> None:
     pos = torch.randn(10, 3)
     result = T.FarthestPointSample(pos_key="pos", ratio=0.5)({"pos": pos})
