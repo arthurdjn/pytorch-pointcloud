@@ -411,7 +411,10 @@ def radius(
         _check_sorted_batch(batch_x, "batch_x")
     if batch_y is not None:
         _check_sorted_batch(batch_y, "batch_y")
-    if not sort:
+    # The CUDA kernel scans the sources of every query in index order and keeps the first `max_num_neighbors` it
+    # finds, which is exactly the sorted selection, so the sort below is only needed on the CPU (whose kernel does
+    # not): on 3DETR-sized inputs it is 25x slower and materializes the full distance matrix.
+    if not sort or x.is_cuda:
         edge_index = pool.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
         return edge_index[0], edge_index[1]
 
@@ -728,3 +731,94 @@ def decimate(
     idx_decim, batch_decim = decimate_indices(batch, factor, generator=generator)
     tensors_decim = tuple(tensor[idx_decim] for tensor in tensors)
     return tensors_decim, batch_decim
+
+
+def dense_neighbors(
+    edge_index: Tensor,
+    num_sources: int,
+    num_targets: int,
+    max_num_neighbors: Optional[int] = None,
+) -> Tuple[Tensor, Tensor]:
+    r"""Pad a `[source, target]` edge list into a dense $(N_t, k)$ neighbor table.
+
+    $k$ is the largest target degree unless `max_num_neighbors` is given (the cap of the search that produced the
+    edges, which skips the device read). Rows are filled in edge order and padded with the shadow index
+    `num_sources`, so `gather_neighbors` needs no mask. The second output is the slot of every edge in its target's
+    row, so per-edge values scatter into the table as `values_table[target, slot] = values`. Edges grouped by target,
+    which `knn` and `radius` return, are consumed as they are; any other order is sorted first.
+
+    Args:
+        edge_index: Edges as `[source, target]`, shape $(2, E)$.
+        num_sources: Number of source points $N_s$, the shadow index of the padding.
+        num_targets: Number of target points $N_t$.
+        max_num_neighbors: Row width $k$; must be at least the largest target degree.
+
+    Returns:
+        The $(N_t, k)$ table of source indices and the $(E,)$ slot of every edge.
+
+    Shape:
+        Input: $(2, E)$
+        Output: $(N_t, k)$ and $(E,)$
+
+    Example:
+        ```python
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import dense_neighbors
+        >>> edge_index = torch.tensor([[3, 5, 0, 1, 2], [0, 0, 1, 1, 1]])
+        >>> table, slot = dense_neighbors(edge_index, num_sources=6, num_targets=2)
+        >>> table.tolist(), slot.tolist()
+        ([[3, 5, 6], [0, 1, 2]], [0, 1, 0, 1, 2])
+
+        ```
+    """
+    if edge_index.dim() != 2 or edge_index.size(0) != 2:
+        raise ValueError(f"`edge_index` must have shape (2, E), got {tuple(edge_index.shape)}.")
+
+    source, target = edge_index
+    counts = torch.bincount(target, minlength=num_targets)
+    k = int(counts.max()) if max_num_neighbors is None and counts.numel() else (max_num_neighbors or 0)
+
+    grouped = target.numel() < 2 or bool((target[1:] >= target[:-1]).all())
+    order = None
+    if not grouped:
+        order = torch.argsort(target, stable=True)
+        source, target = source[order], target[order]
+
+    ptr = torch.cumsum(counts, dim=0) - counts
+    slot = torch.arange(target.numel(), device=target.device) - ptr[target]
+    table = torch.full((num_targets, k), num_sources, dtype=torch.long, device=target.device)
+    table[target, slot] = source
+    if order is not None:
+        slot = torch.empty_like(slot).scatter_(0, order, slot)
+    return table, slot
+
+
+def gather_neighbors(x: Tensor, table: Tensor) -> Tensor:
+    r"""Gather source features along a `dense_neighbors` table, zero where the table is padded.
+
+    Args:
+        x: Source features, shape $(N_s, C)$.
+        table: Neighbor table, shape $(N_t, k)$, padded with the shadow index $N_s$.
+
+    Returns:
+        The neighbor features, shape $(N_t, k, C)$.
+
+    Shape:
+        Input: $(N_s, C)$ and $(N_t, k)$
+        Output: $(N_t, k, C)$
+
+    Example:
+        ```python
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import gather_neighbors
+        >>> x = torch.arange(6, dtype=torch.float).view(3, 2)
+        >>> gather_neighbors(x, torch.tensor([[2, 3], [0, 1]])).tolist()
+        [[[4.0, 5.0], [0.0, 0.0]], [[0.0, 1.0], [2.0, 3.0]]]
+
+        ```
+    """
+    # `index_select` rather than `x[table]`: the backward of advanced indexing sorts the indices and walks every run
+    # of duplicates serially, and the padding slots are one such run; the `index_add_` backward of `index_select`
+    # accumulates atomically instead.
+    padded = torch.cat([x, x.new_zeros(1, x.size(1))], dim=0)
+    return padded.index_select(0, table.reshape(-1)).view(table.size(0), table.size(1), x.size(1))

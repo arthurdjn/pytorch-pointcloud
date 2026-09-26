@@ -14,6 +14,8 @@ All notable changes to this project are documented in this file. The format is b
 - Renamed state-dict keys of `second-multihead.nuscenes.openpcdet`, `voxelnext.nuscenes.openpcdet` and `lion-mamba.nuscenes.zhe-liu` (`bn` -> `norm`, LION decoder under `layer`).
 - Fixed the PointNeXt classifiers' global set abstraction: a shared MLP over `cat([pos, x])` as in the reference, instead of a whole-cloud radius search with zeroed coordinates (`global_sa.*` keys; ModelNet40 93.80 -> 93.96 OA).
 - Updated `farthest_point_sample` and `FarthestPointSample` to leave a cloud untouched when it has at most `num_samples` points (or `ratio >= 1`) instead of reordering it by farthest-point rank; 27 value snapshots regenerated.
+- Added `ops.cluster.dense_neighbors` and `gather_neighbors`, padding a `[source, target]` edge list into a `(N_t, k)` neighbor table over the packed batch; `KPConv` pools on that table with one `bmm` when the neighborhoods fill at least `dense_fill_threshold` of it (KP-FCNN inference 231 -> 141 ms, training step 905 -> 443 ms).
+- Fixed `radius(..., sort=True)` materializing the full distance matrix on CUDA, where the kernel already returns the smallest source indices (3DETR inference 244 -> 46 ms, 5.3 -> 0.6 GB).
 
 ## 0.0.9 (2026-09-26)
 
