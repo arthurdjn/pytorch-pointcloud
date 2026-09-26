@@ -1220,7 +1220,7 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     "pointnext-sm.scanobjectnn-hardest.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/0ca7595e2f74548d51037ad82e2bd10f5fd13921/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 88.17, "mAcc": 86.80},
         classes=SCANOBJECTNN_CLASSES,
@@ -1273,7 +1273,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     "pointnext-sm-c64.modelnet40.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnext-sm-c64.modelnet40.openpoints/resolve/083de42a5522ae2e18086fd6f979f9043118346d/model.safetensors",
+        url="hf://torch-pointcloud/pointnext-sm-c64.modelnet40.openpoints/resolve/838213c747915b022feb4c86d76138fb389abf79/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.96, "mAcc": 91.14},
         classes=MODELNET40_CLASSES,
