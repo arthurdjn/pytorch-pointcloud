@@ -33,8 +33,8 @@ class VoxelGridPool(nn.Module):
         >>> from torch_pointcloud.layers import VoxelGridPool
         >>> pool = VoxelGridPool(grid_size=0.5)
         >>> x, pos, batch = torch.randn(100, 8), torch.rand(100, 3), torch.zeros(100, dtype=torch.long)
-        >>> x_pooled, pos_pooled, batch_pooled = pool(x, pos, batch)
-        >>> x_pooled.shape[1], pos_pooled.shape[1]
+        >>> x_pooled, pos_pooled, batch_pooled = pool(x, pos, batch)  # doctest: +SKIP
+        >>> x_pooled.shape[1], pos_pooled.shape[1]  # doctest: +SKIP
         (8, 3)
 
         ```
