@@ -1,11 +1,15 @@
+from typing import Literal
+
 import pytest
 import torch
 
 from torch_pointcloud.layers.voxel_grid_pool import VoxelGridPool
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 @pytest.mark.parametrize("origin", ["grid", "min"])
-def test_voxel_grid_pool_forward(origin: str) -> None:
+def test_voxel_grid_pool_forward(origin: Literal["grid", "min"]) -> None:
     torch.manual_seed(0)
     x = torch.randn(200, 8)
     pos = torch.rand(200, 3) * 4.0
@@ -25,6 +29,7 @@ def test_voxel_grid_pool_forward(origin: str) -> None:
     assert (pos_pooled.max(dim=0).values <= 4.0).all() and (pos_pooled.min(dim=0).values >= 0.0).all()
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_voxel_grid_pool_grid_origin_is_extent_independent() -> None:
     torch.manual_seed(0)
     pos = torch.rand(100, 3)
