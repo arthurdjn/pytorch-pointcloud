@@ -13,6 +13,7 @@ All notable changes to this project are documented in this file. The format is b
 - Updated `XConv` to take `edge_index` as `[source, target]`, and DGCNN to build its feature graph with `knn_graph(loop=True)`.
 - Renamed state-dict keys of `second-multihead.nuscenes.openpcdet`, `voxelnext.nuscenes.openpcdet` and `lion-mamba.nuscenes.zhe-liu` (`bn` -> `norm`, LION decoder under `layer`).
 - Fixed the PointNeXt classifiers' global set abstraction: a shared MLP over `cat([pos, x])` as in the reference, instead of a whole-cloud radius search with zeroed coordinates (`global_sa.*` keys; ModelNet40 93.80 -> 93.96 OA).
+- Updated `farthest_point_sample` and `FarthestPointSample` to leave a cloud untouched when it has at most `num_samples` points (or `ratio >= 1`) instead of reordering it by farthest-point rank; 27 value snapshots regenerated.
 
 ## 0.0.9 (2026-09-26)
 
