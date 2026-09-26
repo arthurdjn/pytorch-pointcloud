@@ -54,8 +54,8 @@ pointnet2.scanobjectnn-hardest.openpoints,pointnet2,classification,scanobjectnn-
 pointnext-base,pointnext,classification,,false,,,OA,,,
 pointnext-lg,pointnext,classification,,false,,,OA,,,
 pointnext-sm,pointnext,classification,,false,,,OA,,,
-pointnext-sm-c64.modelnet40.openpoints,pointnext,classification,modelnet40,true,MIT,4.53,OA,94.0,93.80,OA 93.80 · mAcc 90.93
-pointnext-sm.scanobjectnn-hardest.openpoints,pointnext,classification,scanobjectnn-hardest,true,MIT,1.37,OA,88.20,88.17,OA 88.17 · mAcc 86.75
+pointnext-sm-c64.modelnet40.openpoints,pointnext,classification,modelnet40,true,MIT,4.53,OA,94.0,93.96,OA 93.96 · mAcc 91.14
+pointnext-sm.scanobjectnn-hardest.openpoints,pointnext,classification,scanobjectnn-hardest,true,MIT,1.37,OA,88.20,88.17,OA 88.17 · mAcc 86.80
 pointnext-xl,pointnext,classification,,false,,,OA,,,
 concerto-large-lp.scannet20.pointcept,concerto,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,207.70,mIoU,77.5,78.59,mIoU 78.59 · OA 92.29
 dgcnn.s3dis-area1.an-tao,dgcnn,semantic-segmentation,s3dis-area1,true,MIT,0.99,mIoU,,69.19,mIoU 69.19 · OA 89.69
