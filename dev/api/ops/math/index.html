@@ -12,13 +12,13 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/utils/cluster/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/ops/math/">
       
       
-        <link rel="prev" href="../box3d/">
+        <link rel="prev" href="../hilbert/">
       
       
-        <link rel="next" href="../conversion/">
+        <link rel="next" href="../octree/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>cluster - PyTorch PointCloud</title>
+        <title>math - PyTorch PointCloud</title>
       
     
     
@@ -103,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="cluster - PyTorch PointCloud">
+  <meta property="og:title" content="math - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/utils/cluster/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/ops/math/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="cluster - PyTorch PointCloud">
+  <meta name="twitter:title" content="math - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.utils.cluster.knn" class="md-skip">
+        <a href="#torch_pointcloud.ops.math.safe_divide" class="md-skip">
           Skip to content
         </a>
       
@@ -298,7 +298,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              cluster
+              math
             
           </span>
         </div>
@@ -4631,6 +4631,424 @@
                 
   
   
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Ops
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Ops
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../box3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  box3d
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cluster/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  cluster
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../density/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  density
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  geometry
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../heatmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  heatmap
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hilbert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  hilbert
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  math
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  math
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.math.safe_divide" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        safe_divide
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../octree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  octree
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  serialization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxelization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxelization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     
@@ -4652,10 +5070,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" >
         
           
-          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
             
   
   
@@ -4672,8 +5090,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5045,8 +5463,6 @@
                 
   
   
-    
-  
   
   
     
@@ -5064,14 +5480,14 @@
     
       
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_12" >
         
           
-          <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_12" id="__nav_7_12_label" tabindex="">
             
   
   
@@ -5088,8 +5504,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7_11">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5105,7 +5521,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../utils/" class="md-nav__link">
         
   
   
@@ -5132,183 +5548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../box3d/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  box3d
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  cluster
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="././" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  cluster
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.knn" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        knn
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.knn_graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        knn_graph
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.fps" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        fps
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.local_grid" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        local_grid
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.radius" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        radius
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.group" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        group
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.knn_interpolate" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        knn_interpolate
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../conversion/" class="md-nav__link">
+      <a href="../../utils/conversion/" class="md-nav__link">
         
   
   
@@ -5335,7 +5575,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data/" class="md-nav__link">
+      <a href="../../utils/data/" class="md-nav__link">
         
   
   
@@ -5362,115 +5602,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../density/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  density
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../geometry/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  geometry
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../heatmap/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  heatmap
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../hilbert/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  hilbert
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../imports/" class="md-nav__link">
+      <a href="../../utils/imports/" class="md-nav__link">
         
   
   
@@ -5497,7 +5629,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../io/" class="md-nav__link">
+      <a href="../../utils/io/" class="md-nav__link">
         
   
   
@@ -5524,7 +5656,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../misc/" class="md-nav__link">
+      <a href="../../utils/misc/" class="md-nav__link">
         
   
   
@@ -5551,61 +5683,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../octree/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  octree
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ops/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  ops
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../optim/" class="md-nav__link">
+      <a href="../../utils/optim/" class="md-nav__link">
         
   
   
@@ -5632,7 +5710,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../random/" class="md-nav__link">
+      <a href="../../utils/random/" class="md-nav__link">
         
   
   
@@ -5659,34 +5737,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../serialization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  serialization
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../state_dict/" class="md-nav__link">
+      <a href="../../utils/state_dict/" class="md-nav__link">
         
   
   
@@ -5713,7 +5764,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../types/" class="md-nav__link">
+      <a href="../../utils/types/" class="md-nav__link">
         
   
   
@@ -5721,33 +5772,6 @@
     
   
   types
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../voxelization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  voxelization
 
     
   </span>
@@ -5814,76 +5838,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.knn" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.math.safe_divide" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        knn
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.knn_graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        knn_graph
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.fps" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        fps
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.local_grid" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        local_grid
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.radius" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        radius
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.group" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        group
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.cluster.knn_interpolate" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        knn_interpolate
+        safe_divide
       </span>
     </span>
   </a>
@@ -5945,7 +5903,7 @@
           
   
   <span class="md-ellipsis">
-    Utils
+    Ops
   </span>
 
         </a>
@@ -5968,9 +5926,9 @@
   
 
 
-  <h1 id="__skip">cluster</h1>
+  <h1 id="__skip">math</h1>
 
-<p><a href="" id="torch_pointcloud.utils.cluster"></a></p>
+<p><a href="" id="torch_pointcloud.ops.math"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -5980,7 +5938,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>Neighbor search and grouping: kNN, FPS, radius queries, local grids, and kNN interpolation.</p>
+        <p>Elementwise math: division with a default for zero denominators.</p>
 
 
 
@@ -5996,73 +5954,13 @@
 <p><span class="doc-section-title">Functions:</span></p>
     <ul>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;knn&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;safe_divide&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L31-L120&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.knn">knn</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/math.py#L9-L41&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.math.safe_divide">safe_divide</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Find the <span class="arithmatex">\(k\)</span> nearest neighbors in <span class="arithmatex">\(x\)</span> for each point in <span class="arithmatex">\(y\)</span>.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;knn_graph&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L123-L220&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.knn_graph">knn_graph</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Compute the kNN graph of <span class="arithmatex">\(x\)</span>.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;fps&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L223-L329&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.fps">fps</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>A sampling algorithm from the paper <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> [PointNet++: Deep Hierarchical Feature</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;local_grid&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L332-L370&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.local_grid">local_grid</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Applies local grid quantization to the source tensor as explained in the paper</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;radius&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L373-L461&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.radius">radius</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p><code>torch_geometric.nn.pool.radius</code> wrapper with an optional sort-by-source-index tie-breaker.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;group&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L488-L554&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.group">group</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Partition a packed point cloud into local groups with FPS centers and a <span class="arithmatex">\(k\)</span>-NN neighborhood.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;knn_interpolate&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L557-L627&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.cluster.knn_interpolate">knn_interpolate</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>k-NN interpolation with inverse-distance weighting.</p>
+              <p>Safely divide two tensors, returning a default value if the denominator is zero.</p>
             </div>
           </li>
     </ul>
@@ -6085,255 +5983,57 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="torch_pointcloud.utils.cluster.knn" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">knn</span>
+<h3 id="torch_pointcloud.ops.math.safe_divide" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">safe_divide</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L31-L120" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/math.py#L9-L41" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.utils.cluster.knn" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">knn</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">y</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">batch_x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">batch_y</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">cosine</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">num_workers</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">batch_size</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+<a href="#torch_pointcloud.ops.math.safe_divide" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">safe_divide</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">a</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">b</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">/</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">default</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="n"><span title="float">float</span></span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Find the <span class="arithmatex">\(k\)</span> nearest neighbors in <span class="arithmatex">\(x\)</span> for each point in <span class="arithmatex">\(y\)</span>.
-This function is a wrapper around the <code>torch_geometric.nn.pool.knn</code> function, and supports the same arguments.
-However, in case the <code>batch_x</code> and <code>batch_y</code> tensors are provided, and the samples have the same number of nodes,
-this function uses a more efficient implementation that is significantly faster on GPU using <code>torch.cdist</code> + <code>topk</code>.</p>
-
-
-<details class="important" open>
-  <summary>Important</summary>
-  <p>If provided, the <code>batch_x</code> and <code>batch_y</code> tensors must be sorted in non-decreasing order
-(both the dense fast path and <code>torch_geometric</code> require it); unsorted batches raise a <code>ValueError</code>.</p>
-</details>
-
-<details class="note" open>
-  <summary>Note</summary>
-  <p>When a point of <span class="arithmatex">\(y\)</span> coincides with a point of <span class="arithmatex">\(x\)</span> (e.g. <code>knn(pos, pos, k)</code>), the query point
-itself counts among the <span class="arithmatex">\(k\)</span> neighbors, matching <code>torch_geometric.nn.pool.knn</code>.</p>
-</details>
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The source tensor to find the nearest neighbors of shape <span class="arithmatex">\((N, *)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>y</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The target tensor to find the nearest neighbors of shape <span class="arithmatex">\((M, *)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>k</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The number of nearest neighbors to find.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_x</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The batch tensor of the source tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_y</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The batch tensor of the target tensor of shape <span class="arithmatex">\((M,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>cosine</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to use cosine distance.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_workers</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The number of workers to use for the computation.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_size</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The batch size to use for the computation.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The nearest neighbors of shape <span class="arithmatex">\((2, M \cdot k)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
+        <p>Safely divide two tensors, returning a default value if the denominator is zero.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the inputs are not floating point numbers,
+they will be converted to floating point numbers (float32).</p>
 </div>
 
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.cluster.knn_graph" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">knn_graph</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L123-L220" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.cluster.knn_graph" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">knn_graph</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">loop</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">flow</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;source_to_target&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">cosine</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">num_workers</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">batch_size</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Compute the kNN graph of <span class="arithmatex">\(x\)</span>.</p>
-<p>This function is a drop-in for <code>torch_geometric.nn.pool.knn_graph</code>, except that when the
-<code>batch</code> tensor partitions the points into uniformly-sized samples this function
-uses a <code>torch.cdist</code> + <code>topk</code> implementation that is significantly faster on GPU
-than the underlying <code>torch_geometric.nn.pool.knn_graph</code>.</p>
-
-
-<details class="important" open>
-  <summary>Important</summary>
-  <p>If provided, the <code>batch</code> tensor must be sorted in non-decreasing order (both the dense
-fast path and <code>torch_geometric</code> require it); an unsorted batch raises a <code>ValueError</code>.</p>
-</details>
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-            <b><code>x</code></b>
+            <b><code>a</code></b>
               (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>The input tensor of shape <span class="arithmatex">\((N, *)\)</span>.</p>
+            <p>The numerator tensor.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>k</code></b>
-              (<code><span title="int">int</span></code>)
+            <b><code>b</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>The number of nearest neighbors to find. When <code>loop=False</code>, the
-self-edge is excluded from the result.</p>
+            <p>The denominator tensor.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
+            <b><code>default</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="float">float</span>, <span title="torch.Tensor">Tensor</span>]</code>, default:
+                  <code><span title="float">float</span>(&#39;nan&#39;)</code>
 )
           –
           <div class="doc-md-description">
-            <p>The batch tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>loop</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to include self-edges.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>flow</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code>&#39;source_to_target&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Either <code>"source_to_target"</code> (PyG default, <code>edge_index = (src, dst)</code>
-where <code>src</code> is the neighbor and <code>dst</code> is the central point) or <code>"target_to_source"</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>cosine</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to use cosine distance.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_workers</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Forwarded to the <code>torch_geometric</code> fallback.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_size</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Forwarded to the <code>torch_geometric</code> fallback.</p>
+            <p>The default value to return if the denominator is zero.</p>
           </div>
         </li>
     </ul>
@@ -6345,688 +6045,22 @@ where <code>src</code> is the neighbor and <code>dst</code> is the central point
               <code><span title="torch.Tensor">Tensor</span></code>
           –
           <div class="doc-md-description">
-            <p>Edge index of shape <span class="arithmatex">\((2, k \cdot N)\)</span>.</p>
+            <p>The result of the division.</p>
           </div>
         </li>
     </ul>
 
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.cluster.fps" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">fps</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L223-L329" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.cluster.fps" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">fps</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">src</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">ratio</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">num_nodes</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">random_start</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">batch_size</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">ptr</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>A sampling algorithm from the paper <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1706.02413">PointNet++: Deep Hierarchical Feature
-Learning on Point Sets in a Metric Space</a>
-by Qi et al., which iteratively samples the most distant point with regard
-to the rest points.</p>
-<p>This function wraps <code>torch_geometric.nn.pool.fps</code> and supports sampling a fixed number of nodes per sample
-with the <code>num_nodes</code> argument.</p>
-
-
-<details class="important" open>
-  <summary>Important</summary>
-  <p>If provided, the <code>batch</code> tensor is expected to be sorted.</p>
-</details>
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>src</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The source tensor to sample from of shape <span class="arithmatex">\((N, *)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Tensor">Tensor</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The batch tensor to sample from of shape <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>ratio</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="float">float</span>]]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The sampling ratio.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_nodes</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="float">float</span>]]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The number of nodes to sample. When a sample holds fewer than <code>num_nodes</code> points, indices
-repeat (sampling with replacement, matching the reference CUDA FPS), so the output always holds
-<code>num_nodes</code> indices per sample and downstream shapes stay stable.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>random_start</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>True</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to start the sampling randomly.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_size</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The batch size.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>ptr</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.List">List</span>[<span title="int">int</span>]]]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The pointer tensor to sample from.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The sampled indices of shape <span class="arithmatex">\((M,)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">fps</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">src</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">50</span><span class="p">)])</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">idx</span> <span class="o">=</span> <span class="n">fps</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">num_nodes</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>  <span class="c1"># doctest: +SKIP</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">idx</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>  <span class="c1"># doctest: +SKIP</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="go">torch.Size([10])</span>
-</code></pre></div>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.cluster.local_grid" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">local_grid</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L332-L370" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.cluster.local_grid" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">local_grid</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">src</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Applies local grid quantization to the source tensor as explained in the paper
-<a href="https://openaccess.thecvf.com/content/CVPR2023W/WAD/papers/Tang_TorchSparse_Efficient_Point_Cloud_Engine_CVPRW_2023_paper.pdf">TorchSparse++: Efficient Point Cloud Engine</a>
-by Tang et al., which quantizes the source tensor to a local grid.</p>
-
-
-<details class="note" open>
-  <summary>Note</summary>
-  <p>If a batch tensor is provided, the quantization is applied to each sample separately, so the grid of every
-sample starts at its own minimum cell.</p>
-</details>
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>src</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The source tensor to quantize of shape <span class="arithmatex">\((N, *)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>size</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The quantization size.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span> | None</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The associated batch tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The quantized source tensor of shape <span class="arithmatex">\((N, *)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">local_grid</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">src</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">50</span><span class="p">)])</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">src_grid</span> <span class="o">=</span> <span class="n">local_grid</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">batch</span><span class="o">=</span><span class="n">batch</span><span class="p">)</span>  <span class="c1"># doctest: +SKIP</span>
-</code></pre></div>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.cluster.radius" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">radius</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L373-L461" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.cluster.radius" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">radius</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">y</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">r</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">batch_x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">batch_y</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">max_num_neighbors</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">sort</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p><code>torch_geometric.nn.pool.radius</code> wrapper with an optional sort-by-source-index tie-breaker.</p>
-<p>With <code>sort=False</code> (default) this just delegates to <code>torch_geometric.nn.pool.radius</code> and
-returns edges in kernel-traversal order. With <code>sort=True</code>, when more than
-<code>max_num_neighbors</code> source points lie inside a ball, the <span class="arithmatex">\(k\)</span> smallest source
-indices are kept (PointNet++'s reference <code>query_ball_point</code> behavior). Pretrained
-PointNet++ checkpoints from yanx27 / charlesq34 overfit to this selection rule,
-so reproducing their accuracy requires <code>sort=True</code>.</p>
-
-
-<details class="important" open>
-  <summary>Important</summary>
-  <p>If provided, the <code>batch_x</code> and <code>batch_y</code> tensors must be sorted in non-decreasing order
-(<code>torch_geometric.nn.pool.radius</code> requires it); unsorted batches raise a <code>ValueError</code>.</p>
-</details>
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Source positions, shape <span class="arithmatex">\((N_x, d)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>y</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Query positions, shape <span class="arithmatex">\((N_y, d)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>r</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Ball radius.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_x</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Batch index for <span class="arithmatex">\(x\)</span>, shape <span class="arithmatex">\((N_x,)\)</span>. <code>None</code> for a single batch.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_y</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Batch index for <span class="arithmatex">\(y\)</span>, shape <span class="arithmatex">\((N_y,)\)</span>. <code>None</code> for a single batch.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_num_neighbors</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>32</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Max neighbors <span class="arithmatex">\(k\)</span> kept per query.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>sort</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Sort in-ball source indices ascending and keep the first <span class="arithmatex">\(k\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p><code>(row, col)</code> edges. <code>row</code> is the query index, <code>col</code> is the source index.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>Centroids with no in-ball neighbors emit zero edges; pooling leaves those</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="tuple">tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]</code>
-          –
-          <div class="doc-md-description">
-            <p>rows at the reduction identity.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.cluster.group" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">group</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L488-L554" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.cluster.group" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-          <div class="doc-overloads">
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">group</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">num_groups</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">group_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">random_start</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">return_indices</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">group</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">num_groups</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">group_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">random_start</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">return_indices</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>          </div>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">group</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">num_groups</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">group_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">random_start</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">return_indices</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Partition a packed point cloud into local groups with FPS centers and a <span class="arithmatex">\(k\)</span>-NN neighborhood.</p>
-<p>Farthest point sampling selects <code>num_groups</code> centers per sample, then <span class="arithmatex">\(k\)</span>-NN gathers the
-<code>group_size</code> nearest neighbors of each center, and each neighborhood is recentered on its center.
-Because <code>num_groups</code> is fixed per sample, the packed result densifies to a regular <span class="arithmatex">\((B, G, k, 3)\)</span>
-batch without padding.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>pos</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed point coordinates of shape <span class="arithmatex">\((N, 3)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-point batch index of shape <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_groups</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of groups (FPS centers) <span class="arithmatex">\(G\)</span> per sample.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>group_size</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of neighbors <span class="arithmatex">\(k\)</span> per group.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>random_start</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to start farthest point sampling from a random point.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>return_indices</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>If <code>True</code>, also return the flat neighbor index into the packed input.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
-          –
-          <div class="doc-md-description">
-            <p><code>(neighborhood, center)</code>, or <code>(neighborhood, center, idx)</code> when <code>return_indices</code> is <code>True</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
-          –
-          <div class="doc-md-description">
-            <p><code>neighborhood</code> has shape <span class="arithmatex">\((B, G, k, 3)\)</span> recentered on each center, <code>center</code> has shape</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
-          –
-          <div class="doc-md-description">
-            <p><span class="arithmatex">\((B, G, 3)\)</span>, and <code>idx</code> has shape <span class="arithmatex">\((B \cdot G \cdot k,)\)</span> indexing the packed input.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<details class="shape" open>
-  <summary>Shape</summary>
-  <ul>
-<li>Input: <span class="arithmatex">\((N, 3)\)</span> and <span class="arithmatex">\((N,)\)</span>.</li>
-<li>Output: <span class="arithmatex">\((B, G, k, 3)\)</span> and <span class="arithmatex">\((B, G, 3)\)</span> (plus <span class="arithmatex">\((B \cdot G \cdot k,)\)</span> when <code>return_indices</code>).</li>
-</ul>
-</details>
 
 <details class="example" open>
   <summary>Example</summary>
-  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.utils.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">group</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2048</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1024</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1024</span><span class="p">)])</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">neighborhood</span><span class="p">,</span> <span class="n">center</span> <span class="o">=</span> <span class="n">group</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">num_groups</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">group_size</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">neighborhood</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">center</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">safe_divide</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]))</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="go">tensor([1., nan, 3.])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">safe_divide</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]),</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">tensor([1., 0., 3.])</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">safe_divide</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span> <span class="n">default</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="go">tensor([1., 0., 3.])</span>
 </code></pre></div>
 </details>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.cluster.knn_interpolate" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">knn_interpolate</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/cluster.py#L557-L627" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.cluster.knn_interpolate" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">knn_interpolate</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos_x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">pos_y</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">batch_x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">batch_y</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">num_workers</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">weighting</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s2">&quot;squared&quot;</span><span class="p">,</span> <span class="s2">&quot;inverse&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;squared&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">eps</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-16</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>k-NN interpolation with inverse-distance weighting.</p>
-<p>From <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1706.02413">PointNet++: Deep Hierarchical Feature Learning on Point Sets in a
-Metric Space</a>.</p>
-<p>For each point <span class="arithmatex">\(y\)</span> with position <span class="arithmatex">\(\mathbf{p}(y)\)</span>, its
-interpolated features <span class="arithmatex">\(\mathbf{f}(y)\)</span> are given by</p>
-<div class="arithmatex">\[
-    \mathbf{f}(y) = \frac{\sum_{i=1}^k w(x_i) \mathbf{f}(x_i)}{\sum_{i=1}^k
-    w(x_i)}
-\]</div>
-<p>where <span class="arithmatex">\(\{ x_1, \ldots, x_k \}\)</span> are the <span class="arithmatex">\(k\)</span> nearest points to <span class="arithmatex">\(y\)</span> and
-the weights <span class="arithmatex">\(w(x_i)\)</span> depend on the chosen <code>weighting</code> scheme:</p>
-<ul>
-<li><code>"squared"</code> (default, <code>torch_geometric</code> convention):
-  <span class="arithmatex">\(w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))^2\)</span></li>
-<li><code>"inverse"</code> (PointNet++ <code>three_interpolation</code> convention):
-  <span class="arithmatex">\(w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))\)</span></li>
-</ul>
-
-
-<details class="note" open>
-  <summary>Note</summary>
-  <p>Adapted from the <code>torch_geometric</code> package.</p>
-</details>
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Node feature matrix <span class="arithmatex">\(\mathbf{X} \in \mathbb{R}^{N \times F}\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pos_x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Node position matrix <span class="arithmatex">\(\in \mathbb{R}^{N \times d}\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pos_y</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Upsampled node position matrix <span class="arithmatex">\(\in \mathbb{R}^{M \times d}\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_x</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Batch vector <span class="arithmatex">\(\mathbf{b_x} \in \{ 0, \ldots, B-1 \}^N\)</span>,
-assigning each node from <span class="arithmatex">\(\mathbf{X}\)</span> to a specific example.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_y</code></b>
-              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Batch vector <span class="arithmatex">\(\mathbf{b_y} \in \{ 0, \ldots, B-1 \}^M\)</span>,
-assigning each node from <span class="arithmatex">\(\mathbf{Y}\)</span> to a specific example.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>k</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>3</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Number of neighbors.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_workers</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Number of workers for computation. Has no effect when
-<code>batch_x</code> or <code>batch_y</code> is not <code>None</code>, or the input lies on GPU.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>weighting</code></b>
-              (<code><span title="typing.Literal">Literal</span>[&#39;squared&#39;, &#39;inverse&#39;]</code>, default:
-                  <code>&#39;squared&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Weighting scheme for neighbors. <code>"squared"</code> for <span class="arithmatex">\(1/d^2\)</span>
-weights (<code>torch_geometric</code> default) or <code>"inverse"</code> for <span class="arithmatex">\(1/d\)</span>
-weights (PointNet++ convention).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>eps</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1e-16</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Small value to avoid division by zero.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>Interpolated features <span class="arithmatex">\(\in \mathbb{R}^{M \times F}\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
 
     </div>
 
@@ -7082,7 +6116,7 @@ weights (PointNet++ convention).</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../box3d/" class="md-footer__link md-footer__link--prev" aria-label="Previous: box3d">
+          <a href="../hilbert/" class="md-footer__link md-footer__link--prev" aria-label="Previous: hilbert">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -7092,20 +6126,20 @@ weights (PointNet++ convention).</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                box3d
+                hilbert
               </div>
             </div>
           </a>
         
         
           
-          <a href="../conversion/" class="md-footer__link md-footer__link--next" aria-label="Next: conversion">
+          <a href="../octree/" class="md-footer__link md-footer__link--next" aria-label="Next: octree">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                conversion
+                octree
               </div>
             </div>
             <div class="md-footer__button md-icon">

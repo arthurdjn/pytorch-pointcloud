@@ -12,34 +12,36 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/utils/voxelization/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/ops/">
       
       
-        <link rel="prev" href="../types/">
+        <link rel="prev" href="../models/voxelnext/">
       
+      
+        <link rel="next" href="./box3d/">
       
       
         
       
       
-      <link rel="icon" href="../../../assets/favicon.png">
+      <link rel="icon" href="../../assets/favicon.png">
       <meta name="generator" content="zensical-0.0.53">
     
     
       
-        <title>voxelization - PyTorch PointCloud</title>
+        <title>ops - PyTorch PointCloud</title>
       
     
     
       
         
       
-      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.20815dad.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.20815dad.min.css">
       
         
           
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.dfe2e883.min.css">
       
       
   
@@ -78,19 +80,19 @@
       
     
     
-      <link rel="stylesheet" href="../../../overrides/stylesheets/extra.css">
+      <link rel="stylesheet" href="../../overrides/stylesheets/extra.css">
     
-      <link rel="stylesheet" href="../../../overrides/stylesheets/install-selector.css">
+      <link rel="stylesheet" href="../../overrides/stylesheets/install-selector.css">
     
       <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
     
     
-  <link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
   
   
     
@@ -101,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="voxelization - PyTorch PointCloud">
+  <meta property="og:title" content="ops - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/utils/voxelization/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/ops/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="voxelization - PyTorch PointCloud">
+  <meta name="twitter:title" content="ops - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -134,8 +136,7 @@
     <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
     <div data-md-component="skip">
       
-        
-        <a href="#torch_pointcloud.utils.voxelization.dense_voxelize" class="md-skip">
+        <a href="#__skip" class="md-skip">
           Skip to content
         </a>
       
@@ -168,12 +169,12 @@
             <div class="md-banner__inner md-grid md-typeset">
               
   You are viewing the documentation of an older version.
-  <a href="../../../..">
+  <a href="../../..">
     <strong>Go to the latest version.</strong>
   </a>
 
             </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
           </aside>
         
       </div>
@@ -185,7 +186,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="PyTorch PointCloud" class="md-header__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
+    <a href="../.." title="PyTorch PointCloud" class="md-header__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
@@ -296,7 +297,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              voxelization
+              ops
             
           </span>
         </div>
@@ -379,7 +380,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../.." class="md-tabs__link">
+        <a href="../.." class="md-tabs__link">
           
   
   Get Started
@@ -401,7 +402,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../models/overview/" class="md-tabs__link">
+        <a href="../../models/overview/" class="md-tabs__link">
           
   
   Models
@@ -423,7 +424,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../datasets/overview/" class="md-tabs__link">
+        <a href="../../datasets/overview/" class="md-tabs__link">
           
   
   Datasets
@@ -440,7 +441,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../transforms/overview/" class="md-tabs__link">
+      <a href="../../transforms/overview/" class="md-tabs__link">
         
   
   Transforms
@@ -456,7 +457,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../inferers/overview/" class="md-tabs__link">
+      <a href="../../inferers/overview/" class="md-tabs__link">
         
   
   Inferers
@@ -477,7 +478,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../examples/" class="md-tabs__link">
+        <a href="../../examples/" class="md-tabs__link">
           
   
   Tutorials
@@ -501,7 +502,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../" class="md-tabs__link">
+        <a href="../" class="md-tabs__link">
           
   
   API Reference
@@ -540,7 +541,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="PyTorch PointCloud" class="md-nav__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
+    <a href="../.." title="PyTorch PointCloud" class="md-nav__button md-logo" aria-label="PyTorch PointCloud" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 294.03 340.6">
@@ -681,7 +682,7 @@
   
   
   
-    <a href="../../.." class="md-nav__link">
+    <a href="../.." class="md-nav__link">
       
   
   
@@ -733,7 +734,7 @@
   
   
   
-    <a href="../../../models/overview/" class="md-nav__link">
+    <a href="../../models/overview/" class="md-nav__link">
       
   
   
@@ -785,7 +786,7 @@
   
   
   
-    <a href="../../../datasets/overview/" class="md-nav__link">
+    <a href="../../datasets/overview/" class="md-nav__link">
       
   
   
@@ -817,7 +818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../transforms/overview/" class="md-nav__link">
+      <a href="../../transforms/overview/" class="md-nav__link">
         
   
   
@@ -843,7 +844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../inferers/overview/" class="md-nav__link">
+      <a href="../../inferers/overview/" class="md-nav__link">
         
   
   
@@ -889,7 +890,7 @@
   
   
   
-    <a href="../../../examples/" class="md-nav__link">
+    <a href="../../examples/" class="md-nav__link">
       
   
   
@@ -978,7 +979,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -1005,7 +1006,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../config/" class="md-nav__link">
+      <a href="../config/" class="md-nav__link">
         
   
   
@@ -1087,7 +1088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/" class="md-nav__link">
+      <a href="../datasets/" class="md-nav__link">
         
   
   
@@ -1114,7 +1115,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/concat/" class="md-nav__link">
+      <a href="../datasets/concat/" class="md-nav__link">
         
   
   
@@ -1141,7 +1142,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/kitti/" class="md-nav__link">
+      <a href="../datasets/kitti/" class="md-nav__link">
         
   
   
@@ -1168,7 +1169,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/mix/" class="md-nav__link">
+      <a href="../datasets/mix/" class="md-nav__link">
         
   
   
@@ -1195,7 +1196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/modelnet/" class="md-nav__link">
+      <a href="../datasets/modelnet/" class="md-nav__link">
         
   
   
@@ -1222,7 +1223,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/nuscenes/" class="md-nav__link">
+      <a href="../datasets/nuscenes/" class="md-nav__link">
         
   
   
@@ -1249,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/parislille3d/" class="md-nav__link">
+      <a href="../datasets/parislille3d/" class="md-nav__link">
         
   
   
@@ -1276,7 +1277,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/pointcloud/" class="md-nav__link">
+      <a href="../datasets/pointcloud/" class="md-nav__link">
         
   
   
@@ -1303,7 +1304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/repeat/" class="md-nav__link">
+      <a href="../datasets/repeat/" class="md-nav__link">
         
   
   
@@ -1330,7 +1331,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/s3dis/" class="md-nav__link">
+      <a href="../datasets/s3dis/" class="md-nav__link">
         
   
   
@@ -1357,7 +1358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/scannet/" class="md-nav__link">
+      <a href="../datasets/scannet/" class="md-nav__link">
         
   
   
@@ -1384,7 +1385,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/scanobjectnn/" class="md-nav__link">
+      <a href="../datasets/scanobjectnn/" class="md-nav__link">
         
   
   
@@ -1411,7 +1412,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/semantic3d/" class="md-nav__link">
+      <a href="../datasets/semantic3d/" class="md-nav__link">
         
   
   
@@ -1438,7 +1439,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/semantickitti/" class="md-nav__link">
+      <a href="../datasets/semantickitti/" class="md-nav__link">
         
   
   
@@ -1465,7 +1466,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/shapenetpart/" class="md-nav__link">
+      <a href="../datasets/shapenetpart/" class="md-nav__link">
         
   
   
@@ -1492,7 +1493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/sunrgbd/" class="md-nav__link">
+      <a href="../datasets/sunrgbd/" class="md-nav__link">
         
   
   
@@ -1519,7 +1520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/toronto3d/" class="md-nav__link">
+      <a href="../datasets/toronto3d/" class="md-nav__link">
         
   
   
@@ -1546,7 +1547,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../datasets/utils/" class="md-nav__link">
+      <a href="../datasets/utils/" class="md-nav__link">
         
   
   
@@ -1636,7 +1637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/" class="md-nav__link">
+      <a href="../inferers/" class="md-nav__link">
         
   
   
@@ -1663,7 +1664,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/inferer/" class="md-nav__link">
+      <a href="../inferers/inferer/" class="md-nav__link">
         
   
   
@@ -1690,7 +1691,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/knn_window/" class="md-nav__link">
+      <a href="../inferers/knn_window/" class="md-nav__link">
         
   
   
@@ -1717,7 +1718,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/part_refinement/" class="md-nav__link">
+      <a href="../inferers/part_refinement/" class="md-nav__link">
         
   
   
@@ -1744,7 +1745,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/potential_sphere/" class="md-nav__link">
+      <a href="../inferers/potential_sphere/" class="md-nav__link">
         
   
   
@@ -1771,7 +1772,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/simple/" class="md-nav__link">
+      <a href="../inferers/simple/" class="md-nav__link">
         
   
   
@@ -1798,7 +1799,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/sliding_window/" class="md-nav__link">
+      <a href="../inferers/sliding_window/" class="md-nav__link">
         
   
   
@@ -1825,7 +1826,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/tta/" class="md-nav__link">
+      <a href="../inferers/tta/" class="md-nav__link">
         
   
   
@@ -1852,7 +1853,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inferers/voxel_partition/" class="md-nav__link">
+      <a href="../inferers/voxel_partition/" class="md-nav__link">
         
   
   
@@ -1942,7 +1943,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/" class="md-nav__link">
+      <a href="../layers/" class="md-nav__link">
         
   
   
@@ -1969,7 +1970,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/act/" class="md-nav__link">
+      <a href="../layers/act/" class="md-nav__link">
         
   
   
@@ -1996,7 +1997,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/affine/" class="md-nav__link">
+      <a href="../layers/affine/" class="md-nav__link">
         
   
   
@@ -2023,7 +2024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/anchors/" class="md-nav__link">
+      <a href="../layers/anchors/" class="md-nav__link">
         
   
   
@@ -2050,7 +2051,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/bev_backbone/" class="md-nav__link">
+      <a href="../layers/bev_backbone/" class="md-nav__link">
         
   
   
@@ -2077,7 +2078,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/conv2d_blocks/" class="md-nav__link">
+      <a href="../layers/conv2d_blocks/" class="md-nav__link">
         
   
   
@@ -2104,7 +2105,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/conv3d_blocks/" class="md-nav__link">
+      <a href="../layers/conv3d_blocks/" class="md-nav__link">
         
   
   
@@ -2131,7 +2132,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/dropouts/" class="md-nav__link">
+      <a href="../layers/dropouts/" class="md-nav__link">
         
   
   
@@ -2158,7 +2159,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/fps/" class="md-nav__link">
+      <a href="../layers/fps/" class="md-nav__link">
         
   
   
@@ -2185,7 +2186,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/geometric_affine/" class="md-nav__link">
+      <a href="../layers/geometric_affine/" class="md-nav__link">
         
   
   
@@ -2212,7 +2213,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/grid_pool/" class="md-nav__link">
+      <a href="../layers/grid_pool/" class="md-nav__link">
         
   
   
@@ -2239,7 +2240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/linear_blocks/" class="md-nav__link">
+      <a href="../layers/linear_blocks/" class="md-nav__link">
         
   
   
@@ -2266,7 +2267,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/norms/" class="md-nav__link">
+      <a href="../layers/norms/" class="md-nav__link">
         
   
   
@@ -2293,7 +2294,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/octree_attention/" class="md-nav__link">
+      <a href="../layers/octree_attention/" class="md-nav__link">
         
   
   
@@ -2320,7 +2321,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/octree_blocks/" class="md-nav__link">
+      <a href="../layers/octree_blocks/" class="md-nav__link">
         
   
   
@@ -2347,7 +2348,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pdnorm/" class="md-nav__link">
+      <a href="../layers/pdnorm/" class="md-nav__link">
         
   
   
@@ -2374,7 +2375,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/point_patch_embed/" class="md-nav__link">
+      <a href="../layers/point_patch_embed/" class="md-nav__link">
         
   
   
@@ -2401,7 +2402,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pointconv/" class="md-nav__link">
+      <a href="../layers/pointconv/" class="md-nav__link">
         
   
   
@@ -2428,7 +2429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pointconv_sa/" class="md-nav__link">
+      <a href="../layers/pointconv_sa/" class="md-nav__link">
         
   
   
@@ -2455,7 +2456,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pointnet2_blocks/" class="md-nav__link">
+      <a href="../layers/pointnet2_blocks/" class="md-nav__link">
         
   
   
@@ -2482,7 +2483,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pointnext_blocks/" class="md-nav__link">
+      <a href="../layers/pointnext_blocks/" class="md-nav__link">
         
   
   
@@ -2509,7 +2510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pools/" class="md-nav__link">
+      <a href="../layers/pools/" class="md-nav__link">
         
   
   
@@ -2536,7 +2537,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pvcnn_blocks/" class="md-nav__link">
+      <a href="../layers/pvcnn_blocks/" class="md-nav__link">
         
   
   
@@ -2563,7 +2564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/rope/" class="md-nav__link">
+      <a href="../layers/rope/" class="md-nav__link">
         
   
   
@@ -2590,7 +2591,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/serialized_attention/" class="md-nav__link">
+      <a href="../layers/serialized_attention/" class="md-nav__link">
         
   
   
@@ -2617,7 +2618,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/serialized_pool/" class="md-nav__link">
+      <a href="../layers/serialized_pool/" class="md-nav__link">
         
   
   
@@ -2644,7 +2645,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/spconv_blocks/" class="md-nav__link">
+      <a href="../layers/spconv_blocks/" class="md-nav__link">
         
   
   
@@ -2671,7 +2672,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/tnet/" class="md-nav__link">
+      <a href="../layers/tnet/" class="md-nav__link">
         
   
   
@@ -2698,7 +2699,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/transformer/" class="md-nav__link">
+      <a href="../layers/transformer/" class="md-nav__link">
         
   
   
@@ -2725,7 +2726,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/vfe/" class="md-nav__link">
+      <a href="../layers/vfe/" class="md-nav__link">
         
   
   
@@ -2752,7 +2753,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/view/" class="md-nav__link">
+      <a href="../layers/view/" class="md-nav__link">
         
   
   
@@ -2779,7 +2780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/xconv/" class="md-nav__link">
+      <a href="../layers/xconv/" class="md-nav__link">
         
   
   
@@ -2869,7 +2870,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lightning/" class="md-nav__link">
+      <a href="../lightning/" class="md-nav__link">
         
   
   
@@ -2896,7 +2897,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lightning/callbacks/" class="md-nav__link">
+      <a href="../lightning/callbacks/" class="md-nav__link">
         
   
   
@@ -2923,7 +2924,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lightning/datamodule/" class="md-nav__link">
+      <a href="../lightning/datamodule/" class="md-nav__link">
         
   
   
@@ -2950,7 +2951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lightning/metrics/" class="md-nav__link">
+      <a href="../lightning/metrics/" class="md-nav__link">
         
   
   
@@ -2977,7 +2978,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lightning/module/" class="md-nav__link">
+      <a href="../lightning/module/" class="md-nav__link">
         
   
   
@@ -3067,7 +3068,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/" class="md-nav__link">
+      <a href="../losses/" class="md-nav__link">
         
   
   
@@ -3094,7 +3095,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/anchor/" class="md-nav__link">
+      <a href="../losses/anchor/" class="md-nav__link">
         
   
   
@@ -3121,7 +3122,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/centerpoint/" class="md-nav__link">
+      <a href="../losses/centerpoint/" class="md-nav__link">
         
   
   
@@ -3148,7 +3149,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/chamfer/" class="md-nav__link">
+      <a href="../losses/chamfer/" class="md-nav__link">
         
   
   
@@ -3175,7 +3176,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/threedetr/" class="md-nav__link">
+      <a href="../losses/threedetr/" class="md-nav__link">
         
   
   
@@ -3202,7 +3203,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/lovasz/" class="md-nav__link">
+      <a href="../losses/lovasz/" class="md-nav__link">
         
   
   
@@ -3229,7 +3230,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/pointrcnn/" class="md-nav__link">
+      <a href="../losses/pointrcnn/" class="md-nav__link">
         
   
   
@@ -3256,7 +3257,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/sum/" class="md-nav__link">
+      <a href="../losses/sum/" class="md-nav__link">
         
   
   
@@ -3283,7 +3284,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/transfusion/" class="md-nav__link">
+      <a href="../losses/transfusion/" class="md-nav__link">
         
   
   
@@ -3310,7 +3311,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/votenet/" class="md-nav__link">
+      <a href="../losses/votenet/" class="md-nav__link">
         
   
   
@@ -3400,7 +3401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/" class="md-nav__link">
+      <a href="../metrics/" class="md-nav__link">
         
   
   
@@ -3427,7 +3428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/classification/" class="md-nav__link">
+      <a href="../metrics/classification/" class="md-nav__link">
         
   
   
@@ -3454,7 +3455,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/detection/" class="md-nav__link">
+      <a href="../metrics/detection/" class="md-nav__link">
         
   
   
@@ -3481,7 +3482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/instance_segmentation/" class="md-nav__link">
+      <a href="../metrics/instance_segmentation/" class="md-nav__link">
         
   
   
@@ -3508,7 +3509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/kitti/" class="md-nav__link">
+      <a href="../metrics/kitti/" class="md-nav__link">
         
   
   
@@ -3535,7 +3536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/nuscenes/" class="md-nav__link">
+      <a href="../metrics/nuscenes/" class="md-nav__link">
         
   
   
@@ -3562,7 +3563,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/segmentation/" class="md-nav__link">
+      <a href="../metrics/segmentation/" class="md-nav__link">
         
   
   
@@ -3652,7 +3653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/" class="md-nav__link">
+      <a href="../models/" class="md-nav__link">
         
   
   
@@ -3679,7 +3680,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/concerto/" class="md-nav__link">
+      <a href="../models/concerto/" class="md-nav__link">
         
   
   
@@ -3706,7 +3707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/threedetr/" class="md-nav__link">
+      <a href="../models/threedetr/" class="md-nav__link">
         
   
   
@@ -3733,7 +3734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/dgcnn/" class="md-nav__link">
+      <a href="../models/dgcnn/" class="md-nav__link">
         
   
   
@@ -3760,7 +3761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/kpconv/" class="md-nav__link">
+      <a href="../models/kpconv/" class="md-nav__link">
         
   
   
@@ -3787,7 +3788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/lion/" class="md-nav__link">
+      <a href="../models/lion/" class="md-nav__link">
         
   
   
@@ -3814,7 +3815,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/octformer/" class="md-nav__link">
+      <a href="../models/octformer/" class="md-nav__link">
         
   
   
@@ -3841,7 +3842,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_bert/" class="md-nav__link">
+      <a href="../models/point_bert/" class="md-nav__link">
         
   
   
@@ -3868,7 +3869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_m2ae/" class="md-nav__link">
+      <a href="../models/point_m2ae/" class="md-nav__link">
         
   
   
@@ -3895,7 +3896,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_mae/" class="md-nav__link">
+      <a href="../models/point_mae/" class="md-nav__link">
         
   
   
@@ -3922,7 +3923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_mamba/" class="md-nav__link">
+      <a href="../models/point_mamba/" class="md-nav__link">
         
   
   
@@ -3949,7 +3950,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_transformer/" class="md-nav__link">
+      <a href="../models/point_transformer/" class="md-nav__link">
         
   
   
@@ -3976,7 +3977,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_transformer_v2/" class="md-nav__link">
+      <a href="../models/point_transformer_v2/" class="md-nav__link">
         
   
   
@@ -4003,7 +4004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/point_transformer_v3/" class="md-nav__link">
+      <a href="../models/point_transformer_v3/" class="md-nav__link">
         
   
   
@@ -4030,7 +4031,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointcnn/" class="md-nav__link">
+      <a href="../models/pointcnn/" class="md-nav__link">
         
   
   
@@ -4057,7 +4058,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointconv/" class="md-nav__link">
+      <a href="../models/pointconv/" class="md-nav__link">
         
   
   
@@ -4084,7 +4085,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointgpt/" class="md-nav__link">
+      <a href="../models/pointgpt/" class="md-nav__link">
         
   
   
@@ -4111,7 +4112,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointmlp/" class="md-nav__link">
+      <a href="../models/pointmlp/" class="md-nav__link">
         
   
   
@@ -4138,7 +4139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointnet/" class="md-nav__link">
+      <a href="../models/pointnet/" class="md-nav__link">
         
   
   
@@ -4165,7 +4166,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointnet2/" class="md-nav__link">
+      <a href="../models/pointnet2/" class="md-nav__link">
         
   
   
@@ -4192,7 +4193,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointnext/" class="md-nav__link">
+      <a href="../models/pointnext/" class="md-nav__link">
         
   
   
@@ -4219,7 +4220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointpillars/" class="md-nav__link">
+      <a href="../models/pointpillars/" class="md-nav__link">
         
   
   
@@ -4246,7 +4247,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pointrcnn/" class="md-nav__link">
+      <a href="../models/pointrcnn/" class="md-nav__link">
         
   
   
@@ -4273,7 +4274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pvcnn/" class="md-nav__link">
+      <a href="../models/pvcnn/" class="md-nav__link">
         
   
   
@@ -4300,7 +4301,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/pvcnn2/" class="md-nav__link">
+      <a href="../models/pvcnn2/" class="md-nav__link">
         
   
   
@@ -4327,7 +4328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/randlanet/" class="md-nav__link">
+      <a href="../models/randlanet/" class="md-nav__link">
         
   
   
@@ -4354,7 +4355,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/second/" class="md-nav__link">
+      <a href="../models/second/" class="md-nav__link">
         
   
   
@@ -4381,7 +4382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/sonata/" class="md-nav__link">
+      <a href="../models/sonata/" class="md-nav__link">
         
   
   
@@ -4408,7 +4409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/spformer_unet/" class="md-nav__link">
+      <a href="../models/spformer_unet/" class="md-nav__link">
         
   
   
@@ -4435,7 +4436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/sphereformer/" class="md-nav__link">
+      <a href="../models/sphereformer/" class="md-nav__link">
         
   
   
@@ -4462,7 +4463,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/spunet/" class="md-nav__link">
+      <a href="../models/spunet/" class="md-nav__link">
         
   
   
@@ -4489,7 +4490,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/spvcnn/" class="md-nav__link">
+      <a href="../models/spvcnn/" class="md-nav__link">
         
   
   
@@ -4516,7 +4517,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/utonia/" class="md-nav__link">
+      <a href="../models/utonia/" class="md-nav__link">
         
   
   
@@ -4543,7 +4544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/votenet/" class="md-nav__link">
+      <a href="../models/votenet/" class="md-nav__link">
         
   
   
@@ -4570,7 +4571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/voxel_mamba/" class="md-nav__link">
+      <a href="../models/voxel_mamba/" class="md-nav__link">
         
   
   
@@ -4597,7 +4598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../models/voxelnext/" class="md-nav__link">
+      <a href="../models/voxelnext/" class="md-nav__link">
         
   
   
@@ -4605,420 +4606,6 @@
     
   
   voxelnext
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" >
-        
-          
-          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Transforms
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_10">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-  Transforms
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  Overview
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/augmentation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  augmentation
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/base/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  base
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/box/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  box
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/functional/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  functional
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/geometry/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  geometry
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/masking/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  masking
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/mixing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  mixing
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/octree/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  octree
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/sampling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  sampling
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/scaling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  scaling
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/utils/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  utils
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../transforms/voxelization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  voxelization
 
     
   </span>
@@ -5066,17 +4653,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" checked>
         
           
-          <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-  Utils
+  Ops
 
     
   </span>
@@ -5086,12 +4673,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7_11">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_10">
             <span class="md-nav__icon md-icon"></span>
             
   
-  Utils
+  Ops
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
@@ -5100,10 +4687,17 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
@@ -5118,6 +4712,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -5130,7 +4725,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../box3d/" class="md-nav__link">
+      <a href="./box3d/" class="md-nav__link">
         
   
   
@@ -5157,7 +4752,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cluster/" class="md-nav__link">
+      <a href="./cluster/" class="md-nav__link">
         
   
   
@@ -5184,61 +4779,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../conversion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  conversion
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../data/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  data
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../density/" class="md-nav__link">
+      <a href="./density/" class="md-nav__link">
         
   
   
@@ -5265,7 +4806,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../geometry/" class="md-nav__link">
+      <a href="./geometry/" class="md-nav__link">
         
   
   
@@ -5292,7 +4833,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../heatmap/" class="md-nav__link">
+      <a href="./heatmap/" class="md-nav__link">
         
   
   
@@ -5319,7 +4860,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hilbert/" class="md-nav__link">
+      <a href="./hilbert/" class="md-nav__link">
         
   
   
@@ -5346,14 +4887,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../imports/" class="md-nav__link">
+      <a href="./math/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  imports
+  math
 
     
   </span>
@@ -5373,61 +4914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../io/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  io
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../misc/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  misc
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../octree/" class="md-nav__link">
+      <a href="./octree/" class="md-nav__link">
         
   
   
@@ -5454,88 +4941,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ops/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  ops
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../optim/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  optim
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../random/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  random
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../serialization/" class="md-nav__link">
+      <a href="./serialization/" class="md-nav__link">
         
   
   
@@ -5562,7 +4968,727 @@
   
   
     <li class="md-nav__item">
-      <a href="../state_dict/" class="md-nav__link">
+      <a href="./voxelization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxelization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Transforms
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Transforms
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/augmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  augmentation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  base
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/box/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  box
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/functional/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  functional
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  geometry
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/masking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  masking
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/mixing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  mixing
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/octree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  octree
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  sampling
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  scaling
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  utils
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transforms/voxelization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxelization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_12" id="__nav_7_12_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Utils
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Utils
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/conversion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  conversion
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  data
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/imports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  imports
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/io/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  io
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/misc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  misc
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/optim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  optim
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/random/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  random
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/state_dict/" class="md-nav__link">
         
   
   
@@ -5589,7 +5715,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../types/" class="md-nav__link">
+      <a href="../utils/types/" class="md-nav__link">
         
   
   
@@ -5604,133 +5730,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  voxelization
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="././" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  voxelization
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.dense_voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        dense_voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.trilinear_dense_devoxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        trilinear_dense_devoxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.sparse_voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        sparse_voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.hard_voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        hard_voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.voxel_grid_fnv" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        voxel_grid_fnv
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -5766,11 +5765,6 @@
                     
                     
                     
-                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-                      <div class="md-sidebar-button__wrapper">
-                        <label class="md-sidebar-button" for="__toc"></label>
-                      </div>
-                    
                   
                   <div class="md-sidebar__inner">
                     
@@ -5782,69 +5776,6 @@
   
   
   
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.dense_voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        dense_voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.trilinear_dense_devoxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        trilinear_dense_devoxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.sparse_voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        sparse_voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.hard_voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        hard_voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.voxelization.voxel_grid_fnv" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        voxel_grid_fnv
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
   
 </nav>
                   </div>
@@ -5873,7 +5804,7 @@
     
     
       <li class="md-path__item">
-        <a href="../../" class="md-path__link">
+        <a href="../" class="md-path__link">
           
   
   <span class="md-ellipsis">
@@ -5895,11 +5826,11 @@
     
     
       <li class="md-path__item">
-        <a href="../" class="md-path__link">
+        <a href="././" class="md-path__link">
           
   
   <span class="md-ellipsis">
-    Utils
+    Ops
   </span>
 
         </a>
@@ -5922,9 +5853,9 @@
   
 
 
-  <h1 id="__skip">voxelization</h1>
+  <h1 id="__skip">ops</h1>
 
-<p><a href="" id="torch_pointcloud.utils.voxelization"></a></p>
+<p><a href="" id="torch_pointcloud.ops"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -5934,72 +5865,92 @@
 
     <div class="doc doc-contents first">
 
-        <p>Dense and sparse voxelization, FNV voxel hashing, and trilinear devoxelization for packed point clouds.</p>
+        <p>Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, and serialization.</p>
 
 
 
 
 
 
-
-
-
-
-
-
-<p><span class="doc-section-title">Functions:</span></p>
+<p><span class="doc-section-title">Modules:</span></p>
     <ul>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;dense_voxelize&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L21-L53&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.voxelization.dense_voxelize">dense_voxelize</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Pool packed point features into a dense voxel grid, one grid per point cloud.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;trilinear_dense_devoxelize&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L57-L140&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.voxelization.trilinear_dense_devoxelize">trilinear_dense_devoxelize</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Interpolate a dense voxel grid back to packed point features, trilinearly.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;sparse_voxelize&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L165-L200&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.voxelization.sparse_voxelize">sparse_voxelize</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Pool packed point features into sparse voxels of a regular grid.</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;hard_voxelize&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L223-L275&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.voxelization.hard_voxelize">hard_voxelize</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Hard voxelization of a packed batch of point clouds (<code>spconv</code> voxel generator).</p>
-            </div>
-          </li>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;voxel_grid_fnv&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L322-L368&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.voxelization.voxel_grid_fnv">voxel_grid_fnv</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>FNV-1a 64-bit hash of integer voxel-grid coordinates. <span class="arithmatex">\((N, D) \to (N,)\)</span>.</p>
-            </div>
-          </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.box3d" href="box3d/#torch_pointcloud.ops.box3d">box3d</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Generic 3D oriented-box geometry shared by detection models and their evaluation.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.cluster" href="cluster/#torch_pointcloud.ops.cluster">cluster</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Neighbor search and grouping: kNN, FPS, radius queries, local grids, decimation, and kNN interpolation.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.density" href="density/#torch_pointcloud.ops.density">density</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Gaussian kernel density estimation over packed batches.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.geometry" href="geometry/#torch_pointcloud.ops.geometry">geometry</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Geometric operations: bounding boxes, rotations, point transforms, vertex normals, and spherical sampling.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.heatmap" href="heatmap/#torch_pointcloud.ops.heatmap">heatmap</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Gaussian center-heatmap targets for center-based 3D detection heads.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.hilbert" href="hilbert/#torch_pointcloud.ops.hilbert">hilbert</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Hilbert curve encoding and decoding between coordinates and curve indices.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.math" href="math/#torch_pointcloud.ops.math">math</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Elementwise math: division with a default for zero denominators.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.octree" href="octree/#torch_pointcloud.ops.octree">octree</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Octree construction, interpolation, and upsampling helpers built on <code>ocnn</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.serialization" href="serialization/#torch_pointcloud.ops.serialization">serialization</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Space-filling curve serialization of voxel coordinates using Z-order and Hilbert encodings.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.ops.voxelization" href="voxelization/#torch_pointcloud.ops.voxelization">voxelization</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization.</p>
+          </div>
+        </li>
     </ul>
+
+
+
+
+
+
 
 
 
@@ -6015,539 +5966,6 @@
 
 
 
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.voxelization.dense_voxelize" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">dense_voxelize</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L21-L53" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.voxelization.dense_voxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">dense_voxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">resolution</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">reduce</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Pool packed point features into a dense voxel grid, one grid per point cloud.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed point features <span class="arithmatex">\((N, C)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pos</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed grid coordinates <span class="arithmatex">\((N, 3)\)</span>, clamped to <span class="arithmatex">\([0, \text{resolution} - 1)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-point batch index <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>resolution</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of voxels <span class="arithmatex">\(R\)</span> per axis.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>reduce</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code>&#39;mean&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Scatter reduction applied to the points of a voxel (e.g. <code>mean</code>, <code>max</code>).</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The voxel grid <span class="arithmatex">\((B, C, R, R, R)\)</span>, zero where a voxel holds no point.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.voxelization.trilinear_dense_devoxelize" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">trilinear_dense_devoxelize</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L57-L140" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.voxelization.trilinear_dense_devoxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">trilinear_dense_devoxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x_voxel</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">resolution</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Interpolate a dense voxel grid back to packed point features, trilinearly.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x_voxel</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel grid <span class="arithmatex">\((B, C, R, R, R)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pos</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed grid coordinates <span class="arithmatex">\((N, 3)\)</span>, clamped to <span class="arithmatex">\([0, \text{resolution} - 1)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-point batch index <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>resolution</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of voxels <span class="arithmatex">\(R\)</span> per axis. Must match the grid.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The interpolated point features <span class="arithmatex">\((N, C)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.voxelization.sparse_voxelize" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">sparse_voxelize</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L165-L200" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.voxelization.sparse_voxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-          <div class="doc-overloads">
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">sparse_voxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">reduce</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.IntTensor">IntTensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">sparse_voxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">reduce</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.IntTensor">IntTensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>          </div>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">sparse_voxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">reduce</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Pool packed point features into sparse voxels of a regular grid.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed point features <span class="arithmatex">\((N, C)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pos</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed point coordinates <span class="arithmatex">\((N, 3)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-point batch index <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>voxel_size</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Edge length of a voxel, in the units of <code>pos</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>reduce</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code>&#39;mean&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Scatter reduction applied to the points of a voxel (e.g. <code>mean</code>, <code>max</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>return_inverse</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Also return the per-point voxel index, to broadcast voxel values back to the points.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The voxel features <span class="arithmatex">\((V, C)\)</span>, their integer coordinates <span class="arithmatex">\((V, 3)\)</span> and batch index <span class="arithmatex">\((V,)\)</span>, plus the</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code>...</code>
-          –
-          <div class="doc-md-description">
-            <p>per-point voxel index <span class="arithmatex">\((N,)\)</span> when <code>return_inverse</code> is <code>True</code>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.voxelization.hard_voxelize" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">hard_voxelize</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L223-L275" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.voxelization.hard_voxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">hard_voxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">points</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">point_cloud_range</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">max_num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">max_num_voxels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Hard voxelization of a packed batch of point clouds (<code>spconv</code> voxel generator).</p>
-<p>Reproduces the <code>transform_points_to_voxels</code> step of voxel detectors (PointPillars, SECOND):
-each scene is voxelized independently (at most <code>max_num_points</code> points per voxel and
-<code>max_num_voxels</code> voxels per scene), then the per-scene voxels are concatenated with a leading
-batch index. Points outside <code>point_cloud_range</code> are dropped by the generator.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>points</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Packed point features <span class="arithmatex">\((N, C)\)</span> with the first three columns the <span class="arithmatex">\(xyz\)</span> coordinates.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-point batch index <span class="arithmatex">\((N,)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>voxel_size</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel size <span class="arithmatex">\((v_x, v_y, v_z)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>point_cloud_range</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Range <span class="arithmatex">\((x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_num_points</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Maximum number of points kept per voxel.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_num_voxels</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Maximum number of voxels kept per scene.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>A tuple <code>(voxels, voxel_indices, num_points)</code> where <code>voxels</code> is <span class="arithmatex">\((V, \text{max\_num\_points}, C)\)</span>,</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p><code>voxel_indices</code> is <span class="arithmatex">\((V, 4)\)</span> with columns <span class="arithmatex">\((\text{batch}, z, y, x)\)</span> and <code>num_points</code> is <span class="arithmatex">\((V,)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.voxelization.voxel_grid_fnv" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">voxel_grid_fnv</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/voxelization.py#L322-L368" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.voxelization.voxel_grid_fnv" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-          <div class="doc-overloads">
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">voxel_grid_fnv</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">start</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_counts</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">voxel_grid_fnv</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">start</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_counts</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">voxel_grid_fnv</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">start</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_counts</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">voxel_grid_fnv</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">start</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_counts</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>          </div>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">voxel_grid_fnv</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">start</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">return_counts</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>FNV-1a 64-bit hash of integer voxel-grid coordinates. <span class="arithmatex">\((N, D) \to (N,)\)</span>.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>pos</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Point positions of shape <span class="arithmatex">\((N, D)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>size</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel side length in the same units as <code>pos</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>start</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Tensor">Tensor</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Optional voxel-grid origin. When <code>None</code>, the grid origin is implicit via the
-internal <code>pos_grid -= pos_grid.min(0)</code> shift.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>return_inverse</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>If <code>True</code>, also return the per-point consecutive voxel index in <span class="arithmatex">\([0, V)\)</span>,
-following the semantics of <code>torch.unique(..., return_inverse=True)</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>return_counts</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>If <code>True</code>, also return the per-voxel point count of shape <span class="arithmatex">\((V,)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, ...]]</code>
-          –
-          <div class="doc-md-description">
-            <p><code>hashed</code> of shape <span class="arithmatex">\((N,)\)</span> when both flags are <code>False</code>. With <code>return_inverse=True</code> adds</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, ...]]</code>
-          –
-          <div class="doc-md-description">
-            <p><code>inverse</code> of shape <span class="arithmatex">\((N,)\)</span>; with <code>return_counts=True</code> adds <code>count</code> of shape <span class="arithmatex">\((V,)\)</span>; both</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, ...]]</code>
-          –
-          <div class="doc-md-description">
-            <p>flags enabled returns <code>(hashed, inverse, count)</code>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
 
 
 
@@ -6599,7 +6017,7 @@ following the semantics of <code>torch.unique(..., return_inverse=True)</code>.<
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../types/" class="md-footer__link md-footer__link--prev" aria-label="Previous: types">
+          <a href="../models/voxelnext/" class="md-footer__link md-footer__link--prev" aria-label="Previous: voxelnext">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6609,11 +6027,27 @@ following the semantics of <code>torch.unique(..., return_inverse=True)</code>.<
                 Previous
               </span>
               <div class="md-ellipsis">
-                types
+                voxelnext
               </div>
             </div>
           </a>
         
+        
+          
+          <a href="./box3d/" class="md-footer__link md-footer__link--next" aria-label="Next: box3d">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                box3d
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
         
       </nav>
     
@@ -6666,22 +6100,22 @@ following the semantics of <code>torch.unique(..., return_inverse=True)</code>.<
     
       
       
-      <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["announce.dismiss","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.instant","navigation.instant.prefetch","navigation.instant.preview","navigation.instant.progress","navigation.path","navigation.prune","navigation.sections","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"search":"../../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["announce.dismiss","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.instant","navigation.instant.prefetch","navigation.instant.preview","navigation.instant.progress","navigation.path","navigation.prune","navigation.sections","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.69c251d7.min.js"></script>
+      <script src="../../assets/javascripts/bundle.69c251d7.min.js"></script>
       
-        <script src="../../../overrides/javascripts/extra.js"></script>
+        <script src="../../overrides/javascripts/extra.js"></script>
       
-        <script src="../../../overrides/javascripts/install-selector.js"></script>
+        <script src="../../overrides/javascripts/install-selector.js"></script>
       
-        <script src="../../../overrides/javascripts/links.js"></script>
+        <script src="../../overrides/javascripts/links.js"></script>
       
-        <script src="../../../overrides/javascripts/tablesort.js"></script>
+        <script src="../../overrides/javascripts/tablesort.js"></script>
       
-        <script src="../../../overrides/javascripts/table-wordbreak.js"></script>
+        <script src="../../overrides/javascripts/table-wordbreak.js"></script>
       
-        <script src="../../../overrides/javascripts/katex.js"></script>
+        <script src="../../overrides/javascripts/katex.js"></script>
       
         <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
       

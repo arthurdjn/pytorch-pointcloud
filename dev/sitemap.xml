@@ -430,6 +430,39 @@
         <loc>https://pytorch-pointcloud.org/latest/api/models/voxelnext/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/box3d/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/cluster/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/density/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/geometry/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/heatmap/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/hilbert/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/math/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/octree/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/serialization/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/voxelization/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/transforms/</loc>
       </url>
       <url>
@@ -472,28 +505,10 @@
         <loc>https://pytorch-pointcloud.org/latest/api/utils/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/box3d/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/cluster/</loc>
-      </url>
-      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/conversion/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/data/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/density/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/geometry/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/heatmap/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/hilbert/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/imports/</loc>
@@ -505,27 +520,15 @@
         <loc>https://pytorch-pointcloud.org/latest/api/utils/misc/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/octree/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/ops/</loc>
-      </url>
-      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/optim/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/random/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/serialization/</loc>
-      </url>
-      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/state_dict/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/types/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/voxelization/</loc>
       </url>
 </urlset>

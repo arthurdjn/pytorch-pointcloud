@@ -12,13 +12,13 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/utils/geometry/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/ops/box3d/">
       
       
-        <link rel="prev" href="../density/">
+        <link rel="prev" href="../">
       
       
-        <link rel="next" href="../heatmap/">
+        <link rel="next" href="../cluster/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>geometry - PyTorch PointCloud</title>
+        <title>box3d - PyTorch PointCloud</title>
       
     
     
@@ -103,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="geometry - PyTorch PointCloud">
+  <meta property="og:title" content="box3d - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/utils/geometry/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/ops/box3d/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="geometry - PyTorch PointCloud">
+  <meta name="twitter:title" content="box3d - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.utils.geometry.axis_aligned_bounding_box" class="md-skip">
+        <a href="#torch_pointcloud.ops.box3d.box_corners" class="md-skip">
           Skip to content
         </a>
       
@@ -298,7 +298,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              geometry
+              box3d
             
           </span>
         </div>
@@ -4631,6 +4631,556 @@
                 
   
   
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Ops
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+  Ops
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  box3d
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  box3d
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.box_corners" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        box_corners
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.decode_box_residuals" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        decode_box_residuals
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.encode_box_residuals" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        encode_box_residuals
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.angle_to_class" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        angle_to_class
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.class_to_angle" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        class_to_angle
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.class_to_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        class_to_size
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.limit_period" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        limit_period
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.box3d_overlap" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        box3d_overlap
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.boxes_iou_bev" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        boxes_iou_bev
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.boxes_iou3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        boxes_iou3d
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.nms3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        nms3d
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.count_points_in_boxes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        count_points_in_boxes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.projected_ignore_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        projected_ignore_mask
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cluster/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  cluster
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../density/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  density
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  geometry
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../heatmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  heatmap
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hilbert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  hilbert
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../math/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  math
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../octree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  octree
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  serialization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxelization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxelization
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     
@@ -4652,10 +5202,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" >
         
           
-          <label class="md-nav__link" for="__nav_7_10" id="__nav_7_10_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
             
   
   
@@ -4672,8 +5222,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5045,8 +5595,6 @@
                 
   
   
-    
-  
   
   
     
@@ -5064,14 +5612,14 @@
     
       
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_12" >
         
           
-          <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7_12" id="__nav_7_12_label" tabindex="">
             
   
   
@@ -5088,8 +5636,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7_11">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5105,7 +5653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../utils/" class="md-nav__link">
         
   
   
@@ -5132,61 +5680,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../box3d/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  box3d
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cluster/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  cluster
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../conversion/" class="md-nav__link">
+      <a href="../../utils/conversion/" class="md-nav__link">
         
   
   
@@ -5213,7 +5707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data/" class="md-nav__link">
+      <a href="../../utils/data/" class="md-nav__link">
         
   
   
@@ -5240,259 +5734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../density/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  density
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  geometry
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="././" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  geometry
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.axis_aligned_bounding_box" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        axis_aligned_bounding_box
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.transform_points" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        transform_points
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.rotate" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        rotate
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.cross_product_matrix" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        cross_product_matrix
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.rodrigues_rotation_matrix" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        rodrigues_rotation_matrix
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.vertex_normals" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        vertex_normals
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.random_spherical_points" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        random_spherical_points
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.spherical_points_gradient" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        spherical_points_gradient
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.spherical_points_lloyd" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        spherical_points_lloyd
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../heatmap/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  heatmap
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../hilbert/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  hilbert
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../imports/" class="md-nav__link">
+      <a href="../../utils/imports/" class="md-nav__link">
         
   
   
@@ -5519,7 +5761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../io/" class="md-nav__link">
+      <a href="../../utils/io/" class="md-nav__link">
         
   
   
@@ -5546,7 +5788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../misc/" class="md-nav__link">
+      <a href="../../utils/misc/" class="md-nav__link">
         
   
   
@@ -5573,61 +5815,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../octree/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  octree
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ops/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  ops
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../optim/" class="md-nav__link">
+      <a href="../../utils/optim/" class="md-nav__link">
         
   
   
@@ -5654,7 +5842,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../random/" class="md-nav__link">
+      <a href="../../utils/random/" class="md-nav__link">
         
   
   
@@ -5681,34 +5869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../serialization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  serialization
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../state_dict/" class="md-nav__link">
+      <a href="../../utils/state_dict/" class="md-nav__link">
         
   
   
@@ -5735,7 +5896,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../types/" class="md-nav__link">
+      <a href="../../utils/types/" class="md-nav__link">
         
   
   
@@ -5743,33 +5904,6 @@
     
   
   types
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../voxelization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  voxelization
 
     
   </span>
@@ -5836,10 +5970,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.axis_aligned_bounding_box" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.box_corners" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        axis_aligned_bounding_box
+        box_corners
       </span>
     </span>
   </a>
@@ -5847,10 +5981,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.transform_points" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.decode_box_residuals" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        transform_points
+        decode_box_residuals
       </span>
     </span>
   </a>
@@ -5858,10 +5992,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.rotate" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.encode_box_residuals" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        rotate
+        encode_box_residuals
       </span>
     </span>
   </a>
@@ -5869,10 +6003,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.cross_product_matrix" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.angle_to_class" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        cross_product_matrix
+        angle_to_class
       </span>
     </span>
   </a>
@@ -5880,10 +6014,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.rodrigues_rotation_matrix" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.class_to_angle" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        rodrigues_rotation_matrix
+        class_to_angle
       </span>
     </span>
   </a>
@@ -5891,10 +6025,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.vertex_normals" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.class_to_size" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        vertex_normals
+        class_to_size
       </span>
     </span>
   </a>
@@ -5902,10 +6036,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.random_spherical_points" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.limit_period" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        random_spherical_points
+        limit_period
       </span>
     </span>
   </a>
@@ -5913,10 +6047,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.spherical_points_gradient" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.box3d_overlap" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        spherical_points_gradient
+        box3d_overlap
       </span>
     </span>
   </a>
@@ -5924,10 +6058,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.utils.geometry.spherical_points_lloyd" class="md-nav__link">
+  <a href="#torch_pointcloud.ops.box3d.boxes_iou_bev" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        spherical_points_lloyd
+        boxes_iou_bev
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.boxes_iou3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        boxes_iou3d
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.nms3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        nms3d
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.count_points_in_boxes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        count_points_in_boxes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.ops.box3d.projected_ignore_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        projected_ignore_mask
       </span>
     </span>
   </a>
@@ -5989,7 +6167,7 @@
           
   
   <span class="md-ellipsis">
-    Utils
+    Ops
   </span>
 
         </a>
@@ -6012,9 +6190,9 @@
   
 
 
-  <h1 id="__skip">geometry</h1>
+  <h1 id="__skip">box3d</h1>
 
-<p><a href="" id="torch_pointcloud.utils.geometry"></a></p>
+<p><a href="" id="torch_pointcloud.ops.box3d"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -6024,7 +6202,12 @@
 
     <div class="doc doc-contents first">
 
-        <p>Geometric operations: bounding boxes, rotations, point transforms, vertex normals, and spherical sampling.</p>
+        <p>Generic 3D oriented-box geometry shared by detection models and their evaluation.</p>
+<p>Boxes are parameterized as <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span>: gravity-aligned center, full
+extents, and heading <span class="arithmatex">\(\theta\)</span> (radians) counter-clockwise about <span class="arithmatex">\(+z\)</span> from <span class="arithmatex">\(+x\)</span>. Axis-aligned boxes set
+<span class="arithmatex">\(\theta = 0\)</span>.
+Corners are <span class="arithmatex">\((\ldots, 8, 3)\)</span> with the top face (max <span class="arithmatex">\(z\)</span>) first; IoU is frame-invariant so these work
+in any right-handed frame.</p>
 
 
 
@@ -6040,93 +6223,133 @@
 <p><span class="doc-section-title">Functions:</span></p>
     <ul>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;axis_aligned_bounding_box&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;box_corners&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L13-L28&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.axis_aligned_bounding_box">axis_aligned_bounding_box</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L23-L46&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.box_corners">box_corners</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Compute the axis aligned bounding box of a set of points,</p>
+              <p>Convert parameterized boxes to their 8 corners.</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;transform_points&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;decode_box_residuals&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L31-L72&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.transform_points">transform_points</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L49-L95&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.decode_box_residuals">decode_box_residuals</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Transform points using a <span class="arithmatex">\(4 \times 4\)</span> transformation matrix.</p>
+              <p>Decode predicted box residuals against anchors (OpenPCDet's <code>ResidualCoder</code>).</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;rotate&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;encode_box_residuals&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L75-L85&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.rotate">rotate</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L98-L146&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.encode_box_residuals">encode_box_residuals</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Apply a rotation matrix to a 3D tensor.</p>
+              <p>Encode ground-truth boxes into anchor-relative residuals (inverse of <code>decode_box_residuals</code>).</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;cross_product_matrix&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;angle_to_class&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L88-L123&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.cross_product_matrix">cross_product_matrix</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L149-L171&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.angle_to_class">angle_to_class</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Constructs a skew-symmetric matrix (also known as a cross-product matrix)</p>
+              <p>Convert continuous heading angles to discrete bin classes and residuals.</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;rodrigues_rotation_matrix&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;class_to_angle&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L126-L167&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.rodrigues_rotation_matrix">rodrigues_rotation_matrix</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L174-L189&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.class_to_angle">class_to_angle</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Computes a 3D rotation matrix using Rodrigues' rotation formula.</p>
+              <p>Invert <code>angle_to_class</code>: recover continuous heading angles from bin classes and residuals.</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;vertex_normals&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;class_to_size&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L170-L204&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.vertex_normals">vertex_normals</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L192-L203&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.class_to_size">class_to_size</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Compute the vertex normal of a mesh.</p>
+              <p>Recover full box edge lengths from a size class index and residual (inverse of the size encoding).</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;random_spherical_points&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;limit_period&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L207-L242&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.random_spherical_points">random_spherical_points</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L206-L208&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.limit_period">limit_period</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Generate random points inside a sphere or a spherical shell based on radius limits.</p>
+              <p>Wrap an angle to <span class="arithmatex">\([-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})\)</span>.</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;spherical_points_gradient&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;box3d_overlap&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L275-L378&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.spherical_points_gradient">spherical_points_gradient</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L269-L305&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.box3d_overlap">box3d_overlap</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Creation of kernel points via optimization of potentials for a single kernel.</p>
+              <p>Pairwise 3D intersection volume and IoU of two sets of boxes given as corners.</p>
             </div>
           </li>
           <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;spherical_points_lloyd&lt;/span&gt;
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;boxes_iou_bev&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L381-L489&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.utils.geometry.spherical_points_lloyd">spherical_points_lloyd</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L416-L447&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.boxes_iou_bev">boxes_iou_bev</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Generate kernel points using Lloyd's algorithm on a sphere.</p>
+              <p>Pairwise bird's-eye (top-down) rotated-box IoU.</p>
+            </div>
+          </li>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;boxes_iou3d&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L450-L489&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.boxes_iou3d">boxes_iou3d</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Pairwise oriented 3D box IoU.</p>
+            </div>
+          </li>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;nms3d&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L548-L596&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.nms3d">nms3d</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Greedy 3D non-maximum suppression.</p>
+            </div>
+          </li>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;count_points_in_boxes&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L599-L656&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.count_points_in_boxes">count_points_in_boxes</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Count how many points fall inside each oriented box.</p>
+            </div>
+          </li>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;projected_ignore_mask&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L659-L716&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.projected_ignore_mask">projected_ignore_mask</a></code></b>
+            –
+            <div class="doc-md-description">
+              <p>Flag boxes whose image projection is shorter than <code>min_height</code> pixels (the KITTI difficulty rule).</p>
             </div>
           </li>
     </ul>
@@ -6149,21 +6372,842 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="torch_pointcloud.utils.geometry.axis_aligned_bounding_box" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">axis_aligned_bounding_box</span>
+<h3 id="torch_pointcloud.ops.box3d.box_corners" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">box_corners</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L13-L28" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L23-L46" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.utils.geometry.axis_aligned_bounding_box" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">axis_aligned_bounding_box</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+<a href="#torch_pointcloud.ops.box3d.box_corners" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">box_corners</span><span class="p">(</span><span class="n">boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Compute the axis aligned bounding box of a set of points,
-parameterized by <span class="arithmatex">\((c_x, c_y, c_z)\)</span> and <span class="arithmatex">\((d_x, d_y, d_z)\)</span> where <span class="arithmatex">\((c_x, c_y, c_z)\)</span> is the center point of the box,
-and <span class="arithmatex">\(d_x\)</span> is the x-axis length of the box.</p>
+        <p>Convert parameterized boxes to their 8 corners.</p>
+<p>The heading is counter-clockwise about <span class="arithmatex">\(+z\)</span> from <span class="arithmatex">\(+x\)</span>; boxes are <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span>
+with full extents.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>boxes</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span>, shape <span class="arithmatex">\((\ldots, 7)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Corner coordinates, shape <span class="arithmatex">\((\ldots, 8, 3)\)</span>, with the top face (max <span class="arithmatex">\(z\)</span>) as corners <span class="arithmatex">\(0..3\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes: <span class="arithmatex">\((\ldots, 7)\)</span></li>
+<li>output: <span class="arithmatex">\((\ldots, 8, 3)\)</span></li>
+</ul>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.decode_box_residuals" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">decode_box_residuals</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L49-L95" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.decode_box_residuals" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">decode_box_residuals</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">encodings</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">anchors</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">angle_by_sincos</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Decode predicted box residuals against anchors (OpenPCDet's <code>ResidualCoder</code>).</p>
+<p>Residuals encode the center offset normalized by the anchor base diagonal, log-size ratios, and an
+angle term: a plain delta by default, or a <span class="arithmatex">\((\cos, \sin)\)</span> pair when <code>angle_by_sincos</code> (one extra
+channel). Trailing channels (e.g. nuScenes velocity) decode as plain deltas.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>encodings</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Predicted residuals, shape <span class="arithmatex">\((\ldots, 7 + C)\)</span>, or <span class="arithmatex">\((\ldots, 8 + C)\)</span> with <code>angle_by_sincos</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>anchors</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Matching anchors <span class="arithmatex">\((x, y, z, d_x, d_y, d_z, \theta, \ldots)\)</span>, shape <span class="arithmatex">\((\ldots, 7 + C)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>angle_by_sincos</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether the heading residual is encoded as <span class="arithmatex">\((\cos, \sin)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Decoded boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta, \ldots)\)</span>, shape <span class="arithmatex">\((\ldots, 7 + C)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>encodings: <span class="arithmatex">\((\ldots, 7 + C)\)</span> or <span class="arithmatex">\((\ldots, 8 + C)\)</span></li>
+<li>anchors: <span class="arithmatex">\((\ldots, 7 + C)\)</span></li>
+<li>output: <span class="arithmatex">\((\ldots, 7 + C)\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">anchors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">decode_box_residuals</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">anchors</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="go">tensor([[0.0000, 0.0000, 0.0000, 4.0000, 2.0000, 1.5000, 0.0000]])</span>
+</code></pre></div>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.encode_box_residuals" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">encode_box_residuals</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L98-L146" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.encode_box_residuals" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">encode_box_residuals</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">anchors</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">angle_by_sincos</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Encode ground-truth boxes into anchor-relative residuals (inverse of <code>decode_box_residuals</code>).</p>
+<p>The exact inverse of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;decode_box_residuals&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L49-L95&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.ops.box3d.decode_box_residuals"><code>decode_box_residuals</code></a>: the
+center offset is normalized by the anchor base diagonal, sizes become log ratios, and the heading
+becomes a plain delta or a <span class="arithmatex">\((\cos, \sin)\)</span> pair. Extents are clamped to <span class="arithmatex">\(10^{-5}\)</span> before the log so a
+degenerate box does not produce a non-finite target.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>boxes</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Ground-truth boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta, \ldots)\)</span>, shape <span class="arithmatex">\((\ldots, 7 + C)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>anchors</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Matching anchors <span class="arithmatex">\((x, y, z, d_x, d_y, d_z, \theta, \ldots)\)</span>, shape <span class="arithmatex">\((\ldots, 7 + C)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>angle_by_sincos</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether to encode the heading residual as <span class="arithmatex">\((\cos, \sin)\)</span> (one extra channel).</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Residual encodings, shape <span class="arithmatex">\((\ldots, 7 + C)\)</span>, or <span class="arithmatex">\((\ldots, 8 + C)\)</span> with <code>angle_by_sincos</code>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes: <span class="arithmatex">\((\ldots, 7 + C)\)</span></li>
+<li>anchors: <span class="arithmatex">\((\ldots, 7 + C)\)</span></li>
+<li>output: <span class="arithmatex">\((\ldots, 7 + C)\)</span> or <span class="arithmatex">\((\ldots, 8 + C)\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">anchors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">decode_box_residuals</span><span class="p">(</span><span class="n">encode_box_residuals</span><span class="p">(</span><span class="n">boxes</span><span class="p">,</span> <span class="n">anchors</span><span class="p">),</span> <span class="n">anchors</span><span class="p">),</span> <span class="n">boxes</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">True</span>
+</code></pre></div>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.angle_to_class" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">angle_to_class</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L149-L171" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.angle_to_class" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">angle_to_class</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">angle</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">num_heading_bins</span><span class="p">:</span> <span class="n"><span title="int">int</span></span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Convert continuous heading angles to discrete bin classes and residuals.</p>
+<p>The range <span class="arithmatex">\([0, 2\pi)\)</span> is split into <code>num_heading_bins</code> equal bins centered at
+<span class="arithmatex">\(0, 1 \cdot (2\pi / N), \ldots, (N - 1) \cdot (2\pi / N)\)</span>. The returned class and residual satisfy
+<span class="arithmatex">\(\text{class} \cdot (2\pi / N) + \text{residual} = \text{angle}\)</span>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>angle</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Heading angles in radians of shape <span class="arithmatex">\((K,)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_heading_bins</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of heading bins <span class="arithmatex">\(N\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]</code>
+          –
+          <div class="doc-md-description">
+            <p>A tuple of the per-angle class indices (long, shape <span class="arithmatex">\((K,)\)</span>) and residual angles (shape <span class="arithmatex">\((K,)\)</span>).</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.class_to_angle" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">class_to_angle</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L174-L189" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.class_to_angle" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">class_to_angle</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">heading_class</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">heading_residual</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">num_heading_bins</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Invert <code>angle_to_class</code>: recover continuous heading angles from bin classes and residuals.</p>
+<p>A single bin (<code>num_heading_bins == 1</code>, axis-aligned boxes) always decodes to a heading of <span class="arithmatex">\(0\)</span>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>heading_class</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Bin class indices (long) of shape <span class="arithmatex">\((K,)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>heading_residual</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Per-angle residuals of shape <span class="arithmatex">\((K,)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_heading_bins</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of heading bins <span class="arithmatex">\(N\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>The recovered heading angles of shape <span class="arithmatex">\((K,)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.class_to_size" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">class_to_size</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L192-L203" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.class_to_size" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">class_to_size</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">size_class</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">size_residual</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mean_sizes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Recover full box edge lengths from a size class index and residual (inverse of the size encoding).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>size_class</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Size class indices (long) of shape <span class="arithmatex">\((K,)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>size_residual</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Per-axis residuals of shape <span class="arithmatex">\((K, 3)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>mean_sizes</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Template sizes of shape <span class="arithmatex">\((C, 3)\)</span> holding full edge lengths per class.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>The recovered full edge lengths of shape <span class="arithmatex">\((K, 3)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.limit_period" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">limit_period</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L206-L208" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.limit_period" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">limit_period</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">val</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">period</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="n"><span title="math.pi">pi</span></span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Wrap an angle to <span class="arithmatex">\([-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})\)</span>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.box3d_overlap" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">box3d_overlap</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L269-L305" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.box3d_overlap" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">box3d_overlap</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">boxes1</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">boxes2</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Pairwise 3D intersection volume and IoU of two sets of boxes given as corners.</p>
+<p>Signature-compatible with <code>pytorch3d.ops.box3d_overlap</code>, so the exact CUDA implementation can be
+swapped in behind this interface. Boxes are assumed gravity-aligned (as produced by <code>box_corners</code>):
+the bird's-eye polygons are intersected exactly (corner containment plus edge crossings) and scaled
+by the vertical overlap, entirely on the input device.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>boxes1</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Corners of the first set, shape <span class="arithmatex">\((M, 8, 3)\)</span> (see <code>box_corners</code>).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>boxes2</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Corners of the second set, shape <span class="arithmatex">\((N, 8, 3)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]</code>
+          –
+          <div class="doc-md-description">
+            <p>A tuple <code>(intersection_vol, iou)</code>, each shape <span class="arithmatex">\((M, N)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes1: <span class="arithmatex">\((M, 8, 3)\)</span></li>
+<li>boxes2: <span class="arithmatex">\((N, 8, 3)\)</span></li>
+<li>output: <span class="arithmatex">\((M, N)\)</span>, <span class="arithmatex">\((M, N)\)</span></li>
+</ul>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.boxes_iou_bev" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">boxes_iou_bev</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L416-L447" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.boxes_iou_bev" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">boxes_iou_bev</span><span class="p">(</span><span class="n">boxes_a</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">boxes_b</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Pairwise bird's-eye (top-down) rotated-box IoU.</p>
+<p>Projects both box sets onto the ground plane (ignoring <span class="arithmatex">\(z\)</span>) and intersects the oriented rectangles. The
+heading is counter-clockwise (angle increases <span class="arithmatex">\(x \to y\)</span>). Runs entirely in torch, so it stays on CUDA
+tensors without a custom extension; the cost is <span class="arithmatex">\(O(N \cdot M)\)</span>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>boxes_a</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full extents, shape <span class="arithmatex">\((N, 7)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>boxes_b</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Boxes in the same layout, shape <span class="arithmatex">\((M, 7)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Pairwise BEV IoU in <span class="arithmatex">\([0, 1]\)</span>, shape <span class="arithmatex">\((N, M)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes_a: <span class="arithmatex">\((N, 7)\)</span></li>
+<li>boxes_b: <span class="arithmatex">\((M, 7)\)</span></li>
+<li>output: <span class="arithmatex">\((N, M)\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">boxes_iou_bev</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)),</span> <span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">0.3333</span>
+</code></pre></div>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.boxes_iou3d" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">boxes_iou3d</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L450-L489" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.boxes_iou3d" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">boxes_iou3d</span><span class="p">(</span><span class="n">boxes_a</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">boxes_b</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Pairwise oriented 3D box IoU.</p>
+<p>The BEV intersection area (rotated rectangles, ignoring <span class="arithmatex">\(z\)</span>) is multiplied by the vertical overlap of
+the height intervals <span class="arithmatex">\([c_z - d_z/2, c_z + d_z/2]\)</span> to give the intersection volume, then divided by the
+union. The heading is counter-clockwise about <span class="arithmatex">\(+z\)</span> from <span class="arithmatex">\(+x\)</span>; boxes are
+<span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full extents. Runs entirely in torch (CUDA-capable, no
+custom extension); the cost is <span class="arithmatex">\(O(N \cdot M)\)</span>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>boxes_a</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full extents, shape <span class="arithmatex">\((N, 7)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>boxes_b</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Boxes in the same layout, shape <span class="arithmatex">\((M, 7)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Pairwise 3D IoU in <span class="arithmatex">\([0, 1]\)</span>, shape <span class="arithmatex">\((N, M)\)</span>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes_a: <span class="arithmatex">\((N, 7)\)</span></li>
+<li>boxes_b: <span class="arithmatex">\((M, 7)\)</span></li>
+<li>output: <span class="arithmatex">\((N, M)\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">b</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">boxes_iou3d</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)),</span> <span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">0.3333</span>
+</code></pre></div>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.nms3d" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">nms3d</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L548-L596" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.nms3d" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">nms3d</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">scores</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">iou_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">labels</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">rotated</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">max_keep</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Greedy 3D non-maximum suppression.</p>
+<p>Keeps the highest-scoring box of each overlapping cluster. By default the suppression criterion is the
+3D IoU of the boxes' axis-aligned bounding boxes (cheap corner min / max); with <code>rotated=True</code> it is
+the exact rotated bird's-eye IoU of <code>boxes_iou_bev</code> (the KITTI outdoor protocol, where the axis-aligned
+surrogate over-suppresses angled neighbors at low thresholds). Pass <code>labels</code> to restrict suppression to
+boxes of the same class, and <code>batch</code> (PyG-style per-box scene index) to run NMS independently per
+scene and return a single index tensor over the concatenated input. The heading is counter-clockwise
+about <span class="arithmatex">\(+z\)</span> from <span class="arithmatex">\(+x\)</span>; boxes are <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full extents.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>boxes</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Boxes <span class="arithmatex">\((N, 7)\)</span> (see <code>box_corners</code>).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>scores</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Per-box confidence, shape <span class="arithmatex">\((N,)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>iou_threshold</code></b>
+              (<code><span title="float">float</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>IoU above which a lower-scoring box is removed.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>labels</code></b>
+              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Optional per-box class, shape <span class="arithmatex">\((N,)\)</span>; when given, only same-class boxes suppress each other.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>batch</code></b>
+              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Optional per-box scene index, shape <span class="arithmatex">\((N,)\)</span>; when given, NMS runs independently per scene.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>rotated</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Suppress on the exact rotated BEV IoU (<code>boxes_iou_bev</code>) instead of the axis-aligned 3D IoU.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>max_keep</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
+equals the first <code>max_keep</code> entries of the uncapped result.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
+          <div class="doc-md-description">
+            <p>Indices of the kept boxes (into the input), highest score first within each scene, shape <span class="arithmatex">\((K,)\)</span> long.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes: <span class="arithmatex">\((N, 7)\)</span></li>
+<li>output: <span class="arithmatex">\((K,)\)</span></li>
+</ul>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.ops.box3d.count_points_in_boxes" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">count_points_in_boxes</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L599-L656" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.ops.box3d.count_points_in_boxes" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">count_points_in_boxes</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pos_batch</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">box_batch</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Count how many points fall inside each oriented box.</p>
+<p>Pass <code>pos_batch</code> and <code>box_batch</code> (PyG-style per-point / per-box scene indices) to restrict each box's
+count to points from its own scene, so boxes of different scenes never share points. The heading is
+counter-clockwise about <span class="arithmatex">\(+z\)</span> from <span class="arithmatex">\(+x\)</span>; boxes are <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full
+extents.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6173,597 +7217,35 @@ and <span class="arithmatex">\(d_x\)</span> is the x-axis length of the box.</p>
               (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Points of shape <span class="arithmatex">\((N, 3)\)</span>, in XYZ order.</p>
+            <p>Point coordinates, shape <span class="arithmatex">\((N, 3)\)</span>.</p>
           </div>
         </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
         <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The axis aligned bounding box of shape <span class="arithmatex">\((6,)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.transform_points" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">transform_points</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L31-L72" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.transform_points" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">transform_points</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">points</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">transform</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Transform points using a <span class="arithmatex">\(4 \times 4\)</span> transformation matrix.</p>
-<p>This function applies a <span class="arithmatex">\(4 \times 4\)</span> transformation matrix to a set of points.
-The transformation matrix is assumed to be in the form:</p>
-<div class="arithmatex">\[
-\begin{bmatrix}
-R &amp; t \newline
-0 &amp; 1
-\end{bmatrix}
-\]</div>
-<p>Where <span class="arithmatex">\(R\)</span> is a <span class="arithmatex">\(3 \times 3\)</span> rotation matrix and <span class="arithmatex">\(t\)</span> is a <span class="arithmatex">\(3 \times 1\)</span> translation vector.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>points</code></b>
+            <b><code>boxes</code></b>
               (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Points of shape <span class="arithmatex">\((N, 3)\)</span>, in XYZ order.</p>
+            <p>Boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full extents, shape <span class="arithmatex">\((K, 7)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>transform</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>A <span class="arithmatex">\(4 \times 4\)</span> transformation matrix.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The transformed points of shape <span class="arithmatex">\((N, 3)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">points</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">]])</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">transform</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]])</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">transform_points</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">transform</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">tensor([[2., 4., 6.],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="go">        [5., 7., 9.]])</span>
-</code></pre></div>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.rotate" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">rotate</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L75-L85" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.rotate" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">rotate</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">R</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Apply a rotation matrix to a 3D tensor.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>x</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Input tensor of shape <span class="arithmatex">\((\ldots, 3)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>R</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Rotation matrix of shape <span class="arithmatex">\((3, 3)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>Rotated tensor with the same shape as <code>x</code>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.cross_product_matrix" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">cross_product_matrix</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L88-L123" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.cross_product_matrix" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">cross_product_matrix</span><span class="p">(</span><span class="n">k</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Constructs a skew-symmetric matrix (also known as a cross-product matrix)
-for a given 3D vector <span class="arithmatex">\(k = [k_1, k_2, k_3]\)</span>. The function returns a
-<span class="arithmatex">\(3 \times 3\)</span> skew-symmetric matrix <span class="arithmatex">\(M(k)\)</span> of the form:</p>
-<div class="arithmatex">\[
-M(k) = \begin{bmatrix}
-0 &amp; -k_3 &amp; k_2 \newline
-k_3 &amp; 0 &amp; -k_1 \newline
--k_2 &amp; k_1 &amp; 0
-\end{bmatrix}
-\]</div>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>k</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>A tensor of shape <span class="arithmatex">\((3,)\)</span> representing the 3D vector.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>A <span class="arithmatex">\(3 \times 3\)</span> skew-symmetric matrix corresponding to the cross-product operation.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">])</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">v</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">])</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">m</span> <span class="o">=</span> <span class="n">cross_product_matrix</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">cross_product</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-</code></pre></div>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.rodrigues_rotation_matrix" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">rodrigues_rotation_matrix</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L126-L167" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.rodrigues_rotation_matrix" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">rodrigues_rotation_matrix</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">axis</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">theta</span><span class="p">:</span> <span class="n"><span title="float">float</span></span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Computes a 3D rotation matrix using Rodrigues' rotation formula.</p>
-<p>This function rotates a vector in 3D space around a specified axis by a
-given angle <strong>in radians</strong>. The rotation matrix is computed using:</p>
-<div class="arithmatex">\[
-R = I + \sin(\theta)K + (1 - \cos(\theta))K^2
-\]</div>
-<p>Where:</p>
-<ul>
-<li><span class="arithmatex">\(I\)</span> is the identity matrix.</li>
-<li><span class="arithmatex">\(K\)</span> is the skew-symmetric matrix (cross-product matrix) derived from the axis of rotation.</li>
-<li><span class="arithmatex">\(\theta\)</span> is the rotation angle <strong>in radians</strong>.</li>
-</ul>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>axis</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>A 3D vector representing the axis of rotation.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>theta</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The angle of rotation <strong>in radians</strong>.  Pass <code>math.radians(deg)</code>
-to convert from degrees.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>A <span class="arithmatex">\(3 \times 3\)</span> rotation matrix that rotates a vector around the specified axis by the specified angle.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Raises:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="Warning">Warning</span></code>
-            –
-          <div class="doc-md-description">
-            <p>If <span class="arithmatex">\(\theta &gt; 2\pi\)</span>, which likely indicates degrees were passed
-instead of radians.</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.vertex_normals" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">vertex_normals</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L170-L204" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.vertex_normals" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">vertex_normals</span><span class="p">(</span><span class="n">vertices</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">face</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Compute the vertex normal of a mesh.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>vertices</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The vertices of the mesh. Shape: <span class="arithmatex">\((V, 3)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>face</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The face of the mesh. Shape: <span class="arithmatex">\((F, 3)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>The vertex normal of the mesh. Shape: <span class="arithmatex">\((V, 3)\)</span>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Examples:</span></p>
-    <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">vertices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">]])</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">face</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">vertex_normals</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">face</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">tensor([[0., 0., 1.],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="go">        [0., 0., 1.],</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="go">        [0., 0., 1.]])</span>
-</code></pre></div>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.random_spherical_points" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">random_spherical_points</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L207-L242" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.random_spherical_points" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">random_spherical_points</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">radius</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">bounds</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Generate random points inside a sphere or a spherical shell based on radius limits.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>radius</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The radius of the sphere.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_points</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The number of points to generate.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>bounds</code></b>
-              (<code><span title="typing.Union">Union</span>[<span title="float">float</span>, <span title="typing.Tuple">Tuple</span>[<span title="float">float</span>, <span title="float">float</span>]]</code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>A float or tuple of floats defining the inner and outer bounds of the sphere.
-If a single float is provided, it is treated as the outer limit, with the inner limit as 0.
-Defaults to 1.0.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="torch.Tensor">Tensor</span></code>
-          –
-          <div class="doc-md-description">
-            <p>Generated points of shape (num_points, dimension).</p>
-          </div>
-        </li>
-    </ul>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="torch_pointcloud.utils.geometry.spherical_points_gradient" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">spherical_points_gradient</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L275-L378" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.utils.geometry.spherical_points_gradient" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-          <div class="doc-overloads">
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">spherical_points_gradient</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">radius</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">fixed_position</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="s2">&quot;vertical&quot;</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">ratio</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.66</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">max_steps</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">step_size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">step_decay</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.9995</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">convergence_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-05</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">max_step_size</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">return_grad_norms</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">spherical_points_gradient</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">radius</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">fixed_position</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="s2">&quot;vertical&quot;</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">ratio</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.66</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">max_steps</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">step_size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">step_decay</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.9995</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">convergence_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-05</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">max_step_size</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">return_grad_norms</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>          </div>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">spherical_points_gradient</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">radius</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">fixed_position</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="s2">&quot;vertical&quot;</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">ratio</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.66</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">max_steps</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">step_size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">step_decay</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.9995</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">convergence_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-05</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">max_step_size</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">return_grad_norms</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Creation of kernel points via optimization of potentials for a single kernel.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>radius</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Radius of the kernel.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>num_points</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of points composing the kernel.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>fixed_position</code></b>
-              (<code><span title="typing.Literal">Literal</span>[&#39;none&#39;, &#39;center&#39;, &#39;vertical&#39;]</code>, default:
-                  <code>&#39;center&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Fix position of certain kernel points ('none', 'center', or 'vertical').</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>ratio</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.66</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Ratio of the radius where you want the kernel points to be placed.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_steps</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>10000</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Maximum number of optimization steps.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>step_size</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.01</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Step size for moving points based on gradient norms.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>step_decay</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>0.9995</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Decay factor for reducing the step size over time.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>convergence_threshold</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1e-05</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Threshold for stopping the optimization when gradient norm changes are small.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_step_size</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="float">float</span>]</code>, default:
+            <b><code>pos_batch</code></b>
+              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
                   <code>None</code>
 )
           –
           <div class="doc-md-description">
-            <p>Maximum distance a point can move in a single step.</p>
+            <p>Optional per-point scene index, shape <span class="arithmatex">\((N,)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>return_grad_norms</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
+            <b><code>box_batch</code></b>
+              (<code><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></code>, default:
+                  <code>None</code>
 )
           –
           <div class="doc-md-description">
-            <p>Whether to also return the gradient norms recorded during the optimization.</p>
+            <p>Optional per-box scene index, shape <span class="arithmatex">\((K,)\)</span>.</p>
           </div>
         </li>
     </ul>
@@ -6772,15 +7254,32 @@ Defaults to 1.0.</p>
 <p><span class="doc-section-title">Returns:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
+              <code><span title="torch.Tensor">Tensor</span></code>
           –
           <div class="doc-md-description">
-            <p>Optimized kernel points of shape <span class="arithmatex">\((\text{num\_points}, 3)\)</span>, or a tuple of the kernel points and
-the recorded gradient norms when <code>return_grad_norms=True</code>.</p>
+            <p>Per-box point count, shape <span class="arithmatex">\((K,)\)</span> long.</p>
           </div>
         </li>
     </ul>
 
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>pos: <span class="arithmatex">\((N, 3)\)</span></li>
+<li>boxes: <span class="arithmatex">\((K, 7)\)</span></li>
+<li>output: <span class="arithmatex">\((K,)\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">]])</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">count_points_in_boxes</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">boxes</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">[1]</span>
+</code></pre></div>
+</details>
 
     </div>
 
@@ -6789,109 +7288,74 @@ the recorded gradient norms when <code>return_grad_norms=True</code>.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="torch_pointcloud.utils.geometry.spherical_points_lloyd" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">spherical_points_lloyd</span>
+<h3 id="torch_pointcloud.ops.box3d.projected_ignore_mask" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">projected_ignore_mask</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ea3e97a9a0d303edffac7fb893edb9b0810a3298/src/torch_pointcloud/utils/geometry.py#L381-L489" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/44455f9e4fc8b8efa8d26fcd1b3ba8c0a3952bfa/src/torch_pointcloud/ops/box3d.py#L659-L716" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.utils.geometry.spherical_points_lloyd" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">spherical_points_lloyd</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">radius</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">fixed_position</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="s2">&quot;vertical&quot;</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">approximation</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="s2">&quot;discretization&quot;</span><span class="p">,</span> <span class="s2">&quot;monte-carlo&quot;</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;discretization&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">approx_n</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">max_iter</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">momentum</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+<a href="#torch_pointcloud.ops.box3d.projected_ignore_mask" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">projected_ignore_mask</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">boxes</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">calib</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">image_shape</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">min_height</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">25.0</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Generate kernel points using Lloyd's algorithm on a sphere.</p>
+        <p>Flag boxes whose image projection is shorter than <code>min_height</code> pixels (the KITTI difficulty rule).</p>
+<p>Each box's 8 corners are projected through the <span class="arithmatex">\((3, 4)\)</span> homogeneous LiDAR-to-image matrix (rows <span class="arithmatex">\(0\)</span>
+and <span class="arithmatex">\(1\)</span> divided by the perspective depth of row <span class="arithmatex">\(2\)</span>), the vertical pixel coordinates are clipped to
+the image rows <span class="arithmatex">\([0, \text{height} - 1]\)</span>, and a box is flagged when its clipped pixel height is
+strictly below <code>min_height</code>. Only the vertical extent is used; the width entry of <code>image_shape</code> keeps
+the dataset's <span class="arithmatex">\((\text{height}, \text{width})\)</span> contract. The KITTI protocol excludes such predictions
+from scoring (the prediction-side <code>ignore_mask</code> of <code>box_matches</code>), with <code>min_height</code> at
+<span class="arithmatex">\(40\)</span> / <span class="arithmatex">\(25\)</span> / <span class="arithmatex">\(25\)</span> px for the easy / moderate / hard difficulties. For KITTI, compose the calib as
+<span class="arithmatex">\(P_2 \cdot [R_0 T_\text{velo}; 0\ 0\ 0\ 1]\)</span> with the third row taken from <span class="arithmatex">\(R_0 T_\text{velo}\)</span>, so the
+perspective divide is by the rectified depth.</p>
+<p><code>calib</code> and <code>image_shape</code> broadcast on a leading box dimension: pass a single <span class="arithmatex">\((3, 4)\)</span> / <span class="arithmatex">\((2,)\)</span>
+frame for all boxes, or per-box <span class="arithmatex">\((N, 3, 4)\)</span> / <span class="arithmatex">\((N, 2)\)</span> rows (e.g. a stacked per-frame calib indexed
+by the boxes' scene index) to score a multi-frame batch in one call.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-            <b><code>radius</code></b>
-              (<code><span title="float">float</span></code>)
+            <b><code>boxes</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Radius of the sphere.</p>
+            <p>Boxes <span class="arithmatex">\((c_x, c_y, c_z, d_x, d_y, d_z, \theta)\)</span> with full extents, shape <span class="arithmatex">\((N, 7)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>num_points</code></b>
-              (<code><span title="int">int</span></code>)
+            <b><code>calib</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Number of kernel points (Voronoi cells).</p>
+            <p>Homogeneous projection from LiDAR coordinates to image pixels, shape <span class="arithmatex">\((3, 4)\)</span> or per-box
+<span class="arithmatex">\((N, 3, 4)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>fixed_position</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code>&#39;none&#39;</code>
-)
+            <b><code>image_shape</code></b>
+              (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Fix the position of specific kernel points. Defaults to 'none'.
-Options:
-    - 'none': No kernel points are fixed. All points move freely during optimization.
-    - 'center': The first kernel point is fixed at the center of the sphere.
-    - 'vertical': (3D only) The first three kernel points are fixed along the z-axis:
-        - The first point is fixed at the center.
-        - The second point is placed above the center along the positive z-axis.
-        - The third point is placed below the center along the negative z-axis.</p>
+            <p>Image <span class="arithmatex">\((\text{height}, \text{width})\)</span> in pixels, shape <span class="arithmatex">\((2,)\)</span> or per-box <span class="arithmatex">\((N, 2)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>approximation</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code>&#39;discretization&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Approximation method for Lloyd's algorithm. Defaults to 'discretization'.
-Options:
-    - 'discretization': Approximates the Voronoi cells using a regular grid of points within the sphere.
-    - 'monte-carlo': Approximates the Voronoi cells by randomly sampling points within the sphere.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>approx_n</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>5000</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Number of points used for approximation. Defaults to 5000.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_iter</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>500</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Maximum number of iterations. Defaults to 500.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>momentum</code></b>
+            <b><code>min_height</code></b>
               (<code><span title="float">float</span></code>, default:
-                  <code>0.9</code>
+                  <code>25.0</code>
 )
           –
           <div class="doc-md-description">
-            <p>Momentum factor for smoothing kernel point positions. Defaults to 0.9.</p>
+            <p>Pixel height below which a box is flagged.</p>
           </div>
         </li>
     </ul>
@@ -6900,14 +7364,36 @@ Options:
 <p><span class="doc-section-title">Returns:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-<b><code>Tensor</code></b> (              <code><span title="torch.Tensor">Tensor</span></code>
-)          –
+              <code><span title="torch.Tensor">Tensor</span></code>
+          –
           <div class="doc-md-description">
-            <p>Tensor of shape [num_points, dimension] with the final kernel points on the sphere.</p>
+            <p>Boolean ignore mask, shape <span class="arithmatex">\((N,)\)</span>.</p>
           </div>
         </li>
     </ul>
 
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <ul>
+<li>boxes: <span class="arithmatex">\((N, 7)\)</span></li>
+<li>calib: <span class="arithmatex">\((3, 4)\)</span> or <span class="arithmatex">\((N, 3, 4)\)</span></li>
+<li>image_shape: <span class="arithmatex">\((2,)\)</span> or <span class="arithmatex">\((N, 2)\)</span></li>
+<li>output: <span class="arithmatex">\((N,)\)</span></li>
+</ul>
+</details>
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">calib</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">50.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">100.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">50.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">100.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">projected_ignore_mask</span><span class="p">(</span><span class="n">boxes</span><span class="p">,</span> <span class="n">calib</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">]))</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">tensor([True])</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">boxes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">projected_ignore_mask</span><span class="p">(</span><span class="n">boxes</span><span class="p">,</span> <span class="n">calib</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">],</span> <span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">]]))</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="go">tensor([ True, False])</span>
+</code></pre></div>
+</details>
 
     </div>
 
@@ -6963,7 +7449,7 @@ Options:
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../density/" class="md-footer__link md-footer__link--prev" aria-label="Previous: density">
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6973,20 +7459,20 @@ Options:
                 Previous
               </span>
               <div class="md-ellipsis">
-                density
+                Overview
               </div>
             </div>
           </a>
         
         
           
-          <a href="../heatmap/" class="md-footer__link md-footer__link--next" aria-label="Next: heatmap">
+          <a href="../cluster/" class="md-footer__link md-footer__link--next" aria-label="Next: cluster">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                heatmap
+                cluster
               </div>
             </div>
             <div class="md-footer__button md-icon">
