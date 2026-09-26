@@ -1,4 +1,4 @@
-"""Neighbor search and grouping: kNN, FPS, radius queries, local grids, and kNN interpolation."""
+"""Neighbor search and grouping: kNN, FPS, radius queries, local grids, decimation, and kNN interpolation."""
 
 from typing import List, Literal, Optional, Tuple, Union, overload
 
@@ -624,3 +624,107 @@ def knn_interpolate(
     y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
     y = y / scatter(weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
     return y
+
+
+@torch.no_grad()
+def decimate_indices(
+    batch: Tensor, factor: float, generator: Optional[torch.Generator] = None
+) -> Tuple[Tensor, Tensor]:
+    """Decimate indices from a packed batch index tensor.
+    This function will return the decimated indices by a given factor along with the decimated batch indices.
+
+    Note:
+        This function is similar to the `decimation_indices` function in the `torch-geometric` package,
+        except that this function uses the `batch` tensor instead of the `ptr` tensor representation.
+
+    Args:
+        batch: The packed batch index tensor.
+        factor: The factor to decimate the indices by.
+        generator: The generator to use for the random permutation. When given, it is reseeded from each
+            sample's own point count, so a sample's decimation does not depend on the rest of the batch.
+
+    Returns:
+        The decimated indices and the decimated batch indices.
+
+    Examples:
+        ```pycon
+        >>> batch = torch.tensor([0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3])
+        >>> decimate_indices(batch, 2)  # doctest: +SKIP
+        (tensor([ 0,  4,  7,  6,  9, 10]), tensor([0, 1, 2, 2, 3, 3]))
+
+        ```
+    """
+    if factor < 1:
+        raise ValueError(
+            f"The argument `factor` should be higher than (or equal to) 1 for downsampling, but got {factor}"
+        )
+
+    decim_indices = []
+    decim_batch = []
+
+    for i in torch.unique(batch).tolist():
+        mask_i = batch == i
+        size_i = int(mask_i.sum().item())
+
+        # NOTE: Get at least one point to avoid empty decimation
+        decim_size = max(1, int(size_i // factor))
+
+        indices = torch.where(mask_i)[0]
+        if generator is not None:
+            # Reseed per sample: one generator drawn sequentially would make a sample's permutation
+            # depend on how many draws the samples before it in the batch consumed.
+            generator.manual_seed(size_i)
+
+        perm = torch.randperm(size_i, device=batch.device, generator=generator)[:decim_size]
+
+        # Decimate indices following the random permutation
+        decim_indices.append(indices[perm])
+        # Add batch indices for the decimated points
+        decim_batch.append(torch.full((decim_size,), i, device=batch.device))
+
+    return torch.cat(decim_indices), torch.cat(decim_batch)
+
+
+def decimate(
+    tensors: Tuple[Tensor, ...],
+    batch: Tensor,
+    factor: int,
+    generator: Optional[torch.Generator] = None,
+) -> Tuple[Tuple[Tensor, ...], Tensor]:
+    """Decimates each input tensor by the given factor.
+    This will return the decimated tensors along with the decimated batch indices.
+
+    Note:
+        This function is similar to the `decimate` function introduced in the `torch-geometric` RandLANet example.
+
+    Args:
+        tensors: A tuple of tensors to decimate.
+        batch: The batch tensor of shape $(N,)$.
+        factor: The factor to decimate the tensors by.
+        generator: The generator to use for the random permutation.
+
+    Returns:
+        A tuple of decimated tensors and the decimated batch indices.
+
+    Examples:
+        ```pycon
+        >>> tensors = (torch.randn(10, 3), torch.randn(10, 4))
+        >>> batch = torch.tensor([0, 1, 1, 1, 2, 2, 2, 2, 3, 3])
+        >>> decimate(tensors, batch, 2)  # doctest: +SKIP
+        ((tensor([[-1.4570, -0.1023, -0.5992],
+                [ 0.2408,  0.1325,  0.7642],
+                [-0.2104, -1.4391,  0.5214],
+                [ 1.6192,  1.4506,  0.2695],
+                [ 0.3488,  0.9676, -0.4657]]),
+        tensor([[-0.1933,  0.6526, -1.9006,  0.2286],
+                [ 1.2888,  0.0523, -1.5469,  0.7567],
+                [ 0.9442, -0.1849,  1.0608,  0.2083],
+                [ 0.4788,  1.3537, -0.1593, -0.4249],
+                [ 1.3065,  0.4598,  0.2618, -0.7599]])),
+        tensor([0, 1, 2, 2, 3]))
+
+        ```
+    """
+    idx_decim, batch_decim = decimate_indices(batch, factor, generator=generator)
+    tensors_decim = tuple(tensor[idx_decim] for tensor in tensors)
+    return tensors_decim, batch_decim

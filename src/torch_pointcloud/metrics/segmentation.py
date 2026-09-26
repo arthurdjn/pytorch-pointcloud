@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.metrics.classification import _ignore_classes
-from torch_pointcloud.ops.utils import safe_divide
+from torch_pointcloud.ops.math import safe_divide
 
 
 def compute_intersection_union(

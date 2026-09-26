@@ -263,9 +263,9 @@ nav = [
             { "geometry" = "api/ops/geometry.md" },
             { "heatmap" = "api/ops/heatmap.md" },
             { "hilbert" = "api/ops/hilbert.md" },
+            { "math" = "api/ops/math.md" },
             { "octree" = "api/ops/octree.md" },
             { "serialization" = "api/ops/serialization.md" },
-            { "utils" = "api/ops/utils.md" },
             { "voxelization" = "api/ops/voxelization.md" },
         ] },
         { Transforms = [

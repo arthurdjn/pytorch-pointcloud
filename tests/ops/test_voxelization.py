@@ -4,6 +4,7 @@ import torch
 from torch_pointcloud.ops.voxelization import (
     _point_to_voxel_generator,
     dense_voxelize,
+    first_permutation,
     hard_voxelize,
     sparse_voxelize,
     trilinear_dense_devoxelize,
@@ -190,3 +191,22 @@ def test_voxel_grid_fnv_inverse_and_counts_return_triple() -> None:
     assert hashed.shape == (6,) and inverse.shape == (6,) and count.shape == (2,)
     # `count[v]` must match how often `inverse` references voxel `v`.
     assert torch.equal(torch.bincount(inverse), count)
+
+
+def test_first_permutation_picks_first_occurrence() -> None:
+    cluster = torch.tensor([1, 0, 1, 2, 0])
+    perm = first_permutation(cluster)
+    assert perm.tolist() == [1, 0, 3]
+
+
+def test_first_permutation_with_explicit_num_clusters() -> None:
+    cluster = torch.tensor([0, 0, 1, 1, 1, 2])
+    perm = first_permutation(cluster, num_clusters=3)
+    assert perm.tolist() == [0, 2, 5]
+
+
+def test_first_permutation_empty() -> None:
+    cluster = torch.empty(0, dtype=torch.long)
+    perm = first_permutation(cluster)
+    assert perm.shape == (0,)
+    assert perm.dtype == torch.long

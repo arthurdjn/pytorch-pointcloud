@@ -1,4 +1,4 @@
-"""Dense and sparse voxelization, FNV voxel hashing, and trilinear devoxelization for packed point clouds."""
+"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization."""
 
 import functools
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
@@ -366,3 +366,33 @@ def voxel_grid_fnv(
     if return_inverse:
         return hashed_tensor, inverse
     return hashed_tensor, torch.bincount(inverse)
+
+
+def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Tensor:
+    r"""Index of the first occurrence of each cluster id in a consecutive cluster tensor.
+
+    The permutation returned by `consecutive_cluster` picks a backend-dependent representative per
+    cluster (the last occurrence on CPU, a nondeterministic one on CUDA). This helper always picks
+    the first occurrence, so `tensor[first_permutation(cluster)]` is deterministic across devices.
+
+    Args:
+        cluster: Consecutive cluster indices of shape $(N,)$ with values in $[0, V)$.
+        num_clusters: Number of clusters $V$. Inferred as `cluster.max() + 1` when `None`.
+
+    Returns:
+        Long tensor of shape $(V,)$ holding, per cluster id, the smallest index in `cluster` with that id.
+
+    Example:
+        ```pycon
+        >>> cluster = torch.tensor([1, 0, 1, 2, 0])
+        >>> first_permutation(cluster)
+        tensor([1, 0, 3])
+
+        ```
+    """
+    n = cluster.numel()
+    if num_clusters is None:
+        num_clusters = int(cluster.max().item()) + 1 if n > 0 else 0
+    perm = torch.arange(n, device=cluster.device)
+    first = torch.full((num_clusters,), n, dtype=torch.long, device=cluster.device)
+    return first.scatter_reduce_(0, cluster, perm, reduce="amin")

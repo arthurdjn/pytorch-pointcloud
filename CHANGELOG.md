@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Moved the tensor operations of `torch_pointcloud.utils` (`box3d`, `cluster`, `density`, `geometry`, `heatmap`, `hilbert`, `octree`, `serialization`, `voxelization`, and `ops` as `utils`) to a new `torch_pointcloud.ops` package; `torch_pointcloud.utils` keeps the data, conversion, import, I/O, random, checkpoint and type helpers.
+- Moved the tensor operations of `torch_pointcloud.utils` (`box3d`, `cluster`, `density`, `geometry`, `heatmap`, `hilbert`, `octree`, `serialization`, `voxelization`) to a new `torch_pointcloud.ops` package, and dissolved `utils.ops`: `safe_divide` is in `ops.math`, `decimate` and `decimate_indices` in `ops.cluster`, `first_permutation` in `ops.voxelization` and `offset_index` in `utils.data`; `softmax` is replaced by `torch_geometric.utils.softmax`, and `pad_tail` is removed.
 - Fixed docstrings typos, and added notice about AI tool usage in CONTRIBUTING.
 
 ## 0.0.8 (2026-09-25)
