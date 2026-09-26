@@ -4,7 +4,16 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.ops.cluster import decimate_indices, fps, group, knn, knn_graph, radius
+from torch_pointcloud.ops.cluster import (
+    decimate_indices,
+    dense_neighbors,
+    fps,
+    gather_neighbors,
+    group,
+    knn,
+    knn_graph,
+    radius,
+)
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
@@ -293,6 +302,24 @@ def test_radius_returns_tuple_in_both_paths() -> None:
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_radius_sort_cuda_matches_cpu_selection() -> None:
+    """The CUDA kernel's first-found neighbors are the smallest source indices, so the sorted path can skip its sort."""
+    torch.manual_seed(0)
+    x = torch.rand(4000, 3)
+    y = x[:256]
+    batch_x = torch.cat([torch.zeros(2000), torch.ones(2000)]).long()
+    batch_y = torch.cat([torch.zeros(128), torch.ones(128)]).long()
+    row_cpu, col_cpu = radius(x, y, r=0.15, batch_x=batch_x, batch_y=batch_y, max_num_neighbors=8, sort=True)
+    row_gpu, col_gpu = radius(
+        x.cuda(), y.cuda(), r=0.15, batch_x=batch_x.cuda(), batch_y=batch_y.cuda(), max_num_neighbors=8, sort=True
+    )
+    assert (torch.bincount(row_cpu, minlength=256) == 8).any()
+    key_cpu = torch.unique(row_cpu * 4000 + col_cpu)
+    key_gpu = torch.unique(row_gpu.cpu() * 4000 + col_gpu.cpu())
+    assert torch.equal(key_cpu, key_gpu)
+
+
 def test_radius_sort_keeps_smallest_source_indices() -> None:
     # All 6 sources fall inside every ball; with k=3 and sort=True the 3 smallest
     # per-batch source indices are kept for every query.
@@ -320,3 +347,28 @@ def test_decimate_indices_non_consecutive_batch_ids() -> None:
     assert indices.shape == decim_batch.shape
     assert decim_batch.tolist() == [0, 0, 2]
     assert torch.equal(decim_batch, batch[indices])
+
+
+def test_dense_neighbors_grouped_edges() -> None:
+    edge_index = torch.tensor([[3, 5, 0, 1, 2], [0, 0, 1, 1, 1]])
+    table, slot = dense_neighbors(edge_index, num_sources=6, num_targets=3)
+    assert table.tolist() == [[3, 5, 6], [0, 1, 2], [6, 6, 6]]
+    assert slot.tolist() == [0, 1, 0, 1, 2]
+    table, slot = dense_neighbors(edge_index, num_sources=6, num_targets=3, max_num_neighbors=4)
+    assert table.shape == (3, 4) and slot.tolist() == [0, 1, 0, 1, 2]
+
+
+def test_dense_neighbors_unsorted_edges_keep_edge_order_per_target() -> None:
+    edge_index = torch.tensor([[0, 3, 1, 5, 2], [1, 0, 1, 0, 1]])
+    table, slot = dense_neighbors(edge_index, num_sources=6, num_targets=2)
+    assert table.tolist() == [[3, 5, 6], [0, 1, 2]]
+    assert slot.tolist() == [0, 0, 1, 1, 2]
+    values = torch.arange(5.0)
+    filled = torch.zeros(2, 3).index_put_((edge_index[1], slot), values)
+    assert filled.tolist() == [[1.0, 3.0, 0.0], [0.0, 2.0, 4.0]]
+
+
+def test_gather_neighbors_pads_with_zeros() -> None:
+    x = torch.arange(6, dtype=torch.float).view(3, 2)
+    out = gather_neighbors(x, torch.tensor([[2, 3], [0, 1]]))
+    assert out.tolist() == [[[4.0, 5.0], [0.0, 0.0]], [[0.0, 1.0], [2.0, 3.0]]]

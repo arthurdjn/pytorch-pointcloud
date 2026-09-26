@@ -122,6 +122,16 @@ def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
+def test_kpconv_dense_and_scatter_aggregation_agree(data: Dict[str, Tensor]) -> None:
+    conv = KPConv(spatial_dim=3, in_channels=3, out_channels=32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1)
+    conv.dense_fill_threshold = 0.0
+    with torch.no_grad():
+        dense = conv(data["features"], data["pos"], data["edge_index"])
+        conv.dense_fill_threshold = 2.0
+        scatter = conv(data["features"], data["pos"], data["edge_index"])
+    assert torch.allclose(dense, scatter, atol=1e-5)
+
+
 def test_kpconv_bias_is_added(data: Dict[str, Tensor]) -> None:
     conv = KPConv(spatial_dim=3, in_channels=3, out_channels=32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, bias=True)
     assert conv.bias is not None
