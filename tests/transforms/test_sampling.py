@@ -1,5 +1,5 @@
 from typing import Any, Dict, Tuple
-from unittest.mock import MagicMock, Mock, patch, sentinel
+from unittest.mock import Mock, patch, sentinel
 
 import pytest
 import torch
@@ -101,6 +101,20 @@ def test_farthest_point_sample_num_samples() -> None:
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_farthest_point_sample_keeps_small_clouds_untouched() -> None:
+    pos = torch.randn(8, 3)
+    color = torch.randn(8, 3)
+    data = {"pos": pos, "color": color}
+    for transform in (
+        T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=8, dst_index_key="index"),
+        T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=16, dst_index_key="index"),
+        T.FarthestPointSample(pos_key="pos", keys=["color"], ratio=1.0, dst_index_key="index"),
+    ):
+        result = transform(data)
+        assert torch.equal(result["pos"], pos) and torch.equal(result["color"], color)
+        assert result["index"].tolist() == list(range(8))
+
+
 def test_farthest_point_sample_ratio() -> None:
     pos = torch.randn(10, 3)
     result = T.FarthestPointSample(pos_key="pos", ratio=0.5)({"pos": pos})
@@ -407,36 +421,50 @@ def test_random_sample_face_vertices_single_face() -> None:
 @patch("torch_pointcloud.transforms.sampling.fps")
 def test_farthest_point_sample_with_num_samples(mock_fps: Mock) -> None:
     """Test that farthest_point_sample delegates to fps with num_samples."""
-    pos = MagicMock()
+    pos = torch.randn(20, 3)
     num_samples = 10
 
     result = F.farthest_point_sample(pos, num_samples=num_samples)
 
-    mock_fps.assert_called_once_with(pos, num_nodes=num_samples, ratio=None, random_start=False)
+    mock_fps.assert_called_once()
+    assert mock_fps.call_args.args[0] is pos
+    assert mock_fps.call_args.kwargs == {"num_nodes": num_samples, "ratio": None, "random_start": False}
     assert result is mock_fps.return_value
 
 
 @patch("torch_pointcloud.transforms.sampling.fps")
 def test_farthest_point_sample_with_ratio(mock_fps: Mock) -> None:
     """Test that farthest_point_sample delegates to fps with ratio."""
-    pos = MagicMock()
+    pos = torch.randn(20, 3)
     ratio = 0.5
 
     result = F.farthest_point_sample(pos, ratio=ratio)
 
-    mock_fps.assert_called_once_with(pos, num_nodes=None, ratio=ratio, random_start=False)
+    mock_fps.assert_called_once()
+    assert mock_fps.call_args.args[0] is pos
+    assert mock_fps.call_args.kwargs == {"num_nodes": None, "ratio": ratio, "random_start": False}
     assert result is mock_fps.return_value
 
 
 @patch("torch_pointcloud.transforms.sampling.fps")
 def test_farthest_point_sample_random_start(mock_fps: Mock) -> None:
     """Test that farthest_point_sample delegates to fps with random_start."""
-    pos = MagicMock()
+    pos = torch.randn(20, 3)
 
     result = F.farthest_point_sample(pos, num_samples=5, random_start=True)
 
-    mock_fps.assert_called_once_with(pos, num_nodes=5, ratio=None, random_start=True)
+    mock_fps.assert_called_once()
+    assert mock_fps.call_args.args[0] is pos
+    assert mock_fps.call_args.kwargs == {"num_nodes": 5, "ratio": None, "random_start": True}
     assert result is mock_fps.return_value
+
+
+@patch("torch_pointcloud.transforms.sampling.fps")
+def test_farthest_point_sample_small_cloud_is_identity(mock_fps: Mock) -> None:
+    pos = torch.randn(8, 3)
+    for kwargs in ({"num_samples": 8}, {"num_samples": 16}, {"ratio": 1.0}):
+        assert F.farthest_point_sample(pos, **kwargs).tolist() == list(range(8))
+    mock_fps.assert_not_called()
 
 
 def test_random_dropout_mask_keep_rate() -> None:

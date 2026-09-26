@@ -315,7 +315,8 @@ def farthest_point_sample(
         random_start: Whether to start the sampling from a random point.
 
     Returns:
-        The indices of the sampled points.
+        The indices of the sampled points. A cloud with at most `num_samples` points (or `ratio >= 1`) is
+        returned in its original order, `torch.arange(N)`, rather than reordered by farthest-point rank.
 
     Examples:
         ```pycon
@@ -328,6 +329,9 @@ def farthest_point_sample(
 
         ```
     """
+    num_points = pos.size(0)
+    if (num_samples is not None and num_points <= num_samples) or (ratio is not None and ratio >= 1):
+        return torch.arange(num_points, device=pos.device)
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
 
 
