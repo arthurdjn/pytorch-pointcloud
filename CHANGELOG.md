@@ -6,7 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Fixed docstrings typos, and added notice about AI tool usage in CONTRIBUTING.
+- Improved notebooks text description in segmentation.
+- Fixed docstrings typos and code blocks paths, and added notice about AI tool usage in CONTRIBUTING.
 
 ## 0.0.8 (2026-09-25)
 

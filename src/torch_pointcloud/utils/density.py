@@ -19,7 +19,7 @@ def gaussian_kernel_density(x: Tensor, batch: Tensor, bandwidth: float) -> Tenso
     Example:
         ```python
         import torch
-        from torch_pointcloud.utils.neighbors import gaussian_kernel_density
+        from torch_pointcloud.utils.density import gaussian_kernel_density
 
         pos = torch.randn(100, 3)
         batch = torch.zeros(100, dtype=torch.long)
