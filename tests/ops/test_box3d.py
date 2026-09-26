@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.box3d import (
+from torch_pointcloud.ops.box3d import (
     angle_to_class,
     box3d_overlap,
     box_corners,

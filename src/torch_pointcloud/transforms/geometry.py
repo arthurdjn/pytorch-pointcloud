@@ -6,7 +6,7 @@ from typing import Any, Dict, Literal, Optional, Sequence, get_args
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.cluster import knn
+from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 

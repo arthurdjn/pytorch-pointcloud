@@ -1,6 +1,6 @@
 import torch
 
-from torch_pointcloud.utils.ops import decimate_indices, first_permutation, offset_index
+from torch_pointcloud.ops.utils import decimate_indices, first_permutation, offset_index
 
 
 def test_decimate_indices_consecutive_batch_ids() -> None:

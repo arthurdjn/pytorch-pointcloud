@@ -6,7 +6,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
-from torch_pointcloud.utils.box3d import box_corners
+from torch_pointcloud.ops.box3d import box_corners
 from torch_pointcloud.utils.data import DataKeys
 
 

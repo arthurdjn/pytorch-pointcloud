@@ -271,7 +271,7 @@ def offset_index(index: Tensor, index_batch: Tensor, batch: Tensor) -> Tensor:
     Example:
         ```python
         import torch
-        from torch_pointcloud.utils.ops import offset_index
+        from torch_pointcloud.ops.utils import offset_index
 
         inverse = torch.tensor([0, 1, 1, 0, 2, 2, 1])
         batch_inverse = torch.tensor([0, 0, 0, 1, 1, 1, 1])

@@ -8,9 +8,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from torch_pointcloud.ops.utils import pad_tail
 from torch_pointcloud.utils.conversion import ensure_list_size
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
-from torch_pointcloud.utils.ops import pad_tail
 
 if TYPE_CHECKING:
     import ocnn

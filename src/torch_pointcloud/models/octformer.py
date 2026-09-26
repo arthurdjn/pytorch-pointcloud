@@ -18,10 +18,10 @@ from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLAS
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeT
 from torch_pointcloud.layers.octree_blocks import OctreeConvBlock, OctreeDeconvBlock, _disable_triton
+from torch_pointcloud.ops.octree import octree_interpolate, octree_upsample
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _DWCONV_GITHUB_URL, _OCNN_GITHUB_URL, optional_import
-from torch_pointcloud.utils.octree import octree_interpolate, octree_upsample
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SemanticSegmentationModel

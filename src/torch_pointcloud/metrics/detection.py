@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.box3d import box3d_overlap, box_corners
+from torch_pointcloud.ops.box3d import box3d_overlap, box_corners
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 Interpolation = Literal["all", "r11", "r40"]

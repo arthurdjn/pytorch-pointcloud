@@ -92,7 +92,7 @@ def build_octree(
     Example:
         ```pycon
         >>> import torch
-        >>> from torch_pointcloud.utils.octree import build_octree
+        >>> from torch_pointcloud.ops.octree import build_octree
         >>> pos = torch.rand(100, 3) * 2 - 1
         >>> octree = build_octree(pos, depth=5, full_depth=2)  # doctest: +SKIP
 

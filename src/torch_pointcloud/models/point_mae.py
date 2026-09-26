@@ -23,7 +23,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed, TransformerBlock
-from torch_pointcloud.utils.cluster import group
+from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 

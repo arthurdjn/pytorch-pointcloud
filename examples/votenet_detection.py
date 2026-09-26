@@ -26,7 +26,7 @@ from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import VoteNetDetection, create_model
 from torch_pointcloud.models.votenet import EncodeVoteNetTargets, GenerateVoteLabels
-from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d
+from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 from torch_pointcloud.utils.types import Boxes3D, Detection3D

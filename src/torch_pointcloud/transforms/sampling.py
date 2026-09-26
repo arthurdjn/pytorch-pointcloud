@@ -5,7 +5,7 @@ from typing import Any, Dict, Literal, Optional, Tuple, Union, overload
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection
@@ -302,11 +302,11 @@ def farthest_point_sample(
 ) -> Tensor:
     """Farthest-point sampling (FPS) from a tensor of positions.
 
-    Thin wrapper around `torch_pointcloud.utils.cluster.fps`, provided for
+    Thin wrapper around `torch_pointcloud.ops.cluster.fps`, provided for
     convenience and naming symmetry with `random_sample`.
 
     See Also:
-        `torch_pointcloud.utils.cluster.fps` for more details and advanced usage.
+        `torch_pointcloud.ops.cluster.fps` for more details and advanced usage.
 
     Args:
         pos: The input tensor of shape $(N, D)$.

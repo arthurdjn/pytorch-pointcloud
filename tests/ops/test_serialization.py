@@ -5,8 +5,8 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.ops.serialization import serialize_pos
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
-from torch_pointcloud.utils.serialization import serialize_pos
 
 
 class TensorArg:
@@ -33,7 +33,7 @@ def depth() -> int:
 
 
 @pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
-@patch("torch_pointcloud.utils.serialization.octree_encode")
+@patch("torch_pointcloud.ops.serialization.octree_encode")
 def test_z_order_encoding(mock_octree: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
     serialize_pos(pos_grid, batch, depth, order="z")
     mock_octree.assert_called_once_with(ANY, ANY, ANY, b=None, depth=depth)
@@ -45,7 +45,7 @@ def test_z_order_encoding(mock_octree: Mock, pos_grid: Tensor, batch: Tensor, de
 
 
 @pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
-@patch("torch_pointcloud.utils.serialization.octree_encode")
+@patch("torch_pointcloud.ops.serialization.octree_encode")
 def test_z_order_trans_encoding(mock_octree: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
     serialize_pos(pos_grid, batch, depth, order="z-trans")
     mock_octree.assert_called_once_with(ANY, ANY, ANY, b=None, depth=depth)
@@ -56,7 +56,7 @@ def test_z_order_trans_encoding(mock_octree: Mock, pos_grid: Tensor, batch: Tens
     assert torch.equal(args[2], pos_grid[:, 2].long())
 
 
-@patch("torch_pointcloud.utils.serialization.hilbert_encode")
+@patch("torch_pointcloud.ops.serialization.hilbert_encode")
 def test_hilbert_encoding(mock_hilbert: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
     serialize_pos(pos_grid, batch, depth, order="hilbert")
     mock_hilbert.assert_called_once_with(ANY, num_dims=3, num_bits=depth)
@@ -66,7 +66,7 @@ def test_hilbert_encoding(mock_hilbert: Mock, pos_grid: Tensor, batch: Tensor, d
     assert torch.equal(args[0], pos_grid)
 
 
-@patch("torch_pointcloud.utils.serialization.hilbert_encode")
+@patch("torch_pointcloud.ops.serialization.hilbert_encode")
 def test_hilbert_trans_encoding(mock_hilbert: Mock, pos_grid: Tensor, batch: Tensor, depth: int) -> None:
     serialize_pos(pos_grid, batch, depth, order="hilbert-trans")
     mock_hilbert.assert_called_once_with(ANY, num_dims=3, num_bits=depth)

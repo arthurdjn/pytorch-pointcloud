@@ -24,7 +24,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.layers import Conv2dBlock, PointPatchEmbed, TransformerBlock, create_act, create_norm
-from torch_pointcloud.utils.cluster import group, knn
+from torch_pointcloud.ops.cluster import group, knn
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor

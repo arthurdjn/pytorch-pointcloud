@@ -23,9 +23,9 @@ from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.ops.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict
 
 from ._base import ClassificationModel, SemanticSegmentationModel

@@ -10,7 +10,7 @@ from torch_geometric.utils import scatter
 
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
-from torch_pointcloud.utils.voxelization import dense_voxelize, trilinear_dense_devoxelize
+from torch_pointcloud.ops.voxelization import dense_voxelize, trilinear_dense_devoxelize
 
 
 class Voxelization(nn.Module):

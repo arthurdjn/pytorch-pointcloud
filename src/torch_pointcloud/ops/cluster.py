@@ -9,9 +9,8 @@ from torch import Tensor
 from torch_geometric.utils import scatter
 
 from torch_pointcloud.config import FPS_RANDOM_START, KNN_DENSE_BUDGET
-
-from .conversion import ensure_option
-from .types import OptTensor
+from torch_pointcloud.utils.conversion import ensure_option
+from torch_pointcloud.utils.types import OptTensor
 
 
 def _check_sorted_batch(batch: Tensor, name: str) -> None:
@@ -257,7 +256,7 @@ def fps(
     Examples:
         ```pycon
         >>> import torch
-        >>> from torch_pointcloud.utils.cluster import fps
+        >>> from torch_pointcloud.ops.cluster import fps
         >>> src = torch.randn(100, 3)
         >>> batch = torch.cat([torch.zeros(50), torch.ones(50)]).long()
         >>> idx = fps(src, batch, num_nodes=10)  # doctest: +SKIP
@@ -349,7 +348,7 @@ def local_grid(src: Tensor, size: float, batch: Tensor | None = None) -> Tensor:
     Examples:
         ```pycon
         >>> import torch
-        >>> from torch_pointcloud.utils.cluster import local_grid
+        >>> from torch_pointcloud.ops.cluster import local_grid
         >>> src = torch.randn(100, 3)
         >>> batch = torch.cat([torch.zeros(50), torch.ones(50)]).long()
         >>> src_grid = local_grid(src, size=1.0, batch=batch)  # doctest: +SKIP
@@ -521,7 +520,7 @@ def group(
     Example:
         ```python
         import torch
-        from torch_pointcloud.utils.cluster import group
+        from torch_pointcloud.ops.cluster import group
 
         pos = torch.randn(2048, 3)
         batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()

@@ -9,10 +9,10 @@ from torch.optim import Optimizer
 from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
-from torch_pointcloud.utils.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
+from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
+from torch_pointcloud.ops.utils import offset_index
 from torch_pointcloud.utils.data import DataKeys, select_inputs
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
-from torch_pointcloud.utils.ops import offset_index
 from torch_pointcloud.utils.optim import generate_param_groups
 from torch_pointcloud.utils.types import Boxes3D
 

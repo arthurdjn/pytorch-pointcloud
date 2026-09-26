@@ -6,8 +6,8 @@ from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection
+from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
-from torch_pointcloud.utils.voxelization import hard_voxelize
 
 pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 

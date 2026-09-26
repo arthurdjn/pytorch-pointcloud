@@ -8,12 +8,12 @@ from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
 
+from torch_pointcloud.ops.utils import first_permutation
+from torch_pointcloud.ops.voxelization import hard_voxelize, voxel_grid_fnv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.ops import first_permutation
 from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
-from torch_pointcloud.utils.voxelization import hard_voxelize, voxel_grid_fnv
 
 from .base import DictTransform
 

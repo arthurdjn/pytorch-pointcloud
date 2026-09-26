@@ -17,9 +17,9 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
+from torch_pointcloud.ops.geometry import rodrigues_rotation_matrix
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.geometry import rodrigues_rotation_matrix
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 

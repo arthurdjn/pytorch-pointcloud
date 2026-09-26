@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torch_pointcloud.layers.xconv import XConv
-from torch_pointcloud.utils.cluster import knn_graph
+from torch_pointcloud.ops.cluster import knn_graph
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary

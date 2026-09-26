@@ -15,8 +15,8 @@ from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder, SerializedFeaturesDict
+from torch_pointcloud.ops.serialization import SerializationOrder
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.serialization import SerializationOrder
 from torch_pointcloud.utils.types import OptTensor
 
 

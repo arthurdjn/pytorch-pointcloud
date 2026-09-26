@@ -23,7 +23,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
-from torch_pointcloud.utils.box3d import (
+from torch_pointcloud.ops.box3d import (
     boxes_iou3d,
     boxes_iou_bev,
     decode_box_residuals,
@@ -303,7 +303,7 @@ class AnchorHead(nn.Module):
 
         Scores each anchor by its top sigmoid class probability and labels it by the argmax class. The
         full per-anchor set is returned; the evaluation pipeline applies score thresholding and per-class
-        3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the benchmark examples).
+        3D NMS via the `torch_pointcloud.ops.box3d` utilities (see the benchmark examples).
 
         Returns:
             Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
@@ -623,7 +623,7 @@ class MultiGroupAnchorHead(nn.Module):
         global label; the per-head results are concatenated in head order (matching `batch_box`'s anchor
         order). When the box code carries velocity deltas the decoded $(v_x, v_y)$ columns are returned
         under `velocity`. The full per-anchor set is returned; the evaluation pipeline applies score
-        thresholding and per-class 3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the
+        thresholding and per-class 3D NMS via the `torch_pointcloud.ops.box3d` utilities (see the
         benchmark examples).
 
         Returns:

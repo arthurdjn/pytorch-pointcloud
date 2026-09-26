@@ -24,7 +24,7 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import FPS, PoolLike, XConv, create_pool
 from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.utils.cluster import knn
+from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 

@@ -5,7 +5,7 @@ from importlib.metadata import version as _version
 from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
-    from . import config, datasets, inferers, layers, losses, metrics, models, transforms, utils
+    from . import config, datasets, inferers, layers, losses, metrics, models, ops, transforms, utils
     from .models import create_model, list_models, register_model
 
 __version__ = _version("torch_pointcloud")
@@ -21,12 +21,13 @@ __all__ = [
     "losses",
     "metrics",
     "models",
+    "ops",
     "register_model",
     "transforms",
     "utils",
 ]
 
-_SUBMODULES = {"config", "datasets", "inferers", "layers", "losses", "metrics", "models", "transforms", "utils"}
+_SUBMODULES = {"config", "datasets", "inferers", "layers", "losses", "metrics", "models", "ops", "transforms", "utils"}
 _MODEL_FUNCTIONS = {"create_model", "list_models", "register_model"}
 
 

@@ -1117,7 +1117,7 @@ class TransFusionHead(nn.Module):
         The predicted BEV velocity $(v_x, v_y)$ of each kept box is returned under `velocity`. The full
         candidate set is returned; the evaluation pipeline applies the per-task circular NMS
         (on the `local_max_classes`, e.g. the nuScenes pedestrian / traffic-cone) via the
-        `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
+        `torch_pointcloud.ops.box3d` utilities (see the benchmark example).
 
         Args:
             preds_dicts: The dict returned by `forward` / `predict`.

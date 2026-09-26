@@ -1,6 +1,6 @@
 import torch
 
-from torch_pointcloud.utils.heatmap import (
+from torch_pointcloud.ops.heatmap import (
     draw_gaussian_to_heatmap,
     draw_heatmap_targets,
     gaussian_radius,

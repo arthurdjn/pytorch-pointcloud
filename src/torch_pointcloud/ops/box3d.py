@@ -98,7 +98,7 @@ def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos:
 def encode_box_residuals(boxes: Tensor, anchors: Tensor, *, angle_by_sincos: bool = False) -> Tensor:
     r"""Encode ground-truth boxes into anchor-relative residuals (inverse of `decode_box_residuals`).
 
-    The exact inverse of [`decode_box_residuals`][torch_pointcloud.utils.box3d.decode_box_residuals]: the
+    The exact inverse of [`decode_box_residuals`][torch_pointcloud.ops.box3d.decode_box_residuals]: the
     center offset is normalized by the anchor base diagonal, sizes become log ratios, and the heading
     becomes a plain delta or a $(\cos, \sin)$ pair. Extents are clamped to $10^{-5}$ before the log so a
     degenerate box does not produce a non-finite target.

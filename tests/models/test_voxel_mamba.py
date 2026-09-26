@@ -8,7 +8,7 @@ from torch_pointcloud.models.voxel_mamba import (
     build_hilbert_template,
     hilbert_serialize,
 )
-from torch_pointcloud.utils.box3d import nms3d
+from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,

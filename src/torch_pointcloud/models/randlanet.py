@@ -28,10 +28,10 @@ from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
-from torch_pointcloud.utils.cluster import knn, knn_graph
+from torch_pointcloud.ops.cluster import knn, knn_graph
+from torch_pointcloud.ops.utils import decimate_indices, softmax
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.ops import decimate_indices, softmax
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SemanticSegmentationModel

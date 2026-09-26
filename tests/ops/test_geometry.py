@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.geometry import (
+from torch_pointcloud.ops.geometry import (
     axis_aligned_bounding_box,
     cross_product_matrix,
     random_spherical_points,

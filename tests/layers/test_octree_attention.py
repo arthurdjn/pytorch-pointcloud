@@ -2,8 +2,8 @@ import pytest
 import torch
 
 from torch_pointcloud.layers.octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
+from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
-from torch_pointcloud.utils.octree import build_octree
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(

@@ -1,8 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
-from torch_pointcloud.utils.voxelization import (
+from torch_pointcloud.ops.voxelization import (
     _point_to_voxel_generator,
     dense_voxelize,
     hard_voxelize,
@@ -10,6 +9,7 @@ from torch_pointcloud.utils.voxelization import (
     trilinear_dense_devoxelize,
     voxel_grid_fnv,
 )
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
 
 def test_dense_voxelize_mean_known_values() -> None:

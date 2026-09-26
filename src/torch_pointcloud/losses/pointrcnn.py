@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from torch_pointcloud.losses.anchor import one_hot_foreground, sigmoid_focal_loss
-from torch_pointcloud.utils.box3d import encode_box_residuals
+from torch_pointcloud.ops.box3d import encode_box_residuals
 from torch_pointcloud.utils.data import DataKeys
 
 _CORNER_TEMPLATE = torch.tensor(

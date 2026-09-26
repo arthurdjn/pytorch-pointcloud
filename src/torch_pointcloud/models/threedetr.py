@@ -18,7 +18,7 @@ from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
 from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers import create_act, create_norm
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2SetAbstraction
-from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
@@ -993,7 +993,7 @@ class ThreeDETRDetection(DetectionModel):
         `angle_continuous`, matching the dataset / metric $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$
         counter-clockwise convention. The result is the full unfiltered query set; the evaluation pipeline
         applies point-count filtering, NMS, score thresholding, and the indoor per-class expansion (driven
-        by the returned `class_probs`) via the `torch_pointcloud.utils.box3d` utilities, reproducing 3DETR's
+        by the returned `class_probs`) via the `torch_pointcloud.ops.box3d` utilities, reproducing 3DETR's
         `APCalculator` test protocol (`exact_eval=True`).
 
         Args:

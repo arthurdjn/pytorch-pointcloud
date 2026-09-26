@@ -48,7 +48,7 @@ from torch_geometric.typing import Adj, NoneType, OptTensor, PairOptTensor, Pair
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
-from torch_pointcloud.utils.cluster import fps, radius
+from torch_pointcloud.ops.cluster import fps, radius
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 

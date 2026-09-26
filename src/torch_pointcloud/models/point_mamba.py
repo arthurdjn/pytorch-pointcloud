@@ -29,14 +29,14 @@ from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
-from torch_pointcloud.utils.cluster import fps, knn, local_grid
+from torch_pointcloud.ops.cluster import fps, knn, local_grid
+from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _MAMBA_SSM_GITHUB_URL,
     optional_import,
 )
-from torch_pointcloud.utils.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel, PretrainingModel

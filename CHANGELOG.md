@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Moved the tensor operations of `torch_pointcloud.utils` (`box3d`, `cluster`, `density`, `geometry`, `heatmap`, `hilbert`, `octree`, `serialization`, `voxelization`, and `ops` as `utils`) to a new `torch_pointcloud.ops` package; `torch_pointcloud.utils` keeps the data, conversion, import, I/O, random, checkpoint and type helpers.
 - Fixed docstrings typos, and added notice about AI tool usage in CONTRIBUTING.
 
 ## 0.0.8 (2026-09-25)
