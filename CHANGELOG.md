@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 - Consolidated the duplicated blocks into `layers`: `PillarFeatureLayer`, `VoxelGridPool`, `SparseBasicBlock`, `TransformerEncoderLayer` and `TransformerDecoderLayer`.
 - Updated `XConv` to take `edge_index` as `[source, target]`, and DGCNN to build its feature graph with `knn_graph(loop=True)`.
 - Renamed state-dict keys of `second-multihead.nuscenes.openpcdet`, `voxelnext.nuscenes.openpcdet` and `lion-mamba.nuscenes.zhe-liu` (`bn` -> `norm`, LION decoder under `layer`).
+- Fixed the PointNeXt classifiers' global set abstraction: a shared MLP over `cat([pos, x])` as in the reference, instead of a whole-cloud radius search with zeroed coordinates (`global_sa.*` keys; ModelNet40 93.80 -> 93.96 OA).
 
 ## 0.0.9 (2026-09-26)
 
