@@ -119,19 +119,19 @@
     "backbone_3d.block_list.0.encoder_low.blocks.1.conv1.bias": [
       128
     ],
-    "backbone_3d.block_list.0.encoder_low.blocks.1.bn1.module.weight": [
+    "backbone_3d.block_list.0.encoder_low.blocks.1.norm1.module.weight": [
       128
     ],
-    "backbone_3d.block_list.0.encoder_low.blocks.1.bn1.module.bias": [
+    "backbone_3d.block_list.0.encoder_low.blocks.1.norm1.module.bias": [
       128
     ],
-    "backbone_3d.block_list.0.encoder_low.blocks.1.bn1.module.running_mean": [
+    "backbone_3d.block_list.0.encoder_low.blocks.1.norm1.module.running_mean": [
       128
     ],
-    "backbone_3d.block_list.0.encoder_low.blocks.1.bn1.module.running_var": [
+    "backbone_3d.block_list.0.encoder_low.blocks.1.norm1.module.running_var": [
       128
     ],
-    "backbone_3d.block_list.0.encoder_low.blocks.1.bn1.module.num_batches_tracked": [],
+    "backbone_3d.block_list.0.encoder_low.blocks.1.norm1.module.num_batches_tracked": [],
     "backbone_3d.block_list.0.decoder.0.weight": [
       128,
       3,
@@ -261,19 +261,19 @@
     "backbone_3d.block_list.1.encoder_low.blocks.1.conv1.bias": [
       128
     ],
-    "backbone_3d.block_list.1.encoder_low.blocks.1.bn1.module.weight": [
+    "backbone_3d.block_list.1.encoder_low.blocks.1.norm1.module.weight": [
       128
     ],
-    "backbone_3d.block_list.1.encoder_low.blocks.1.bn1.module.bias": [
+    "backbone_3d.block_list.1.encoder_low.blocks.1.norm1.module.bias": [
       128
     ],
-    "backbone_3d.block_list.1.encoder_low.blocks.1.bn1.module.running_mean": [
+    "backbone_3d.block_list.1.encoder_low.blocks.1.norm1.module.running_mean": [
       128
     ],
-    "backbone_3d.block_list.1.encoder_low.blocks.1.bn1.module.running_var": [
+    "backbone_3d.block_list.1.encoder_low.blocks.1.norm1.module.running_var": [
       128
     ],
-    "backbone_3d.block_list.1.encoder_low.blocks.1.bn1.module.num_batches_tracked": [],
+    "backbone_3d.block_list.1.encoder_low.blocks.1.norm1.module.num_batches_tracked": [],
     "backbone_3d.block_list.1.decoder.0.weight": [
       128,
       3,
@@ -423,19 +423,19 @@
     "backbone_3d.block_list.2.encoder_low.blocks.1.conv1.bias": [
       128
     ],
-    "backbone_3d.block_list.2.encoder_low.blocks.1.bn1.module.weight": [
+    "backbone_3d.block_list.2.encoder_low.blocks.1.norm1.module.weight": [
       128
     ],
-    "backbone_3d.block_list.2.encoder_low.blocks.1.bn1.module.bias": [
+    "backbone_3d.block_list.2.encoder_low.blocks.1.norm1.module.bias": [
       128
     ],
-    "backbone_3d.block_list.2.encoder_low.blocks.1.bn1.module.running_mean": [
+    "backbone_3d.block_list.2.encoder_low.blocks.1.norm1.module.running_mean": [
       128
     ],
-    "backbone_3d.block_list.2.encoder_low.blocks.1.bn1.module.running_var": [
+    "backbone_3d.block_list.2.encoder_low.blocks.1.norm1.module.running_var": [
       128
     ],
-    "backbone_3d.block_list.2.encoder_low.blocks.1.bn1.module.num_batches_tracked": [],
+    "backbone_3d.block_list.2.encoder_low.blocks.1.norm1.module.num_batches_tracked": [],
     "backbone_3d.block_list.2.decoder.0.weight": [
       128,
       3,
@@ -585,19 +585,19 @@
     "backbone_3d.block_list.3.encoder_low.blocks.1.conv1.bias": [
       128
     ],
-    "backbone_3d.block_list.3.encoder_low.blocks.1.bn1.module.weight": [
+    "backbone_3d.block_list.3.encoder_low.blocks.1.norm1.module.weight": [
       128
     ],
-    "backbone_3d.block_list.3.encoder_low.blocks.1.bn1.module.bias": [
+    "backbone_3d.block_list.3.encoder_low.blocks.1.norm1.module.bias": [
       128
     ],
-    "backbone_3d.block_list.3.encoder_low.blocks.1.bn1.module.running_mean": [
+    "backbone_3d.block_list.3.encoder_low.blocks.1.norm1.module.running_mean": [
       128
     ],
-    "backbone_3d.block_list.3.encoder_low.blocks.1.bn1.module.running_var": [
+    "backbone_3d.block_list.3.encoder_low.blocks.1.norm1.module.running_var": [
       128
     ],
-    "backbone_3d.block_list.3.encoder_low.blocks.1.bn1.module.num_batches_tracked": [],
+    "backbone_3d.block_list.3.encoder_low.blocks.1.norm1.module.num_batches_tracked": [],
     "backbone_3d.block_list.3.decoder.0.weight": [
       128,
       3,
@@ -747,19 +747,19 @@
     "backbone_3d.block_list.4.encoder_low.blocks.1.conv1.bias": [
       128
     ],
-    "backbone_3d.block_list.4.encoder_low.blocks.1.bn1.module.weight": [
+    "backbone_3d.block_list.4.encoder_low.blocks.1.norm1.module.weight": [
       128
     ],
-    "backbone_3d.block_list.4.encoder_low.blocks.1.bn1.module.bias": [
+    "backbone_3d.block_list.4.encoder_low.blocks.1.norm1.module.bias": [
       128
     ],
-    "backbone_3d.block_list.4.encoder_low.blocks.1.bn1.module.running_mean": [
+    "backbone_3d.block_list.4.encoder_low.blocks.1.norm1.module.running_mean": [
       128
     ],
-    "backbone_3d.block_list.4.encoder_low.blocks.1.bn1.module.running_var": [
+    "backbone_3d.block_list.4.encoder_low.blocks.1.norm1.module.running_var": [
       128
     ],
-    "backbone_3d.block_list.4.encoder_low.blocks.1.bn1.module.num_batches_tracked": [],
+    "backbone_3d.block_list.4.encoder_low.blocks.1.norm1.module.num_batches_tracked": [],
     "backbone_3d.block_list.4.decoder.0.weight": [
       128,
       5,
@@ -909,19 +909,19 @@
     "backbone_3d.block_list.5.encoder_low.blocks.1.conv1.bias": [
       128
     ],
-    "backbone_3d.block_list.5.encoder_low.blocks.1.bn1.module.weight": [
+    "backbone_3d.block_list.5.encoder_low.blocks.1.norm1.module.weight": [
       128
     ],
-    "backbone_3d.block_list.5.encoder_low.blocks.1.bn1.module.bias": [
+    "backbone_3d.block_list.5.encoder_low.blocks.1.norm1.module.bias": [
       128
     ],
-    "backbone_3d.block_list.5.encoder_low.blocks.1.bn1.module.running_mean": [
+    "backbone_3d.block_list.5.encoder_low.blocks.1.norm1.module.running_mean": [
       128
     ],
-    "backbone_3d.block_list.5.encoder_low.blocks.1.bn1.module.running_var": [
+    "backbone_3d.block_list.5.encoder_low.blocks.1.norm1.module.running_var": [
       128
     ],
-    "backbone_3d.block_list.5.encoder_low.blocks.1.bn1.module.num_batches_tracked": [],
+    "backbone_3d.block_list.5.encoder_low.blocks.1.norm1.module.num_batches_tracked": [],
     "backbone_3d.block_list.5.decoder.0.weight": [
       128,
       5,

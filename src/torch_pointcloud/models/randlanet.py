@@ -21,14 +21,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.utils import scatter, softmax
+from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
-from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
-from torch_pointcloud.ops.cluster import decimate_indices, knn, knn_graph
+from torch_pointcloud.layers.randlanet_blocks import RandLANetResidualBlock
+from torch_pointcloud.ops.cluster import decimate_indices, knn
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
@@ -65,234 +65,9 @@ def random_max_pool(
     return pooled, pos_decim, decim_batch
 
 
-class LocalSpatialEncoding(nn.Module):
-    """Per-edge spatial encoding MLP (RandLA-Net Section 3.2).
-
-    Wraps a single `Linear+norm+act` block that lifts an input feature to `out_channels`.
-    Used twice per `LocalFeatureAggregation`: first on the raw 10-channel relative
-    positional encoding, then on its output.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        *,
-        act: Union[str, Callable, None],
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        act_first: bool = False,
-        norm: Union[str, Callable, None],
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = False,
-    ) -> None:
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.mlp = MLP(
-            channel_list=[in_channels, out_channels],
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=False,
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        return self.mlp(x)
-
-
-class AttentivePooling(nn.Module):
-    """Attention-weighted aggregation of pre-gathered edge features (RandLA-Net Section 3.3).
-
-    Given $(E, C)$ edge features and a per-edge destination index, learn per-edge
-    attention scores via a no-bias linear layer, softmax-normalize them across the
-    neighbors of each destination point, sum the score-weighted features per
-    destination, then project the result with a `Linear+norm+act` block.
-
-    Args:
-        in_channels: Channels of each edge feature.
-        out_channels: Output channels after the post-aggregation MLP.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        *,
-        act: Union[str, Callable, None],
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        act_first: bool = False,
-        norm: Union[str, Callable, None],
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = False,
-    ) -> None:
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.fc = nn.Linear(in_channels, in_channels, bias=False)
-        self.mlp = MLP(
-            channel_list=[in_channels, out_channels],
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=False,
-        )
-
-    def forward(self, x: Tensor, dst_idx: Tensor, num_dst: int) -> Tensor:
-        att_scores = softmax(self.fc(x), dst_idx)
-        weighted = att_scores * x
-        out = scatter(weighted, dst_idx, dim=0, dim_size=num_dst, reduce="sum")
-        return self.mlp(out)
-
-
-class LocalFeatureAggregation(nn.Module):
-    r"""Local Feature Aggregation module (RandLA-Net Section 3.4).
-
-    Stacks two `LocalSpatialEncoding` + `AttentivePooling` units to progressively grow
-    the receptive field, doubling a per-point feature of dim $d_\text{out} / 2$ to
-    $d_\text{out}$. Mirrors the *LocSE + Attentive Pooling* "dilated" combination in
-    Fig. 3 of the paper. The 10-channel relative positional encoding follows the
-    original :github: [QingyongHu/RandLA-Net](https://github.com/QingyongHu/RandLA-Net) channel
-    order (`cat([rel_dist, rel_xyz, xyz_i, xyz_j], dim=-1)`) so pretrained weights load
-    without permuting the first 1x1 kernel. The second LSE re-projects the output of
-    the first LSE to match the original `building_block`.
-    """
-
-    def __init__(
-        self,
-        d_out: int,
-        *,
-        act: Union[str, Callable, None],
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        act_first: bool = False,
-        norm: Union[str, Callable, None],
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = False,
-    ) -> None:
-        super().__init__()
-        if d_out % 2 != 0:
-            raise ValueError(f"`d_out` must be even, got {d_out}.")
-        self.d_out = d_out
-
-        mlp_kwargs: Dict[str, Any] = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-        self.lse1 = LocalSpatialEncoding(10, d_out // 2, **mlp_kwargs)
-        self.att_pooling_1 = AttentivePooling(d_out, d_out // 2, **mlp_kwargs)
-        self.lse2 = LocalSpatialEncoding(d_out // 2, d_out // 2, **mlp_kwargs)
-        self.att_pooling_2 = AttentivePooling(d_out, d_out, **mlp_kwargs)
-
-    def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
-        src_idx, dst_idx = edge_index
-        num_dst = x.size(0)
-
-        # Per-edge 10-channel relative positional encoding (RandLA-Net Section 3.2).
-        pos_i = pos[dst_idx]
-        pos_j = pos[src_idx]
-        rel_xyz = pos_i - pos_j
-        rel_dist = torch.linalg.norm(rel_xyz, dim=1, keepdim=True)
-        rel = torch.cat([rel_dist, rel_xyz, pos_i, pos_j], dim=1)  # (E, 10)
-
-        f_pos1 = self.lse1(rel)  # (E, d_out//2)
-        f_neighbors = x[src_idx]  # (E, d_out//2)
-        edge_feats = torch.cat([f_neighbors, f_pos1], dim=1)  # (E, d_out)
-        x = self.att_pooling_1(edge_feats, dst_idx, num_dst)  # (N, d_out//2)
-
-        f_pos2 = self.lse2(f_pos1)  # (E, d_out//2)
-        f_neighbors = x[src_idx]
-        edge_feats = torch.cat([f_neighbors, f_pos2], dim=1)
-        x = self.att_pooling_2(edge_feats, dst_idx, num_dst)  # (N, d_out)
-        return x
-
-
-class DilatedResidualBlock(nn.Module):
-    r"""RandLA-Net dilated residual block (Fig. 3 of the paper).
-
-    Maps `d_in` channels to $2 \cdot d_\text{out}$ via a residual path of
-    `MLP -> LocalFeatureAggregation -> MLP` plus a parallel `Linear+norm` shortcut.
-    The sum is activated by the configured activation. `mlp2` and `shortcut` skip the
-    activation (paper-mandated: `Conv2d(activation=False)` upstream); the configured
-    activation is applied once after the residual sum.
-
-    Args:
-        d_in: Number of input channels.
-        d_out: "Configuration" channel count; the block actually outputs $2 \cdot d_\text{out}$.
-        num_neighbors: Number of neighbors for the local feature aggregation.
-    """
-
-    def __init__(
-        self,
-        d_in: int,
-        d_out: int,
-        num_neighbors: int,
-        *,
-        act: Union[str, Callable, None],
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        act_first: bool = False,
-        norm: Union[str, Callable, None],
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = False,
-    ) -> None:
-        super().__init__()
-        if d_out % 2 != 0:
-            raise ValueError(f"`d_out` must be even, got {d_out}.")
-        self.num_neighbors = num_neighbors
-        self.d_in = d_in
-        self.d_out = d_out
-        self.out_channels = 2 * d_out
-
-        mlp_kwargs: Dict[str, Any] = dict(
-            act=act,
-            act_kwargs=act_kwargs,
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-        self.mlp1 = MLP(channel_list=[d_in, d_out // 2], plain_last=False, **mlp_kwargs)
-        self.lfa = LocalFeatureAggregation(d_out, **mlp_kwargs)
-        # `mlp2` and `shortcut` use `act=None` (paper): activation is applied once
-        # after the residual sum.
-        self.mlp2 = MLP(
-            channel_list=[d_out, 2 * d_out],
-            act=None,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=False,
-        )
-        self.shortcut = MLP(
-            channel_list=[d_in, 2 * d_out],
-            act=None,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=False,
-        )
-        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        edge_index = knn_graph(pos, self.num_neighbors, batch=batch, loop=True)
-        shortcut = self.shortcut(x)
-        x = self.mlp1(x)
-        x = self.lfa(x, pos, edge_index)
-        x = self.mlp2(x)
-        return self.act(x + shortcut), pos, batch
-
-
 class RandLANetEncoder(nn.Module):
-    r"""Stack of `DilatedResidualBlock` units interleaved with random-sampling
-    K-NN max-pool decimation (RandLA-Net Section 3 / Fig. 2).
+    r"""Stack of `RandLANetResidualBlock` units interleaved with random-sampling
+    K-NN max-pool decimation.
 
     Each encoder block doubles its $d_\text{out}^\text{config}$ to produce a
     $2 \cdot d_\text{out}^\text{config}$ channel feature; the per-stage decimation
@@ -354,7 +129,7 @@ class RandLANetEncoder(nn.Module):
                 )
             # encoder_channels[i] is the BLOCK OUTPUT (== 2 * d_out_config), matching the
             # upstream paper convention where each block ends with a (d_out * 2) channel feature.
-            self.blocks.append(DilatedResidualBlock(in_channels, out_channels // 2, num_neighbors=k, **block_kwargs))
+            self.blocks.append(RandLANetResidualBlock(in_channels, out_channels // 2, num_neighbors=k, **block_kwargs))
             in_channels = out_channels
         self.out_channels = encoder_channels[-1]
 
@@ -385,7 +160,7 @@ class RandLANetEncoder(nn.Module):
     ) -> Any:
         intermediates: List[FeaturesDict] = []
         for i, block in enumerate(self.blocks):
-            assert isinstance(block, DilatedResidualBlock)
+            assert isinstance(block, RandLANetResidualBlock)
             x, pos, batch = block(x, pos, batch)
             if return_intermediates and i == 0:
                 # Block 0's pre-decimation output is the only full-resolution skip;

@@ -18,6 +18,7 @@ from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
 from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers import create_act, create_norm
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2SetAbstraction
+from torch_pointcloud.layers.transformer import TransformerDecoderLayer, TransformerEncoderLayer
 from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -139,118 +140,6 @@ class PointnetSAModuleVotes(nn.Module):
             x = pos.new_zeros((pos.size(0), 0))
         x_out, pos_out, batch_out = self.sa(x, pos, batch, idx)
         return x_out, pos_out, batch_out, idx
-
-
-class TransformerEncoderLayer(nn.Module):
-    r"""Pre-norm transformer encoder layer with positional embeddings added to the attention query/key.
-
-    Mirrors the reference 3DETR encoder layer (`normalize_before=True`): self-attention over the tokens
-    plus a feed-forward block, each wrapped in a residual with the layer norm applied to the input.
-
-    Args:
-        embed_dim: Token embedding dimension.
-        num_heads: Number of attention heads.
-        mlp_dim: Hidden width of the feed-forward block.
-        dropout: Dropout probability.
-        act: Activation type or callable for the feed-forward block.
-        act_kwargs: Extra activation arguments.
-    """
-
-    def __init__(
-        self,
-        embed_dim: int,
-        num_heads: int,
-        mlp_dim: int,
-        dropout: float,
-        *,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.num_heads = num_heads
-        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
-        self.linear1 = nn.Linear(embed_dim, mlp_dim)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(mlp_dim, embed_dim)
-        self.norm1 = nn.LayerNorm(embed_dim)
-        self.norm2 = nn.LayerNorm(embed_dim)
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        self.activation = create_act(act, **(act_kwargs or {})) or nn.ReLU()
-
-    def forward(self, src: Tensor, src_mask: OptTensor = None, pos: OptTensor = None) -> Tensor:
-        src2 = self.norm1(src)
-        q = k = src2 if pos is None else src2 + pos
-        src2 = self.self_attn(q, k, value=src2, attn_mask=src_mask)[0]
-        src = src + self.dropout1(src2)
-        src2 = self.norm2(src)
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
-        src = src + self.dropout2(src2)
-        return src
-
-
-class TransformerDecoderLayer(nn.Module):
-    r"""Pre-norm transformer decoder layer with self-attention, cross-attention and a feed-forward block.
-
-    Mirrors the reference 3DETR decoder layer (`normalize_before=True`). Query positions are added to the
-    self-attention query/key and to the cross-attention query; encoder positions are added to the
-    cross-attention key.
-
-    Args:
-        embed_dim: Token embedding dimension.
-        num_heads: Number of attention heads.
-        mlp_dim: Hidden width of the feed-forward block.
-        dropout: Dropout probability.
-        act: Activation type or callable for the feed-forward block.
-        act_kwargs: Extra activation arguments.
-    """
-
-    def __init__(
-        self,
-        embed_dim: int,
-        num_heads: int,
-        mlp_dim: int,
-        dropout: float,
-        *,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
-        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
-        self.linear1 = nn.Linear(embed_dim, mlp_dim)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(mlp_dim, embed_dim)
-        self.norm1 = nn.LayerNorm(embed_dim)
-        self.norm2 = nn.LayerNorm(embed_dim)
-        self.norm3 = nn.LayerNorm(embed_dim)
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        self.dropout3 = nn.Dropout(dropout)
-        self.activation = create_act(act, **(act_kwargs or {})) or nn.ReLU()
-
-    def forward(
-        self,
-        tgt: Tensor,
-        memory: Tensor,
-        pos: Tensor,
-        query_pos: Tensor,
-    ) -> Tensor:
-        tgt2 = self.norm1(tgt)
-        q = k = tgt2 + query_pos
-        tgt2 = self.self_attn(q, k, value=tgt2)[0]
-        tgt = tgt + self.dropout1(tgt2)
-        tgt2 = self.norm2(tgt)
-        tgt2 = self.multihead_attn(
-            query=tgt2 + query_pos,
-            key=memory + pos,
-            value=memory,
-        )[0]
-        tgt = tgt + self.dropout2(tgt2)
-        tgt2 = self.norm3(tgt)
-        tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt2))))
-        tgt = tgt + self.dropout3(tgt2)
-        return tgt
 
 
 class TransformerEncoder(nn.Module):

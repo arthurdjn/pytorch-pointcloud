@@ -1,10 +1,10 @@
-r"""Dynamic voxel feature encoder shared by the voxel detectors (Voxel Mamba, LION).
+r"""Voxel feature encoders: the pillar feature-net layer and the dynamic mean voxel encoder.
 
-A packed-format port of the `DynamicVoxelVFE` from
+The dynamic encoder is a packed-format port of the `DynamicVoxelVFE` from
 :github: [gwenzhang/Voxel-Mamba](https://github.com/gwenzhang/Voxel-Mamba).
 """
 
-from typing import Sequence, Tuple
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -16,40 +16,67 @@ from torch_pointcloud.utils.types import OptTensor
 
 
 class PillarFeatureLayer(nn.Module):
-    r"""Pillar feature net layer (the reference's `PFNLayerV2`): linear + norm + ReLU with a per-voxel max-pool.
+    r"""Pillar feature-net layer: linear + norm + act on every point, then a max-pool over each pillar.
 
-    Non-final layers halve their output width and concatenate the pooled feature back onto every
-    point; the final layer returns the pooled per-voxel feature directly.
+    Non-final layers halve their output width and concatenate the pooled feature back onto every point of the
+    pillar; the final layer returns the pooled per-pillar feature. Padded pillars come as a dense $(P, N, C)$
+    tensor pooled over the point axis; dynamically voxelized points come packed as $(N, C)$ with their
+    `pillar_index`, and are pooled by index.
 
     Args:
         in_channels: Input feature channels.
         out_channels: Target output channels (halved internally for non-final layers).
-        last: Whether this is the final PFN layer.
+        last: Whether this is the final layer.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable.
+        norm_kwargs: Extra normalization arguments.
 
     Shape:
-        - Input: $(N, C_\text{in})$ point features and $(N,)$ voxel index.
-        - Output: $(N, C')$ for non-final layers, $(M, C_\text{out})$ for the final layer.
+        - Input: $(P, N, C_\text{in})$ padded pillars, or $(N, C_\text{in})$ packed points with an $(N,)$ pillar index.
+        - Output: the input layout with $C_\text{out}$ channels for non-final layers; $(P, 1, C_\text{out})$ or
+          $(P, C_\text{out})$ pooled features for the final layer.
     """
 
-    def __init__(self, in_channels: int, out_channels: int, last: bool) -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        last: bool,
+        *,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__()
         self.last = last
         out_dim = out_channels if last else out_channels // 2
         self.mlp = MLP(
             [in_channels, out_dim],
-            act="relu",
-            norm="batch_norm",
-            norm_kwargs=dict(eps=1e-3, momentum=0.01),
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
             bias=False,
             plain_last=False,
         )
 
-    def forward(self, inputs: Tensor, unq_inv: Tensor) -> Tensor:
-        x = self.mlp(inputs)
-        x_max = scatter(x, unq_inv, dim=0, reduce="max")
+    def forward(self, x: Tensor, pillar_index: OptTensor = None) -> Tensor:
+        if pillar_index is None:
+            num_pillars, points_per_pillar, _ = x.shape
+            # The per-point MLP normalizes each channel over every point of every pillar.
+            x = self.mlp(x.reshape(num_pillars * points_per_pillar, -1)).reshape(num_pillars, points_per_pillar, -1)
+            x_max = x.max(dim=1, keepdim=True).values
+            if self.last:
+                return x_max
+            return torch.cat([x, x_max.expand_as(x)], dim=2)
+
+        x = self.mlp(x)
+        x_max = scatter(x, pillar_index, dim=0, reduce="max")
         if self.last:
             return x_max
-        return torch.cat([x, x_max[unq_inv]], dim=1)
+        return torch.cat([x, x_max[pillar_index]], dim=1)
 
 
 class DynamicMeanVFE(nn.Module):
@@ -90,7 +117,13 @@ class DynamicMeanVFE(nn.Module):
         feat_channels = in_channels + 6
         widths = [feat_channels, *num_filters]
         self.pfn_layers = nn.ModuleList(
-            PillarFeatureLayer(widths[i], widths[i + 1], last=i >= len(widths) - 2) for i in range(len(widths) - 1)
+            PillarFeatureLayer(
+                widths[i],
+                widths[i + 1],
+                last=i >= len(widths) - 2,
+                norm_kwargs=dict(eps=1e-3, momentum=0.01),
+            )
+            for i in range(len(widths) - 1)
         )
         self.out_channels = num_filters[-1]
 

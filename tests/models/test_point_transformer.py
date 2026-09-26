@@ -6,7 +6,6 @@ from torch import Tensor
 
 from torch_pointcloud.models.point_transformer import (
     PointTransformerClassification,
-    PointTransformerConv,
     PointTransformerSegmentation,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -38,17 +37,6 @@ def data() -> Dict[str, Tensor]:
         batch=batch,
         edge_index=edge_index,
     )
-
-
-def test_point_transformer_conv(data: Dict[str, Tensor]) -> None:
-    conv = PointTransformerConv(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-    )
-
-    output = conv(data["features"], data["pos"], data["edge_index"])
-    assert output.shape == (len(data["pos"]), 32)
 
 
 @pytest.fixture

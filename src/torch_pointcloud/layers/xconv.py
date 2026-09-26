@@ -23,6 +23,10 @@ class XConv(nn.Module):
     excepts that this convolution layer supports bipartite graphs and more flexibility / customization.
     This implementation provides full compatibility with the PyTorch Geometric library while following the official
     paper and original tensorflow implementation.
+
+    `edge_index` lists `[source, target]` pairs with exactly `kernel_size * dilation` consecutive edges per target
+    point, in the order `knn` returns them; a bipartite graph is given as `(x_source, None)` and
+    `(pos_source, pos_target)` pairs.
     """
 
     def __init__(
@@ -128,16 +132,14 @@ class XConv(nn.Module):
         if self.dilation > 1:
             edge_index = edge_index[:, :: self.dilation]
 
-        # This is step is usually done inside the message passing class,
-        # however here we do not want to do the final aggregation (not supported by this layer)
-        # so we extract source / target nodes manually.
-        # IMPORTANT: the flow for the edge_index is expected to be target -> source
-        row, col = edge_index
+        # Gathered by hand rather than through `MessagePassing`: the neighborhood stays dense, (N_t, K, C), for the
+        # X-transform and is never aggregated.
+        source, target = edge_index
         pos_src, pos_dst = pos
         x_src, _ = x
 
-        pos_j, pos_i = pos_src[col], pos_dst[row]
-        x_j = x_src[col] if x_src is not None else None
+        pos_j, pos_i = pos_src[source], pos_dst[target]
+        x_j = x_src[source] if x_src is not None else None
 
         # Compute relative neighbor positions (message)
         msg = pos_j - pos_i

@@ -33,14 +33,18 @@ from .dropouts import (
 from .fps import FPS
 from .geometric_affine import GeometricAffineConv, NormalizeType
 from .grid_pool import GridPool
+from .grouped_vector_attention import GroupedVectorAttention
+from .kpconv_blocks import KPConv, KPConvBlock, KPResidualBlock, create_kernel_points
 from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
-from .pointconv import PointConv, PointConvDensity
-from .pointconv_sa import (
+from .point_transformer_conv import PointTransformerConv
+from .pointconv_blocks import (
+    PointConv,
+    PointConvDensity,
     PointConvDensityGlobalSetAbstraction,
     PointConvDensitySetAbstraction,
     PointConvGlobalSetAbstraction,
@@ -72,6 +76,12 @@ from .pools import (
     create_pool,
 )
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
+from .randlanet_blocks import (
+    AttentivePooling,
+    LocalFeatureAggregation,
+    LocalSpatialEncoding,
+    RandLANetResidualBlock,
+)
 from .rope import Point3DRoPE
 from .serialized_attention import (
     RelativePositionalEncoding,
@@ -81,6 +91,7 @@ from .serialized_attention import (
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import (
+    SparseBasicBlock,
     SparseConvBlock,
     SparseModule,
     SparseResidualBlock,
@@ -88,7 +99,9 @@ from .spconv_blocks import (
     SubMConv3dResidualBlock,
 )
 from .tnet import DynamicTNet, TNet
-from .transformer import Attention, TransformerBlock
+from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
+from .transformer import Attention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
 from .vfe import DynamicMeanVFE, PillarFeatureLayer
 from .view import View
+from .voxel_grid_pool import VoxelGridPool
 from .xconv import XConv

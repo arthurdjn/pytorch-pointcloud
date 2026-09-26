@@ -67,7 +67,8 @@ class PointCNNEncoderBlock(nn.Module):
             x, pos, batch = x[idx], pos[idx], batch[idx]
 
         num_neighbors = self.conv.kernel_size * self.conv.dilation
-        edge_index = knn(pos, pos, k=num_neighbors, batch_x=batch, batch_y=batch)
+        row, col = knn(pos, pos, k=num_neighbors, batch_x=batch, batch_y=batch)
+        edge_index = torch.stack([col, row], dim=0)
         x = self.conv(x, pos, edge_index)
         x = self.act(x)
         return x, pos, batch
@@ -122,7 +123,8 @@ class PointCNNDecoderBlock(nn.Module):
         batch_skip: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         num_neighbors = self.conv.kernel_size * self.conv.dilation
-        edge_index = knn(pos, pos_skip, k=num_neighbors, batch_x=batch, batch_y=batch_skip)  # flow: source -> target
+        row, col = knn(pos, pos_skip, k=num_neighbors, batch_x=batch, batch_y=batch_skip)
+        edge_index = torch.stack([col, row], dim=0)
         x = self.conv((x, None), (pos, pos_skip), edge_index)
         x = torch.cat([x, x_skip], dim=-1)
         x = self.fuse(x)

@@ -4,9 +4,9 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.layers.torchsparse_blocks import TorchSparseResidualBlock
 from torch_pointcloud.models.spvcnn import (
     PointTensor,
-    ResidualBlock,
     SparseTensor,
     SPVCNNClassification,
     SPVCNNDecoder,
@@ -177,7 +177,7 @@ def test_spvcnn_decoder_block_threads_act_norm_dropout() -> None:
     assert isinstance(block, SPVCNNDecoderBlock)
     assert block.dropout == 0.3
     residual = block.blocks[0]
-    assert isinstance(residual, ResidualBlock)
+    assert isinstance(residual, TorchSparseResidualBlock)
     assert isinstance(residual.act, torch.nn.LeakyReLU)
     assert residual.act.negative_slope == 0.1
     assert isinstance(residual.norm1, torch.nn.Identity)

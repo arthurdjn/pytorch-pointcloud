@@ -9,8 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_geometric.nn.pool import knn_graph, voxel_grid
-from torch_geometric.utils import scatter, segment, softmax
+from torch_geometric.nn.pool import knn_graph
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import (
@@ -19,116 +18,14 @@ from torch_pointcloud.layers import (
 )
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.layers.grouped_vector_attention import GroupedVectorAttention
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.layers.voxel_grid_pool import VoxelGridPool
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
-
-
-class GroupedVectorAttention(nn.Module):
-    """Vector attention over a neighborhood graph, with one weight vector shared by each group of channels.
-
-    The relation between a query and its neighbor keys is optionally scaled and shifted by a learned
-    encoding of their relative position, then mapped to `num_groups` weights and softmax-normalized
-    over each destination's neighbors.
-    """
-
-    def __init__(
-        self,
-        channels: int,
-        num_groups: int,
-        attn_drop: float = 0.0,
-        qkv_bias: bool = True,
-        pe_multiplier: bool = False,
-        pe_bias: bool = True,
-        norm: Union[str, Callable, None] = "batch_norm",
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__()
-        if channels % num_groups != 0:
-            raise ValueError(f"channels ({channels}) must be divisible by num_groups ({num_groups})")
-
-        self.channels = channels
-        self.num_groups = num_groups
-
-        self.q = MLP(
-            [channels, channels],
-            act=act,
-            norm=norm,
-            act_first=False,
-            plain_last=False,
-            bias=qkv_bias,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-        )
-        self.k = MLP(
-            [channels, channels],
-            act=act,
-            norm=norm,
-            act_first=False,
-            plain_last=False,
-            bias=qkv_bias,
-            act_kwargs=act_kwargs,
-            norm_kwargs=norm_kwargs,
-        )
-        self.v = nn.Linear(channels, channels, bias=qkv_bias)
-
-        self.pe_multiplier: Optional[nn.Module] = None
-        if pe_multiplier:
-            self.pe_multiplier = nn.Sequential(
-                nn.Linear(3, channels),
-                create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity(),
-                create_act(act, **(act_kwargs or {})) or nn.Identity(),
-                nn.Linear(channels, channels),
-            )
-
-        self.pe_bias: Optional[nn.Module] = None
-        if pe_bias:
-            self.pe_bias = nn.Sequential(
-                nn.Linear(3, channels),
-                create_norm(norm, channels, **(norm_kwargs or {})) or nn.Identity(),
-                create_act(act, **(act_kwargs or {})) or nn.Identity(),
-                nn.Linear(channels, channels),
-            )
-
-        self.weight_encoding = nn.Sequential(
-            nn.Linear(channels, num_groups),
-            create_norm(norm, num_groups, **(norm_kwargs or {})) or nn.Identity(),
-            create_act(act, **(act_kwargs or {})) or nn.Identity(),
-            nn.Linear(num_groups, num_groups),
-        )
-
-        self.attn_drop = nn.Dropout(attn_drop)
-
-    def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
-        query, key, value = self.q(x), self.k(x), self.v(x)
-
-        row, col = edge_index
-        value = value[row]
-        pos = pos[row] - pos[col]
-        relation_qk = key[row] - query[col]
-
-        if self.pe_multiplier is not None:
-            factor = self.pe_multiplier(pos)
-            relation_qk = relation_qk * factor
-
-        if self.pe_bias is not None:
-            bias = self.pe_bias(pos)
-            relation_qk = relation_qk + bias
-            value = value + bias
-
-        weight = self.weight_encoding(relation_qk)
-        weight = self.attn_drop(softmax(weight, col))
-
-        value = value.reshape(-1, self.num_groups, self.channels // self.num_groups)
-        x = value * weight.unsqueeze(-1)
-        x = x.reshape(-1, self.channels)
-        x = scatter(x, col, dim=0, reduce="sum")
-        return x
 
 
 class PointTransformerV2Block(nn.Module):
@@ -208,6 +105,7 @@ class PointTransformerV2GridPool(nn.Module):
         self.fc = nn.Linear(in_channels, out_channels, bias=bias)
         self.norm = create_norm(norm, out_channels, **(norm_kwargs or {})) or nn.Identity()
         self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
+        self.pool = VoxelGridPool(grid_size, reduce=reduce, origin="min")
 
     @overload
     def forward(
@@ -235,25 +133,9 @@ class PointTransformerV2GridPool(nn.Module):
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
         x = self.act(self.norm(self.fc(x)))
-
-        # NOTE: evaluate difference with this version
-        # and the consecutive_cluster version in kpconv.py
-        start = segment(
-            pos,
-            torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)]),
-            reduce="min",
-        )
-        cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)
-        _, cluster, counts = torch.unique(cluster, sorted=True, return_inverse=True, return_counts=True)
-        _, sorted_cluster_indices = torch.sort(cluster)
-        idx_ptr = torch.cat([counts.new_zeros(1), torch.cumsum(counts, dim=0)])
-        pos = segment(pos[sorted_cluster_indices], idx_ptr, reduce="mean")
-        x = segment(x[sorted_cluster_indices], idx_ptr, reduce=self.reduce)
-        batch = batch[idx_ptr[:-1]]
-
         if return_inverse:
-            return x, pos, batch, cluster
-        return x, pos, batch
+            return self.pool(x, pos, batch, return_inverse=True)
+        return self.pool(x, pos, batch)
 
 
 class PointTransformerV2InversePool(nn.Module):

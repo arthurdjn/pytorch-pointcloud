@@ -11,7 +11,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
-from torch_pointcloud.layers import SparseConvBlock
+from torch_pointcloud.layers import SparseBasicBlock, SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.data import DataKeys
@@ -20,7 +20,6 @@ from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
-from .second import SparseBasicBlock
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -93,15 +92,18 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
             create_act(act, **(act_kwargs or {})),
         )
         self.conv1 = nn.ModuleList(
-            [SparseBasicBlock(c1, "res1", **block_kwargs), SparseBasicBlock(c1, "res1", **block_kwargs)]
+            [
+                SparseBasicBlock(c1, c1, bias=True, indice_key="res1", **block_kwargs),
+                SparseBasicBlock(c1, c1, bias=True, indice_key="res1", **block_kwargs),
+            ]
         )
         self.conv2 = nn.ModuleList(
             [
                 SparseConvBlock(
                     c1, c2, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(c2, "res2", **block_kwargs),
-                SparseBasicBlock(c2, "res2", **block_kwargs),
+                SparseBasicBlock(c2, c2, bias=True, indice_key="res2", **block_kwargs),
+                SparseBasicBlock(c2, c2, bias=True, indice_key="res2", **block_kwargs),
             ]
         )
         self.conv3 = nn.ModuleList(
@@ -109,8 +111,8 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
                 SparseConvBlock(
                     c2, c3, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(c3, "res3", **block_kwargs),
-                SparseBasicBlock(c3, "res3", **block_kwargs),
+                SparseBasicBlock(c3, c3, bias=True, indice_key="res3", **block_kwargs),
+                SparseBasicBlock(c3, c3, bias=True, indice_key="res3", **block_kwargs),
             ]
         )
         self.conv4 = nn.ModuleList(
@@ -118,8 +120,8 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
                 SparseConvBlock(
                     c3, c4, 3, stride=2, padding=1, indice_key="spconv4", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(c4, "res4", **block_kwargs),
-                SparseBasicBlock(c4, "res4", **block_kwargs),
+                SparseBasicBlock(c4, c4, bias=True, indice_key="res4", **block_kwargs),
+                SparseBasicBlock(c4, c4, bias=True, indice_key="res4", **block_kwargs),
             ]
         )
         self.conv5 = nn.ModuleList(
@@ -127,8 +129,8 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
                 SparseConvBlock(
                     c4, c5, 3, stride=2, padding=1, indice_key="spconv5", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(c5, "res5", **block_kwargs),
-                SparseBasicBlock(c5, "res5", **block_kwargs),
+                SparseBasicBlock(c5, c5, bias=True, indice_key="res5", **block_kwargs),
+                SparseBasicBlock(c5, c5, bias=True, indice_key="res5", **block_kwargs),
             ]
         )
         self.conv6 = nn.ModuleList(
@@ -136,8 +138,8 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
                 SparseConvBlock(
                     c5, c5, 3, stride=2, padding=1, indice_key="spconv6", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(c5, "res6", **block_kwargs),
-                SparseBasicBlock(c5, "res6", **block_kwargs),
+                SparseBasicBlock(c5, c5, bias=True, indice_key="res6", **block_kwargs),
+                SparseBasicBlock(c5, c5, bias=True, indice_key="res6", **block_kwargs),
             ]
         )
         self.conv_out = spconv.SparseSequential(
@@ -572,7 +574,7 @@ class VoxelNeXtDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/voxelnext.nuscenes.openpcdet/resolve/8de82cf9f2e011023016e145009debc815b0e0b1/model.safetensors",
+        url="hf://torch-pointcloud/voxelnext.nuscenes.openpcdet/resolve/5802ce3855465df20b72db5b26a7cc03c153e5f3/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 61.20, "NDS": 66.81},
         classes=NUSCENES_DETECTION_CLASSES,
