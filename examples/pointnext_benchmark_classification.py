@@ -4,8 +4,8 @@ Results (overall accuracy / mean class accuracy):
 
     | Variant                                      | reference | torch-pointcloud |
     | -------------------------------------------- | --------- | ---------------- |
-    | pointnext-sm-c64.modelnet40.openpoints       | 94.0      | 93.80 / 90.93    |
-    | pointnext-sm.scanobjectnn-hardest.openpoints | 88.20     | 88.17 / 86.75    |
+    | pointnext-sm-c64.modelnet40.openpoints       | 94.0      | 93.96 / 91.14    |
+    | pointnext-sm.scanobjectnn-hardest.openpoints | 88.20     | 88.17 / 86.80    |
 
 Usage:
     uv run --no-sync python examples/pointnext_benchmark_classification.py --model pointnext-sm-c64.modelnet40.openpoints

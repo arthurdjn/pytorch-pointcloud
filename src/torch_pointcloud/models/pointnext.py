@@ -786,26 +786,19 @@ class PointNeXtClassification(ClassificationModel):
             add_self_loops=self.add_self_loops,
         )
 
-    def configure_global_sa(self) -> Optional[PointNeXtSetAbstraction]:
-        """Build the global set-abstraction applied before pooling, or `None` when `global_sa_channels` is unset."""
+    def configure_global_sa(self) -> Optional[MLP]:
+        """Build the shared MLP over `cat([pos, x])` applied before pooling, or `None` when `global_sa_channels` is unset."""
         if self.global_sa_channels is None:
             return None
-        return PointNeXtSetAbstraction(
-            spatial_dim=self.spatial_dim,
-            in_channels=self.encoder_channels[-1],
-            channels=self.global_sa_channels,
-            ratio=1.0,
-            radius=1e6,
-            num_neighbors=1024,
-            use_res=False,
+        return MLP(
+            [self.encoder_channels[-1] + self.spatial_dim, *self.global_sa_channels],
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            add_self_loops=self.add_self_loops,
-            aggr="max",
+            plain_last=False,
         )
 
     @property
@@ -868,7 +861,7 @@ class PointNeXtClassification(ClassificationModel):
 
     def forward_head(self, x: Tensor, pos: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         if self.global_sa is not None:
-            x, pos, batch = self.global_sa(x, pos, batch)
+            x = self.global_sa(torch.cat([pos, x], dim=1))
         x = self.global_pool(x, batch)
         if self.dropout and not isinstance(self.head, MLP):
             x = F.dropout(x, p=float(self.dropout), training=self.training)
@@ -1229,7 +1222,7 @@ def pointnext_xl_clf(**hparams: Any) -> PointNeXtClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors",
         dataset="scanobjectnn-hardest",
-        metrics={"OA": 88.17, "mAcc": 86.75},
+        metrics={"OA": 88.17, "mAcc": 86.80},
         classes=SCANOBJECTNN_CLASSES,
         author="openpoints",
         license="MIT",
@@ -1282,7 +1275,7 @@ def pointnext_sm_scanobjectnn_clf(**hparams: Any) -> PointNeXtClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c64.modelnet40.openpoints/resolve/083de42a5522ae2e18086fd6f979f9043118346d/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.80, "mAcc": 90.93},
+        metrics={"OA": 93.96, "mAcc": 91.14},
         classes=MODELNET40_CLASSES,
         author="openpoints",
         license="MIT",
