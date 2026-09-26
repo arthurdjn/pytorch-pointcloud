@@ -26,7 +26,7 @@ from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, veloc
 from torch_pointcloud.metrics import nuscenes_detection_metrics
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.lion import LIONDetection
-from torch_pointcloud.utils.box3d import nms3d
+from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D

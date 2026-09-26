@@ -1,4 +1,4 @@
-"""Data loading: standard sample keys, packed-batch collation, worker seeding, and the point cloud data loader."""
+"""Data loading: standard sample keys, packed-batch collation and row offsets, worker seeding, and the data loader."""
 
 import functools
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Set
@@ -357,3 +357,41 @@ class PointCloudDataLoader(DataLoader):
         kwargs.setdefault("collate_fn", collate_fn)
         kwargs["worker_init_fn"] = functools.partial(_worker_init_fn, kwargs.get("worker_init_fn"))
         super().__init__(dataset, **kwargs)
+
+
+def offset_index(index: Tensor, index_batch: Tensor, batch: Tensor) -> Tensor:
+    r"""Offset per-element row indices into the packed row layout of a collated batch.
+
+    `collate` concatenates a row map such as `inverse` or `index` as-is, so the entries of each batch element
+    still address that element's own rows. This shifts every entry by the number of rows of the elements
+    collated before it.
+
+    Args:
+        index: Per-element row indices.
+        index_batch: Batch index of each entry of `index`, the `batch_<key>` tensor `collate` emits for `cat_keys`.
+        batch: Batch index of the rows `index` addresses (`batch` for an `inverse` map, `batch_origin_pos` for
+            an `index` map).
+
+    Returns:
+        The offset row indices.
+
+    Shape:
+        - `index`: $(M,)$
+        - `index_batch`: $(M,)$
+        - `batch`: $(N,)$
+        - output: $(M,)$
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.utils.data import offset_index
+
+        inverse = torch.tensor([0, 1, 1, 0, 2, 2, 1])
+        batch_inverse = torch.tensor([0, 0, 0, 1, 1, 1, 1])
+        batch = torch.tensor([0, 0, 1, 1, 1])
+        offset_index(inverse, batch_inverse, batch)  # tensor([0, 1, 1, 2, 4, 4, 3])
+        ```
+    """
+    counts = torch.bincount(batch, minlength=int(index_batch.max()) + 1)
+    offsets = torch.cumsum(counts, dim=0) - counts
+    return index + offsets[index_batch]

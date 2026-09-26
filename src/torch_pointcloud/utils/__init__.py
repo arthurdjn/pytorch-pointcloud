@@ -1,1 +1,1 @@
-"""Tensor utilities: clustering, voxelization, geometry, serialization, and I/O."""
+"""Data keys and collation, conversions, optional imports, I/O, random state, checkpoints, and types."""

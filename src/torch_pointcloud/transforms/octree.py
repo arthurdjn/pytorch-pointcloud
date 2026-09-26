@@ -2,8 +2,8 @@
 
 from typing import Any, Dict, Optional
 
+from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.conversion import ensure_tuple_size
-from torch_pointcloud.utils.octree import build_octree
 from torch_pointcloud.utils.types import KeyCollection
 
 from .base import DictTransform

@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.cluster import fps, group, knn, knn_graph, radius
+from torch_pointcloud.ops.cluster import decimate_indices, fps, group, knn, knn_graph, radius
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
@@ -14,7 +14,7 @@ def test_fps_with_ratio_and_num_nodes() -> None:
         fps(sentinel.src, ratio=sentinel.ratio, num_nodes=sentinel.num_nodes)
 
 
-@patch("torch_pointcloud.utils.cluster.pool.fps")
+@patch("torch_pointcloud.ops.cluster.pool.fps")
 def test_fps_with_ratio(mock_fps: Mock) -> None:
     """Test that the utility fps wraps `torch_geometric.nn.pool.fps` and passes the correct arguments."""
     src = torch.randn(6, 3)
@@ -155,8 +155,8 @@ def test_group_deterministic_without_random_start() -> None:
     assert torch.equal(first[1], second[1])
 
 
-@patch("torch_pointcloud.utils.cluster.knn")
-@patch("torch_pointcloud.utils.cluster.fps")
+@patch("torch_pointcloud.ops.cluster.knn")
+@patch("torch_pointcloud.ops.cluster.fps")
 def test_group_calls_fps_and_knn_with_correct_params(mock_fps: Mock, mock_knn: Mock) -> None:
     """group delegates to the internal fps / knn: fps gets the cloud, the batch, num_nodes=num_groups
     and the threaded random_start; knn gets the cloud, the FPS centers, group_size and the matching
@@ -262,7 +262,7 @@ def test_knn_dense_fast_path_matches_fallback(monkeypatch: pytest.MonkeyPatch) -
     batch_y = torch.repeat_interleave(torch.arange(2), 5)
 
     dense = knn(x, y, k=3, batch_x=batch_x, batch_y=batch_y)
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.KNN_DENSE_BUDGET", 0)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.KNN_DENSE_BUDGET", 0)
     fallback = knn(x, y, k=3, batch_x=batch_x, batch_y=batch_y)
     assert _edge_set(dense) == _edge_set(fallback)
 
@@ -275,7 +275,7 @@ def test_knn_graph_dense_fast_path_matches_fallback(monkeypatch: pytest.MonkeyPa
     batch = torch.repeat_interleave(torch.arange(2), 8)
 
     dense = knn_graph(x, k=3, batch=batch, loop=loop)
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.KNN_DENSE_BUDGET", 0)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.KNN_DENSE_BUDGET", 0)
     fallback = knn_graph(x, k=3, batch=batch, loop=loop)
     assert _edge_set(dense) == _edge_set(fallback)
 
@@ -303,3 +303,20 @@ def test_radius_sort_keeps_smallest_source_indices() -> None:
         picked = sorted(col[row == q].tolist())
         expected = [0, 1, 2] if q < 3 else [3, 4, 5]
         assert picked == expected
+
+
+def test_decimate_indices_consecutive_batch_ids() -> None:
+    batch = torch.tensor([0, 0, 1, 1, 1, 1])
+    indices, decim_batch = decimate_indices(batch, 2, generator=torch.Generator().manual_seed(0))
+    assert indices.shape == decim_batch.shape
+    assert decim_batch.tolist() == [0, 1, 1]
+    assert torch.equal(decim_batch, batch[indices])
+
+
+def test_decimate_indices_non_consecutive_batch_ids() -> None:
+    """Batch ids with gaps (e.g. after filtering a scene) must stay aligned with the returned indices."""
+    batch = torch.tensor([0, 0, 0, 0, 2, 2])
+    indices, decim_batch = decimate_indices(batch, 2, generator=torch.Generator().manual_seed(0))
+    assert indices.shape == decim_batch.shape
+    assert decim_batch.tolist() == [0, 0, 2]
+    assert torch.equal(decim_batch, batch[indices])

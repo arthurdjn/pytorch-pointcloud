@@ -3,8 +3,8 @@ from typing import Literal
 import pytest
 import torch
 
+from torch_pointcloud.ops.octree import build_octree, octree_interpolate, octree_upsample
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
-from torch_pointcloud.utils.octree import build_octree, octree_interpolate, octree_upsample
 
 pytestmark = pytest.mark.skipif(not _OCNN_AVAILABLE, reason="ocnn is not installed")
 

@@ -12,8 +12,8 @@ from torch import Tensor
 from torch_geometric.utils import scatter
 from tqdm import tqdm
 
+from torch_pointcloud.ops.voxelization import voxel_grid_fnv
 from torch_pointcloud.utils.data import DataKeys, collate
-from torch_pointcloud.utils.voxelization import voxel_grid_fnv
 
 from ._utils import apply_transform, check_batch_alignment, index_select_dict
 from .inferer import Inferer

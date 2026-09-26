@@ -18,9 +18,9 @@ from torch_pointcloud.layers.bev_backbone import BEVResidualBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
+from torch_pointcloud.ops.heatmap import transpose_gather
+from torch_pointcloud.ops.hilbert import encode as hilbert_encode
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.heatmap import transpose_gather
-from torch_pointcloud.utils.hilbert import encode as hilbert_encode
 from torch_pointcloud.utils.imports import _MAMBA_SSM_GITHUB_URL, _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
@@ -752,7 +752,7 @@ class VoxelMambaDetection(DetectionModel):
         peaks, mapped to world coordinates, and rescored by the predicted IoU
         ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference). The
         full candidate set is returned; the evaluation pipeline applies score thresholding and per-class
-        3D NMS via the `torch_pointcloud.utils.box3d` utilities.
+        3D NMS via the `torch_pointcloud.ops.box3d` utilities.
 
         Args:
             out: A `CenterHeadOutput` from `forward`.

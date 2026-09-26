@@ -7,7 +7,14 @@ import torch
 from torch.utils.data import Dataset, get_worker_info
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, collate, select_inputs, set_random_states
+from torch_pointcloud.utils.data import (
+    DataKeys,
+    PointCloudDataLoader,
+    collate,
+    offset_index,
+    select_inputs,
+    set_random_states,
+)
 
 
 def test_collate_empty_returns_empty_dict() -> None:
@@ -406,3 +413,10 @@ def test_select_inputs_missing_key_raises() -> None:
 def test_select_inputs_dotted_key_reads_an_attribute() -> None:
     octree = SimpleNamespace(depth=6)
     assert select_inputs({"octree": octree}, ("octree", "octree.depth")) == [octree, 6]
+
+
+def test_offset_index_shifts_by_scene_rows() -> None:
+    inverse = torch.tensor([0, 1, 1, 0, 2, 2, 1])
+    batch_inverse = torch.tensor([0, 0, 0, 1, 1, 1, 1])
+    batch = torch.tensor([0, 0, 1, 1, 1])
+    assert torch.equal(offset_index(inverse, batch_inverse, batch), torch.tensor([0, 1, 1, 2, 4, 4, 3]))

@@ -15,7 +15,7 @@ from torch_pointcloud.models.votenet import (
     VoteNetOutput,
     VotingModule,
 )
-from torch_pointcloud.utils.box3d import class_to_angle, class_to_size
+from torch_pointcloud.ops.box3d import class_to_angle, class_to_size
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 pytestmark = [

@@ -5,7 +5,7 @@ from typing import List, Optional, Union
 import torch.nn as nn
 from torch import Tensor
 
-from torch_pointcloud.utils.cluster import fps
+from torch_pointcloud.ops.cluster import fps
 
 
 class FPS(nn.Module):

@@ -10,7 +10,6 @@ from torch import Tensor
 
 from torch_pointcloud.utils.conversion import ensure_list_size
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
-from torch_pointcloud.utils.ops import pad_tail
 
 if TYPE_CHECKING:
     import ocnn
@@ -206,7 +205,7 @@ class OctreeT(_OctreeTBase):
     def pad_to_patch_size(self, x: Tensor, depth: int, fill_value: float = 0) -> Tensor:
         r"""Pads `x` along its first dimension so the node count at `depth` is a whole number of patches."""
         pad_size = int(self.nnum_a[depth] - self.nnum_t[depth])
-        return pad_tail(x, pad_size, fill_value=fill_value, dim=0)
+        return _pad_tail(x, pad_size, fill_value=fill_value, dim=0)
 
     def unpad(self, x: Tensor, depth: int) -> Tensor:
         r"""Drops the padding added by `pad_to_patch_size`, restoring the real node count at `depth`."""
@@ -266,6 +265,19 @@ class OctreeRelativePositionEncoding(nn.Module):
 
     def extra_repr(self) -> str:
         return f"num_heads={self.num_heads}, pos_bnd={self.pos_bnd}, dilation={self.dilation}"
+
+
+def _pad_tail(tensor: Tensor, pad_size: int, dim: int, fill_value: float = 0) -> Tensor:
+    """Pad the tail of `tensor` along `dim` with `fill_value`."""
+    if pad_size < 0:
+        raise ValueError(f"The padding size must be non-negative, but got {pad_size}.")
+    elif pad_size == 0:
+        return tensor
+
+    tail_shape = list(tensor.shape)
+    tail_shape[dim] = pad_size
+    tail = tensor.new_full(tail_shape, fill_value)
+    return torch.cat([tensor, tail], dim=dim)
 
 
 class OctreeAttention(nn.Module):

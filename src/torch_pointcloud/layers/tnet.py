@@ -8,7 +8,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP, EdgeConv
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.utils.cluster import knn
+from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.types import AggrType
 

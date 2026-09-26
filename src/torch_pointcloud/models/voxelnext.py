@@ -385,7 +385,7 @@ class VoxelNeXtHead(nn.Module):
         Selects the top-$K$ scoring voxels per group and scene and recovers an oriented box, score and
         label per candidate, along with the predicted BEV velocity $(v_x, v_y)$ under `velocity`. The
         full candidate set is returned; the evaluation pipeline applies score thresholding and per-class
-        3D NMS via the `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
+        3D NMS via the `torch_pointcloud.ops.box3d` utilities (see the benchmark example).
 
         Args:
             out: A `VoxelNeXtHeadOutput` from `forward`.

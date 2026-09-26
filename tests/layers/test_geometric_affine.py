@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.geometric_affine import GeometricAffineConv
-from torch_pointcloud.utils.cluster import knn, knn_graph
+from torch_pointcloud.ops.cluster import knn, knn_graph
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _PYG_LIB_AVAILABLE
 
 pytestmark = pytest.mark.skipif(

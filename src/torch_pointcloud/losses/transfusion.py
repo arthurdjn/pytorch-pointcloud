@@ -8,9 +8,9 @@ from torch import Tensor, nn
 
 from torch_pointcloud.losses._utils import _clamp_sigmoid
 from torch_pointcloud.losses.anchor import sigmoid_focal_loss
-from torch_pointcloud.utils.box3d import boxes_iou3d
+from torch_pointcloud.ops.box3d import boxes_iou3d
+from torch_pointcloud.ops.heatmap import draw_heatmap_targets
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.heatmap import draw_heatmap_targets
 
 _LOG_EPS = 1e-12
 

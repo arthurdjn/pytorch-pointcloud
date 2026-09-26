@@ -25,8 +25,8 @@ from tqdm import tqdm
 from typing_extensions import NotRequired, override
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.ops.geometry import transform_points, vertex_normals
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.geometry import transform_points, vertex_normals
 from torch_pointcloud.utils.io import load_json
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike

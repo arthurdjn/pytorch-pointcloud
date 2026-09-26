@@ -14,7 +14,7 @@ from torch_pointcloud.models.pointrcnn import (
     decode_point_residuals,
     rotate_points_along_z,
 )
-from torch_pointcloud.utils.box3d import decode_box_residuals
+from torch_pointcloud.ops.box3d import decode_box_residuals
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 pytestmark = [

@@ -6,7 +6,7 @@ from torch_pointcloud.layers.anchors import (
     MultiGroupAnchorHead,
     assign_anchor_targets,
 )
-from torch_pointcloud.utils.box3d import decode_box_residuals, encode_box_residuals
+from torch_pointcloud.ops.box3d import decode_box_residuals, encode_box_residuals
 
 RANGE = (0.0, -4.0, -1.0, 8.0, 4.0, 1.0)
 

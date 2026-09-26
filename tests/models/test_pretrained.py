@@ -24,6 +24,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from torch_pointcloud.models import create_model
+from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.data import collate, select_inputs
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
@@ -33,7 +34,6 @@ from torch_pointcloud.utils.imports import (
     _SPCONV_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
-from torch_pointcloud.utils.voxelization import hard_voxelize
 
 ATOL = 5e-3
 RTOL = 5e-2
@@ -209,7 +209,7 @@ def test_pretrained_model(
     models_dir_factory: Callable[..., Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
 
     _skip_if_deps_missing(model_name)
     models_dir = models_dir_factory("*.safetensors")
@@ -264,7 +264,7 @@ def test_pretrained_votenet(
     if not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
 
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
@@ -306,7 +306,7 @@ def test_pretrained_threedetr(
     if not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
 
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
@@ -352,7 +352,7 @@ def test_pretrained_pointrcnn(
     if not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
 
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
@@ -398,7 +398,7 @@ def test_pretrained_lion(
     if not torch.cuda.is_available():
         pytest.skip("lion requires CUDA, none available")
 
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)

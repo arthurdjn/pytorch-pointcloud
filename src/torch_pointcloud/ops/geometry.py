@@ -7,7 +7,7 @@ from typing import Literal, Optional, Tuple, Union, overload
 import torch
 from torch import Tensor
 
-from .ops import safe_divide
+from torch_pointcloud.ops.math import safe_divide
 
 
 def axis_aligned_bounding_box(pos: Tensor) -> Tensor:

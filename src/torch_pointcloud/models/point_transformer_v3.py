@@ -28,10 +28,10 @@ from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUp
 from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
+from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
 if TYPE_CHECKING:

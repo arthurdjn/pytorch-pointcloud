@@ -15,10 +15,10 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
 from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
+from torch_pointcloud.ops.box3d import angle_to_class, class_to_angle, class_to_size
+from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.transforms.base import DictTransform
 from torch_pointcloud.transforms.box import points_in_oriented_box
-from torch_pointcloud.utils.box3d import angle_to_class, class_to_angle, class_to_size
-from torch_pointcloud.utils.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
@@ -550,7 +550,7 @@ class VoteNetDetection(DetectionModel):
         heading is negated to return counter-clockwise headings (the library box convention). The result is
         the full unfiltered proposal set; the evaluation pipeline applies point-count filtering, NMS, score
         thresholding, and the indoor per-class expansion (driven by the returned `class_probs`) via the
-        `torch_pointcloud.utils.box3d` utilities.
+        `torch_pointcloud.ops.box3d` utilities.
 
         Args:
             out: A `VoteNetOutput` from `forward`.
@@ -716,8 +716,8 @@ class EncodeVoteNetTargets(DictTransform):
     against `mean_sizes` (full edge lengths).
 
     See Also:
-        `torch_pointcloud.utils.box3d.angle_to_class`,
-        `torch_pointcloud.utils.box3d.class_to_size`
+        `torch_pointcloud.ops.box3d.angle_to_class`,
+        `torch_pointcloud.ops.box3d.class_to_size`
 
     ![EncodeVoteNetTargets before / after](../../assets/transforms/encode_votenet_targets.png)
 

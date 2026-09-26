@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.utils.hilbert import binary2gray, decode, encode, gray2binary
+from torch_pointcloud.ops.hilbert import binary2gray, decode, encode, gray2binary
 
 HILBERT_2D_DEPTH1_PATH = [[0, 0], [0, 1], [1, 1], [1, 0]]
 HILBERT_2D_DEPTH2_PATH = [

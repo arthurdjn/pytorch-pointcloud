@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 from torch import Tensor, nn
 
-from torch_pointcloud.utils.box3d import angle_to_class, box3d_overlap, box_corners
+from torch_pointcloud.ops.box3d import angle_to_class, box3d_overlap, box_corners
 from torch_pointcloud.utils.data import DataKeys
 
 _EPS = 1e-8

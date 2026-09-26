@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
 from torch_geometric.nn.pool import knn_graph, voxel_grid
-from torch_geometric.utils import scatter, segment
+from torch_geometric.utils import scatter, segment, softmax
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import (
@@ -24,7 +24,6 @@ from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentat
 from torch_pointcloud.models._registry import register_model
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.ops import softmax
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
 

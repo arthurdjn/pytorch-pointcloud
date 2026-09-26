@@ -10,6 +10,7 @@ import torch.nn as nn
 
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models._registry import _REGISTERED_MODELS
+from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -20,7 +21,6 @@ from torch_pointcloud.utils.imports import (
     _SPTR_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
 )
-from torch_pointcloud.utils.octree import build_octree
 
 SNAPSHOTS_DIR = Path(__file__).resolve().parents[1] / "data" / "models"
 
@@ -871,7 +871,7 @@ def test_model_pre_logits_matches_headless_forward(
 ) -> None:
     """`forward_head(..., pre_logits=True)` returns the features `forward` returns after `reset_classifier(0)`."""
     _skip_if_model_not_runnable(model_name)
-    monkeypatch.setattr("torch_pointcloud.utils.cluster.FPS_RANDOM_START", False)
+    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]

@@ -13,7 +13,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2GlobalSetAbstraction, PointNet2SetAbstraction
-from torch_pointcloud.utils.box3d import boxes_iou3d, decode_box_residuals, nms3d
+from torch_pointcloud.ops.box3d import boxes_iou3d, decode_box_residuals, nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
@@ -895,7 +895,7 @@ class PointRCNNDetection(DetectionModel):
         r"""Sample `roi_per_image` ROIs per scene and match each to a ground-truth box (ProposalTargetLayer).
 
         Per scene the proposals are matched to same-class ground-truth boxes by 3D IoU
-        ([`boxes_iou3d`][torch_pointcloud.utils.box3d.boxes_iou3d]), a foreground / background subset is
+        ([`boxes_iou3d`][torch_pointcloud.ops.box3d.boxes_iou3d]), a foreground / background subset is
         sampled, and each sampled ROI's matched box is returned both in the lidar frame and canonically
         transformed into the ROI frame (translated to the ROI center, rotated by $-\theta$, heading
         wrapped to $[-\pi/2, \pi/2]$).
@@ -1031,7 +1031,7 @@ class PointRCNNDetection(DetectionModel):
         Scores each refined box by its stage-2 confidence (sigmoid of `rcnn_cls`) and labels it by the
         stage-1 ROI label (shifted to 0-indexed). The full per-ROI set is returned; the evaluation
         pipeline applies class-agnostic 3D NMS then score thresholding via the
-        `torch_pointcloud.utils.box3d` utilities (see the benchmark example).
+        `torch_pointcloud.ops.box3d` utilities (see the benchmark example).
 
         Args:
             out: A forward output `{"rcnn_cls", "boxes", "roi_labels", "roi_scores", "batch"}`.

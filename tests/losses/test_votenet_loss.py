@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.losses import VoteNetLoss
-from torch_pointcloud.utils.box3d import angle_to_class
+from torch_pointcloud.ops.box3d import angle_to_class
 
 
 def _create_data(

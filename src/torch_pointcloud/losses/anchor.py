@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from torch_pointcloud.layers.anchors import AnchorHeadMultiOutput, assign_anchor_targets, generate_anchors
-from torch_pointcloud.utils.box3d import limit_period
+from torch_pointcloud.ops.box3d import limit_period
 from torch_pointcloud.utils.data import DataKeys
 
 
