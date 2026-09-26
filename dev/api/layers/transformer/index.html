@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/transformer/">
       
       
-        <link rel="prev" href="../tnet/">
+        <link rel="prev" href="../torchsparse_blocks/">
       
       
         <link rel="next" href="../vfe/">
@@ -2243,6 +2243,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear_blocks/" class="md-nav__link">
         
   
@@ -2405,14 +2459,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv/" class="md-nav__link">
+      <a href="../point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2432,14 +2486,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv_sa/" class="md-nav__link">
+      <a href="../pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2548,6 +2602,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2699,6 +2780,33 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -2780,6 +2888,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.layers.transformer.TransformerEncoderLayer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        TransformerEncoderLayer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.layers.transformer.TransformerDecoderLayer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        TransformerDecoderLayer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2831,6 +2961,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5870,6 +6027,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.layers.transformer.TransformerEncoderLayer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        TransformerEncoderLayer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.layers.transformer.TransformerDecoderLayer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        TransformerDecoderLayer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5960,9 +6139,10 @@
 
     <div class="doc doc-contents first">
 
-        <p>Standard pre-norm transformer building blocks for point-cloud backbones.</p>
-<p>The <code>Attention</code> and <code>TransformerBlock</code> here are the plain ViT-style multi-head
-self-attention and residual block. They operate on dense token sequences of shape <span class="arithmatex">\((B, N, C)\)</span>.</p>
+        <p>Transformer building blocks for point-cloud backbones and detectors.</p>
+<p><code>Attention</code> and <code>TransformerBlock</code> are the plain ViT-style multi-head self-attention and pre-norm residual block
+over dense token sequences of shape <span class="arithmatex">\((B, N, C)\)</span>. <code>TransformerEncoderLayer</code> and <code>TransformerDecoderLayer</code> are the
+DETR-style layers with positional embeddings added to the attention inputs, over sequence-first <span class="arithmatex">\((S, B, C)\)</span> tokens.</p>
 
 
 
@@ -5979,7 +6159,7 @@ self-attention and residual block. They operate on dense token sequences of shap
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Attention&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/transformer.py#L17-L84&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.transformer.Attention">Attention</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L19-L86&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.transformer.Attention">Attention</a></code></b>
           –
           <div class="doc-md-description">
             <p>Multi-head self-attention over a dense token sequence.</p>
@@ -5989,10 +6169,30 @@ self-attention and residual block. They operate on dense token sequences of shap
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;TransformerBlock&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/transformer.py#L87-L172&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.transformer.TransformerBlock">TransformerBlock</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L89-L174&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.transformer.TransformerBlock">TransformerBlock</a></code></b>
           –
           <div class="doc-md-description">
             <p>Pre-norm transformer block: residual multi-head attention then a residual MLP.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;TransformerEncoderLayer&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L177-L240&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.transformer.TransformerEncoderLayer">TransformerEncoderLayer</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>DETR-style transformer encoder layer: self-attention with positional embeddings added to the query and key,</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;TransformerDecoderLayer&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L243-L336&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.transformer.TransformerDecoderLayer">TransformerDecoderLayer</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>DETR-style transformer decoder layer: self-attention over the queries, cross-attention onto the memory and a</p>
           </div>
         </li>
     </ul>
@@ -6021,7 +6221,7 @@ self-attention and residual block. They operate on dense token sequences of shap
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Attention</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/transformer.py#L17-L84" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L19-L86" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.transformer.Attention" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Attention</span><span class="p">(</span>
@@ -6173,7 +6373,7 @@ negative bias).</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TransformerBlock</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/transformer.py#L87-L172" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L89-L174" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.transformer.TransformerBlock" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TransformerBlock</span><span class="p">(</span>
@@ -6380,6 +6580,302 @@ plain-last <code>torch_geometric.nn.MLP</code> of hidden size <span class="arith
 
 </div>
 
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.layers.transformer.TransformerEncoderLayer" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TransformerEncoderLayer</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L177-L240" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.layers.transformer.TransformerEncoderLayer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TransformerEncoderLayer</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">embed_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_heads</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mlp_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">dropout</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">norm_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+        <p>DETR-style transformer encoder layer: self-attention with positional embeddings added to the query and key,
+then a feed-forward block, each wrapped in a residual.</p>
+<p>Tokens are sequence-first, <span class="arithmatex">\((S, B, C)\)</span>, as <code>nn.MultiheadAttention</code> expects. With <code>norm_first</code> the layer norms
+are applied to the input of each sub-block (pre-norm); otherwise after each residual sum (post-norm).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>embed_dim</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Token embedding dimension.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_heads</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of attention heads.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>mlp_dim</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Hidden width of the feed-forward block.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dropout</code></b>
+              (<code><span title="float">float</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Dropout probability.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.Callable">Callable</span>, None]</code>, default:
+                  <code>&#39;relu&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Activation type or callable for the feed-forward block.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act_kwargs</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Extra activation arguments.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>norm_first</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether to normalize the input of each sub-block rather than its residual sum.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <p>Input: <span class="arithmatex">\((S, B, C)\)</span> tokens, an optional <span class="arithmatex">\((S, S)\)</span> attention mask, <span class="arithmatex">\((B, S)\)</span> key padding mask and <span class="arithmatex">\((S, B, C)\)</span> positions
+Output: <span class="arithmatex">\((S, B, C)\)</span> tokens</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.layers.transformer.TransformerDecoderLayer" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TransformerDecoderLayer</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/transformer.py#L243-L336" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.layers.transformer.TransformerDecoderLayer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TransformerDecoderLayer</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">embed_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_heads</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mlp_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">dropout</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">norm_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">pos_in_value</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+        <p>DETR-style transformer decoder layer: self-attention over the queries, cross-attention onto the memory and a
+feed-forward block, each wrapped in a residual.</p>
+<p>Query positions are added to the self-attention query and key and to the cross-attention query; memory
+positions are added to the cross-attention key. With <code>pos_in_value</code> both are added to the attention values as
+well. Tokens are sequence-first, <span class="arithmatex">\((S, B, C)\)</span>. With <code>norm_first</code> the layer norms are applied to the input of each
+sub-block (pre-norm); otherwise after each residual sum (post-norm).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>embed_dim</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Token embedding dimension.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_heads</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of attention heads.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>mlp_dim</code></b>
+              (<code><span title="int">int</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Hidden width of the feed-forward block.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>dropout</code></b>
+              (<code><span title="float">float</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Dropout probability.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.Callable">Callable</span>, None]</code>, default:
+                  <code>&#39;relu&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Activation type or callable for the feed-forward block.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act_kwargs</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Extra activation arguments.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>norm_first</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether to normalize the input of each sub-block rather than its residual sum.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>pos_in_value</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether the positional embeddings are also added to the attention values.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="shape" open>
+  <summary>Shape</summary>
+  <p>Input: <span class="arithmatex">\((T, B, C)\)</span> queries, <span class="arithmatex">\((S, B, C)\)</span> memory, <span class="arithmatex">\((S, B, C)\)</span> memory positions, <span class="arithmatex">\((T, B, C)\)</span> query positions and
+    an optional <span class="arithmatex">\((B, S)\)</span> memory key padding mask
+Output: <span class="arithmatex">\((T, B, C)\)</span> queries</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
 
 
 
@@ -6431,7 +6927,7 @@ plain-last <code>torch_geometric.nn.MLP</code> of hidden size <span class="arith
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../tnet/" class="md-footer__link md-footer__link--prev" aria-label="Previous: tnet">
+          <a href="../torchsparse_blocks/" class="md-footer__link md-footer__link--prev" aria-label="Previous: torchsparse_blocks">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6441,7 +6937,7 @@ plain-last <code>torch_geometric.nn.MLP</code> of hidden size <span class="arith
                 Previous
               </span>
               <div class="md-ellipsis">
-                tnet
+                torchsparse_blocks
               </div>
             </div>
           </a>

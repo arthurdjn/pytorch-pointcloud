@@ -2243,6 +2243,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear_blocks/" class="md-nav__link">
         
   
@@ -2405,14 +2459,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv/" class="md-nav__link">
+      <a href="../point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2432,14 +2486,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv_sa/" class="md-nav__link">
+      <a href="../pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2548,6 +2602,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2702,6 +2783,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../transformer/" class="md-nav__link">
         
   
@@ -2831,6 +2939,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5960,8 +6095,8 @@
 
     <div class="doc doc-contents first">
 
-        <p>Dynamic voxel feature encoder shared by the voxel detectors (Voxel Mamba, LION).</p>
-<p>A packed-format port of the <code>DynamicVoxelVFE</code> from
+        <p>Voxel feature encoders: the pillar feature-net layer and the dynamic mean voxel encoder.</p>
+<p>The dynamic encoder is a packed-format port of the <code>DynamicVoxelVFE</code> from
 <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"/></svg></span> <a href="https://github.com/gwenzhang/Voxel-Mamba">gwenzhang/Voxel-Mamba</a>.</p>
 
 
@@ -5979,17 +6114,17 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PillarFeatureLayer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/vfe.py#L18-L52&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.vfe.PillarFeatureLayer">PillarFeatureLayer</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/vfe.py#L18-L79&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.vfe.PillarFeatureLayer">PillarFeatureLayer</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Pillar feature net layer (the reference's <code>PFNLayerV2</code>): linear + norm + ReLU with a per-voxel max-pool.</p>
+            <p>Pillar feature-net layer: linear + norm + act on every point, then a max-pool over each pillar.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DynamicMeanVFE&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/vfe.py#L55-L155&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.vfe.DynamicMeanVFE">DynamicMeanVFE</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/vfe.py#L82-L188&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.vfe.DynamicMeanVFE">DynamicMeanVFE</a></code></b>
           –
           <div class="doc-md-description">
             <p>Dynamic mean voxel feature encoder for the Voxel Mamba detector.</p>
@@ -6021,12 +6156,19 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PillarFeatureLayer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/vfe.py#L18-L52" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/vfe.py#L18-L79" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.vfe.PillarFeatureLayer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PillarFeatureLayer</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="n">out_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="n">last</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">out_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">last</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6035,9 +6177,11 @@
 
 
 
-        <p>Pillar feature net layer (the reference's <code>PFNLayerV2</code>): linear + norm + ReLU with a per-voxel max-pool.</p>
-<p>Non-final layers halve their output width and concatenate the pooled feature back onto every
-point; the final layer returns the pooled per-voxel feature directly.</p>
+        <p>Pillar feature-net layer: linear + norm + act on every point, then a max-pool over each pillar.</p>
+<p>Non-final layers halve their output width and concatenate the pooled feature back onto every point of the
+pillar; the final layer returns the pooled per-pillar feature. Padded pillars come as a dense <span class="arithmatex">\((P, N, C)\)</span>
+tensor pooled over the point axis; dynamically voxelized points come packed as <span class="arithmatex">\((N, C)\)</span> with their
+<code>pillar_index</code>, and are pooled by index.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6063,7 +6207,47 @@ point; the final layer returns the pooled per-voxel feature directly.</p>
               (<code><span title="bool">bool</span></code>)
           –
           <div class="doc-md-description">
-            <p>Whether this is the final PFN layer.</p>
+            <p>Whether this is the final layer.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.Callable">Callable</span>, None]</code>, default:
+                  <code>&#39;relu&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Activation type or callable.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act_kwargs</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Extra activation arguments.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>norm</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.Callable">Callable</span>, None]</code>, default:
+                  <code>&#39;batch_norm&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Normalization type or callable.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>norm_kwargs</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Extra normalization arguments.</p>
           </div>
         </li>
     </ul>
@@ -6072,8 +6256,9 @@ point; the final layer returns the pooled per-voxel feature directly.</p>
 <details class="shape" open>
   <summary>Shape</summary>
   <ul>
-<li>Input: <span class="arithmatex">\((N, C_\text{in})\)</span> point features and <span class="arithmatex">\((N,)\)</span> voxel index.</li>
-<li>Output: <span class="arithmatex">\((N, C')\)</span> for non-final layers, <span class="arithmatex">\((M, C_\text{out})\)</span> for the final layer.</li>
+<li>Input: <span class="arithmatex">\((P, N, C_\text{in})\)</span> padded pillars, or <span class="arithmatex">\((N, C_\text{in})\)</span> packed points with an <span class="arithmatex">\((N,)\)</span> pillar index.</li>
+<li>Output: the input layout with <span class="arithmatex">\(C_\text{out}\)</span> channels for non-final layers; <span class="arithmatex">\((P, 1, C_\text{out})\)</span> or
+  <span class="arithmatex">\((P, C_\text{out})\)</span> pooled features for the final layer.</li>
 </ul>
 </details>
 
@@ -6118,7 +6303,7 @@ point; the final layer returns the pooled per-voxel feature directly.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DynamicMeanVFE</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/vfe.py#L55-L155" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/vfe.py#L82-L188" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.vfe.DynamicMeanVFE" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">DynamicMeanVFE</span><span class="p">(</span>

@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/xconv/">
       
       
-        <link rel="prev" href="../view/">
+        <link rel="prev" href="../voxel_grid_pool/">
       
       
         <link rel="next" href="../../lightning/">
@@ -2243,6 +2243,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear_blocks/" class="md-nav__link">
         
   
@@ -2405,14 +2459,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv/" class="md-nav__link">
+      <a href="../point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2432,14 +2486,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv_sa/" class="md-nav__link">
+      <a href="../pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2548,6 +2602,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2702,6 +2783,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../transformer/" class="md-nav__link">
         
   
@@ -2764,6 +2872,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5955,7 +6090,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;XConv&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/xconv.py#L17-L164&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.xconv.XConv">XConv</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/xconv.py#L17-L166&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.xconv.XConv">XConv</a></code></b>
           –
           <div class="doc-md-description">
             <p>XConv layer as described in the paper</p>
@@ -5987,7 +6122,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">XConv</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/xconv.py#L17-L164" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/xconv.py#L17-L166" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.xconv.XConv" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">XConv</span><span class="p">(</span>
@@ -6019,6 +6154,9 @@ by Yangyan Li, Rui Bu, Mingchao Sun, Wei Wu, Xinhan Di, Baoquan Chen.</p>
 excepts that this convolution layer supports bipartite graphs and more flexibility / customization.
 This implementation provides full compatibility with the PyTorch Geometric library while following the official
 paper and original tensorflow implementation.</p>
+<p><code>edge_index</code> lists <code>[source, target]</code> pairs with exactly <code>kernel_size * dilation</code> consecutive edges per target
+point, in the order <code>knn</code> returns them; a bipartite graph is given as <code>(x_source, None)</code> and
+<code>(pos_source, pos_target)</code> pairs.</p>
 
 
 
@@ -6041,7 +6179,7 @@ paper and original tensorflow implementation.</p>
       &lt;small class=&quot;doc doc-label doc-label-staticmethod&quot;&gt;&lt;code&gt;staticmethod&lt;/code&gt;&lt;/small&gt;
   &lt;/span&gt;
 
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/xconv.py#L98-L106&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.xconv.XConv.init_weights_">init_weights_</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/xconv.py#L102-L110&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.xconv.XConv.init_weights_">init_weights_</a></code></b>
             –
             <div class="doc-md-description">
               <p>Applies Xavier normal initialization to <code>nn.Linear</code> and <code>nn.Conv1d</code> modules, zeroing their bias.</p>
@@ -6076,7 +6214,7 @@ paper and original tensorflow implementation.</p>
       <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
   </span>
 
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/xconv.py#L98-L106" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/xconv.py#L102-L110" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.xconv.XConv.init_weights_" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">init_weights_</span><span class="p">(</span><span class="n">module</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
@@ -6150,7 +6288,7 @@ paper and original tensorflow implementation.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../view/" class="md-footer__link md-footer__link--prev" aria-label="Previous: view">
+          <a href="../voxel_grid_pool/" class="md-footer__link md-footer__link--prev" aria-label="Previous: voxel_grid_pool">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6160,7 +6298,7 @@ paper and original tensorflow implementation.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                view
+                voxel_grid_pool
               </div>
             </div>
           </a>

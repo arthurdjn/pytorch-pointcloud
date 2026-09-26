@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.models.spunet.SparseBasicBlock" class="md-skip">
+        <a href="#torch_pointcloud.models.spunet.SparseUNetEncoder" class="md-skip">
           Skip to content
         </a>
       
@@ -2241,6 +2241,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../../layers/grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../layers/kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../layers/linear_blocks/" class="md-nav__link">
         
   
@@ -2403,14 +2457,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pointconv/" class="md-nav__link">
+      <a href="../../layers/point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2430,14 +2484,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../layers/pointconv_sa/" class="md-nav__link">
+      <a href="../../layers/pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2546,6 +2600,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../layers/randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2700,6 +2781,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../layers/torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../layers/transformer/" class="md-nav__link">
         
   
@@ -2762,6 +2870,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../layers/voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -4523,17 +4658,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.models.spunet.SparseBasicBlock" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        SparseBasicBlock
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#torch_pointcloud.models.spunet.SparseUNetEncoder" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -5871,17 +5995,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.models.spunet.SparseBasicBlock" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        SparseBasicBlock
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#torch_pointcloud.models.spunet.SparseUNetEncoder" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -6022,20 +6135,10 @@
 <p><span class="doc-section-title">Classes:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseBasicBlock&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L46-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseBasicBlock">SparseBasicBlock</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Residual block of two submanifold sparse convolutions.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseUNetEncoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L153-L284&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetEncoder">SparseUNetEncoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L92-L223&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetEncoder">SparseUNetEncoder</a></code></b>
           –
           <div class="doc-md-description">
             <p>Sparse convolutional stem followed by stages that halve the resolution and run <code>SparseBasicBlock</code> blocks.</p>
@@ -6045,7 +6148,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseUNetDecoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L287-L379&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetDecoder">SparseUNetDecoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L226-L318&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetDecoder">SparseUNetDecoder</a></code></b>
           –
           <div class="doc-md-description">
             <p>Mirror of <code>SparseUNetEncoder</code>: each stage inverse-convolves, concatenates its skip, and runs residual blocks.</p>
@@ -6055,7 +6158,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseUNetSegmentation&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L382-L560&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetSegmentation">SparseUNetSegmentation</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L321-L499&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetSegmentation">SparseUNetSegmentation</a></code></b>
           –
           <div class="doc-md-description">
             <p>SpUNet segmentation model, a sparse residual U-Net in the spirit of</p>
@@ -6083,78 +6186,11 @@
 
 
 
-<h3 id="torch_pointcloud.models.spunet.SparseBasicBlock" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SparseBasicBlock</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L46-L104" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.models.spunet.SparseBasicBlock" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SparseBasicBlock</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">out_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">kernel_size</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">indice_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch_pointcloud.layers.SparseModule">SparseModule</span></code></p>
-
-
-
-        <p>Residual block of two submanifold sparse convolutions.</p>
-<p>A pointwise convolution projects the skip connection when the channel count changes.</p>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
 <h3 id="torch_pointcloud.models.spunet.SparseUNetEncoder" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SparseUNetEncoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L153-L284" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L92-L223" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.spunet.SparseUNetEncoder" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SparseUNetEncoder</span><span class="p">(</span>
@@ -6223,7 +6259,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SparseUNetDecoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L287-L379" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L226-L318" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.spunet.SparseUNetDecoder" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SparseUNetDecoder</span><span class="p">(</span>
@@ -6290,7 +6326,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SparseUNetSegmentation</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L382-L560" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L321-L499" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.spunet.SparseUNetSegmentation" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SparseUNetSegmentation</span><span class="p">(</span>
@@ -6483,7 +6519,7 @@ output, whose rows stay aligned with the input points.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L461-L475&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetSegmentation.configure_encoder">configure_encoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L400-L414&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetSegmentation.configure_encoder">configure_encoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the sparse encoder producing the bottleneck features and the per-stage skips.</p>
@@ -6493,7 +6529,7 @@ output, whose rows stay aligned with the input points.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_decoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L477-L492&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetSegmentation.configure_decoder">configure_decoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L416-L431&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetSegmentation.configure_decoder">configure_decoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the sparse decoder upsampling the bottleneck back to full resolution.</p>
@@ -6566,13 +6602,13 @@ output, whose rows stay aligned with the input points.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_encoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L461-L475" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L400-L414" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.spunet.SparseUNetSegmentation.configure_encoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_encoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseUNetEncoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L153-L284&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetEncoder">SparseUNetEncoder</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L92-L223&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetEncoder">SparseUNetEncoder</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6591,13 +6627,13 @@ output, whose rows stay aligned with the input points.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_decoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L477-L492" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L416-L431" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.spunet.SparseUNetSegmentation.configure_decoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_decoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SparseUNetDecoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/models/spunet.py#L287-L379&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetDecoder">SparseUNetDecoder</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/models/spunet.py#L226-L318&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.spunet.SparseUNetDecoder">SparseUNetDecoder</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">

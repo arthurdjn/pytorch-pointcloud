@@ -12,13 +12,13 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/pointconv_sa/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/point_transformer_conv/">
       
       
-        <link rel="prev" href="../pointconv/">
+        <link rel="prev" href="../point_patch_embed/">
       
       
-        <link rel="next" href="../pointnet2_blocks/">
+        <link rel="next" href="../pointconv_blocks/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>pointconv_sa - PyTorch PointCloud</title>
+        <title>point_transformer_conv - PyTorch PointCloud</title>
       
     
     
@@ -103,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="pointconv_sa - PyTorch PointCloud">
+  <meta property="og:title" content="point_transformer_conv - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/layers/pointconv_sa/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/layers/point_transformer_conv/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="pointconv_sa - PyTorch PointCloud">
+  <meta name="twitter:title" content="point_transformer_conv - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.layers.pointconv_sa.PointConvSetAbstraction" class="md-skip">
+        <a href="#torch_pointcloud.layers.point_transformer_conv.PointTransformerConv" class="md-skip">
           Skip to content
         </a>
       
@@ -298,7 +298,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              pointconv_sa
+              point_transformer_conv
             
           </span>
         </div>
@@ -2243,6 +2243,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear_blocks/" class="md-nav__link">
         
   
@@ -2402,33 +2456,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../pointconv/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  pointconv
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -2446,7 +2473,7 @@
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  point_transformer_conv
 
     
   </span>
@@ -2463,7 +2490,7 @@
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  point_transformer_conv
 
     
   </span>
@@ -2489,43 +2516,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvSetAbstraction" class="md-nav__link">
+  <a href="#torch_pointcloud.layers.point_transformer_conv.PointTransformerConv" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        PointConvSetAbstraction
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvDensitySetAbstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvDensitySetAbstraction
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvGlobalSetAbstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvGlobalSetAbstraction
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvDensityGlobalSetAbstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvDensityGlobalSetAbstraction
+        PointTransformerConv
       </span>
     </span>
   </a>
@@ -2536,6 +2530,33 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pointconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  pointconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2637,6 +2658,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2791,6 +2839,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../transformer/" class="md-nav__link">
         
   
@@ -2853,6 +2928,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5871,43 +5973,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvSetAbstraction" class="md-nav__link">
+  <a href="#torch_pointcloud.layers.point_transformer_conv.PointTransformerConv" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        PointConvSetAbstraction
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvDensitySetAbstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvDensitySetAbstraction
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvGlobalSetAbstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvGlobalSetAbstraction
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv_sa.PointConvDensityGlobalSetAbstraction" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvDensityGlobalSetAbstraction
+        PointTransformerConv
       </span>
     </span>
   </a>
@@ -5992,9 +6061,9 @@
   
 
 
-  <h1 id="__skip">pointconv_sa</h1>
+  <h1 id="__skip">point_transformer_conv</h1>
 
-<p><a href="" id="torch_pointcloud.layers.pointconv_sa"></a></p>
+<p><a href="" id="torch_pointcloud.layers.point_transformer_conv"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -6004,7 +6073,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>PointConv set abstraction modules for hierarchical and global feature extraction.</p>
+        <p>Point Transformer vector-attention convolution over a neighborhood graph.</p>
 
 
 
@@ -6018,43 +6087,13 @@
 <p><span class="doc-section-title">Classes:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointConvSetAbstraction&lt;/span&gt;
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerConv&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L23-L84&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.pointconv_sa.PointConvSetAbstraction">PointConvSetAbstraction</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/point_transformer_conv.py#L17-L197&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.point_transformer_conv.PointTransformerConv">PointTransformerConv</a></code></b>
           –
           <div class="doc-md-description">
-            <p>PointConv set-abstraction block: optional downsampling, <span class="arithmatex">\(k\)</span>-NN grouping, and a</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointConvDensitySetAbstraction&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L87-L165&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.pointconv_sa.PointConvDensitySetAbstraction">PointConvDensitySetAbstraction</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>PointConv set-abstraction block with inverse-density re-weighting.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointConvGlobalSetAbstraction&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L168-L223&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.pointconv_sa.PointConvGlobalSetAbstraction">PointConvGlobalSetAbstraction</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Global PointConv set-abstraction block: one weight-net convolution over each whole sample.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointConvDensityGlobalSetAbstraction&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L226-L296&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.pointconv_sa.PointConvDensityGlobalSetAbstraction">PointConvDensityGlobalSetAbstraction</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Global PointConv set-abstraction block with inverse-density re-weighting.</p>
+            <p>The Point Transformer layer from the</p>
           </div>
         </li>
     </ul>
@@ -6079,553 +6118,142 @@
 
 
 
-<h3 id="torch_pointcloud.layers.pointconv_sa.PointConvSetAbstraction" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointConvSetAbstraction</span>
+<h3 id="torch_pointcloud.layers.point_transformer_conv.PointTransformerConv" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerConv</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L23-L84" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/point_transformer_conv.py#L17-L197" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.layers.pointconv_sa.PointConvSetAbstraction" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointConvSetAbstraction</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_neighbors</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">weight_channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">expansion</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">act_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">spatial_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">downsample</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">)</span>
+<a href="#torch_pointcloud.layers.point_transformer_conv.PointTransformerConv" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerConv</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="n"><span title="int">int</span></span><span class="p">]],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">out_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">spatial_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">num_groups</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">pos_nn</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Callable">Callable</span></span><span class="p">[[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">attn_nn</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Callable">Callable</span></span><span class="p">[[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">add_self_loops</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n"><span title="typing_extensions.Unpack">Unpack</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MessagePassingParams&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a></span><span class="p">],</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+              Bases: <code><span title="torch_geometric.nn.MessagePassing">MessagePassing</span></code></p>
 
 
 
-        <p>PointConv set-abstraction block: optional downsampling, <span class="arithmatex">\(k\)</span>-NN grouping, and a
-weight-net continuous convolution.</p>
+        <p>The Point Transformer layer from the
+<span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/2012.09164">"Point Transformer"</a> paper
+by Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun.</p>
+
+
+<details class="note" open>
+  <summary>Note</summary>
+  <p>This implementation was adapted from the PyTorch Geometric library,
+and supports the <code>num_groups</code> parameter to behave like the original
+implementation.</p>
+</details>        <div class="arithmatex">\[
+    \mathbf{x}^{\prime}_i =  \sum_{j \in
+    \mathcal{N}(i) \cup \{ i \}} \alpha_{i,j} \left(\mathbf{W}_3
+    \mathbf{x}_j + \delta_{ij} \right),
+\]</div>
+<p>where the attention coefficients <span class="arithmatex">\(\alpha_{i,j}\)</span> and
+positional embedding <span class="arithmatex">\(\delta_{ij}\)</span> are computed as</p>
+<div class="arithmatex">\[
+    \alpha_{i,j}= \textrm{softmax} \left( \gamma_\mathbf{\Theta}
+    (\mathbf{W}_1 \mathbf{x}_i - \mathbf{W}_2 \mathbf{x}_j +
+    \delta_{i,j}) \right)
+\]</div>
+<p>and</p>
+<div class="arithmatex">\[
+    \delta_{i,j}= h_{\mathbf{\Theta}}(\mathbf{p}_i - \mathbf{p}_j),
+\]</div>
+<p>with <span class="arithmatex">\(\gamma_\mathbf{\Theta}\)</span> and <span class="arithmatex">\(h_\mathbf{\Theta}\)</span>
+denoting neural networks, <em>i.e.</em> MLPs, and
+<span class="arithmatex">\(\mathbf{P} \in \mathbb{R}^{N \times D}\)</span> defines the position of
+each point.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
             <b><code>in_channels</code></b>
+              (<code><span title="int">int</span> or <span title="tuple">tuple</span></code>)
+          –
+          <div class="doc-md-description">
+            <p>Size of each input sample, or <code>-1</code> to
+derive the size from the first input(s) to the forward method.
+A tuple corresponds to the sizes of source and target
+dimensionalities.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>out_channels</code></b>
               (<code><span title="int">int</span></code>)
           –
           <div class="doc-md-description">
-            <p>Number of input feature channels.</p>
+            <p>Size of each output sample.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>num_neighbors</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of neighbors gathered per output point.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-layer channel sizes of the feature MLP.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>weight_channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>, default:
-                  <code>(8, 8)</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Hidden channel sizes of the weight net applied to relative positions.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>expansion</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>16</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Channel expansion factor of the final matrix multiplication.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>spatial_dim</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>3</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Dimension of point coordinates.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>downsample</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch.nn.Module">Module</span>]</code>, default:
+            <b><code>pos_nn</code></b>
+              (<code><span title="torch.nn.Module">Module</span></code>, default:
                   <code>None</code>
 )
           –
           <div class="doc-md-description">
-            <p>Optional module returning the sampled indices (e.g. <code>FPS</code>). If <code>None</code>, the
-resolution is unchanged.</p>
-          </div>
-        </li>
-    </ul>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.layers.pointconv_sa.PointConvDensitySetAbstraction" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointConvDensitySetAbstraction</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L87-L165" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.layers.pointconv_sa.PointConvDensitySetAbstraction" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointConvDensitySetAbstraction</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_neighbors</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">bandwidth</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">weight_channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">density_channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">expansion</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">act_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">spatial_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">downsample</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
-
-
-
-        <p>PointConv set-abstraction block with inverse-density re-weighting.</p>
-<p>Same layout as <code>PointConvSetAbstraction</code>, with a Gaussian kernel density estimated per point;
-the inverse density is transformed by a density net and re-weights the grouped features.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>in_channels</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of input feature channels.</p>
+            <p>A neural network
+<span class="arithmatex">\(h_\mathbf{\Theta}\)</span> which maps relative spatial coordinates
+<code>pos_j - pos_i</code> of shape <span class="arithmatex">\([-1, 3]\)</span> to shape
+<span class="arithmatex">\([-1, \text{out\_channels}]\)</span>.
+Will default to a <code>torch.nn.Linear</code> transformation if not
+further specified.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>num_neighbors</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of neighbors gathered per output point.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-layer channel sizes of the feature MLP.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>bandwidth</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1.0</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Bandwidth of the Gaussian kernel density estimate.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>weight_channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>, default:
-                  <code>(8, 8)</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Hidden channel sizes of the weight net applied to relative positions.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>density_channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>, default:
-                  <code>(16, 8)</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Hidden channel sizes of the density net.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>expansion</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>16</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Channel expansion factor of the final matrix multiplication.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>spatial_dim</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>3</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Dimension of point coordinates.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>downsample</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch.nn.Module">Module</span>]</code>, default:
+            <b><code>attn_nn</code></b>
+              (<code><span title="torch.nn.Module">Module</span></code>, default:
                   <code>None</code>
 )
           –
           <div class="doc-md-description">
-            <p>Optional module returning the sampled indices (e.g. <code>FPS</code>). If <code>None</code>, the
-resolution is unchanged.</p>
+            <p>A neural network
+<span class="arithmatex">\(\gamma_\mathbf{\Theta}\)</span> which maps transformed
+node features of shape <span class="arithmatex">\([-1, \text{out\_channels}]\)</span>
+to shape <span class="arithmatex">\([-1, \text{out\_channels}]\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>add_self_loops</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>If <code>False</code>, do not add self-loops to the input graph.</p>
           </div>
         </li>
     </ul>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.layers.pointconv_sa.PointConvGlobalSetAbstraction" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointConvGlobalSetAbstraction</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L168-L223" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.layers.pointconv_sa.PointConvGlobalSetAbstraction" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointConvGlobalSetAbstraction</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">],</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">weight_channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">expansion</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">act_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">aggr</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.layers.pools.PoolLike">PoolLike</span></span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">spatial_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
-
-
-
-        <p>Global PointConv set-abstraction block: one weight-net convolution over each whole sample.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>in_channels</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of input feature channels.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-layer channel sizes of the feature MLP.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>weight_channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>, default:
-                  <code>(8, 8)</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Hidden channel sizes of the weight net applied to relative positions.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>expansion</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>16</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Channel expansion factor of the final matrix multiplication.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>aggr</code></b>
-              (<code><span title="torch_pointcloud.layers.pools.PoolLike">PoolLike</span></code>, default:
-                  <code>&#39;mean&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Pooling used to place the single output position of each sample.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>spatial_dim</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>3</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Dimension of point coordinates.</p>
-          </div>
-        </li>
-    </ul>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.layers.pointconv_sa.PointConvDensityGlobalSetAbstraction" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointConvDensityGlobalSetAbstraction</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv_sa.py#L226-L296" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.layers.pointconv_sa.PointConvDensityGlobalSetAbstraction" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointConvDensityGlobalSetAbstraction</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">in_channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">],</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">bandwidth</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">weight_channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">density_channels</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">expansion</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">act_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">pool</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.layers.pools.PoolLike">PoolLike</span></span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">spatial_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
-
-
-
-        <p>Global PointConv set-abstraction block with inverse-density re-weighting.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>in_channels</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Number of input feature channels.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-layer channel sizes of the feature MLP.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>bandwidth</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Bandwidth of the Gaussian kernel density estimate.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>weight_channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>, default:
-                  <code>(8, 8)</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Hidden channel sizes of the weight net applied to relative positions.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>density_channels</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>, default:
-                  <code>(16, 8)</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Hidden channel sizes of the density net.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>expansion</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>16</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Channel expansion factor of the final matrix multiplication.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pool</code></b>
-              (<code><span title="torch_pointcloud.layers.pools.PoolLike">PoolLike</span></code>, default:
-                  <code>&#39;mean&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Pooling used to place the single output position of each sample.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>spatial_dim</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>3</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Dimension of point coordinates.</p>
-          </div>
-        </li>
-    </ul>
-
+<details class="shapes" open>
+  <summary>Shapes</summary>
+  <ul>
+<li><strong>input:</strong>
+  node features <span class="arithmatex">\((|\mathcal{V}|, F_{in})\)</span> or
+  <span class="arithmatex">\(((|\mathcal{V_s}|, F_{s}), (|\mathcal{V_t}|, F_{t}))\)</span>
+  if bipartite,
+  positions <span class="arithmatex">\((|\mathcal{V}|, 3)\)</span> or
+  <span class="arithmatex">\(((|\mathcal{V_s}|, 3), (|\mathcal{V_t}|, 3))\)</span> if bipartite,
+  edge indices <span class="arithmatex">\((2, |\mathcal{E}|)\)</span></li>
+<li><strong>output:</strong> node features <span class="arithmatex">\((|\mathcal{V}|, F_{out})\)</span> or
+  <span class="arithmatex">\(((|\mathcal{V}_t|, F_{out}))\)</span> if bipartite</li>
+</ul>
+</details>
 
 
 
@@ -6711,7 +6339,7 @@ resolution is unchanged.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../pointconv/" class="md-footer__link md-footer__link--prev" aria-label="Previous: pointconv">
+          <a href="../point_patch_embed/" class="md-footer__link md-footer__link--prev" aria-label="Previous: point_patch_embed">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6721,20 +6349,20 @@ resolution is unchanged.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                pointconv
+                point_patch_embed
               </div>
             </div>
           </a>
         
         
           
-          <a href="../pointnet2_blocks/" class="md-footer__link md-footer__link--next" aria-label="Next: pointnet2_blocks">
+          <a href="../pointconv_blocks/" class="md-footer__link md-footer__link--next" aria-label="Next: pointconv_blocks">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                pointnet2_blocks
+                pointconv_blocks
               </div>
             </div>
             <div class="md-footer__button md-icon">

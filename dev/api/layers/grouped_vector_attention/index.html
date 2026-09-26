@@ -12,13 +12,13 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/pointconv/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/grouped_vector_attention/">
       
       
-        <link rel="prev" href="../point_patch_embed/">
+        <link rel="prev" href="../grid_pool/">
       
       
-        <link rel="next" href="../pointconv_sa/">
+        <link rel="next" href="../kpconv_blocks/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>PointConv - PyTorch PointCloud</title>
+        <title>grouped_vector_attention - PyTorch PointCloud</title>
       
     
     
@@ -103,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="PointConv - PyTorch PointCloud">
+  <meta property="og:title" content="grouped_vector_attention - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/layers/pointconv/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/layers/grouped_vector_attention/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="PointConv - PyTorch PointCloud">
+  <meta name="twitter:title" content="grouped_vector_attention - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.layers.pointconv.PointConv" class="md-skip">
+        <a href="#torch_pointcloud.layers.grouped_vector_attention.GroupedVectorAttention" class="md-skip">
           Skip to content
         </a>
       
@@ -298,7 +298,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              PointConv
+              grouped_vector_attention
             
           </span>
         </div>
@@ -2240,6 +2240,116 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.layers.grouped_vector_attention.GroupedVectorAttention" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        GroupedVectorAttention
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
@@ -2402,41 +2512,17 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  pointconv
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="././" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2444,49 +2530,6 @@
   
 
       </a>
-      
-        
-
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv.PointConv" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConv
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv.PointConvDensity" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvDensity
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2499,14 +2542,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv_sa/" class="md-nav__link">
+      <a href="../pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2615,6 +2658,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2769,6 +2839,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../transformer/" class="md-nav__link">
         
   
@@ -2831,6 +2928,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5849,21 +5973,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv.PointConv" class="md-nav__link">
+  <a href="#torch_pointcloud.layers.grouped_vector_attention.GroupedVectorAttention" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        PointConv
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.layers.pointconv.PointConvDensity" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        PointConvDensity
+        GroupedVectorAttention
       </span>
     </span>
   </a>
@@ -5948,9 +6061,9 @@
   
 
 
-  <h1 id="__skip">PointConv</h1>
+  <h1 id="__skip">grouped_vector_attention</h1>
 
-<p><a href="" id="torch_pointcloud.layers.pointconv"></a></p>
+<p><a href="" id="torch_pointcloud.layers.grouped_vector_attention"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -5960,7 +6073,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>PointConv message-passing convolutions, with and without density reweighting.</p>
+        <p>Grouped vector attention over a neighborhood graph.</p>
 
 
 
@@ -5974,23 +6087,13 @@
 <p><span class="doc-section-title">Classes:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointConv&lt;/span&gt;
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;GroupedVectorAttention&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv.py#L16-L75&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.pointconv.PointConv">PointConv</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/grouped_vector_attention.py#L16-L158&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.grouped_vector_attention.GroupedVectorAttention">GroupedVectorAttention</a></code></b>
           –
           <div class="doc-md-description">
-            <p>PointConv message passing: a per-edge feature outer-producted with a learned continuous weight.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointConvDensity&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv.py#L78-L159&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.pointconv.PointConvDensity">PointConvDensity</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p><code>PointConv</code> with inverse density reweighting.</p>
+            <p>Vector attention over a neighborhood graph, with one weight vector shared by each group of channels.</p>
           </div>
         </li>
     </ul>
@@ -6015,23 +6118,29 @@
 
 
 
-<h3 id="torch_pointcloud.layers.pointconv.PointConv" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointConv</span>
+<h3 id="torch_pointcloud.layers.grouped_vector_attention.GroupedVectorAttention" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">GroupedVectorAttention</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv.py#L16-L75" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/grouped_vector_attention.py#L16-L158" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.layers.pointconv.PointConv" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointConv</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">local_nn</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">weight_nn</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">add_self_loops</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">eps</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-06</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n"><span title="typing_extensions.Unpack">Unpack</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MessagePassingParams&lt;/span&gt;
+<a href="#torch_pointcloud.layers.grouped_vector_attention.GroupedVectorAttention" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">GroupedVectorAttention</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">channels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_groups</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">attn_drop</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">qkv_bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">pe_multiplier</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">pe_bias</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;batch_norm&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">act</span><span class="p">:</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">act_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">norm_kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n"><span title="typing_extensions.Unpack">Unpack</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MessagePassingParams&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a></span><span class="p">],</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a></span><span class="p">],</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6040,48 +6149,111 @@
 
 
 
-        <p>PointConv message passing: a per-edge feature outer-producted with a learned continuous weight.</p>
-<p><code>local_nn</code> embeds the relative position concatenated with the neighbor feature, <code>weight_nn</code> turns the
-relative position alone into the convolution weights, and their outer product is summed over the
-neighbors of each point.</p>
+        <p>Vector attention over a neighborhood graph, with one weight vector shared by each group of channels.</p>
+<p>The relation between a query and its neighbor keys is optionally scaled and shifted by a learned
+encoding of their relative position, then mapped to <code>num_groups</code> weights and softmax-normalized
+over each destination's neighbors.</p>
+<p><code>edge_index</code> lists <code>[source, target]</code> pairs: keys and values come from the source points and queries from
+the target points, so a bipartite graph is given as <code>(x_source, x_target)</code> and <code>(pos_source, pos_target)</code>
+pairs.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-            <b><code>local_nn</code></b>
-              (<code><span title="torch.nn.Module">Module</span></code>)
+            <b><code>channels</code></b>
+              (<code><span title="int">int</span></code>)
           –
           <div class="doc-md-description">
-            <p>Network embedding the relative positions and neighbor features.</p>
+            <p>Feature width of the queries, keys and values.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>weight_nn</code></b>
-              (<code><span title="torch.nn.Module">Module</span></code>)
+            <b><code>num_groups</code></b>
+              (<code><span title="int">int</span></code>)
           –
           <div class="doc-md-description">
-            <p>Network mapping a relative position to the convolution weights.</p>
+            <p>Number of channel groups sharing one attention weight.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>add_self_loops</code></b>
+            <b><code>attn_drop</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>0.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Dropout probability on the attention weights.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>qkv_bias</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Whether the query, key and value projections carry a bias.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>pe_multiplier</code></b>
               (<code><span title="bool">bool</span></code>, default:
                   <code>False</code>
 )
           –
           <div class="doc-md-description">
-            <p>Whether to add a self loop to every point before propagating.</p>
+            <p>Whether to scale the query-key relation by an encoding of the relative position.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>eps</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1e-06</code>
+            <b><code>pe_bias</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
 )
           –
           <div class="doc-md-description">
-            <p>Numerical stability constant.</p>
+            <p>Whether to shift the query-key relation and the values by an encoding of the relative position.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>norm</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.Callable">Callable</span>, None]</code>, default:
+                  <code>&#39;batch_norm&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Normalization type or callable.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act</code></b>
+              (<code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.Callable">Callable</span>, None]</code>, default:
+                  <code>&#39;relu&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Activation type or callable.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>act_kwargs</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Extra activation arguments.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>norm_kwargs</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Extra normalization arguments.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6089,137 +6261,7 @@ neighbors of each point.</p>
               (<code><span title="typing_extensions.Unpack">Unpack</span>[<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MessagePassingParams&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a>]</code>, default:
-                  <code>{}</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Extra arguments for <code>MessagePassing</code>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.layers.pointconv.PointConvDensity" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointConvDensity</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/pointconv.py#L78-L159" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.layers.pointconv.PointConvDensity" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointConvDensity</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">local_nn</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">weight_nn</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">density_nn</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">add_self_loops</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">eps</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1e-06</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n"><span title="typing_extensions.Unpack">Unpack</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MessagePassingParams&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a></span><span class="p">],</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="torch_geometric.nn.MessagePassing">MessagePassing</span></code></p>
-
-
-
-        <p><code>PointConv</code> with inverse density reweighting.</p>
-<p>Each neighbor's embedded feature is scaled by <code>density_nn</code> applied to its density relative to the
-densest neighbor, so that densely sampled regions do not dominate the sum.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>local_nn</code></b>
-              (<code><span title="torch.nn.Module">Module</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Network embedding the relative positions and neighbor features.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>weight_nn</code></b>
-              (<code><span title="torch.nn.Module">Module</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Network mapping a relative position to the convolution weights.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>density_nn</code></b>
-              (<code><span title="torch.nn.Module">Module</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Network mapping a relative density to a per-edge scale.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>add_self_loops</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to add a self loop to every point before propagating.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>eps</code></b>
-              (<code><span title="float">float</span></code>, default:
-                  <code>1e-06</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Numerical stability constant.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>**kwargs</code></b>
-              (<code><span title="typing_extensions.Unpack">Unpack</span>[<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MessagePassingParams&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a>]</code>, default:
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/utils/types.py#L97-L104&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.MessagePassingParams">MessagePassingParams</a>]</code>, default:
                   <code>{}</code>
 )
           –
@@ -6314,7 +6356,7 @@ densest neighbor, so that densely sampled regions do not dominate the sum.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../point_patch_embed/" class="md-footer__link md-footer__link--prev" aria-label="Previous: point_patch_embed">
+          <a href="../grid_pool/" class="md-footer__link md-footer__link--prev" aria-label="Previous: grid_pool">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6324,20 +6366,20 @@ densest neighbor, so that densely sampled regions do not dominate the sum.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                point_patch_embed
+                grid_pool
               </div>
             </div>
           </a>
         
         
           
-          <a href="../pointconv_sa/" class="md-footer__link md-footer__link--next" aria-label="Next: pointconv_sa">
+          <a href="../kpconv_blocks/" class="md-footer__link md-footer__link--next" aria-label="Next: kpconv_blocks">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                pointconv_sa
+                kpconv_blocks
               </div>
             </div>
             <div class="md-footer__button md-icon">

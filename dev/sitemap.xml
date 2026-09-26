@@ -193,6 +193,12 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/grid_pool/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/grouped_vector_attention/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/kpconv_blocks/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/linear_blocks/</loc>
       </url>
       <url>
@@ -211,10 +217,10 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/point_patch_embed/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointconv/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/point_transformer_conv/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointconv_sa/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pointconv_blocks/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pointnet2_blocks/</loc>
@@ -227,6 +233,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pvcnn_blocks/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/randlanet_blocks/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/rope/</loc>
@@ -244,6 +253,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/tnet/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/torchsparse_blocks/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/transformer/</loc>
       </url>
       <url>
@@ -251,6 +263,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/view/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/voxel_grid_pool/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/xconv/</loc>

@@ -2250,6 +2250,60 @@
   
   
     <li class="md-nav__item">
+      <a href="./grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="./linear_blocks/" class="md-nav__link">
         
   
@@ -2412,14 +2466,14 @@
   
   
     <li class="md-nav__item">
-      <a href="./pointconv/" class="md-nav__link">
+      <a href="./point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2439,14 +2493,14 @@
   
   
     <li class="md-nav__item">
-      <a href="./pointconv_sa/" class="md-nav__link">
+      <a href="./pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2555,6 +2609,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2709,6 +2790,33 @@
   
   
     <li class="md-nav__item">
+      <a href="./torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="./transformer/" class="md-nav__link">
         
   
@@ -2771,6 +2879,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5946,6 +6081,20 @@
           </div>
         </li>
         <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.grouped_vector_attention" href="grouped_vector_attention/#torch_pointcloud.layers.grouped_vector_attention">grouped_vector_attention</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Grouped vector attention over a neighborhood graph.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.kpconv_blocks" href="kpconv_blocks/#torch_pointcloud.layers.kpconv_blocks">kpconv_blocks</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Kernel point convolution, its kernel point placement, and the normalized and residual blocks built on it.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.linear_blocks" href="linear_blocks/#torch_pointcloud.layers.linear_blocks">linear_blocks</a></code></b>
           –
           <div class="doc-md-description">
@@ -5988,17 +6137,17 @@
           </div>
         </li>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.pointconv" href="pointconv/#torch_pointcloud.layers.pointconv">pointconv</a></code></b>
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.point_transformer_conv" href="point_transformer_conv/#torch_pointcloud.layers.point_transformer_conv">point_transformer_conv</a></code></b>
           –
           <div class="doc-md-description">
-            <p>PointConv message-passing convolutions, with and without density reweighting.</p>
+            <p>Point Transformer vector-attention convolution over a neighborhood graph.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.pointconv_sa" href="pointconv_sa/#torch_pointcloud.layers.pointconv_sa">pointconv_sa</a></code></b>
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.pointconv_blocks" href="pointconv_blocks/#torch_pointcloud.layers.pointconv_blocks">pointconv_blocks</a></code></b>
           –
           <div class="doc-md-description">
-            <p>PointConv set abstraction modules for hierarchical and global feature extraction.</p>
+            <p>PointConv message-passing convolutions and the set-abstraction blocks built on them.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6027,6 +6176,13 @@
           –
           <div class="doc-md-description">
             <p>PVCNN building blocks: voxelization, squeeze-and-excitation, and point-voxel convolution.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.randlanet_blocks" href="randlanet_blocks/#torch_pointcloud.layers.randlanet_blocks">randlanet_blocks</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>RandLA-Net local feature aggregation: spatial encoding, attentive pooling, and the dilated residual block.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6065,17 +6221,24 @@
           </div>
         </li>
         <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.torchsparse_blocks" href="torchsparse_blocks/#torch_pointcloud.layers.torchsparse_blocks">torchsparse_blocks</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>torchsparse convolution blocks: a conv + norm + act block and a residual block over <code>SparseTensor</code>s.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.transformer" href="transformer/#torch_pointcloud.layers.transformer">transformer</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Standard pre-norm transformer building blocks for point-cloud backbones.</p>
+            <p>Transformer building blocks for point-cloud backbones and detectors.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.vfe" href="vfe/#torch_pointcloud.layers.vfe">vfe</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Dynamic voxel feature encoder shared by the voxel detectors (Voxel Mamba, LION).</p>
+            <p>Voxel feature encoders: the pillar feature-net layer and the dynamic mean voxel encoder.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6083,6 +6246,13 @@
           –
           <div class="doc-md-description">
             <p>Tensor reshaping as a module wrapping <code>Tensor.view</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="torch_pointcloud.layers.voxel_grid_pool" href="voxel_grid_pool/#torch_pointcloud.layers.voxel_grid_pool">voxel_grid_pool</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Voxel grid subsampling of packed point clouds.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">

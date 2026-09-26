@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/layers/rope/">
       
       
-        <link rel="prev" href="../pvcnn_blocks/">
+        <link rel="prev" href="../randlanet_blocks/">
       
       
         <link rel="next" href="../serialized_attention/">
@@ -2243,6 +2243,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../grouped_vector_attention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  grouped_vector_attention
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kpconv_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../linear_blocks/" class="md-nav__link">
         
   
@@ -2405,14 +2459,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv/" class="md-nav__link">
+      <a href="../point_transformer_conv/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv
+  point_transformer_conv
 
     
   </span>
@@ -2432,14 +2486,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../pointconv_sa/" class="md-nav__link">
+      <a href="../pointconv_blocks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  pointconv_sa
+  pointconv_blocks
 
     
   </span>
@@ -2548,6 +2602,33 @@
     
   
   pvcnn_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../randlanet_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  randlanet_blocks
 
     
   </span>
@@ -2758,6 +2839,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../torchsparse_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  torchsparse_blocks
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../transformer/" class="md-nav__link">
         
   
@@ -2820,6 +2928,33 @@
     
   
   view
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voxel_grid_pool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  voxel_grid_pool
 
     
   </span>
@@ -5960,7 +6095,7 @@ into attention without any learnable parameters.</p>
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Point3DRoPE&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/rope.py#L17-L75&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.rope.Point3DRoPE">Point3DRoPE</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/rope.py#L17-L75&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.rope.Point3DRoPE">Point3DRoPE</a></code></b>
           –
           <div class="doc-md-description">
             <p>3D Rotary Position Embedding for point cloud attention.</p>
@@ -5992,7 +6127,7 @@ into attention without any learnable parameters.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Point3DRoPE</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/02464f0a969047a60cc9169b366c0148ac5ab740/src/torch_pointcloud/layers/rope.py#L17-L75" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/0f4b795434c70f37c4e4e14d2cda60a4cfab802a/src/torch_pointcloud/layers/rope.py#L17-L75" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.rope.Point3DRoPE" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Point3DRoPE</span><span class="p">(</span><span class="n">head_dim</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="n">base</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">)</span>
@@ -6127,7 +6262,7 @@ pos: Real-valued 3D positions of shape <span class="arithmatex">\((N, 3)\)</span
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../pvcnn_blocks/" class="md-footer__link md-footer__link--prev" aria-label="Previous: pvcnn_blocks">
+          <a href="../randlanet_blocks/" class="md-footer__link md-footer__link--prev" aria-label="Previous: randlanet_blocks">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6137,7 +6272,7 @@ pos: Real-valued 3D positions of shape <span class="arithmatex">\((N, 3)\)</span
                 Previous
               </span>
               <div class="md-ellipsis">
-                pvcnn_blocks
+                randlanet_blocks
               </div>
             </div>
           </a>
