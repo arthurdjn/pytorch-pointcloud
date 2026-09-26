@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from torch_pointcloud.layers.spconv_blocks import SparseConvBlock, SubMConv3dBlock
+from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock, SubMConv3dBlock
+from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -68,3 +69,18 @@ def test_sparse_conv_block_none_norm_act_forward() -> None:
 def test_sparse_conv_block_invalid_conv_type_raises() -> None:
     with pytest.raises(ValueError, match="Unknown conv_type"):
         SparseConvBlock(4, 8, 3, indice_key="s1", conv_type="invalid")
+
+
+def test_sparse_basic_block_projects_skip() -> None:
+    torch.manual_seed(0)
+    x = torch.randn(20, 8).cuda()
+    pos = torch.randint(0, 32, (20, 3)).cuda()
+    batch = torch.cat([torch.zeros(8), torch.ones(12)]).long().cuda()
+    x_sparse = convert_to_spconv_tensor(x, pos, batch)
+
+    block = SparseBasicBlock(8, 16, indice_key="res").cuda()
+    assert block(x_sparse).features.shape == (20, 16)
+
+    same = SparseBasicBlock(8, 8, bias=True, indice_key="res").cuda()
+    assert not any(p.numel() for p in same.proj.parameters())
+    assert same(x_sparse).features.shape == (20, 8)

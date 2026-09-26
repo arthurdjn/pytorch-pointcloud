@@ -11,7 +11,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
-from torch_pointcloud.layers import SparseConvBlock
+from torch_pointcloud.layers import SparseBasicBlock, SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.anchors import (
     AnchorHead,
@@ -273,61 +273,11 @@ class SECONDDetection(DetectionModel):
         return self.head.decode(out)
 
 
-class SparseBasicBlock(nn.Module):
-    r"""Submanifold residual block (`SparseBasicBlock`): two $3\times3\times3$ subm convs + skip.
-
-    A plain `nn.Module` (driven directly rather than via `SparseSequential`) so this file imports
-    without `spconv`; the sparse convs are built lazily in `__init__`.
-
-    Args:
-        channels: Input and output channels.
-        indice_key: Shared submanifold indice key (reuses the rulebook within the block).
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-    """
-
-    def __init__(
-        self,
-        channels: int,
-        indice_key: str,
-        *,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.conv1 = spconv.SubMConv3d(channels, channels, 3, padding=1, bias=True, indice_key=indice_key)
-        self.bn1 = create_norm(norm, channels, dim=1, **(norm_kwargs or {}))
-        self.act = create_act(act, **(act_kwargs or {}))
-        self.conv2 = spconv.SubMConv3d(channels, channels, 3, padding=1, bias=True, indice_key=indice_key)
-        self.bn2 = create_norm(norm, channels, dim=1, **(norm_kwargs or {}))
-
-    def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
-        out = self.conv1(x)
-        feat = out.features
-        if self.bn1 is not None:
-            feat = self.bn1(feat)
-        if self.act is not None:
-            feat = self.act(feat)
-        out = out.replace_feature(feat)
-        out = self.conv2(out)
-        feat = out.features
-        if self.bn2 is not None:
-            feat = self.bn2(feat)
-        feat = feat + x.features
-        if self.act is not None:
-            feat = self.act(feat)
-        return out.replace_feature(feat)
-
-
 class VoxelResBackbone8x(nn.Module):
     r"""Residual sparse 3D voxel backbone (`VoxelResBackBone8x`), $8\times$ downsampling.
 
     Like [`VoxelBackbone8x`][torch_pointcloud.models.second.VoxelBackbone8x] but with
-    [`SparseBasicBlock`][torch_pointcloud.models.second.SparseBasicBlock] residual stages and a
+    [`SparseBasicBlock`][torch_pointcloud.layers.spconv_blocks.SparseBasicBlock] residual stages and a
     128-channel stage 4 (used by the nuScenes SECOND multihead detector).
 
     Args:
@@ -355,15 +305,18 @@ class VoxelResBackbone8x(nn.Module):
             create_act(act, **(act_kwargs or {})),
         )
         self.conv1 = nn.ModuleList(
-            [SparseBasicBlock(16, "res1", **block_kwargs), SparseBasicBlock(16, "res1", **block_kwargs)]
+            [
+                SparseBasicBlock(16, 16, bias=True, indice_key="res1", **block_kwargs),
+                SparseBasicBlock(16, 16, bias=True, indice_key="res1", **block_kwargs),
+            ]
         )
         self.conv2 = nn.ModuleList(
             [
                 SparseConvBlock(
                     16, 32, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(32, "res2", **block_kwargs),
-                SparseBasicBlock(32, "res2", **block_kwargs),
+                SparseBasicBlock(32, 32, bias=True, indice_key="res2", **block_kwargs),
+                SparseBasicBlock(32, 32, bias=True, indice_key="res2", **block_kwargs),
             ]
         )
         self.conv3 = nn.ModuleList(
@@ -371,8 +324,8 @@ class VoxelResBackbone8x(nn.Module):
                 SparseConvBlock(
                     32, 64, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(64, "res3", **block_kwargs),
-                SparseBasicBlock(64, "res3", **block_kwargs),
+                SparseBasicBlock(64, 64, bias=True, indice_key="res3", **block_kwargs),
+                SparseBasicBlock(64, 64, bias=True, indice_key="res3", **block_kwargs),
             ]
         )
         self.conv4 = nn.ModuleList(
@@ -380,8 +333,8 @@ class VoxelResBackbone8x(nn.Module):
                 SparseConvBlock(
                     64, 128, 3, stride=2, padding=(0, 1, 1), indice_key="spconv4", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(128, "res4", **block_kwargs),
-                SparseBasicBlock(128, "res4", **block_kwargs),
+                SparseBasicBlock(128, 128, bias=True, indice_key="res4", **block_kwargs),
+                SparseBasicBlock(128, 128, bias=True, indice_key="res4", **block_kwargs),
             ]
         )
         self.conv_out = spconv.SparseSequential(
@@ -610,7 +563,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/e5a7f5cce77ba7e6457f6436e1a45baabc69448e/model.safetensors",
+        url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/6a4c25305663b26a75079a835505c4fe6e9ea652/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 50.75, "NDS": 61.89},
         classes=NUSCENES_DETECTION_CLASSES,

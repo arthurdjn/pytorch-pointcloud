@@ -18,6 +18,8 @@ from torch_geometric.utils import scatter
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers.bev_backbone import BEVResidualBackbone
+from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
+from torch_pointcloud.layers.transformer import TransformerDecoderLayer
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
@@ -773,8 +775,11 @@ class SeparateHeadTransfusion(nn.Module):
         return {name: out.reshape(B, Q, -1).transpose(1, 2) for name, out in outputs.items()}
 
 
-class TransformerDecoderLayer(nn.Module):
-    r"""Single TransFusion decoder layer: self-attn + cross-attn + FFN (`TransformerDecoderLayer`).
+class TransFusionDecoderLayer(nn.Module):
+    r"""Post-norm `TransformerDecoderLayer` over $(B, C, N)$ query and key maps (`TransformerDecoderLayer`).
+
+    The flattened query and key positions are embedded by the layer's own MLPs and added to the attention queries,
+    keys and values.
 
     Args:
         embed_dim: Model channels.
@@ -797,72 +802,33 @@ class TransformerDecoderLayer(nn.Module):
         cross_posembed: nn.Module,
     ) -> None:
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
-        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
-        self.linear1 = nn.Linear(embed_dim, mlp_dim)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(mlp_dim, embed_dim)
-        self.norm1 = nn.LayerNorm(embed_dim)
-        self.norm2 = nn.LayerNorm(embed_dim)
-        self.norm3 = nn.LayerNorm(embed_dim)
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        self.dropout3 = nn.Dropout(dropout)
-        self.activation = F.relu if activation == "relu" else F.gelu
         self.self_posembed = self_posembed
         self.cross_posembed = cross_posembed
+        self.layer = TransformerDecoderLayer(
+            embed_dim,
+            num_heads,
+            mlp_dim,
+            dropout,
+            act=activation,
+            norm_first=False,
+            pos_in_value=True,
+        )
 
     def forward(
         self, query: Tensor, key: Tensor, query_pos: Tensor, key_pos: Tensor, key_padding_mask: OptTensor = None
     ) -> Tensor:
         b, num_query, _ = query_pos.shape
         query_pos_embed = self.self_posembed(query_pos.reshape(b * num_query, -1)).reshape(b, num_query, -1)
-        query_pos_embed = query_pos_embed.transpose(0, 1)
         b, num_key, _ = key_pos.shape
         key_pos_embed = self.cross_posembed(key_pos.reshape(b * num_key, -1)).reshape(b, num_key, -1)
-        key_pos_embed = key_pos_embed.transpose(0, 1)
-        query = query.permute(2, 0, 1)
-        key = key.permute(2, 0, 1)
-
-        q = k = v = query + query_pos_embed
-        query2 = self.self_attn(q, k, value=v)[0]
-        query = query + self.dropout1(query2)
-        query = self.norm1(query)
-
-        query2 = self.multihead_attn(
-            query=query + query_pos_embed,
-            key=key + key_pos_embed,
-            value=key + key_pos_embed,
-            key_padding_mask=key_padding_mask,
-        )[0]
-        query = query + self.dropout2(query2)
-        query = self.norm2(query)
-
-        query2 = self.linear2(self.dropout(self.activation(self.linear1(query))))
-        query = query + self.dropout3(query2)
-        query = self.norm3(query)
+        query = self.layer(
+            query.permute(2, 0, 1),
+            key.permute(2, 0, 1),
+            pos=key_pos_embed.transpose(0, 1),
+            query_pos=query_pos_embed.transpose(0, 1),
+            memory_key_padding_mask=key_padding_mask,
+        )
         return query.permute(1, 2, 0)
-
-
-class BasicBlock2D(nn.Module):
-    r"""Conv2d + BN + ReLU block used by the TransFusion heatmap head (`BasicBlock2D`).
-
-    Args:
-        in_channels: Input channels.
-        out_channels: Output channels.
-        kernel_size: Conv kernel size.
-        padding: Conv padding.
-        bias: Whether the conv carries a bias.
-    """
-
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, padding: int, bias: bool) -> None:
-        super().__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, bias=bias)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x: Tensor) -> Tensor:
-        return self.relu(self.bn(self.conv(x)))
 
 
 class TransFusionHead(nn.Module):
@@ -952,11 +918,13 @@ class TransFusionHead(nn.Module):
 
         self.shared_conv = nn.Conv2d(input_channels, hidden_channel, kernel_size=3, padding=1)
         self.heatmap_head = nn.Sequential(
-            BasicBlock2D(hidden_channel, hidden_channel, kernel_size=3, padding=1, bias=True),
+            Conv2dBlock(
+                hidden_channel, hidden_channel, kernel_size=3, padding=1, act="relu", norm="batch_norm", bias=True
+            ),
             nn.Conv2d(hidden_channel, num_classes, kernel_size=3, padding=1),
         )
         self.class_encoding = nn.Linear(num_classes, hidden_channel)
-        self.decoder = TransformerDecoderLayer(
+        self.decoder = TransFusionDecoderLayer(
             hidden_channel,
             num_heads,
             ffn_channel,
@@ -1330,7 +1298,7 @@ class LIONDetection(DetectionModel):
     "lion-mamba.nuscenes.zhe-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/lion-mamba.nuscenes.zhe-liu/resolve/b1ae6f97552a25244766c6873fa9e24b8660648b/model.safetensors",
+        url="hf://torch-pointcloud/lion-mamba.nuscenes.zhe-liu/resolve/69f5d154f25c5d41fc789f7fc9e3e1d0623c6566/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 68.78, "NDS": 72.32},
         classes=NUSCENES_DETECTION_CLASSES,

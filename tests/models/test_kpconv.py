@@ -1,19 +1,14 @@
-from pathlib import Path
 from typing import Dict
 
 import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.layers.voxel_grid_pool import VoxelGridPool
 from torch_pointcloud.models.kpconv import (
-    KPConv,
-    KPConvBlock,
     KPFCNNClassification,
     KPFCNNEncoderBlock,
-    KPFCNNGridPool,
     KPFCNNSegmentation,
-    KPResidualBlock,
-    create_kernel_points,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
@@ -46,98 +41,6 @@ def data() -> Dict[str, Tensor]:
     )
 
 
-def test_kpconv_module(data: Dict[str, Tensor]) -> None:
-    conv = KPConv(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-        kernel_size=15,
-        kp_radius=0.1,
-        kp_sigma=0.1,
-    )
-
-    x = data["features"]
-    pos = data["pos"]
-    output = conv(x, pos, pos, data["edge_index"])
-    assert output.shape == (len(data["pos"]), 32)
-
-    conv = KPConv(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-        kernel_size=15,
-        kp_radius=0.1,
-        kp_sigma=0.1,
-        deformable=True,
-        modulated=True,
-    )
-
-    x = data["features"]
-    pos = data["pos"]
-    output = conv(x, pos, pos, data["edge_index"])
-    assert output.shape == (len(data["pos"]), 32)
-
-
-def test_kpconv_running_stats_are_not_buffers(data: Dict[str, Tensor]) -> None:
-    conv = KPConv(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-        kernel_size=15,
-        kp_radius=0.1,
-        kp_sigma=0.1,
-        deformable=True,
-        modulated=True,
-    )
-    conv(data["features"], data["pos"], data["pos"], data["edge_index"])
-
-    running_names = ("running_min_d2", "running_deformed_kernel", "running_offset_features")
-    assert all(name not in conv.state_dict() for name in running_names)
-    assert all(name not in dict(conv.named_buffers()) for name in running_names)
-    assert all(getattr(conv, name) is not None for name in running_names)
-
-
-def test_kpconv_block_layer(data: Dict[str, Tensor]) -> None:
-    block = KPConvBlock(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-        kernel_size=15,
-        kp_radius=0.1,
-        kp_sigma=0.1,
-    )
-
-    output = block(data["features"], data["pos"], data["pos"], data["edge_index"])
-    assert output.shape == (len(data["pos"]), 32)
-
-
-def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
-    block = KPResidualBlock(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-        kernel_size=15,
-        kp_radius=0.1,
-        kp_sigma=0.1,
-    )
-
-    output = block(data["features"], data["pos"], data["pos"], data["edge_index"])
-    assert output.shape == (len(data["pos"]), 32)
-
-    block = KPResidualBlock(
-        spatial_dim=3,
-        in_channels=3,
-        out_channels=32,
-        kernel_size=15,
-        kp_radius=0.1,
-        kp_sigma=0.1,
-        strided=True,
-    )
-
-    output = block(data["features"], data["pos"], data["pos"], data["edge_index"])
-    assert output.shape == (len(data["pos"]), 32)
-
-
 def test_encoder_block(data: Dict[str, Tensor]) -> None:
     block = KPFCNNEncoderBlock(
         depth=2,
@@ -167,7 +70,7 @@ def test_encoder_block(data: Dict[str, Tensor]) -> None:
         kernel_size=15,
         kp_radius=0.1,
         kp_sigma=0.1,
-        downsample=KPFCNNGridPool(grid_size=0.5),
+        downsample=VoxelGridPool(grid_size=0.5),
     )
 
     out_x, out_pos, out_batch, inverse = block(
@@ -329,14 +232,6 @@ def test_kpconv_seg_forward_features_and_head(model_seg: KPFCNNSegmentation, dat
     out_x = model_seg.forward_decoder(out_x, out_pos, out_batch, intermediates)
     logits = model_seg.forward_head(out_x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
-
-
-def test_create_kernel_points_gradient(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("torch_pointcloud.models.kpconv.CACHE_DIR", tmp_path)
-    torch.manual_seed(0)
-    kernel_points = create_kernel_points(radius=0.05, num_points=7, method="gradient")
-    assert kernel_points.shape == (7, 3)
-    assert float(kernel_points.norm(dim=-1).max()) < 0.1
 
 
 def test_kpconv_seg_reset_classifier_keeps_head_channels() -> None:

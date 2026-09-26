@@ -24,7 +24,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
-from torch_pointcloud.layers import SparseModule
+from torch_pointcloud.layers import SparseBasicBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SemanticSegmentationModel
@@ -41,67 +41,6 @@ if TYPE_CHECKING:
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 SparseConvTensor, _ = optional_import("spconv.pytorch", "SparseConvTensor", url=_SPCONV_GITHUB_URL)
-
-
-class SparseBasicBlock(SparseModule):
-    """Residual block of two submanifold sparse convolutions.
-
-    A pointwise convolution projects the skip connection when the channel count changes.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        bias: bool = False,
-        indice_key: Optional[str] = None,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-        padding = kernel_size // 2
-
-        if in_channels == out_channels:
-            self.proj: nn.Module = spconv.SparseSequential(nn.Identity())
-        else:
-            self.proj = spconv.SparseSequential(
-                spconv.SubMConv3d(in_channels, out_channels, kernel_size=1, bias=False),
-                create_norm(norm, out_channels, **norm_kwargs) or nn.Identity(),
-            )
-
-        self.conv1 = spconv.SubMConv3d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
-            bias=bias,
-            indice_key=indice_key,
-        )
-        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
-        self.conv2 = spconv.SubMConv3d(
-            out_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
-            bias=bias,
-            indice_key=indice_key,
-        )
-        self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
-        self.act = create_act(act, **act_kwargs) or nn.Identity()
-
-    def forward(self, x: "SparseConvTensor") -> "SparseConvTensor":
-        residual = x
-        out = self.conv1(x)
-        out = out.replace_feature(self.act(self.norm1(out.features)))
-        out = self.conv2(out)
-        out = out.replace_feature(self.norm2(out.features))
-        out = out.replace_feature(self.act(out.features + self.proj(residual).features))
-        return out
 
 
 def _init_spunet_weights(m: nn.Module) -> None:

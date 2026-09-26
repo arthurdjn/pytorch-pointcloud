@@ -3207,19 +3207,19 @@
     "head.heatmap_head.0.conv.bias": [
       128
     ],
-    "head.heatmap_head.0.bn.weight": [
+    "head.heatmap_head.0.norm.weight": [
       128
     ],
-    "head.heatmap_head.0.bn.bias": [
+    "head.heatmap_head.0.norm.bias": [
       128
     ],
-    "head.heatmap_head.0.bn.running_mean": [
+    "head.heatmap_head.0.norm.running_mean": [
       128
     ],
-    "head.heatmap_head.0.bn.running_var": [
+    "head.heatmap_head.0.norm.running_var": [
       128
     ],
-    "head.heatmap_head.0.bn.num_batches_tracked": [],
+    "head.heatmap_head.0.norm.num_batches_tracked": [],
     "head.heatmap_head.1.weight": [
       10,
       128,
@@ -3234,66 +3234,6 @@
       10
     ],
     "head.class_encoding.bias": [
-      128
-    ],
-    "head.decoder.self_attn.in_proj_weight": [
-      384,
-      128
-    ],
-    "head.decoder.self_attn.in_proj_bias": [
-      384
-    ],
-    "head.decoder.self_attn.out_proj.weight": [
-      128,
-      128
-    ],
-    "head.decoder.self_attn.out_proj.bias": [
-      128
-    ],
-    "head.decoder.multihead_attn.in_proj_weight": [
-      384,
-      128
-    ],
-    "head.decoder.multihead_attn.in_proj_bias": [
-      384
-    ],
-    "head.decoder.multihead_attn.out_proj.weight": [
-      128,
-      128
-    ],
-    "head.decoder.multihead_attn.out_proj.bias": [
-      128
-    ],
-    "head.decoder.linear1.weight": [
-      256,
-      128
-    ],
-    "head.decoder.linear1.bias": [
-      256
-    ],
-    "head.decoder.linear2.weight": [
-      128,
-      256
-    ],
-    "head.decoder.linear2.bias": [
-      128
-    ],
-    "head.decoder.norm1.weight": [
-      128
-    ],
-    "head.decoder.norm1.bias": [
-      128
-    ],
-    "head.decoder.norm2.weight": [
-      128
-    ],
-    "head.decoder.norm2.bias": [
-      128
-    ],
-    "head.decoder.norm3.weight": [
-      128
-    ],
-    "head.decoder.norm3.bias": [
       128
     ],
     "head.decoder.self_posembed.lins.0.weight": [
@@ -3350,6 +3290,66 @@
       128
     ],
     "head.decoder.cross_posembed.norms.0.module.num_batches_tracked": [],
+    "head.decoder.layer.self_attn.in_proj_weight": [
+      384,
+      128
+    ],
+    "head.decoder.layer.self_attn.in_proj_bias": [
+      384
+    ],
+    "head.decoder.layer.self_attn.out_proj.weight": [
+      128,
+      128
+    ],
+    "head.decoder.layer.self_attn.out_proj.bias": [
+      128
+    ],
+    "head.decoder.layer.multihead_attn.in_proj_weight": [
+      384,
+      128
+    ],
+    "head.decoder.layer.multihead_attn.in_proj_bias": [
+      384
+    ],
+    "head.decoder.layer.multihead_attn.out_proj.weight": [
+      128,
+      128
+    ],
+    "head.decoder.layer.multihead_attn.out_proj.bias": [
+      128
+    ],
+    "head.decoder.layer.linear1.weight": [
+      256,
+      128
+    ],
+    "head.decoder.layer.linear1.bias": [
+      256
+    ],
+    "head.decoder.layer.linear2.weight": [
+      128,
+      256
+    ],
+    "head.decoder.layer.linear2.bias": [
+      128
+    ],
+    "head.decoder.layer.norm1.weight": [
+      128
+    ],
+    "head.decoder.layer.norm1.bias": [
+      128
+    ],
+    "head.decoder.layer.norm2.weight": [
+      128
+    ],
+    "head.decoder.layer.norm2.bias": [
+      128
+    ],
+    "head.decoder.layer.norm3.weight": [
+      128
+    ],
+    "head.decoder.layer.norm3.bias": [
+      128
+    ],
     "head.prediction_head.center.lins.0.weight": [
       64,
       128

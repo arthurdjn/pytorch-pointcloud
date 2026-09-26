@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models.randlanet import (
-    DilatedResidualBlock,
     RandLANetClassification,
     RandLANetDecoder,
     RandLANetEncoder,
@@ -71,19 +70,6 @@ def test_randlanet_random_max_pool(data: Dict[str, Tensor]) -> None:
     assert pos_decim.shape == (expected_n, 3)
     assert batch_decim.shape == (expected_n,)
     assert batch_decim.dtype == torch.long
-
-
-def test_randlanet_dilated_residual_block(data: Dict[str, Tensor], mlp_kwargs: Dict[str, Any]) -> None:
-    block = DilatedResidualBlock(d_in=6, d_out=8, num_neighbors=8, **mlp_kwargs)
-    x, pos, batch = block(data["features"], data["pos"], data["batch"])
-    assert x.shape == (data["features"].shape[0], 16)
-    assert pos.shape == data["pos"].shape
-    assert batch.shape == data["batch"].shape
-
-
-def test_randlanet_dilated_residual_block_odd_d_out_raises(mlp_kwargs: Dict[str, Any]) -> None:
-    with pytest.raises(ValueError, match="must be even"):
-        DilatedResidualBlock(d_in=6, d_out=7, num_neighbors=8, **mlp_kwargs)
 
 
 def test_randlanet_encoder_forward(data: Dict[str, Tensor], mlp_kwargs: Dict[str, Any]) -> None:

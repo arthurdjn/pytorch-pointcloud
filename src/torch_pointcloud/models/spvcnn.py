@@ -31,8 +31,8 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.layers.torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.utils.conversion import ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -202,101 +202,6 @@ def voxel_to_point(x: "SparseTensor", z: "PointTensor", nearest: bool = False) -
     return new_tensor
 
 
-class BasicBlock(nn.Module):
-    """Sparse 3D convolution followed by normalization and activation.
-
-    Set `transposed=True` for an upsampling (inverse) convolution.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        dilation: int = 1,
-        transposed: bool = False,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-
-        self.conv = spnn.Conv3d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            dilation=dilation,
-            stride=stride,
-            transposed=transposed,
-        )
-        self.norm = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
-        self.act = create_act(act, **act_kwargs) or nn.Identity()
-
-    def forward(self, x: "PointTensor") -> "PointTensor":
-        x = self.conv(x)
-        x.F = self.act(self.norm(x.F))
-        return x
-
-
-class ResidualBlock(nn.Module):
-    """Residual block of two sparse 3D convolutions.
-
-    A pointwise convolution projects the skip connection when the channel count or stride changes.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 1,
-        dilation: int = 1,
-        drop_path: float = 0.0,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__()
-        act_kwargs = act_kwargs or {}
-        norm_kwargs = norm_kwargs or {}
-
-        self.conv1 = spnn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=stride)
-        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
-        self.conv2 = spnn.Conv3d(out_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=1)
-        self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
-
-        self.conv_skip: Optional[nn.Module] = None
-        self.norm_skip: Optional[nn.Module] = None
-        if in_channels != out_channels or stride != 1:
-            self.conv_skip = spnn.Conv3d(in_channels, out_channels, kernel_size=1, dilation=1, stride=stride)
-            self.norm_skip = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
-
-        self.act = create_act(act, **act_kwargs) or nn.Identity()
-        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else None
-
-    def forward(self, x: "PointTensor") -> "PointTensor":
-        x_skip = x
-        x = self.conv1(x)
-        x.F = self.act(self.norm1(x.F))
-        x = self.conv2(x)
-        x.F = self.norm2(x.F)
-
-        if self.conv_skip is not None:
-            x_skip = self.conv_skip(x_skip)
-        if self.norm_skip is not None:
-            x_skip.F = self.norm_skip(x_skip.F)
-        if self.drop_path is not None:
-            x_skip.F = self.drop_path(x_skip.F)
-
-        x.F = self.act(x.F + x_skip.F)
-        return x
-
-
 class SPVFusionBlock(nn.Module):
     """Point-voxel fusion: devoxelizes the sparse features and adds a linear projection of the point branch.
 
@@ -344,7 +249,7 @@ class SPVCNNUpsampleBlock(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
-        self.conv = BasicBlock(
+        self.conv = TorchSparseConvBlock(
             in_channels,
             out_channels,
             kernel_size=2,
@@ -355,7 +260,7 @@ class SPVCNNUpsampleBlock(nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        self.residual = ResidualBlock(
+        self.residual = TorchSparseResidualBlock(
             out_channels + skip_channels,
             out_channels,
             kernel_size=kernel_size,
@@ -405,7 +310,7 @@ class SPVCNNEncoderBlock(nn.Module):
         self.blocks = nn.ModuleList()
         for i in range(depth):
             in_channels = in_channels if i == 0 else out_channels
-            block = ResidualBlock(
+            block = TorchSparseResidualBlock(
                 in_channels,
                 out_channels,
                 kernel_size=kernel_size,
@@ -469,7 +374,7 @@ class SPVCNNDecoderBlock(nn.Module):
 
         self.blocks = nn.ModuleList()
         for _ in range(depth):
-            block = ResidualBlock(
+            block = TorchSparseResidualBlock(
                 channels,
                 channels,
                 kernel_size=kernel_size,
@@ -564,7 +469,7 @@ class SPVCNNEncoder(nn.Module):
         # to that stage's voxel width.
         point_channels = channels[0]
         for i in range(self.num_blocks):
-            downsample = BasicBlock(
+            downsample = TorchSparseConvBlock(
                 channels[i],
                 channels[i],
                 kernel_size=2,
@@ -806,7 +711,7 @@ class SPVCNNClassification(ClassificationModel):
     def configure_stem(self) -> nn.Sequential:
         """Build the two-convolution sparse stem lifting the input features to `stem_channels`."""
         return nn.Sequential(
-            BasicBlock(
+            TorchSparseConvBlock(
                 self.in_channels or self.spatial_dim,
                 self.stem_channels,
                 kernel_size=3,
@@ -817,7 +722,7 @@ class SPVCNNClassification(ClassificationModel):
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
             ),
-            BasicBlock(
+            TorchSparseConvBlock(
                 self.stem_channels,
                 self.stem_channels,
                 kernel_size=3,
@@ -967,7 +872,7 @@ class SPVCNNSegmentation(SemanticSegmentationModel):
     def configure_stem(self) -> nn.Sequential:
         """Build the two-convolution sparse stem lifting the input features to `stem_channels`."""
         return nn.Sequential(
-            BasicBlock(
+            TorchSparseConvBlock(
                 self.in_channels or self.spatial_dim,
                 self.stem_channels,
                 kernel_size=3,
@@ -978,7 +883,7 @@ class SPVCNNSegmentation(SemanticSegmentationModel):
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
             ),
-            BasicBlock(
+            TorchSparseConvBlock(
                 self.stem_channels,
                 self.stem_channels,
                 kernel_size=3,

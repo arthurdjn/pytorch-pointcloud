@@ -17,7 +17,7 @@ from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers import CatPool, PoolLike, create_pool
 from torch_pointcloud.layers.tnet import DynamicTNet, TNet
-from torch_pointcloud.ops.cluster import knn
+from torch_pointcloud.ops.cluster import knn_graph
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size, is_iterable
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, OptTensor
@@ -36,7 +36,7 @@ class DGCNNEncoderBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: Union[int, Sequence[int]],
-        num_neighbors: Union[int, Sequence[int]],
+        num_neighbors: int,
         aggr: AggrType = "max",
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -62,7 +62,7 @@ class DGCNNEncoderBlock(nn.Module):
 
     def forward(self, x: Tensor, batch: Tensor, x_knn: Optional[Tensor] = None) -> Tensor:
         src = x_knn if x_knn is not None else x
-        edge_index = knn(src, src, self.k, batch_x=batch, batch_y=batch).flip([0])  # type: ignore[arg-type]
+        edge_index = knn_graph(src, self.k, batch=batch, loop=True)
         return self.conv(x, edge_index)
 
 

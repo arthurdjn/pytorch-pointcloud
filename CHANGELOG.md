@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Moved each family's convolution and blocks from `models` to `layers` (`kpconv_blocks`, `randlanet_blocks`, `point_transformer_conv`, `grouped_vector_attention`, `torchsparse_blocks`, `voxel_grid_pool`), and merged `pointconv` and `pointconv_sa` into `pointconv_blocks`. `DilatedResidualBlock` is `RandLANetResidualBlock`, `KPFCNNGridPool` is `VoxelGridPool`.
+- Rebuilt `KPConv`, `GroupedVectorAttention` and `AttentivePooling` on `MessagePassing`, taking `(x, pos, edge_index)` with `edge_index` as `[source, target]`; `KPConv` pools the neighbors per kernel point before the matrix products (up to 2x faster, 8x less memory).
+- Fixed `KPConv(bias=True)`, which registered a bias without adding it to the output.
+- Consolidated the duplicated blocks into `layers`: `PillarFeatureLayer`, `VoxelGridPool`, `SparseBasicBlock`, `TransformerEncoderLayer` and `TransformerDecoderLayer`.
+- Updated `XConv` to take `edge_index` as `[source, target]`, and DGCNN to build its feature graph with `knn_graph(loop=True)`.
+- Renamed state-dict keys of `second-multihead.nuscenes.openpcdet`, `voxelnext.nuscenes.openpcdet` and `lion-mamba.nuscenes.zhe-liu` (`bn` -> `norm`, LION decoder under `layer`).
+
 ## 0.0.9 (2026-09-26)
 
 - Moved the tensor operations of `torch_pointcloud.utils` (`box3d`, `cluster`, `density`, `geometry`, `heatmap`, `hilbert`, `octree`, `serialization`, `voxelization`) to a new `torch_pointcloud.ops` package, and dissolved `utils.ops`: `safe_divide` is in `ops.math`, `decimate` and `decimate_indices` in `ops.cluster`, `first_permutation` in `ops.voxelization` and `offset_index` in `utils.data`; `softmax` is replaced by `torch_geometric.utils.softmax`, and `pad_tail` is removed.

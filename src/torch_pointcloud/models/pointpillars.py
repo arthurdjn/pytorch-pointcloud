@@ -8,7 +8,6 @@ from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
@@ -19,6 +18,7 @@ from torch_pointcloud.layers.anchors import (
     MultiGroupAnchorHead,
 )
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
+from torch_pointcloud.layers.vfe import PillarFeatureLayer
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D
 
@@ -26,66 +26,11 @@ from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
 
 
-class PillarFeatureLayer(nn.Module):
-    r"""Single pillar feature-net layer: a per-point PyG `MLP` and pillar max-pool.
-
-    Mirrors the reference `PillarFeatureLayer`. For non-final layers the pooled feature is concatenated back
-    onto every point (so the output width is doubled before the next layer).
-
-    Args:
-        in_channels: Input feature channels per point.
-        out_channels: Output feature channels (halved internally for non-final layers).
-        last_layer: Whether this is the final layer (return the pooled feature directly).
-        act: Activation type or callable.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization type or callable.
-        norm_kwargs: Extra normalization arguments.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        last_layer: bool,
-        *,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        if not last_layer:
-            out_channels = out_channels // 2
-
-        self.last_vfe = last_layer
-        self.mlp = MLP(
-            [in_channels, out_channels],
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=False,
-            plain_last=False,
-        )
-
-    def forward(self, inputs: Tensor) -> Tensor:
-        p, n, _ = inputs.shape
-        # The per-point MLP (linear + norm + act) is applied over the flattened pillar-point axis;
-        # its BatchNorm normalizes each channel over $P \cdot N$, matching the reference permute.
-        x = self.mlp(inputs.reshape(p * n, -1)).reshape(p, n, -1)
-        x_max = torch.max(x, dim=1, keepdim=True)[0]
-        if self.last_vfe:
-            return x_max
-
-        x_repeat = x_max.repeat(1, inputs.shape[1], 1)
-        return torch.cat([x, x_repeat], dim=2)
-
-
 class PillarFeatureNet(nn.Module):
     r"""Pillar feature encoder (`PillarVFE`).
 
     Augments each point in a pillar with its offset to the pillar's point-cluster mean and to the
-    pillar center, then applies a stack of [`PillarFeatureLayer`][torch_pointcloud.models.pointpillars.PillarFeatureLayer]s.
+    pillar center, then applies a stack of [`PillarFeatureLayer`][torch_pointcloud.layers.vfe.PillarFeatureLayer]s.
 
     Args:
         in_channels: Raw point feature channels (e.g. $4$ for $x, y, z, \text{intensity}$).
@@ -120,7 +65,7 @@ class PillarFeatureNet(nn.Module):
             layer = PillarFeatureLayer(
                 num_filters[i],
                 num_filters[i + 1],
-                last_layer=(i >= len(num_filters) - 2),
+                last=(i >= len(num_filters) - 2),
                 act=act,
                 act_kwargs=act_kwargs,
                 norm=norm,

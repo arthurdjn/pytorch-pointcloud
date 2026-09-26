@@ -203,6 +203,78 @@ class SparseResidualBlock(SparseModule):
         return out.replace_feature(out.features + self.i_branch(identity).features)
 
 
+class SparseBasicBlock(SparseModule):
+    r"""Residual block of two submanifold sparse convolutions: conv, norm, act, conv, norm, add the input, act.
+
+    A pointwise submanifold convolution projects the skip connection when the channel count changes.
+
+    Args:
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        kernel_size: Kernel size of the two submanifold convolutions.
+        bias: Whether the two submanifold convolutions carry a bias.
+        indice_key: spconv index key shared by the two submanifold convolutions.
+        act: Activation passed to `create_act`.
+        act_kwargs: Extra keyword arguments for the activation.
+        norm: Normalization passed to `create_norm`.
+        norm_kwargs: Extra keyword arguments for the normalization.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        bias: bool = False,
+        indice_key: Optional[str] = None,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        act_kwargs = act_kwargs or {}
+        norm_kwargs = norm_kwargs or {}
+        padding = kernel_size // 2
+
+        if in_channels == out_channels:
+            self.proj: nn.Module = spconv.SparseSequential(nn.Identity())
+        else:
+            self.proj = spconv.SparseSequential(
+                spconv.SubMConv3d(in_channels, out_channels, kernel_size=1, bias=False),
+                create_norm(norm, out_channels, **norm_kwargs) or nn.Identity(),
+            )
+
+        self.conv1 = spconv.SubMConv3d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=bias,
+            indice_key=indice_key,
+        )
+        self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.conv2 = spconv.SubMConv3d(
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=bias,
+            indice_key=indice_key,
+        )
+        self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
+        self.act = create_act(act, **act_kwargs) or nn.Identity()
+
+    def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
+        residual = x
+        out = self.conv1(x)
+        out = out.replace_feature(self.act(self.norm1(out.features)))
+        out = self.conv2(out)
+        out = out.replace_feature(self.norm2(out.features))
+        out = out.replace_feature(self.act(out.features + self.proj(residual).features))
+        return out
+
+
 class SubMConv3dResidualBlock(SparseModule):
     r"""Residual block with a single $3\times3\times3$ submanifold convolution: conv, norm, add the input, act.
 
@@ -227,14 +299,14 @@ class SubMConv3dResidualBlock(SparseModule):
     ) -> None:
         super().__init__()
         self.conv1 = spconv.SubMConv3d(channels, channels, 3, padding=1, bias=True, indice_key=indice_key)
-        self.bn1 = create_norm(norm, channels, dim=1, **(norm_kwargs or {}))
+        self.norm1 = create_norm(norm, channels, dim=1, **(norm_kwargs or {}))
         self.act = create_act(act, **(act_kwargs or {}))
 
     def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
         out = self.conv1(x)
         feat = out.features
-        if self.bn1 is not None:
-            feat = self.bn1(feat)
+        if self.norm1 is not None:
+            feat = self.norm1(feat)
         feat = feat + x.features
         if self.act is not None:
             feat = self.act(feat)
