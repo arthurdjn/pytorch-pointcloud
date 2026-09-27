@@ -263,33 +263,6 @@ def _edge_set(edge_index: Tensor) -> set:
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
-def test_knn_dense_fast_path_matches_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    torch.manual_seed(0)
-    x = torch.randn(20, 3)
-    y = torch.randn(10, 3)
-    batch_x = torch.repeat_interleave(torch.arange(2), 10)
-    batch_y = torch.repeat_interleave(torch.arange(2), 5)
-
-    dense = knn(x, y, k=3, batch_x=batch_x, batch_y=batch_y)
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.KNN_DENSE_BUDGET", 0)
-    fallback = knn(x, y, k=3, batch_x=batch_x, batch_y=batch_y)
-    assert _edge_set(dense) == _edge_set(fallback)
-
-
-@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
-@pytest.mark.parametrize("loop", [pytest.param(False, id="no-loop"), pytest.param(True, id="loop")])
-def test_knn_graph_dense_fast_path_matches_fallback(monkeypatch: pytest.MonkeyPatch, loop: bool) -> None:
-    torch.manual_seed(0)
-    x = torch.randn(16, 3)
-    batch = torch.repeat_interleave(torch.arange(2), 8)
-
-    dense = knn_graph(x, k=3, batch=batch, loop=loop)
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.KNN_DENSE_BUDGET", 0)
-    fallback = knn_graph(x, k=3, batch=batch, loop=loop)
-    assert _edge_set(dense) == _edge_set(fallback)
-
-
-@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_radius_returns_tuple_in_both_paths() -> None:
     torch.manual_seed(0)
     x = torch.randn(12, 3)

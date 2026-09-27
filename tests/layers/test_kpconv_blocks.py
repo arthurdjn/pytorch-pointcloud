@@ -4,6 +4,7 @@ from typing import Dict
 import pytest
 import torch
 from torch import Tensor
+from torch_geometric.utils import scatter
 
 from torch_pointcloud.layers.kpconv_blocks import KPConv, KPConvBlock, KPResidualBlock, create_kernel_points
 
@@ -122,14 +123,18 @@ def test_kpconv_residual_block(data: Dict[str, Tensor]) -> None:
     assert output.shape == (len(data["pos"]), 32)
 
 
-def test_kpconv_dense_and_scatter_aggregation_agree(data: Dict[str, Tensor]) -> None:
-    conv = KPConv(spatial_dim=3, in_channels=3, out_channels=32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1)
-    conv.dense_fill_threshold = 0.0
+def test_kpconv_matches_per_edge_reference(data: Dict[str, Tensor]) -> None:
+    conv = KPConv(spatial_dim=3, in_channels=3, out_channels=32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, bias=True)
+    source, target = data["edge_index"]
     with torch.no_grad():
-        dense = conv(data["features"], data["pos"], data["edge_index"])
-        conv.dense_fill_threshold = 2.0
-        scatter = conv(data["features"], data["pos"], data["edge_index"])
-    assert torch.allclose(dense, scatter, atol=1e-5)
+        out = conv(data["features"], data["pos"], data["edge_index"])
+        weights = conv.message(data["pos"][target], data["pos"][source], None, None)  # (E, K)
+        x_j = data["features"][source]
+        expected = conv.bias.clone()
+        for k in range(conv.kernel_size):
+            pooled = scatter(x_j * weights[:, k : k + 1], target, dim=0, dim_size=len(data["pos"]), reduce="sum")
+            expected = expected + pooled @ conv.weight[k]
+    assert torch.allclose(out, expected, atol=1e-5)
 
 
 def test_kpconv_bias_is_added(data: Dict[str, Tensor]) -> None:
