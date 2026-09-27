@@ -113,7 +113,8 @@ class KPConv(MessagePassing):
         deformable: Whether to predict per-point kernel offsets.
         modulated: Whether the deformable branch also predicts a per-kernel-point modulation.
         bias: Whether to add a bias to the output.
-        track_running_stats: Whether to keep the deformable activations of the last forward pass, for regularization.
+        track_running_stats: Whether to keep the deformable statistics of the last forward pass (`running_min_d2`,
+            `running_deformed_kernel`, `running_offset_features`) for `losses.kpconv_deform_regularizer`.
 
     Shape:
         Input: $(N_s, C_\text{in})$ features, $(N, D)$ positions or a $((N_s, D), (N_t, D))$ pair, $(2, E)$ edge index
@@ -264,6 +265,8 @@ class KPConv(MessagePassing):
 
         offsets, modulations = self._compute_offsets(x_source, pos, edge_index)
         if offsets is not None:
+            if self.track_running_stats:
+                self.running_deformed_kernel = self.kernel + offsets  # (N_t, K, spatial_dim)
             # `MessagePassing` lifts node tensors along `node_dim=-2`, so the per-node offsets stay two-dimensional.
             offsets = offsets.flatten(1)
         # propagate_type: (x_source: Tensor, pos: PairTensor, offsets: OptTensor, modulations: OptTensor)
@@ -272,20 +275,27 @@ class KPConv(MessagePassing):
             out = out + self.bias
         return out
 
-    def message(self, pos_i: Tensor, pos_j: Tensor, offsets_i: OptTensor, modulations_i: OptTensor) -> Tensor:
+    def message(
+        self,
+        pos_i: Tensor,
+        pos_j: Tensor,
+        offsets_i: OptTensor,
+        modulations_i: OptTensor,
+        index: Tensor,
+        size_i: Optional[int],
+    ) -> Tensor:
         pos_rel = pos_j - pos_i  # (E, spatial_dim)
 
         if offsets_i is not None:
             offsets_i = offsets_i.view(-1, self.kernel_size, self.spatial_dim)
             kernel_points = self.kernel.unsqueeze(0) + offsets_i  # (E, K, spatial_dim)
-            if self.track_running_stats:
-                self.running_deformed_kernel = kernel_points
         else:
             kernel_points = self.kernel.unsqueeze(0).expand(pos_rel.size(0), -1, -1)
 
         sq_distances = torch.sum((pos_rel.unsqueeze(1) - kernel_points) ** 2, dim=-1)  # (E, K)
         if self.track_running_stats and self.deformable:
-            self.running_min_d2, _ = torch.min(sq_distances, dim=1)
+            # Squared distance from every deformed kernel point to its closest neighbor, per target: (N_t, K).
+            self.running_min_d2 = scatter(sq_distances, index, dim=0, dim_size=size_i, reduce="min")
 
         weights = self._compute_weights(sq_distances)
         if self.aggregation_mode == "closest":

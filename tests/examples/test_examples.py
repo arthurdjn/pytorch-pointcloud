@@ -221,6 +221,12 @@ TRAININGS = [
     pytest.param("kpconv_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_CLUSTER, id="kpconv/cls"),
     pytest.param("kpconv_segmentation.py", (*_SMOKE, "--dataset", "shapenetpart"), marks=_CLUSTER, id="kpconv/seg"),
     pytest.param(
+        "kpconv_segmentation.py",
+        (*_SMOKE, "--dataset", "shapenetpart", "--deformable"),
+        marks=_CLUSTER,
+        id="kpconv/seg-deform",
+    ),
+    pytest.param(
         "octformer_classification.py", (*_SMOKE, "--dataset", "modelnet10"), marks=_GPU_OCTREE, id="octformer/cls"
     ),
     pytest.param(

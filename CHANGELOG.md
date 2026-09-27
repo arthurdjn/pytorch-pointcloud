@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - Removed `FPS_RANDOM_START` (`TORCH_POINTCLOUD_FPS_RANDOM_START`), which is no longer needed as all models turn this off at eval time directly.
 - Removed `ops.cluster.decimate` (no longer used) and `decimate_indices`: RandLA-Net decimates with `torch_geometric`'s `decimation_indices`, drawn in eval from a random state forked and seeded by the input size, so a forward stays reproducible without a dedicated generator (value snapshot regenerated).
+- Added `losses.kpconv_deform_regularizer` and its module form `KPConvDeformRegularizer`, the fitting and repulsive regularizer of deformable `KPConv` layers, computed from the statistics they keep (`running_min_d2` is now the closest input point per kernel point, $(N, K)$, and the deformed kernel is stored per point); `examples/kpconv_segmentation.py` trains with it and the KPConv-PyTorch recipe (SGD 0.98, offsets at a tenth of the learning rate, per-epoch decay, clipped gradients, `--deformable`).
 
 ## 0.0.10 (2026-09-27)
 

@@ -128,7 +128,7 @@ def test_kpconv_matches_per_edge_reference(data: Dict[str, Tensor]) -> None:
     source, target = data["edge_index"]
     with torch.no_grad():
         out = conv(data["features"], data["pos"], data["edge_index"])
-        weights = conv.message(data["pos"][target], data["pos"][source], None, None)  # (E, K)
+        weights = conv.message(data["pos"][target], data["pos"][source], None, None, target, len(data["pos"]))  # (E, K)
         x_j = data["features"][source]
         expected = conv.bias.clone()
         for k in range(conv.kernel_size):
