@@ -12,13 +12,13 @@
         <meta name="author" content="Arthur Dujardin">
       
       
-        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/transforms/voxelization/">
+        <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/losses/kpconv/">
       
       
-        <link rel="prev" href="../utils/">
+        <link rel="prev" href="../threedetr/">
       
       
-        <link rel="next" href="../../utils/">
+        <link rel="next" href="../lovasz/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>voxelization - PyTorch PointCloud</title>
+        <title>KPConv - PyTorch PointCloud</title>
       
     
     
@@ -103,17 +103,17 @@
   
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PyTorch PointCloud">
-  <meta property="og:title" content="voxelization - PyTorch PointCloud">
+  <meta property="og:title" content="KPConv - PyTorch PointCloud">
   <meta property="og:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta property="og:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
   
-    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/transforms/voxelization/">
+    <meta property="og:url" content="https://pytorch-pointcloud.org/latest/api/losses/kpconv/">
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="voxelization - PyTorch PointCloud">
+  <meta name="twitter:title" content="KPConv - PyTorch PointCloud">
   <meta name="twitter:description" content="A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, in the style of timm and PyG. Independent of the PyTorch project.">
   <meta name="twitter:image" content="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/social-card.png">
   <meta name="twitter:image:alt" content="PyTorch PointCloud: deep learning on point clouds with PyTorch">
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.transforms.voxelization.VoxelMethod" class="md-skip">
+        <a href="#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer" class="md-skip">
           Skip to content
         </a>
       
@@ -298,7 +298,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              voxelization
+              KPConv
             
           </span>
         </div>
@@ -3146,6 +3146,8 @@
                 
   
   
+    
+  
   
   
     
@@ -3163,11 +3165,11 @@
     
       
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_7" checked>
         
           
           <label class="md-nav__link" for="__nav_7_7" id="__nav_7_7_label" tabindex="">
@@ -3187,7 +3189,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -3204,7 +3206,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -3231,7 +3233,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/anchor/" class="md-nav__link">
+      <a href="../anchor/" class="md-nav__link">
         
   
   
@@ -3258,7 +3260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/centerpoint/" class="md-nav__link">
+      <a href="../centerpoint/" class="md-nav__link">
         
   
   
@@ -3285,7 +3287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/chamfer/" class="md-nav__link">
+      <a href="../chamfer/" class="md-nav__link">
         
   
   
@@ -3312,7 +3314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/threedetr/" class="md-nav__link">
+      <a href="../threedetr/" class="md-nav__link">
         
   
   
@@ -3336,10 +3338,34 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../losses/kpconv/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  kpconv
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3354,6 +3380,49 @@
   
 
       </a>
+      
+        
+
+
+  
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        KPConvDeformRegularizer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.losses.kpconv.kpconv_deform_regularizer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        kpconv_deform_regularizer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3366,7 +3435,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/lovasz/" class="md-nav__link">
+      <a href="../lovasz/" class="md-nav__link">
         
   
   
@@ -3393,7 +3462,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/pointrcnn/" class="md-nav__link">
+      <a href="../pointrcnn/" class="md-nav__link">
         
   
   
@@ -3420,7 +3489,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/sum/" class="md-nav__link">
+      <a href="../sum/" class="md-nav__link">
         
   
   
@@ -3447,7 +3516,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/transfusion/" class="md-nav__link">
+      <a href="../transfusion/" class="md-nav__link">
         
   
   
@@ -3474,7 +3543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../losses/votenet/" class="md-nav__link">
+      <a href="../votenet/" class="md-nav__link">
         
   
   
@@ -5153,8 +5222,6 @@
                 
   
   
-    
-  
   
   
     
@@ -5172,11 +5239,11 @@
     
       
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_11" >
         
           
           <label class="md-nav__link" for="__nav_7_11" id="__nav_7_11_label" tabindex="">
@@ -5196,7 +5263,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_11_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7_11">
             <span class="md-nav__icon md-icon"></span>
             
@@ -5213,7 +5280,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../transforms/" class="md-nav__link">
         
   
   
@@ -5240,7 +5307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../augmentation/" class="md-nav__link">
+      <a href="../../transforms/augmentation/" class="md-nav__link">
         
   
   
@@ -5267,7 +5334,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../base/" class="md-nav__link">
+      <a href="../../transforms/base/" class="md-nav__link">
         
   
   
@@ -5294,7 +5361,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../box/" class="md-nav__link">
+      <a href="../../transforms/box/" class="md-nav__link">
         
   
   
@@ -5321,7 +5388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../functional/" class="md-nav__link">
+      <a href="../../transforms/functional/" class="md-nav__link">
         
   
   
@@ -5348,7 +5415,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../geometry/" class="md-nav__link">
+      <a href="../../transforms/geometry/" class="md-nav__link">
         
   
   
@@ -5375,7 +5442,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../masking/" class="md-nav__link">
+      <a href="../../transforms/masking/" class="md-nav__link">
         
   
   
@@ -5402,7 +5469,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mixing/" class="md-nav__link">
+      <a href="../../transforms/mixing/" class="md-nav__link">
         
   
   
@@ -5429,7 +5496,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../octree/" class="md-nav__link">
+      <a href="../../transforms/octree/" class="md-nav__link">
         
   
   
@@ -5456,7 +5523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sampling/" class="md-nav__link">
+      <a href="../../transforms/sampling/" class="md-nav__link">
         
   
   
@@ -5483,7 +5550,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../scaling/" class="md-nav__link">
+      <a href="../../transforms/scaling/" class="md-nav__link">
         
   
   
@@ -5510,7 +5577,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../utils/" class="md-nav__link">
+      <a href="../../transforms/utils/" class="md-nav__link">
         
   
   
@@ -5534,34 +5601,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-  voxelization
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="././" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../transforms/voxelization/" class="md-nav__link">
         
   
   
@@ -5576,104 +5619,6 @@
   
 
       </a>
-      
-        
-
-
-  
-
-<nav class="md-nav md-nav--secondary" aria-label="On this page">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      On this page
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.VoxelMethod" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        VoxelMethod
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.VoxelReduce" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        VoxelReduce
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.VoxelPosReduce" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        VoxelPosReduce
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.DivisiblePad" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        DivisiblePad
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.HardVoxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        HardVoxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.Voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        divisible_pad
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -6066,10 +6011,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.VoxelMethod" class="md-nav__link">
+  <a href="#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        VoxelMethod
+        KPConvDeformRegularizer
       </span>
     </span>
   </a>
@@ -6077,65 +6022,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.VoxelReduce" class="md-nav__link">
+  <a href="#torch_pointcloud.losses.kpconv.kpconv_deform_regularizer" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        VoxelReduce
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.VoxelPosReduce" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        VoxelPosReduce
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.DivisiblePad" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        DivisiblePad
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.HardVoxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        HardVoxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.Voxelize" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        Voxelize
-      </span>
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="md-nav__link">
-    <span class="md-ellipsis">
-      <span class="md-typeset">
-        divisible_pad
+        kpconv_deform_regularizer
       </span>
     </span>
   </a>
@@ -6197,7 +6087,7 @@
           
   
   <span class="md-ellipsis">
-    Transforms
+    Losses
   </span>
 
         </a>
@@ -6220,9 +6110,9 @@
   
 
 
-  <h1 id="__skip">voxelization</h1>
+  <h1 id="__skip">KPConv</h1>
 
-<p><a href="" id="torch_pointcloud.transforms.voxelization"></a></p>
+<p><a href="" id="torch_pointcloud.losses.kpconv"></a></p>
 
 
 <div class="doc doc-object doc-module">
@@ -6232,7 +6122,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>Transforms that voxelize the points or pad them to a voxel grid.</p>
+        <p>Fitting and repulsive regularizer of deformable kernel point convolutions.</p>
 
 
 
@@ -6246,33 +6136,13 @@
 <p><span class="doc-section-title">Classes:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DivisiblePad&lt;/span&gt;
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;KPConvDeformRegularizer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L198-L301&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.DivisiblePad">DivisiblePad</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/losses/kpconv.py#L62-L93&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer">KPConvDeformRegularizer</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Pad per-point tensors so each batch is divisible by <code>num_samples</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;HardVoxelize&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L304-L405&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.HardVoxelize">HardVoxelize</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Voxelize&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L408-L577&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.voxelization.Voxelize">Voxelize</a></code></b>
-          –
-          <div class="doc-md-description">
-            <p>Voxelize a point cloud by grid-binning and per-voxel reduction.</p>
+            <p>Module form of <code>kpconv_deform_regularizer</code>, to sit next to the task loss in a training loop.</p>
           </div>
         </li>
     </ul>
@@ -6280,718 +6150,97 @@
 
 
 
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.VoxelMethod" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">VoxelMethod</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
-  </span>
-
-<a href="#torch_pointcloud.transforms.voxelization.VoxelMethod" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">VoxelMethod</span> <span class="o">=</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s1">&#39;fnv&#39;</span><span class="p">,</span> <span class="s1">&#39;grid&#39;</span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Allowed values for <code>Voxelize.method</code> (voxel-id hashing scheme).</p>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.VoxelReduce" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">VoxelReduce</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
-  </span>
-
-<a href="#torch_pointcloud.transforms.voxelization.VoxelReduce" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">VoxelReduce</span> <span class="o">=</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;sum&#39;</span><span class="p">,</span> <span class="s1">&#39;first&#39;</span><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Allowed values for <code>Voxelize.reduce</code> (per-key per-voxel reduction).</p>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.VoxelPosReduce" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">VoxelPosReduce</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
-  </span>
-
-<a href="#torch_pointcloud.transforms.voxelization.VoxelPosReduce" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">VoxelPosReduce</span> <span class="o">=</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;sum&quot;</span><span class="p">,</span> <span class="s2">&quot;first&quot;</span><span class="p">,</span> <span class="s2">&quot;grid&quot;</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">]</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Allowed values for <code>Voxelize.pos_reduce</code> (per-voxel reduction for positions; <code>"grid"</code> keeps integer voxel coords).</p>
-
-    </div>
-
-</div>
-
-
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.DivisiblePad" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">DivisiblePad</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L198-L301" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.transforms.voxelization.DivisiblePad" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">DivisiblePad</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">num_samples</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">ref_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">batch_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.BATCH">BATCH</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">dst_inverse_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
-
-
-
-        <p>Pad per-point tensors so each batch is divisible by <code>num_samples</code>.</p>
-<p>Thin dict wrapper around <code>divisible_pad</code>; see its docstring for the full
-behavior of each <code>pad_fill</code> strategy (<code>"cycle"</code>, <code>"replicate"</code>, <code>"random"</code>).
-The tensor at <code>ref_key</code> defines the packed count <span class="arithmatex">\(n\)</span> and the device. If a
-batch index tensor lives at <code>batch_key</code>, padding is done per-batch; otherwise
-a single zero batch is synthesized. Every tensor in the dict whose first dim
-equals <span class="arithmatex">\(n\)</span> (positions, features, labels, ...) is re-indexed by the same
-gather map, so per-point correspondence is preserved.</p>
-<p>When <code>dst_inverse_key</code> is set, the transform also records a source-to-padded
-index map under that dict key: a 1-D long tensor of length <span class="arithmatex">\(n\)</span> with values
-in <span class="arithmatex">\([0, n_\text{padded})\)</span> giving the canonical padded row for each source
-row. If the key already holds a prior inverse map (from an earlier
-invertible transform), the new map composes with it via gather, so the
-stored tensor always maps from the outermost source space to the current
-predictor space. Consumers such as <code>SlidingWindowInferer</code> read this key
-once and gather predictions back to the source rows.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="torch_pointcloud.transforms.voxelization.DivisiblePad--__tabbed_1_1" name="torch_pointcloud.transforms.voxelization.DivisiblePad--__tabbed_1" type="radio" /><input id="torch_pointcloud.transforms.voxelization.DivisiblePad--__tabbed_1_2" name="torch_pointcloud.transforms.voxelization.DivisiblePad--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="torch_pointcloud.transforms.voxelization.DivisiblePad--__tabbed_1_1">Object</label><label for="torch_pointcloud.transforms.voxelization.DivisiblePad--__tabbed_1_2">Scene</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p><img alt="DivisiblePad on an object" src="../../../assets/transforms/divisible_pad.png" /></p>
-</div>
-<div class="tabbed-block">
-<p><img alt="DivisiblePad on a room" src="../../../assets/transforms/divisible_pad_scene.png" /></p>
-</div>
-</div>
-</div>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
+<p><span class="doc-section-title">Functions:</span></p>
     <ul>
-        <li class="doc-section-item field-body">
-            <b><code>num_samples</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Target chunk size <span class="arithmatex">\(k\)</span> for divisibility.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pad_fill</code></b>
-              (<code><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></code>, default:
-                  <code>&#39;cycle&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Fill strategy passed through to <code>divisible_pad</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>ref_key</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Key whose tensor defines <span class="arithmatex">\(n\)</span> and the device.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>batch_key</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code><span title="torch_pointcloud.utils.data.DataKeys.BATCH">BATCH</span></code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Key for an optional batch index tensor. When present in the
-data, padding runs per-batch; otherwise a single zero batch is
-synthesized for the whole scene.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>seed</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Seed for the random padding (only used when <code>pad_fill="random"</code>);
-<code>None</code> draws from the global generator (see <code>Randomizable</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>dst_inverse_key</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Key for the source-to-padded row map (see the module docs on sampling keys); composes
-with any prior value at the same key. <code>None</code> (the default) disables it.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>allow_missing_keys</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>If <code>True</code>, return the data unchanged when <code>ref_key</code>
-is missing instead of raising.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<details class="example" open>
-  <summary>Example</summary>
-  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">DivisiblePad</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Pad a 5000-point block to 8192 (= 2 * 4096) before sliding-window</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># sub-chunking. Random fill duplicates points uniformly at random.</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">transform</span> <span class="o">=</span> <span class="n">DivisiblePad</span><span class="p">(</span><span class="n">num_samples</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span> <span class="n">pad_fill</span><span class="o">=</span><span class="s2">&quot;random&quot;</span><span class="p">)</span>
-</code></pre></div>
-</details>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.HardVoxelize" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">HardVoxelize</span>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;kpconv_deform_regularizer&lt;/span&gt;
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L304-L405" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.transforms.voxelization.HardVoxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">HardVoxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">voxel_size</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">point_cloud_range</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">max_num_points</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">max_num_voxels</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">feature_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">dst_voxel_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.VOXEL">VOXEL</span></span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">dst_pos_voxel_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.POS_VOXEL">POS_VOXEL</span></span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">dst_num_points_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.VOXEL_NUM_POINTS">VOXEL_NUM_POINTS</span></span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
-
-
-
-        <p>Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.</p>
-<p>Moves the <code>transform_points_to_voxels</code> step of voxel detectors (PointPillars, SECOND) out of the
-model and into the data pipeline, mirroring how <code>BuildOctree</code> produces an octree for OctFormer.
-The model then receives already-voxelized input and focuses on the network math.</p>
-<p>Reads <code>pos_key</code> (and optionally <code>feature_key</code>), runs
-<code>hard_voxelize</code> on the single sample (the
-batch index is all zeros), and adds three keys while keeping <code>pos</code> / <code>x</code>:</p>
-<ul>
-<li><code>dst_voxel_key</code>: the per-voxel point stack.</li>
-<li><code>dst_pos_voxel_key</code>: integer voxel grid indices <span class="arithmatex">\((z, y, x)\)</span> (the single-sample batch column is dropped;
-  the per-voxel scene index is synthesized at collation).</li>
-<li><code>dst_num_points_key</code>: the per-voxel point counts.</li>
-</ul>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="torch_pointcloud.transforms.voxelization.HardVoxelize--__tabbed_1_1" name="torch_pointcloud.transforms.voxelization.HardVoxelize--__tabbed_1" type="radio" /><input id="torch_pointcloud.transforms.voxelization.HardVoxelize--__tabbed_1_2" name="torch_pointcloud.transforms.voxelization.HardVoxelize--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="torch_pointcloud.transforms.voxelization.HardVoxelize--__tabbed_1_1">Object</label><label for="torch_pointcloud.transforms.voxelization.HardVoxelize--__tabbed_1_2">Scene</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p><img alt="HardVoxelize on an object" src="../../../assets/transforms/hard_voxelize.png" /></p>
-</div>
-<div class="tabbed-block">
-<p><img alt="HardVoxelize on a room" src="../../../assets/transforms/hard_voxelize_scene.png" /></p>
-</div>
-</div>
-</div>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>pos_key</code></b>
-              (<code><span title="str">str</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Key holding the point positions <span class="arithmatex">\((N, 3)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>voxel_size</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel size <span class="arithmatex">\((v_x, v_y, v_z)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>point_cloud_range</code></b>
-              (<code><span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]</code>)
-          –
-          <div class="doc-md-description">
-            <p>Range <span class="arithmatex">\((x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_num_points</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Maximum number of points kept per voxel.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>max_num_voxels</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Maximum number of voxels kept per scene.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>feature_key</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Optional key holding extra point features <span class="arithmatex">\((N, C)\)</span> concatenated after <span class="arithmatex">\(xyz\)</span>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>dst_voxel_key</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code><span title="torch_pointcloud.utils.data.DataKeys.VOXEL">VOXEL</span></code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Output key for the per-voxel point stack.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>dst_pos_voxel_key</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code><span title="torch_pointcloud.utils.data.DataKeys.POS_VOXEL">POS_VOXEL</span></code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Output key for the integer voxel grid indices.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>dst_num_points_key</code></b>
-              (<code><span title="str">str</span></code>, default:
-                  <code><span title="torch_pointcloud.utils.data.DataKeys.VOXEL_NUM_POINTS">VOXEL_NUM_POINTS</span></code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Output key for the per-voxel point counts.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>allow_missing_keys</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Unused (<code>pos_key</code> is always required); kept for interface parity.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<details class="shape" open>
-  <summary>Shape</summary>
-  <ul>
-<li><code>dst_voxel_key</code>: <span class="arithmatex">\((V, \text{max\_num\_points}, 3 + C)\)</span>.</li>
-<li><code>dst_pos_voxel_key</code>: <span class="arithmatex">\((V, 3)\)</span> with columns <span class="arithmatex">\((z, y, x)\)</span>.</li>
-<li><code>dst_num_points_key</code>: <span class="arithmatex">\((V,)\)</span>.</li>
-</ul>
-</details>
-
-<details class="example" open>
-  <summary>Example</summary>
-  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;pos&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">50.0</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">)}</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">transform</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">HardVoxelize</span><span class="p">(</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">pos_key</span><span class="o">=</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">feature_key</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">voxel_size</span><span class="o">=</span><span class="p">(</span><span class="mf">0.16</span><span class="p">,</span> <span class="mf">0.16</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">),</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">point_cloud_range</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">39.68</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.0</span><span class="p">,</span> <span class="mf">69.12</span><span class="p">,</span> <span class="mf">39.68</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">max_num_points</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">max_num_voxels</span><span class="o">=</span><span class="mi">40000</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">)</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">data</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;voxel&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pos_voxel&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;voxel_num_points&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-</code></pre></div>
-</details>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="torch_pointcloud.transforms.voxelization.Voxelize" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">Voxelize</span>
-
-  
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L408-L577" title="View source on GitHub">[source]</a>
-
-<a href="#torch_pointcloud.transforms.voxelization.Voxelize" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">Voxelize</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pos_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">pos_reduce</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelPosReduce&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelPosReduce">VoxelPosReduce</a></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">size</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">method</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelMethod&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelMethod">VoxelMethod</a></span> <span class="o">=</span> <span class="s2">&quot;grid&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">reduce</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch_pointcloud.utils.types.ValueCollection">ValueCollection</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelReduce&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelReduce">VoxelReduce</a></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">keys</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">dst_inverse_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">dst_pos_grid_key</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">random_first</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-            <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/base.py#L207-L272&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
-
-
-
-        <p>Voxelize a point cloud by grid-binning and per-voxel reduction.</p>
-<p>Sub-samples a point cloud to one representative point per occupied voxel,
-and optionally records a source-to-voxel index map for full-resolution
-back-projection.</p>
-<p>Operates on a single sample (pre-collate). With <code>dst_inverse_key</code> set, the stored
-tensor has shape <span class="arithmatex">\((N_\text{full},)\)</span> with values in <span class="arithmatex">\([0, N_\text{voxel})\)</span>:
-for each original point <span class="arithmatex">\(i\)</span>, the voxel it belongs to. Downstream code can
-recover full-resolution predictions with <code>preds_full = preds_voxel[inverse]</code>.</p>
-<p>If the key already holds a prior inverse map (e.g. from an earlier
-invertible transform), the new map composes with it via gather, so the
-stored tensor always maps from the outermost source space to the current
-predictor space.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="torch_pointcloud.transforms.voxelization.Voxelize--__tabbed_1_1" name="torch_pointcloud.transforms.voxelization.Voxelize--__tabbed_1" type="radio" /><input id="torch_pointcloud.transforms.voxelization.Voxelize--__tabbed_1_2" name="torch_pointcloud.transforms.voxelization.Voxelize--__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="torch_pointcloud.transforms.voxelization.Voxelize--__tabbed_1_1">Object</label><label for="torch_pointcloud.transforms.voxelization.Voxelize--__tabbed_1_2">Scene</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<p><img alt="Voxelize on an object" src="../../../assets/transforms/voxelize.png" /></p>
-</div>
-<div class="tabbed-block">
-<p><img alt="Voxelize on a room" src="../../../assets/transforms/voxelize_scene.png" /></p>
-</div>
-</div>
-</div>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>pos_key</code></b>
-              (<code><span title="str">str</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Key holding the positions to sub-sample.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>pos_reduce</code></b>
-              (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelPosReduce&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelPosReduce">VoxelPosReduce</a></code>)
-          –
-          <div class="doc-md-description">
-            <p>How to reduce positions per voxel (<code>mean</code>/<code>min</code>/<code>max</code>/<code>sum</code>/<code>first</code>/<code>grid</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>size</code></b>
-              (<code><span title="float">float</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Voxel edge length in the same units as the positions. Must be positive.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>method</code></b>
-              (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelMethod&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelMethod">VoxelMethod</a></code>, default:
-                  <code>&#39;grid&#39;</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>How voxel ids are computed, which fixes the output voxel order: <code>grid</code> (the default) uses the
-linear grid index, <code>fnv</code> an FNV-1a hash of the grid coordinates, as hash-based reference pipelines do.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>reduce</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch_pointcloud.utils.types.ValueCollection">ValueCollection</span>[<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-attribute&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-attribute-name&quot;&gt;VoxelReduce&lt;/span&gt;
-
-
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-module-attribute&quot;&gt;&lt;code&gt;module-attribute&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#torch_pointcloud.transforms.voxelization.VoxelReduce">VoxelReduce</a>]]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Per-key reduction for <code>keys</code>. <code>None</code> (the default) resolves per key to <code>mean</code> for
-floating-point tensors and <code>first</code> for integer tensors (e.g. <code>segment</code>). Integer keys keep
-their dtype: non-<code>first</code> reductions compute in float and cast back. The <code>first</code>
-representative is the first point of each voxel in input order, deterministic across
-devices (unless <code>random_first=True</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>keys</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Additional per-point keys to sub-sample (e.g. <code>color</code>, <code>segment</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>dst_inverse_key</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Key for the source-to-voxel row map (see the module docs on sampling keys); composes
-with any prior value at the same key. <code>None</code> (the default) disables it.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>dst_pos_grid_key</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>When set, also store the integer voxel-grid coordinates under this key. Useful when a
-model needs both real-valued positions (e.g. for rotary position embedding) and integer grid
-coordinates (for serialization / sparse-conv stems); with <code>pos_reduce="grid"</code> it holds the same grid
-as <code>pos_key</code>.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>random_first</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>If <code>True</code>, the per-voxel representative used by <code>reduce="first"</code>
-(and the <code>pos</code>/<code>grid_pos</code> derivations) is chosen <em>randomly</em> within each
-voxel on every call. Per-voxel random sampling is a meaningful
-training augmentation; leave
-<code>False</code> (default) for deterministic validation.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>seed</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Seed for the random voxel representative (<code>random_first</code>);
-<code>None</code> draws from the global generator (see <code>Randomizable</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>allow_missing_keys</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>If <code>True</code>, return the data unchanged when <code>pos_key</code> is missing and skip absent <code>keys</code>.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Raises:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><span title="ValueError">ValueError</span></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/losses/kpconv.py#L10-L59&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.kpconv.kpconv_deform_regularizer">kpconv_deform_regularizer</a></code></b>
             –
+            <div class="doc-md-description">
+              <p>Regularize the deformed kernel points of every deformable <code>KPConv</code> in <code>module</code>.</p>
+            </div>
+          </li>
+    </ul>
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.losses.kpconv.KPConvDeformRegularizer" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">KPConvDeformRegularizer</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/losses/kpconv.py#L62-L93" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">KPConvDeformRegularizer</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">fitting_power</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">repulse_extent</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+        <p>Module form of <code>kpconv_deform_regularizer</code>, to sit next to the task loss in a training loop.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>fitting_power</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
+)
+          –
           <div class="doc-md-description">
-            <p>If <code>size</code> is not positive, or <code>pos_reduce</code> / <code>method</code> / any <code>reduce</code> entry is
-not one of its allowed values.</p>
+            <p>Weight of the whole term.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>repulse_extent</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Distance, in units of <code>kp_sigma</code>, below which kernel points repel each other.</p>
           </div>
         </li>
     </ul>
 
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConv</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConvDeformRegularizer</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">conv</span> <span class="o">=</span> <span class="n">KPConv</span><span class="p">(</span><span class="n">spatial_dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">in_channels</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">kp_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">kp_sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">deformable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="p">(</span><span class="mi">128</span><span class="p">,))])</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">out</span> <span class="o">=</span> <span class="n">conv</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">pos</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">KPConvDeformRegularizer</span><span class="p">(</span><span class="n">repulse_extent</span><span class="o">=</span><span class="mf">1.2</span><span class="p">)(</span><span class="n">conv</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">([])</span>
+</code></pre></div>
+</details>
 
 
 
@@ -7030,158 +6279,58 @@ not one of its allowed values.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="torch_pointcloud.transforms.voxelization.divisible_pad" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">divisible_pad</span>
+<h3 id="torch_pointcloud.losses.kpconv.kpconv_deform_regularizer" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">kpconv_deform_regularizer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/transforms/voxelization.py#L63-L195" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/346fda47edad73e83db412e642b120b387b59793/src/torch_pointcloud/losses/kpconv.py#L10-L59" title="View source on GitHub">[source]</a>
 
-<a href="#torch_pointcloud.transforms.voxelization.divisible_pad" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-          <div class="doc-overloads">
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">divisible_pad</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">divisible_pad</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="kc">True</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-</code></pre></div>          </div>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">divisible_pad</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">mode</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pad_fill</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></span> <span class="o">=</span> <span class="s2">&quot;cycle&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">return_inverse</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Union">Union</span></span><span class="p">[</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">]</span>
+<a href="#torch_pointcloud.losses.kpconv.kpconv_deform_regularizer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">kpconv_deform_regularizer</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">module</span><span class="p">:</span> <span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">fitting_power</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">repulse_extent</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Pad the batch indices of a tensor to make them divisible by a given integer.</p>
-<p>Consider a batch with three samples of sizes 2, 7, and 4, and <code>k=4</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>batch:  [0 0 | 1 1 1 1 1 1 1 | 2 2 2 2]
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>size:     2          7            4
-</code></pre></div>
-<p><strong>Mode</strong> controls <em>which</em> batches get padded (<code>·</code> = padded slot):</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mode=&quot;all&quot;    [0 0 · · | 1 1 1 1 1 1 1 · | 2 2 2 2]
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                 2→4          7→8             4 (ok)
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>mode=&quot;below&quot;  [0 0 · · | 1 1 1 1 1 1 1 | 2 2 2 2]
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>                 2→4  ↑        7 (≥k)       4 (ok)
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>                only &lt;k
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>mode=&quot;above&quot;  [0 0 | 1 1 1 1 1 1 1 · | 2 2 2 2]
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                2        7→8  ↑           4 (ok)
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>              (&lt;k)      only ≥k
-</code></pre></div>
-<p><strong>Pad fill</strong> controls <em>how</em> padded slots are filled.  Given batch 1
-with 7 elements (<code>A B C D E F G</code>) and <code>k=4</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Original patches:  [A B C D] [E F G ·]
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                    patch₀    patch₁ (incomplete)
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>pad_fill=&quot;cycle&quot;      → [A B C D] [E F G A]
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  Cycles from the start                  ↑ wraps to A
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>pad_fill=&quot;replicate&quot;  → [A B C D] [E F G D]
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  Copies from previous patch             ↑ same position as D
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  at same offset
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>pad_fill=&quot;random&quot;     → [A B C D] [E F G ?]
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  Random sample from the batch           ↑ uniform over {A..G}
-</code></pre></div>
-<p>When <code>batch_size &lt; k</code> there is no previous patch, so <code>"replicate"</code>
-falls back to <code>"cycle"</code>:</p>
-<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>batch 0 (size 2, k=4):  [A B · ·]
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pad_fill=&quot;cycle&quot;      → [A B A B]
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pad_fill=&quot;replicate&quot;  → [A B A B]   (same, no prior patch)
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>pad_fill=&quot;random&quot;     → [A B ? ?]
-</code></pre></div>
+        <p>Regularize the deformed kernel points of every deformable <code>KPConv</code> in <code>module</code>.</p>
+<p>The point-to-point regularizer of <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1904.08889">KPConv</a>: a fitting term pulls
+every deformed kernel point towards its closest input point, a repulsive term keeps the kernel points of one
+location further apart than <code>repulse_extent</code>. Both read the statistics the layers keep from their last
+forward pass (<code>running_min_d2</code>, <code>running_deformed_kernel</code>), so call it after the forward and before the
+backward of the same batch. Distances are expressed in units of each layer's <code>kp_sigma</code>.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
-              (<code><span title="torch.Tensor">Tensor</span></code>)
+            <b><code>module</code></b>
+              (<code><span title="torch.nn.Module">Module</span></code>)
           –
           <div class="doc-md-description">
-            <p>The batch indices of the tensor. Rows of the same batch must be contiguous (grouped, as
-produced by packed-batch collation); the batch values themselves may be non-consecutive.
-Interleaved orderings (e.g. <code>[0, 1, 0, 1]</code>) are not supported and silently mix samples.</p>
+            <p>Model holding the <code>KPConv</code> layers.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>k</code></b>
-              (<code><span title="int">int</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>The integer to make the batch indices divisible by.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>mode</code></b>
-              (<code><span title="torch_pointcloud.transforms.voxelization.PadMode">PadMode</span></code>, default:
-                  <code>&#39;all&#39;</code>
+            <b><code>fitting_power</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
 )
           –
           <div class="doc-md-description">
-            <p>The mode to use for padding.
-- <code>"below"</code>: Pad only batches with fewer than <code>k</code> elements.
-- <code>"above"</code>: Pad only batches with <code>k</code> or more elements.
-- <code>"all"</code>: Pad all batches to be divisible by <code>k</code>.</p>
+            <p>Weight of the whole term.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>pad_fill</code></b>
-              (<code><span title="torch_pointcloud.transforms.voxelization.PadFill">PadFill</span></code>, default:
-                  <code>&#39;cycle&#39;</code>
+            <b><code>repulse_extent</code></b>
+              (<code><span title="float">float</span></code>, default:
+                  <code>1.0</code>
 )
           –
           <div class="doc-md-description">
-            <p>Strategy for filling padding slots.
-- <code>"cycle"</code>: Cycle through original indices from the start of
-  the batch (<code>indices[0], indices[1], ...</code>).
-- <code>"replicate"</code>: Copy indices from the previous patch at the
-  same relative offset.  When the last group of <code>k</code> elements is
-  incomplete, the missing positions are filled with the
-  corresponding positions from the preceding full group.  Falls
-  back to <code>"cycle"</code> when there is no preceding group (i.e. the
-  batch has fewer than <code>k</code> elements).
-- <code>"random"</code>: Sample padded indices uniformly with replacement from
-  within the batch's original indices. Consumes <code>generator</code> if given.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>return_inverse</code></b>
-              (<code><span title="bool">bool</span></code>, default:
-                  <code>False</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Whether to return the inverse of the padded indices.</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>generator</code></b>
-              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Generator">Generator</span>]</code>, default:
-                  <code>None</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>Optional <code>torch.Generator</code> for reproducibility (used only by
-<code>pad_fill="random"</code>).</p>
+            <p>Distance, in units of <code>kp_sigma</code>, below which kernel points repel each other.</p>
           </div>
         </li>
     </ul>
@@ -7190,21 +6339,35 @@ Interleaved orderings (e.g. <code>[0, 1, 0, 1]</code>) are not supported and sil
 <p><span class="doc-section-title">Returns:</span></p>
     <ul>
         <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
+              <code><span title="torch.Tensor">Tensor</span></code>
           –
           <div class="doc-md-description">
-            <p>Returns a tuple of <code>(indices, padded_batch)</code>.</p>
+            <p>A scalar, <code>fitting_power * (2 * fitting + repulsive)</code> summed over the deformable layers, zero when</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-              <code><span title="typing.Union">Union</span>[<span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>], <span title="typing.Tuple">Tuple</span>[<span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>, <span title="torch.Tensor">Tensor</span>]]</code>
+              <code><span title="torch.Tensor">Tensor</span></code>
           –
           <div class="doc-md-description">
-            <p>If <code>return_inverse</code> is <code>True</code>, returns <code>(indices, inverse_indices, padded_batch)</code>.</p>
+            <p><code>module</code> has none.</p>
           </div>
         </li>
     </ul>
 
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConv</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">kpconv_deform_regularizer</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">conv</span> <span class="o">=</span> <span class="n">KPConv</span><span class="p">(</span><span class="n">spatial_dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">in_channels</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">kp_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">kp_sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">deformable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="p">(</span><span class="mi">128</span><span class="p">,))])</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">out</span> <span class="o">=</span> <span class="n">conv</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">pos</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">kpconv_deform_regularizer</span><span class="p">(</span><span class="n">conv</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">([])</span>
+</code></pre></div>
+</details>
 
     </div>
 
@@ -7260,7 +6423,7 @@ Interleaved orderings (e.g. <code>[0, 1, 0, 1]</code>) are not supported and sil
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../utils/" class="md-footer__link md-footer__link--prev" aria-label="Previous: utils">
+          <a href="../threedetr/" class="md-footer__link md-footer__link--prev" aria-label="Previous: threedetr">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -7270,20 +6433,20 @@ Interleaved orderings (e.g. <code>[0, 1, 0, 1]</code>) are not supported and sil
                 Previous
               </span>
               <div class="md-ellipsis">
-                utils
+                threedetr
               </div>
             </div>
           </a>
         
         
           
-          <a href="../../utils/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+          <a href="../lovasz/" class="md-footer__link md-footer__link--next" aria-label="Next: lovasz">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Overview
+                lovasz
               </div>
             </div>
             <div class="md-footer__button md-icon">

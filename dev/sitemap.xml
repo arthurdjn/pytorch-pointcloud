@@ -301,6 +301,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/threedetr/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/kpconv/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/lovasz/</loc>
       </url>
       <url>
