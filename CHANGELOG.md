@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `radius(..., sort=True)` materializing the full distance matrix on CUDA, where the kernel already returns the smallest source indices (3DETR inference 244 -> 46 ms, 5.3 -> 0.6 GB).
 - Removed `KNN_DENSE_BUDGET` and the dense `cdist` path of `knn` / `knn_graph`, which wrap the `torch_geometric` kernel; `group` orders every neighborhood closest first (six pretraining value snapshots regenerated: one patch had two near-equidistant neighbors in the other order).
 - Removed `KPConv.dense_fill_threshold`: the padded neighbor table is the only aggregation path.
+- Added `PatchLayout` / `patch_layout`: the PTv3 encoder and decoder build the padding and patch offsets once per stage and pass them to the serialized-attention blocks, which also accept them through `patch_layout=`; `divisible_pad` and `split_batch` are vectorized. PTv3 inference 95.7 -> 83.6 ms, training step 390 -> 374 ms, identical outputs.
 
 ## 0.0.9 (2026-09-26)
 

@@ -20,6 +20,7 @@ from torch_pointcloud.layers.grid_pool import GridPool
 from torch_pointcloud.layers.linear_blocks import LinearBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.serialized_attention import (
+    PatchLayout,
     SerializedAttention,
     SerializedAttentionRoPE,
     SerializedAttentionRPE,
@@ -72,7 +73,7 @@ def _build_attention(
     upcast_attn: bool,
     upcast_softmax: bool,
     rope_base: float,
-) -> nn.Module:
+) -> Union[SerializedAttention, SerializedAttentionRPE, SerializedAttentionRoPE]:
     if attn_kind == "default":
         return SerializedAttention(
             channels=channels,
@@ -274,6 +275,7 @@ class PointTransformerV3Block(nn.Module):
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
         condition: Optional[str] = None,
+        patch_layout: Optional[PatchLayout] = None,
     ) -> Tuple[Tensor, Any]:
         norm_kwargs = {} if condition is None else {"condition": condition}
         shortcut = x
@@ -291,6 +293,7 @@ class PointTransformerV3Block(nn.Module):
             serialized_order=serialized_order,
             serialized_inverse=serialized_inverse,
             pos=pos,
+            patch_layout=patch_layout,
         )
         x = self.drop_path(x)
         x = shortcut + x
@@ -447,6 +450,11 @@ class PointTransformerV3EncoderBlock(nn.Module):
 
         assert x is not None
         x_sparse = convert_to_spconv_tensor(x, pos_grid, batch)
+        layout: Optional[PatchLayout] = None
+        if len(self.blocks):
+            first = self.blocks[0]
+            assert isinstance(first, PointTransformerV3Block)
+            layout = first.attn.patch_layout(batch)
         for i, block in enumerate(self.blocks):
             order_idx = i % num_serializations
             x, x_sparse = block(
@@ -458,6 +466,7 @@ class PointTransformerV3EncoderBlock(nn.Module):
                 serialized_inverse=serialized_inverse[order_idx],
                 pos=pos,
                 condition=condition,
+                patch_layout=layout,
             )
 
         if return_inverse:
@@ -555,6 +564,11 @@ class PointTransformerV3DecoderBlock(nn.Module):
             x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True, condition=condition)
 
         x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
+        layout: Optional[PatchLayout] = None
+        if len(self.blocks):
+            first = self.blocks[0]
+            assert isinstance(first, PointTransformerV3Block)
+            layout = first.attn.patch_layout(batch_skip)
         for i, block in enumerate(self.blocks):
             order_idx = i % num_serializations
             x, x_sparse = block(
@@ -566,6 +580,7 @@ class PointTransformerV3DecoderBlock(nn.Module):
                 serialized_inverse=serialized_inverse_skip[order_idx],
                 pos=pos_skip,
                 condition=condition,
+                patch_layout=layout,
             )
 
         return x, pos_grid_skip, batch_skip

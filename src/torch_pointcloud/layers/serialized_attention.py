@@ -1,7 +1,7 @@
 """Serialized attention variants used by Point Transformer V3 and descendants."""
 
 import math
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, TypedDict
 
 import torch
 import torch.nn as nn
@@ -51,22 +51,65 @@ def split_batch(batch: Tensor, max_size: int) -> Tensor:
         ```
     """
     device = batch.device
-    _, batch_counts = torch.unique(batch, return_counts=True)
-    sub_counts = torch.div(batch_counts + max_size - 1, max_size, rounding_mode="floor")
-    sub_offsets = torch.cumsum(torch.cat([torch.zeros(1, device=device, dtype=torch.long), sub_counts[:-1]]), dim=0)
-    sub_idxs = torch.zeros_like(batch)
+    _, counts = torch.unique(batch, return_counts=True)
+    sub_counts = torch.div(counts + max_size - 1, max_size, rounding_mode="floor")
+    sub_offsets = torch.cumsum(sub_counts, dim=0) - sub_counts
+    start = torch.cumsum(counts, dim=0) - counts
+    group = torch.repeat_interleave(torch.arange(counts.numel(), device=device), counts, output_size=batch.numel())
+    position = torch.arange(batch.numel(), device=device) - start[group]
+    return sub_offsets[group] + torch.div(position, max_size, rounding_mode="floor")
 
-    offset = 0
-    for i, batch_count in enumerate(batch_counts):
-        idxs = slice(offset, offset + batch_count)
-        # Get the relative sub-batch indices (starting from 0)
-        relative_sub_idxs = torch.div(torch.arange(batch_count, device=device), max_size, rounding_mode="floor")
-        # Assign the relative sub-batch indices,
-        # making sure they are contiguous from already assigned sub-batches
-        sub_idxs[idxs] = relative_sub_idxs + sub_offsets[i]
-        offset += batch_count
 
-    return sub_idxs
+class PatchLayout(TypedDict):
+    r"""Padding and patch offsets of one point set for serialized attention.
+
+    Every block of a stage attends over the same points, so the encoder builds this once per stage with
+    `patch_layout` and hands it to its blocks instead of recomputing it in every attention call.
+
+    Attributes:
+        padded_indices: Row of every padded slot, shape $(N_p,)$.
+        unpadded_indices: Padded slot of every row, shape $(N,)$.
+        padded_batch: Batch index of every padded slot, shape $(N_p,)$.
+        cu_seqlens: Cumulative patch lengths as `int32`, shape $(P + 1,)$, the layout flash attention takes.
+    """
+
+    padded_indices: Tensor
+    unpadded_indices: Tensor
+    padded_batch: Tensor
+    cu_seqlens: Tensor
+
+
+def patch_layout(batch: Tensor, patch_size: int, mode: PadMode) -> PatchLayout:
+    r"""Pad every sample to whole patches of `patch_size` points and derive the patch offsets.
+
+    Flash attention handles a sample smaller than the patch as a short variable-length patch, so it only pads
+    samples at or above the patch size (`mode="above"`); the dense reshape needs every sample padded to a full
+    patch (`mode="all"`). Padding, never shrinking, keeps one sample's output independent of its co-batched
+    neighbors.
+
+    Args:
+        batch: Batch index of every point, sorted, shape $(N,)$.
+        patch_size: Number of points per attention patch.
+        mode: Which samples to pad, see `divisible_pad`.
+
+    Returns:
+        The `PatchLayout` of the points.
+    """
+    padded_indices, unpadded_indices, padded_batch = divisible_pad(
+        batch,
+        patch_size,
+        mode=mode,
+        pad_fill="replicate",
+        return_inverse=True,
+    )
+    offset = batch_to_offset(split_batch(padded_batch, patch_size))
+    cu_seqlens = torch.cat([offset.new_zeros(1), offset]).int()
+    return {
+        "padded_indices": padded_indices,
+        "unpadded_indices": unpadded_indices,
+        "padded_batch": padded_batch,
+        "cu_seqlens": cu_seqlens,
+    }
 
 
 class RelativePositionalEncoding(nn.Module):
@@ -128,21 +171,13 @@ class RelativePositionalEncoding(nn.Module):
 
 def _flash_attend_qkv(
     qkv_packed: Tensor,
-    padded_batch: Tensor,
+    cu_seqlens: Tensor,
     patch_size: int,
     scale: float,
     attn_drop: float,
     training: bool,
 ) -> Tensor:
-    """Variable-length flash attention over fixed-size patches.
-
-    Wraps `flash_attn.flash_attn_varlen_qkvpacked_func` with the per-batch
-    `cu_seqlens` derivation that all variants share.
-    """
-    patch_idxs = split_batch(padded_batch, patch_size)
-    offset = batch_to_offset(patch_idxs)
-    # cu_seqlens must start at 0 and be int32 for flash-attn
-    cu_seqlens = torch.cat([torch.tensor([0], device=padded_batch.device, dtype=torch.int), offset.int()])
+    """Variable-length flash attention over the patches of a `PatchLayout`."""
     return flash_attn.flash_attn_varlen_qkvpacked_func(
         qkv_packed,
         cu_seqlens,
@@ -200,11 +235,16 @@ class SerializedAttention(nn.Module):
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
         self.use_flash_attn = use_flash_attn
+        self.pad_mode: PadMode = "above" if use_flash_attn else "all"
         self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.proj = nn.Linear(channels, channels)
+
+    def patch_layout(self, batch: Tensor) -> PatchLayout:
+        """The `PatchLayout` this layer needs for `batch`; build it once per stage and pass it to `forward`."""
+        return patch_layout(batch, self.patch_size, self.pad_mode)
 
     def forward(
         self,
@@ -214,22 +254,12 @@ class SerializedAttention(nn.Module):
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
+        patch_layout: Optional[PatchLayout] = None,
     ) -> Tensor:
         H, C = self.num_heads, self.channels
         patch_size = self.patch_size
-        # Flash attention handles a sample smaller than the patch as a short varlen patch, so it only
-        # pads samples at or above the patch size; the dense reshape needs every sample padded to a
-        # full patch instead. Padding, never shrinking, keeps one sample's output independent of its
-        # co-batched neighbors.
-        pad_mode: PadMode = "above" if self.use_flash_attn else "all"
-
-        padded_indices, unpadded_indices, padded_batch = divisible_pad(
-            batch,
-            patch_size,
-            mode=pad_mode,
-            pad_fill="replicate",
-            return_inverse=True,
-        )
+        layout = patch_layout or self.patch_layout(batch)
+        padded_indices, unpadded_indices = layout["padded_indices"], layout["unpadded_indices"]
 
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
@@ -237,7 +267,9 @@ class SerializedAttention(nn.Module):
 
         if self.use_flash_attn:
             qkv_packed = qkv.half().reshape(-1, 3, H, C // H)
-            feat = _flash_attend_qkv(qkv_packed, padded_batch, patch_size, self.scale, self.attn_drop, self.training)
+            feat = _flash_attend_qkv(
+                qkv_packed, layout["cu_seqlens"], patch_size, self.scale, self.attn_drop, self.training
+            )
             feat = feat.reshape(-1, C).to(qkv.dtype)
         else:
             K = patch_size
@@ -296,12 +328,17 @@ class SerializedAttentionRPE(nn.Module):
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
         self.use_flash_attn = False
+        self.pad_mode: PadMode = "all"
         self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.proj = nn.Linear(channels, channels)
         self.rpe = RelativePositionalEncoding(patch_size, num_heads)
+
+    def patch_layout(self, batch: Tensor) -> PatchLayout:
+        """The `PatchLayout` this layer needs for `batch`; build it once per stage and pass it to `forward`."""
+        return patch_layout(batch, self.patch_size, self.pad_mode)
 
     def forward(
         self,
@@ -311,20 +348,15 @@ class SerializedAttentionRPE(nn.Module):
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
+        patch_layout: Optional[PatchLayout] = None,
     ) -> Tensor:
         if pos_grid is None:
             raise ValueError("`pos_grid` must be provided for SerializedAttentionRPE.")
 
         H, C = self.num_heads, self.channels
         patch_size = self.patch_size
-
-        padded_indices, unpadded_indices, _ = divisible_pad(
-            batch,
-            patch_size,
-            mode="all",
-            pad_fill="replicate",
-            return_inverse=True,
-        )
+        layout = patch_layout or self.patch_layout(batch)
+        padded_indices, unpadded_indices = layout["padded_indices"], layout["unpadded_indices"]
 
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
@@ -400,12 +432,17 @@ class SerializedAttentionRoPE(nn.Module):
         self.attn_drop = attn_drop
         self.proj_drop = proj_drop
         self.use_flash_attn = use_flash_attn
+        self.pad_mode: PadMode = "above" if use_flash_attn else "all"
         self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.proj = nn.Linear(channels, channels)
         self.rope = Point3DRoPE(head_dim=channels // num_heads, base=rope_base)
+
+    def patch_layout(self, batch: Tensor) -> PatchLayout:
+        """The `PatchLayout` this layer needs for `batch`; build it once per stage and pass it to `forward`."""
+        return patch_layout(batch, self.patch_size, self.pad_mode)
 
     def forward(
         self,
@@ -415,21 +452,15 @@ class SerializedAttentionRoPE(nn.Module):
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         pos: OptTensor = None,
+        patch_layout: Optional[PatchLayout] = None,
     ) -> Tensor:
         if pos is None:
             raise ValueError("`pos` must be provided for SerializedAttentionRoPE.")
 
         H, C = self.num_heads, self.channels
         patch_size = self.patch_size
-        pad_mode: PadMode = "above" if self.use_flash_attn else "all"
-
-        padded_indices, unpadded_indices, padded_batch = divisible_pad(
-            batch,
-            patch_size,
-            mode=pad_mode,
-            pad_fill="replicate",
-            return_inverse=True,
-        )
+        layout = patch_layout or self.patch_layout(batch)
+        padded_indices, unpadded_indices = layout["padded_indices"], layout["unpadded_indices"]
 
         order = serialized_order[padded_indices] if serialized_order is not None else padded_indices
         inverse = unpadded_indices[serialized_inverse] if serialized_inverse is not None else unpadded_indices
@@ -441,7 +472,9 @@ class SerializedAttentionRoPE(nn.Module):
 
         if self.use_flash_attn:
             qkv_packed = torch.stack([q, k, v], dim=1).to(torch.bfloat16)
-            feat = _flash_attend_qkv(qkv_packed, padded_batch, patch_size, self.scale, self.attn_drop, self.training)
+            feat = _flash_attend_qkv(
+                qkv_packed, layout["cu_seqlens"], patch_size, self.scale, self.attn_drop, self.training
+            )
             feat = feat.reshape(-1, C).to(qkv.dtype)
         else:
             K = patch_size
