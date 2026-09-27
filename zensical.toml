@@ -207,6 +207,7 @@ nav = [
             { "centerpoint" = "api/losses/centerpoint.md" },
             { "chamfer" = "api/losses/chamfer.md" },
             { "threedetr" = "api/losses/threedetr.md" },
+            { "kpconv" = "api/losses/kpconv.md" },
             { "lovasz" = "api/losses/lovasz.md" },
             { "pointrcnn" = "api/losses/pointrcnn.md" },
             { "sum" = "api/losses/sum.md" },

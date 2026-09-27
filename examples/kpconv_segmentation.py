@@ -1,3 +1,14 @@
+"""Train KP-FCNN for semantic / part segmentation with the KPConv-PyTorch recipe.
+
+NOTE: SGD with momentum 0.98, offsets at a tenth of the learning rate, a 0.1^(1/150) decay per epoch, gradient values
+clipped at 100 and the deformable fitting / repulsive regularizer; the S3DIS split is sampled at random rather than by
+the reference's spheres.
+
+Usage:
+    uv run --no-sync python examples/kpconv_segmentation.py --dataset shapenetpart
+    uv run --no-sync python examples/kpconv_segmentation.py --dataset s3dis --deformable
+"""
+
 from argparse import ArgumentParser, Namespace
 from typing import Callable
 
@@ -5,13 +16,13 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, ShapeNetPart
+from torch_pointcloud.losses import kpconv_deform_regularizer
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import KPFCNNSegmentation
 from torch_pointcloud.utils.data import DataKeys, collate
@@ -46,23 +57,23 @@ def main() -> None:
         act="leaky_relu",
         norm="batch_norm",
         norm_kwargs={"momentum": 0.05},
+        deformable=args.deformable,
     ).to(args.device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer,
-        max_lr=args.lr,
-        pct_start=0.05,
-        anneal_strategy="cos",
-        div_factor=10.0,
-        final_div_factor=1000.0,
-        total_steps=len(train_dataloader) * args.epochs,
+    offset_params = [p for n, p in model.named_parameters() if "offset" in n]
+    other_params = [p for n, p in model.named_parameters() if "offset" not in n]
+    optimizer = torch.optim.SGD(
+        [{"params": other_params}, {"params": offset_params, "lr": args.lr * 0.1}],
+        lr=args.lr,
+        momentum=args.momentum,
     )
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=args.lr_decay)
     print("Done!")
 
     print("\nStarting training!\n")
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
-        train_metrics = train_one_epoch(model, optimizer, scheduler, train_dataloader, args.device)
+        train_metrics = train_one_epoch(model, optimizer, train_dataloader, args.device)
+        scheduler.step()
         val_metrics = eval_one_epoch(model, test_dataloader, args.num_classes, args.device)
         metrics = {**train_metrics, **val_metrics}
 
@@ -80,8 +91,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--num-workers", type=int, default=6)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--lr", type=float, default=0.006)
-    parser.add_argument("--weight-decay", type=float, default=0.05)
+    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--momentum", type=float, default=0.98)
+    parser.add_argument("--lr-decay", type=float, default=0.1 ** (1 / 150), help="Learning-rate factor per epoch.")
+    parser.add_argument("--deformable", action="store_true", help="Deformable kernel points in every encoder stage.")
     parser.add_argument("--limit-train-batches", type=int, default=None)
     parser.add_argument("--limit-test-batches", type=int, default=None)
     args = parser.parse_args()
@@ -93,7 +106,6 @@ def parse_args() -> Namespace:
 def train_one_epoch(
     model: Module,
     optimizer: Optimizer,
-    scheduler: LRScheduler,
     dataloader: DataLoader,
     device: str = "cuda",
     log_interval: int = 5,
@@ -110,12 +122,11 @@ def train_one_epoch(
         optimizer.zero_grad()
         logits = model(None, pos, batch)
         logits = F.log_softmax(logits, dim=1)
-        loss = F.nll_loss(logits, target)
+        loss = F.nll_loss(logits, target) + kpconv_deform_regularizer(model, repulse_extent=1.2)
 
         loss.backward()
+        torch.nn.utils.clip_grad_value_(model.parameters(), 100.0)
         optimizer.step()
-
-        scheduler.step()
         total_loss += loss.item()
 
         if (i + 1) % log_interval == 0:
@@ -179,10 +190,20 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
                 ),
             ]
         )
+        train_transform = T.Compose(
+            [
+                transform,
+                T.RandomScale(keys=DataKeys.POS, scale_range=(0.9, 1.1), anisotropic=True),
+                T.RandomFlip(keys=DataKeys.POS, axes=(0,)),
+                T.RandomRotate(keys=DataKeys.POS, axis=2),
+                T.RandomJitter(keys=DataKeys.POS, sigma=0.001, clip=None),
+                T.RandomColorDrop(keys=DataKeys.COLOR, fill=0.0, int_color=True, p=0.8),
+            ]
+        )
         train_dataset = S3DIS(
             args.root,
             areas=["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"],
-            transform=transform,
+            transform=train_transform,
         )
         test_dataset = S3DIS(
             args.root,

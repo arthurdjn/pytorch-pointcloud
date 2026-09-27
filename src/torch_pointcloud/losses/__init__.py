@@ -3,6 +3,7 @@
 from .anchor import AnchorLoss, MultiHeadAnchorLoss
 from .centerpoint import CenterPointLoss, SparseCenterPointLoss
 from .chamfer import chamfer_distance
+from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss
 from .pointrcnn import PointRCNNLoss
 from .sum import SumLoss
@@ -13,6 +14,7 @@ from .votenet import VoteNetLoss
 __all__ = [
     "AnchorLoss",
     "CenterPointLoss",
+    "KPConvDeformRegularizer",
     "ThreeDETRLoss",
     "LovaszLoss",
     "MultiHeadAnchorLoss",
@@ -22,4 +24,5 @@ __all__ = [
     "TransFusionLoss",
     "VoteNetLoss",
     "chamfer_distance",
+    "kpconv_deform_regularizer",
 ]
