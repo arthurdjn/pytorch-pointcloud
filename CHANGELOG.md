@@ -16,6 +16,8 @@ All notable changes to this project are documented in this file. The format is b
 - Updated `farthest_point_sample` and `FarthestPointSample` to leave a cloud untouched when it has at most `num_samples` points (or `ratio >= 1`) instead of reordering it by farthest-point rank; 27 value snapshots regenerated.
 - Added `ops.cluster.dense_neighbors` and `gather_neighbors`, padding a `[source, target]` edge list into a `(N_t, k)` neighbor table over the packed batch; `KPConv` pools on that table with one `bmm` when the neighborhoods fill at least `dense_fill_threshold` of it (KP-FCNN inference 231 -> 141 ms, training step 905 -> 443 ms).
 - Fixed `radius(..., sort=True)` materializing the full distance matrix on CUDA, where the kernel already returns the smallest source indices (3DETR inference 244 -> 46 ms, 5.3 -> 0.6 GB).
+- Removed `KNN_DENSE_BUDGET` and the dense `cdist` path of `knn` / `knn_graph`, which wrap the `torch_geometric` kernel; `group` orders every neighborhood closest first (six pretraining value snapshots regenerated: one patch had two near-equidistant neighbors in the other order).
+- Removed `KPConv.dense_fill_threshold`: the padded neighbor table is the only aggregation path.
 
 ## 0.0.9 (2026-09-26)
 

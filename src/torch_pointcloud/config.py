@@ -9,7 +9,6 @@ This module contains the following global variables for configuration:
 | `MODELS_DIR` | The directory for the models. | `Path(CACHE_DIR, "models").as_posix()` |
 | `DATA_DIR` | The directory for the data. | `"data"` |
 | `FPS_RANDOM_START` | Overrides the `random_start` of every farthest point sampling call; `None` keeps each call's own. | `None` |
-| `KNN_DENSE_BUDGET` | Largest $B N_x N_y$ (clouds times points squared) for which `knn` computes dense pairwise distances. | `16_000_000` |
 """
 
 import os
@@ -57,4 +56,3 @@ MODELS_DIR = os.getenv("TORCH_POINTCLOUD_MODELS_DIR", Path(CACHE_DIR, "models").
 DATA_DIR = os.getenv("TORCH_POINTCLOUD_DATA_DIR", "data")
 
 FPS_RANDOM_START = asbool(os.getenv("TORCH_POINTCLOUD_FPS_RANDOM_START", None))
-KNN_DENSE_BUDGET = asint(os.getenv("TORCH_POINTCLOUD_KNN_DENSE_BUDGET", None)) or 16_000_000

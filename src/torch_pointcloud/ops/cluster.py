@@ -3,12 +3,11 @@
 from typing import List, Literal, Optional, Tuple, Union, overload
 
 import torch
-import torch.nn.functional as F
 import torch_geometric.nn.pool as pool
 from torch import Tensor
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.config import FPS_RANDOM_START, KNN_DENSE_BUDGET
+from torch_pointcloud.config import FPS_RANDOM_START
 from torch_pointcloud.utils.conversion import ensure_option
 from torch_pointcloud.utils.types import OptTensor
 
@@ -38,13 +37,12 @@ def knn(
     batch_size: Optional[int] = None,
 ) -> Tensor:
     r"""Find the $k$ nearest neighbors in $x$ for each point in $y$.
-    This function is a wrapper around the `torch_geometric.nn.pool.knn` function, and supports the same arguments.
-    However, in case the `batch_x` and `batch_y` tensors are provided, and the samples have the same number of nodes,
-    this function uses a more efficient implementation that is significantly faster on GPU using `torch.cdist` + `topk`.
+
+    A wrapper around `torch_geometric.nn.pool.knn` that checks its inputs.
 
     Important:
-        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
-        (both the dense fast path and `torch_geometric` require it); unsorted batches raise a `ValueError`.
+        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order; unsorted batches
+        raise a `ValueError`.
 
     Note:
         When a point of $y$ coincides with a point of $x$ (e.g. `knn(pos, pos, k)`), the query point
@@ -70,53 +68,16 @@ def knn(
     if batch_y is not None:
         _check_sorted_batch(batch_y, "batch_y")
 
-    def _sparse_knn() -> Tensor:
-        return pool.knn(
-            x=x,
-            y=y,
-            k=k,
-            batch_x=batch_x,
-            batch_y=batch_y,
-            cosine=cosine,
-            num_workers=num_workers,
-            batch_size=batch_size,
-        )
-
-    if batch_x is None or batch_y is None:
-        return _sparse_knn()
-
-    counts_x = batch_x.bincount()
-    counts_y = batch_y.bincount()
-
-    if counts_x.numel() == 0 or not (counts_x[0] == counts_x).all() or not (counts_y[0] == counts_y).all():
-        return _sparse_knn()
-
-    N_x = int(counts_x[0].item())
-    N_y = int(counts_y[0].item())
-    B = counts_x.numel()
-
-    # cdist materialises the full $(B, N, N)$ distance matrix; fall back to the
-    # streaming `torch_geometric` implementation for larger clouds.
-    if B * N_x * N_y > KNN_DENSE_BUDGET or N_x < k:
-        return _sparse_knn()
-
-    x_3d = x.view(B, N_x, -1)
-    y_3d = y.view(B, N_y, -1)
-
-    if cosine:
-        x_3d = F.normalize(x_3d, dim=-1)
-        y_3d = F.normalize(y_3d, dim=-1)
-
-    dist = torch.cdist(y_3d, x_3d)  # (B, N_y, N_x)
-    _, idx = dist.topk(k, dim=-1, largest=False)  # (B, N_y, k)
-
-    offsets = torch.arange(B, device=x.device).view(B, 1, 1) * N_x
-    src = (idx + offsets).reshape(-1)
-
-    offsets_y = torch.arange(B, device=x.device).view(B, 1, 1) * N_y
-    dst = (torch.arange(N_y, device=x.device).view(1, N_y, 1).expand(B, N_y, k) + offsets_y).reshape(-1)
-
-    return torch.stack([dst, src], dim=0)
+    return pool.knn(
+        x=x,
+        y=y,
+        k=k,
+        batch_x=batch_x,
+        batch_y=batch_y,
+        cosine=cosine,
+        num_workers=num_workers,
+        batch_size=batch_size,
+    )
 
 
 def knn_graph(
@@ -131,14 +92,11 @@ def knn_graph(
 ) -> Tensor:
     r"""Compute the kNN graph of $x$.
 
-    This function is a drop-in for `torch_geometric.nn.pool.knn_graph`, except that when the
-    `batch` tensor partitions the points into uniformly-sized samples this function
-    uses a `torch.cdist` + `topk` implementation that is significantly faster on GPU
-    than the underlying `torch_geometric.nn.pool.knn_graph`.
+    A wrapper around `torch_geometric.nn.pool.knn_graph` that checks its inputs.
 
     Important:
-        If provided, the `batch` tensor must be sorted in non-decreasing order (both the dense
-        fast path and `torch_geometric` require it); an unsorted batch raises a `ValueError`.
+        If provided, the `batch` tensor must be sorted in non-decreasing order; an unsorted batch raises a
+        `ValueError`.
 
     Args:
         x: The input tensor of shape $(N, *)$.
@@ -149,8 +107,8 @@ def knn_graph(
         flow: Either `"source_to_target"` (PyG default, `edge_index = (src, dst)`
             where `src` is the neighbor and `dst` is the central point) or `"target_to_source"`.
         cosine: Whether to use cosine distance.
-        num_workers: Forwarded to the `torch_geometric` fallback.
-        batch_size: Forwarded to the `torch_geometric` fallback.
+        num_workers: The number of workers to use for the computation.
+        batch_size: The batch size to use for the computation.
 
     Returns:
         Edge index of shape $(2, k \cdot N)$.
@@ -159,64 +117,16 @@ def knn_graph(
     if batch is not None:
         _check_sorted_batch(batch, "batch")
 
-    def _sparse_knn_graph() -> Tensor:
-        return pool.knn_graph(
-            x=x,
-            k=k,
-            batch=batch,
-            loop=loop,
-            flow=flow,
-            cosine=cosine,
-            num_workers=num_workers,
-            batch_size=batch_size,
-        )
-
-    if batch is None:
-        return _sparse_knn_graph()
-
-    counts = batch.bincount()
-    if counts.numel() == 0 or not (counts[0] == counts).all():
-        return _sparse_knn_graph()
-
-    N = int(counts[0].item())
-    B = counts.numel()
-    if loop and N < k or not loop and N < k + 1:
-        return _sparse_knn_graph()
-
-    # cdist materialises the full $(B, N, N)$ distance matrix; fall back to the
-    # streaming `torch_geometric` implementation for larger clouds.
-    if B * N * N > KNN_DENSE_BUDGET:
-        return _sparse_knn_graph()
-
-    x_3d = x.view(B, N, -1)
-    if cosine:
-        x_3d = F.normalize(x_3d, dim=-1)
-
-    # `torch.cdist` returns squared euclidean^0.5; for top-k argmin the order is the same
-    # as for the squared distance, so we use the cheaper `cdist` directly.
-    dist = torch.cdist(x_3d, x_3d)  # (B, N, N)
-    k_query = k if loop else k + 1
-    _, idx = dist.topk(k_query, dim=-1, largest=False)  # (B, N, k_query)
-
-    if not loop:
-        # Drop the self-edge. `topk` is not guaranteed to put the self-distance first if
-        # there are exact-zero ties, so mask explicitly on the global node index.
-        offsets = torch.arange(B, device=x.device).view(B, 1, 1) * N
-        idx_global = idx + offsets
-        self_idx = (torch.arange(N, device=x.device).view(1, N, 1) + offsets).expand(B, N, k_query)
-        keep_mask = idx_global != self_idx  # (B, N, k_query)
-        # Sort so that the self-edge (if any) drops to the end, then take the first k.
-        sort_keys = (~keep_mask).long()
-        order = torch.argsort(sort_keys, dim=-1, stable=True)
-        idx = torch.gather(idx, -1, order)[..., :k]
-
-    offsets = torch.arange(B, device=x.device).view(B, 1, 1) * N
-    src = (idx + offsets).reshape(-1)
-    dst = (torch.arange(N, device=x.device).view(1, N, 1).expand(B, N, k) + offsets).reshape(-1)
-
-    if flow == "target_to_source":
-        return torch.stack([dst, src], dim=0)
-    return torch.stack([src, dst], dim=0)
+    return pool.knn_graph(
+        x=x,
+        k=k,
+        batch=batch,
+        loop=loop,
+        flow=flow,
+        cosine=cosine,
+        num_workers=num_workers,
+        batch_size=batch_size,
+    )
 
 
 def fps(
@@ -546,6 +456,10 @@ def group(
     batch_center = batch[idx_center]
 
     _, col = knn(pos, center, group_size, batch_x=batch, batch_y=batch_center)
+    # Closest first within every group, whatever order the search returned them in.
+    col = col.view(-1, group_size)
+    distances = ((pos[col] - center.unsqueeze(1)) ** 2).sum(-1)
+    col = torch.gather(col, 1, distances.argsort(dim=1, stable=True)).reshape(-1)
 
     neighborhood = pos[col].view(batch_size, num_groups, group_size, 3)
     center = center.view(batch_size, num_groups, 3)

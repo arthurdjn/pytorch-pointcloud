@@ -97,9 +97,8 @@ class KPConv(MessagePassing):
 
     The message is the $(E, K)$ influence of every kernel point on every edge; the aggregation pools the
     neighbor features per kernel point and only then applies that kernel point's weight matrix, so the $K$
-    matrix products run over the $N_t$ target points rather than over the $E$ edges. When the neighborhoods fill
-    at least `dense_fill_threshold` of a padded $(N_t, k)$ table, the pooling is one batched matrix product over
-    that table instead of $K$ scatter passes over the edge list.
+    matrix products run over the $N_t$ target points rather than over the $E$ edges: the neighborhoods are laid
+    out as a padded $(N_t, k)$ table and the pooling is one batched matrix product over it.
 
     Args:
         spatial_dim: Spatial dimension of the input point cloud.
@@ -122,7 +121,6 @@ class KPConv(MessagePassing):
     """
 
     kernel: Tensor
-    dense_fill_threshold: float = 0.1
 
     def __init__(
         self,
@@ -307,28 +305,15 @@ class KPConv(MessagePassing):
         dim_size: Optional[int] = None,
     ) -> Tensor:
         num_targets = dim_size if dim_size is not None else int(index.max()) + 1
-        counts = torch.bincount(index, minlength=num_targets)
-        width = int(counts.max()) if counts.numel() else 0
-        if width > 0 and index.numel() >= self.dense_fill_threshold * num_targets * width:
-            table, slot = dense_neighbors(torch.stack([edge_index_j, index]), x_source.size(0), num_targets, width)
-            x_dense = gather_neighbors(x_source, table)  # (N_t, k, in_channels)
-            # Filled through a permuted view so the (N_t, K, k) operand is contiguous: `bmm` on the transposed view
-            # of a (N_t, k, K) table runs 3-4x slower at these shapes.
-            weights = inputs.new_zeros(num_targets, self.kernel_size, width)
-            weights.permute(0, 2, 1)[index, slot] = inputs
-            pooled = torch.bmm(weights, x_dense)  # (N_t, K, in_channels)
-            weight = self.weight.reshape(self.kernel_size * self.in_channels, self.out_channels)
-            return torch.matmul(pooled.reshape(num_targets, -1), weight.to(pooled.dtype))
-
-        x_j = x_source[edge_index_j]  # (E, in_channels), gathered once and shared by every kernel point
-        out: OptTensor = None
-        for k in range(self.kernel_size):
-            pooled = scatter(x_j * inputs[:, k : k + 1], index, dim=0, dim_size=dim_size, reduce="sum")
-            # Autocast makes the matmul low precision; accumulate over kernel points in the feature dtype.
-            transformed = torch.matmul(pooled, self.weight[k].to(pooled.dtype)).to(pooled.dtype)
-            out = transformed if out is None else out + transformed
-        assert out is not None
-        return out
+        table, slot = dense_neighbors(torch.stack([edge_index_j, index]), x_source.size(0), num_targets)
+        x_dense = gather_neighbors(x_source, table)  # (N_t, k, in_channels)
+        # Filled through a permuted view so the (N_t, K, k) operand is contiguous: `bmm` on the transposed view
+        # of a (N_t, k, K) table runs 3-4x slower at these shapes.
+        weights = inputs.new_zeros(num_targets, self.kernel_size, table.size(1))
+        weights.permute(0, 2, 1)[index, slot] = inputs
+        pooled = torch.bmm(weights, x_dense)  # (N_t, K, in_channels)
+        weight = self.weight.reshape(self.kernel_size * self.in_channels, self.out_channels)
+        return torch.matmul(pooled.reshape(num_targets, -1), weight.to(pooled.dtype))
 
     def extra_repr(self) -> str:
         return (
