@@ -871,7 +871,6 @@ def test_model_pre_logits_matches_headless_forward(
 ) -> None:
     """`forward_head(..., pre_logits=True)` returns the features `forward` returns after `reset_classifier(0)`."""
     _skip_if_model_not_runnable(model_name)
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
