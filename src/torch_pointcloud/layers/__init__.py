@@ -84,10 +84,12 @@ from .randlanet_blocks import (
 )
 from .rope import Point3DRoPE
 from .serialized_attention import (
+    PatchLayout,
     RelativePositionalEncoding,
     SerializedAttention,
     SerializedAttentionRoPE,
     SerializedAttentionRPE,
+    patch_layout,
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import (

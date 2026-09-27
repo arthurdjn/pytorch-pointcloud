@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import pytest
 import torch
@@ -9,6 +9,7 @@ from torch_pointcloud.layers.serialized_attention import (
     SerializedAttention,
     SerializedAttentionRoPE,
     SerializedAttentionRPE,
+    patch_layout,
     split_batch,
 )
 from torch_pointcloud.transforms.functional import divisible_pad
@@ -211,6 +212,32 @@ def test_serialized_attention_variants_accept_non_consecutive_batch_ids() -> Non
     for attn in attns:
         out_gapped = attn(x, pos_grid, gapped, pos=pos)
         assert torch.equal(out_gapped, attn(x, pos_grid, consecutive, pos=pos))
+
+
+def test_patch_layout_pads_to_whole_patches() -> None:
+    batch = torch.tensor([0] * 6 + [1] * 4)
+    layout = patch_layout(batch, patch_size=4, mode="all")
+    assert layout["padded_indices"].tolist() == [0, 1, 2, 3, 4, 5, 2, 3, 6, 7, 8, 9]
+    assert layout["unpadded_indices"].tolist() == [0, 1, 2, 3, 4, 5, 8, 9, 10, 11]
+    assert layout["padded_batch"].tolist() == [0] * 8 + [1] * 4
+    assert layout["cu_seqlens"].tolist() == [0, 4, 8, 12] and layout["cu_seqlens"].dtype == torch.int32
+
+
+@pytest.mark.parametrize("attention", ["default", "rpe"])
+def test_serialized_attention_accepts_precomputed_patch_layout(attention: str) -> None:
+    torch.manual_seed(0)
+    x = torch.randn(10, 16)
+    pos_grid = torch.randint(0, 8, (10, 3))
+    batch = torch.tensor([0] * 6 + [1] * 4)
+    attn: Union[SerializedAttention, SerializedAttentionRPE]
+    if attention == "default":
+        attn = SerializedAttention(channels=16, num_heads=2, patch_size=4, use_flash_attn=False)
+    else:
+        attn = SerializedAttentionRPE(channels=16, num_heads=2, patch_size=4)
+    attn.eval()
+    expected = attn(x, pos_grid, batch)
+    out = attn(x, pos_grid, batch, patch_layout=attn.patch_layout(batch))
+    assert torch.equal(out, expected)
 
 
 def test_split_batch() -> None:

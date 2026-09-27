@@ -155,68 +155,43 @@ def divisible_pad(
         raise ValueError(f"Unknown pad_fill: {pad_fill!r}. Expected one of {get_args(PadFill)}.")
 
     device = batch.device
-
-    # Get total (unique) batches and their counts
-    # NOTE: using .unique() instead of .bincount() ensures that we can handle non-consecutive batch indices
+    # `unique` rather than `bincount`, so non-consecutive batch values work.
     unique_batches, counts = torch.unique(batch, return_counts=True)
-    num_batches = len(unique_batches)
-
-    # Calculate required padding for each batch such that each batch is a multiple of k
     remainder = counts % k
-    padding_needed = torch.zeros_like(remainder)
-
     if mode == "all":
-        padding_needed[remainder > 0] = k - remainder[remainder > 0]
+        padded = remainder > 0
     elif mode == "below":
-        mask = (counts < k) & (remainder > 0)
-        padding_needed[mask] = k - remainder[mask]
-    elif mode == "above":
-        mask = (counts >= k) & (remainder > 0)
-        padding_needed[mask] = k - remainder[mask]
+        padded = (counts < k) & (remainder > 0)
+    else:
+        padded = (counts >= k) & (remainder > 0)
+    padding = torch.where(padded, k - remainder, torch.zeros_like(remainder))
+    new_sizes = counts + padding
+    start = torch.cumsum(counts, dim=0) - counts
+    new_start = torch.cumsum(new_sizes, dim=0) - new_sizes
+    total = int(new_sizes.sum())
 
-    # Calculate new (padded) batch sizes with their starting indices
-    # so that we can map original indices and batch to their padded counterparts
-    new_batch_sizes = counts + padding_needed
-    batch_start_idx = torch.cat([torch.tensor([0], device=device), torch.cumsum(counts, dim=0)[:-1]])
-    new_batch_start_idx = torch.cat([torch.tensor([0], device=device), torch.cumsum(new_batch_sizes, dim=0)[:-1]])
+    # Every padded slot: its batch, its position inside the padded batch, and the batch's size and first row.
+    group = torch.repeat_interleave(torch.arange(counts.numel(), device=device), new_sizes, output_size=total)
+    position = torch.arange(total, device=device) - new_start[group]
+    size, first = counts[group], start[group]
+    if pad_fill == "random":
+        draw = torch.rand(total, generator=generator, device=device)
+        source = first + torch.minimum((draw * size).long(), size - 1)
+    else:
+        source = first + position % size
+        if pad_fill == "replicate":
+            # The slot one patch earlier is a real row whenever the batch holds more than one patch.
+            source = torch.where(size > k, first + position - k, source)
 
-    # Create indices and new batch tensors
-    total_new_size = int(torch.sum(new_batch_sizes).item())
-    indices = torch.zeros(total_new_size, dtype=torch.long, device=device)
-    inverse_indices = torch.zeros(len(batch), dtype=torch.long, device=device)
-    padded_batch = torch.zeros(total_new_size, dtype=batch.dtype, device=device)
-
-    for i in range(num_batches):
-        original_start = int(batch_start_idx[i].item())
-        new_start = int(new_batch_start_idx[i].item())
-        pad_size = int(padding_needed[i].item())
-        batch_size = int(counts[i].item())
-
-        indices[new_start : new_start + batch_size] = torch.arange(original_start, original_start + batch_size)
-
-        if pad_size > 0:
-            if pad_fill == "random":
-                offsets = torch.randint(high=batch_size, size=(pad_size,), generator=generator, device=device)
-                indices[new_start + batch_size : new_start + batch_size + pad_size] = original_start + offsets
-            elif pad_fill == "replicate" and batch_size > k:
-                rem = batch_size % k
-                last_patch_start = new_start + batch_size - rem
-                prev_patch_start = last_patch_start - k
-                src_start = prev_patch_start + rem
-                indices[new_start + batch_size : new_start + batch_size + pad_size] = indices[
-                    src_start : src_start + pad_size
-                ]
-            else:
-                original_indices = torch.arange(original_start, original_start + batch_size)
-                cycle_indices = original_indices[torch.arange(pad_size) % batch_size]
-                indices[new_start + batch_size : new_start + batch_size + pad_size] = cycle_indices
-
-        inverse_indices[original_start : original_start + batch_size] = torch.arange(new_start, new_start + batch_size)
-        padded_batch[new_start : new_start + new_batch_sizes[i]] = unique_batches[i]
+    indices = torch.where(position < size, first + position, source)
+    padded_batch = unique_batches[group]
 
     if return_inverse:
+        row_group = torch.repeat_interleave(
+            torch.arange(counts.numel(), device=device), counts, output_size=batch.numel()
+        )
+        inverse_indices = new_start[row_group] + torch.arange(batch.numel(), device=device) - start[row_group]
         return indices, inverse_indices, padded_batch
-
     return indices, padded_batch
 
 
