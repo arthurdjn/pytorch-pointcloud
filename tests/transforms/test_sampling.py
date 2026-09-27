@@ -106,12 +106,15 @@ def test_farthest_point_sample_keeps_small_clouds_untouched() -> None:
     data = {"pos": pos, "color": color}
     for transform in (
         T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=8, dst_index_key="index"),
-        T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=16, dst_index_key="index"),
         T.FarthestPointSample(pos_key="pos", keys=["color"], ratio=1.0, dst_index_key="index"),
     ):
         result = transform(data)
         assert torch.equal(result["pos"], pos) and torch.equal(result["color"], color)
         assert result["index"].tolist() == list(range(8))
+    # A smaller cloud keeps its rows first and is completed by cycling through them, so the size stays fixed.
+    result = T.FarthestPointSample(pos_key="pos", keys=["color"], num_samples=20, dst_index_key="index")(data)
+    assert torch.equal(result["pos"], pos.repeat(3, 1)[:20]) and torch.equal(result["color"], color.repeat(3, 1)[:20])
+    assert result["index"].tolist() == [i % 8 for i in range(20)]
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -462,8 +465,9 @@ def test_farthest_point_sample_random_start(mock_fps: Mock) -> None:
 @patch("torch_pointcloud.transforms.sampling.fps")
 def test_farthest_point_sample_small_cloud_is_identity(mock_fps: Mock) -> None:
     pos = torch.randn(8, 3)
-    for kwargs in ({"num_samples": 8}, {"num_samples": 16}, {"ratio": 1.0}):
+    for kwargs in ({"num_samples": 8}, {"ratio": 1.0}):
         assert F.farthest_point_sample(pos, **kwargs).tolist() == list(range(8))
+    assert F.farthest_point_sample(pos, num_samples=20).tolist() == [i % 8 for i in range(20)]
     mock_fps.assert_not_called()
 
 

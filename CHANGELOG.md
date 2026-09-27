@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file. The format is b
 - Removed `KNN_DENSE_BUDGET` and the dense `cdist` path of `knn` / `knn_graph`, which wrap the `torch_geometric` kernel; `group` orders every neighborhood closest first (six pretraining value snapshots regenerated: one patch had two near-equidistant neighbors in the other order).
 - Removed `KPConv.dense_fill_threshold`: the padded neighbor table is the only aggregation path.
 - Added `PatchLayout` / `patch_layout`: the PTv3 encoder and decoder build the padding and patch offsets once per stage and pass them to the serialized-attention blocks, which also accept them through `patch_layout=`; `divisible_pad` and `split_batch` are vectorized. PTv3 inference 95.7 -> 83.6 ms, training step 390 -> 374 ms, identical outputs.
+- Fixed `farthest_point_sample` / `FarthestPointSample` returning fewer than `num_samples` rows for a smaller cloud: it now keeps the cloud in place and completes it by cycling through its points, as `fps` repeats indices, so the sample size stays fixed (a 1-point object no longer breaks `group`-based tokenizers). 27 value snapshots of 1024-point fixtures regenerated; ShapeNetPart mIoU unchanged (86.90 / 84.51 for `pointnext-sm`).
 
 ## 0.0.9 (2026-09-26)
 
