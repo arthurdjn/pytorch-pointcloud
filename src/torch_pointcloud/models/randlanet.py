@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
+from torch_geometric.nn.pool.decimation import decimation_indices
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
@@ -28,8 +29,8 @@ from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.randlanet_blocks import RandLANetResidualBlock
-from torch_pointcloud.ops.cluster import decimate_indices, knn
-from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
+from torch_pointcloud.ops.cluster import knn
+from torch_pointcloud.utils.conversion import batch_to_offset, ensure_list, ensure_tuple_size, offset_to_batch
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
@@ -43,7 +44,6 @@ def random_max_pool(
     batch: Tensor,
     factor: int,
     num_neighbors: int,
-    generator: Optional[torch.Generator] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     r"""Random sampling followed by a max-pool over the neighbors of each kept point.
 
@@ -53,12 +53,13 @@ def random_max_pool(
         batch: Per-point batch index, shape $(N,)$.
         factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
         num_neighbors: Number of neighbors gathered around each kept point.
-        generator: Generator driving the random sampling.
 
     Returns:
         The pooled features, positions and batch index of the kept points.
     """
-    decim_idx, decim_batch = decimate_indices(batch, factor, generator=generator)
+    offset = batch_to_offset(batch)
+    decim_idx, decim_ptr = decimation_indices(torch.cat([offset.new_zeros(1), offset]), factor)
+    decim_batch = offset_to_batch(decim_ptr[1:])
     pos_decim = pos[decim_idx]
     edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
     pooled = scatter(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0), reduce="max")
@@ -127,6 +128,7 @@ class RandLANetEncoder(nn.Module):
                     f"Each entry of `encoder_channels` must be even (the block doubles d_out internally), "
                     f"got {out_channels}."
                 )
+
             # encoder_channels[i] is the BLOCK OUTPUT (== 2 * d_out_config), matching the
             # upstream paper convention where each block ends with a (d_out * 2) channel feature.
             self.blocks.append(RandLANetResidualBlock(in_channels, out_channels // 2, num_neighbors=k, **block_kwargs))
@@ -159,31 +161,30 @@ class RandLANetEncoder(nn.Module):
         return_intermediates: bool = False,
     ) -> Any:
         intermediates: List[FeaturesDict] = []
-        for i, block in enumerate(self.blocks):
-            assert isinstance(block, RandLANetResidualBlock)
-            x, pos, batch = block(x, pos, batch)
-            if return_intermediates and i == 0:
-                # Block 0's pre-decimation output is the only full-resolution skip;
-                # the decoder consumes it last to upsample back to the input resolution.
-                intermediates.append({"x": x, "pos": pos, "batch": batch})
-
-            generator: Optional[torch.Generator] = None
+        # The decimation is random; in eval it is drawn from a state seeded by the input size, so a forward is
+        # reproducible without touching the caller's random state.
+        with torch.random.fork_rng(devices=[pos.device] if pos.is_cuda else [], enabled=not self.training):
             if not self.training:
-                # Stable seed derived from input so eval is reproducible per-input
-                generator = torch.Generator(device=batch.device)
-                generator.manual_seed(int(batch.numel()))
+                torch.manual_seed(pos.size(0))
 
-            x, pos, batch = random_max_pool(
-                x,
-                pos,
-                batch,
-                factor=self.decimation[i],
-                num_neighbors=block.num_neighbors,
-                generator=generator,
-            )
+            for i, block in enumerate(self.blocks):
+                assert isinstance(block, RandLANetResidualBlock)
+                x, pos, batch = block(x, pos, batch)
+                if return_intermediates and i == 0:
+                    # Block 0's pre-decimation output is the only full-resolution skip;
+                    # the decoder consumes it last to upsample back to the input resolution.
+                    intermediates.append({"x": x, "pos": pos, "batch": batch})
 
-            if return_intermediates and i < len(self.blocks) - 1:
-                intermediates.append({"x": x, "pos": pos, "batch": batch})
+                x, pos, batch = random_max_pool(
+                    x,
+                    pos,
+                    batch,
+                    factor=self.decimation[i],
+                    num_neighbors=block.num_neighbors,
+                )
+
+                if return_intermediates and i < len(self.blocks) - 1:
+                    intermediates.append({"x": x, "pos": pos, "batch": batch})
 
         if return_intermediates:
             return x, pos, batch, intermediates

@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.ops.cluster import (
-    decimate_indices,
     dense_neighbors,
     fps,
     gather_neighbors,
@@ -303,23 +302,6 @@ def test_radius_sort_keeps_smallest_source_indices() -> None:
         picked = sorted(col[row == q].tolist())
         expected = [0, 1, 2] if q < 3 else [3, 4, 5]
         assert picked == expected
-
-
-def test_decimate_indices_consecutive_batch_ids() -> None:
-    batch = torch.tensor([0, 0, 1, 1, 1, 1])
-    indices, decim_batch = decimate_indices(batch, 2, generator=torch.Generator().manual_seed(0))
-    assert indices.shape == decim_batch.shape
-    assert decim_batch.tolist() == [0, 1, 1]
-    assert torch.equal(decim_batch, batch[indices])
-
-
-def test_decimate_indices_non_consecutive_batch_ids() -> None:
-    """Batch ids with gaps (e.g. after filtering a scene) must stay aligned with the returned indices."""
-    batch = torch.tensor([0, 0, 0, 0, 2, 2])
-    indices, decim_batch = decimate_indices(batch, 2, generator=torch.Generator().manual_seed(0))
-    assert indices.shape == decim_batch.shape
-    assert decim_batch.tolist() == [0, 0, 2]
-    assert torch.equal(decim_batch, batch[indices])
 
 
 def test_dense_neighbors_grouped_edges() -> None:

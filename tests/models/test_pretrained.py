@@ -207,10 +207,7 @@ def test_pretrained_model(
     dataset_factory: Callable[..., Dataset],
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
-
     _skip_if_deps_missing(model_name)
     models_dir = models_dir_factory("*.safetensors")
 
@@ -253,7 +250,6 @@ def test_pretrained_votenet(
     model_name: str,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """VoteNet returns a dict of dense proposal tensors, so it needs its own snapshot test.
 
@@ -264,7 +260,6 @@ def test_pretrained_votenet(
     if not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
 
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
@@ -293,7 +288,6 @@ def test_pretrained_threedetr(
     model_name: str,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """3DETR returns a dict of per-query predictions, so it needs its own snapshot test.
 
@@ -306,7 +300,6 @@ def test_pretrained_threedetr(
     if not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
 
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
@@ -339,7 +332,6 @@ def test_pretrained_pointrcnn(
     model_name: str,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """PointRCNN returns a dict of per-ROI stage-2 predictions, so it needs its own snapshot test.
 
@@ -352,7 +344,6 @@ def test_pretrained_pointrcnn(
     if not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
 
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
@@ -383,7 +374,6 @@ def test_pretrained_lion(
     model_name: str,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """LION returns a TransFusion-head dict, so it needs its own snapshot test.
 
@@ -398,7 +388,6 @@ def test_pretrained_lion(
     if not torch.cuda.is_available():
         pytest.skip("lion requires CUDA, none available")
 
-    monkeypatch.setattr("torch_pointcloud.ops.cluster.FPS_RANDOM_START", False)
     models_dir = models_dir_factory("*.safetensors")
 
     model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)

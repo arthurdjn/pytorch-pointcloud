@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed `FPS_RANDOM_START` (`TORCH_POINTCLOUD_FPS_RANDOM_START`), which is no longer needed as all models turn this off at eval time directly.
+- Removed `ops.cluster.decimate` (no longer used) and `decimate_indices`: RandLA-Net decimates with `torch_geometric`'s `decimation_indices`, drawn in eval from a random state forked and seeded by the input size, so a forward stays reproducible without a dedicated generator (value snapshot regenerated).
+
 ## 0.0.10 (2026-09-27)
 
 - Moved each family's convolution and blocks from `models` to `layers` (`kpconv_blocks`, `randlanet_blocks`, `point_transformer_conv`, `grouped_vector_attention`, `torchsparse_blocks`, `voxel_grid_pool`), and merged `pointconv` and `pointconv_sa` into `pointconv_blocks`. `DilatedResidualBlock` is `RandLANetResidualBlock`, `KPFCNNGridPool` is `VoxelGridPool`.
