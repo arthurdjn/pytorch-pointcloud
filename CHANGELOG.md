@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.10 (2026-09-27)
+
 - Moved each family's convolution and blocks from `models` to `layers` (`kpconv_blocks`, `randlanet_blocks`, `point_transformer_conv`, `grouped_vector_attention`, `torchsparse_blocks`, `voxel_grid_pool`), and merged `pointconv` and `pointconv_sa` into `pointconv_blocks`. `DilatedResidualBlock` is `RandLANetResidualBlock`, `KPFCNNGridPool` is `VoxelGridPool`.
 - Rebuilt `KPConv`, `GroupedVectorAttention` and `AttentivePooling` on `MessagePassing`, taking `(x, pos, edge_index)` with `edge_index` as `[source, target]`; `KPConv` pools the neighbors per kernel point before the matrix products (up to 2x faster, 8x less memory).
 - Fixed `KPConv(bias=True)`, which registered a bias without adding it to the output.
