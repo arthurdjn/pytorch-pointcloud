@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
+
 ## 0.0.11 (2026-10-06)
 
 - Removed `FPS_RANDOM_START` (`TORCH_POINTCLOUD_FPS_RANDOM_START`), which is no longer needed as all models turn this off at eval time directly.
