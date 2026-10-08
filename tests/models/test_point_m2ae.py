@@ -264,10 +264,10 @@ def test_point_m2ae_mae_basic() -> None:
         drop_path=0.1,
     )
     pos, batch = _packed(2, 2048)
-    pred, target = model(None, pos, batch)
-    assert pred.ndim == target.ndim == 3
-    assert pred.shape[0] == target.shape[0]
-    assert pred.shape[-1] == target.shape[-1] == 3
+    pred, target, pred_batch, target_batch = model(None, pos, batch)
+    assert pred.shape == (pred_batch.shape[0], 3) and target.shape == (target_batch.shape[0], 3)
+    assert pred_batch.max() == target_batch.max()
+    assert pred_batch.shape[0] // target_batch.shape[0] == model.group_sizes[0] // model.group_sizes[1]
 
 
 @pytest.mark.parametrize(

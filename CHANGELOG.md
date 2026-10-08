@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - Added `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)` and `RandomSample(allow_fewer=True)`.
 - Added `transforms.RandomApply`, `RandomBlockCrop` and `Translate`, `S3DIS(num_nodes=None)`, `PointCloudDataLoader(mix=..., mix_prob=...)` and `datasets.RepeatSampler`.
+- The masked point modeling pretraining models return `(pred, target, pred_batch, target_batch)`, packed for `chamfer_distance`.
 
 ## 0.0.12 (2026-10-07)
 
