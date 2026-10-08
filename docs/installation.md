@@ -17,6 +17,7 @@ selector writes the commands.
 | `ocnn`        | OctFormer                                             |
 | `torchsparse` | SPVCNN (built from source, needs `libsparsehash-dev`) |
 | `sptr`        | SphereFormer (with `torch-scatter`, up to torch 2.12) |
+| `kaolin`      | Chamfer distance, a faster nearest-neighbor kernel    |
 | `lightning`   | The Lightning training modules                        |
 
 <div class="install-selector" id="install-selector" markdown="0">
@@ -50,6 +51,7 @@ selector writes the commands.
     <button data-dim="extra" data-val="ocnn">ocnn</button>
     <button data-dim="extra" data-val="torchsparse">torchsparse</button>
     <button data-dim="extra" data-val="sptr">sptr</button>
+    <button data-dim="extra" data-val="kaolin">kaolin</button>
     <button data-dim="extra" data-val="lightning">lightning</button>
   </span></div>
   <div class="isel-output">

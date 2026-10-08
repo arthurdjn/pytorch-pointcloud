@@ -6,11 +6,31 @@ import torch
 from torch import Tensor, nn
 from torch_geometric.nn import knn
 
+from torch_pointcloud.utils.imports import _KAOLIN_GITHUB_URL, _PYG_LIB_AVAILABLE, optional_import
+
 __all__ = ["ChamferDistance"]
+
+sided_distance, _KAOLIN_AVAILABLE = optional_import(
+    "kaolin.metrics.pointcloud",
+    "sided_distance",
+    url=_KAOLIN_GITHUB_URL,
+)
 
 
 def _nearest_index(query: Tensor, points: Tensor) -> Tensor:
     r"""Index in `points` $(B, M, D)$ of the nearest point to every `query` $(B, N, D)$, without autograd."""
+    if _KAOLIN_AVAILABLE and query.is_cuda:
+        # kaolin's brute-force CUDA kernel, several times faster than the kNN search below.
+        with torch.no_grad():
+            _, index = sided_distance(query, points)
+
+        return index.long()
+
+    if not _PYG_LIB_AVAILABLE:
+        # Without a neighbor-search kernel: the exact dense distances, whose memory grows with $N \cdot M$.
+        with torch.no_grad():
+            return torch.cdist(query, points, compute_mode="donot_use_mm_for_euclid_dist").argmin(dim=2)
+
     batch, num_queries, dim = query.shape
     num_points = points.shape[1]
     query_batch = torch.arange(batch, device=query.device).repeat_interleave(num_queries)
@@ -43,9 +63,11 @@ def chamfer_distance(pred: Tensor, target: Tensor, norm: Literal["l1", "l2"] = "
     halving); the `"l1"` variant averages the two directed means of euclidean distances. Both
     follow the reference pretraining convention, so losses are comparable with published values.
 
-    The nearest neighbors come from the kNN kernel of `torch_geometric` without autograd and only the
-    matched pairs are differentiated, so the memory grows with $N + M$ rather than $N \cdot M$ and whole
-    clouds fit.
+    The nearest neighbors come from the `sided_distance` kernel of
+    [kaolin](https://github.com/NVIDIAGameWorks/kaolin) when it is installed and the points are on CUDA,
+    otherwise from the kNN kernel of `torch_geometric` (`pyg-lib`); either way without autograd, and only
+    the matched pairs are differentiated, so the memory grows with $N + M$ rather than $N \cdot M$ and whole
+    clouds fit. Without either kernel the search falls back to the dense distance matrix.
 
     Args:
         pred: Predicted point sets of shape $(B, N, 3)$.

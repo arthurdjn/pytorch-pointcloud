@@ -4,6 +4,7 @@ from torch import nn
 
 from torch_pointcloud.layers.tnet import DynamicTNet, TNet
 from torch_pointcloud.losses import TNetOrthogonalityRegularizer, tnet_orthogonality_regularizer
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def _tnet(k: int, track_running_stats: bool = True) -> TNet:
@@ -61,6 +62,7 @@ def test_tnet_regularizer_without_tracking_keeps_no_transform() -> None:
     assert tnet.running_transform is None
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="DynamicTNet's kNN needs pyg-lib")
 def test_tnet_regularizer_module_and_dynamic_tnet() -> None:
     torch.manual_seed(0)
     tnet = DynamicTNet(edge_channels=[16], local_channels=[32], global_channels=[16], k=6, num_neighbors=4)

@@ -297,6 +297,7 @@ def optional_import(
 
 _DWCONV_GITHUB_URL = "https://github.com/octree-nn/dwconv"
 _FLASH_ATTN_GITHUB_URL = "https://github.com/Dao-AILab/flash-attention"
+_KAOLIN_GITHUB_URL = "https://github.com/NVIDIAGameWorks/kaolin"
 _LIGHTNING_GITHUB_URL = "https://github.com/Lightning-AI/pytorch-lightning"
 _MAMBA_SSM_GITHUB_URL = "https://github.com/state-spaces/mamba"
 _OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"

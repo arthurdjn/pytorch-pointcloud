@@ -151,7 +151,17 @@ def test_chamfer_distance_module_matches_function() -> None:
         ChamferDistance(norm="linf")  # type: ignore[arg-type]
 
 
-def test_chamfer_distance_matches_the_dense_formula_and_its_gradients() -> None:
+@pytest.mark.parametrize("with_pyg_lib", [True, False])
+def test_chamfer_distance_matches_the_dense_formula_and_its_gradients(
+    monkeypatch: pytest.MonkeyPatch,
+    with_pyg_lib: bool,
+) -> None:
+    from torch_pointcloud.losses import chamfer as chamfer_module
+
+    if with_pyg_lib and not chamfer_module._PYG_LIB_AVAILABLE:
+        pytest.skip("the kNN search needs pyg-lib")
+
+    monkeypatch.setattr(chamfer_module, "_PYG_LIB_AVAILABLE", with_pyg_lib)
     torch.manual_seed(0)
     pred = torch.randn(2, 50, 3, requires_grad=True)
     target = torch.randn(2, 40, 3, requires_grad=True)
@@ -163,6 +173,20 @@ def test_chamfer_distance_matches_the_dense_formula_and_its_gradients() -> None:
     grads = torch.autograd.grad(loss, (pred, target))
     assert torch.allclose(loss, dense)
     assert all(torch.allclose(g, d) for g, d in zip(grads, dense_grads))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="kaolin's nearest-neighbor kernel runs on CUDA")
+def test_chamfer_nearest_neighbor_backends_agree(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("kaolin")
+    from torch_pointcloud.losses import chamfer as chamfer_module
+
+    torch.manual_seed(0)
+    query, points = torch.randn(3, 64, 3, device="cuda"), torch.randn(3, 48, 3, device="cuda")
+    with_kaolin = chamfer_module._nearest_index(query, points)
+
+    monkeypatch.setattr(chamfer_module, "_KAOLIN_AVAILABLE", False)
+    with_knn = chamfer_module._nearest_index(query, points)
+    assert torch.equal(with_kaolin, with_knn)
 
 
 def test_lovasz_softmax_perfect_prediction_is_zero_and_validates_classes() -> None:

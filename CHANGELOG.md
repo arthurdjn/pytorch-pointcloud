@@ -12,7 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `tnet_orthogonality_regularizer` / `TNetOrthogonalityRegularizer`, PointNet's feature-transform regularization; `TNet` and `DynamicTNet` keep their last transform in `running_transform`.
 - Moved `generate_anchors`, `assign_anchor_targets` and `AnchorTargets` to `ops.anchors`; added `ops.box3d.points_in_boxes` and `boxes_iou_nearest_bev`.
 - Added `poly1_focal_loss` / `Poly1FocalLoss`.
-- Sped up the detection and segmentation losses 2x to 15x with identical values: vectorized heatmap and anchor targets, batched Hungarian matching, class-batched Lovász sort, an axis-aligned prefilter of the rotated IoU, and `chamfer_distance` on `torch_geometric`'s kNN so whole clouds fit.
+- Sped up the detection and segmentation losses 2x to 15x with identical values: vectorized heatmap and anchor targets, batched Hungarian matching, class-batched Lovász sort, an axis-aligned prefilter of the rotated IoU, and `chamfer_distance` on the nearest-neighbor kernels of kaolin (optional) or `torch_geometric` so whole clouds fit.
 - The detection losses take the collated dict as `data`: `forward(output, data)`.
 - Removed the scalar `loss_weight` of the single-term loss modules; `SumLoss` takes `weights` instead.
 - Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
