@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Union
 import torch
 from torch import Tensor
 
-from torch_pointcloud.utils.conversion import ensure_tuple_size
+from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection
 
@@ -54,7 +54,7 @@ class RandomRotate(DictTransform, Randomizable):
     r"""Rotate one or more keys (and optionally oriented boxes) by a uniformly random angle around an axis.
 
     Sampling is done once per call: every listed key and the optional box get the same rotation. Each key is a
-    $(\ldots, 3)$ field or a packed $(N, 3G)$ field of tiled 3D offsets (e.g. VoteNet votes). Pair
+    $(\ldots, 3)$ field or a packed $(N, 3G)$ field of tiled 3D offsets (e.g. vote offsets). Pair
     `keys=("pos", "normal")` to keep positions and normals consistent, or pass `box_key` to also rotate a
     $(K, 7)$ oriented-box tensor (centers rotated, heading incremented). Box headings are counterclockwise
     yaw about the up axis, so `box_key` requires `axis=2`.
@@ -82,6 +82,9 @@ class RandomRotate(DictTransform, Randomizable):
         axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
         p: Probability of applying the transform.
         box_key: Optional key of a $(K, 7)$ oriented-box tensor to rotate jointly (requires `axis=2`).
+        center: Point the rotation is about: `"origin"`, `"bbox"` (the midrange of the first key),
+            `"centroid"` (its mean) or an explicit $(x, y, z)$.
+        vector_keys: Direction fields (normals) rotated without the recentering, whatever `center` is.
         dst_keys: Where to store the rotated tensors. Defaults to `keys` (in-place).
         dst_box_key: Where to store the rotated boxes. Defaults to `box_key` (in-place).
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
@@ -95,6 +98,8 @@ class RandomRotate(DictTransform, Randomizable):
         axis: int = 2,
         p: float = 1.0,
         box_key: Optional[str] = None,
+        center: Union[str, Sequence[float]] = "origin",
+        vector_keys: Optional[KeyCollection] = None,
         dst_keys: Optional[KeyCollection] = None,
         dst_box_key: Optional[str] = None,
         seed: Optional[int] = None,
@@ -105,15 +110,37 @@ class RandomRotate(DictTransform, Randomizable):
 
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
+        if isinstance(center, str) and center not in ("origin", "bbox", "centroid"):
+            raise ValueError(f"center must be 'origin', 'bbox', 'centroid' or a 3-vector; got {center!r}.")
 
         super().__init__(keys, allow_missing_keys)
         self.angle_range = angle_range
         self.axis = axis
         self.p = p
         self.box_key = box_key
+        self.center = center if isinstance(center, str) else torch.as_tensor(center, dtype=torch.float32)
+        self.vector_keys = ensure_tuple(vector_keys) if vector_keys is not None else ()
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.dst_box_key = dst_box_key or box_key
         self.set_random_state(seed)
+
+    def _center(self, data: Dict[str, Any]) -> Optional[Tensor]:
+        r"""The rotation center as a $(3,)$ tensor, or `None` for the origin."""
+        if isinstance(self.center, Tensor):
+            return self.center
+        if self.center == "origin":
+            return None
+
+        first = next(iter(self.iter_keys(data)), None)
+        if first is None:
+            return None
+
+        pos = data[first].reshape(-1, 3)
+        if pos.shape[0] == 0:
+            return None
+        if self.center == "bbox":
+            return (pos.min(dim=0).values + pos.max(dim=0).values) / 2
+        return pos.mean(dim=0)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
@@ -123,12 +150,30 @@ class RandomRotate(DictTransform, Randomizable):
         lo, hi = self.angle_range
         angle = math.radians(torch.empty(1).uniform_(lo, hi, generator=self.R).item())
         rotation = rotation_matrix(angle, self.axis)
+        center = self._center(data)
         box_key = self.box_key
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
-            data[self.dst_box_key] = rotate_boxes(data[box_key], rotation, angle)
+            boxes = data[box_key]
+            if center is not None:
+                boxes = boxes.clone()
+                boxes[:, 0:3] = boxes[:, 0:3] - center.to(boxes)
+            boxes = rotate_boxes(boxes, rotation, angle)
+            if center is not None:
+                boxes[:, 0:3] = boxes[:, 0:3] + center.to(boxes)
+            data[self.dst_box_key] = boxes
+
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = rotate_vectors(data[key], rotation)
+            value = data[key]
+            if center is not None:
+                shift = center.to(value).repeat(value.shape[-1] // 3)
+                data[dst_key] = rotate_vectors(value - shift, rotation) + shift
+            else:
+                data[dst_key] = rotate_vectors(value, rotation)
+
+        for key in self.vector_keys:
+            if key in data:
+                data[key] = rotate_vectors(data[key], rotation)
         return data
 
 
@@ -271,8 +316,8 @@ def flip_vectors(x: Tensor, axis: int) -> Tensor:
     r"""Flip a packed field of 3D vectors along a spatial axis.
 
     Negates component `axis` of every contiguous triple of the last dimension, so it handles both a plain
-    $(N, 3)$ field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. VoteNet
-    vote offsets $(\text{center} - \text{point})$) alike.
+    $(N, 3)$ field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. vote
+    offsets $(\text{center} - \text{point})$) alike.
 
     Args:
         x: Vector field of shape $(N, 3)$ or $(N, 3 G)$.
@@ -290,7 +335,7 @@ class RandomFlip(DictTransform, Randomizable):
     r"""Flip listed axes (and optionally oriented boxes) with probability `p` each.
 
     Sampling is done once per call: every listed key and the optional box are flipped on the same axes. Each
-    key is a $(\ldots, 3)$ field or a packed $(N, 3G)$ field of tiled 3D offsets (e.g. VoteNet votes). Pass
+    key is a $(\ldots, 3)$ field or a packed $(N, 3G)$ field of tiled 3D offsets (e.g. vote offsets). Pass
     `box_key` to also flip a $(K, 7)$ oriented-box tensor (centers negated, heading remapped).
 
     === "Object"
@@ -877,6 +922,9 @@ def color_auto_contrast(color: Tensor, blend: float = 0.5, int_color: bool = Fal
     out = color.float()
     lo = out.min(dim=0).values
     hi = out.max(dim=0).values
+    if not bool((hi > lo).any()):
+        return color  # a flat cloud has no contrast to stretch
+
     scale = max_val / (hi - lo).clamp(min=1e-6)
     stretched = (out - lo) * scale
     blended = blend * stretched + (1.0 - blend) * out
@@ -893,7 +941,8 @@ class RandomColorAutoContrast(DictTransform, Randomizable):
 
     Args:
         keys: Color keys, shape $(N, 3)$.
-        blend: Blend weight in `[0, 1]`. `1.0` is fully auto-contrasted; `0.0` is the input.
+        blend: Blend weight in `[0, 1]`. `1.0` is fully auto-contrasted; `0.0` is the input; `None` draws
+            a uniform weight on every application.
         int_color: If `True`, treat float colors as `[0, 255]` values; otherwise `[0, 1]`.
             `uint8` colors are always treated as `[0, 255]` regardless of the flag; float colors
             above 1 with `int_color=False` raise a ValueError.
@@ -906,7 +955,7 @@ class RandomColorAutoContrast(DictTransform, Randomizable):
     def __init__(
         self,
         keys: KeyCollection,
-        blend: float = 0.5,
+        blend: Optional[float] = 0.5,
         int_color: bool = False,
         p: float = 0.2,
         dst_keys: Optional[KeyCollection] = None,
@@ -928,8 +977,9 @@ class RandomColorAutoContrast(DictTransform, Randomizable):
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
 
+        blend = self.blend if self.blend is not None else torch.rand(1, generator=self.R).item()
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = color_auto_contrast(data[key], blend=self.blend, int_color=self.int_color)
+            data[dst_key] = color_auto_contrast(data[key], blend=blend, int_color=self.int_color)
         return data
 
 
@@ -1117,16 +1167,7 @@ def random_elastic_distortion(
 
     # Sample noise on the coarse grid: (N, C, D, H, W) for grid_sample input
     noise = (
-        torch.randn(
-            1,
-            3,
-            grid_z,
-            grid_y,
-            grid_x,
-            generator=generator,
-            device=pos.device,
-            dtype=torch.float32,
-        )
+        torch.randn(1, 3, grid_z, grid_y, grid_x, generator=generator, device=pos.device, dtype=torch.float32)
         * magnitude
     )
 
@@ -1179,6 +1220,7 @@ class RandomElasticDistortion(DictTransform, Randomizable):
             computed once from the first present key and added to every key.
         granularity: Size of the displacement-field grid cells. Smaller values
             give higher-frequency distortion.
+            Several values (paired with `magnitude`) run one pass each, under the same probability gate.
         magnitude: Standard deviation of the per-cell Gaussian noise. Larger
             values give stronger deformation.
         p: Probability of applying the transform.
@@ -1190,8 +1232,8 @@ class RandomElasticDistortion(DictTransform, Randomizable):
     def __init__(
         self,
         keys: KeyCollection,
-        granularity: float = 0.2,
-        magnitude: float = 0.4,
+        granularity: Union[float, Sequence[float]] = 0.2,
+        magnitude: Union[float, Sequence[float]] = 0.4,
         p: float = 1.0,
         dst_keys: Optional[KeyCollection] = None,
         seed: Optional[int] = None,
@@ -1200,9 +1242,14 @@ class RandomElasticDistortion(DictTransform, Randomizable):
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
+        granularities, magnitudes = ensure_tuple(granularity), ensure_tuple(magnitude)
+        if len(granularities) != len(magnitudes):
+            raise ValueError("`granularity` and `magnitude` must have the same number of entries.")
+
         super().__init__(keys, allow_missing_keys)
         self.granularity = granularity
         self.magnitude = magnitude
+        self.passes = tuple(zip(granularities, magnitudes))
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.set_random_state(seed)
@@ -1217,9 +1264,11 @@ class RandomElasticDistortion(DictTransform, Randomizable):
             return data
 
         reference = data[first_key]
-        displacement = (
-            random_elastic_distortion(reference, self.granularity, self.magnitude, generator=self.R) - reference
-        )
+        distorted = reference
+        for granularity, magnitude in self.passes:
+            distorted = random_elastic_distortion(distorted, granularity, magnitude, generator=self.R)
+
+        displacement = distorted - reference
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
             data[dst_key] = x + displacement.to(x.dtype).to(x.device)

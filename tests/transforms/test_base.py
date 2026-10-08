@@ -235,3 +235,22 @@ def test_compose_set_random_state_seeds_random_children() -> None:
 
     pipeline.set_random_state()
     assert jitter.R is None
+
+
+def test_random_apply_gates_its_pipeline() -> None:
+    data = {"pos": torch.ones(4, 3), "normal": torch.ones(4, 3)}
+    always = T.RandomApply([T.Scale(keys="normal", scale=0.0)], p=1.0)
+    out = always(data)
+    assert torch.equal(out["normal"], torch.zeros(4, 3)) and torch.equal(out["pos"], data["pos"])
+    never = T.RandomApply([T.Scale(keys="normal", scale=0.0)], p=0.0)
+    assert torch.equal(never(data)["normal"], data["normal"])
+    # one seeded stream gates the pipeline and seeds its random children, so a seed replays the draws
+    gated = T.RandomApply([T.RandomJitter(keys="pos", sigma=0.1)], p=0.5, seed=0)
+    first = [gated(data)["pos"] for _ in range(20)]
+    gated.set_random_state(seed=0)
+    second = [gated(data)["pos"] for _ in range(20)]
+    assert all(torch.equal(a, b) for a, b in zip(first, second))
+    assert any(not torch.equal(a, data["pos"]) for a in first) and any(torch.equal(a, data["pos"]) for a in first)
+    assert "p=0.5" in repr(gated)
+    with pytest.raises(ValueError, match="p must be"):
+        T.RandomApply([], p=1.5)

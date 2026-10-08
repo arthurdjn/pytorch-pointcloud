@@ -1,6 +1,6 @@
 # Transforms
 
-A transform takes one sample dict and returns a new one. `Compose` chains them, and a dataset applies the chain to every sample it loads. The API follows :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions.
+A transform takes one sample dict and returns a new one. `Compose` chains them (`RandomApply` chains them under a probability), and a dataset applies the chain to every sample it loads. The API follows :monai: MONAI's dict transforms and :pyg: PyTorch Geometric's `Data` conventions.
 
 Each transform reads and writes the keys you name, so a sample can carry any extra key (intensity, color, ...) without
 every transform handling it.

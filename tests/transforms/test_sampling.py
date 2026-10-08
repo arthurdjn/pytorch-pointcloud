@@ -488,3 +488,48 @@ def test_shuffle_indices_is_permutation() -> None:
     perm = F.shuffle_indices(20, generator=g)
     assert perm.dtype == torch.long
     assert sorted(perm.tolist()) == list(range(20))
+
+
+def test_random_block_crop_keeps_a_square_column_around_a_point() -> None:
+    torch.manual_seed(0)
+    pos = torch.rand(2000, 3) * torch.tensor([6.0, 4.0, 3.0])
+    data = {"pos": pos, "segment": torch.arange(2000), "scalar": torch.tensor(1.0)}
+    crop = T.RandomBlockCrop(
+        pos_key="pos",
+        keys="segment",
+        block_size=1.0,
+        min_nodes=10,
+        dst_center_key="center",
+        dst_index_key="index",
+        seed=0,
+    )
+    out = crop(data)
+    center = out["center"]
+    assert torch.all((out["pos"][:, :2] - center[:2]).abs() <= 0.5) and out["pos"].shape[0] > 10
+    assert torch.equal(out["segment"], out["index"]) and torch.equal(pos[out["index"]], out["pos"])
+    assert torch.equal(out["scalar"], data["scalar"])  # only the point keys are cropped
+    # the kept points are exactly the ones of the window
+    expected = ((pos[:, :2] - center[:2]).abs() <= 0.5).all(dim=1)
+    assert torch.equal(out["index"], torch.where(expected)[0])
+    # an unreachable minimum falls back to the largest of `max_tries` draws
+    sparse = T.RandomBlockCrop(pos_key="pos", block_size=0.1, min_nodes=10**6, max_tries=5, seed=0)
+    assert 0 < sparse({"pos": pos})["pos"].shape[0] < 2000
+    assert T.RandomBlockCrop(pos_key="pos")({"pos": torch.empty(0, 3)})["pos"].shape[0] == 0
+    with pytest.raises(ValueError, match="block_size"):
+        T.RandomBlockCrop(pos_key="pos", block_size=0.0)
+
+
+def test_random_sample_allow_fewer_keeps_small_clouds() -> None:
+    data = {"pos": torch.rand(10, 3), "segment": torch.arange(10)}
+    out = T.RandomSample(keys=["pos", "segment"], num_samples=16, allow_fewer=True, dst_index_key="index")(data)
+    assert torch.equal(out["pos"], data["pos"]) and torch.equal(out["index"], torch.arange(10))
+    assert T.RandomSample(keys="pos", num_samples=16)(data)["pos"].shape[0] == 16  # the default completes the draw
+    assert T.RandomSample(keys="pos", num_samples=4, allow_fewer=True)(data)["pos"].shape[0] == 4
+
+
+def test_sphere_crop_stores_its_center() -> None:
+    torch.manual_seed(0)
+    data = {"pos": torch.rand(300, 3) * 4}
+    out = T.SphereCrop(pos_key="pos", radius=1.0, center="random_point", dst_center_key="center", seed=0)(data)
+    assert out["center"].shape == (3,) and torch.any(torch.all(data["pos"] == out["center"], dim=1))
+    assert torch.all((out["pos"] - out["center"]).norm(dim=1) <= 1.0)

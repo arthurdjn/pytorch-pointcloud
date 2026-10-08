@@ -143,8 +143,8 @@ def collate(
     how specific keys collate instead:
 
     - `stack_keys`: stack to a new leading batch dim ($(M, \cdot) \to (B, M, \cdot)$, $(N, \cdot) \to (B, N, \cdot)$)
-      rather than concatenating. Used for fixed-size per-scene ground truth (the VoteNet loss consumes
-      dense $(B, M, \cdot)$ targets, which a plain cat would flatten).
+      rather than concatenating. Used for fixed-size per-scene tensors that must keep their scene dimension
+      (a plain cat would flatten them).
     - `cat_keys`: keep these packed (cat) but additionally emit a `batch_<key>` scene index mirroring
       `batch_key`. Used for ragged per-scene ground truth such as `box` $(K, 8)$ -> `batch_box` $(K,)$.
 
@@ -190,6 +190,47 @@ def collate(
             out[dst] = torch.cat([torch.full((n,), i, dtype=torch.long, device=device) for i, n in enumerate(lengths)])
 
     return out
+
+
+def mix_pairs(
+    data_list: List[Dict[str, Any]],
+    mix: Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]],
+    p: float = 1.0,
+    generator: Optional[torch.Generator] = None,
+) -> List[Dict[str, Any]]:
+    r"""Merge consecutive pairs of samples with a pairwise mix, with probability `p` per batch.
+
+    When the draw succeeds, samples $(0, 1), (2, 3), \ldots$ of the
+    batch are each merged into one scene by `mix` (`Mix3D` concatenates them), so the batch holds half as many
+    scenes with all their points; an odd last sample passes through. Otherwise the batch is returned unchanged.
+
+    Args:
+        data_list: The samples of a batch, before collation.
+        mix: Pairwise transform called as `mix(first, second)`.
+        p: Probability of mixing the batch.
+        generator: Random generator of the draw; `None` uses the global one.
+
+    Returns:
+        The (possibly mixed) samples.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> import torch_pointcloud.transforms as T
+        >>> scenes = [{"pos": torch.rand(10 * (i + 1), 3)} for i in range(4)]
+        >>> mixed = mix_pairs(scenes, T.Mix3D(keys="pos", instance_key=None, p=1.0), p=1.0)
+        >>> [scene["pos"].shape[0] for scene in mixed]
+        [30, 70]
+
+        ```
+    """
+    if p <= 0 or len(data_list) < 2 or torch.rand(1, generator=generator).item() >= p:
+        return data_list
+
+    mixed = [mix(data_list[i], data_list[i + 1]) for i in range(0, len(data_list) - 1, 2)]
+    if len(data_list) % 2:
+        mixed.append(data_list[-1])
+    return mixed
 
 
 def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
@@ -336,6 +377,9 @@ class PointCloudDataLoader(DataLoader):
         batch_key: Output key for the per-point batch index.
         stack_keys: Keys collated by stacking to a leading batch dim instead of concatenating.
         cat_keys: Packed keys that additionally emit a `batch_<key>` per-element scene index.
+        mix: Optional pairwise mix (e.g. `Mix3D`) merging consecutive samples of a batch before collation,
+            with probability `mix_prob` per batch; see [`mix_pairs`][torch_pointcloud.utils.data.mix_pairs].
+        mix_prob: Probability of mixing a batch.
         **kwargs: Forwarded to `torch.utils.data.DataLoader` (`batch_size`, `shuffle`, `collate_fn`, ...).
     """
 
@@ -347,18 +391,31 @@ class PointCloudDataLoader(DataLoader):
         batch_key: str = DataKeys.BATCH,
         stack_keys: Optional[Sequence[str]] = None,
         cat_keys: Optional[Sequence[str]] = None,
+        mix: Optional[Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]] = None,
+        mix_prob: float = 0.0,
         **kwargs: Any,
     ) -> None:
-        collate_fn = functools.partial(
+        collate_fn: Callable[[List[Dict[str, Any]]], Dict[str, Any]] = functools.partial(
             collate,
             batch_from=batch_from,
             batch_key=batch_key,
             stack_keys=stack_keys,
             cat_keys=cat_keys,
         )
+        if mix is not None and mix_prob > 0:
+            collate_fn = functools.partial(_mix_then_collate, mix=mix, mix_prob=mix_prob, collate_fn=collate_fn)
         kwargs.setdefault("collate_fn", collate_fn)
         kwargs["worker_init_fn"] = functools.partial(_worker_init_fn, kwargs.get("worker_init_fn"))
         super().__init__(dataset, **kwargs)
+
+
+def _mix_then_collate(
+    data_list: List[Dict[str, Any]],
+    mix: Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]],
+    mix_prob: float,
+    collate_fn: Callable[[List[Dict[str, Any]]], Dict[str, Any]],
+) -> Dict[str, Any]:
+    return collate_fn(mix_pairs(data_list, mix, p=mix_prob))
 
 
 def offset_index(index: Tensor, index_batch: Tensor, batch: Tensor) -> Tensor:

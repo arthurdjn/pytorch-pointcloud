@@ -7,7 +7,7 @@ from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResa
 from .nuscenes import NuScenes, NuScenesMini
 from .parislille3d import ParisLille3D
 from .pointcloud import PointCloudDataset
-from .repeat import RepeatDataset
+from .repeat import RepeatDataset, RepeatSampler
 from .s3dis import S3DIS, S3DISHdf5
 from .scannet import ScanNet, ScanNet20, ScanNet200
 from .scanobjectnn import ScanObjectNN
