@@ -158,11 +158,13 @@ def test_point_mae_masked_autoencoder_basic() -> None:
     )
     pos = torch.randn(2048, 3)
     batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
-    pred, target = model(None, pos, batch)
+    pred, target, pred_batch, target_batch = model(None, pos, batch)
 
-    assert pred.ndim == target.ndim == 3
-    assert pred.shape == target.shape
-    assert pred.shape[1:] == (model.group_size, 3)
+    assert pred.shape == target.shape == (pred_batch.shape[0], 3)
+    assert torch.equal(pred_batch, target_batch)
+    assert torch.equal(
+        pred_batch, torch.arange(pred_batch.shape[0] // model.group_size).repeat_interleave(model.group_size)
+    )
 
 
 @pytest.mark.parametrize(

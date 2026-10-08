@@ -200,10 +200,10 @@ def test_point_mamba_mae_basic() -> None:
     model.cuda()
     pos = torch.randn(100, 3).cuda()
     batch = torch.cat([torch.zeros(40), torch.ones(60)]).long().cuda()
-    pred, target = model(None, pos, batch)
+    pred, target, pred_batch, target_batch = model(None, pos, batch)
 
-    assert pred.ndim == target.ndim == 3
-    assert pred.shape == target.shape
+    assert pred.shape == target.shape == (pred_batch.shape[0], 3)
+    assert torch.equal(pred_batch, target_batch)
 
 
 @requires_cuda
@@ -225,6 +225,6 @@ def test_point_mamba_mae_accepts_features() -> None:
     batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long().cuda()
     x = torch.randn(2048, in_channels).cuda()
 
-    pred, target = model(x, pos, batch)
-    assert pred.ndim == target.ndim == 3
-    assert pred.shape == target.shape
+    pred, target, pred_batch, target_batch = model(x, pos, batch)
+    assert pred.shape == target.shape == (pred_batch.shape[0], 3)
+    assert torch.equal(pred_batch, target_batch)

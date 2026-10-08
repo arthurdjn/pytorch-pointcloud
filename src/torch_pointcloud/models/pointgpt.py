@@ -547,7 +547,8 @@ class PointGPTPretraining(PretrainingModel):
     fed to a causally-masked GPT extractor with an additional column mask that randomly hides patches
     beyond the first `keep_attend` tokens (the dual-masking strategy). The generator then predicts the
     next patch from the extractor features and a relative positional embedding. `forward` returns the
-    predicted and target patch coordinates for a set-to-set reconstruction objective such as
+    predicted and target patch coordinates, each packed with the patch index of its points, for a
+    set-to-set reconstruction objective such as
     `chamfer_distance` from `torch_pointcloud.losses`.
 
     Args:
@@ -666,7 +667,7 @@ class PointGPTPretraining(PretrainingModel):
         maskable = maskable[torch.randperm(maskable.size(0), device=device)]
         return torch.cat([torch.zeros(self.keep_attend, dtype=torch.bool, device=device), maskable])
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         if x is None:
             neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         else:
@@ -704,9 +705,10 @@ class PointGPTPretraining(PretrainingModel):
         attn_mask = causal | (column.unsqueeze(0) & ~eye)
 
         encoded = self.blocks(tokens, pos_absolute, attn_mask, shift=True)
-        pred = self.generator_blocks(encoded, pos_relative, attn_mask)
-        target = neighborhood[..., : self.spatial_dim].reshape(B * G, self.group_size, self.spatial_dim)
-        return pred, target
+        pred = self.generator_blocks(encoded, pos_relative, attn_mask).reshape(-1, self.spatial_dim)
+        target = neighborhood[..., : self.spatial_dim].reshape(-1, self.spatial_dim)
+        batch = torch.arange(B * G, device=pred.device).repeat_interleave(self.group_size)
+        return pred, target, batch, batch
 
 
 def _modelnet_transforms(num_samples: int) -> T.Compose:

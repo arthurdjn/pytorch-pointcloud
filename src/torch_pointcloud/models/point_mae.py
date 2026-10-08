@@ -699,9 +699,9 @@ class PointMAEPretraining(PretrainingModel):
 
     Masks a fraction of the group tokens, encodes the visible tokens, then reconstructs the
     masked groups' centered coordinates from learnable mask tokens with a transformer decoder
-    and a per-token coordinate head. `forward` returns the predicted and target group coordinates
-    for a set-to-set reconstruction objective such as `chamfer_distance` from
-    `torch_pointcloud.losses`.
+    and a per-token coordinate head. `forward` returns the predicted and target coordinates of the
+    masked groups, each packed with the group index of its points, for a set-to-set reconstruction
+    objective such as `chamfer_distance` from `torch_pointcloud.losses`.
 
     Args:
         in_channels: Number of input channels (unused beyond coordinates; kept for the registry contract).
@@ -825,7 +825,7 @@ class PointMAEPretraining(PretrainingModel):
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.mask_token, std=0.02)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
 
         x_vis, mask = self.MAE_encoder(neighborhood, center)
@@ -842,9 +842,11 @@ class PointMAEPretraining(PretrainingModel):
         x_rec = self.MAE_decoder(x_full, pos_full, M)
 
         B, R, C = x_rec.shape
-        pred = self.increase_dim(x_rec).reshape(B * R, -1, 3)
-        target = neighborhood[mask].reshape(B * R, -1, 3)
-        return pred, target
+        group_size = neighborhood.shape[-2]
+        pred = self.increase_dim(x_rec).reshape(-1, 3)
+        target = neighborhood[mask].reshape(-1, 3)
+        batch = torch.arange(B * R, device=pred.device).repeat_interleave(group_size)
+        return pred, target, batch, batch
 
 
 _MODELNET_TRANSFORM = T.Compose(

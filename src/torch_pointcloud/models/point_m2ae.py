@@ -775,7 +775,8 @@ class PointM2AEPretraining(PretrainingModel):
     Shape:
         - `pos`: $(N, 3)$
         - `batch`: $(N,)$
-        - Output: a tuple `(pred, target)` of reconstructed and ground-truth neighborhoods, each $(L, k_0, 3)$.
+        - Output: a tuple `(pred, target, pred_batch, target_batch)`: reconstructed and ground-truth neighborhood
+          points, $(L \cdot k_0, 3)$ and $(L \cdot k_1, 3)$, each packed with the neighborhood index of its points.
     """
 
     def __init__(
@@ -878,7 +879,7 @@ class PointM2AEPretraining(PretrainingModel):
         """Build the linear head predicting the coordinates of each masked finest-stage neighborhood."""
         return nn.Linear(self.decoder_dims[-1], 3 * self.group_sizes[0])
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         neighborhoods, centers, idxs = multi_scale_group(
             pos,
             batch,
@@ -930,9 +931,13 @@ class PointM2AEPretraining(PretrainingModel):
         x_rec = x_full[masks[-2]].reshape(-1, C)
         L = x_rec.size(0)
 
-        pred = self.rec_head(x_rec).reshape(L, -1, 3)
-        target = neighborhoods[-2][masks[-2]].reshape(L, -1, 3)
-        return pred, target
+        # The head predicts the finest group size per masked group, the target groups have the coarser one.
+        pred_groups = self.rec_head(x_rec).reshape(L, -1, 3)
+        target_groups = neighborhoods[-2][masks[-2]]
+        groups = torch.arange(L, device=pred_groups.device)
+        pred_batch = groups.repeat_interleave(pred_groups.shape[1])
+        target_batch = groups.repeat_interleave(target_groups.shape[1])
+        return pred_groups.reshape(-1, 3), target_groups.reshape(-1, 3), pred_batch, target_batch
 
 
 class HierarchicalEncoderMAE(nn.Module):
