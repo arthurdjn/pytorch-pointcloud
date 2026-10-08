@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)` and `RandomSample(allow_fewer=True)`.
+- Added `transforms.RandomApply`, `RandomBlockCrop` and `Translate`, `S3DIS(num_nodes=None)`, `PointCloudDataLoader(mix=..., mix_prob=...)` and `datasets.RepeatSampler`.
+
 ## 0.0.12 (2026-10-07)
 
 - Reorganized `losses` into tiers: each tensor function sits next to its module and is re-exported by `losses.functional`; added the module forms `SigmoidFocalLoss`, `GaussianFocalLoss`, `ChamferDistance` and `CornerLoss`; the private copies inside the detection losses are gone.
@@ -22,8 +25,6 @@ All notable changes to this project are documented in this file. The format is b
 - Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
 - Added `torch_pointcloud.engine`: `train_one_epoch`, `evaluate_classification`, `evaluate_segmentation` and `evaluate_detection`.
 - Added `torch_pointcloud.optim`: `param_groups`, `CosineWarmupLR`, `PolyLR` and the BatchNorm momentum schedules; `utils.optim.generate_param_groups` moved there.
-- Added the transform options of the reference recipes: `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)`, `RandomSample(allow_fewer=True)`, `S3DIS(num_nodes=None)` and the `mix` / `mix_prob` collate of `PointCloudDataLoader`.
-- Added `transforms.RandomApply`, `RandomBlockCrop`, `Translate` and `RepeatDataset(k=[...])`.
 - Added the reference training recipes as example scripts (Pointcept, openpoints, yanx27, spvnas, KPConv-PyTorch, RandLA-Net, PVCNN, Point-MAE-family finetuning, Sonata linear probing); they replace the generic classification and segmentation scripts.
 
 ## 0.0.11 (2026-10-06)
