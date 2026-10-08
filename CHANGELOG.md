@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `torch_pointcloud.optim`: `generate_param_groups` (moved from `utils.optim`), `CosineWarmupLR`, `PolyLR`, `bn_momentum`, `set_bn_momentum` and `BNMomentumScheduler`.
+
 - Added `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)` and `RandomSample(allow_fewer=True)`.
 - Added `transforms.RandomApply`, `RandomBlockCrop` and `Translate`, `S3DIS(num_nodes=None)`, `PointCloudDataLoader(mix=..., mix_prob=...)` and `datasets.RepeatSampler`.
 - The masked point modeling pretraining models return `(pred, target, pred_batch, target_batch)`, packed for `chamfer_distance`.
@@ -24,8 +26,6 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
 - Fixed `assign_anchor_targets` matching by the rotated BEV IoU; the anchor recipes match by the nearest-axis-aligned one (`boxes_iou_nearest_bev`) unless `match_height` is set.
 - Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
-- Added `torch_pointcloud.engine`: `train_one_epoch`, `evaluate_classification`, `evaluate_segmentation` and `evaluate_detection`.
-- Added `torch_pointcloud.optim`: `param_groups`, `CosineWarmupLR`, `PolyLR` and the BatchNorm momentum schedules; `utils.optim.generate_param_groups` moved there.
 - Added the reference training recipes as example scripts (Pointcept, openpoints, yanx27, spvnas, KPConv-PyTorch, RandLA-Net, PVCNN, Point-MAE-family finetuning, Sonata linear probing); they replace the generic classification and segmentation scripts.
 
 ## 0.0.11 (2026-10-06)
