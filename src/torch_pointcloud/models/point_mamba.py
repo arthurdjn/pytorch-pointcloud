@@ -828,7 +828,8 @@ class PointMambaPretraining(PretrainingModel):
 
     Masks a fraction of the serialized patch tokens, encodes the visible tokens with Mamba blocks,
     reconstructs the masked patches' relative coordinates with a Mamba decoder and a linear head, and
-    returns the predicted and target patch coordinates for a set-to-set reconstruction objective such
+    returns the predicted and target patch coordinates, each packed with the patch index of its points, for a
+    set-to-set reconstruction objective such
     as `chamfer_distance` from `torch_pointcloud.losses`.
 
     Args:
@@ -941,7 +942,7 @@ class PointMambaPretraining(PretrainingModel):
     def configure_head(self) -> nn.Module:
         return nn.Linear(self.embed_dim, 3 * self.group_size)
 
-    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         out = self.encoder(x, pos, batch)
         x_vis, pos_dense, target_pos_dense, mask_idx, vis_idx = (
             out["x_vis"],
@@ -962,9 +963,10 @@ class PointMambaPretraining(PretrainingModel):
         gather_ids_target = mask_idx.view(x_rec_masked.shape[0], -1, 1, 1).expand(-1, -1, self.group_size, 3)
         target_masked = torch.gather(target_pos_dense, 1, gather_ids_target)
 
-        pred = pred_masked.view(-1, self.group_size, self.spatial_dim)
-        target = target_masked.view(-1, self.group_size, self.spatial_dim)
-        return pred, target
+        pred = pred_masked.reshape(-1, self.spatial_dim)
+        target = target_masked.reshape(-1, self.spatial_dim)
+        batch = torch.arange(pred.shape[0] // self.group_size, device=pred.device).repeat_interleave(self.group_size)
+        return pred, target, batch, batch
 
 
 @register_model(

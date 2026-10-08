@@ -60,10 +60,12 @@ def test_pointgpt_generative_pretraining_basic() -> None:
         act="gelu",
     )
     pos, batch = _packed_batch()
-    pred, target = model(None, pos, batch)
-    assert pred.ndim == target.ndim == 3
-    assert pred.shape == target.shape
-    assert pred.shape[1:] == (model.group_size, 3)
+    pred, target, pred_batch, target_batch = model(None, pos, batch)
+    assert pred.shape == target.shape == (pred_batch.shape[0], 3)
+    assert torch.equal(pred_batch, target_batch)
+    assert torch.equal(
+        pred_batch, torch.arange(pred_batch.shape[0] // model.group_size).repeat_interleave(model.group_size)
+    )
 
 
 def test_pointgpt_classification_num_classes_zero_returns_features() -> None:
@@ -119,7 +121,7 @@ def test_pointgpt_generative_pretraining_duplicate_centers_finite() -> None:
     model.eval()
     pos = torch.zeros(512, 3)
     batch = torch.cat([torch.zeros(256), torch.ones(256)]).long()
-    pred, target = model(None, pos, batch)
+    pred, target, _, _ = model(None, pos, batch)
     assert torch.isfinite(pred).all()
     assert torch.isfinite(target).all()
 
@@ -162,8 +164,8 @@ def test_pointgpt_generative_pretraining_accepts_features() -> None:
     x_a = torch.randn(pos.size(0), in_channels)
     x_b = torch.randn(pos.size(0), in_channels)
 
-    pred_a, target_a = model(x_a, pos, batch)
-    pred_b, _ = model(x_b, pos, batch)
+    pred_a, target_a, _, _ = model(x_a, pos, batch)
+    pred_b, _, _, _ = model(x_b, pos, batch)
     assert pred_a.shape == target_a.shape
     assert pred_a.shape == pred_b.shape
     assert not torch.allclose(pred_a, pred_b)

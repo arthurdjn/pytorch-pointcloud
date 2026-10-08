@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- The masked point modeling pretraining models return `(pred, target, pred_batch, target_batch)`, packed for `chamfer_distance`.
+
 ## 0.0.12 (2026-10-07)
 
 - Reorganized `losses` into tiers: each tensor function sits next to its module and is re-exported by `losses.functional`; added the module forms `SigmoidFocalLoss`, `GaussianFocalLoss`, `ChamferDistance` and `CornerLoss`; the private copies inside the detection losses are gone.
