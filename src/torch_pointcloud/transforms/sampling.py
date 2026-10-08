@@ -1,6 +1,6 @@
 """Transforms that select a subset of the points."""
 
-from typing import Any, Dict, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 from torch import Tensor
@@ -20,6 +20,7 @@ __all__ = [
     "RandomSampleFaceVertices",
     "ShufflePoint",
     "Slice",
+    "RandomBlockCrop",
     "SphereCrop",
 ]
 
@@ -116,6 +117,8 @@ class RandomSample(DictTransform, Randomizable):
         dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
             default) disables it.
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+        allow_fewer: If `True`, a cloud with at most `num_samples` points passes through unchanged instead of
+            being completed by draws with replacement.
 
     Raises:
         ValueError: If the first sampled tensor is empty and `num_samples > 0`.
@@ -129,10 +132,12 @@ class RandomSample(DictTransform, Randomizable):
         seed: Optional[int] = None,
         dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
+        allow_fewer: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.num_samples = num_samples
         self.replace = replace
+        self.allow_fewer = allow_fewer
         self.set_random_state(seed)
         self.dst_index_key = dst_index_key
 
@@ -142,6 +147,11 @@ class RandomSample(DictTransform, Randomizable):
         try:
             first_key = next(iterator)
         except StopIteration:
+            return d
+
+        if self.allow_fewer and d[first_key].shape[0] <= self.num_samples:
+            if self.dst_index_key is not None and self.dst_index_key not in d:
+                d[self.dst_index_key] = torch.arange(d[first_key].shape[0], device=d[first_key].device)
             return d
 
         sampled_tensor, indices = random_sample(
@@ -547,6 +557,9 @@ class SphereCrop(DictTransform, Randomizable):
         radius: Radius of the sphere (Euclidean).
         max_nodes: Optional cap on the number of kept points. If `None` (default),
             no cap is applied; otherwise the `max_nodes` points nearest the center are kept.
+        max_ratio: Optional cap as a fraction of the input point count (keeps that fraction of the points nearest
+            the center); combined with `max_nodes` by the minimum.
+        dst_center_key: Key receiving the center $(D,)$ the crop was taken around; `None` does not store it.
         p: Probability of applying the transform.
         seed: Seed for the random center (`center="random_point"`) and the probability draw;
             `None` draws from the global generator (see `Randomizable`).
@@ -566,9 +579,15 @@ class SphereCrop(DictTransform, Randomizable):
         seed: Optional[int] = None,
         dst_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
+        max_ratio: Optional[float] = None,
+        dst_center_key: Optional[str] = None,
     ) -> None:
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
+        if max_ratio is not None and not 0.0 < max_ratio <= 1.0:
+            raise ValueError(f"max_ratio must be in (0, 1]; got {max_ratio}.")
+
+        self.dst_center_key = dst_center_key
 
         all_keys = ensure_tuple(keys, none_as_empty=True)
         if pos_key not in all_keys:
@@ -577,6 +596,7 @@ class SphereCrop(DictTransform, Randomizable):
         self.pos_key = pos_key
         self.radius = radius
         self.max_nodes = max_nodes
+        self.max_ratio = max_ratio
         self.center = center
         self.p = p
         self.set_random_state(seed)
@@ -615,16 +635,123 @@ class SphereCrop(DictTransform, Randomizable):
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
         pos = data[self.pos_key].float()
         center = self._resolve_center(pos)
+        if self.dst_center_key is not None:
+            data[self.dst_center_key] = center.clone()
         mask = sphere_mask(pos, center, self.radius, dim=-1)
-        if self.max_nodes is not None and int(mask.sum()) > self.max_nodes:
+        caps = [
+            cap
+            for cap in (self.max_nodes, None if self.max_ratio is None else int(self.max_ratio * pos.shape[0]))
+            if cap is not None
+        ]
+        max_nodes = min(caps) if caps else None
+        if max_nodes is not None and int(mask.sum()) > max_nodes:
             dist = (pos - center).norm(dim=-1)
-            keep = torch.topk(dist, self.max_nodes, largest=False).indices
+            keep = torch.topk(dist, max_nodes, largest=False).indices
             mask = torch.zeros_like(mask)
             mask[keep] = True
         for key in self.iter_keys(data):
             data[key] = data[key][mask]
         if self.dst_index_key is not None:
             index = torch.where(mask)[0]
+            prior = data.get(self.dst_index_key)
+            data[self.dst_index_key] = index if prior is None else prior[index]
+        return data
+
+
+class RandomBlockCrop(DictTransform, Randomizable):
+    """Keep the points of a random vertical block: a square window of the ground plane, full height.
+
+    A random point centers a `block_size` x `block_size` window over `axes` (the ground plane); the window is
+    redrawn until it holds more than `min_nodes` points, up to `max_tries` draws, after which the largest draw is
+    kept. The center is written under `dst_center_key` so `SubtractItems(axes=...)` can center the block on it.
+
+    Args:
+        pos_key: Key holding the positions, $(N, D)$.
+        keys: Extra per-point keys to crop with the same mask.
+        block_size: Side of the window, in the units of the positions.
+        min_nodes: A draw is accepted once the window holds more than this many points.
+        max_tries: Number of draws before the largest window is kept.
+        axes: Axes of the window (the other axes are unbounded).
+        dst_center_key: Key receiving the window center, the drawn point $(D,)$; `None` does not store it.
+        seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
+        dst_index_key: Key for the output-to-input row map (see the module docs on sampling keys); `None` (the
+            default) does not record it.
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import RandomBlockCrop
+        crop = RandomBlockCrop(pos_key="pos", keys="segment", block_size=1.0, min_nodes=10, seed=0)
+        data = {"pos": torch.rand(500, 3) * 4, "segment": torch.zeros(500, dtype=torch.long)}
+        out = crop(data)
+        bool((out["pos"].max(0).values - out["pos"].min(0).values)[:2].max() <= 1.0)  # True
+        ```
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        keys: Optional[KeyCollection] = None,
+        block_size: float = 1.0,
+        min_nodes: int = 1024,
+        max_tries: int = 100,
+        axes: Sequence[int] = (0, 1),
+        dst_center_key: Optional[str] = None,
+        seed: Optional[int] = None,
+        dst_index_key: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        if block_size <= 0:
+            raise ValueError(f"block_size must be positive; got {block_size}.")
+        if max_tries < 1:
+            raise ValueError(f"max_tries must be at least 1; got {max_tries}.")
+
+        all_keys = ensure_tuple(keys, none_as_empty=True)
+        if pos_key not in all_keys:
+            all_keys = (pos_key,) + all_keys
+        super().__init__(all_keys, allow_missing_keys)
+        self.pos_key = pos_key
+        self.block_size = block_size
+        self.min_nodes = min_nodes
+        self.max_tries = max_tries
+        self.axes = tuple(axes)
+        self.dst_center_key = dst_center_key
+        self.set_random_state(seed)
+        self.dst_index_key = dst_index_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if self.pos_key not in data:
+            if self.allow_missing_keys:
+                return data
+
+            raise KeyError(f"`RandomBlockCrop` requires {self.pos_key!r} in data.")
+
+        pos = data[self.pos_key]
+        if pos.shape[0] == 0:
+            return data
+
+        axes = list(self.axes)
+        half = self.block_size / 2
+        best_mask: Optional[torch.Tensor] = None
+        best_center: Optional[torch.Tensor] = None
+        for _ in range(self.max_tries):
+            idx = int(torch.randint(0, pos.shape[0], (1,), generator=self.R).item())
+            center = pos[idx]
+            mask = ((pos[:, axes] - center[axes]).abs() <= half).all(dim=1)
+            if best_mask is None or int(mask.sum()) > int(best_mask.sum()):
+                best_mask, best_center = mask, center
+            if int(mask.sum()) > self.min_nodes:
+                break
+
+        assert best_mask is not None and best_center is not None
+        for key in self.iter_keys(data):
+            data[key] = data[key][best_mask]
+        if self.dst_center_key is not None:
+            data[self.dst_center_key] = best_center.clone()
+        if self.dst_index_key is not None:
+            index = torch.where(best_mask)[0]
             prior = data.get(self.dst_index_key)
             data[self.dst_index_key] = index if prior is None else prior[index]
         return data

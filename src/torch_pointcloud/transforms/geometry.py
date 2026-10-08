@@ -1,7 +1,7 @@
 """Transforms that move points or derive geometric quantities."""
 
 import math
-from typing import Any, Dict, Literal, Optional, Sequence, get_args
+from typing import Any, Dict, Literal, Optional, Sequence, Union, get_args
 
 import torch
 from torch import Tensor
@@ -21,6 +21,7 @@ __all__ = [
     "EstimateNormals",
     "Quantize",
     "Shift",
+    "Translate",
 ]
 
 
@@ -438,8 +439,7 @@ def axis_min_offset(x: Tensor, axis: int, quantile: Optional[float] = None) -> T
     tensor of shape $(N, 1)$ whose entries are $x_{i, a} - r$ where the floor
     reference $r$ is either the strict minimum $\min_j x_{j, a}$ (default) or, when
     `quantile` is given, the empirical quantile $Q_{q}(x_{\cdot, a})$. A small
-    positive quantile (e.g. $q = 0.0099$, the `np.percentile(z, 0.99)` used by
-    VoteNet) yields an outlier-robust floor estimate. Useful for extracting
+    positive quantile (e.g. $q = 0.0099$) yields an outlier-robust floor estimate. Useful for extracting
     "height above the local floor" as a per-point feature.
 
     Args:
@@ -475,8 +475,7 @@ class AxisMinOffset(DictTransform):
     where the floor reference $r$ is either the strict minimum $\min_j p_{j,a}$
     (default) or, when `quantile` is set, the empirical quantile
     $Q_q(p_{\cdot,a})$. A small positive quantile gives an outlier-robust floor
-    estimate: `quantile=0.0099` reproduces VoteNet's `np.percentile(z, 0.99)`
-    height feature.
+    estimate.
 
     The result has the same shape as the input with the coordinate dimension
     reduced to size 1 (e.g. $(N, 3) \to (N, 1)$ or $(B, N, 3) \to (B, N, 1)$).
@@ -569,8 +568,8 @@ def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
     r"""Rotate a packed field of 3D vectors by a rotation matrix.
 
     Each contiguous triple of the last dimension rotates as a vector, so it handles both a plain $(N, 3)$
-    field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. VoteNet vote
-    offsets) alike.
+    field (e.g. coordinates or normals) and a $(N, 3 G)$ field of $G$ tiled offsets (e.g. vote offsets)
+    alike.
 
     Args:
         x: Vector field of shape $(N, 3)$ or $(N, 3 G)$.
@@ -582,3 +581,46 @@ def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
     triples = x.reshape(*x.shape[:-1], -1, 3)
     triples = triples @ rotation.to(x).transpose(-1, -2)
     return triples.reshape(x.shape)
+
+
+class Translate(DictTransform):
+    r"""Add a constant offset to dictionary tensor entries.
+
+    The deterministic counterpart of `RandomTranslate` and of `Shift`, whose offsets come from the data; after a
+    `Shift` to the minimum, `Translate(keys="pos", offset=(-0.75, -0.75, 0.0))` centers a 1.5 m block on its
+    middle.
+
+    Args:
+        keys: The keys to translate.
+        offset: Offset added to every row, a scalar or one value per channel of the last dimension.
+        dst_keys: The keys to store the translated data in.
+        allow_missing_keys: If `True`, skip missing keys silently.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import Translate
+        Translate(keys="pos", offset=(1.0, 0.0, -1.0))({"pos": torch.zeros(2, 3)})["pos"]  # tensor([[ 1.,  0., -1.],  # [ 1.,  0., -1.]])
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        offset: Union[float, Sequence[float]],
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.offset = torch.as_tensor(offset, dtype=torch.float32)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x = data[key]
+            data[dst_key] = x + self.offset.to(device=x.device, dtype=x.dtype)
+        return data
+
+    def extra_repr(self) -> str:
+        return f"offset={self.offset.tolist()}"

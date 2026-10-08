@@ -10,6 +10,7 @@ import torch
 
 from torch_pointcloud.datasets import S3DIS, S3DISHdf5
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, load_s3dis_room, tile_s3dis_room
+from torch_pointcloud.utils.data import DataKeys
 
 
 def test_load_s3dis_room(datasets_dir: Path) -> None:
@@ -573,3 +574,15 @@ def test_s3dis_dataset_getitem_returns_shallow_copy(datasets_dir_factory: Callab
     assert sample is not dataset.data[0]
     sample["extra"] = 1
     assert "extra" not in dataset[0]
+
+
+def test_tile_s3dis_room_keeps_every_point_without_num_nodes() -> None:
+    from torch_pointcloud.datasets.s3dis import tile_s3dis_room
+
+    torch.manual_seed(0)
+    room = {DataKeys.POS: torch.rand(500, 3) * torch.tensor([3.0, 2.0, 2.5]), DataKeys.SEGMENT: torch.arange(500)}
+    blocks = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=None, min_num_nodes=1)
+    assert blocks and all(block[DataKeys.POS].shape[0] == block[DataKeys.SEGMENT].shape[0] for block in blocks)
+    assert {int(index) for block in blocks for index in block[DataKeys.SEGMENT]} == set(range(500))
+    fixed = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=64, min_num_nodes=1)
+    assert all(block[DataKeys.POS].shape[0] == 64 for block in fixed)

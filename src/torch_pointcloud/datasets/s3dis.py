@@ -182,7 +182,7 @@ def tile_s3dis_room(
     room: dict[str, Any],
     block_size: float = 1.0,
     block_stride: float = 1.0,
-    num_nodes: int = 4096,
+    num_nodes: Optional[int] = 4096,
     min_num_nodes: int = 100,
 ) -> list[dict[str, Any]]:
     r"""Split a single room dict into fixed-size spatial blocks.
@@ -198,12 +198,12 @@ def tile_s3dis_room(
         block_size: Side length of each square block in meters.
         block_stride: Step size for the sliding window in meters. Must be $\leq$ `block_size`.
         num_nodes: Fixed number of nodes per block. Nodes are randomly subsampled
-            (or duplicated if the block has fewer nodes).
+            (or duplicated if the block has fewer nodes); `None` keeps every node of the block.
         min_num_nodes: Minimum number of raw nodes for a block to be kept.
 
     Returns:
         List of dicts, one per retained block. Each block has exactly
-        `num_nodes` nodes (randomly subsampled or oversampled).
+        `num_nodes` nodes (randomly subsampled or oversampled), or all of its nodes with `num_nodes=None`.
         Positions are origin-shifted (room minimum at origin).
 
     Example:
@@ -245,7 +245,9 @@ def tile_s3dis_room(
             if n < min_num_nodes:
                 continue
 
-            if n >= num_nodes:
+            if num_nodes is None:
+                chosen = indices
+            elif n >= num_nodes:
                 chosen = indices[torch.randperm(n)[:num_nodes]]
             else:
                 chosen = indices[torch.randint(0, n, (num_nodes,))]
@@ -303,7 +305,7 @@ class S3DIS(PointCloudDataset):
         block_size: If set, each room is split into ground-plane blocks of this size (meters) at
             load time. Changing this only affects loading, not on-disk processed data.
         block_stride: Stride between blocks when `block_size` is set.
-        num_nodes: Target number of points per block (or per room when not tiling).
+        num_nodes: Number of points kept per block when tiling, drawn at random (`None` keeps every point).
         min_num_nodes: Skip blocks with fewer than this many points.
         transform: A callable that transforms the data when retrieved from the dataset.
         download: Whether to download the raw data.
@@ -359,7 +361,7 @@ class S3DIS(PointCloudDataset):
         aligned: bool = True,
         block_size: Optional[float] = None,
         block_stride: float = 1.0,
-        num_nodes: int = 4096,
+        num_nodes: Optional[int] = 4096,
         min_num_nodes: int = 100,
         transform: Optional[Callable] = None,
         download: bool = False,
@@ -599,7 +601,7 @@ class S3DIS(PointCloudDataset):
         self,
         block_size: Optional[float] = None,
         block_stride: float = 1.0,
-        num_nodes: int = 4096,
+        num_nodes: Optional[int] = 4096,
         min_num_nodes: int = 100,
         show_progress: bool = True,
     ) -> None:
@@ -611,7 +613,7 @@ class S3DIS(PointCloudDataset):
             block_size: Side length of each square block in meters.
             block_stride: Step size for the sliding window in meters. Must be $\leq$ `block_size`.
             num_nodes: Fixed number of nodes per block. Nodes are randomly subsampled
-                (or duplicated if the block has fewer nodes).
+                (or duplicated if the block has fewer nodes); `None` keeps every node.
             min_num_nodes: Minimum number of raw nodes for a block to be kept.
             show_progress: Whether to show a progress bar during loading.
         """

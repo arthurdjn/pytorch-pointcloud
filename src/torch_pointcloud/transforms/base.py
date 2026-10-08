@@ -13,6 +13,7 @@ from torch_pointcloud.utils.types import KeyCollection
 __all__ = [
     "Compose",
     "DictTransform",
+    "RandomApply",
     "Transform",
 ]
 
@@ -202,6 +203,53 @@ class Compose(Transform, Randomizable):
 
     def extra_repr(self) -> str:
         return ",\n".join([repr(transform) for transform in self.transforms])
+
+
+class RandomApply(Compose):
+    r"""Apply a pipeline of transforms with probability `p`, else return the data unchanged.
+
+    The transforms run in order, as in `Compose`, when a draw of the pipeline's random stream falls below `p`.
+    It gates any transform, e.g. zeroing the normals of a shape one time in five:
+    `RandomApply([Scale(keys="normal", scale=0.0)], p=0.2)`.
+
+    Args:
+        transforms: The transforms to apply, in order.
+        p: Probability of applying the transforms.
+        seed: Seed of the gate's random stream, which also seeds the transforms; `None` draws from the global
+            generator (see `Randomizable`).
+        allow_missing_keys: Forwarded to the transforms, as `Compose` does.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import RandomApply, Scale
+        drop_normals = RandomApply([Scale(keys="normal", scale=0.0)], p=1.0)
+        drop_normals({"normal": torch.ones(4, 3)})["normal"].sum().item()  # 0.0
+        ```
+    """
+
+    def __init__(
+        self,
+        transforms: Sequence[Transform],
+        p: float = 0.5,
+        seed: Optional[int] = None,
+        allow_missing_keys: Optional[bool] = None,
+    ) -> None:
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
+
+        super().__init__(transforms, allow_missing_keys=allow_missing_keys)
+        self.p = p
+        self.set_random_state(seed)
+
+    def transform(self, data: Any) -> Any:
+        """Apply the transforms to the input data with probability `p`."""
+        if torch.rand(1, generator=self.R).item() >= self.p:
+            return data
+        return super().transform(data)
+
+    def extra_repr(self) -> str:
+        return f"p={self.p},\n" + super().extra_repr()
 
 
 class DictTransform(Transform, metaclass=ABCMeta):

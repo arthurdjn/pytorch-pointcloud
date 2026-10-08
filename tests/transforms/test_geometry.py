@@ -317,3 +317,13 @@ def test_rotation_matrix_invalid_axis_raises() -> None:
         F.rotation_matrix(0.0, axis=3)
     with pytest.raises(ValueError, match="axis"):
         F.rotation_matrix(0.0, axis=-1)
+
+
+def test_translate_adds_a_constant_offset() -> None:
+    data = {"pos": torch.zeros(4, 3), "color": torch.ones(4, 3)}
+    out = T.Translate(keys="pos", offset=(-0.75, -0.75, 0.0), dst_keys="moved")(data)
+    assert torch.equal(out["moved"], torch.tensor([-0.75, -0.75, 0.0]).expand(4, 3)) and torch.equal(
+        out["pos"], data["pos"]
+    )
+    assert torch.equal(T.Translate(keys="pos", offset=2.0)(data)["pos"], torch.full((4, 3), 2.0))
+    assert "offset=" in repr(T.Translate(keys="pos", offset=1.0))
