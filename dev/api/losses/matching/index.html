@@ -6303,7 +6303,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;hungarian_match&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/matching.py#L11-L53&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.matching.hungarian_match">hungarian_match</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/dc8040b3f302146bb8953d247e6302797e9ce3bb/src/torch_pointcloud/losses/matching.py#L11-L55&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.matching.hungarian_match">hungarian_match</a></code></b>
             –
             <div class="doc-md-description">
               <p>One-to-one assignment of predictions to targets minimizing the total cost (Hungarian algorithm).</p>
@@ -6313,7 +6313,7 @@
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;hungarian_match_batched&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/matching.py#L56-L107&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.matching.hungarian_match_batched">hungarian_match_batched</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/dc8040b3f302146bb8953d247e6302797e9ce3bb/src/torch_pointcloud/losses/matching.py#L58-L108&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.matching.hungarian_match_batched">hungarian_match_batched</a></code></b>
             –
             <div class="doc-md-description">
               <p>One-to-one assignment of every scene's predictions to its targets, with a single device transfer.</p>
@@ -6343,7 +6343,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">hungarian_match</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/matching.py#L11-L53" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/dc8040b3f302146bb8953d247e6302797e9ce3bb/src/torch_pointcloud/losses/matching.py#L11-L55" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.matching.hungarian_match" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">hungarian_match</span><span class="p">(</span><span class="n">cost</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
@@ -6425,7 +6425,7 @@ one prediction and the sum of the matched costs is minimal. The cost matrix is b
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">hungarian_match_batched</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/matching.py#L56-L107" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/dc8040b3f302146bb8953d247e6302797e9ce3bb/src/torch_pointcloud/losses/matching.py#L58-L108" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.matching.hungarian_match_batched" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">hungarian_match_batched</span><span class="p">(</span>
@@ -6439,7 +6439,7 @@ one prediction and the sum of the matched costs is minimal. The cost matrix is b
 <p>The batched form of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;hungarian_match&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/matching.py#L11-L53&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.matching.hungarian_match"><code>hungarian_match</code></a> for a padded
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/dc8040b3f302146bb8953d247e6302797e9ce3bb/src/torch_pointcloud/losses/matching.py#L11-L55&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.matching.hungarian_match"><code>hungarian_match</code></a> for a padded
 cost tensor: scene <span class="arithmatex">\(i\)</span> uses the first <code>num_targets[i]</code> target columns of <code>cost[i]</code>. The whole tensor is
 moved to the CPU once and every scene is solved there, so a loop over scenes (and decoder layers, when
 they are stacked along the batch dimension) costs one synchronization instead of one per scene.</p>
