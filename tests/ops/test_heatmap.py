@@ -1,3 +1,6 @@
+from typing import Any, Dict, Tuple
+
+import pytest
 import torch
 
 from torch_pointcloud.ops.heatmap import (
@@ -168,3 +171,84 @@ def test_draw_heatmap_targets_empty() -> None:
     )
     assert hm.shape == (2, 8, 8) and hm.sum() == 0
     assert int(mask.sum()) == 0
+
+
+def _draw_heatmap_targets_loop(
+    boxes: torch.Tensor,
+    labels: torch.Tensor,
+    **kwargs: Any,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The per-object loop the vectorized `draw_heatmap_targets` replaced, kept as the reference."""
+    num_classes, feature_map_size = kwargs["num_classes"], kwargs["feature_map_size"]
+    voxel_size, point_cloud_range = kwargs["voxel_size"], kwargs["point_cloud_range"]
+    feature_map_stride, num_max_objs = kwargs["feature_map_stride"], kwargs["num_max_objs"]
+    gaussian_overlap, min_radius = kwargs["gaussian_overlap"], kwargs["min_radius"]
+    width, height = feature_map_size
+    code_size = boxes.shape[-1] + 1
+    heatmap = boxes.new_zeros(num_classes, height, width)
+    reg_targets = boxes.new_zeros(num_max_objs, code_size)
+    inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
+    mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
+    if boxes.shape[0] == 0:
+        return heatmap, reg_targets, inds, mask
+
+    x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
+    pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
+    pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
+    center = torch.stack([pos_x, pos_y], dim=-1)
+    center_int = center.int()
+    center_int_float = center_int.float()
+    dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
+    dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
+    radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
+    for i in range(min(num_max_objs, boxes.shape[0])):
+        if dx[i] <= 0 or dy[i] <= 0:
+            continue
+        if not (0 <= center_int[i, 0] <= width and 0 <= center_int[i, 1] <= height):
+            continue
+
+        draw_gaussian_to_heatmap(heatmap[int(labels[i])], center[i], int(radius[i].item()))
+        inds[i] = center_int[i, 1] * width + center_int[i, 0]
+        mask[i] = 1
+        reg_targets[i, 0:2] = center[i] - center_int_float[i]
+        reg_targets[i, 2] = z[i]
+        reg_targets[i, 3:6] = boxes[i, 3:6].clamp_min(1e-5).log()
+        reg_targets[i, 6] = torch.cos(boxes[i, 6])
+        reg_targets[i, 7] = torch.sin(boxes[i, 6])
+        if boxes.shape[1] > 7:
+            reg_targets[i, 8:] = boxes[i, 7:]
+    return heatmap, reg_targets, inds, mask
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_draw_heatmap_targets_matches_per_object_loop(seed: int) -> None:
+    """The vectorized drawing equals the per-object reference loop exactly (boxes near and over the map edges,
+    big and degenerate boxes, velocity columns, a capped object count)."""
+    torch.manual_seed(seed)
+    num = 70
+    boxes = torch.cat(
+        [
+            torch.rand(num, 2) * 60 - 30,  # some centers outside the +-24 range: clamped to the border
+            torch.rand(num, 1) * 2 - 1,
+            torch.rand(num, 3) * 12 + 0.1,  # wide radii
+            (torch.rand(num, 1) - 0.5) * 6.28,
+            torch.randn(num, 2),  # velocity
+        ],
+        dim=1,
+    )
+    boxes[:3, 3] = 0.0  # degenerate boxes are skipped
+    labels = torch.randint(0, 4, (num,))
+    kwargs: Dict[str, Any] = dict(
+        num_classes=4,
+        feature_map_size=(48, 40),
+        voxel_size=(0.5, 0.6, 1.0),
+        point_cloud_range=(-24.0, -24.0, -2.0, 24.0, 24.0, 2.0),
+        feature_map_stride=1,
+        num_max_objs=64,
+        gaussian_overlap=0.1,
+        min_radius=2,
+    )
+    expected = _draw_heatmap_targets_loop(boxes, labels, **kwargs)
+    result = draw_heatmap_targets(boxes, labels, **kwargs)
+    for got, ref in zip(result, expected):
+        assert torch.equal(got, ref)

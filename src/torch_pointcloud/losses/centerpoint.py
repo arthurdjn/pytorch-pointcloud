@@ -1,42 +1,24 @@
-r"""Center-based 3D detection losses: dense (CenterHead) and fully sparse (VoxelNeXt) heatmap objectives."""
+r"""Losses of the center-based detection heads, dense (`CenterHead`) and fully sparse (`VoxelNeXtHead`).
 
-from typing import Any, Dict, List, Sequence, Tuple
+Both supervise the heatmap with [`gaussian_focal_loss`][torch_pointcloud.losses.focal.gaussian_focal_loss] and the
+gathered regression codes with a masked, code-weighted $L_1$; the dense targets come from
+[`draw_heatmap_targets`][torch_pointcloud.ops.heatmap.draw_heatmap_targets].
+"""
+
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from torch_pointcloud.losses._utils import _clamp_sigmoid
+from torch_pointcloud.losses._utils import unbatch_boxes
+from torch_pointcloud.losses.focal import gaussian_focal_loss
 from torch_pointcloud.ops.box3d import boxes_iou3d
 from torch_pointcloud.ops.heatmap import draw_heatmap_targets, gaussian_radius, transpose_gather
-from torch_pointcloud.utils.data import DataKeys
 
-
-def _gaussian_focal_loss(pred: Tensor, target: Tensor) -> Tensor:
-    r"""Penalty-reduced center focal loss over a (dense or sparse) heatmap.
-
-    The positive term is the standard $\log(p)(1 - p)^2$ at cells whose Gaussian target is exactly $1$;
-    every other cell is a soft negative down-weighted by $(1 - y)^4$ so cells near a peak barely
-    contribute. Normalized by the number of positive cells.
-
-    Args:
-        pred: Predicted probabilities (post-sigmoid) of any shape.
-        target: Gaussian heatmap target of the same shape, values in $[0, 1]$.
-
-    Returns:
-        Scalar focal loss.
-    """
-    pos_inds = target.eq(1).float()
-    neg_inds = target.lt(1).float()
-    neg_weights = (1 - target).pow(4)
-
-    pos_loss = (torch.log(pred) * (1 - pred).pow(2) * pos_inds).sum()
-    neg_loss = (torch.log(1 - pred) * pred.pow(2) * neg_weights * neg_inds).sum()
-
-    num_pos = pos_inds.sum()
-    if num_pos == 0:
-        return -neg_loss
-    return -(pos_loss + neg_loss) / num_pos
+if TYPE_CHECKING:
+    from torch_pointcloud.models.voxel_mamba import CenterHeadOutput
+    from torch_pointcloud.models.voxelnext import VoxelNeXtHeadOutput
 
 
 def _reg_l1_loss(pred: Tensor, target: Tensor, mask: Tensor) -> Tensor:
@@ -59,49 +41,23 @@ def _reg_l1_loss(pred: Tensor, target: Tensor, mask: Tensor) -> Tensor:
     return loss / torch.clamp_min(num, min=1.0)
 
 
-def _densify_gt(
-    batch: Dict[str, Any], batch_size: int, num_extra: int, device: torch.device
-) -> Tuple[List[Tensor], List[Tensor]]:
-    r"""Split the packed GT boxes / labels into per-scene lists with a fixed $7 + \text{num\_extra}$ box width.
+def _pad_box_columns(boxes: Tensor, num_extra: int) -> Tensor:
+    r"""Keep the seven geometry columns plus `num_extra` trailing ones (e.g. velocity), zero-padding if absent."""
+    geom = boxes[:, :7]
+    if num_extra == 0:
+        return geom
 
-    The packed batch carries `DataKeys.BOX` $(K, D)$, zero-based `DataKeys.LABEL` $(K,)$ and the per-box
-    scene index `DataKeys.BATCH_BOX` $(K,)$. Each scene's boxes are sliced (or zero-padded) to seven
-    geometry columns plus `num_extra` trailing columns (e.g. velocity); labels pass through unchanged.
-
-    Args:
-        batch: Packed ground-truth dict.
-        batch_size: Number of scenes $B$.
-        num_extra: Trailing box columns beyond $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$.
-        device: Device the empty fallbacks are created on.
-
-    Returns:
-        `(boxes_per_scene, labels_per_scene)`, each a length-$B$ list.
-    """
-    box: Tensor = batch[DataKeys.BOX]
-    label: Tensor = batch[DataKeys.LABEL].long()
-    box_batch: Tensor = batch[DataKeys.BATCH_BOX]
-
-    boxes_per_scene: List[Tensor] = []
-    labels_per_scene: List[Tensor] = []
-    for b in range(batch_size):
-        mask = box_batch == b
-        scene = box[mask]
-        geom = scene[:, :7]
-        if num_extra > 0:
-            if scene.shape[1] >= 7 + num_extra:
-                extra = scene[:, 7 : 7 + num_extra]
-            else:
-                extra = scene.new_zeros(scene.shape[0], num_extra)
-            geom = torch.cat([geom, extra], dim=1)
-        boxes_per_scene.append(geom.to(device))
-        labels_per_scene.append(label[mask].to(device))
-    return boxes_per_scene, labels_per_scene
+    if boxes.shape[1] >= 7 + num_extra:
+        extra = boxes[:, 7 : 7 + num_extra]
+    else:
+        extra = boxes.new_zeros(boxes.shape[0], num_extra)
+    return torch.cat([geom, extra], dim=1)
 
 
-class CenterPointLoss(nn.Module):
-    r"""Dense center-based detection loss (CenterHead / Voxel Mamba).
+class CenterHeadLoss(nn.Module):
+    r"""Loss of the dense `CenterHead` (CenterPoint, Voxel Mamba).
 
-    Reference: :arxiv: [Center-based 3D Object Detection and Tracking](https://arxiv.org/abs/2006.11275).
+    Reference: :arxiv: [Center-based 3D Object Detection and Tracking](https://arxiv.org/abs/2006.11275) (Yin et al., 2021).
 
     Ground-truth boxes are splatted onto a per-class BEV Gaussian heatmap and their regression code
     (sub-cell center offset, $z$, log extents and $(\cos\theta, \sin\theta)$) is recorded at each peak
@@ -160,21 +116,21 @@ class CenterPointLoss(nn.Module):
         self.register_buffer("code_weights", weights)
         self.code_size = int(weights.numel())
 
-    def forward(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the dense center loss and its components.
+    def forward(self, output: "CenterHeadOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the dense center loss and its terms.
 
         Args:
             output: Head maps `heatmap` $(B, C, H, W)$, `center` $(B, 2, H, W)$, `center_z` $(B, 1, H, W)$,
                 `dim` $(B, 3, H, W)$, `rot` $(B, 2, H, W)$ and optionally `iou` $(B, 1, H, W)$.
-            batch: Packed GT (`DataKeys.BOX`, `DataKeys.LABEL`, `DataKeys.BATCH_BOX`).
+            data: Packed GT (`DataKeys.BOX`, `DataKeys.LABEL`, `DataKeys.BATCH_BOX`).
 
         Returns:
-            A dict with the scalar `loss` and detached `hm_loss`, `loc_loss` (and `iou_loss` when enabled).
+            A dict with the scalar `loss` and detached `heatmap_loss`, `box_loss` (and `iou_loss` when enabled).
         """
         heatmap_pred = output["heatmap"]
         batch_size, _, height, width = heatmap_pred.shape
-        device = heatmap_pred.device
-        boxes_per_scene, labels_per_scene = _densify_gt(batch, batch_size, self.code_size - 8, device)
+        boxes_per_scene, labels_per_scene = unbatch_boxes(data, batch_size, heatmap_pred.device)
+        boxes_per_scene = [_pad_box_columns(boxes, self.code_size - 8) for boxes in boxes_per_scene]
 
         hm_targets: List[Tensor] = []
         reg_targets: List[Tensor] = []
@@ -203,14 +159,14 @@ class CenterPointLoss(nn.Module):
         ind = torch.stack(inds)
         mask = torch.stack(masks)
 
-        hm_loss = _gaussian_focal_loss(_clamp_sigmoid(heatmap_pred), hm_target) * self.cls_weight
+        heatmap_loss = gaussian_focal_loss(heatmap_pred.sigmoid(), hm_target) * self.cls_weight
 
         pred_boxes = torch.cat([output["center"], output["center_z"], output["dim"], output["rot"]], dim=1)
         reg = _reg_l1_loss(transpose_gather(pred_boxes, ind), reg_target, mask)
-        loc_loss = (reg * self.code_weights).sum() * self.loc_weight
+        box_loss = (reg * self.code_weights).sum() * self.loc_weight
 
-        total = hm_loss + loc_loss
-        result = {"loss": total, "hm_loss": hm_loss.detach(), "loc_loss": loc_loss.detach()}
+        total = heatmap_loss + box_loss
+        result = {"loss": total, "heatmap_loss": heatmap_loss.detach(), "box_loss": box_loss.detach()}
 
         if self.iou_weight > 0 and "iou" in output:
             iou_loss = self._iou_loss(output["iou"], pred_boxes, ind, mask, boxes_per_scene, width) * self.iou_weight
@@ -240,6 +196,7 @@ class CenterPointLoss(nn.Module):
             keep = mask[b].bool()
             if keep.sum() == 0:
                 continue
+
             box = gathered_box[b][keep]
             xs = (pxs[b][keep].float() + box[:, 0]) * self.feature_map_stride * vx + self.point_cloud_range[0]
             ys = (pys[b][keep].float() + box[:, 1]) * self.feature_map_stride * vy + self.point_cloud_range[1]
@@ -249,18 +206,18 @@ class CenterPointLoss(nn.Module):
             # the mask, so the kept predictions must be paired with the kept GT rows, not the first rows.
             gt_idx = keep.nonzero(as_tuple=False).squeeze(1)
             gt = boxes_per_scene[b][gt_idx][:, :7]
-            iou_target = boxes_iou3d(decoded, gt).diagonal() * 2 - 1
+            iou_target = boxes_iou3d(decoded, gt, aligned=True) * 2 - 1
             total = total + F.l1_loss(gathered_iou[b][keep].view(-1), iou_target, reduction="sum")
             count = count + keep.sum()
         return total / torch.clamp_min(count, min=1.0)
 
 
-def _draw_voxel_gaussian(heatmap: Tensor, distances: Tensor, radius: int) -> None:
-    r"""Splat a Gaussian over occupied voxels by squared distance, max-combined in place into `heatmap`."""
-    diameter = 2 * radius + 1
+def _voxel_gaussians(distances: Tensor, radius: Tensor) -> Tensor:
+    r"""Gaussian in squared voxel distance, one row per object: $\exp(-d^2 / 2\sigma^2)$ with $\sigma = (2r + 1) / 6$."""
+    diameter = 2 * radius.to(torch.float64) + 1
     sigma = diameter / 6
-    gaussian = torch.exp(-distances / (2 * sigma * sigma))
-    torch.max(heatmap, gaussian, out=heatmap)
+    denominator = (2 * sigma * sigma).to(distances.dtype)
+    return torch.exp(-distances / denominator[:, None])
 
 
 def _assign_sparse_scene(
@@ -310,9 +267,12 @@ def _assign_sparse_scene(
     inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
     mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
 
-    if boxes.shape[0] == 0 or num_voxels == 0:
+    boxes, labels = boxes[:num_max_objs], labels[:num_max_objs]
+    num_objs = boxes.shape[0]
+    if num_objs == 0 or num_voxels == 0:
         return heatmap, reg_targets, inds, mask
 
+    # Project the centers to the feature map and solve the splat radius of every box at once.
     x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
     pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
     pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
@@ -321,36 +281,42 @@ def _assign_sparse_scene(
     dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
     dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
     radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
+    valid = (dx > 0) & (dy > 0)
 
-    for k in range(min(num_max_objs, boxes.shape[0])):
-        if dx[k] <= 0 or dy[k] <= 0:
-            continue
+    # Every object's nearest occupied voxel, from the squared distances of all (object, voxel) pairs.
+    dist_center = ((spatial_xy[None, :, :] - center[:, None, :]) ** 2).sum(dim=-1)  # (K, V)
+    nearest = dist_center.argmin(dim=1)
+    nearest_xy = spatial_xy[nearest]
+    mask[:num_objs] = valid.long()
+    inds[:num_objs] = torch.where(valid, nearest, inds[:num_objs])
 
-        dist_center = ((spatial_xy - center[k]) ** 2).sum(dim=-1)
-        nearest = int(dist_center.argmin())
-        inds[k] = nearest
-        mask[k] = 1
+    # The two splats of each object (around its center and around its nearest voxel), max-combined per class.
+    dist_nearest = ((spatial_xy[None, :, :] - nearest_xy[:, None, :]) ** 2).sum(dim=-1)
+    rows = labels[valid, None].expand(-1, num_voxels)
+    heatmap.scatter_reduce_(0, rows, _voxel_gaussians(dist_center[valid], radius[valid]), reduce="amax")
+    heatmap.scatter_reduce_(0, rows, _voxel_gaussians(dist_nearest[valid], radius[valid]), reduce="amax")
 
-        cls = int(labels[k])
-        r = int(radius[k].item())
-        _draw_voxel_gaussian(heatmap[cls], dist_center, r)
-        _draw_voxel_gaussian(heatmap[cls], ((spatial_xy - spatial_xy[nearest]) ** 2).sum(dim=-1), r)
-
-        reg_targets[k, 0:2] = center[k] - spatial_xy[nearest]
-        reg_targets[k, 2] = z[k]
-        reg_targets[k, 3:6] = boxes[k, 3:6].clamp_min(1e-5).log()
-        reg_targets[k, 6] = torch.cos(boxes[k, 6])
-        reg_targets[k, 7] = torch.sin(boxes[k, 6])
-        if boxes.shape[1] > 7:
-            reg_targets[k, 8:] = boxes[k, 7:]
+    # The regression code, anchored to the nearest occupied voxel.
+    code = torch.cat(
+        [
+            center - nearest_xy,
+            z[:, None],
+            boxes[:, 3:6].clamp_min(1e-5).log(),
+            torch.cos(boxes[:, 6:7]),
+            torch.sin(boxes[:, 6:7]),
+            boxes[:, 7:],
+        ],
+        dim=1,
+    )
+    reg_targets[:num_objs] = torch.where(valid[:, None], code, reg_targets[:num_objs])
 
     return heatmap, reg_targets, inds, mask
 
 
-class SparseCenterPointLoss(nn.Module):
-    r"""Fully sparse center-based detection loss (VoxelNeXt).
+class VoxelNeXtHeadLoss(nn.Module):
+    r"""Loss of the fully sparse `VoxelNeXtHead`.
 
-    Reference: :arxiv: [VoxelNeXt](https://arxiv.org/abs/2303.11301).
+    Reference: :arxiv: [VoxelNeXt: Fully Sparse VoxelNet for 3D Object Detection and Tracking](https://arxiv.org/abs/2303.11301) (Chen et al., 2023).
 
     The head predicts CenterPoint-style attributes directly on the occupied BEV voxels rather than a
     dense map, so targets are drawn only at those voxels: the per-class heatmap is a Gaussian in squared
@@ -408,33 +374,40 @@ class SparseCenterPointLoss(nn.Module):
             int(round((pcr[4] - pcr[1]) / vs[1] / feature_map_stride)),
         )
 
-    def forward(self, output: Dict[str, Any], batch: Dict[str, Any]) -> Dict[str, Tensor]:
+    def forward(self, output: "VoxelNeXtHeadOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
         r"""Compute the sparse center loss summed over class groups.
 
         Args:
             output: A `VoxelNeXtHeadOutput`: per-group lists `hm` $(V, n_g)$, `center` $(V, 2)$,
                 `center_z` $(V, 1)$, `dim` $(V, 3)$, `rot` $(V, 2)$, `vel` $(V, 2)$ and shared
                 `voxel_indices` $(V, 3)$ with columns $(\text{batch}, y, x)$.
-            batch: Packed GT (`DataKeys.BOX`, `DataKeys.LABEL`, `DataKeys.BATCH_BOX`).
+            data: Packed GT (`DataKeys.BOX`, `DataKeys.LABEL`, `DataKeys.BATCH_BOX`).
 
         Returns:
-            A dict with the scalar `loss` and detached `hm_loss`, `loc_loss`.
+            A dict with the scalar `loss` and detached `heatmap_loss`, `box_loss`.
         """
         voxel_indices = output["voxel_indices"]
         batch_index = voxel_indices[:, 0]
-        device = voxel_indices.device
         batch_size = int(batch_index.max().item()) + 1 if voxel_indices.numel() else 0
         spatial_xy = voxel_indices[:, [2, 1]].float()
 
-        boxes_per_scene, labels_per_scene = _densify_gt(batch, batch_size, self.code_size - 8, device)
+        boxes_per_scene, labels_per_scene = unbatch_boxes(data, batch_size, voxel_indices.device)
+        boxes_per_scene = [_pad_box_columns(boxes, self.code_size - 8) for boxes in boxes_per_scene]
 
         total = voxel_indices.new_zeros((), dtype=torch.float32)
         hm_total = voxel_indices.new_zeros((), dtype=torch.float32)
-        loc_total = voxel_indices.new_zeros((), dtype=torch.float32)
+        box_total = voxel_indices.new_zeros((), dtype=torch.float32)
         for group_idx, group in enumerate(self.class_groups):
             hm_pred = output["hm"][group_idx]
             pred_boxes = torch.cat(
-                [output[name][group_idx] for name in ("center", "center_z", "dim", "rot", "vel")], dim=1
+                [
+                    output["center"][group_idx],
+                    output["center_z"][group_idx],
+                    output["dim"][group_idx],
+                    output["rot"][group_idx],
+                    output["vel"][group_idx],
+                ],
+                dim=1,
             )
 
             hm_target = torch.zeros_like(hm_pred)
@@ -462,7 +435,7 @@ class SparseCenterPointLoss(nn.Module):
                 inds.append(ind)
                 masks.append(mask)
 
-            hm_loss = _gaussian_focal_loss(_clamp_sigmoid(hm_pred), hm_target) * self.cls_weight
+            hm_loss = gaussian_focal_loss(hm_pred.sigmoid(), hm_target) * self.cls_weight
 
             ind = torch.stack(inds)
             mask = torch.stack(masks)
@@ -472,15 +445,16 @@ class SparseCenterPointLoss(nn.Module):
             for b in range(batch_size):
                 scene_pred = pred_boxes[batch_index == b]
                 rows.append(scene_pred[ind[b]] if scene_pred.numel() else empty)
+
             gathered = torch.stack(rows)
             reg = _reg_l1_loss(gathered, reg_target, mask)
-            loc_loss = (reg * self.code_weights).sum() * self.loc_weight
+            box_loss = (reg * self.code_weights).sum() * self.loc_weight
 
-            total = total + hm_loss + loc_loss
+            total = total + hm_loss + box_loss
             hm_total = hm_total + hm_loss.detach()
-            loc_total = loc_total + loc_loss.detach()
+            box_total = box_total + box_loss.detach()
 
-        return {"loss": total, "hm_loss": hm_total, "loc_loss": loc_total}
+        return {"loss": total, "heatmap_loss": hm_total, "box_loss": box_total}
 
     @staticmethod
     def _select_group(boxes: Tensor, labels: Tensor, group: List[int]) -> Tuple[Tensor, Tensor]:
@@ -488,7 +462,6 @@ class SparseCenterPointLoss(nn.Module):
         remap = labels.new_full((max(group) + 1,), -1)
         for local, global_cls in enumerate(group):
             remap[global_cls] = local
-        keep = torch.zeros_like(labels, dtype=torch.bool)
-        for global_cls in group:
-            keep |= labels == global_cls
+
+        keep = torch.isin(labels, labels.new_tensor(group))
         return boxes[keep], remap[labels[keep]]

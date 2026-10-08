@@ -208,6 +208,12 @@ def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> T
     return val - torch.floor(val / period + offset) * period
 
 
+# Slack of `_point_in_box`, the `MARGIN` of the CUDA IoU kernel it ports: a corner this close to a box counts as
+# inside, which makes the rotated IoU reproduce the reference values. The bounds test that prefilters the pairwise
+# overlap carries the same slack so that it never skips a pair the inside test could count.
+_BEV_MARGIN = 1e-2
+
+
 def _sort_ring_ccw(ring: Tensor) -> Tensor:
     r"""Order convex rings of shape $(\ldots, V, 2)$ counter-clockwise about their centroid."""
     rel = ring - ring.mean(dim=-2, keepdim=True)
@@ -222,48 +228,69 @@ def _ring_area(ring: Tensor) -> Tensor:
 
 
 def _convex_quad_intersection_area(quads_a: Tensor, quads_b: Tensor, eps: float = 1e-6) -> Tensor:
-    """Pairwise intersection area of counter-clockwise convex quads $(M, 4, 2)$ and $(N, 4, 2)$."""
-    a = quads_a[:, None]  # (M, 1, 4, 2)
-    b = quads_b[None, :]  # (1, N, 4, 2)
+    """Pairwise intersection area of counter-clockwise convex quads $(M, 4, 2)$ and $(N, 4, 2)$.
+
+    The polygon arithmetic runs only on the pairs whose axis-aligned bounds meet: the other pairs have no
+    intersection, so their area is zero without any tolerance.
+    """
+    m, n = quads_a.shape[0], quads_b.shape[0]
+    area = quads_a.new_zeros(m, n)
+    if m == 0 or n == 0:
+        return area
+
+    lo_a, hi_a = quads_a.amin(dim=1), quads_a.amax(dim=1)
+    lo_b, hi_b = quads_b.amin(dim=1), quads_b.amax(dim=1)
+    meet = (lo_a[:, None] <= hi_b[None, :]) & (lo_b[None, :] <= hi_a[:, None])
+    rows, cols = meet.all(dim=-1).nonzero(as_tuple=True)
+    if rows.numel() > 0:
+        area[rows, cols] = _quad_rings_intersection_area(quads_a[rows], quads_b[cols], eps)
+
+    return area
+
+
+def _quad_rings_intersection_area(a: Tensor, b: Tensor, eps: float = 1e-6) -> Tensor:
+    """Intersection area of counter-clockwise convex quads paired over broadcast leading dims, $(\ldots, 4, 2)$."""
+    lead = torch.broadcast_shapes(a.shape[:-2], b.shape[:-2])
+    a = a.expand(*lead, 4, 2)
+    b = b.expand(*lead, 4, 2)
     edge_a, edge_b = a.roll(-1, dims=-2) - a, b.roll(-1, dims=-2) - b
 
     # Candidate vertices of the intersection polygon: each quad's corners inside the other quad
     # (cross-product half-plane test against every CCW edge) plus all pairwise edge crossings.
-    rel_ab = a.unsqueeze(-2) - b.unsqueeze(-3)  # (M, N, 4 verts, 4 edges, 2)
+    rel_ab = a.unsqueeze(-2) - b.unsqueeze(-3)  # (..., 4 verts, 4 edges, 2)
     cross_ab = edge_b.unsqueeze(-3)[..., 0] * rel_ab[..., 1] - edge_b.unsqueeze(-3)[..., 1] * rel_ab[..., 0]
-    a_in_b = (cross_ab >= -eps).all(dim=-1)  # (M, N, 4)
+    a_in_b = (cross_ab >= -eps).all(dim=-1)  # (..., 4)
     rel_ba = b.unsqueeze(-2) - a.unsqueeze(-3)
     cross_ba = edge_a.unsqueeze(-3)[..., 0] * rel_ba[..., 1] - edge_a.unsqueeze(-3)[..., 1] * rel_ba[..., 0]
-    b_in_a = (cross_ba >= -eps).all(dim=-1)  # (M, N, 4)
+    b_in_a = (cross_ba >= -eps).all(dim=-1)  # (..., 4)
 
-    p, r = a.unsqueeze(-2), edge_a.unsqueeze(-2)  # segments of A vs segments of B: (M, N, 4, 1, 2)
-    q, s = b.unsqueeze(-3), edge_b.unsqueeze(-3)  # (M, N, 1, 4, 2)
-    denom = r[..., 0] * s[..., 1] - r[..., 1] * s[..., 0]  # (M, N, 4, 4)
+    p, r = a.unsqueeze(-2), edge_a.unsqueeze(-2)  # segments of A vs segments of B: (..., 4, 1, 2)
+    q, s = b.unsqueeze(-3), edge_b.unsqueeze(-3)  # (..., 1, 4, 2)
+    denom = r[..., 0] * s[..., 1] - r[..., 1] * s[..., 0]  # (..., 4, 4)
     qp = q - p
-    t = (qp[..., 0] * s[..., 1] - qp[..., 1] * s[..., 0]) / denom.where(denom.abs() > eps, torch.ones_like(denom))
-    u = (qp[..., 0] * r[..., 1] - qp[..., 1] * r[..., 0]) / denom.where(denom.abs() > eps, torch.ones_like(denom))
+    safe = denom.where(denom.abs() > eps, torch.ones_like(denom))
+    t = (qp[..., 0] * s[..., 1] - qp[..., 1] * s[..., 0]) / safe
+    u = (qp[..., 0] * r[..., 1] - qp[..., 1] * r[..., 0]) / safe
     crossing = (denom.abs() > eps) & (t >= -eps) & (t <= 1 + eps) & (u >= -eps) & (u <= 1 + eps)
-    crossing_points = p + t.unsqueeze(-1) * r  # (M, N, 4, 4, 2)
+    crossing_points = p + t.unsqueeze(-1) * r  # (..., 4, 4, 2)
 
-    m, n = quads_a.shape[0], quads_b.shape[0]
-    candidates = torch.cat(
-        [a.expand(m, n, 4, 2), b.expand(m, n, 4, 2), crossing_points.reshape(m, n, 16, 2)], dim=2
-    )  # (M, N, 24, 2)
-    valid = torch.cat([a_in_b, b_in_a, crossing.reshape(m, n, 16)], dim=2)  # (M, N, 24)
-    count = valid.sum(dim=-1)  # (M, N)
+    candidates = torch.cat([a, b, crossing_points.reshape(*lead, 16, 2)], dim=-2)  # (..., 24, 2)
+    valid = torch.cat([a_in_b, b_in_a, crossing.reshape(*lead, 16)], dim=-1)  # (..., 24)
+    count = valid.sum(dim=-1)
 
     # Sort the valid candidates counter-clockwise about their centroid (invalid ones to the end), then
     # take the shoelace sum over the first `count` entries with a per-pair wrap-around.
-    centroid = (candidates * valid[..., None]).sum(dim=2) / count.clamp(min=1)[..., None]
-    rel = candidates - centroid.unsqueeze(2)
+    centroid = (candidates * valid[..., None]).sum(dim=-2) / count.clamp(min=1)[..., None]
+    rel = candidates - centroid.unsqueeze(-2)
     angles = torch.atan2(rel[..., 1], rel[..., 0]).where(valid, candidates.new_tensor(math.inf))
     order = angles.argsort(dim=-1)
-    ring = candidates.gather(2, order[..., None].expand(m, n, 24, 2))
-    index = torch.arange(24, device=candidates.device).expand(m, n, 24)
+    ring = candidates.gather(-2, order[..., None].expand(*lead, 24, 2))
+    index = torch.arange(24, device=candidates.device).expand(*lead, 24)
     wrapped = torch.where(index + 1 < count[..., None], index + 1, torch.zeros_like(index))
-    nxt = ring.gather(2, wrapped[..., None].expand(m, n, 24, 2))
+    nxt = ring.gather(-2, wrapped[..., None].expand(*lead, 24, 2))
     terms = (ring[..., 0] * nxt[..., 1] - ring[..., 1] * nxt[..., 0]) * (index < count[..., None])
-    return torch.where(count >= 3, 0.5 * terms.sum(dim=-1).abs(), terms.new_zeros(m, n))
+
+    return torch.where(count >= 3, 0.5 * terms.sum(dim=-1).abs(), terms.new_zeros(lead))
 
 
 def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
@@ -334,86 +361,125 @@ def _bev_corners(boxes: Tensor) -> Tensor:
 
 
 def _point_in_box(
-    px: Tensor, py: Tensor, cx: Tensor, cy: Tensor, dx: Tensor, dy: Tensor, cos: Tensor, sin: Tensor
+    px: Tensor,
+    py: Tensor,
+    cx: Tensor,
+    cy: Tensor,
+    dx: Tensor,
+    dy: Tensor,
+    cos: Tensor,
+    sin: Tensor,
 ) -> Tensor:
     """Broadcasted test of whether points $(p_x, p_y)$ lie inside oriented BEV boxes (with a small margin)."""
     ux, uy = px - cx, py - cy
     lx = ux * cos + uy * sin
     ly = -ux * sin + uy * cos
-    margin = 1e-2
-    return (lx.abs() < dx / 2 + margin) & (ly.abs() < dy / 2 + margin)
+    return (lx.abs() < dx / 2 + _BEV_MARGIN) & (ly.abs() < dy / 2 + _BEV_MARGIN)
 
 
-def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
-    r"""Pairwise BEV intersection area of two oriented-box sets, $(N, 7), (M, 7) \to (N, M)$.
+def _bev_half_extents(boxes: Tensor) -> Tuple[Tensor, Tensor]:
+    r"""Half extents of the axis-aligned bounding box of each rotated BEV box, shape $(K,)$ each."""
+    cos, sin = torch.cos(boxes[:, 6]).abs(), torch.sin(boxes[:, 6]).abs()
+    half_x, half_y = boxes[:, 3] / 2, boxes[:, 4] / 2
+    return half_x * cos + half_y * sin, half_x * sin + half_y * cos
+
+
+def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:
+    r"""BEV intersection area of oriented boxes: pairwise $(N, 7), (M, 7) \to (N, M)$, or per pair with `aligned`.
 
     Vectorized clip-free polygon intersection: the intersection of two convex quads is the convex hull of
     (edge-edge crossings) + (corners of one box inside the other). Those candidate points are collected at
     fixed capacity, sorted counter-clockwise about their centroid, and the shoelace area is taken.
     """
-    n, m = boxes_a.shape[0], boxes_b.shape[0]
-    ca = _bev_corners(boxes_a)
-    cb = _bev_corners(boxes_b)
+    corners_a, corners_b = _bev_corners(boxes_a), _bev_corners(boxes_b)
+    if aligned:
+        if boxes_a.shape[0] != boxes_b.shape[0]:
+            raise ValueError(
+                f"`aligned` needs as many boxes on both sides, got {boxes_a.shape[0]} and {boxes_b.shape[0]}."
+            )
+
+        return _quad_overlap(corners_a, corners_b, boxes_a, boxes_b)
+
+    # Pairwise: two boxes whose axis-aligned bounds do not meet have no intersection, so the polygon arithmetic
+    # runs only on the candidate pairs, written into a zero matrix (the bounds carry the slack of `_point_in_box`).
+    overlap = boxes_a.new_zeros(boxes_a.shape[0], boxes_b.shape[0])
+    half_x_a, half_y_a = _bev_half_extents(boxes_a)
+    half_x_b, half_y_b = _bev_half_extents(boxes_b)
+    meet_x = (boxes_a[:, None, 0] - boxes_b[None, :, 0]).abs() <= half_x_a[:, None] + half_x_b[None, :] + _BEV_MARGIN
+    meet_y = (boxes_a[:, None, 1] - boxes_b[None, :, 1]).abs() <= half_y_a[:, None] + half_y_b[None, :] + _BEV_MARGIN
+    rows, cols = (meet_x & meet_y).nonzero(as_tuple=True)
+    if rows.numel() > 0:
+        overlap[rows, cols] = _quad_overlap(corners_a[rows], corners_b[cols], boxes_a[rows], boxes_b[cols])
+
+    return overlap
+
+
+def _quad_overlap(corners_a: Tensor, corners_b: Tensor, boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
+    r"""Intersection area of oriented BEV boxes over broadcast leading dims: $(\ldots, 4, 2)$ corners and $(\ldots, 7)$ boxes."""
+    lead = torch.broadcast_shapes(corners_a.shape[:-2], corners_b.shape[:-2])
+    corners_a = corners_a.expand(*lead, 4, 2)
+    corners_b = corners_b.expand(*lead, 4, 2)
 
     def cross2(u: Tensor, v: Tensor) -> Tensor:
         return u[..., 0] * v[..., 1] - u[..., 1] * v[..., 0]
 
-    a0 = ca[:, None, :, None, :].expand(n, m, 4, 1, 2)
-    a1 = ca.roll(-1, dims=1)[:, None, :, None, :].expand(n, m, 4, 1, 2)
-    b0 = cb[None, :, None, :, :].expand(n, m, 1, 4, 2)
-    b1 = cb.roll(-1, dims=1)[None, :, None, :, :].expand(n, m, 1, 4, 2)
+    # Edge-edge crossings: every edge of A against every edge of B, (..., 4, 4) pairs.
+    a0 = corners_a[..., :, None, :]
+    a1 = corners_a.roll(-1, dims=-2)[..., :, None, :]
+    b0 = corners_b[..., None, :, :]
+    b1 = corners_b.roll(-1, dims=-2)[..., None, :, :]
     r, s, qp = a1 - a0, b1 - b0, b0 - a0
     denom = cross2(r, s)
     t = cross2(qp, s) / denom
     u = cross2(qp, r) / denom
     edge_valid = (denom.abs() > 1e-12) & (t >= 0) & (t <= 1) & (u >= 0) & (u <= 1)
     edge_pts = a0 + t[..., None] * r
-    edge_pts = torch.where(edge_valid[..., None], edge_pts, edge_pts.new_zeros(())).reshape(n, m, 16, 2)
-    edge_valid = edge_valid.reshape(n, m, 16)
+    edge_pts = torch.where(edge_valid[..., None], edge_pts, edge_pts.new_zeros(())).reshape(*lead, 16, 2)
+    edge_valid = edge_valid.reshape(*lead, 16)
 
-    ca_exp = ca[:, None, :, :].expand(n, m, 4, 2)
-    cb_exp = cb[None, :, :, :].expand(n, m, 4, 2)
-    cos_b, sin_b = torch.cos(boxes_b[:, 6]), torch.sin(boxes_b[:, 6])
-    cos_a, sin_a = torch.cos(boxes_a[:, 6]), torch.sin(boxes_a[:, 6])
+    # Corners of each box inside the other one.
+    cos_a, sin_a = torch.cos(boxes_a[..., 6]), torch.sin(boxes_a[..., 6])
+    cos_b, sin_b = torch.cos(boxes_b[..., 6]), torch.sin(boxes_b[..., 6])
     a_in_b = _point_in_box(
-        ca_exp[..., 0],
-        ca_exp[..., 1],
-        boxes_b[None, :, None, 0],
-        boxes_b[None, :, None, 1],
-        boxes_b[None, :, None, 3],
-        boxes_b[None, :, None, 4],
-        cos_b[None, :, None],
-        sin_b[None, :, None],
+        corners_a[..., 0],
+        corners_a[..., 1],
+        boxes_b[..., None, 0],
+        boxes_b[..., None, 1],
+        boxes_b[..., None, 3],
+        boxes_b[..., None, 4],
+        cos_b[..., None],
+        sin_b[..., None],
     )
     b_in_a = _point_in_box(
-        cb_exp[..., 0],
-        cb_exp[..., 1],
-        boxes_a[:, None, None, 0],
-        boxes_a[:, None, None, 1],
-        boxes_a[:, None, None, 3],
-        boxes_a[:, None, None, 4],
-        cos_a[:, None, None],
-        sin_a[:, None, None],
+        corners_b[..., 0],
+        corners_b[..., 1],
+        boxes_a[..., None, 0],
+        boxes_a[..., None, 1],
+        boxes_a[..., None, 3],
+        boxes_a[..., None, 4],
+        cos_a[..., None],
+        sin_a[..., None],
     )
 
-    pts = torch.cat([edge_pts, ca_exp, cb_exp], dim=2)
-    valid = torch.cat([edge_valid, a_in_b, b_in_a], dim=2)
+    # Order the valid candidates counter-clockwise about their centroid and take the shoelace area.
+    pts = torch.cat([edge_pts, corners_a, corners_b], dim=-2)
+    valid = torch.cat([edge_valid, a_in_b, b_in_a], dim=-1)
     count = valid.sum(-1)
     weight = valid[..., None].to(pts.dtype)
-    centroid = (pts * weight).sum(2) / count.clamp(min=1)[..., None]
-    rel = pts - centroid[:, :, None, :]
+    centroid = (pts * weight).sum(-2) / count.clamp(min=1)[..., None]
+    rel = pts - centroid[..., None, :]
     angle = torch.atan2(rel[..., 1], rel[..., 0])
     angle = torch.where(valid, angle, torch.full_like(angle, 1e10))
     order = angle.argsort(dim=-1)
-    pts = torch.gather(pts, 2, order[..., None].expand(n, m, pts.shape[2], 2))
-    valid = torch.gather(valid, 2, order)
-    pts = torch.where(valid[..., None], pts, pts[:, :, 0:1, :])
+    pts = torch.gather(pts, -2, order[..., None].expand(*lead, pts.shape[-2], 2))
+    valid = torch.gather(valid, -1, order)
+    pts = torch.where(valid[..., None], pts, pts[..., 0:1, :])
     x, y = pts[..., 0], pts[..., 1]
     area = 0.5 * (x * y.roll(-1, dims=-1) - x.roll(-1, dims=-1) * y).sum(-1).abs()
     return torch.where(count >= 3, area, area.new_zeros(()))
 
 
-def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
+def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:
     r"""Pairwise bird's-eye (top-down) rotated-box IoU.
 
     Projects both box sets onto the ground plane (ignoring $z$) and intersects the oriented rectangles. The
@@ -423,6 +489,7 @@ def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
     Args:
         boxes_a: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(N, 7)$.
         boxes_b: Boxes in the same layout, shape $(M, 7)$.
+        aligned: With `True`, `boxes_a` and `boxes_b` pair up row by row ($N = M$) and the result is $(N,)$.
 
     Returns:
         Pairwise BEV IoU in $[0, 1]$, shape $(N, M)$.
@@ -441,13 +508,62 @@ def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
 
         ```
     """
-    inter = _rotated_box_bev_overlap(boxes_a, boxes_b)
-    area_a = (boxes_a[:, 3] * boxes_a[:, 4])[:, None]
-    area_b = (boxes_b[:, 3] * boxes_b[:, 4])[None, :]
+    inter = _rotated_box_bev_overlap(boxes_a, boxes_b, aligned=aligned)
+    area_a = boxes_a[:, 3] * boxes_a[:, 4]
+    area_b = boxes_b[:, 3] * boxes_b[:, 4]
+    if not aligned:
+        area_a, area_b = area_a[:, None], area_b[None, :]
+
     return inter / (area_a + area_b - inter).clamp(min=1e-8)
 
 
-def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
+def _nearest_aligned_bev_footprint(boxes: Tensor) -> Tensor:
+    r"""$(x_1, y_1, x_2, y_2)$ of each box once rotated about its center to the nearest multiple of $\pi / 2$."""
+    yaw = limit_period(boxes[:, 6], offset=0.5, period=math.pi).abs()
+    dims = torch.where(yaw[:, None] < math.pi / 4, boxes[:, 3:5], boxes[:, [4, 3]])
+    return torch.cat([boxes[:, :2] - dims / 2, boxes[:, :2] + dims / 2], dim=1)
+
+
+def boxes_iou_nearest_bev(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
+    r"""Pairwise bird's-eye IoU of boxes snapped to their nearest axis-aligned orientation.
+
+    Each box keeps its center and takes the footprint of its heading rounded to the nearest multiple of
+    $\pi / 2$, so $d_x$ and $d_y$ swap when the heading is closer to $\pm \pi / 2$ than to $0$; the IoU is then
+    the plain axis-aligned rectangle IoU. The anchor-based detectors assign their anchors by this measure
+    rather than by the exact rotated overlap of [`boxes_iou_bev`][torch_pointcloud.ops.box3d.boxes_iou_bev].
+
+    Args:
+        boxes_a: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(N, 7)$.
+        boxes_b: Boxes in the same layout, shape $(M, 7)$.
+
+    Returns:
+        Pairwise IoU in $[0, 1]$, shape $(N, M)$.
+
+    Shape:
+        - boxes_a: $(N, 7)$
+        - boxes_b: $(M, 7)$
+        - output: $(N, M)$
+
+    Example:
+        ```pycon
+        >>> a = torch.tensor([[0.0, 0.0, 0.0, 2.0, 1.0, 1.0, 0.0]])
+        >>> b = torch.tensor([[0.0, 0.0, 0.0, 1.0, 2.0, 1.0, math.pi / 2]])
+        >>> round(float(boxes_iou_nearest_bev(a, b)), 4)
+        1.0
+
+        ```
+    """
+    footprint_a = _nearest_aligned_bev_footprint(boxes_a)
+    footprint_b = _nearest_aligned_bev_footprint(boxes_b)
+    lo = torch.maximum(footprint_a[:, None, :2], footprint_b[None, :, :2])
+    hi = torch.minimum(footprint_a[:, None, 2:], footprint_b[None, :, 2:])
+    inter = (hi - lo).clamp_min(0).prod(dim=-1)
+    area_a = (footprint_a[:, 2] - footprint_a[:, 0]) * (footprint_a[:, 3] - footprint_a[:, 1])
+    area_b = (footprint_b[:, 2] - footprint_b[:, 0]) * (footprint_b[:, 3] - footprint_b[:, 1])
+    return inter / (area_a[:, None] + area_b[None, :] - inter).clamp(min=1e-8)
+
+
+def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:
     r"""Pairwise oriented 3D box IoU.
 
     The BEV intersection area (rotated rectangles, ignoring $z$) is multiplied by the vertical overlap of
@@ -459,6 +575,7 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
     Args:
         boxes_a: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(N, 7)$.
         boxes_b: Boxes in the same layout, shape $(M, 7)$.
+        aligned: With `True`, `boxes_a` and `boxes_b` pair up row by row ($N = M$) and the result is $(N,)$.
 
     Returns:
         Pairwise 3D IoU in $[0, 1]$, shape $(N, M)$.
@@ -477,15 +594,17 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
 
         ```
     """
-    inter_area = _rotated_box_bev_overlap(boxes_a, boxes_b)
-    z_a_max = (boxes_a[:, 2] + boxes_a[:, 5] / 2)[:, None]
-    z_a_min = (boxes_a[:, 2] - boxes_a[:, 5] / 2)[:, None]
-    z_b_max = (boxes_b[:, 2] + boxes_b[:, 5] / 2)[None, :]
-    z_b_min = (boxes_b[:, 2] - boxes_b[:, 5] / 2)[None, :]
+    inter_area = _rotated_box_bev_overlap(boxes_a, boxes_b, aligned=aligned)
+    z_a_max, z_a_min = boxes_a[:, 2] + boxes_a[:, 5] / 2, boxes_a[:, 2] - boxes_a[:, 5] / 2
+    z_b_max, z_b_min = boxes_b[:, 2] + boxes_b[:, 5] / 2, boxes_b[:, 2] - boxes_b[:, 5] / 2
+    vol_a = boxes_a[:, 3] * boxes_a[:, 4] * boxes_a[:, 5]
+    vol_b = boxes_b[:, 3] * boxes_b[:, 4] * boxes_b[:, 5]
+    if not aligned:
+        z_a_max, z_a_min, vol_a = z_a_max[:, None], z_a_min[:, None], vol_a[:, None]
+        z_b_max, z_b_min, vol_b = z_b_max[None, :], z_b_min[None, :], vol_b[None, :]
+
     h_overlap = (torch.min(z_a_max, z_b_max) - torch.max(z_a_min, z_b_min)).clamp(min=0)
     inter_3d = inter_area * h_overlap
-    vol_a = (boxes_a[:, 3] * boxes_a[:, 4] * boxes_a[:, 5])[:, None]
-    vol_b = (boxes_b[:, 3] * boxes_b[:, 4] * boxes_b[:, 5])[None, :]
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
@@ -596,8 +715,52 @@ def nms3d(
     return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
 
 
+def points_in_boxes(pos: Tensor, boxes: Tensor) -> Tensor:
+    r"""Test every point against every oriented box.
+
+    The point offsets to each box center are rotated into the box frame by $-\theta$ about $+z$ and
+    compared with the half extents. The heading is counter-clockwise about $+z$ from $+x$; boxes are
+    $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents. Pairs are materialized at once, so
+    restrict large scenes to their own boxes (or use `count_points_in_boxes`, which chunks).
+
+    Args:
+        pos: Point coordinates, shape $(N, 3)$.
+        boxes: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents, shape $(K, 7)$.
+
+    Returns:
+        Boolean containment mask, shape $(N, K)$.
+
+    Shape:
+        - pos: $(N, 3)$
+        - boxes: $(K, 7)$
+        - output: $(N, K)$
+
+    Example:
+        ```pycon
+        >>> pos = torch.tensor([[0.0, 0.0, 0.0], [5.0, 5.0, 5.0]])
+        >>> boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 0.3]])
+        >>> points_in_boxes(pos, boxes).tolist()
+        [[True, False], [False, True]]
+
+        ```
+    """
+    offset = pos[:, None, :] - boxes[None, :, 0:3]  # (N, K, 3)
+    half = boxes[:, 3:6] / 2.0
+    cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
+    local_x = offset[..., 0] * cos[None, :] + offset[..., 1] * sin[None, :]
+    local_y = offset[..., 1] * cos[None, :] - offset[..., 0] * sin[None, :]
+    inside_x = local_x.abs() <= half[None, :, 0]
+    inside_y = local_y.abs() <= half[None, :, 1]
+    inside_z = offset[..., 2].abs() <= half[None, :, 2]
+    return inside_x & inside_y & inside_z
+
+
 def count_points_in_boxes(
-    pos: Tensor, boxes: Tensor, *, pos_batch: OptTensor = None, box_batch: OptTensor = None
+    pos: Tensor,
+    boxes: Tensor,
+    *,
+    pos_batch: OptTensor = None,
+    box_batch: OptTensor = None,
 ) -> Tensor:
     r"""Count how many points fall inside each oriented box.
 
@@ -631,28 +794,19 @@ def count_points_in_boxes(
     """
     if (pos_batch is None) != (box_batch is None):
         raise ValueError("`pos_batch` and `box_batch` must be given together; got exactly one of them.")
+
     if pos_batch is None or box_batch is None:
         pos_batch = pos.new_zeros(pos.shape[0], dtype=torch.long)
         box_batch = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
 
     counts = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
-    center, half = boxes[:, :3], boxes[:, 3:6] / 2
-    cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
     for scene in box_batch.unique().tolist():
         scene_pos = pos[pos_batch == scene]
         scene_boxes = (box_batch == scene).nonzero(as_tuple=False).squeeze(-1)
-        # Boxes go through in chunks so the (K, N) point-in-box test stays within 2^24 pairs.
+        # Boxes go through in chunks so the (N, K) point-in-box test stays within 2^24 pairs.
         chunk_size = max(1, (1 << 24) // max(scene_pos.shape[0], 1))
         for index in scene_boxes.split(chunk_size):
-            offset = scene_pos[None] - center[index, None]  # (K, N, 3)
-            local_x = offset[..., 0] * cos[index, None] + offset[..., 1] * sin[index, None]
-            local_y = offset[..., 1] * cos[index, None] - offset[..., 0] * sin[index, None]
-            inside = (
-                (local_x.abs() <= half[index, 0:1])
-                & (local_y.abs() <= half[index, 1:2])
-                & (offset[..., 2].abs() <= half[index, 2:3])
-            )
-            counts[index] = inside.sum(dim=1)
+            counts[index] = points_in_boxes(scene_pos, boxes[index]).sum(dim=0)
     return counts
 
 

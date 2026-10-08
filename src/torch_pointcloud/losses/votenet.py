@@ -1,11 +1,17 @@
 r"""VoteNet detection loss: deep Hough voting target assignment and multi-task objective."""
 
 import math
-from typing import Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+
+from torch_pointcloud.ops.box3d import angle_to_class, points_in_boxes
+from torch_pointcloud.utils.data import DataKeys
+
+if TYPE_CHECKING:
+    from torch_pointcloud.models.votenet import VoteNetOutput
 
 _EPS = 1e-6
 
@@ -22,32 +28,67 @@ def _nn_distance(src: Tensor, dst: Tensor, *, l1: bool = False) -> Tuple[Tensor,
         A tuple `(dist1, idx1, dist2, idx2)`: `dist1`/`idx1` give the distance to and index of each
         source point's nearest target $(B, N)$, and `dist2`/`idx2` the reverse $(B, M)$.
     """
-    pairwise = torch.cdist(src, dst, p=1.0 if l1 else 2.0)
-    if not l1:
-        pairwise = pairwise.pow(2)
+    diff = src.unsqueeze(2) - dst.unsqueeze(1)  # (B, N, M, 3)
+    pairwise = diff.abs().sum(dim=-1) if l1 else (diff * diff).sum(dim=-1)
+
     near = pairwise.min(dim=2)
     far = pairwise.min(dim=1)
     return near.values, near.indices, far.values, far.indices
 
 
+class _Targets:
+    r"""Per-scene ground truth padded to a common object count $M$, in the model's native heading space."""
+
+    def __init__(
+        self,
+        center: Tensor,
+        heading_class: Tensor,
+        heading_residual: Tensor,
+        size_class: Tensor,
+        size_residual: Tensor,
+        sem_cls: Tensor,
+        mask: Tensor,
+    ) -> None:
+        self.center = center
+        self.heading_class = heading_class
+        self.heading_residual = heading_residual
+        self.size_class = size_class
+        self.size_residual = size_residual
+        self.sem_cls = sem_cls
+        self.mask = mask
+
+
 class VoteNetLoss(nn.Module):
-    r"""Multi-task VoteNet detection loss (vote, objectness, box, semantic).
+    r"""Loss of `VoteNetDetection` (vote, objectness, box, semantic).
 
-    Reference: :arxiv: [Qi et al., 2019](https://arxiv.org/abs/1904.09664).
+    Reference: :arxiv: [Deep Hough Voting for 3D Object Detection in Point Clouds](https://arxiv.org/abs/1904.09664) (Qi et al., 2019).
 
-    Proposals are matched to ground-truth objects by nearest center: a proposal is positive when its
-    nearest GT center is within `near_threshold`, negative beyond `far_threshold`, and ignored in the
-    band between. Positives drive the center, heading, size and semantic terms; the vote term pulls
-    each object seed's vote toward its object center (the closest of up to three candidate votes).
+    Every target is assigned inside the loss from the packed ground-truth boxes:
+
+    - **Vote:** each seed point inside a box votes for its center. A seed collects the centers of the first
+      `gt_vote_factor` boxes containing it (repeating the first when inside fewer), and the smooth-$L_1$
+      distance of its closest predicted vote to its closest target vote is averaged over the seeds inside
+      a box.
+    - **Objectness:** proposals are matched to objects by nearest center. A proposal is positive when its
+      nearest center is within `near_threshold`, negative beyond `far_threshold`, and ignored in the band
+      between; a weighted two-way cross-entropy supervises the objectness logits.
+    - **Box and semantic:** positives drive the center (symmetric Chamfer between proposal and object
+      centers), heading (bin cross-entropy + normalized residual smooth-$L_1$), size (class cross-entropy +
+      normalized residual smooth-$L_1$) and semantic-class terms, each averaged over the positives.
+
+    The library heading is counter-clockwise about $+z$ while the heading head predicts the negated angle,
+    so the heading bins are computed from $-\theta$. Scenes are padded to a common object count with zero
+    centers that take part in the proposal-to-object matching.
 
     Args:
         num_classes: Number of semantic classes.
         num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned ScanNet, $12$ for SUN RGB-D).
-        num_size_clusters: Number of size templates.
-        mean_sizes: Per-template mean box size, shape $(\text{num\_size\_cluster}, 3)$.
+        num_size_clusters: Number of size templates (the size class is the semantic class).
+        mean_sizes: Per-template mean box size, shape $(\text{num\_size\_clusters}, 3)$.
         near_threshold: Distance (meters) below which a proposal is a positive object match.
         far_threshold: Distance (meters) above which a proposal is a negative match.
         objectness_weights: Cross-entropy class weights $[\text{negative}, \text{positive}]$.
+        gt_vote_factor: Number of target votes (containing-box centers) collected per seed.
         loss_weight: Global multiplier applied to the summed loss.
     """
 
@@ -63,6 +104,7 @@ class VoteNetLoss(nn.Module):
         near_threshold: float = 0.3,
         far_threshold: float = 0.6,
         objectness_weights: Tuple[float, float] = (0.2, 0.8),
+        gt_vote_factor: int = 3,
         loss_weight: float = 10.0,
     ) -> None:
         super().__init__()
@@ -72,42 +114,45 @@ class VoteNetLoss(nn.Module):
         self.near_threshold = near_threshold
         self.far_threshold = far_threshold
         self.objectness_weights = objectness_weights
+        self.gt_vote_factor = gt_vote_factor
         self.loss_weight = loss_weight
 
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
         if mean.shape != (num_size_clusters, 3):
             raise ValueError(f"`mean_sizes` must have shape ({num_size_clusters}, 3), got {tuple(mean.shape)}.")
+
         self.register_buffer("mean_sizes", mean)
 
-    def forward(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the VoteNet loss and its components.
+    def forward(self, output: "VoteNetOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the VoteNet loss and its terms.
 
         Args:
             output: The model's raw output: dense head tensors (`objectness_scores`, `center`,
                 `heading_scores`, `heading_residuals_normalized`, `size_scores`,
                 `size_residuals_normalized`, `sem_cls_scores`, `pos_vote_aggr`) as $(B, K, \cdot)$,
-                plus the packed `pos_seed`, `pos_vote` $(S, 3)$ and `seed_indices`, `batch_seed`, `batch_vote` $(S,)$.
-            batch: Ground truth (`center_label`, `heading_class_label`, `heading_residual_label`,
-                `size_class_label`, `size_residual_label`, `sem_cls_label`, `box_label_mask` as
-                $(B, M, \cdot)$, per-point `vote_label` $(B, N, 9)$, `vote_label_mask` $(B, N)$, and the
-                per-point `batch` index). The heading labels are binned from counter-clockwise headings
-                and re-binned internally into the model's native (negated) heading space.
+                plus the packed seeds `pos_seed` $(S, 3)$, `batch_seed` $(S,)$ and their votes `pos_vote`
+                $(S \cdot \text{vote\_factor}, 3)$.
+            data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise
+                headings, `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box
+                scene index.
 
         Returns:
-            A dict with the scalar `loss` (to backprop) and detached `vote_loss`, `objectness_loss`,
-            `box_loss`, `center_loss`, `heading_cls_loss`, `heading_res_loss`, `size_cls_loss`,
-            `size_res_loss`, `sem_cls_loss` and `obj_acc` diagnostics.
+            A dict with the scalar `loss` and detached `vote_loss`, `objectness_loss`, `box_loss`,
+            `center_loss`, `heading_cls_loss`, `heading_res_loss`, `size_cls_loss`, `size_res_loss`,
+            `sem_cls_loss` and the `obj_acc` diagnostic.
         """
-        output = self._densify(output, batch)
-        vote_loss = self._vote_loss(output, batch)
-        objectness_loss, objectness_label, objectness_mask, assignment = self._objectness_loss(output, batch)
+        scores = output["objectness_scores"]
+        targets = self._densify(data, scores.shape[0])
+
+        vote_loss = self._vote_loss(output, data)
+        objectness_loss, objectness_label, objectness_mask, assignment = self._objectness_loss(output, targets)
         center, heading_cls, heading_res, size_cls, size_res, sem_cls = self._box_and_sem_loss(
-            output, batch, objectness_label, assignment
+            output, targets, objectness_label, assignment
         )
 
         box_loss = center + 0.1 * heading_cls + heading_res + 0.1 * size_cls + size_res
         total = self.loss_weight * (vote_loss + 0.5 * objectness_loss + box_loss + 0.1 * sem_cls)
-        obj_acc = self._objectness_accuracy(output["objectness_scores"], objectness_label, objectness_mask)
+        obj_acc = self._objectness_accuracy(scores, objectness_label, objectness_mask)
 
         return {
             "loss": total,
@@ -123,62 +168,101 @@ class VoteNetLoss(nn.Module):
             "obj_acc": obj_acc,
         }
 
-    def _densify(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Reshape the model's packed seed / vote tensors to the dense $(B, S, \cdot)$ the terms expect.
+    def _densify(self, data: Dict[str, Any], batch_size: int) -> _Targets:
+        r"""Pad the packed boxes to a common per-scene count and encode heading, size and semantic targets.
 
-        The proposal tensors are already dense $(B, K, \cdot)$; the seeds are a fixed count per scene, so the
-        packed `pos_seed` / `pos_vote` / `seed_indices` (and their batch vectors) reshape by the batch size.
-        `seed_indices` are global indices into the packed points, localized to $[0, N)$ by subtracting each
-        scene's offset so the per-scene `vote_label` can be gathered onto seeds.
+        Headings are negated into the model's native space before binning; the size class is the semantic
+        class and the size residual is measured against that class's mean size. Boxes keep their packed
+        order within a scene.
         """
-        batch_idx: Tensor = batch["batch"]
-        if batch_idx.numel() == 0:
-            raise ValueError("`VoteNetLoss` requires a non-empty batch of points.")
-        counts = batch_idx.bincount()
-        if bool((counts != counts[0]).any()):
-            raise ValueError(
-                f"`VoteNetLoss` requires the same number of points per scene, got counts {counts.tolist()}."
-            )
-        batch_size = counts.numel()
-        num_points = int(counts[0])
-        dense = dict(output)
-        for key in ("pos_seed", "pos_vote", "seed_indices", "batch_seed", "batch_vote"):
-            tensor = output[key]
-            dense[key] = tensor.reshape(batch_size, tensor.shape[0] // batch_size, *tensor.shape[1:])
-        dense["seed_indices"] = dense["seed_indices"] - dense["batch_seed"] * num_points
-        return dense
+        ref = self.mean_sizes
+        boxes: Tensor = data[DataKeys.BOX][:, :7].to(ref)
+        labels: Tensor = data[DataKeys.LABEL].long().to(ref.device)
+        box_batch: Tensor = data[DataKeys.BATCH_BOX].to(ref.device)
 
-    def _vote_loss(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Tensor:
-        r"""Smooth $L_1$ vote regression, masked to object seeds (closest of the candidate votes)."""
+        counts = torch.bincount(box_batch, minlength=batch_size)
+        max_obj = max(int(counts.max()) if boxes.shape[0] else 0, 1)
+        center = ref.new_zeros(batch_size, max_obj, 3)
+        heading_class = torch.zeros(batch_size, max_obj, dtype=torch.long, device=ref.device)
+        heading_residual = ref.new_zeros(batch_size, max_obj)
+        size_class = torch.zeros(batch_size, max_obj, dtype=torch.long, device=ref.device)
+        size_residual = ref.new_zeros(batch_size, max_obj, 3)
+        sem_cls = torch.zeros(batch_size, max_obj, dtype=torch.long, device=ref.device)
+        mask = ref.new_zeros(batch_size, max_obj)
+        if boxes.shape[0] == 0:
+            return _Targets(center, heading_class, heading_residual, size_class, size_residual, sem_cls, mask)
+
+        # The slot of a box is its rank among the boxes of its scene, in packed order.
+        order = torch.argsort(box_batch, stable=True)
+        starts = counts.cumsum(0) - counts
+        slot = torch.empty_like(box_batch)
+        slot[order] = torch.arange(boxes.shape[0], device=ref.device) - starts[box_batch[order]]
+
+        center[box_batch, slot] = boxes[:, 0:3]
+        cls, residual = angle_to_class(-boxes[:, 6], self.num_heading_bins)
+        heading_class[box_batch, slot] = cls
+        heading_residual[box_batch, slot] = residual
+        size_class[box_batch, slot] = labels
+        size_residual[box_batch, slot] = boxes[:, 3:6] - self.mean_sizes[labels]
+        sem_cls[box_batch, slot] = labels
+        mask[box_batch, slot] = 1.0
+
+        return _Targets(center, heading_class, heading_residual, size_class, size_residual, sem_cls, mask)
+
+    def _vote_targets(self, pos_seed: Tensor, batch_seed: Tensor, data: Dict[str, Any]) -> Tuple[Tensor, Tensor]:
+        r"""Collect, per seed, the centers of the first `gt_vote_factor` boxes of its scene containing it.
+
+        A seed inside fewer boxes repeats the first center in the unfilled slots, so the min-over-votes loss
+        can credit either center on overlapping objects. The whole batch is tested at once, each seed against
+        the boxes of its own scene.
+
+        Returns:
+            `(votes, mask)`: target vote positions $(S, G, 3)$ and the $(S,)$ mask of seeds inside a box.
+        """
+        num_seed, slots = pos_seed.shape[0], self.gt_vote_factor
+        votes = pos_seed.new_zeros(num_seed, slots, 3)
+        mask = pos_seed.new_zeros(num_seed)
+
+        boxes: Tensor = data[DataKeys.BOX][:, :7].to(pos_seed)
+        box_batch: Tensor = data[DataKeys.BATCH_BOX].to(pos_seed.device)
+        if boxes.shape[0] == 0 or num_seed == 0:
+            return votes, mask
+
+        inside = points_in_boxes(pos_seed, boxes) & (batch_seed.unsqueeze(1) == box_batch.unsqueeze(0))  # (S, K)
+        rank = inside.long().cumsum(dim=1)
+        centers = boxes[:, 0:3]
+
+        votes = centers[inside.long().argmax(dim=1)].unsqueeze(1).expand(-1, slots, -1).clone()
+        for slot in range(1, slots):
+            sel = inside & (rank == slot + 1)
+            has = sel.any(dim=1)
+            votes[:, slot] = torch.where(has.unsqueeze(1), centers[sel.long().argmax(dim=1)], votes[:, slot])
+        mask = inside.any(dim=1).to(mask.dtype)
+
+        return votes, mask
+
+    def _vote_loss(self, output: "VoteNetOutput", data: Dict[str, Any]) -> Tensor:
+        r"""$L_1$ vote regression, masked to object seeds (closest predicted vote to the closest target)."""
         pos_seed = output["pos_seed"]
         pos_vote = output["pos_vote"]
-        seed_indices = output["seed_indices"].long()
-        vote_label: Tensor = batch["vote_label"]
-        vote_label_mask: Tensor = batch["vote_label_mask"]
+        num_seed = pos_seed.shape[0]
+        if num_seed == 0:
+            raise ValueError("`VoteNetLoss` requires a non-empty batch of seeds.")
 
-        batch_size, num_seed = pos_seed.shape[:2]
-        num_candidates = vote_label.size(-1) // 3
-        vote_factor = pos_vote.size(1) // num_seed
+        vote_factor = pos_vote.shape[0] // num_seed
 
-        seed_gt_votes_mask = torch.gather(vote_label_mask, 1, seed_indices).float()
-        gather_idx = seed_indices.unsqueeze(-1).expand(-1, -1, vote_label.size(-1))
-        seed_gt_votes = torch.gather(vote_label, 1, gather_idx) + pos_seed.repeat(1, 1, num_candidates)
+        gt_votes, gt_mask = self._vote_targets(pos_seed, output["batch_seed"], data)
+        pred = pos_vote.reshape(num_seed, vote_factor, 3)
+        dist = (gt_votes.unsqueeze(2) - pred.unsqueeze(1)).abs().sum(dim=-1)  # (S, G, vote_factor)
+        votes_dist = dist.min(dim=2).values.min(dim=1).values
 
-        pred = pos_vote.reshape(batch_size * num_seed, vote_factor, 3)
-        gt = seed_gt_votes.reshape(batch_size * num_seed, num_candidates, 3)
-        dist = torch.cdist(gt, pred, p=1.0)
-        votes_dist = dist.min(dim=2).values.min(dim=1).values.reshape(batch_size, num_seed)
-        loss: Tensor = (votes_dist * seed_gt_votes_mask).sum() / (seed_gt_votes_mask.sum() + _EPS)
+        loss: Tensor = (votes_dist * gt_mask).sum() / (gt_mask.sum() + _EPS)
         return loss
 
-    def _objectness_loss(
-        self, output: Dict[str, Tensor], batch: Dict[str, Any]
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        r"""Weighted 2-way cross-entropy with near/far proposal-to-GT center assignment."""
+    def _objectness_loss(self, output: "VoteNetOutput", targets: _Targets) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        r"""Weighted 2-way cross-entropy with near/far proposal-to-object center assignment."""
         scores = output["objectness_scores"]
-        gt_center: Tensor = batch["center_label"]
-
-        dist1, idx1, _, _ = _nn_distance(output["pos_vote_aggr"], gt_center)
+        dist1, idx1, _, _ = _nn_distance(output["pos_vote_aggr"], targets.center)
         euclidean = (dist1 + _EPS).sqrt()
         objectness_label: Tensor = (euclidean < self.near_threshold).long()
         objectness_mask: Tensor = ((euclidean < self.near_threshold) | (euclidean > self.far_threshold)).float()
@@ -188,47 +272,23 @@ class VoteNetLoss(nn.Module):
         loss: Tensor = (ce * objectness_mask).sum() / (objectness_mask.sum() + _EPS)
         return loss, objectness_label, objectness_mask, idx1
 
-    def _heading_to_native(self, heading_class: Tensor, heading_residual: Tensor) -> Tuple[Tensor, Tensor]:
-        r"""Re-bin counter-clockwise heading labels into the model's native (negated) heading space.
-
-        The ground-truth bins encode the library heading convention (counter-clockwise about $+z$), while
-        the heading head predicts the negated angle; the continuous angle is reconstructed from the bins,
-        negated, and re-binned, which is exact (binning loses no information). With a single bin
-        (axis-aligned boxes, zero headings) the conversion is the identity.
-
-        Args:
-            heading_class: Heading bin indices (long), shape $(B, K)$.
-            heading_residual: In-bin residual angles, shape $(B, K)$.
-
-        Returns:
-            The `(heading_class, heading_residual)` pair re-binned in the native heading space.
-        """
-        two_pi = 2 * math.pi
-        angle_per_class = two_pi / self.num_heading_bins
-        angle = heading_class.to(heading_residual.dtype) * angle_per_class + heading_residual
-        shifted = ((-angle) % two_pi + angle_per_class / 2) % two_pi
-        native_class = (shifted / angle_per_class).floor().long().clamp(max=self.num_heading_bins - 1)
-        native_residual = shifted - (native_class.to(shifted.dtype) * angle_per_class + angle_per_class / 2)
-        return native_class, native_residual
-
     def _box_and_sem_loss(
-        self, output: Dict[str, Tensor], batch: Dict[str, Any], objectness_label: Tensor, assignment: Tensor
+        self,
+        output: "VoteNetOutput",
+        targets: _Targets,
+        objectness_label: Tensor,
+        assignment: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         r"""Center (chamfer), heading (cls + residual), size (cls + residual) and semantic losses."""
         obj = objectness_label.float()
         denom = obj.sum() + _EPS
         nh, ns = self.num_heading_bins, self.num_size_clusters
 
-        gt_center: Tensor = batch["center_label"]
-        box_label_mask: Tensor = batch["box_label_mask"]
-        dist1, _, dist2, _ = _nn_distance(output["center"], gt_center)
-        center_loss = (dist1 * obj).sum() / denom + (dist2 * box_label_mask).sum() / (box_label_mask.sum() + _EPS)
+        dist1, _, dist2, _ = _nn_distance(output["center"], targets.center)
+        center_loss = (dist1 * obj).sum() / denom + (dist2 * targets.mask).sum() / (targets.mask.sum() + _EPS)
 
-        heading_class_label = torch.gather(batch["heading_class_label"], 1, assignment)
-        heading_residual_label = torch.gather(batch["heading_residual_label"], 1, assignment)
-        heading_class_label, heading_residual_label = self._heading_to_native(
-            heading_class_label, heading_residual_label
-        )
+        heading_class_label = torch.gather(targets.heading_class, 1, assignment)
+        heading_residual_label = torch.gather(targets.heading_residual, 1, assignment)
         heading_cls = F.cross_entropy(output["heading_scores"].transpose(1, 2), heading_class_label, reduction="none")
         heading_cls = (heading_cls * obj).sum() / denom
 
@@ -238,12 +298,12 @@ class VoteNetLoss(nn.Module):
         heading_res = F.smooth_l1_loss(pred_heading_res, heading_res_norm_label, reduction="none")
         heading_res = (heading_res * obj).sum() / denom
 
-        size_class_label = torch.gather(batch["size_class_label"], 1, assignment)
+        size_class_label = torch.gather(targets.size_class, 1, assignment)
         size_cls = F.cross_entropy(output["size_scores"].transpose(1, 2), size_class_label, reduction="none")
         size_cls = (size_cls * obj).sum() / denom
 
         gather_size = assignment.unsqueeze(-1).expand(-1, -1, 3)
-        size_residual_label = torch.gather(batch["size_residual_label"], 1, gather_size)
+        size_residual_label = torch.gather(targets.size_residual, 1, gather_size)
         size_one_hot = F.one_hot(size_class_label, ns).float().unsqueeze(-1)
         pred_size_res = (output["size_residuals_normalized"] * size_one_hot).sum(dim=2)
         mean_size = (size_one_hot * self.mean_sizes.view(1, 1, ns, 3)).sum(dim=2)
@@ -251,7 +311,7 @@ class VoteNetLoss(nn.Module):
         size_res = F.smooth_l1_loss(pred_size_res, size_res_norm_label, reduction="none").mean(dim=-1)
         size_res = (size_res * obj).sum() / denom
 
-        sem_cls_label = torch.gather(batch["sem_cls_label"], 1, assignment)
+        sem_cls_label = torch.gather(targets.sem_cls, 1, assignment)
         sem_cls = F.cross_entropy(output["sem_cls_scores"].transpose(1, 2), sem_cls_label, reduction="none")
         sem_cls = (sem_cls * obj).sum() / denom
 

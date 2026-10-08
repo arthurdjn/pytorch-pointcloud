@@ -6,11 +6,13 @@ from torch import Tensor
 
 from torch_pointcloud.layers.kpconv_blocks import KPConv
 
+__all__ = ["KPConvDeformRegularizer"]
+
 
 def kpconv_deform_regularizer(module: nn.Module, fitting_power: float = 1.0, repulse_extent: float = 1.0) -> Tensor:
     r"""Regularize the deformed kernel points of every deformable `KPConv` in `module`.
 
-    The point-to-point regularizer of :arxiv: [KPConv](https://arxiv.org/abs/1904.08889): a fitting term pulls
+    The point-to-point regularizer of :arxiv: [KPConv: Flexible and Deformable Convolution for Point Clouds](https://arxiv.org/abs/1904.08889) (Thomas et al., 2019): a fitting term pulls
     every deformed kernel point towards its closest input point, a repulsive term keeps the kernel points of one
     location further apart than `repulse_extent`. Both read the statistics the layers keep from their last
     forward pass (`running_min_d2`, `running_deformed_kernel`), so call it after the forward and before the
@@ -60,7 +62,7 @@ def kpconv_deform_regularizer(module: nn.Module, fitting_power: float = 1.0, rep
 
 
 class KPConvDeformRegularizer(nn.Module):
-    r"""Module form of `kpconv_deform_regularizer`, to sit next to the task loss in a training loop.
+    r"""Module form of `kpconv_deform_regularizer`.
 
     Args:
         fitting_power: Weight of the whole term.
@@ -68,16 +70,14 @@ class KPConvDeformRegularizer(nn.Module):
 
     Example:
         ```python
-        >>> import torch
-        >>> from torch_pointcloud.layers import KPConv
-        >>> from torch_pointcloud.losses import KPConvDeformRegularizer
-        >>> conv = KPConv(spatial_dim=3, in_channels=4, out_channels=8, kernel_size=15, kp_radius=1.0, kp_sigma=1.0, deformable=True)
-        >>> pos = torch.rand(32, 3)
-        >>> edge_index = torch.stack([torch.arange(32).repeat_interleave(4), torch.randint(0, 32, (128,))])
-        >>> out = conv(torch.randn(32, 4), pos, edge_index)
-        >>> KPConvDeformRegularizer(repulse_extent=1.2)(conv).shape
-        torch.Size([])
-
+        import torch
+        from torch_pointcloud.layers import KPConv
+        from torch_pointcloud.losses import KPConvDeformRegularizer
+        conv = KPConv(spatial_dim=3, in_channels=4, out_channels=8, kernel_size=15, kp_radius=1.0, kp_sigma=1.0, deformable=True)
+        pos = torch.rand(32, 3)
+        edge_index = torch.stack([torch.arange(32).repeat_interleave(4), torch.randint(0, 32, (128,))])
+        out = conv(torch.randn(32, 4), pos, edge_index)
+        KPConvDeformRegularizer(repulse_extent=1.2)(conv).shape  # torch.Size([])
         ```
     """
 

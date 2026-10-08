@@ -25,7 +25,6 @@ from torch_pointcloud.losses import VoteNetLoss
 from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import VoteNetDetection, create_model
-from torch_pointcloud.models.votenet import EncodeVoteNetTargets, GenerateVoteLabels
 from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -37,38 +36,21 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 NUM_POINTS = 20000
-TARGET_KEYS = [
-    "center_label",
-    "heading_class_label",
-    "heading_residual_label",
-    "size_class_label",
-    "size_residual_label",
-    "sem_cls_label",
-    "box_label_mask",
-    "vote_label",
-    "vote_label_mask",
-]
 SCORE_THRESHOLD = 0.05
 NMS_IOU = 0.25
 MIN_POINTS = 5
 IOU_THRESHOLDS = [0.25, 0.5]
 
 
-def train_transform(model: VoteNetDetection) -> T.Compose:
+def train_transform() -> T.Compose:
     return T.Compose(
         [
             T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
             T.RandomSample(keys=[DataKeys.POS, "height"], num_samples=NUM_POINTS),
-            GenerateVoteLabels(pos_key=DataKeys.POS, box_key=DataKeys.BOX),
-            T.RandomFlip(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, axes=(0,)),
-            T.RandomRotate(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, angle_range=(-30.0, 30.0)),
-            T.RandomScale(keys=[DataKeys.POS, "vote_label"], box_key=DataKeys.BOX, scale_range=(0.85, 1.15)),
-            EncodeVoteNetTargets(
-                box_key=DataKeys.BOX,
-                num_heading_bins=model.num_heading_bins,
-                max_num_obj=64,
-                mean_sizes=model.mean_sizes,
-            ),
+            # The vote and box targets are assigned inside `VoteNetLoss` from the packed boxes.
+            T.RandomFlip(keys=DataKeys.POS, box_key=DataKeys.BOX, axes=(0,)),
+            T.RandomRotate(keys=DataKeys.POS, box_key=DataKeys.BOX, angle_range=(-30.0, 30.0)),
+            T.RandomScale(keys=DataKeys.POS, box_key=DataKeys.BOX, scale_range=(0.85, 1.15)),
             T.Cat(keys=["height"], dst_key=DataKeys.X, dim=1),
         ]
     )
@@ -176,7 +158,7 @@ def main() -> None:
     train_dataset: Dataset = SunRGBD(
         root=args.root,
         train=True,
-        transform=train_transform(model),
+        transform=train_transform(),
         download=args.download,
         force_process=args.force_process,
     )
@@ -198,8 +180,7 @@ def main() -> None:
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
-        stack_keys=TARGET_KEYS,
-        cat_keys=[DataKeys.BOX],
+        cat_keys=[DataKeys.BOX, DataKeys.LABEL],
     )
     val_dataloader = PointCloudDataLoader(
         val_dataset,

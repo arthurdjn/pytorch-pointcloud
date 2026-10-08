@@ -1,34 +1,19 @@
 r"""Two-stage PointRCNN detection loss: stage-1 per-point head and stage-2 ROI refinement."""
 
-import math
-from typing import Any, Dict, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from torch_pointcloud.losses.anchor import one_hot_foreground, sigmoid_focal_loss
-from torch_pointcloud.ops.box3d import encode_box_residuals
+from torch_pointcloud.losses._utils import scene_splits
+from torch_pointcloud.losses.corner import corner_loss
+from torch_pointcloud.losses.focal import one_hot_foreground, sigmoid_focal_loss
+from torch_pointcloud.ops.box3d import encode_box_residuals, points_in_boxes
 from torch_pointcloud.utils.data import DataKeys
 
-_CORNER_TEMPLATE = torch.tensor(
-    [
-        [1.0, 1.0, -1.0],
-        [1.0, -1.0, -1.0],
-        [-1.0, -1.0, -1.0],
-        [-1.0, 1.0, -1.0],
-        [1.0, 1.0, 1.0],
-        [1.0, -1.0, 1.0],
-        [-1.0, -1.0, 1.0],
-        [-1.0, 1.0, 1.0],
-    ]
-)
-
-
-def _smooth_l1(diff: Tensor, beta: float) -> Tensor:
-    r"""Element-wise smooth-$L_1$: $0.5 x^2 / \beta$ for $|x| < \beta$, else $|x| - 0.5\beta$."""
-    n = diff.abs()
-    return torch.where(n < beta, 0.5 * n**2 / beta, n - 0.5 * beta)
+if TYPE_CHECKING:
+    from torch_pointcloud.models.pointrcnn import PointRCNNTrainOutput
 
 
 def _encode_point_residuals(boxes: Tensor, points: Tensor, classes: Tensor, mean_sizes: Tensor) -> Tensor:
@@ -72,7 +57,7 @@ def _encode_point_residuals(boxes: Tensor, points: Tensor, classes: Tensor, mean
 class PointRCNNLoss(nn.Module):
     r"""Two-stage PointRCNN detection loss (per-point proposal head + ROI refinement head).
 
-    Reference: :arxiv: [Shi et al., 2019](https://arxiv.org/abs/1812.04244).
+    Reference: :arxiv: [PointRCNN: 3D Object Proposal Generation and Detection from Point Cloud](https://arxiv.org/abs/1812.04244) (Shi et al., 2019).
 
     Stage 1 supervises the per-point head that generates proposals: every point inside a ground-truth box
     is foreground (points in the gap between a box and its enlarged copy are ignored), driving a sigmoid
@@ -111,7 +96,6 @@ class PointRCNNLoss(nn.Module):
     mean_sizes: Tensor
     point_code_weights: Tensor
     rcnn_code_weights: Tensor
-    corner_template: Tensor
 
     def __init__(
         self,
@@ -154,15 +138,18 @@ class PointRCNNLoss(nn.Module):
 
         self.register_buffer("mean_sizes", mean, persistent=False)
         self.register_buffer(
-            "point_code_weights", torch.tensor(list(point_code_weights), dtype=torch.float32), persistent=False
+            "point_code_weights",
+            torch.tensor(list(point_code_weights), dtype=torch.float32),
+            persistent=False,
         )
         self.register_buffer(
-            "rcnn_code_weights", torch.tensor(list(rcnn_code_weights), dtype=torch.float32), persistent=False
+            "rcnn_code_weights",
+            torch.tensor(list(rcnn_code_weights), dtype=torch.float32),
+            persistent=False,
         )
-        self.register_buffer("corner_template", _CORNER_TEMPLATE / 2, persistent=False)
 
-    def forward(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the two-stage PointRCNN loss and its components.
+    def forward(self, output: "PointRCNNTrainOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the two-stage PointRCNN loss and its terms.
 
         Args:
             output: The model's training-mode output: stage-1 `point_cls_preds` $(N, C)$,
@@ -170,15 +157,15 @@ class PointRCNNLoss(nn.Module):
                 `rcnn_cls` $(M, 1)$, `rcnn_reg` $(M, 7)$, `rcnn_boxes` $(M, 7)$, `rois` $(M, 7)$,
                 `gt_of_rois` $(M, 7)$ (ROI-canonical matched box), `gt_of_rois_src` $(M, 7)$ (lidar-frame
                 matched box) and `roi_ious` $(M,)$.
-            batch: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent, `DataKeys.LABEL` $(K,)$
+            data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent, `DataKeys.LABEL` $(K,)$
                 ($0$-based classes) and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
 
         Returns:
-            A dict with the scalar `loss` (to backprop) and detached `point_cls_loss`, `point_box_loss`,
-            `rcnn_cls_loss`, `rcnn_box_loss`.
+            A dict with the scalar `loss` and detached `point_cls_loss`, `point_box_loss`, `rcnn_cls_loss`,
+            `rcnn_box_loss`.
         """
         point_cls_labels, point_box_labels = self._assign_point_targets(
-            output["point_pos"], output["point_batch"], batch
+            output["point_pos"], output["point_batch"], data
         )
         reg_valid_mask = (output["roi_ious"] > self.reg_fg_thresh).long()
         rcnn_cls_labels = self._rcnn_cls_labels(output["roi_ious"])
@@ -194,10 +181,8 @@ class PointRCNNLoss(nn.Module):
             output["gt_of_rois_src"],
             reg_valid_mask,
         )
-        total = point_cls_loss + point_box_loss + rcnn_cls_loss + rcnn_box_loss
-
         return {
-            "loss": total,
+            "loss": point_cls_loss + point_box_loss + rcnn_cls_loss + rcnn_box_loss,
             "point_cls_loss": point_cls_loss.detach(),
             "point_box_loss": point_box_loss.detach(),
             "rcnn_cls_loss": rcnn_cls_loss.detach(),
@@ -212,57 +197,62 @@ class PointRCNNLoss(nn.Module):
         return labels
 
     def _assign_point_targets(
-        self, point_pos: Tensor, point_batch: Tensor, batch: Dict[str, Any]
+        self,
+        point_pos: Tensor,
+        point_batch: Tensor,
+        data: Dict[str, Any],
     ) -> Tuple[Tensor, Tensor]:
         r"""Assign per-point foreground labels and box-residual targets by points-in-box matching.
 
-        Each point inside a ground-truth box is foreground (labeled with that box's $1$-based class); a
-        point in the gap between a box and its `gt_extra_width`-enlarged copy is ignored ($-1$); every other
-        point is background ($0$). Foreground points get the mean-size residual encoding of their box.
+        Each point inside a ground-truth box of its scene is foreground (labeled with that box's $1$-based
+        class, the first containing box in packed order); a point in the gap between a box and its
+        `gt_extra_width`-enlarged copy is ignored ($-1$); every other point is background ($0$). Foreground
+        points get the mean-size residual encoding of their box.
 
         Returns:
             `(point_cls_labels, point_box_labels)` of shapes $(N,)$ (long) and $(N, 8)$.
         """
-        gt_boxes: Tensor = batch[DataKeys.BOX]
-        gt_labels: Tensor = batch[DataKeys.LABEL].long() + 1
-        gt_batch: Tensor = batch[DataKeys.BATCH_BOX]
-        extra = point_pos.new_tensor(self.gt_extra_width)
+        gt_boxes: Tensor = data[DataKeys.BOX]
+        gt_labels: Tensor = data[DataKeys.LABEL].long() + 1
+        gt_batch: Tensor = data[DataKeys.BATCH_BOX]
 
         num_points = point_pos.shape[0]
         point_cls_labels = point_pos.new_zeros(num_points, dtype=torch.long)
         point_box_labels = point_pos.new_zeros(num_points, 8)
+        if num_points == 0 or gt_boxes.shape[0] == 0:
+            return point_cls_labels, point_box_labels
 
-        batch_size = int(point_batch.max().item()) + 1 if num_points else 0
-        for b in range(batch_size):
-            point_mask = point_batch == b
-            box_mask = gt_batch == b
-            scene_points = point_pos[point_mask]
-            scene_boxes = gt_boxes[box_mask]
-            scene_labels = gt_labels[box_mask]
-            if scene_boxes.shape[0] == 0 or scene_points.shape[0] == 0:
+        batch_size = int(torch.maximum(point_batch.max(), gt_batch.max())) + 1
+        point_order, point_counts = scene_splits(point_batch, batch_size)
+        box_order, box_counts = scene_splits(gt_batch, batch_size)
+        points_per_scene = point_pos[point_order].split(point_counts)
+        boxes_per_scene = gt_boxes[box_order].split(box_counts)
+        labels_per_scene = gt_labels[box_order].split(box_counts)
+        extra = point_pos.new_tensor(self.gt_extra_width)
+
+        cls_blocks = []
+        box_blocks = []
+        for points, boxes, labels in zip(points_per_scene, boxes_per_scene, labels_per_scene):
+            if boxes.shape[0] == 0 or points.shape[0] == 0:
+                cls_blocks.append(point_cls_labels.new_zeros(points.shape[0]))
+                box_blocks.append(point_box_labels.new_zeros(points.shape[0], 8))
                 continue
 
-            in_box = _points_in_boxes(scene_points, scene_boxes)
-            enlarged = scene_boxes.clone()
+            in_box = points_in_boxes(points, boxes)
+            enlarged = boxes.clone()
             enlarged[:, 3:6] = enlarged[:, 3:6] + extra
-            in_ext = _points_in_boxes(scene_points, enlarged)
+            in_ext = points_in_boxes(points, enlarged)
 
             fg = in_box.any(dim=1)
             box_idx = in_box.float().argmax(dim=1)
             ignore = in_ext.any(dim=1) & ~fg
+            cls_blocks.append(torch.where(fg, labels[box_idx], torch.where(ignore, -1, 0).to(point_cls_labels)))
 
-            cls_single = point_cls_labels.new_zeros(scene_points.shape[0])
-            cls_single[fg] = scene_labels[box_idx[fg]]
-            cls_single[ignore] = -1
-            point_cls_labels[point_mask] = cls_single
+            residuals = _encode_point_residuals(boxes[box_idx], points, labels[box_idx], self.mean_sizes)
+            box_blocks.append(torch.where(fg.unsqueeze(1), residuals, residuals.new_zeros(())))
 
-            if fg.any():
-                fg_boxes = scene_boxes[box_idx[fg]]
-                fg_classes = scene_labels[box_idx[fg]]
-                box_single = point_box_labels.new_zeros(scene_points.shape[0], 8)
-                box_single[fg] = _encode_point_residuals(fg_boxes, scene_points[fg], fg_classes, self.mean_sizes)
-                point_box_labels[point_mask] = box_single
-
+        point_cls_labels[point_order] = torch.cat(cls_blocks)
+        point_box_labels[point_order] = torch.cat(box_blocks)
         return point_cls_labels, point_box_labels
 
     def _point_cls_loss(self, preds: Tensor, labels: Tensor) -> Tensor:
@@ -281,7 +271,8 @@ class PointRCNNLoss(nn.Module):
         pos_mask = labels.view(-1) > 0
         reg_weights = pos_mask.to(preds.dtype) / pos_mask.sum().clamp(min=1).to(preds.dtype)
         diff = (preds - targets) * self.point_code_weights.view(1, -1)
-        loss = _smooth_l1(diff, self.smooth_l1_beta) * reg_weights.unsqueeze(-1)
+        smooth = F.smooth_l1_loss(diff, torch.zeros_like(diff), beta=self.smooth_l1_beta, reduction="none")
+        loss = smooth * reg_weights.unsqueeze(-1)
         return loss.sum() * self.point_box_weight
 
     def _rcnn_cls_loss(self, rcnn_cls: Tensor, labels: Tensor) -> Tensor:
@@ -310,47 +301,11 @@ class PointRCNNLoss(nn.Module):
         rois_anchor[:, 6] = 0
         reg_targets = encode_box_residuals(gt_of_rois[..., 0:7], rois_anchor)
         diff = (rcnn_reg - reg_targets) * self.rcnn_code_weights.view(1, -1)
-        smooth = _smooth_l1(diff, self.smooth_l1_beta)
+        smooth = F.smooth_l1_loss(diff, torch.zeros_like(diff), beta=self.smooth_l1_beta, reduction="none")
         loss = (smooth * fg_mask.unsqueeze(-1).to(smooth.dtype)).sum() / fg_sum.clamp(min=1).to(smooth.dtype)
         loss = loss * self.rcnn_reg_weight
 
         if self.rcnn_corner_weight > 0 and fg_sum > 0:
-            corner = self._corner_loss(rcnn_boxes[fg_mask], gt_of_rois_src[fg_mask][..., 0:7])
+            corner = corner_loss(rcnn_boxes[fg_mask], gt_of_rois_src[fg_mask][..., 0:7], beta=1.0)
             loss = loss + corner.mean() * self.rcnn_corner_weight
         return loss
-
-    def _corner_loss(self, pred_boxes: Tensor, gt_boxes: Tensor) -> Tensor:
-        r"""Per-box mean smooth-$L_1$ over the eight box corners, robust to the $\pi$ heading flip."""
-        pred_corners = self._boxes_to_corners(pred_boxes)
-        gt_corners = self._boxes_to_corners(gt_boxes)
-        gt_flip = gt_boxes.clone()
-        gt_flip[:, 6] = gt_flip[:, 6] + math.pi
-        gt_corners_flip = self._boxes_to_corners(gt_flip)
-
-        dist = torch.min(
-            torch.norm(pred_corners - gt_corners, dim=2),
-            torch.norm(pred_corners - gt_corners_flip, dim=2),
-        )
-        return _smooth_l1(dist, beta=1.0).mean(dim=1)
-
-    def _boxes_to_corners(self, boxes: Tensor) -> Tensor:
-        r"""Convert boxes $(N, 7)$ to their 8 corners $(N, 8, 3)$ (heading rotates $x \to y$)."""
-        corners = boxes[:, None, 3:6] * self.corner_template[None, :, :]
-        cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
-        x = corners[..., 0] * cos[:, None] - corners[..., 1] * sin[:, None]
-        y = corners[..., 0] * sin[:, None] + corners[..., 1] * cos[:, None]
-        rotated = torch.stack([x, y, corners[..., 2]], dim=-1)
-        return rotated + boxes[:, None, 0:3]
-
-
-def _points_in_boxes(points: Tensor, boxes: Tensor) -> Tensor:
-    r"""Boolean containment test of every point against every oriented box, $(N, 3), (G, 7) \to (N, G)$."""
-    offset = points[:, None, :] - boxes[None, :, 0:3]
-    half = boxes[:, 3:6] / 2.0
-    cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
-    local_x = offset[..., 0] * cos[None, :] + offset[..., 1] * sin[None, :]
-    local_y = -offset[..., 0] * sin[None, :] + offset[..., 1] * cos[None, :]
-    inside_x = local_x.abs() <= half[None, :, 0]
-    inside_y = local_y.abs() <= half[None, :, 1]
-    inside_z = offset[..., 2].abs() <= half[None, :, 2]
-    return inside_x & inside_y & inside_z

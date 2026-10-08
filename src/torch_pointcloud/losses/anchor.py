@@ -1,9 +1,8 @@
-r"""Anchor-based detection losses for the voxel detectors (SECOND, PointPillars).
+r"""Losses of the anchor-based BEV detection heads (SECOND, PointPillars and the multi-group nuScenes variants).
 
-- [`AnchorLoss`][torch_pointcloud.losses.anchor.AnchorLoss]: the single-group head loss used by the
-  KITTI SECOND / PointPillars detectors (focal cls, sine-difference smooth-$L_1$ box, direction bin).
-- [`MultiHeadAnchorLoss`][torch_pointcloud.losses.anchor.MultiHeadAnchorLoss]: the separate-multihead
-  loss used by the nuScenes detectors (per-head focal cls, sincos + velocity $L_1$ box).
+Each loss reads the output dict of its head, rebuilds the anchors from the head geometry, assigns the targets with
+[`assign_anchor_targets`][torch_pointcloud.ops.anchors.assign_anchor_targets] and combines the
+[`functional`][torch_pointcloud.losses.functional] primitives.
 """
 
 from typing import Any, Dict, List, Sequence, Tuple
@@ -12,103 +11,33 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from torch_pointcloud.layers.anchors import AnchorHeadMultiOutput, assign_anchor_targets, generate_anchors
+from torch_pointcloud.layers.anchors import AnchorHeadMultiOutput, AnchorHeadOutput
+from torch_pointcloud.losses.focal import one_hot_foreground, sigmoid_focal_loss
+from torch_pointcloud.ops.anchors import assign_anchor_targets, generate_anchors
 from torch_pointcloud.ops.box3d import limit_period
 from torch_pointcloud.utils.data import DataKeys
 
 
-def sigmoid_focal_loss(preds: Tensor, targets: Tensor, weights: Tensor, *, alpha: float, gamma: float) -> Tensor:
-    r"""Anchor-wise weighted sigmoid focal loss (no reduction).
+class AnchorHeadLoss(nn.Module):
+    r"""Loss of the single-group [`AnchorHead`][torch_pointcloud.layers.anchors.AnchorHead] (SECOND, PointPillars).
 
-    The classification primitive shared by the anchor heads: sigmoid focal cross-entropy between per-class
-    logits and their one-hot targets, scaled by a per-anchor weight.
+    Reference: :arxiv: [SECOND: Sparsely Embedded Convolutional Detection](https://www.mdpi.com/1424-8220/18/10/3337) (Yan et al., 2018).
 
-    Args:
-        preds: Per-class logits, shape $(B, A, C)$.
-        targets: One-hot foreground targets, shape $(B, A, C)$.
-        weights: Per-anchor weights, shape $(B, A)$.
-        alpha: Positive/negative balance.
-        gamma: Focusing exponent.
-
-    Returns:
-        The weighted per-element loss, shape $(B, A, C)$.
-
-    Shape:
-        - preds: $(B, A, C)$
-        - targets: $(B, A, C)$
-        - weights: $(B, A)$
-        - output: $(B, A, C)$
-
-    Example:
-        ```pycon
-        >>> preds = torch.zeros(1, 2, 3)
-        >>> targets = torch.tensor([[[1.0, 0.0, 0.0], [0.0, 0.0, 0.0]]])
-        >>> weights = torch.ones(1, 2)
-        >>> sigmoid_focal_loss(preds, targets, weights, alpha=0.25, gamma=2.0).shape
-        torch.Size([1, 2, 3])
-
-        ```
-    """
-    pred_sigmoid = preds.sigmoid()
-    alpha_weight = targets * alpha + (1.0 - targets) * (1.0 - alpha)
-    pt = targets * (1.0 - pred_sigmoid) + (1.0 - targets) * pred_sigmoid
-    focal_weight = alpha_weight * pt.pow(gamma)
-    bce = preds.clamp(min=0) - preds * targets + torch.log1p(torch.exp(-preds.abs()))
-    return focal_weight * bce * weights.unsqueeze(-1)
-
-
-def one_hot_foreground(box_cls_labels: Tensor, num_classes: int) -> Tensor:
-    r"""One-hot encode per-anchor class labels, dropping the background column.
-
-    Ignored ($-1$) and background ($0$) anchors map to an all-zero row; a foreground anchor with label
-    $\ell \ge 1$ maps to a one-hot row on class $\ell - 1$.
-
-    Args:
-        box_cls_labels: Per-anchor class labels ($-1$ ignore, $0$ background, $\ge 1$ foreground), shape $(B, A)$.
-        num_classes: Number of foreground classes.
-
-    Returns:
-        One-hot foreground targets, shape $(B, A, C)$.
-
-    Shape:
-        - box_cls_labels: $(B, A)$
-        - output: $(B, A, C)$
-
-    Example:
-        ```pycon
-        >>> one_hot_foreground(torch.tensor([[2, 0, -1]]), 3).tolist()
-        [[[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
-
-        ```
-    """
-    cared = box_cls_labels >= 0
-    cls_targets = box_cls_labels * cared.to(box_cls_labels.dtype)
-    one_hot = torch.zeros(*box_cls_labels.shape, num_classes + 1, dtype=torch.float32, device=box_cls_labels.device)
-    one_hot.scatter_(-1, cls_targets.unsqueeze(-1), 1.0)
-    return one_hot[..., 1:]
-
-
-class AnchorLoss(nn.Module):
-    r"""Single-stage anchor detection loss (classification, box regression, direction).
-
-    Reference: :arxiv: [Yan et al., 2018](https://www.mdpi.com/1424-8220/18/10/3337).
-
-    The loss of the single-group anchor head used by SECOND and PointPillars. Per scene each class's
-    axis-aligned anchors are matched to that class's ground-truth boxes
-    ([`assign_anchor_targets`][torch_pointcloud.layers.anchors.assign_anchor_targets]) using per-class
+    Per scene each class's axis-aligned anchors are matched to that class's ground-truth boxes
+    ([`assign_anchor_targets`][torch_pointcloud.ops.anchors.assign_anchor_targets]) using per-class
     IoU thresholds, giving per-anchor class labels ($-1$ ignore, $0$ background, $\ge 1$ foreground) and
     residual box targets. Three terms are then summed:
 
     - **Classification:** sigmoid focal loss over one-hot foreground labels, weighted so ignored anchors
       contribute nothing and each scene is normalized by its positive count.
-    - **Box regression:** code-weighted smooth-$L_1$ of the residual encodings, with the heading channel
-      replaced by the sine-difference encoding $\sin(\theta_p)\cos(\theta_g)$ vs $\cos(\theta_p)\sin(\theta_g)$
-      so the smooth-$L_1$ acts on $\sin(\theta_p - \theta_g)$.
+    - **Box regression:** code-weighted smooth-$L_1$ of the residual encodings, with the heading residual
+      replaced by $\sin(\theta_p - \theta_g)$ (the sine-difference encoding) so a half-turn error is not
+      penalized as a position error.
     - **Direction:** weighted softmax cross-entropy over the discretized heading bin.
 
     Anchors are rebuilt in the constructor from the same geometry the head uses
-    ([`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors]); the loss holds no
-    reference to the model.
+    ([`generate_anchors`][torch_pointcloud.ops.anchors.generate_anchors]); the loss holds no reference
+    to the model.
 
     Args:
         num_classes: Number of foreground classes.
@@ -130,7 +59,8 @@ class AnchorLoss(nn.Module):
         focal_alpha: Focal-loss positive/negative balance.
         focal_gamma: Focal-loss focusing exponent.
         smooth_l1_beta: Smooth-$L_1$ transition point $\beta$.
-        match_height: Match anchors to boxes by 3D IoU when `True`, otherwise bird's-eye IoU.
+        match_height: Match anchors to boxes by the rotated 3D IoU when `True`, otherwise by the bird's-eye IoU
+            of the boxes snapped to their nearest axis-aligned orientation.
     """
 
     anchors: Tensor
@@ -195,17 +125,17 @@ class AnchorLoss(nn.Module):
         self.register_buffer("anchor_class_ids", anchor_class_ids, persistent=False)
         self.register_buffer("code_weights", torch.tensor(list(code_weights), dtype=torch.float32), persistent=False)
 
-    def forward(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the anchor detection loss and its components.
+    def forward(self, output: AnchorHeadOutput, data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the anchor detection loss and its terms.
 
         Args:
             output: The head's raw output: `cls` $(B, H, W, A_\text{loc} \cdot C)$,
                 `box` $(B, H, W, A_\text{loc} \cdot 7)$ and `dir_cls` $(B, H, W, A_\text{loc} \cdot 2)$.
-            batch: Ground truth: packed `box` $(K, 7)$ full-extent, `label` $(K,)$ ($0$-based classes)
+            data: Ground truth: packed `box` $(K, 7)$ full-extent, `label` $(K,)$ ($0$-based classes)
                 and `batch_box` $(K,)$ per-box scene index.
 
         Returns:
-            A dict with the scalar `loss` (to backprop) and detached `cls_loss`, `box_loss`, `dir_loss`.
+            A dict with the scalar `loss` and detached `cls_loss`, `box_loss`, `dir_loss`.
         """
         num_anchors = self.anchors.shape[0]
         batch_size = output["cls"].shape[0]
@@ -213,7 +143,7 @@ class AnchorLoss(nn.Module):
         box_preds = output["box"].view(batch_size, num_anchors, 7)
         dir_preds = output["dir_cls"].view(batch_size, num_anchors, self.num_dir_bins)
 
-        box_cls_labels, box_reg_targets = self._assign_targets(batch, batch_size)
+        box_cls_labels, box_reg_targets = self._assign_targets(data, batch_size)
 
         positives = box_cls_labels > 0
         cared = box_cls_labels >= 0
@@ -224,47 +154,43 @@ class AnchorLoss(nn.Module):
         cls_loss = self.cls_weight * self._cls_loss(cls_preds, box_cls_labels, cls_weights)
         box_loss = self.loc_weight * self._box_loss(box_preds, box_reg_targets, reg_weights)
         dir_loss = self.dir_weight * self._dir_loss(dir_preds, box_reg_targets, reg_weights)
-        total = cls_loss + box_loss + dir_loss
 
         return {
-            "loss": total,
+            "loss": cls_loss + box_loss + dir_loss,
             "cls_loss": cls_loss.detach(),
             "box_loss": box_loss.detach(),
             "dir_loss": dir_loss.detach(),
         }
 
-    def _assign_targets(self, batch: Dict[str, Any], batch_size: int) -> Tuple[Tensor, Tensor]:
+    def _assign_targets(self, data: Dict[str, Any], batch_size: int) -> Tuple[Tensor, Tensor]:
         r"""Densify the packed ground truth and assign per-class anchor targets for every scene.
 
         Returns per-anchor class labels $(B, A)$ ($-1$ ignore, $0$ background, $\ge 1$ foreground) and
         residual box targets $(B, A, 7)$, in the head's flat anchor order.
         """
         anchors = self.anchors
-        gt_boxes: Tensor = batch[DataKeys.BOX]
-        gt_labels: Tensor = batch[DataKeys.LABEL].long() + 1  # 1-based foreground for `assign_anchor_targets`
-        gt_batch: Tensor = batch[DataKeys.BATCH_BOX]
+        gt_boxes: Tensor = data[DataKeys.BOX]
+        gt_labels: Tensor = data[DataKeys.LABEL].long() + 1  # 1-based foreground for `assign_anchor_targets`
+        gt_batch: Tensor = data[DataKeys.BATCH_BOX]
 
         cls_labels = anchors.new_full((batch_size, anchors.shape[0]), -1, dtype=torch.long)
         reg_targets = anchors.new_zeros((batch_size, anchors.shape[0], 7))
-        class_masks = [self.anchor_class_ids == c for c in range(self.num_classes)]
+        class_anchors = [(self.anchor_class_ids == c).nonzero(as_tuple=True)[0] for c in range(self.num_classes)]
 
-        for b in range(batch_size):
-            scene = gt_batch == b
-            scene_boxes = gt_boxes[scene]
-            scene_labels = gt_labels[scene]
-            for c, class_mask in enumerate(class_masks):
-                anchor_idx = class_mask.nonzero(as_tuple=False).squeeze(1)
-                gt_c = scene_labels == (c + 1)
-                targets = assign_anchor_targets(
-                    anchors[anchor_idx],
-                    scene_boxes[gt_c],
-                    scene_labels[gt_c],
-                    matched_threshold=self.matched_thresholds[c],
-                    unmatched_threshold=self.unmatched_thresholds[c],
-                    match_height=self.match_height,
-                )
-                cls_labels[b, anchor_idx] = targets["cls_labels"]
-                reg_targets[b, anchor_idx] = targets["box_reg_targets"]
+        for c, anchor_idx in enumerate(class_anchors):
+            gt_c = gt_labels == (c + 1)
+            targets = assign_anchor_targets(
+                anchors[anchor_idx],
+                gt_boxes[gt_c],
+                gt_labels[gt_c],
+                matched_threshold=self.matched_thresholds[c],
+                unmatched_threshold=self.unmatched_thresholds[c],
+                match_height=self.match_height,
+                gt_batch=gt_batch[gt_c],
+                batch_size=batch_size,
+            )
+            cls_labels[:, anchor_idx] = targets["cls_labels"]
+            reg_targets[:, anchor_idx] = targets["box_reg_targets"]
 
         return cls_labels, reg_targets
 
@@ -276,16 +202,15 @@ class AnchorLoss(nn.Module):
 
     def _box_loss(self, box_preds: Tensor, box_reg_targets: Tensor, reg_weights: Tensor) -> Tensor:
         r"""Code-weighted smooth-$L_1$ box-regression loss with sine-difference heading encoding."""
+        # Sine-difference heading residual: $\sin\theta_p \cos\theta_g - \cos\theta_p \sin\theta_g = \sin(\theta_p - \theta_g)$.
         pred_sin = torch.sin(box_preds[..., 6:7]) * torch.cos(box_reg_targets[..., 6:7])
         target_sin = torch.cos(box_preds[..., 6:7]) * torch.sin(box_reg_targets[..., 6:7])
         box_preds = torch.cat([box_preds[..., :6], pred_sin], dim=-1)
         box_reg_targets = torch.cat([box_reg_targets[..., :6], target_sin], dim=-1)
 
         diff = (box_preds - box_reg_targets) * self.code_weights.view(1, 1, -1)
-        n = diff.abs()
-        beta = self.smooth_l1_beta
-        smooth_l1 = torch.where(n < beta, 0.5 * n**2 / beta, n - 0.5 * beta)
-        loss = smooth_l1 * reg_weights.unsqueeze(-1)
+        smooth = F.smooth_l1_loss(diff, torch.zeros_like(diff), beta=self.smooth_l1_beta, reduction="none")
+        loss = smooth * reg_weights.unsqueeze(-1)
         return loss.sum() / box_preds.shape[0]
 
     def _dir_loss(self, dir_preds: Tensor, box_reg_targets: Tensor, reg_weights: Tensor) -> Tensor:
@@ -300,17 +225,16 @@ class AnchorLoss(nn.Module):
         return ce.sum() / dir_preds.shape[0]
 
 
-class MultiHeadAnchorLoss(nn.Module):
-    r"""Separate-multihead anchor detection loss (per-head classification, sincos + velocity box regression).
+class MultiGroupAnchorHeadLoss(nn.Module):
+    r"""Loss of the [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead] (nuScenes SECOND, PointPillars).
 
-    Reference: :arxiv: [Zhu et al., 2019](https://arxiv.org/abs/1908.09492).
+    Reference: :arxiv: [Class-balanced Grouping and Sampling for Point Cloud 3D Object Detection](https://arxiv.org/abs/1908.09492) (Zhu et al., 2019).
 
-    The loss of the separate-multihead anchor head used by the nuScenes SECOND and PointPillars detectors,
-    where several RPN heads each own a disjoint class group over a shared feature map. Per scene each
-    class's axis-aligned anchors are matched to that class's ground-truth boxes
-    ([`assign_anchor_targets`][torch_pointcloud.layers.anchors.assign_anchor_targets]) using per-class IoU
-    thresholds, giving per-anchor class labels ($-1$ ignore, $0$ background, $\ge 1$ foreground) and residual
-    box targets. Two terms are summed:
+    The separate-multihead anchor head has several RPN heads, each owning a disjoint class group over a
+    shared feature map. Per scene each class's axis-aligned anchors are matched to that class's ground-truth
+    boxes ([`assign_anchor_targets`][torch_pointcloud.ops.anchors.assign_anchor_targets]) using per-class
+    IoU thresholds, giving per-anchor class labels ($-1$ ignore, $0$ background, $\ge 1$ foreground) and
+    residual box targets. Two terms are summed:
 
     - **Classification:** per head, sigmoid focal loss over the one-hot labels restricted to that head's
       class columns, with positive / negative anchors weighted by `pos_cls_weight` / `neg_cls_weight` and
@@ -325,7 +249,7 @@ class MultiHeadAnchorLoss(nn.Module):
         does so.
 
     Anchors are rebuilt in the constructor from the same geometry the head uses
-    ([`generate_anchors`][torch_pointcloud.layers.anchors.generate_anchors]), in the head's class-group
+    ([`generate_anchors`][torch_pointcloud.ops.anchors.generate_anchors]), in the head's class-group
     order; the loss holds no reference to the model.
 
     Args:
@@ -348,7 +272,8 @@ class MultiHeadAnchorLoss(nn.Module):
         neg_cls_weight: Classification weight of a background anchor.
         focal_alpha: Focal-loss positive/negative balance.
         focal_gamma: Focal-loss focusing exponent.
-        match_height: Match anchors to boxes by 3D IoU when `True`, otherwise bird's-eye IoU.
+        match_height: Match anchors to boxes by the rotated 3D IoU when `True`, otherwise by the bird's-eye IoU
+            of the boxes snapped to their nearest axis-aligned orientation.
         encode_angle_by_sincos: Encode the heading residual as $(\cos, \sin)$ (always `True` for this head).
     """
 
@@ -384,10 +309,12 @@ class MultiHeadAnchorLoss(nn.Module):
         if len(matched_thresholds) != num_classes or len(unmatched_thresholds) != num_classes:
             raise ValueError("`matched_thresholds` and `unmatched_thresholds` must have one entry per class.")
         if not encode_angle_by_sincos:
-            raise ValueError("`MultiHeadAnchorLoss` only supports the sincos angle encoding.")
+            raise ValueError("`MultiGroupAnchorHeadLoss` only supports the sincos angle encoding.")
+
         code_size = len(code_weights)
         if code_size < 8:
             raise ValueError("`code_weights` must cover at least the 6 center/size and 2 sincos-angle codes.")
+
         # The anchors and the head's per-head outputs are both laid out class 0..C-1; any other grouping
         # would silently misalign the per-head one-hot / target slices.
         if [c for group in class_groups for c in group] != list(range(num_classes)):
@@ -424,72 +351,66 @@ class MultiHeadAnchorLoss(nn.Module):
         self.register_buffer("anchors", torch.cat(per_class_anchors, dim=0), persistent=False)
         self.register_buffer("code_weights", torch.tensor(list(code_weights), dtype=torch.float32), persistent=False)
 
-    def forward(self, output: AnchorHeadMultiOutput, batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the multihead anchor detection loss and its components.
+    def forward(self, output: AnchorHeadMultiOutput, data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the multihead anchor detection loss and its terms.
 
         Args:
             output: The head's raw output: per-head `cls` $(B, A_g, C_g)$ and `box` $(B, A_g, 10)$ lists,
                 plus `multihead_label_mapping` (per-head 1-based global class indices).
-            batch: Ground truth: packed `box` $(K, 7)$ full-extent, `label` $(K,)$ ($0$-based classes) and
+            data: Ground truth: packed `box` $(K, 7)$ full-extent, `label` $(K,)$ ($0$-based classes) and
                 `batch_box` $(K,)$ per-box scene index.
 
         Returns:
-            A dict with the scalar `loss` (to backprop) and detached `cls_loss`, `box_loss`, `dir_loss`; the
-            separate-multihead head carries no direction classifier, so `dir_loss` is always zero.
+            A dict with the scalar `loss` and detached `cls_loss`, `box_loss`.
         """
         cls_preds = output["cls"]
         box_preds = output["box"]
         label_mapping = output["multihead_label_mapping"]
         batch_size = cls_preds[0].shape[0]
 
-        box_cls_labels, box_reg_targets = self._assign_targets(batch, batch_size)
+        box_cls_labels, box_reg_targets = self._assign_targets(data, batch_size)
 
         cls_loss = self.cls_weight * self._cls_loss(cls_preds, box_cls_labels, label_mapping)
         box_loss = self.loc_weight * self._box_loss(box_preds, box_reg_targets, box_cls_labels)
-        dir_loss = torch.zeros_like(cls_loss)
-        total = cls_loss + box_loss
 
         return {
-            "loss": total,
+            "loss": cls_loss + box_loss,
             "cls_loss": cls_loss.detach(),
             "box_loss": box_loss.detach(),
-            "dir_loss": dir_loss,
         }
 
-    def _assign_targets(self, batch: Dict[str, Any], batch_size: int) -> Tuple[Tensor, Tensor]:
+    def _assign_targets(self, data: Dict[str, Any], batch_size: int) -> Tuple[Tensor, Tensor]:
         r"""Densify the packed ground truth and assign per-class anchor targets for every scene.
 
         Returns per-anchor class labels $(B, A)$ ($-1$ ignore, $0$ background, $\ge 1$ foreground) and
         sincos + velocity residual box targets $(B, A, 10)$, in the head's class-group anchor order.
         """
         anchors = self.anchors
-        gt_boxes: Tensor = batch[DataKeys.BOX]
-        gt_labels: Tensor = batch[DataKeys.LABEL].long() + 1  # 1-based foreground for `assign_anchor_targets`
-        gt_batch: Tensor = batch[DataKeys.BATCH_BOX]
+        gt_boxes: Tensor = data[DataKeys.BOX]
+        gt_labels: Tensor = data[DataKeys.LABEL].long() + 1  # 1-based foreground for `assign_anchor_targets`
+        gt_batch: Tensor = data[DataKeys.BATCH_BOX]
 
         cls_labels = anchors.new_full((batch_size, anchors.shape[0]), -1, dtype=torch.long)
         reg_targets = anchors.new_zeros((batch_size, anchors.shape[0], self.code_size))
 
-        for b in range(batch_size):
-            scene = gt_batch == b
-            scene_boxes = gt_boxes[scene]
-            scene_labels = gt_labels[scene]
-            start = 0
-            for c, count in enumerate(self.class_counts):
-                idx = slice(start, start + count)
-                class_anchors = anchors[idx]
-                gt_c = scene_labels == (c + 1)
-                targets = assign_anchor_targets(
-                    class_anchors,
-                    scene_boxes[gt_c],
-                    scene_labels[gt_c],
-                    matched_threshold=self.matched_thresholds[c],
-                    unmatched_threshold=self.unmatched_thresholds[c],
-                    match_height=self.match_height,
-                )
-                cls_labels[b, idx] = targets["cls_labels"]
-                reg_targets[b, idx] = self._encode_sincos(targets["box_reg_targets"], class_anchors)
-                start += count
+        start = 0
+        for c, count in enumerate(self.class_counts):
+            idx = slice(start, start + count)
+            class_anchors = anchors[idx]
+            gt_c = gt_labels == (c + 1)
+            targets = assign_anchor_targets(
+                class_anchors,
+                gt_boxes[gt_c],
+                gt_labels[gt_c],
+                matched_threshold=self.matched_thresholds[c],
+                unmatched_threshold=self.unmatched_thresholds[c],
+                match_height=self.match_height,
+                gt_batch=gt_batch[gt_c],
+                batch_size=batch_size,
+            )
+            cls_labels[:, idx] = targets["cls_labels"]
+            reg_targets[:, idx] = self._encode_sincos(targets["box_reg_targets"], class_anchors)
+            start += count
 
         return cls_labels, reg_targets
 
@@ -502,11 +423,11 @@ class MultiHeadAnchorLoss(nn.Module):
         zeros (the nuScenes ground truth has no velocity).
         """
         anchor_yaw = anchors[:, 6]
-        gt_yaw = box_reg_targets[:, 6] + anchor_yaw
+        gt_yaw = box_reg_targets[..., 6] + anchor_yaw
         cos_diff = (torch.cos(gt_yaw) - torch.cos(anchor_yaw)).unsqueeze(-1)
         sin_diff = (torch.sin(gt_yaw) - torch.sin(anchor_yaw)).unsqueeze(-1)
-        velocity = box_reg_targets.new_zeros((box_reg_targets.shape[0], self.num_velocity))
-        return torch.cat([box_reg_targets[:, :6], cos_diff, sin_diff, velocity], dim=-1)
+        velocity = box_reg_targets.new_zeros((*box_reg_targets.shape[:-1], self.num_velocity))
+        return torch.cat([box_reg_targets[..., :6], cos_diff, sin_diff, velocity], dim=-1)
 
     def _cls_loss(self, cls_preds: List[Tensor], box_cls_labels: Tensor, label_mapping: List[Tensor]) -> Tensor:
         r"""Per-head sigmoid focal classification loss over the head's class columns."""

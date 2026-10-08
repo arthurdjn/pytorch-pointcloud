@@ -90,25 +90,25 @@ def test_threedetr_loss_perfect_axis_aligned_predictions_near_zero() -> None:
     loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_heading_bins=1)
     out = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -angles, _LABELS))
-    for key in ("loss_center", "loss_size", "loss_giou", "loss_angle_cls", "loss_angle_reg"):
+    for key in ("center_loss", "size_loss", "giou_loss", "angle_cls_loss", "angle_reg_loss"):
         assert out[key] < 1e-4, key
-    assert out["loss_sem_cls"] < 1e-3
+    assert out["sem_cls_loss"] < 1e-3
     assert out["loss"] < 1e-2
-    assert out["loss_cardinality"] == 0.0
+    assert out["cardinality_error"] == 0.0
 
 
 def test_threedetr_loss_perturbed_predictions_are_larger() -> None:
     angles = torch.zeros(2)
     loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1, giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, angles, _LABELS, num_queries=4, num_heading_bins=1)
-    batch = _batch(_CENTERS, _SIZES, -angles, _LABELS)
-    perfect = loss_fn(_output(layer), batch)
+    data = _batch(_CENTERS, _SIZES, -angles, _LABELS)
+    perfect = loss_fn(_output(layer), data)
 
     layer["center_unnormalized"][0, 0] += 0.2
     layer["center_normalized"] = layer["center_unnormalized"] / _SCENE
-    out = loss_fn(_output(layer), batch)
-    assert out["loss_center"] > perfect["loss_center"]
-    assert out["loss_giou"] > perfect["loss_giou"]
+    out = loss_fn(_output(layer), data)
+    assert out["center_loss"] > perfect["center_loss"]
+    assert out["giou_loss"] > perfect["giou_loss"]
     assert out["loss"] > perfect["loss"]
 
 
@@ -120,9 +120,9 @@ def test_threedetr_loss_ccw_gt_matches_native_heading_predictions() -> None:
 
     ccw = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, -native, _LABELS))
     wrong = loss_fn(_output(layer), _batch(_CENTERS, _SIZES, native, _LABELS))
-    assert ccw["loss_angle_cls"] < 1e-4
-    assert ccw["loss_angle_reg"] < 1e-4
-    assert wrong["loss_angle_cls"] > 0.1
+    assert ccw["angle_cls_loss"] < 1e-4
+    assert ccw["angle_reg_loss"] < 1e-4
+    assert wrong["angle_cls_loss"] > 0.1
     assert wrong["loss"] > ccw["loss"]
 
 
@@ -158,6 +158,14 @@ def test_threedetr_loss_no_boxes_is_finite() -> None:
     assert torch.isfinite(out["loss"])
 
 
+def test_threedetr_loss_forward_returns_dict() -> None:
+    loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=1)
+    layer = _perfect_layer(_CENTERS, _SIZES, torch.zeros(2), _LABELS, num_queries=4, num_heading_bins=1)
+    data = _batch(_CENTERS, _SIZES, torch.zeros(2), _LABELS)
+    out = loss_fn(_output(layer), data)
+    assert isinstance(out, dict) and out["loss"].ndim == 0
+
+
 def test_threedetr_loss_backward() -> None:
     loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12)
     layer = _perfect_layer(_CENTERS, _SIZES, torch.tensor([0.4, -1.2]), _LABELS, num_queries=4, num_heading_bins=12)
@@ -177,12 +185,12 @@ def test_threedetr_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch:
     loss_fn = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12, giou_weight=1.0)
     layer = _perfect_layer(_CENTERS, _SIZES, -headings, _LABELS, num_queries=4, num_heading_bins=12)
     seen: List[bool] = []
-    original = ThreeDETRLoss._giou3d
+    original = ThreeDETRLoss._giou3d_layers
 
-    def spy(self: ThreeDETRLoss, layer: Dict[str, Tensor], targets: Any, rotated: bool) -> Tensor:
+    def spy(self: ThreeDETRLoss, layers: List[Dict[str, Tensor]], targets: Any, rotated: bool) -> List[Tensor]:
         seen.append(rotated)
-        return original(self, layer, targets, rotated)
+        return original(self, layers, targets, rotated)
 
-    monkeypatch.setattr(ThreeDETRLoss, "_giou3d", spy)
+    monkeypatch.setattr(ThreeDETRLoss, "_giou3d_layers", spy)
     loss_fn(_output(layer), _batch(_CENTERS, _SIZES, headings, _LABELS))
     assert seen == [True]

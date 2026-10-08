@@ -2,14 +2,33 @@
 
 from typing import Literal
 
-from torch import Tensor
+import torch
+from torch import Tensor, nn
+from torch_geometric.nn import knn
+
+__all__ = ["ChamferDistance"]
+
+
+def _nearest_index(query: Tensor, points: Tensor) -> Tensor:
+    r"""Index in `points` $(B, M, D)$ of the nearest point to every `query` $(B, N, D)$, without autograd."""
+    batch, num_queries, dim = query.shape
+    num_points = points.shape[1]
+    query_batch = torch.arange(batch, device=query.device).repeat_interleave(num_queries)
+    point_batch = torch.arange(batch, device=query.device).repeat_interleave(num_points)
+    with torch.no_grad():
+        pairs = knn(points.reshape(-1, dim), query.reshape(-1, dim), 1, point_batch, query_batch)
+
+    # `pairs` holds (query row, point row) over the packed sets: back to per-scene point indices in query order.
+    index = torch.empty(batch * num_queries, dtype=torch.long, device=query.device)
+    index[pairs[0]] = pairs[1] - pairs[0].div(num_queries, rounding_mode="floor") * num_points
+    return index.view(batch, num_queries)
 
 
 def chamfer_distance(pred: Tensor, target: Tensor, norm: Literal["l1", "l2"] = "l2") -> Tensor:
     r"""Symmetric Chamfer distance between two batched point sets.
 
     Set-to-set reconstruction objective introduced for point cloud generation in
-    :arxiv: [Fan et al., 2017](https://arxiv.org/abs/1612.00603) and standard for masked point
+    :arxiv: [A Point Set Generation Network for 3D Object Reconstruction from a Single Image](https://arxiv.org/abs/1612.00603) (Fan et al., 2017) and standard for masked point
     modeling pretraining (the SSL pretraining models return `(pred, target)` group coordinates in
     exactly this layout). For each point the squared euclidean distance to its nearest neighbor in
     the other set is computed, then reduced over all points and batches:
@@ -23,6 +42,10 @@ def chamfer_distance(pred: Tensor, target: Tensor, norm: Literal["l1", "l2"] = "
     The `"l2"` variant sums the two directed means of squared distances (no square root, no
     halving); the `"l1"` variant averages the two directed means of euclidean distances. Both
     follow the reference pretraining convention, so losses are comparable with published values.
+
+    The nearest neighbors come from the kNN kernel of `torch_geometric` without autograd and only the
+    matched pairs are differentiated, so the memory grows with $N + M$ rather than $N \cdot M$ and whole
+    clouds fit.
 
     Args:
         pred: Predicted point sets of shape $(B, N, 3)$.
@@ -50,9 +73,44 @@ def chamfer_distance(pred: Tensor, target: Tensor, norm: Literal["l1", "l2"] = "
     """
     if norm not in ("l1", "l2"):
         raise ValueError(f"`norm` must be 'l1' or 'l2', got {norm!r}.")
-    sq_dist = (pred.unsqueeze(2) - target.unsqueeze(1)).pow(2).sum(-1)  # (B, N, M)
-    dist_pred = sq_dist.min(2).values  # (B, N)
-    dist_target = sq_dist.min(1).values  # (B, M)
+
+    # Nearest neighbors found without autograd, then only the matched pairs differentiated.
+    nearest_target = target.gather(1, _nearest_index(pred, target)[..., None].expand(-1, -1, pred.shape[-1]))
+    nearest_pred = pred.gather(1, _nearest_index(target, pred)[..., None].expand(-1, -1, pred.shape[-1]))
+    dist_pred = (pred - nearest_target).pow(2).sum(-1)  # (B, N)
+    dist_target = (target - nearest_pred).pow(2).sum(-1)  # (B, M)
     if norm == "l1":
         return (dist_pred.sqrt().mean() + dist_target.sqrt().mean()) / 2
     return dist_pred.mean() + dist_target.mean()
+
+
+class ChamferDistance(nn.Module):
+    r"""Module form of [`chamfer_distance`][torch_pointcloud.losses.chamfer.chamfer_distance].
+
+    The reconstruction criterion of the masked point modeling models, whose pretraining `forward` returns
+    the `(pred, target)` pair this module takes.
+
+    Args:
+        norm: Distance variant, `"l1"` (euclidean) or `"l2"` (squared euclidean).
+
+    Example:
+        ```python
+        import torch
+        criterion = ChamferDistance(norm="l1")
+        criterion(torch.zeros(2, 8, 3), torch.zeros(2, 4, 3)).item()  # 0.0
+        ```
+    """
+
+    def __init__(self, norm: Literal["l1", "l2"] = "l2") -> None:
+        super().__init__()
+        if norm not in ("l1", "l2"):
+            raise ValueError(f"`norm` must be 'l1' or 'l2', got {norm!r}.")
+
+        self.norm = norm
+
+    def forward(self, pred: Tensor, target: Tensor) -> Tensor:
+        r"""Compute the Chamfer distance between `pred` $(B, N, 3)$ and `target` $(B, M, 3)$."""
+        return chamfer_distance(pred, target, norm=self.norm)
+
+    def extra_repr(self) -> str:
+        return f"norm={self.norm!r}"
