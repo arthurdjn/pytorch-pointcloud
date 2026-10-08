@@ -191,16 +191,13 @@ def octree_upsample(
     """
     if method not in ["linear", "nearest"]:
         raise ValueError(f"Invalid method. Expected `method` to be one of `linear` or `nearest`, but got {method}.")
-
     if src_depth == dst_depth:
         return x
-
     if dst_depth < src_depth:
         raise ValueError(
             f"Invalid destination depth. Expected `dst_depth` to be greater than `src_depth`, "
             f"but got {dst_depth} and {src_depth} respectively."
         )
-
     if dst_depth == src_depth + 1 and method == "nearest":
         return octree_nearest_upsample(x, octree, src_depth, nempty)
 

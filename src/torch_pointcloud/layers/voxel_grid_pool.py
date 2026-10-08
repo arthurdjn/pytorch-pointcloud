@@ -44,6 +44,7 @@ class VoxelGridPool(nn.Module):
         super().__init__()
         if reduce not in ("sum", "mean", "min", "max"):
             raise ValueError(f"Invalid reduce operation: {reduce!r}, expected 'sum', 'mean', 'min' or 'max'.")
+
         if origin not in ("grid", "min"):
             raise ValueError(f"Invalid origin: {origin!r}, expected 'grid' or 'min'.")
 

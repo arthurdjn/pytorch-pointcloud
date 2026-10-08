@@ -113,20 +113,28 @@ def potential_sphere_inference(
     """
     if pos_key not in data:
         raise KeyError(f"`data` is missing the required key {pos_key!r}.")
+
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
+
     if radius <= 0.0:
         raise ValueError(f"`radius` must be > 0, got {radius}.")
+
     if num_votes <= 0.0:
         raise ValueError(f"`num_votes` must be > 0, got {num_votes}.")
+
     if potential_size is not None and potential_size <= 0.0:
         raise ValueError(f"`potential_size` must be > 0, got {potential_size}.")
+
     if jitter is not None and jitter < 0.0:
         raise ValueError(f"`jitter` must be >= 0, got {jitter}.")
+
     if not 0.0 < inner_ratio <= 1.0:
         raise ValueError(f"`inner_ratio` must be in (0, 1], got {inner_ratio}.")
+
     if not 0.0 <= ema_smoothing < 1.0:
         raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
+
     if sw_batch_size < 1:
         raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
 
@@ -206,6 +214,7 @@ def potential_sphere_inference(
                     f"No sphere with at least 2 points was drawn for batch element {int(b)} (radius={radius}), so "
                     "its scores would silently stay all-zero. Increase `radius` or check the scale of `pos`."
                 )
+
             continue
 
         if output is None:
@@ -219,6 +228,7 @@ def potential_sphere_inference(
                 f"No sphere with at least 2 points was drawn for any batch element (radius={radius}), so the "
                 "class count is unknown. Increase `radius` or check the scale of `pos`."
             )
+
         return pos.new_zeros((0, 0))
     return output
 

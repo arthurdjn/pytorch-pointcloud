@@ -533,7 +533,11 @@ class VoxelNeXtDetection(DetectionModel):
         )
 
     def forward_features(
-        self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
     ) -> "spconv.SparseConvTensor":
         voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
         batch_size = int(batch.max().item()) + 1

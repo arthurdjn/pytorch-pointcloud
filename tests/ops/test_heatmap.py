@@ -204,6 +204,7 @@ def _draw_heatmap_targets_loop(
     for i in range(min(num_max_objs, boxes.shape[0])):
         if dx[i] <= 0 or dy[i] <= 0:
             continue
+
         if not (0 <= center_int[i, 0] <= width and 0 <= center_int[i, 1] <= height):
             continue
 

@@ -792,6 +792,7 @@ class PVCNN2Segmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         if not self.head_channels:
             return nn.Linear(self.num_features, self.num_classes)
 
@@ -912,6 +913,7 @@ def pvcnn2_s3dis_area5(**hparams: Any) -> PVCNN2Segmentation:
     for pv in model.modules():
         if not isinstance(pv, PVConv):
             continue
+
         for block in pv.voxel_layers:
             if isinstance(block, Conv3dBlock):
                 if isinstance(block.norm, nn.BatchNorm3d):

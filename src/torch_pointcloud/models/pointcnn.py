@@ -354,6 +354,7 @@ class PointCNNClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:
@@ -516,6 +517,7 @@ class PointCNNSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         dropout_list = [0.0] * (len(channels_list) - 1)
         if len(channels_list) > 2:

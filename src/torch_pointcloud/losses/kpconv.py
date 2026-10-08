@@ -45,6 +45,7 @@ def kpconv_deform_regularizer(module: nn.Module, fitting_power: float = 1.0, rep
     for layer in module.modules():
         if not isinstance(layer, KPConv) or not layer.deformable:
             continue
+
         if layer.running_min_d2 is None or layer.running_deformed_kernel is None:
             raise RuntimeError(
                 "`kpconv_deform_regularizer` needs a forward pass with `track_running_stats=True` first."

@@ -36,8 +36,10 @@ _MODEL_FUNCTIONS = {"create_model", "list_models", "register_model"}
 def __getattr__(name: str) -> Any:
     if name in _SUBMODULES:
         return import_module(f".{name}", __name__)
+
     if name in _MODEL_FUNCTIONS:
         return getattr(import_module(".models", __name__), name)
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

@@ -32,6 +32,7 @@ class ConcatDataset(Dataset):
     def __init__(self, datasets: Sequence[Dataset]) -> None:
         if len(datasets) == 0:
             raise ValueError("ConcatDataset requires at least one dataset.")
+
         self.datasets = list(datasets)
         self.sizes = [len(d) for d in self.datasets]  # type: ignore[arg-type]
         self.cumulative_sizes: List[int] = []
@@ -46,6 +47,7 @@ class ConcatDataset(Dataset):
     def __getitem__(self, index: int) -> Any:
         if not -len(self) <= index < len(self):
             raise IndexError(f"Index {index} is out of range for a dataset of length {len(self)}.")
+
         if index < 0:
             index += len(self)
         dataset_index = bisect_right(self.cumulative_sizes, index)
@@ -99,8 +101,10 @@ class SingleDatasetBatchSampler(Sampler[List[int]]):
     ) -> None:
         if len(sizes) != len(ratios):
             raise ValueError(f"sizes and ratios must have the same length, got {len(sizes)} and {len(ratios)}.")
+
         if any(r <= 0 for r in ratios):
             raise ValueError(f"ratios must be positive integers, got {list(ratios)}.")
+
         if batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {batch_size}.")
 

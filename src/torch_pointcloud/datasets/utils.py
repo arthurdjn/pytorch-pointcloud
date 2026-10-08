@@ -107,6 +107,7 @@ def check_terms_accepted(accept_terms: bool, name: str, terms_url: str) -> None:
     """
     if accept_terms:
         return
+
     message = (
         f"{name} is released under a terms-of-use agreement: {terms_url}. Read and accept it, then pass "
         "`accept_terms=True` to download the raw data, or download it by hand."
@@ -115,6 +116,7 @@ def check_terms_accepted(accept_terms: bool, name: str, terms_url: str) -> None:
         answer = input(f"{name} is released under a terms-of-use agreement: {terms_url}\nAccept the terms? [y/N] ")
     except (EOFError, OSError):
         raise RuntimeError(message) from None
+
     if answer.strip().lower() not in {"y", "yes"}:
         raise RuntimeError(message)
 
@@ -161,6 +163,7 @@ def download_url(
 
     if file_path.exists() and not overwrite:
         return file_path.as_posix()
+
     if file_path.exists() and overwrite == "incomplete":
         expected_size = urlsize(url, timeout=timeout)
         if expected_size is None or file_path.stat().st_size == expected_size:
@@ -320,6 +323,7 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
     meta_path = Path(meta_path)
     if not meta_path.exists():
         return
+
     cached_meta = json.loads(meta_path.read_text())
     if cached_meta != meta:
         raise RuntimeError(
@@ -357,7 +361,6 @@ def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash
             stacklevel=2,
         )
         return True
-
     if hash_type not in SUPPORTED_HASH_TYPES:
         return False
 

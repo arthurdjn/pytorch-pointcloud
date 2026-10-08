@@ -55,27 +55,36 @@ def create_norm(
     """
     if norm is None:
         return None
+
     if conditions is not None:
         # NOTE: import pdnorm here to avoid circular import
         from .pdnorm import PDNorm
 
         return PDNorm(channels, conditions=conditions, norm=norm, dim=dim, **norm_kwargs)
+
     if isinstance(norm, nn.Module):
         return norm
+
     if isinstance(norm, str):
         if dim == 1:
             return normalization_resolver(norm, channels, **norm_kwargs)
+
         key = norm.lower().replace("-", "_")
         if key in {"batch_norm", "batchnorm", "bn"}:
             return _BATCH_NORM_NDS[dim](channels, **norm_kwargs)
+
         if key in {"instance_norm", "instancenorm", "in"}:
             return _INSTANCE_NORM_NDS[dim](channels, **norm_kwargs)
+
         if key in {"group_norm", "groupnorm", "gn"}:
             return nn.GroupNorm(num_channels=channels, **norm_kwargs)
+
         if key in {"layer_norm", "layernorm", "ln"}:
             return nn.LayerNorm(channels, **norm_kwargs)
+
         raise ValueError(
             f"Unknown norm string {norm!r} for dim={dim}. Use 'batch_norm', 'instance_norm', "
             "'group_norm', 'layer_norm', or pass a class / callable."
         )
+
     return norm(channels, **norm_kwargs)

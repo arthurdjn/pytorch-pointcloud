@@ -133,6 +133,7 @@ def accuracy(
         overall = safe_divide(cm.diag().sum().float(), cm.sum().float(), default=zero_division)
 
         return overall.item()
+
     per_class = safe_divide(cm.diag().float(), cm.sum(dim=1).float(), default=zero_division)
 
     if average == "none":

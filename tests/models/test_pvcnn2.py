@@ -104,7 +104,8 @@ def test_pvcnn2_segmentation_forward(model_seg: PVCNN2Segmentation, data: Dict[s
 
 
 def test_pvcnn2_classification_forward_features_and_head(
-    model_clf: PVCNN2Classification, data: Dict[str, Tensor]
+    model_clf: PVCNN2Classification,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == batch.shape[0]
@@ -113,7 +114,8 @@ def test_pvcnn2_classification_forward_features_and_head(
 
 
 def test_pvcnn2_segmentation_forward_features_decoder_head(
-    model_seg: PVCNN2Segmentation, data: Dict[str, Tensor]
+    model_seg: PVCNN2Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, pos, batch, intermediates = model_seg.forward_features(
         data["x"], data["pos"], data["batch"], return_intermediates=True

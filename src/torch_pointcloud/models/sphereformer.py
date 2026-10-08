@@ -171,10 +171,13 @@ class WindowedRelPosAttention(SparseModule):
                 f"Optional module `sptr` is required to use `WindowedRelPosAttention`. "
                 f"Install it from {_SPTR_GITHUB_URL}."
             )
+
         if num_heads < 2:
             raise ValueError(f"`num_heads` must be at least 2 (one cubic and one spherical head), got {num_heads}.")
+
         if embed_dim % num_heads != 0:
             raise ValueError(f"`embed_dim` ({embed_dim}) must be divisible by `num_heads` ({num_heads}).")
+
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         head_dim = embed_dim // num_heads
@@ -441,6 +444,7 @@ class SphereFormerUBlock(nn.Module):
         if indice_key_id in self.sphere_layers:
             if channels[0] % head_dim != 0:
                 raise ValueError(f"`channels[0]` ({channels[0]}) must be divisible by `head_dim` ({head_dim}).")
+
             self.transformer_block = SphereFormerBlock(
                 channels[0],
                 num_heads=channels[0] // head_dim,

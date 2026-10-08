@@ -342,20 +342,28 @@ def sliding_window_inference(
     """
     if pos_key not in data:
         raise KeyError(f"`data` is missing the required key {pos_key!r}.")
+
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
+
     if block_size <= 0.0:
         raise ValueError(f"`block_size` must be > 0, got {block_size}.")
+
     if not 0.0 <= overlap < 1.0:
         raise ValueError(f"`overlap` must be in [0, 1), got {overlap}.")
+
     if mode not in ("constant", "gaussian"):
         raise ValueError(f"`mode` must be 'constant' or 'gaussian', got {mode!r}.")
+
     if aggregate not in ("mean", "max", "vote"):
         raise ValueError(f"`aggregate` must be 'mean', 'max' or 'vote', got {aggregate!r}.")
+
     if roi_num_points is not None and roi_num_points < 1:
         raise ValueError(f"`roi_num_points` must be >= 1 or None, got {roi_num_points}.")
+
     if sw_batch_size < 1:
         raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
+
     if padding < 0.0:
         raise ValueError(f"`padding` must be >= 0, got {padding}.")
 
@@ -374,6 +382,7 @@ def sliding_window_inference(
         n_b = int(idx_b.numel())
         if n_b == 0:
             continue
+
         pos_b = pos[idx_b]
         data_b = index_select_dict(data, idx_b, n_total)
 

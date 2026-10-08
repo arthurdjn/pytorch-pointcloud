@@ -87,7 +87,6 @@ def encode(locs: Tensor, num_dims: int, num_bits: int) -> Tensor:
             f"The shape of locs was surprising in that the last dimension was of size {orig_shape[-1]}, "
             f"but num_dims={num_dims}. These need to be equal."
         )
-
     if num_dims * num_bits > 63:
         raise ValueError(
             f"Got num_dims={num_dims} and num_bits={num_bits} for {num_dims * num_bits} bits total, "

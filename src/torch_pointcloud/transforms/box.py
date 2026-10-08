@@ -171,6 +171,7 @@ class InstanceToBox(DictTransform):
             if key not in d:
                 if self.allow_missing_keys:
                     return d
+
                 raise KeyError(f"Key {key!r} was missing in the data and `allow_missing_keys==False`.")
 
         boxes, classes = self._instance_boxes(d[self.pos_key], d[self.instance_key], d[self.semantic_key])
@@ -184,10 +185,12 @@ class InstanceToBox(DictTransform):
         for inst in torch.unique(instance):
             if int(inst) < 0:
                 continue
+
             mask = instance == inst
             cls = segment[mask].mode().values
             if int(cls) == self.ignore_index:
                 continue
+
             lo, hi = pos[mask].amin(dim=0), pos[mask].amax(dim=0)
             boxes.append(torch.cat([(lo + hi) / 2, hi - lo, pos.new_zeros(1)]))
             classes.append(cls.long())

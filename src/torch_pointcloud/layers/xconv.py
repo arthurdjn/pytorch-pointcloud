@@ -56,6 +56,7 @@ class XConv(nn.Module):
                 f"(the default `in_channels // 4` is 0 for in_channels={in_channels}; "
                 "pass `hidden_channels` explicitly)."
             )
+
         self.out_channels = out_channels
         self.spatial_dim = spatial_dim
         self.kernel_size = kernel_size

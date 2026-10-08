@@ -151,12 +151,20 @@ class PointBERTEncoder(nn.Module):
 
     @overload
     def forward(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[True]
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
     ) -> Tuple[Tensor, List[Tensor]]: ...
 
     @overload
     def forward(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[False] = False
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
     ) -> Tensor: ...
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
@@ -321,6 +329,7 @@ class PointBERTClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         head_channels = ensure_list(self.head_channels, none_as_empty=True)
         return MLP(
             [self.num_features, *head_channels, self.num_classes],
@@ -342,12 +351,20 @@ class PointBERTClassification(ClassificationModel):
 
     @overload
     def forward_features(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[True]
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
     ) -> Tuple[Tensor, List[Tensor]]: ...
 
     @overload
     def forward_features(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: Literal[False] = False
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
     ) -> Tensor: ...
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
@@ -910,7 +927,12 @@ class PointBERTDiscreteVAE(PretrainingModel):
         return logits
 
     def forward(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, temperature: float = 1.0, hard: bool = False
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        temperature: float = 1.0,
+        hard: bool = False,
     ) -> Dict[str, Tensor]:
         neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         feat = self.encoder(neighborhood)

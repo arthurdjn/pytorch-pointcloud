@@ -245,7 +245,6 @@ class _LitSegmentationModel(LitModel):
                     f"index `batch_{self.inverse_key}`; add {self.inverse_key!r} to the datamodule's "
                     "`cat_keys` (or use an eval batch size of 1)."
                 )
-
             return inverse
         return offset_index(inverse, inverse_batch, batch[DataKeys.BATCH])
 
@@ -432,7 +431,6 @@ class LitDetectionModel(LitModel):
                 raise RuntimeError(
                     "No `criterion` was provided, so this module is evaluation-only, pass `criterion=` to train it."
                 )
-
             return {"output": output}
 
         losses = self.criterion(output, batch)

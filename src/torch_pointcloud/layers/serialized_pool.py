@@ -48,6 +48,7 @@ class SerializedPool(nn.Module):
         norm_kwargs = norm_kwargs or {}
         if reduce not in ["sum", "mean", "min", "max"]:
             raise ValueError(f"Invalid reduce operation: {reduce!r}. Must be one of: 'sum', 'mean', 'min', 'max'.")
+
         if stride != 2 ** (math.ceil(stride) - 1).bit_length():
             raise ValueError(f"Invalid stride: {stride}. Must be a power of 2.")
 

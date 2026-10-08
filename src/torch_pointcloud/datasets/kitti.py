@@ -399,6 +399,7 @@ class KITTI(PointCloudDataset):
                 f"frame(s) {missing[:5]}, {len(incomplete)} incomplete frame(s) {incomplete[:5]}. "
                 "Pass `force_process=True` to reprocess the raw data."
             )
+
         return True
 
     def download(self, force: bool = False) -> None:
@@ -425,6 +426,7 @@ class KITTI(PointCloudDataset):
         """
         if not force and self.processed_files_exist():
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_split_dir.as_posix()!r}. KITTI must be downloaded manually "

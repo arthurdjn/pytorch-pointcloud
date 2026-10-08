@@ -328,7 +328,8 @@ def test_create_model_arch_only_entry_raises_actionable_type_error() -> None:
 
 
 def test_create_model_pretrained_rejects_weight_path_escaping_cache(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
     register_model(

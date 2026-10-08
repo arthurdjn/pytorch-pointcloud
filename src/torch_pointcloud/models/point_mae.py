@@ -230,6 +230,7 @@ class MaskTransformer(nn.Module):
         super().__init__()
         if not 0.0 < mask_ratio < 1.0:
             raise ValueError(f"`mask_ratio` must be in (0, 1), got {mask_ratio}.")
+
         self.mask_ratio = mask_ratio
         self.embed_dim = embed_dim
         self.encoder = PointPatchEmbed(
@@ -426,6 +427,7 @@ class PointMAEClassification(ClassificationModel):
                 f"{self.__class__.__name__} pools with a fixed cls-token + max-pool concatenation; "
                 "`global_pool` is not configurable."
             )
+
         self.num_classes = num_classes
         self.head = self.configure_head()
 
@@ -529,6 +531,7 @@ class PointMAEPartSegmentation(PartSegmentationModel):
             raise ValueError(
                 f"`fetch_idx` {self.fetch_idx} requires at least {max(self.fetch_idx) + 1} blocks; got depth={depth}."
             )
+
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_heads = num_heads
@@ -661,6 +664,7 @@ class PointMAEPartSegmentation(PartSegmentationModel):
                 f"{self.__class__.__name__} requires the same number of points per sample, got per-sample "
                 f"counts from {int(counts.min())} to {int(counts.max())}."
             )
+
         N = pos.size(0) // B
 
         x_max = torch.max(x_feat, 2)[0]

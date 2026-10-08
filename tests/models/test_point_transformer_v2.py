@@ -82,7 +82,8 @@ def test_pt_v2_classification_forward(model_clf: PointTransformerV2Classificatio
 
 
 def test_pt_v2_classification_reset_classifier(
-    model_clf: PointTransformerV2Classification, data: Dict[str, Tensor]
+    model_clf: PointTransformerV2Classification,
+    data: Dict[str, Tensor],
 ) -> None:
     model_clf.reset_classifier(num_classes=42)
     logits = model_clf(data["x"], data["pos"], data["batch"])
@@ -106,7 +107,8 @@ def test_pt_v2_segmentation_forward(model_seg: PointTransformerV2Segmentation, d
 
 
 def test_pt_v2_segmentation_reset_classifier(
-    model_seg: PointTransformerV2Segmentation, data: Dict[str, Tensor]
+    model_seg: PointTransformerV2Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     model_seg.reset_classifier(num_classes=5)
     logits = model_seg(data["x"], data["pos"], data["batch"])
@@ -114,7 +116,8 @@ def test_pt_v2_segmentation_reset_classifier(
 
 
 def test_pt_v2_classification_forward_features_and_head(
-    model_clf: PointTransformerV2Classification, data: Dict[str, Tensor]
+    model_clf: PointTransformerV2Classification,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == batch.shape[0]
@@ -123,7 +126,8 @@ def test_pt_v2_classification_forward_features_and_head(
 
 
 def test_pt_v2_segmentation_forward_features_decoder_head(
-    model_seg: PointTransformerV2Segmentation, data: Dict[str, Tensor]
+    model_seg: PointTransformerV2Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, _, intermediates = model_seg.forward_features(
         data["x"], data["pos"], data["batch"], return_intermediates=True

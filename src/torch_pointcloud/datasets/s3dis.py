@@ -446,6 +446,7 @@ class S3DIS(PointCloudDataset):
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
             return
+
         check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         # Download the README file
@@ -535,6 +536,7 @@ class S3DIS(PointCloudDataset):
         """
         if self.processed_files_exist() and not force:
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -552,6 +554,7 @@ class S3DIS(PointCloudDataset):
             angle_path = area_dir / f"{area}_alignmentAngle.txt"
             if self.aligned and not angle_path.exists():
                 raise RuntimeError(f"Alignment angles file not found at {angle_path!r}.")
+
             if self.aligned and angle_path.exists():
                 angles = load_s3dis_alignment_angles(angle_path)
 
@@ -789,6 +792,7 @@ class S3DISHdf5(PointCloudDataset):
     def download(self, force: bool = False, show_progress: bool = True) -> None:
         if self.raw_files_exist() and not force:
             return
+
         check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         resource_path = Path(self.data_dir, self.resource)

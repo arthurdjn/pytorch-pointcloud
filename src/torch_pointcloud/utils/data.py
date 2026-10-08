@@ -102,29 +102,28 @@ def _collate_value(values: List[Any]) -> Any:
     if isinstance(first, Tensor):
         if first.ndim == 0:
             return torch.stack(values)
+
         if _tails_equal(values):
             return torch.cat(values, dim=0)
         return list(values)
-
     if isinstance(first, (bool, int, float)):
         return torch.tensor(values)
-
     if _OCNN_AVAILABLE and isinstance(first, Points):
         return ocnn.octree.merge_points(values)
-
     if _OCNN_AVAILABLE and isinstance(first, Octree):
         octree = ocnn.octree.merge_octrees(values)
         octree.construct_all_neigh()
         return octree
-
     return list(values)
 
 
 def _leading_size(value: Any) -> int:
     if isinstance(value, Tensor):
         return value.shape[0] if value.ndim >= 1 else 1
+
     if isinstance(value, (str, bytes)):
         return 1
+
     if hasattr(value, "__len__"):
         return len(value)
     return 1
@@ -168,6 +167,7 @@ def collate(
     overlap = sorted((set(stack_keys) & set(cat_keys)) - {None})
     if overlap:
         raise ValueError(f"Keys cannot be in both `stack_keys` and `cat_keys`: {overlap}.")
+
     if not data_list:
         return {}
 
@@ -178,6 +178,7 @@ def collate(
         for i, d in enumerate(data_list):
             if k not in d:
                 raise ValueError(f"Cannot collate key {k!r}: missing from sample {i}.")
+
         values = [d[k] for d in data_list]
         out[k] = torch.stack(values, dim=0) if k in stacked else _collate_value(values)
 
@@ -226,6 +227,7 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
         if value is _MISSING:
             if key != DataKeys.X:
                 raise KeyError(f"Input key {key!r} not found in the batch (available keys: {sorted(data)}).")
+
             value = None
         inputs.append(value)
     return inputs

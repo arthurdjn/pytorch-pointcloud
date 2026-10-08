@@ -414,6 +414,7 @@ def spherical_points_lloyd(
 
     if fixed_position not in ["none", "center", "vertical"]:
         raise ValueError('Unsupported fixed position. Expected "none", "center", or "vertical".')
+
     if approximation not in ["discretization", "monte-carlo"]:
         raise ValueError('Unsupported approximation. Expected "discretization" or "monte-carlo".')
 

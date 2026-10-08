@@ -188,6 +188,7 @@ class UtoniaSegmentation(SemanticSegmentationModel):
 
         if pos_grid is None or batch is None:
             raise ValueError("Utonia segmentation requires encoder intermediates for feature unpooling.")
+
         return x, pos_grid, batch
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:

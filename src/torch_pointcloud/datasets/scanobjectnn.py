@@ -161,6 +161,7 @@ class ScanObjectNN(PointCloudDataset):
     def download(self, force: bool = False, show_progress: bool = True) -> None:
         if self.raw_files_exist() and not force:
             return
+
         check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         url = f"{self.data_url}/{self.resource}"
@@ -187,6 +188,7 @@ class ScanObjectNN(PointCloudDataset):
     def process(self, force: bool = False, show_progress: bool = True) -> None:
         if self.processed_files_exist() and not force:
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "

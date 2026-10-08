@@ -40,8 +40,10 @@ def _voc_ap(recall: np.ndarray, precision: np.ndarray, interpolation: Interpolat
         right = float(recall[tp_idx[j + 1]]) if j + 1 < len(tp_idx) else left
         if (right - current_recall) < (current_recall - left) and j < len(tp_idx) - 1:
             continue
+
         if slot == num_samples:
             break
+
         sampled[slot] = precision[d]
         slot += 1
         current_recall += 1.0 / (num_samples - 1)

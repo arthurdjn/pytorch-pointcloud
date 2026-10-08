@@ -240,7 +240,9 @@ def test_seg_training_step_returns_scalar_loss() -> None:
     ],
 )
 def test_step_syncs_logged_loss_on_eval_stages_only(
-    stage: str, expected: bool, monkeypatch: pytest.MonkeyPatch
+    stage: str,
+    expected: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     lit = _make_seg_module()
     log = Mock()

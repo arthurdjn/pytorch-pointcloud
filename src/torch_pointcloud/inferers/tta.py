@@ -111,11 +111,13 @@ class TTAInferer(Inferer):
                     "`num_passes` must be an int >= 1 when `transforms` is a single callable or `None`, "
                     f"got {num_passes!r}."
                 )
+
             self.num_passes = int(num_passes)
         else:
             seq = list(transforms)
             if len(seq) == 0:
                 raise ValueError("`transforms` sequence must contain at least one callable.")
+
             if num_passes is not None and num_passes != len(seq):
                 warnings.warn(
                     f"`num_passes={num_passes}` is ignored when `transforms` is a sequence "
@@ -128,6 +130,7 @@ class TTAInferer(Inferer):
 
         if aggregate not in ("mean", "ema"):
             raise ValueError(f"`aggregate` must be 'mean' or 'ema', got {aggregate!r}.")
+
         if not 0.0 <= ema_smoothing < 1.0:
             raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
 
@@ -175,6 +178,7 @@ class TTAInferer(Inferer):
 
         if output is None:
             return data[self.pos_key].new_zeros((0, 0))
+
         if self.aggregate == "mean":
             output = output / float(len(passes))
         return output

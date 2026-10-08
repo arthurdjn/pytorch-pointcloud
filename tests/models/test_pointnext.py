@@ -201,7 +201,9 @@ def partseg_category(data: Dict[str, Tensor]) -> Tensor:
 
 
 def test_pointnext_part_segmentation_forward(
-    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+    model_partseg: PointNeXtPartSegmentation,
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
 ) -> None:
     logits = model_partseg(data["features"], data["pos"], data["batch"], category=partseg_category)
     assert logits.shape == (data["pos"].shape[0], model_partseg.num_classes)
@@ -209,7 +211,9 @@ def test_pointnext_part_segmentation_forward(
 
 
 def test_pointnext_part_segmentation_reset_classifier(
-    model_partseg: PointNeXtPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+    model_partseg: PointNeXtPartSegmentation,
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
 ) -> None:
     model_partseg.reset_classifier(num_classes=42)
     logits = model_partseg(data["features"], data["pos"], data["batch"], partseg_category)
@@ -254,7 +258,9 @@ def test_pointnext_segmentation_single_dropout_with_mlp_head() -> None:
 
 
 def test_pointnext_part_segmentation_single_dropout_with_mlp_head(
-    data: Dict[str, Tensor], partseg_category: Tensor, monkeypatch: pytest.MonkeyPatch
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     model = PointNeXtPartSegmentation(
         in_channels=6,

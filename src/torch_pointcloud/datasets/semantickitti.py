@@ -337,7 +337,6 @@ class SemanticKITTI(PointCloudDataset):
         sequences_dir = Path(self.sequences_dir)
         if not sequences_dir.is_dir():
             return False
-
         return all(any((sequences_dir / seq / "velodyne").glob("*.bin")) for seq in self.sequences)
 
     @override
@@ -380,6 +379,7 @@ class SemanticKITTI(PointCloudDataset):
                 "Download the full split from https://www.semantic-kitti.org/dataset.html, "
                 "or pass `sequences=(...)` restricted to the sequences on disk."
             )
+
         scans: List[tuple[str, str, Path, Optional[Path]]] = []
         for seq in self.sequences:
             velodyne_dir = sequences_dir / seq / "velodyne"

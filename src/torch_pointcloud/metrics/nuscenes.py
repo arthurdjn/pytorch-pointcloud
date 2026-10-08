@@ -59,6 +59,7 @@ def _nuscenes_accumulate(
     )
     if len(gt_boxes) == 0 or len(pred_boxes) == 0:
         return sentinel
+
     has_velocity = pred_boxes.shape[1] >= 9 and gt_boxes.shape[1] >= 9
 
     order = np.argsort(-pred_scores, kind="stable")

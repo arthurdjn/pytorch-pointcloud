@@ -106,7 +106,10 @@ class PillarFeatureNet(nn.Module):
 
 
 def scatter_to_bev(
-    pillar_features: Tensor, voxel_indices: Tensor, batch_size: int, grid_size: Tuple[int, int, int]
+    pillar_features: Tensor,
+    voxel_indices: Tensor,
+    batch_size: int,
+    grid_size: Tuple[int, int, int],
 ) -> Tensor:
     r"""Scatter pillar features back to a dense BEV pseudo-image.
 
@@ -142,6 +145,7 @@ def scatter_to_bev(
     nx, ny, nz = grid_size
     if nz != 1:
         raise ValueError(f"`grid_size` must have a single height bin (nz == 1), got {nz}.")
+
     num_bev_features = pillar_features.size(-1)
     # voxel_indices columns: (batch, z, y, x), z == 0.
     flat = voxel_indices[:, 0].long() * (ny * nx) + voxel_indices[:, 2].long() * nx + voxel_indices[:, 3].long()
@@ -450,7 +454,11 @@ class PointPillarsMultiHeadDetection(DetectionModel):
         return self.head(features)
 
     def forward(
-        self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
     ) -> AnchorHeadMultiOutput:
         features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         return self.forward_head(features)

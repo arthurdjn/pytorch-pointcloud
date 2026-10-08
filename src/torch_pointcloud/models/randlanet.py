@@ -241,6 +241,7 @@ class RandLANetDecoder(nn.Module):
             raise ValueError(
                 f"`skip_channels` ({len(skip_channels)}) and `fp_channels` ({len(fp_channels)}) must match."
             )
+
         self.fp_blocks = nn.ModuleList()
         for skip, out in zip(skip_channels, fp_channels):
             block = PointNet2FeaturePropagation(
@@ -587,6 +588,7 @@ class RandLANetSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         # Per-point seg head: hidden layers carry `Linear(bias=`self.bias`)+norm+act+Dropout`,
         # the final `plain_last` layer is a bare `Linear(bias=True)`: its bias is
         # meaningful since it sees no normalization.

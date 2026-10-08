@@ -61,6 +61,7 @@ def __getattr__(name: str) -> Type["PointTensor"]:
     # so unpickling in a fresh process builds it on demand.
     if name == "_PointTensorConcrete":
         return _point_tensor_cls()
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -461,8 +462,10 @@ class SPVCNNEncoder(nn.Module):
             raise ValueError(
                 f"`depths` and `fusion_stages` must have the same length, got {len(depths)} and {len(fusion_stages)}."
             )
+
         if len(channels) != self.num_blocks + 1:
             raise ValueError(f"`channels` must have length {self.num_blocks + 1}, got {len(channels)}.")
+
         drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))
 
         # Point features enter with the stem width `channels[0]`; each fusion stage projects them
@@ -578,6 +581,7 @@ class SPVCNNDecoder(nn.Module):
                 f"`depths`, `skip_channels`, and `fusion_stages` must have the same length, "
                 f"got {len(depths)}, {len(skip_channels)}, and {len(fusion_stages)}."
             )
+
         if len(channels) != self.num_blocks + 1:
             raise ValueError(f"`channels` must have length {self.num_blocks + 1}, got {len(channels)}.")
 

@@ -60,6 +60,7 @@ def estimate_normals(
     num_points = pos.shape[0]
     if num_points < k:
         raise ValueError(f"estimate_normals requires at least k points for the k-NN PCA; got N={num_points}, k={k}.")
+
     neighbor_index = knn(pos, pos, k, batch_x=batch, batch_y=batch)[1].view(num_points, k)
     neighbors = pos[neighbor_index]
     centered = neighbors - neighbors.mean(dim=1, keepdim=True)
@@ -182,8 +183,10 @@ def shift(
     """
     if method not in get_args(ShiftMethod):
         raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(ShiftMethod)}.")
+
     if x.size(dim) == 0:
         return x
+
     if method == "bbox":
         offset = (x.min(dim=dim).values + x.max(dim=dim).values) / 2
     elif method == "centroid":
@@ -282,6 +285,7 @@ class Shift(DictTransform):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
             data[dst_key] = shift(x, method=method, dim=self.dim, axes=self.axes)
         return data
 
@@ -333,6 +337,7 @@ class BBoxCenter(DictTransform):
             bbox = data[key]
             if bbox.numel() % 2 != 0:
                 raise ValueError(f"`{key}` must have an even number of elements (got {bbox.numel()}).")
+
             n_dim = bbox.numel() // 2
             data[dst_key] = (bbox[:n_dim] + bbox[n_dim:]) / 2.0
         return data
@@ -450,6 +455,7 @@ def axis_min_offset(x: Tensor, axis: int, quantile: Optional[float] = None) -> T
     col = x[:, axis]
     if col.numel() == 0:
         return col.unsqueeze(-1).to(x.dtype)
+
     if quantile is None:
         ref = col.min()
     else:
@@ -547,6 +553,7 @@ def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] 
     """
     if axis not in (0, 1, 2):
         raise ValueError(f"axis must be 0, 1, or 2; got {axis}.")
+
     c = math.cos(angle)
     s = math.sin(angle)
     R = torch.eye(3, device=device, dtype=torch.float32)

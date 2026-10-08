@@ -603,6 +603,7 @@ class OctFormerClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         # NOTE: The original OctFormer uses a linear bias only for the last layer, with ReLU activation.
         channels = [self.num_features, *self.head_channels, self.num_classes]
         biases = [False] * max(0, len(channels) - 2) + [True]
@@ -854,6 +855,7 @@ class OctFormerSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels = [self.num_features, *self.head_channels, self.num_classes]
         return MLP(
             channels,

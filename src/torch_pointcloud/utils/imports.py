@@ -32,6 +32,7 @@ def package_available(package_name: str) -> bool:
         spec = find_spec(package_name)
     except (ModuleNotFoundError, ValueError):
         return False
+
     # A bare namespace portion (spec.origin is None) does not count as installed: e.g. pytest putting the
     # repository's tests/ on sys.path makes tests/lightning satisfy find_spec("lightning") in an
     # environment without lightning.
@@ -59,6 +60,7 @@ def module_available(module_path: str) -> bool:
     module_names = module_path.split(".")
     if not package_available(module_names[0]):
         return False
+
     try:
         importlib.import_module(module_path)
     except Exception:
@@ -96,7 +98,9 @@ def check_requirement(requirement: str) -> bool:
         if req.specifier and hasattr(base_module, "__version__"):
             if not req.specifier.contains(Version(base_module.__version__)):
                 return False
+
         return True
+
     # A broken optional dependency (e.g. a CUDA / ABI mismatch in a source-built wheel) can raise more than
     # ImportError at import time; treat any failure to load as "requirement not met" so callers get a proxy.
     except Exception:
@@ -115,6 +119,7 @@ def _missing_import_proxy(msg: str) -> type:
     def _getattr(name: str) -> Any:
         if name.startswith("__") and name.endswith("__"):
             raise AttributeError(name)
+
         raise ImportError(msg)
 
     class _Meta(type):
@@ -180,12 +185,14 @@ class _LazyImportProxy:
                 if self._url:
                     msg += f" Check official documentation to install it: {self._url}."
                 raise ImportError(msg) from error
+
             self._target = target
         return self._target
 
     def __getattr__(self, name: str) -> Any:
         if self._target is _UNRESOLVED and name.startswith("__") and name.endswith("__"):
             raise AttributeError(name)
+
         return getattr(self._resolve(), name)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -200,6 +207,7 @@ class _LazyImportProxy:
             # fooled, e.g. by a same-named plain directory on sys.path); the informative error is raised
             # on instantiation or use of the subclass instead.
             return (_missing_import_proxy(str(error)),)
+
         assert isinstance(target, type), f"'{self._module_path}.{self._name}' is not a class"
         return (target,)
 
@@ -326,6 +334,7 @@ def __getattr__(name: str) -> bool:
     flag = _AVAILABILITY_FLAGS.get(name)
     if flag is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
     value = flag()
     globals()[name] = value
     return value

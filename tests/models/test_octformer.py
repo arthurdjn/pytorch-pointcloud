@@ -128,7 +128,8 @@ def test_octformer_classification_reset_classifier(model_clf: OctFormerClassific
 
 
 def test_octformer_classification_num_classes_zero_returns_features(
-    model_clf: OctFormerClassification, data: Dict[str, Any]
+    model_clf: OctFormerClassification,
+    data: Dict[str, Any],
 ) -> None:
     model_clf.reset_classifier(num_classes=0)
     assert isinstance(model_clf.head, torch.nn.Identity)
@@ -149,7 +150,8 @@ def test_octformer_segmentation_reset_classifier(model_seg: OctFormerSegmentatio
 
 
 def test_octformer_segmentation_num_classes_zero_returns_features(
-    model_seg: OctFormerSegmentation, data: Dict[str, Any]
+    model_seg: OctFormerSegmentation,
+    data: Dict[str, Any],
 ) -> None:
     model_seg.reset_classifier(num_classes=0)
     assert isinstance(model_seg.head, torch.nn.Identity)
@@ -158,7 +160,8 @@ def test_octformer_segmentation_num_classes_zero_returns_features(
 
 
 def test_octformer_classification_forward_features_and_head(
-    model_clf: OctFormerClassification, data: Dict[str, Any]
+    model_clf: OctFormerClassification,
+    data: Dict[str, Any],
 ) -> None:
     x = model_clf.forward_features(data["x"], data["octree"], data["depth"])
     assert x.dim() == 2
@@ -167,7 +170,8 @@ def test_octformer_classification_forward_features_and_head(
 
 
 def test_octformer_segmentation_forward_features_decoder_head(
-    model_seg: OctFormerSegmentation, data: Dict[str, Any]
+    model_seg: OctFormerSegmentation,
+    data: Dict[str, Any],
 ) -> None:
     x, intermediates = model_seg.forward_features(data["x"], data["octree"], data["depth"], return_intermediates=True)
     assert len(intermediates) > 0

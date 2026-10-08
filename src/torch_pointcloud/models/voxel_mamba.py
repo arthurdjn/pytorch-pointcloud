@@ -770,6 +770,7 @@ class VoxelMambaDetection(DetectionModel):
             raise ValueError(
                 f"`iou_rectifier` must have one entry per class ({self.num_classes}), got {len(iou_rectifier)}."
             )
+
         heatmap = out["heatmap"].sigmoid()
         batch_size, _, h, w = heatmap.shape
         # One global top-k over the flat heatmap equals the reference's per-class-then-global two-stage top-k.

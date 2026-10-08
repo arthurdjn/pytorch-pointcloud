@@ -147,23 +147,31 @@ def knn_window_inference(
     """
     if pos_key not in data:
         raise KeyError(f"`data` is missing the required key {pos_key!r}.")
+
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
+
     if not 0.0 < overlap < 1.0:
         raise ValueError(f"`overlap` must be in (0, 1), got {overlap}.")
+
     if mode not in ("constant", "gaussian"):
         raise ValueError(f"`mode` must be 'constant' or 'gaussian', got {mode!r}.")
+
     if aggregate not in ("mean", "ema"):
         raise ValueError(f"`aggregate` must be 'mean' or 'ema', got {aggregate!r}.")
+
     if sw_batch_size < 1:
         raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
+
     if not 0.0 <= ema_smoothing < 1.0:
         raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
+
     if aggregate == "ema" and mode == "gaussian":
         raise ValueError(
             "`mode='gaussian'` is incompatible with `aggregate='ema'`: EMA updates blend by `ema_smoothing`, not "
             "by per-point distance weights. Use `aggregate='mean'` or `mode='constant'`."
         )
+
     if aggregate == "ema" and sw_batch_size > 1:
         warnings.warn(
             "`aggregate='ema'` with `sw_batch_size > 1` applies per-window EMA updates sequentially; "

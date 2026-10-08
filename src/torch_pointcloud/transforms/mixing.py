@@ -87,6 +87,7 @@ class Mix3D(Transform, Randomizable):
         d = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return d
+
         for key in self.keys:
             d[key] = torch.cat([data[key], other[key]], dim=0)
         ik = self.instance_key
@@ -142,6 +143,7 @@ def laser_mix_masks(
     """
     if num_areas <= 0:
         raise ValueError(f"num_areas must be positive; got {num_areas}.")
+
     lo, hi = pitch_range
     edges = torch.linspace(lo, hi, num_areas + 1, device=pos.device)[1:-1]
 
@@ -217,6 +219,7 @@ class LaserMix(Transform, Randomizable):
         d = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return d
+
         index = int(torch.randint(len(self.num_areas), (1,), generator=self.R).item())
         num_areas = self.num_areas[index]
         mask, other_mask = laser_mix_masks(
@@ -347,6 +350,7 @@ class PolarMix(Transform, Randomizable):
         d = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return d
+
         if torch.rand(1, generator=self.R).item() < self.swap_ratio:
             mask, other_mask = polar_mix_masks(data[self.pos_key], other[self.pos_key], generator=self.R)
             for key in self.keys:

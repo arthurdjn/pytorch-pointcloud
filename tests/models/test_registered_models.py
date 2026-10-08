@@ -684,6 +684,7 @@ def _make_detection_inputs(model_name: str, in_channels: int, n_per_scene: int =
         pos = torch.rand(n, 3) * (high - low) + low
         x = torch.rand(n, in_channels - 3)
         return {"x": x, "pos": pos, "batch": batch}
+
     pos = torch.rand(n, 3) * 4.0
     return {"x": torch.rand(n, in_channels) if in_channels > 0 else None, "pos": pos, "batch": batch}
 

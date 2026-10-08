@@ -87,6 +87,7 @@ class PointNet2Encoder(nn.Module):
         super().__init__()
         if (ratios is None) == (num_points is None):
             raise ValueError("`PointNet2Encoder` needs exactly one of `ratios` or `num_points`.")
+
         sa_channels = ensure_msg_list(
             sa_channels,
             extra_msg="The parameter `sa_channels` must be a sequence compliant with the Multi-Scale Grouping (MSG) mode.",
@@ -396,6 +397,7 @@ class PointNet2Classification(ClassificationModel):
         """Build the aggregation MLP applied to the encoder output, or `None` when `aggr_channels` is unset."""
         if not self.aggr_channels:
             return None
+
         aggr_in = self.encoder.out_channels + self.spatial_dim if self.aggr_use_pos else self.encoder.out_channels
         return MLP(
             [aggr_in, *self.aggr_channels],
@@ -416,6 +418,7 @@ class PointNet2Classification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         if not self.head_channels:
             return nn.Linear(self.num_features, self.num_classes)
 
@@ -428,6 +431,7 @@ class PointNet2Classification(ClassificationModel):
                     f"`dropout` must provide one rate per head layer ({len(channels_list) - 2}); "
                     f"got {len(self.dropout)}."
                 )
+
             dropout_list = [float(rate) for rate in self.dropout] + [0.0]
         return MLP(
             channels_list,
@@ -657,6 +661,7 @@ class PointNet2Segmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         if not self.head_channels:
             return nn.Linear(self.num_features, self.num_classes)
 

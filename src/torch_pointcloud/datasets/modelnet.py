@@ -166,6 +166,7 @@ class _ModelNet(PointCloudDataset):
         # The archive is removed only after a completed extraction, so its presence marks a partial raw tree.
         if Path(self.raw_dir, self.resource).exists():
             return False
+
         raw_files = list(Path(self.raw_dir).rglob("*.off"))
         return len(raw_files) > 0
 
@@ -241,7 +242,6 @@ class _ModelNet(PointCloudDataset):
         target = class_to_idx.get(label)
         if target is None:
             return None
-
         return load_modelnet_data(file_path, target)
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
@@ -423,6 +423,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         # The archive is removed only after a completed extraction, so its presence marks a partial raw tree.
         if Path(self.raw_dir, self.resource).exists():
             return False
+
         raw_files = list(Path(self.raw_dir).rglob("*.txt"))
         return len(raw_files) > 0
 
@@ -496,7 +497,6 @@ class ModelNetNormalResampled(PointCloudDataset):
         target = class_to_idx.get(label)
         if target is None:
             return None
-
         return load_modelnet_normal_resampled_data(file_path, target)
 
     def _load_processed_data(self) -> List[Dict[str, Any]]:
@@ -506,6 +506,7 @@ class ModelNetNormalResampled(PointCloudDataset):
                 f"Stale processed cache at {file_path.as_posix()!r}: it was written with pickle by an older "
                 "version of this dataset. Pass force_process=True to regenerate it."
             )
+
         check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
@@ -606,6 +607,7 @@ class ModelNet40Hdf5(PointCloudDataset):
         # The archive is removed only after a completed extraction, so its presence marks a partial raw tree.
         if Path(self.raw_dir, self.resource).exists():
             return False
+
         if not Path(self.split_file).exists():
             return False
         return all(path.exists() for path in self._shard_paths())

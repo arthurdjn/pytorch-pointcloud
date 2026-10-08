@@ -260,6 +260,7 @@ class DGCNNClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original classification head regularizes after every hidden layer, not only the last one.
         dropout_list = [self.dropout] * (len(channels_list) - 1)
@@ -437,6 +438,7 @@ class DGCNNSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original semantic segmentation head regularizes only its last hidden layer.
         dropout_list = [0.0] * (len(channels_list) - 1)
@@ -629,6 +631,7 @@ class DGCNNPartSegmentation(PartSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels_list = [self.num_features] + self.head_channels + [self.num_classes]
         # The original part segmentation head regularizes every hidden layer except the last one.
         dropout_list = [self.dropout] * (len(channels_list) - 1)
@@ -650,7 +653,11 @@ class DGCNNPartSegmentation(PartSegmentationModel):
         self.head = self.configure_head()
 
     def forward_features(
-        self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        category: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         if self.stnet is not None:
             pos = self.stnet(pos, batch)

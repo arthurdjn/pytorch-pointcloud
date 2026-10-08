@@ -422,6 +422,7 @@ class KPFCNNClassification(ClassificationModel):
         """Build the stem lifting the input features to `stem_channels`, or `None` when `stem_channels` is unset."""
         if self.stem_channels is None:
             return None
+
         if self.stem_type == "kpconv":
             return KPConvBlock(
                 spatial_dim=self.spatial_dim,
@@ -439,6 +440,7 @@ class KPFCNNClassification(ClassificationModel):
                 norm_kwargs=self.norm_kwargs,
                 bias=self.bias,
             )
+
         act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
         norm = create_norm(self.norm, self.stem_channels, **(self.norm_kwargs or {})) or nn.Identity()
         return nn.Sequential(nn.Linear(self.in_channels, self.stem_channels), norm, act)
@@ -541,6 +543,7 @@ class KPFCNNClassification(ClassificationModel):
                     f"Got `x=None` but the model expects in_channels={self.in_channels} features while `pos` has "
                     f"{pos.size(1)} channels; pass `x` of shape (N, {self.in_channels})."
                 )
+
             x = pos
 
         if self.stem is not None:
@@ -704,6 +707,7 @@ class KPFCNNSegmentation(SemanticSegmentationModel):
         """Build the stem lifting the input features to `stem_channels`, or `None` when `stem_channels` is unset."""
         if self.stem_channels is None:
             return None
+
         if self.stem_type == "kpconv":
             return KPConvBlock(
                 spatial_dim=self.spatial_dim,
@@ -721,6 +725,7 @@ class KPFCNNSegmentation(SemanticSegmentationModel):
                 norm_kwargs=self.norm_kwargs,
                 bias=self.bias,
             )
+
         act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
         norm = create_norm(self.norm, self.stem_channels, **(self.norm_kwargs or {})) or nn.Identity()
         return nn.Sequential(nn.Linear(self.in_channels, self.stem_channels), norm, act)
@@ -777,8 +782,10 @@ class KPFCNNSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         if not self.head_channels:
             return nn.Linear(self.num_features, self.num_classes)
+
         head_act = create_act(self.act, **(self.act_kwargs or {})) or nn.Identity()
         layers: List[nn.Module] = []
         ch_in = self.num_features
@@ -823,6 +830,7 @@ class KPFCNNSegmentation(SemanticSegmentationModel):
                     f"Got `x=None` but the model expects in_channels={self.in_channels} features while `pos` has "
                     f"{pos.size(1)} channels; pass `x` of shape (N, {self.in_channels})."
                 )
+
             x = pos
 
         if self.stem is not None:

@@ -90,7 +90,8 @@ def test_sphereformer_forward_head_pre_logits(model_seg: SphereFormerSegmentatio
 @requires_spconv
 @requires_sptr
 def test_sphereformer_segmentation_reset_classifier(
-    model_seg: SphereFormerSegmentation, data: Dict[str, Tensor]
+    model_seg: SphereFormerSegmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     model_seg.reset_classifier(num_classes=7)
     model_seg.cuda().eval()

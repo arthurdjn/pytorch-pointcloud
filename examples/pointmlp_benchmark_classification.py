@@ -66,6 +66,7 @@ def build_dataset(args: argparse.Namespace, transform: Any) -> Union[ModelNet40H
             transform=T.Slice(keys=[DataKeys.POS, DataKeys.NORMAL], stop=NUM_POINTS),
             download=args.download,
         )
+
     return ScanObjectNN(
         root=args.root,
         train=False,

@@ -176,8 +176,10 @@ def fps(
     """
     if ratio is None and num_nodes is None:
         raise ValueError("Either `ratio` or `num_nodes` must be provided.")
+
     if ratio is not None and num_nodes is not None:
         raise ValueError("Only one of `ratio` or `num_nodes` can be provided.")
+
     _check_packed_2d(src, "src")
     if batch is not None and src.size(0) != batch.numel():
         raise ValueError(f"Size of `src` ({src.size(0)}) must match size of `batch` ({batch.numel()}).")
@@ -346,6 +348,7 @@ def radius(
         y_b = y[y_mask]
         if x_b.numel() == 0 or y_b.numel() == 0:
             continue
+
         x_idx_global = torch.nonzero(x_mask, as_tuple=False).flatten()
         y_idx_global = torch.nonzero(y_mask, as_tuple=False).flatten()
         nx_b = x_b.size(0)

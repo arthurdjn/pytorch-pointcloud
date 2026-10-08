@@ -57,8 +57,10 @@ def part_refinement_inference(
     for key in (pos_key, batch_key, category_key):
         if key not in data:
             raise KeyError(f"`data` is missing the required key {key!r}.")
+
     if min_count < 1:
         raise ValueError(f"`min_count` must be >= 1, got {min_count}.")
+
     if num_neighbors < 1:
         raise ValueError(f"`num_neighbors` must be >= 1, got {num_neighbors}.")
 

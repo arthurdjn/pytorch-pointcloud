@@ -62,7 +62,6 @@ def load_shapenet_part_data(file_path: PathLike) -> Optional[ShapeNetPartData]:
     data = np.loadtxt(file_path, delimiter=" ")
     if data.shape[0] == 0:
         return None
-
     return ShapeNetPartData(
         pos=data[:, :3].astype(np.float32),
         normal=data[:, 3:6].astype(np.float32),
@@ -196,12 +195,15 @@ class ShapeNetPart(PointCloudDataset):
     def raw_files_exist(self) -> bool:
         if not Path(self.raw_dir).exists():
             return False
+
         if not Path(self.raw_dir, "train_test_split", f"shuffled_{self.split}_file_list.json").exists():
             return False
+
         for category_id in self.category_ids.values():
             cat_dir = Path(self.raw_dir, category_id)
             if not cat_dir.exists() or not any(cat_dir.rglob("*.txt")):
                 return False
+
         return True
 
     @override
@@ -226,6 +228,7 @@ class ShapeNetPart(PointCloudDataset):
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if self.processed_files_exist() and not force:
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "

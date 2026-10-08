@@ -21,13 +21,11 @@ def _set_dataset_transform(dataset: Dataset, transform: Callable[..., Any]) -> N
         for child in children:
             _set_dataset_transform(child, transform)
         return
-
     if not hasattr(dataset, "transform"):
         wrapped = getattr(dataset, "dataset", None)
         if wrapped is not None:
             _set_dataset_transform(wrapped, transform)
         return
-
     if getattr(dataset, "transform", None) is not None:
         return
 
@@ -189,6 +187,7 @@ class PointCloudDataModule(LightningDataModule):
             sizes = getattr(self.train_dataset, "sizes", None)
             if sizes is None:
                 raise ValueError("train_ratios requires train_dataset to be a ConcatDataset exposing `sizes`.")
+
             batch_sampler = SingleDatasetBatchSampler(
                 sizes,
                 ratios=self.train_ratios,

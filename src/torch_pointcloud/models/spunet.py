@@ -114,6 +114,7 @@ class SparseUNetEncoder(nn.Module):
             raise ValueError(
                 f"`depths` and `channels` must have the same length, got {len(depths)} and {len(channels)}."
             )
+
         self.in_channels = in_channels
         self.stem_channels = stem_channels
         self.channels = tuple(channels)
@@ -246,11 +247,13 @@ class SparseUNetDecoder(nn.Module):
             raise ValueError(
                 f"`depths` and `channels` must have the same length, got {len(depths)} and {len(channels)}."
             )
+
         if len(skip_channels) != len(channels):
             raise ValueError(
                 f"`skip_channels` and `channels` must have the same length, "
                 f"got {len(skip_channels)} and {len(channels)}."
             )
+
         self.in_channels = in_channels
         self.skip_channels = tuple(skip_channels)
         self.channels = tuple(channels)
@@ -368,11 +371,13 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
                 f"`decoder_channels` and `encoder_channels` must have the same length, "
                 f"got {len(decoder_channels)} and {len(encoder_channels)}."
             )
+
         if len(encoder_depths) != len(encoder_channels):
             raise ValueError(
                 f"`encoder_depths` and `encoder_channels` must have the same length, "
                 f"got {len(encoder_depths)} and {len(encoder_channels)}."
             )
+
         if len(decoder_depths) != len(decoder_channels):
             raise ValueError(
                 f"`decoder_depths` and `decoder_channels` must have the same length, "
@@ -490,6 +495,7 @@ class SparseUNetSegmentation(SemanticSegmentationModel):
     def forward_head(self, x: "SparseConvTensor", pre_logits: bool = False) -> Tensor:
         if pre_logits:
             return x.features
+
         out = self.head(x)
         return out.features if hasattr(out, "features") else out
 

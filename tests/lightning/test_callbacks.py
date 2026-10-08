@@ -292,7 +292,8 @@ def test_metric_callback_batch_key_not_duplicated_as_kwarg(trainer: L.Trainer) -
 
 
 def test_metric_callback_real_metric_ignores_extra_step_keys(
-    trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch
+    trainer: L.Trainer,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A torchmetrics metric (wrapped `update`) inspects cleanly and ignores undeclared step-output keys."""
     module = _cls_module(num_classes=3)
@@ -365,7 +366,8 @@ def test_metric_callback_logs_on_test_stage(trainer: L.Trainer, monkeypatch: pyt
 
 
 def test_metric_callback_test_stage_ignores_validation_hooks(
-    trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch
+    trainer: L.Trainer,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _cls_module(num_classes=3)
     log = Mock()

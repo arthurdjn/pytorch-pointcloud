@@ -154,7 +154,8 @@ def test_optional_import_version_requirement_invalid(mock_package: str) -> None:
 
 @pytest.fixture
 def lazy_module_factory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Generator[Callable[[str, str], str], None, None]:
     created: List[str] = []
 
