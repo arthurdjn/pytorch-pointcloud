@@ -3233,6 +3233,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../functional/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  functional
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../anchor/" class="md-nav__link">
         
   
@@ -3314,14 +3341,41 @@
   
   
     <li class="md-nav__item">
-      <a href="../threedetr/" class="md-nav__link">
+      <a href="../corner/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  threedetr
+  corner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../focal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  focal
 
     
   </span>
@@ -3395,6 +3449,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../matching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  matching
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pointrcnn/" class="md-nav__link">
         
   
@@ -3430,6 +3511,60 @@
     
   
   sum
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../threedetr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  threedetr
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  tnet
 
     
   </span>
@@ -4936,6 +5071,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../ops/anchors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  anchors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../ops/box3d/" class="md-nav__link">
         
   
@@ -6117,10 +6279,10 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/votenet.py#L33-L264&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss">VoteNetLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/votenet.py#L61-L324&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss">VoteNetLoss</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Multi-task VoteNet detection loss (vote, objectness, box, semantic).</p>
+            <p>Loss of <code>VoteNetDetection</code> (vote, objectness, box, semantic).</p>
           </div>
         </li>
     </ul>
@@ -6149,7 +6311,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">VoteNetLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/votenet.py#L33-L264" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/votenet.py#L61-L324" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.votenet.VoteNetLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">VoteNetLoss</span><span class="p">(</span>
@@ -6161,8 +6323,9 @@
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">near_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">far_threshold</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">objectness_weights</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">loss_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">gt_vote_factor</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">loss_weight</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6171,12 +6334,24 @@
 
 
 
-        <p>Multi-task VoteNet detection loss (vote, objectness, box, semantic).</p>
-<p>Reference: <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1904.09664">Qi et al., 2019</a>.</p>
-<p>Proposals are matched to ground-truth objects by nearest center: a proposal is positive when its
-nearest GT center is within <code>near_threshold</code>, negative beyond <code>far_threshold</code>, and ignored in the
-band between. Positives drive the center, heading, size and semantic terms; the vote term pulls
-each object seed's vote toward its object center (the closest of up to three candidate votes).</p>
+        <p>Loss of <code>VoteNetDetection</code> (vote, objectness, box, semantic).</p>
+<p>Reference: <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1904.09664">Deep Hough Voting for 3D Object Detection in Point Clouds</a> (Qi et al., 2019).</p>
+<p>Every target is assigned inside the loss from the packed ground-truth boxes:</p>
+<ul>
+<li><strong>Vote:</strong> each seed point inside a box votes for its center. A seed collects the centers of the first
+  <code>gt_vote_factor</code> boxes containing it (repeating the first when inside fewer), and the smooth-<span class="arithmatex">\(L_1\)</span>
+  distance of its closest predicted vote to its closest target vote is averaged over the seeds inside
+  a box.</li>
+<li><strong>Objectness:</strong> proposals are matched to objects by nearest center. A proposal is positive when its
+  nearest center is within <code>near_threshold</code>, negative beyond <code>far_threshold</code>, and ignored in the band
+  between; a weighted two-way cross-entropy supervises the objectness logits.</li>
+<li><strong>Box and semantic:</strong> positives drive the center (symmetric Chamfer between proposal and object
+  centers), heading (bin cross-entropy + normalized residual smooth-<span class="arithmatex">\(L_1\)</span>), size (class cross-entropy +
+  normalized residual smooth-<span class="arithmatex">\(L_1\)</span>) and semantic-class terms, each averaged over the positives.</li>
+</ul>
+<p>The library heading is counter-clockwise about <span class="arithmatex">\(+z\)</span> while the heading head predicts the negated angle,
+so the heading bins are computed from <span class="arithmatex">\(-\theta\)</span>. Scenes are padded to a common object count with zero
+centers that take part in the proposal-to-object matching.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6202,7 +6377,7 @@ each object seed's vote toward its object center (the closest of up to three can
               (<code><span title="int">int</span></code>)
           –
           <div class="doc-md-description">
-            <p>Number of size templates.</p>
+            <p>Number of size templates (the size class is the semantic class).</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6210,7 +6385,7 @@ each object seed's vote toward its object center (the closest of up to three can
               (<code><span title="typing.Union">Union</span>[<span title="torch.Tensor">Tensor</span>, <span title="typing.List">List</span>[<span title="typing.List">List</span>[<span title="float">float</span>]]]</code>)
           –
           <div class="doc-md-description">
-            <p>Per-template mean box size, shape <span class="arithmatex">\((\text{num\_size\_cluster}, 3)\)</span>.</p>
+            <p>Per-template mean box size, shape <span class="arithmatex">\((\text{num\_size\_clusters}, 3)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6244,6 +6419,16 @@ each object seed's vote toward its object center (the closest of up to three can
           </div>
         </li>
         <li class="doc-section-item field-body">
+            <b><code>gt_vote_factor</code></b>
+              (<code><span title="int">int</span></code>, default:
+                  <code>3</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Number of target votes (containing-box centers) collected per seed.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
             <b><code>loss_weight</code></b>
               (<code><span title="float">float</span></code>, default:
                   <code>10.0</code>
@@ -6272,10 +6457,10 @@ each object seed's vote toward its object center (the closest of up to three can
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/votenet.py#L82-L124&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/votenet.py#L126-L169&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.votenet.VoteNetLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Compute the VoteNet loss and its components.</p>
+              <p>Compute the VoteNet loss and its terms.</p>
             </div>
           </li>
     </ul>
@@ -6303,42 +6488,47 @@ each object seed's vote toward its object center (the closest of up to three can
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/votenet.py#L82-L124" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/votenet.py#L126-L169" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.votenet.VoteNetLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">],</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">output</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetOutput&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/models/votenet.py#L28-L45&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../models/votenet/#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">]</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Compute the VoteNet loss and its components.</p>
+        <p>Compute the VoteNet loss and its terms.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
     <ul>
         <li class="doc-section-item field-body">
             <b><code>output</code></b>
-              (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>)
+              (<code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;VoteNetOutput&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/models/votenet.py#L28-L45&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../models/votenet/#torch_pointcloud.models.votenet.VoteNetOutput">VoteNetOutput</a></code>)
           –
           <div class="doc-md-description">
             <p>The model's raw output: dense head tensors (<code>objectness_scores</code>, <code>center</code>,
 <code>heading_scores</code>, <code>heading_residuals_normalized</code>, <code>size_scores</code>,
 <code>size_residuals_normalized</code>, <code>sem_cls_scores</code>, <code>pos_vote_aggr</code>) as <span class="arithmatex">\((B, K, \cdot)\)</span>,
-plus the packed <code>pos_seed</code>, <code>pos_vote</code> <span class="arithmatex">\((S, 3)\)</span> and <code>seed_indices</code>, <code>batch_seed</code>, <code>batch_vote</code> <span class="arithmatex">\((S,)\)</span>.</p>
+plus the packed seeds <code>pos_seed</code> <span class="arithmatex">\((S, 3)\)</span>, <code>batch_seed</code> <span class="arithmatex">\((S,)\)</span> and their votes <code>pos_vote</code>
+<span class="arithmatex">\((S \cdot \text{vote\_factor}, 3)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
-            <b><code>batch</code></b>
+            <b><code>data</code></b>
               (<code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
           –
           <div class="doc-md-description">
-            <p>Ground truth (<code>center_label</code>, <code>heading_class_label</code>, <code>heading_residual_label</code>,
-<code>size_class_label</code>, <code>size_residual_label</code>, <code>sem_cls_label</code>, <code>box_label_mask</code> as
-<span class="arithmatex">\((B, M, \cdot)\)</span>, per-point <code>vote_label</code> <span class="arithmatex">\((B, N, 9)\)</span>, <code>vote_label_mask</code> <span class="arithmatex">\((B, N)\)</span>, and the
-per-point <code>batch</code> index). The heading labels are binned from counter-clockwise headings
-and re-binned internally into the model's native (negated) heading space.</p>
+            <p>Packed ground truth: <code>DataKeys.BOX</code> <span class="arithmatex">\((K, 7)\)</span> full-extent boxes with counter-clockwise
+headings, <code>DataKeys.LABEL</code> <span class="arithmatex">\((K,)\)</span> per-box classes and <code>DataKeys.BATCH_BOX</code> <span class="arithmatex">\((K,)\)</span> per-box
+scene index.</p>
           </div>
         </li>
     </ul>
@@ -6350,21 +6540,21 @@ and re-binned internally into the model's native (negated) heading space.</p>
               <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
           –
           <div class="doc-md-description">
-            <p>A dict with the scalar <code>loss</code> (to backprop) and detached <code>vote_loss</code>, <code>objectness_loss</code>,</p>
+            <p>A dict with the scalar <code>loss</code> and detached <code>vote_loss</code>, <code>objectness_loss</code>, <code>box_loss</code>,</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
               <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
           –
           <div class="doc-md-description">
-            <p><code>box_loss</code>, <code>center_loss</code>, <code>heading_cls_loss</code>, <code>heading_res_loss</code>, <code>size_cls_loss</code>,</p>
+            <p><code>center_loss</code>, <code>heading_cls_loss</code>, <code>heading_res_loss</code>, <code>size_cls_loss</code>, <code>size_res_loss</code>,</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
               <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]</code>
           –
           <div class="doc-md-description">
-            <p><code>size_res_loss</code>, <code>sem_cls_loss</code> and <code>obj_acc</code> diagnostics.</p>
+            <p><code>sem_cls_loss</code> and the <code>obj_acc</code> diagnostic.</p>
           </div>
         </li>
     </ul>

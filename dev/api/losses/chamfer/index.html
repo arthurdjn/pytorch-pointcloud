@@ -18,7 +18,7 @@
         <link rel="prev" href="../centerpoint/">
       
       
-        <link rel="next" href="../threedetr/">
+        <link rel="next" href="../corner/">
       
       
         
@@ -137,7 +137,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#torch_pointcloud.losses.chamfer.chamfer_distance" class="md-skip">
+        <a href="#torch_pointcloud.losses.chamfer.ChamferDistance" class="md-skip">
           Skip to content
         </a>
       
@@ -3233,6 +3233,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../functional/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  functional
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../anchor/" class="md-nav__link">
         
   
@@ -3344,6 +3371,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#torch_pointcloud.losses.chamfer.ChamferDistance" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ChamferDistance
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#torch_pointcloud.losses.chamfer.chamfer_distance" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -3370,14 +3408,41 @@
   
   
     <li class="md-nav__item">
-      <a href="../threedetr/" class="md-nav__link">
+      <a href="../corner/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  threedetr
+  corner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../focal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  focal
 
     
   </span>
@@ -3451,6 +3516,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../matching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  matching
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pointrcnn/" class="md-nav__link">
         
   
@@ -3486,6 +3578,60 @@
     
   
   sum
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../threedetr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  threedetr
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  tnet
 
     
   </span>
@@ -4936,6 +5082,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../ops/anchors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  anchors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../ops/box3d/" class="md-nav__link">
         
   
@@ -6000,6 +6173,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#torch_pointcloud.losses.chamfer.ChamferDistance" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ChamferDistance
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#torch_pointcloud.losses.chamfer.chamfer_distance" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -6100,7 +6284,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>Chamfer distance between batched point sets.</p>
+        <p>Chamfer distance between packed point sets.</p>
 
 
 
@@ -6111,21 +6295,114 @@
 
 
 
-
-
-<p><span class="doc-section-title">Functions:</span></p>
+<p><span class="doc-section-title">Classes:</span></p>
     <ul>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;chamfer_distance&lt;/span&gt;
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;ChamferDistance&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/chamfer.py#L8-L58&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer.chamfer_distance">chamfer_distance</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L151-L186&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer.ChamferDistance">ChamferDistance</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Module form of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;chamfer_distance&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L70-L148&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer.chamfer_distance"><code>chamfer_distance</code></a>.</p>
+          </div>
+        </li>
+    </ul>
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.losses.chamfer.ChamferDistance" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ChamferDistance</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L151-L186" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.losses.chamfer.ChamferDistance" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ChamferDistance</span><span class="p">(</span><span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s1">&#39;l1&#39;</span><span class="p">,</span> <span class="s1">&#39;l2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;l2&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.nn.Module">Module</span></code></p>
+
+
+
+        <p>Module form of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;chamfer_distance&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L70-L148&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer.chamfer_distance"><code>chamfer_distance</code></a>.</p>
+<p>The reconstruction criterion of the masked point modeling models, whose pretraining <code>forward</code> returns
+the <code>(pred, target, pred_batch, target_batch)</code> tuple this module takes.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>norm</code></b>
+              (<code><span title="typing.Literal">Literal</span>[&#39;l1&#39;, &#39;l2&#39;]</code>, default:
+                  <code>&#39;l2&#39;</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Distance variant, <code>"l1"</code> (euclidean) or <code>"l2"</code> (squared euclidean).</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">criterion</span> <span class="o">=</span> <span class="n">ChamferDistance</span><span class="p">(</span><span class="n">norm</span><span class="o">=</span><span class="s2">&quot;l1&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">criterion</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>  <span class="c1"># 0.0</span>
+</code></pre></div>
+</details>
+
+
+
+
+
+
+
+
+
+
+
+<p><span class="doc-section-title">Methods:</span></p>
+    <ul>
+          <li class="doc-section-item field-body">
+            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L175-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.chamfer.ChamferDistance.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Symmetric Chamfer distance between two batched point sets.</p>
+              <p>Compute the Chamfer distance between the packed sets <code>pred</code> <span class="arithmatex">\((N, 3)\)</span> and <code>target</code> <span class="arithmatex">\((M, 3)\)</span>.</p>
             </div>
           </li>
     </ul>
+
 
 
 
@@ -6145,35 +6422,78 @@
 <div class="doc doc-object doc-function">
 
 
+<h4 id="torch_pointcloud.losses.chamfer.ChamferDistance.forward" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L175-L183" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.losses.chamfer.ChamferDistance.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pred</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">target</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">pred_batch</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">target_batch</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compute the Chamfer distance between the packed sets <code>pred</code> <span class="arithmatex">\((N, 3)\)</span> and <code>target</code> <span class="arithmatex">\((M, 3)\)</span>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="torch_pointcloud.losses.chamfer.chamfer_distance" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">chamfer_distance</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/chamfer.py#L8-L58" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/chamfer.py#L70-L148" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.chamfer.chamfer_distance" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">chamfer_distance</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">pred</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">target</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s2">&quot;l1&quot;</span><span class="p">,</span> <span class="s2">&quot;l2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;l2&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pred_batch</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">target_batch</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">norm</span><span class="p">:</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s2">&quot;l1&quot;</span><span class="p">,</span> <span class="s2">&quot;l2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;l2&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Symmetric Chamfer distance between two batched point sets.</p>
+        <p>Symmetric Chamfer distance between packed point sets.</p>
 <p>Set-to-set reconstruction objective introduced for point cloud generation in
-<span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1612.00603">Fan et al., 2017</a> and standard for masked point
-modeling pretraining (the SSL pretraining models return <code>(pred, target)</code> group coordinates in
-exactly this layout). For each point the squared euclidean distance to its nearest neighbor in
-the other set is computed, then reduced over all points and batches:</p>
-<div class="arithmatex">\[\text{CD}_{\ell_2} = \frac{1}{BN} \sum \min_j \lVert p_i - q_j \rVert_2^2
-+ \frac{1}{BM} \sum \min_i \lVert p_i - q_j \rVert_2^2\]</div>
-<div class="arithmatex">\[\text{CD}_{\ell_1} = \frac{1}{2} \Big( \frac{1}{BN} \sum \min_j \lVert p_i - q_j \rVert_2
-+ \frac{1}{BM} \sum \min_i \lVert p_i - q_j \rVert_2 \Big)\]</div>
+<span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1612.00603">A Point Set Generation Network for 3D Object Reconstruction from a Single Image</a> (Fan et al., 2017) and standard for masked point
+modeling pretraining. Every point is matched to its nearest neighbor in the other set of the same
+index (its group, its scene), and the squared euclidean distances are averaged over all points:</p>
+<div class="arithmatex">\[\text{CD}_{\ell_2} = \frac{1}{N} \sum_i \min_j \lVert p_i - q_j \rVert_2^2
++ \frac{1}{M} \sum_j \min_i \lVert p_i - q_j \rVert_2^2\]</div>
+<div class="arithmatex">\[\text{CD}_{\ell_1} = \frac{1}{2} \Big( \frac{1}{N} \sum_i \min_j \lVert p_i - q_j \rVert_2
++ \frac{1}{M} \sum_j \min_i \lVert p_i - q_j \rVert_2 \Big)\]</div>
 <p>The <code>"l2"</code> variant sums the two directed means of squared distances (no square root, no
 halving); the <code>"l1"</code> variant averages the two directed means of euclidean distances. Both
 follow the reference pretraining convention, so losses are comparable with published values.</p>
+<p>The nearest neighbors come from the <code>sided_distance</code> kernel of
+<a href="https://github.com/NVIDIAGameWorks/kaolin">kaolin</a> when it is installed and the points are on CUDA,
+otherwise from the kNN kernel of <code>torch_geometric</code> (<code>pyg-lib</code>); either way without autograd, and only
+the matched pairs are differentiated, so the memory grows with <span class="arithmatex">\(N + M\)</span> rather than <span class="arithmatex">\(N \cdot M\)</span> and whole
+clouds fit. Without either kernel the search falls back to the dense distance matrix.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6183,7 +6503,7 @@ follow the reference pretraining convention, so losses are comparable with publi
               (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Predicted point sets of shape <span class="arithmatex">\((B, N, 3)\)</span>.</p>
+            <p>Predicted points of every set, packed, shape <span class="arithmatex">\((N, 3)\)</span>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6191,7 +6511,27 @@ follow the reference pretraining convention, so losses are comparable with publi
               (<code><span title="torch.Tensor">Tensor</span></code>)
           –
           <div class="doc-md-description">
-            <p>Target point sets of shape <span class="arithmatex">\((B, M, 3)\)</span>.</p>
+            <p>Target points of every set, packed, shape <span class="arithmatex">\((M, 3)\)</span>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>pred_batch</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Tensor">Tensor</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Set index of every predicted point (sorted), shape <span class="arithmatex">\((N,)\)</span>; <code>None</code> for a single set.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>target_batch</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Tensor">Tensor</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Set index of every target point (sorted), shape <span class="arithmatex">\((M,)\)</span>; <code>None</code> for a single set.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -6213,7 +6553,7 @@ follow the reference pretraining convention, so losses are comparable with publi
               <code><span title="torch.Tensor">Tensor</span></code>
           –
           <div class="doc-md-description">
-            <p>Scalar Chamfer distance averaged over all points and batches.</p>
+            <p>Scalar Chamfer distance averaged over all points.</p>
           </div>
         </li>
     </ul>
@@ -6222,8 +6562,11 @@ follow the reference pretraining convention, so losses are comparable with publi
 <details class="shape" open>
   <summary>Shape</summary>
   <ul>
-<li>Input: <span class="arithmatex">\((B, N, 3)\)</span> and <span class="arithmatex">\((B, M, 3)\)</span>.</li>
-<li>Output: scalar.</li>
+<li>pred: <span class="arithmatex">\((N, 3)\)</span></li>
+<li>target: <span class="arithmatex">\((M, 3)\)</span></li>
+<li>pred_batch: <span class="arithmatex">\((N,)\)</span></li>
+<li>target_batch: <span class="arithmatex">\((M,)\)</span></li>
+<li>output: scalar</li>
 </ul>
 </details>
 
@@ -6232,11 +6575,12 @@ follow the reference pretraining convention, so losses are comparable with publi
   <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">chamfer_distance</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">target</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">loss</span> <span class="o">=</span> <span class="n">chamfer_distance</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;l2&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">64</span> <span class="o">*</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">target</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">64</span> <span class="o">*</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">loss</span> <span class="o">=</span> <span class="n">chamfer_distance</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pred_batch</span><span class="o">=</span><span class="n">batch</span><span class="p">,</span> <span class="n">target_batch</span><span class="o">=</span><span class="n">batch</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </code></pre></div>
 </details>
 
@@ -6311,13 +6655,13 @@ follow the reference pretraining convention, so losses are comparable with publi
         
         
           
-          <a href="../threedetr/" class="md-footer__link md-footer__link--next" aria-label="Next: threedetr">
+          <a href="../corner/" class="md-footer__link md-footer__link--next" aria-label="Next: corner">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                threedetr
+                corner
               </div>
             </div>
             <div class="md-footer__button md-icon">

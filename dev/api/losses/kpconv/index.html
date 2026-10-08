@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://pytorch-pointcloud.org/latest/api/losses/kpconv/">
       
       
-        <link rel="prev" href="../threedetr/">
+        <link rel="prev" href="../focal/">
       
       
         <link rel="next" href="../lovasz/">
@@ -3233,6 +3233,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../functional/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  functional
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../anchor/" class="md-nav__link">
         
   
@@ -3314,14 +3341,41 @@
   
   
     <li class="md-nav__item">
-      <a href="../threedetr/" class="md-nav__link">
+      <a href="../corner/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  threedetr
+  corner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../focal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  focal
 
     
   </span>
@@ -3462,6 +3516,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../matching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  matching
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pointrcnn/" class="md-nav__link">
         
   
@@ -3497,6 +3578,60 @@
     
   
   sum
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../threedetr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  threedetr
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  tnet
 
     
   </span>
@@ -4947,6 +5082,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../ops/anchors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  anchors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../ops/box3d/" class="md-nav__link">
         
   
@@ -6139,30 +6301,15 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;KPConvDeformRegularizer&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/kpconv.py#L62-L93&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer">KPConvDeformRegularizer</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/kpconv.py#L64-L93&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer">KPConvDeformRegularizer</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Module form of <code>kpconv_deform_regularizer</code>, to sit next to the task loss in a training loop.</p>
+            <p>Module form of <code>kpconv_deform_regularizer</code>.</p>
           </div>
         </li>
     </ul>
 
 
-
-
-<p><span class="doc-section-title">Functions:</span></p>
-    <ul>
-          <li class="doc-section-item field-body">
-            <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;kpconv_deform_regularizer&lt;/span&gt;
-
-  
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/kpconv.py#L10-L59&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.kpconv.kpconv_deform_regularizer">kpconv_deform_regularizer</a></code></b>
-            –
-            <div class="doc-md-description">
-              <p>Regularize the deformed kernel points of every deformable <code>KPConv</code> in <code>module</code>.</p>
-            </div>
-          </li>
-    </ul>
 
 
 
@@ -6186,7 +6333,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">KPConvDeformRegularizer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/kpconv.py#L62-L93" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/kpconv.py#L64-L93" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.kpconv.KPConvDeformRegularizer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">KPConvDeformRegularizer</span><span class="p">(</span>
@@ -6200,7 +6347,7 @@
 
 
 
-        <p>Module form of <code>kpconv_deform_regularizer</code>, to sit next to the task loss in a training loop.</p>
+        <p>Module form of <code>kpconv_deform_regularizer</code>.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6230,15 +6377,14 @@
 
 <details class="example" open>
   <summary>Example</summary>
-  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConv</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConvDeformRegularizer</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">conv</span> <span class="o">=</span> <span class="n">KPConv</span><span class="p">(</span><span class="n">spatial_dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">in_channels</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">kp_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">kp_sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">deformable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="p">(</span><span class="mi">128</span><span class="p">,))])</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">out</span> <span class="o">=</span> <span class="n">conv</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">pos</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">)</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">KPConvDeformRegularizer</span><span class="p">(</span><span class="n">repulse_extent</span><span class="o">=</span><span class="mf">1.2</span><span class="p">)(</span><span class="n">conv</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">([])</span>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConv</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">KPConvDeformRegularizer</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">conv</span> <span class="o">=</span> <span class="n">KPConv</span><span class="p">(</span><span class="n">spatial_dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">in_channels</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">kp_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">kp_sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">deformable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="p">(</span><span class="mi">128</span><span class="p">,))])</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">out</span> <span class="o">=</span> <span class="n">conv</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">pos</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">KPConvDeformRegularizer</span><span class="p">(</span><span class="n">repulse_extent</span><span class="o">=</span><span class="mf">1.2</span><span class="p">)(</span><span class="n">conv</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># torch.Size([])</span>
 </code></pre></div>
 </details>
 
@@ -6283,7 +6429,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">kpconv_deform_regularizer</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/kpconv.py#L10-L59" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/kpconv.py#L12-L61" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.kpconv.kpconv_deform_regularizer" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">kpconv_deform_regularizer</span><span class="p">(</span>
@@ -6296,7 +6442,7 @@
     <div class="doc doc-contents ">
 
         <p>Regularize the deformed kernel points of every deformable <code>KPConv</code> in <code>module</code>.</p>
-<p>The point-to-point regularizer of <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1904.08889">KPConv</a>: a fitting term pulls
+<p>The point-to-point regularizer of <span class="twemoji"><svg id="logomark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.732 24.269"><g id="tiny"><path d="M573.549,280.916l2.266,2.738,6.674-7.84c.353-.47.52-.717.353-1.117a1.218,1.218,0,0,0-1.061-.748h0a.953.953,0,0,0-.712.262Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/><path d="M579.525,282.225l-10.606-10.174a1.413,1.413,0,0,0-.834-.5,1.09,1.09,0,0,0-1.027.66c-.167.4-.047.681.319,1.206l8.44,10.242h0l-6.282,7.716a1.336,1.336,0,0,0-.323,1.3,1.114,1.114,0,0,0,1.04.69A.992.992,0,0,0,571,293l8.519-7.92A1.924,1.924,0,0,0,579.525,282.225Z" transform="translate(-566.984 -271.548)" fill="#b31b1b"/><path d="M584.32,293.912l-8.525-10.275,0,0L573.53,280.9l-1.389,1.254a2.063,2.063,0,0,0,0,2.965l10.812,10.419a.925.925,0,0,0,.742.282,1.039,1.039,0,0,0,.953-.667A1.261,1.261,0,0,0,584.32,293.912Z" transform="translate(-566.984 -271.548)" fill="#bdb9b4"/></g></svg></span> <a href="https://arxiv.org/abs/1904.08889">KPConv: Flexible and Deformable Convolution for Point Clouds</a> (Thomas et al., 2019): a fitting term pulls
 every deformed kernel point towards its closest input point, a repulsive term keeps the kernel points of one
 location further apart than <code>repulse_extent</code>. Both read the statistics the layers keep from their last
 forward pass (<code>running_min_d2</code>, <code>running_deformed_kernel</code>), so call it after the forward and before the
@@ -6423,7 +6569,7 @@ backward of the same batch. Distances are expressed in units of each layer's <co
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../threedetr/" class="md-footer__link md-footer__link--prev" aria-label="Previous: threedetr">
+          <a href="../focal/" class="md-footer__link md-footer__link--prev" aria-label="Previous: focal">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -6433,7 +6579,7 @@ backward of the same batch. Distances are expressed in units of each layer's <co
                 Previous
               </span>
               <div class="md-ellipsis">
-                threedetr
+                focal
               </div>
             </div>
           </a>

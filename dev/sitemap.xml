@@ -289,6 +289,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/functional/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/anchor/</loc>
       </url>
       <url>
@@ -298,7 +301,10 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/chamfer/</loc>
       </url>
       <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/losses/threedetr/</loc>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/corner/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/focal/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/kpconv/</loc>
@@ -307,10 +313,19 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/lovasz/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/matching/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/pointrcnn/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/sum/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/threedetr/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/tnet/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/transfusion/</loc>
@@ -449,6 +464,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/ops/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/anchors/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/ops/box3d/</loc>

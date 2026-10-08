@@ -18,7 +18,7 @@
         <link rel="prev" href="../pointrcnn/">
       
       
-        <link rel="next" href="../transfusion/">
+        <link rel="next" href="../threedetr/">
       
       
         
@@ -3233,6 +3233,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../functional/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  functional
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../anchor/" class="md-nav__link">
         
   
@@ -3314,14 +3341,41 @@
   
   
     <li class="md-nav__item">
-      <a href="../threedetr/" class="md-nav__link">
+      <a href="../corner/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-  threedetr
+  corner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../focal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  focal
 
     
   </span>
@@ -3376,6 +3430,33 @@
     
   
   lovasz
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../matching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  matching
 
     
   </span>
@@ -3493,6 +3574,60 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../threedetr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  threedetr
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  tnet
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -4936,6 +5071,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../ops/anchors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  anchors
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../ops/box3d/" class="md-nav__link">
         
   
@@ -6100,7 +6262,7 @@
 
     <div class="doc doc-contents first">
 
-        <p>Composite loss: sum of several <code>(logits, target)</code> losses.</p>
+        <p>Weighted sum of several <code>(logits, target)</code> losses.</p>
 
 
 
@@ -6117,10 +6279,10 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SumLoss&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/sum.py#L9-L25&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.sum.SumLoss">SumLoss</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/sum.py#L11-L38&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.sum.SumLoss">SumLoss</a></code></b>
           –
           <div class="doc-md-description">
-            <p>Sum of several loss modules sharing a <code>(logits, target)</code> signature.</p>
+            <p>Weighted sum of several loss modules sharing a <code>(logits, target)</code> signature.</p>
           </div>
         </li>
     </ul>
@@ -6149,10 +6311,13 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SumLoss</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/sum.py#L9-L25" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/sum.py#L11-L38" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.sum.SumLoss" class="headerlink" title="Anchor link to this section">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SumLoss</span><span class="p">(</span><span class="n">losses</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">])</span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SumLoss</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">losses</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="torch.nn.Module">Module</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">weights</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6161,9 +6326,9 @@
 
 
 
-        <p>Sum of several loss modules sharing a <code>(logits, target)</code> signature.</p>
+        <p>Weighted sum of several loss modules sharing a <code>(logits, target)</code> signature.</p>
 <p>Each sub-loss is evaluated on the same inputs and the results are added (e.g. cross-entropy plus
-Lovász). Apply per-loss weights through each module's own option (e.g. <code>LovaszLoss(loss_weight=...)</code>).</p>
+Lovász), each scaled by its weight when <code>weights</code> is given.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -6174,6 +6339,16 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
           –
           <div class="doc-md-description">
             <p>The loss modules to sum.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>weights</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="typing.Sequence">Sequence</span>[<span title="float">float</span>]]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>One scalar per loss; <code>None</code> adds them as they are.</p>
           </div>
         </li>
     </ul>
@@ -6195,10 +6370,10 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/sum.py#L23-L25&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.sum.SumLoss.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/sum.py#L30-L35&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.losses.sum.SumLoss.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
-              <p>Compute the summed loss over all sub-losses.</p>
+              <p>Compute the weighted sum of the sub-losses.</p>
             </div>
           </li>
     </ul>
@@ -6226,7 +6401,7 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/63f25cd6def198074f9f4f632e4808f33d6ac09c/src/torch_pointcloud/losses/sum.py#L23-L25" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4cc19076a223584c4128a2afb141ef668aa0b271/src/torch_pointcloud/losses/sum.py#L30-L35" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.losses.sum.SumLoss.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span><span class="n">logits</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -6234,7 +6409,7 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
 
     <div class="doc doc-contents ">
 
-        <p>Compute the summed loss over all sub-losses.</p>
+        <p>Compute the weighted sum of the sub-losses.</p>
 
 
     </div>
@@ -6317,13 +6492,13 @@ Lovász). Apply per-loss weights through each module's own option (e.g. <code>Lo
         
         
           
-          <a href="../transfusion/" class="md-footer__link md-footer__link--next" aria-label="Next: transfusion">
+          <a href="../threedetr/" class="md-footer__link md-footer__link--next" aria-label="Next: threedetr">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                transfusion
+                threedetr
               </div>
             </div>
             <div class="md-footer__button md-icon">

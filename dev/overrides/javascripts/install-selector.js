@@ -14,7 +14,7 @@ function initInstallSelector() {
   var CUDA_DOT = { cu126: "12.6", cu128: "12.8", cu129: "12.9", cu130: "13.0", cu132: "13.2" };
   var state = {
     pm: "uv", torch: "2.10", cuda: "cu128",
-    extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, lightning: false }
+    extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, kaolin: false, lightning: false }
   };
   function disabledExtras() {
     var d = {};
@@ -24,7 +24,13 @@ function initInstallSelector() {
     if (["2.12", "2.13", "2.14"].indexOf(state.torch) !== -1) { d.mamba = noWheels; }
     if (["2.13", "2.14"].indexOf(state.torch) !== -1) { d.sptr = "needs torch-scatter, which has no torch " + state.torch + " wheels"; }
     if (state.cuda === "cu130" || state.cuda === "cu132") { d.spconv = "no CUDA 13 build"; }
+    if (state.torch !== "2.8") { d.kaolin = "no torch " + state.torch + " wheels on NVIDIA's index"; }
     return d;
+  }
+  function torchvisionFor(torchVersion) {
+    // torchvision releases in lockstep with torch: 2.8.0 -> 0.23.0, 2.9.1 -> 0.24.1, ...
+    var parts = torchVersion.split(".");
+    return "0." + (parseInt(parts[1], 10) + 15) + "." + parts[2];
   }
   function command() {
     var v = TORCH[state.torch].v;
@@ -69,6 +75,12 @@ function initInstallSelector() {
       lines.push("", pipish + " torch-scatter -f https://data.pyg.org/whl/torch-" + v + "+" + tag + ".html");
       lines.push(pipish + " --no-build-isolation \\");
       lines.push('  "sptr @ git+https://github.com/arthurdjn/SparseTransformer.git@fix/install-python-package"');
+    }
+    if (state.extras.kaolin) {
+      lines.push("", pipish + " torchvision==" + torchvisionFor(v) + " \\");
+      lines.push("  --index-url https://download.pytorch.org/whl/" + tag);
+      lines.push(pipish + " kaolin==0.18.0 \\");
+      lines.push("  -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-" + v + "_" + tag + ".html");
     }
     if (state.extras.lightning) {
       lines.push("", pipish + " lightning torchmetrics");
