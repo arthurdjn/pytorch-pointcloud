@@ -128,7 +128,8 @@ def test_pt_v3_classification_forward(model_clf: PointTransformerV3Classificatio
 
 
 def test_pt_v3_classification_reset_classifier(
-    model_clf: PointTransformerV3Classification, data: Dict[str, Tensor]
+    model_clf: PointTransformerV3Classification,
+    data: Dict[str, Tensor],
 ) -> None:
     model_clf.reset_classifier(num_classes=42)
     model_clf.cuda()
@@ -137,7 +138,8 @@ def test_pt_v3_classification_reset_classifier(
 
 
 def test_pt_v3_classification_forward_features_and_head(
-    model_clf: PointTransformerV3Classification, data: Dict[str, Tensor]
+    model_clf: PointTransformerV3Classification,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, batch = model_clf.forward_features(data["x"], data["pos_grid"], data["batch"])
     assert x.shape[0] == batch.shape[0]
@@ -151,7 +153,8 @@ def test_pt_v3_segmentation_forward(model_seg: PointTransformerV3Segmentation, d
 
 
 def test_pt_v3_segmentation_forward_features_decoder_head(
-    model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+    model_seg: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, _, intermediates = model_seg.forward_features(
         data["x"], data["pos_grid"], data["batch"], return_intermediates=True
@@ -163,7 +166,8 @@ def test_pt_v3_segmentation_forward_features_decoder_head(
 
 
 def test_pt_v3_segmentation_reset_classifier(
-    model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+    model_seg: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     model_seg.reset_classifier(num_classes=42)
     model_seg.cuda()
@@ -172,21 +176,24 @@ def test_pt_v3_segmentation_reset_classifier(
 
 
 def test_pt_v3_condition_without_pdnorm_conditions_raises(
-    model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+    model_seg: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     with pytest.raises(ValueError, match="without conditional norms"):
         model_seg(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
 
 
 def test_pt_v3_pdnorm_conditions_without_condition_raises(
-    model_seg_pdnorm: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+    model_seg_pdnorm: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     with pytest.raises(ValueError, match="pass `condition=`"):
         model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"])
 
 
 def test_pt_v3_pdnorm_forward_with_condition(
-    model_seg_pdnorm: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+    model_seg_pdnorm: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     logits = model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
     assert logits.shape == (data["pos_grid"].shape[0], model_seg_pdnorm.num_classes)

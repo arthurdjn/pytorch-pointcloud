@@ -87,6 +87,7 @@ def _build_attention(
             upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
         )
+
     if attn_kind == "rpe":
         return SerializedAttentionRPE(
             channels=channels,
@@ -99,6 +100,7 @@ def _build_attention(
             upcast_attn=upcast_attn,
             upcast_softmax=upcast_softmax,
         )
+
     if attn_kind == "rope":
         return SerializedAttentionRoPE(
             channels=channels,
@@ -113,6 +115,7 @@ def _build_attention(
             upcast_softmax=upcast_softmax,
             rope_base=rope_base,
         )
+
     raise ValueError(f"Unknown attention kind {attn_kind!r}; expected 'default', 'rpe', or 'rope'.")
 
 
@@ -146,6 +149,7 @@ def serialize(
             "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
             "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
         )
+
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
     depth = max(int(pos_grid.max()).bit_length(), 1)
     serialized_code = torch.stack([serialize_pos(pos_grid, batch, depth=depth, order=order) for order in orders])
@@ -186,11 +190,13 @@ def _resolve_condition(
             f"Got condition={resolved!r} but the model was built without conditional norms; "
             "construct it with `pdnorm_conditions=[...]` to enable per-dataset conditions."
         )
+
     if resolved is None and conditions is not None:
         raise ValueError(
             f"The model was built with pdnorm_conditions={list(conditions)!r}; pass `condition=` at "
             "forward time or set the constructor `condition` default."
         )
+
     return resolved
 
 
@@ -744,7 +750,6 @@ class PointTransformerV3Encoder(nn.Module):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
             )
-
         return SubMConv3dBlock(
             in_channels,
             out_channels,
@@ -1091,7 +1096,10 @@ class PointTransformerV3Decoder(nn.Module):
         return blocks
 
     def forward(
-        self, x: Tensor, intermediates: List[SerializedFeaturesDict], condition: Optional[str] = None
+        self,
+        x: Tensor,
+        intermediates: List[SerializedFeaturesDict],
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         for block, skip in zip(self.blocks, reversed(intermediates)):
             x, pos_grid, batch = block(
@@ -1614,7 +1622,10 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
 
     def forward_decoder(
-        self, x: Tensor, intermediates: List[SerializedFeaturesDict], condition: Optional[str] = None
+        self,
+        x: Tensor,
+        intermediates: List[SerializedFeaturesDict],
+        condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder.forward(x, intermediates, condition=condition)
 

@@ -292,6 +292,7 @@ def part_mean_intersection_over_union(
     """
     if class_names is not None and num_classes not in (None, len(class_names)):
         raise ValueError(f"Got {len(class_names)} `class_names` for `num_classes={num_classes}`.")
+
     if num_classes is None and class_names is not None:
         num_classes = len(class_names)
 

@@ -136,6 +136,7 @@ def _create_dir_factory(source: Path, dest: Path, symlinks: bool = False) -> Cal
         for file_path in source.rglob(pattern):
             if not file_path.is_file():
                 continue
+
             out_path = dest / file_path.relative_to(source)
             out_path.parent.mkdir(parents=True, exist_ok=True)
             if out_path.exists():

@@ -59,6 +59,7 @@ def apply_transform(
             f"`transform` changed the fragment's row count ({n_source} -> {n_predictor}) without recording an "
             f"index map. Make it write one (e.g. `dst_inverse_key`) and pass that key as `inverse_key`."
         )
+
     return sample, inverse_map
 
 
@@ -97,6 +98,7 @@ def split_chunks(n: int, max_size: Optional[int], rng: Optional[torch.Generator]
     """
     if max_size is None:
         return [torch.arange(n, device=device)]
+
     if n > max_size:
         perm = torch.randperm(n, generator=rng, device=device)
         return [perm[i : i + max_size] for i in range(0, n, max_size)]

@@ -177,6 +177,7 @@ def relabel(
         table = {int(v): i for i, v in enumerate(mapping)}
     if not table:
         raise ValueError("relabel requires at least one source value in `mapping`.")
+
     sorted_sources = sorted(table.keys())
     src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)
     tgt = torch.tensor([table[s] for s in sorted_sources], dtype=torch.long, device=labels.device)
@@ -253,6 +254,7 @@ class Relabel(DictTransform):
             tensor = data[key]
             if not isinstance(tensor, torch.Tensor):
                 raise TypeError(f"Expected torch.Tensor for key {key!r}, got {type(tensor).__name__}")
+
             data[key] = relabel(tensor, self.labels, default=self.default)
 
         return data
@@ -454,6 +456,7 @@ class Cat(DictTransform):
         tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in self.iter_keys(data)]
         if not tensors:
             return data
+
         dtype = tensors[0].dtype
         for tensor in tensors[1:]:
             dtype = torch.promote_types(dtype, tensor.dtype)
@@ -780,7 +783,6 @@ def absolute(x: Tensor, inplace: bool = False) -> Tensor:
     if inplace:
         x.abs_()
         return x
-
     return x.abs()
 
 
@@ -843,6 +845,7 @@ class Clamp(DictTransform):
         super().__init__(keys, allow_missing_keys)
         if min is None and max is None:
             raise ValueError("Clamp requires at least one of `min` or `max`.")
+
         self.min = min
         self.max = max
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))

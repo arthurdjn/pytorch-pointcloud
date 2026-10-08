@@ -22,6 +22,7 @@ def _circumsphere(support: Sequence[Tensor]) -> Tuple[Tensor, Tensor]:
     a = support[0]
     if len(support) == 1:
         return a, torch.zeros((), dtype=a.dtype)
+
     d = torch.stack([r - a for r in support[1:]])
     gram = 2 * d @ d.T
     rhs = (d * d).sum(dim=1)
@@ -37,6 +38,7 @@ def _welzl(points: List[Tensor], support: List[Tensor], dim: int) -> Tuple[Tenso
         center, radius = torch.zeros(dim, dtype=torch.float64), torch.tensor(-1.0, dtype=torch.float64)
     if len(support) == dim + 1:
         return center, radius
+
     for i in range(len(points)):
         if torch.norm(points[i] - center) > radius + 1e-9:
             center, radius = _welzl(points[:i], support + [points[i]], dim)
@@ -72,6 +74,7 @@ def minimal_enclosing_ball(points: Tensor) -> Tuple[Tensor, Tensor]:
     """
     if points.dim() != 2 or points.shape[0] == 0:
         raise ValueError(f"Expected a non-empty (N, C) tensor, got shape {tuple(points.shape)}.")
+
     rows = list(points.detach().to("cpu", torch.float64))
     center, radius = _welzl(rows, [], points.shape[1])
     return center.to(points.device, points.dtype), radius.to(points.device, points.dtype)
@@ -131,24 +134,20 @@ def rescale(
     """
     if method not in get_args(RescaleMethod):
         raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(RescaleMethod)}.")
-
     if points.shape[-2] == 0:
         return points
-
     if method == "bbox":
         bbmin = points.min(dim=-2).values
         bbmax = points.max(dim=-2).values
         center = (bbmin + bbmax) / 2
         radius = (bbmax - bbmin).max() / 2
         return (points - center) / (radius + eps)
-
     if method == "centroid_extent":
         bbmin = points.min(dim=-2).values
         bbmax = points.max(dim=-2).values
         scale = (bbmax - bbmin).max()
         centroid = points.mean(dim=-2, keepdim=True)
         return (points - centroid) / (scale + eps)
-
     if method == "min_sphere":
         center, radius = minimal_enclosing_ball(points.reshape(-1, points.shape[-1]))
         return (points - center) / (radius + eps)

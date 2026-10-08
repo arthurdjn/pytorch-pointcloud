@@ -79,7 +79,8 @@ def test_pvcnn_segmentation_forward(model_seg: PVCNNSegmentation, data: Dict[str
 
 
 def test_pvcnn_classification_forward_features_and_head(
-    model_clf: PVCNNClassification, data: Dict[str, Tensor]
+    model_clf: PVCNNClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     x = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.dim() == 2
@@ -88,7 +89,8 @@ def test_pvcnn_classification_forward_features_and_head(
 
 
 def test_pvcnn_segmentation_forward_features_decoder_head(
-    model_seg: PVCNNSegmentation, data: Dict[str, Tensor]
+    model_seg: PVCNNSegmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, intermediates = model_seg.forward_features(data["x"], data["pos"], data["batch"], return_intermediates=True)
     assert len(intermediates) > 0
@@ -165,6 +167,7 @@ def test_pvcnn_mit_han_lab_factory_patches_voxel_branch_to_paper_recipe() -> Non
         for block in pv.voxel_layers:
             if not isinstance(block, Conv3dBlock):
                 continue
+
             assert isinstance(block.norm, nn.BatchNorm3d)
             assert block.norm.eps == 1e-4
             assert isinstance(block.act, nn.LeakyReLU)

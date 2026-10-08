@@ -74,8 +74,10 @@ class PDNorm(nn.Module):
             if condition is None:
                 options = ", ".join(repr(c) for c in self.conditions)
                 raise ValueError(f"PDNorm requires a condition when decoupled. Valid conditions are: {options}.")
+
             if condition not in self.conditions:
                 options = ", ".join(repr(c) for c in self.conditions)
                 raise ValueError(f"Unknown condition {condition!r}. Valid conditions are: {options}.")
+
             return self.norm[self.conditions.index(condition)](x)
         return self.norm(x)

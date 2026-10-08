@@ -82,8 +82,10 @@ class VoxelPartitionInferer(Inferer):
     ) -> None:
         if voxel_size <= 0.0:
             raise ValueError(f"`voxel_size` must be > 0, got {voxel_size}.")
+
         if sw_batch_size < 1:
             raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
+
         if aggregate not in ("mean", "sum"):
             raise ValueError(f"`aggregate` must be 'mean' or 'sum', got {aggregate!r}.")
 
@@ -107,6 +109,7 @@ class VoxelPartitionInferer(Inferer):
     ) -> Tensor:
         if self.pos_key not in data:
             raise KeyError(f"`data` is missing the required key {self.pos_key!r}.")
+
         if self.batch_key not in data:
             raise KeyError(f"`data` is missing the required key {self.batch_key!r}.")
 
@@ -185,6 +188,7 @@ class VoxelPartitionInferer(Inferer):
 
         if logits_sum is None or counts is None or out_dtype is None:
             return pos.new_zeros((0, 0))
+
         if self.aggregate == "sum":
             return logits_sum.to(out_dtype)
         return (logits_sum / counts.clamp_min(1).unsqueeze(-1)).to(out_dtype)

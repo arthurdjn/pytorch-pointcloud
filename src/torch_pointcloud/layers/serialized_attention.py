@@ -218,13 +218,16 @@ class SerializedAttention(nn.Module):
         super().__init__()
         if channels % num_heads != 0:
             raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
+
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
                     "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
                 )
+
             if upcast_attn:
                 raise ValueError("Upcasting attention is not supported with Flash Attention.")
+
             if upcast_softmax:
                 raise ValueError("Upcasting softmax is not supported with Flash Attention.")
 
@@ -321,6 +324,7 @@ class SerializedAttentionRPE(nn.Module):
         super().__init__()
         if channels % num_heads != 0:
             raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
+
         self.channels = channels
         self.num_heads = num_heads
         self.patch_size = patch_size
@@ -415,13 +419,16 @@ class SerializedAttentionRoPE(nn.Module):
         super().__init__()
         if channels % num_heads != 0:
             raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
+
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
                     "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
                 )
+
             if upcast_attn:
                 raise ValueError("Upcasting attention is not supported with Flash Attention.")
+
             if upcast_softmax:
                 raise ValueError("Upcasting softmax is not supported with Flash Attention.")
 

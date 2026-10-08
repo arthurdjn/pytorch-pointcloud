@@ -151,6 +151,7 @@ def divisible_pad(
     """
     if mode not in get_args(PadMode):
         raise ValueError(f"Unknown mode: {mode!r}. Expected one of {get_args(PadMode)}.")
+
     if pad_fill not in get_args(PadFill):
         raise ValueError(f"Unknown pad_fill: {pad_fill!r}. Expected one of {get_args(PadFill)}.")
 
@@ -270,13 +271,17 @@ class DivisiblePad(DictTransform, Randomizable):
         if self.ref_key not in d:
             if self.allow_missing_keys:
                 return d
+
             raise KeyError(f"`DivisiblePad` requires {self.ref_key!r} in data.")
+
         ref = d[self.ref_key]
         if not torch.is_tensor(ref):
             raise TypeError(f"Expected tensor at {self.ref_key!r}, got {type(ref).__name__}.")
+
         n = int(ref.size(0))
         if n == 0:
             return d
+
         if self.batch_key in d and torch.is_tensor(d[self.batch_key]):
             batch = d[self.batch_key]
         else:
@@ -293,6 +298,7 @@ class DivisiblePad(DictTransform, Randomizable):
         for key, value in d.items():
             if key == self.dst_inverse_key:
                 continue
+
             if torch.is_tensor(value) and value.ndim > 0 and value.size(0) == n:
                 d[key] = value[indices]
         d[self.batch_key] = padded_batch
@@ -478,10 +484,13 @@ class Voxelize(DictTransform, Randomizable):
     ) -> None:
         if size <= 0:
             raise ValueError(f"size must be positive; got {size}.")
+
         if pos_reduce not in get_args(VoxelPosReduce):
             raise ValueError(f"Invalid pos_reduce: {pos_reduce!r}. Expected one of {get_args(VoxelPosReduce)}.")
+
         if method not in get_args(VoxelMethod):
             raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(VoxelMethod)}.")
+
         invalid = set(ensure_tuple(reduce)) - set(get_args(VoxelReduce)) - {None}
         if invalid:
             raise ValueError(f"Invalid reduce(s): {invalid}. Expected one of {get_args(VoxelReduce)}.")
@@ -530,7 +539,9 @@ class Voxelize(DictTransform, Randomizable):
         if self.pos_key not in data:
             if self.allow_missing_keys:
                 return data
+
             raise KeyError(f"`Voxelize` requires {self.pos_key!r} in data.")
+
         pos = data[self.pos_key]
 
         if pos.shape[0] == 0:

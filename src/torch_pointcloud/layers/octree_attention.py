@@ -30,6 +30,7 @@ def __getattr__(name: str) -> Type["OctreeT"]:
     # so unpickling in a fresh process builds it on demand.
     if name == "_OctreeTConcrete":
         return _octree_t_cls()
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -363,12 +364,11 @@ class OctreeAttention(nn.Module):
         r"""Adds the relative position bias to the attention logits, or returns them unchanged when `use_rpe` is off."""
         if not self.use_rpe:
             return attn
-
         if self.rpe is None:
             raise ValueError("`rpe` must be set when `use_rpe` is True.")
+
         if rel_pos is None:
             raise ValueError("`rel_pos` must be provided when `use_rpe` is True")
-
         return attn + self.rpe(rel_pos)
 
     def _prepare_inputs(self, x: Tensor, octree: OctreeT, depth: int) -> Tuple[Tensor, Tensor, Tensor]:

@@ -73,7 +73,8 @@ def test_concerto_segmentation_reset_classifier(model: ConcertoSegmentation, dat
 
 
 def test_concerto_segmentation_forward_features_decoder_head(
-    model: ConcertoSegmentation, data: Dict[str, Tensor]
+    model: ConcertoSegmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, _, intermediates = model.forward_features(
         data["x"], data["pos_grid"], data["batch"], return_intermediates=True

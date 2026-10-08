@@ -72,6 +72,7 @@ def deep_getattr(obj: Any, path: str, default: Any = None) -> Any:
     if isinstance(obj, Mapping):
         if head not in obj:
             return default
+
         value = obj[head]
     elif hasattr(obj, head):
         value = getattr(obj, head)

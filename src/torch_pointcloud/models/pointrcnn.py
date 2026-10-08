@@ -639,6 +639,7 @@ class PointRCNNDetection(DetectionModel):
         mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
         if mean.shape != (num_classes, 3):
             raise ValueError(f"`mean_sizes` must have shape ({num_classes}, 3), got {tuple(mean.shape)}.")
+
         self.register_buffer("mean_sizes", mean, persistent=False)
 
         self.encoder = self.configure_encoder()
@@ -878,6 +879,7 @@ class PointRCNNDetection(DetectionModel):
         """
         if boxes.numel() == 0:
             return boxes.new_zeros((0,), dtype=torch.long)
+
         topk = min(self.proposal_pre_maxsize, scores.shape[0])
         top_scores, top_idx = torch.topk(scores, k=topk)
         keep = nms3d(boxes[top_idx], top_scores, thresh, rotated=self.proposal_nms_rotated, max_keep=post_maxsize)
@@ -946,7 +948,11 @@ class PointRCNNDetection(DetectionModel):
         }
 
     def _roi_gt_iou(
-        self, rois: Tensor, roi_labels: Tensor, gt_boxes: Tensor, gt_labels: Tensor
+        self,
+        rois: Tensor,
+        roi_labels: Tensor,
+        gt_boxes: Tensor,
+        gt_labels: Tensor,
     ) -> Tuple[Tensor, Tensor]:
         r"""Per-proposal max 3D IoU and matched-box index, restricted to same-class ROI / GT pairs."""
         max_overlaps = rois.new_zeros(rois.shape[0])
@@ -1003,6 +1009,7 @@ class PointRCNNDetection(DetectionModel):
             hard = hard_bg[torch.randint(0, hard_bg.numel(), (hard_num,), device=device)]
             easy = easy_bg[torch.randint(0, easy_bg.numel(), (num - hard_num,), device=device)]
             return torch.cat([hard, easy])
+
         if hard_bg.numel() > 0:
             return hard_bg[torch.randint(0, hard_bg.numel(), (num,), device=device)]
         return easy_bg[torch.randint(0, easy_bg.numel(), (num,), device=device)]

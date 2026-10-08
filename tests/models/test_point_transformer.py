@@ -75,7 +75,8 @@ def test_point_transformer_clf_forward(model_clf: PointTransformerClassification
 
 
 def test_point_transformer_clf_eval_deterministic(
-    model_clf: PointTransformerClassification, data: Dict[str, Tensor]
+    model_clf: PointTransformerClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     model_clf.eval()
     with torch.no_grad():

@@ -143,7 +143,8 @@ def test_pointcnn_segmentation_first_stage_downsample(data: Dict[str, Tensor]) -
 
 
 def test_pointcnn_classification_forward_features_and_head(
-    model_clf: PointCNNClassification, data: Dict[str, Tensor]
+    model_clf: PointCNNClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == batch.shape[0]
@@ -152,7 +153,8 @@ def test_pointcnn_classification_forward_features_and_head(
 
 
 def test_pointcnn_segmentation_forward_features_decoder_head(
-    model_seg: PointCNNSegmentation, data: Dict[str, Tensor]
+    model_seg: PointCNNSegmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, pos, batch, intermediates = model_seg.forward_features(
         data["x"], data["pos"], data["batch"], return_intermediates=True

@@ -94,6 +94,7 @@ class AnchorHeadLoss(nn.Module):
         super().__init__()
         if len(anchor_sizes) != num_classes or len(anchor_bottom_heights) != num_classes:
             raise ValueError("`anchor_sizes` and `anchor_bottom_heights` must have one entry per class.")
+
         if len(matched_thresholds) != num_classes or len(unmatched_thresholds) != num_classes:
             raise ValueError("`matched_thresholds` and `unmatched_thresholds` must have one entry per class.")
 
@@ -306,8 +307,10 @@ class MultiGroupAnchorHeadLoss(nn.Module):
         super().__init__()
         if len(anchor_sizes) != num_classes or len(anchor_bottom_heights) != num_classes:
             raise ValueError("`anchor_sizes` and `anchor_bottom_heights` must have one entry per class.")
+
         if len(matched_thresholds) != num_classes or len(unmatched_thresholds) != num_classes:
             raise ValueError("`matched_thresholds` and `unmatched_thresholds` must have one entry per class.")
+
         if not encode_angle_by_sincos:
             raise ValueError("`MultiGroupAnchorHeadLoss` only supports the sincos angle encoding.")
 

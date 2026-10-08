@@ -146,6 +146,7 @@ class TransformerBlock(nn.Module):
             module = create_norm(norm, dim, **(norm_kwargs or {}))
             if module is None:
                 raise ValueError("TransformerBlock requires a normalization layer, got norm=None.")
+
             return module
 
         self.norm1 = make_norm()
@@ -236,6 +237,7 @@ class TransformerEncoderLayer(nn.Module):
         if self.norm_first:
             src = src + self.dropout1(self._self_attention(self.norm1(src), pos, src_mask, src_key_padding_mask))
             return src + self.dropout2(self._feed_forward(self.norm2(src)))
+
         src = self.norm1(src + self.dropout1(self._self_attention(src, pos, src_mask, src_key_padding_mask)))
         return self.norm2(src + self.dropout2(self._feed_forward(src)))
 
@@ -329,6 +331,7 @@ class TransformerDecoderLayer(nn.Module):
                 self._cross_attention(self.norm2(tgt), memory, pos, query_pos, memory_key_padding_mask)
             )
             return tgt + self.dropout3(self._feed_forward(self.norm3(tgt)))
+
         tgt = self.norm1(tgt + self.dropout1(self._self_attention(tgt, query_pos)))
         tgt = self.norm2(
             tgt + self.dropout2(self._cross_attention(tgt, memory, pos, query_pos, memory_key_padding_mask))

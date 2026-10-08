@@ -206,6 +206,7 @@ class PointConvDensityClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         channels = [self.num_features] + ensure_list(self.head_channels) + [self.num_classes]
         return MLP(
             channels,

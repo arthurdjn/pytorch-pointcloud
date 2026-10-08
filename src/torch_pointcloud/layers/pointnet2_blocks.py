@@ -78,6 +78,7 @@ class PointNet2Conv(MessagePassing):
         if not self.use_pos:
             if x_j is None:
                 raise ValueError("`PointNet2Conv` needs features `x` when `use_pos` is false.")
+
             return self.local_nn(x_j)
 
         rel_pos = pos_j - pos_i

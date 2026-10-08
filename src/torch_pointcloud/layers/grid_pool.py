@@ -92,6 +92,7 @@ class GridPool(nn.Module):
                 f"got range [{int(pos_grid.min())}, {int(pos_grid.max())}] with stride {self.stride}: "
                 f"out-of-range coordinates corrupt the bit-packed cluster key."
             )
+
         key = batch << 48 | pos_grid_pooled[:, 0] << 32 | pos_grid_pooled[:, 1] << 16 | pos_grid_pooled[:, 2]
         key, cluster, counts = torch.unique(key, sorted=True, return_inverse=True, return_counts=True)
         pos_grid_pooled = torch.stack([key >> 32 & 0xFFFF, key >> 16 & 0xFFFF, key & 0xFFFF], dim=1)

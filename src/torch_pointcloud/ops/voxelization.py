@@ -75,7 +75,6 @@ def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, reso
             f"Resolution {resolution} must be equal to the voxel grid resolution. "
             f"Got ({R}, {R1}, {R2}) but expected ({resolution}, {resolution}, {resolution})."
         )
-
     if pos.shape[1] != 3:
         raise ValueError(f"Position tensor must be 3D, but got a {pos.shape[1]}-D tensor.")
 
@@ -363,6 +362,7 @@ def voxel_grid_fnv(
     inverse, _ = consecutive_cluster(hashed_tensor)
     if return_inverse and return_counts:
         return hashed_tensor, inverse, torch.bincount(inverse)
+
     if return_inverse:
         return hashed_tensor, inverse
     return hashed_tensor, torch.bincount(inverse)

@@ -71,7 +71,8 @@ def test_spunet_reset_classifier_initializes_head(model_seg: SparseUNetSegmentat
 
 
 def test_spunet_segmentation_forward_features_decoder_head(
-    model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]
+    model_seg: SparseUNetSegmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     assert len(skips) > 0

@@ -397,7 +397,6 @@ def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool 
             raise ValueError(
                 f"`aligned` needs as many boxes on both sides, got {boxes_a.shape[0]} and {boxes_b.shape[0]}."
             )
-
         return _quad_overlap(corners_a, corners_b, boxes_a, boxes_b)
 
     # Pairwise: two boxes whose axis-aligned bounds do not meet have no intersection, so the polygon arithmetic
@@ -703,6 +702,7 @@ def nms3d(
     """
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
+
     if batch is None:
         return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep)
 

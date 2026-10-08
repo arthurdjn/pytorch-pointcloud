@@ -214,6 +214,7 @@ class MaskedTransformerEncoder(nn.Module):
         super().__init__()
         if len(masking_radius) != num_layers:
             raise ValueError(f"`masking_radius` must have {num_layers} entries, got {len(masking_radius)}.")
+
         self.layers = nn.ModuleList(
             TransformerEncoderLayer(embed_dim, num_heads, mlp_dim, dropout, act=act, act_kwargs=act_kwargs)
             for _ in range(num_layers)
@@ -329,6 +330,7 @@ class PositionEmbeddingFourier(nn.Module):
         super().__init__()
         if d_pos % 2 != 0:
             raise ValueError(f"`d_pos` must be even, got {d_pos}.")
+
         self.d_pos = d_pos
         self.register_buffer("gauss_b", torch.empty(d_in, d_pos // 2).normal_())
 
@@ -553,6 +555,7 @@ class ThreeDETRDetection(DetectionModel):
                 act=self.act,
                 act_kwargs=self.act_kwargs,
             )
+
         return TransformerEncoder(
             self.encoder_embed_dim,
             self.encoder_num_heads,
@@ -647,11 +650,13 @@ class ThreeDETRDetection(DetectionModel):
     def _point_cloud_dims(self, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         if batch.numel() == 0:
             raise ValueError("`ThreeDETRDetection` requires a non-empty point cloud.")
+
         counts = batch.bincount()
         if bool((counts != counts[0]).any()):
             raise ValueError(
                 f"`ThreeDETRDetection` requires the same number of points per scene, got counts {counts.tolist()}."
             )
+
         dense = _to_dense(pos, batch, int(counts[0]))
         return dense.amin(dim=1), dense.amax(dim=1)
 
@@ -862,6 +867,7 @@ class ThreeDETRDetection(DetectionModel):
     def _angle_from_logits(self, angle_logits: Tensor, angle_residual: Tensor) -> Tensor:
         if self.num_heading_bins == 1:
             return (angle_logits * 0 + angle_residual * 0).squeeze(-1).clamp(min=0)
+
         angle_per_cls = 2 * math.pi / self.num_heading_bins
         pred_cls = angle_logits.argmax(dim=-1).detach()
         angle = angle_per_cls * pred_cls + angle_residual.gather(2, pred_cls.unsqueeze(-1)).squeeze(-1)

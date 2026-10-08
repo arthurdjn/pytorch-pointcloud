@@ -50,6 +50,7 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
             f"Checkpoint {path.as_posix()!r} is not a state dict: expected a mapping of parameter names to "
             f"tensors, got {type(data).__name__}."
         )
+
     state_dict = data["state_dict"] if "state_dict" in data else data
     if "pytorch-lightning_version" in data:
         extracted = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
@@ -59,6 +60,7 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
                 f"Lightning checkpoint {path.as_posix()!r} has no 'model.'-prefixed keys (found: {sample}); "
                 "the wrapped network must be stored under `self.model` to be extracted."
             )
+
         state_dict = extracted
 
     return state_dict
@@ -101,6 +103,7 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
     if missing:
         if strict:
             raise RuntimeError(f"Checkpoint {source!r} is missing model keys: {', '.join(missing)}.")
+
         warnings.warn(
             f"Checkpoint {source!r} is missing model keys, keeping their initialization: {', '.join(missing)}.",
             stacklevel=2,
@@ -208,6 +211,7 @@ def transform_state_dict(
                 # e.g. "param.{i}.weights" -> "param.{i+1}.weights"
                 ctx = {k: (int(v) if v.isdigit() else v) for k, v in match.groupdict().items()}
                 return re.sub(r"\{([^}]+)\}", lambda m: str(_resolve_placeholder(m.group(1), ctx)), template)
+
         return key
 
     transformed_state_dict = [(key_transform(k), value_transform(v)) for k, v in state_dict.items()]
@@ -235,6 +239,7 @@ def transform_state_dict(
         )
         if strict:
             raise ValueError(message)
+
         warnings.warn(message, stacklevel=2)
 
     return OrderedDict(transformed_state_dict)

@@ -41,6 +41,7 @@ def create_kernel_points(
     """
     if method not in ["lloyd", "gradient"]:
         raise ValueError(f"Unknown method: {method!r}, expected 'lloyd' or 'gradient'.")
+
     if num_points > 30 and method != "lloyd":
         warnings.warn("Too many points, consider using Lloyds algorithm with `method='lloyd'`.", stacklevel=2)
 

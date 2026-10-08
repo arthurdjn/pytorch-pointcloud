@@ -83,6 +83,7 @@ def generate_param_groups(
             layer_params = _get_filter(func)
         else:
             raise ValueError(f"Unsupported layer match type: {ty!r}; expected 'select' or 'filter'.")
+
         params.append({"params": list(layer_params()), "lr": lr})
         matched_ids.extend(id(p) for p in layer_params())
 

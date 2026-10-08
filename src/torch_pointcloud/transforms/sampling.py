@@ -143,6 +143,7 @@ class RandomSample(DictTransform, Randomizable):
             first_key = next(iterator)
         except StopIteration:
             return d
+
         sampled_tensor, indices = random_sample(
             d[first_key],
             self.num_samples,
@@ -334,6 +335,7 @@ def farthest_point_sample(
     num_points = pos.size(0)
     if ratio is not None and ratio >= 1:
         return torch.arange(num_points, device=pos.device)
+
     if num_samples is not None and 0 < num_points <= num_samples:
         return torch.arange(num_samples, device=pos.device) % num_points
     return fps(pos, num_nodes=num_samples, ratio=ratio, random_start=random_start)
@@ -398,7 +400,9 @@ class FarthestPointSample(DictTransform):
         if self.pos_key not in d:
             if self.allow_missing_keys:
                 return d
+
             raise KeyError(f"`FarthestPointSample` requires {self.pos_key!r} in data.")
+
         indices = farthest_point_sample(
             d[self.pos_key],
             num_samples=self.num_samples,
@@ -435,6 +439,7 @@ def random_dropout_mask(
     """
     if not 0.0 <= drop_ratio < 1.0:
         raise ValueError(f"drop_ratio must be in [0, 1); got {drop_ratio}.")
+
     device = device or torch.device("cpu")
     rand = torch.rand(n, device=device, generator=generator)
     return rand >= drop_ratio
@@ -481,6 +486,7 @@ class RandomDropout(DictTransform, Randomizable):
         super().__init__(keys, allow_missing_keys)
         if not 0.0 <= drop_ratio_range[0] <= drop_ratio_range[1] < 1.0:
             raise ValueError(f"drop_ratio_range must satisfy 0 <= min <= max < 1; got {drop_ratio_range}.")
+
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
@@ -580,12 +586,16 @@ class SphereCrop(DictTransform, Randomizable):
         if isinstance(self.center, str):
             if self.center == "centroid":
                 return pos.mean(dim=0)
+
             if self.center == "random_point":
                 if pos.shape[0] == 0:
                     return pos.new_zeros(pos.shape[-1])
+
                 idx = int(torch.randint(0, pos.shape[0], (1,), generator=self.R).item())
                 return pos[idx]
+
             raise ValueError(f"Invalid center: {self.center!r}. Expected 'centroid', 'random_point', or a 3-vector.")
+
         return torch.as_tensor(self.center, device=pos.device, dtype=pos.dtype)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -593,12 +603,15 @@ class SphereCrop(DictTransform, Randomizable):
         if self.pos_key not in data:
             if self.allow_missing_keys:
                 return data
+
             raise KeyError(f"`SphereCrop` requires {self.pos_key!r} in data.")
+
         if torch.rand(1, generator=self.R).item() >= self.p:
             if self.dst_index_key is not None and self.dst_index_key not in data:
                 n = data[self.pos_key].shape[0]
                 data[self.dst_index_key] = torch.arange(n, device=data[self.pos_key].device)
             return data
+
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
         pos = data[self.pos_key].float()
         center = self._resolve_center(pos)
@@ -742,6 +755,7 @@ class ShufflePoint(DictTransform, Randomizable):
         super().__init__(keys, allow_missing_keys)
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
+
         self.p = p
         self.set_random_state(seed)
         self.dst_index_key = dst_index_key
@@ -751,12 +765,14 @@ class ShufflePoint(DictTransform, Randomizable):
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None:
             return data
+
         n = data[first_key].shape[0]
         device = data[first_key].device
         if torch.rand(1, generator=self.R).item() >= self.p:
             if self.dst_index_key is not None and self.dst_index_key not in data:
                 data[self.dst_index_key] = torch.arange(n, device=device)
             return data
+
         perm = shuffle_indices(n, device=device, generator=self.R)
         for key in self.iter_keys(data):
             data[key] = data[key][perm]

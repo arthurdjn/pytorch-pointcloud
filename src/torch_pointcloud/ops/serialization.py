@@ -81,6 +81,7 @@ def serialize_pos(
     if order not in SERIALIZATION_ORDERS:
         expected_orders = ", ".join(SERIALIZATION_ORDERS)
         raise ValueError(f"Unsupported serialization order: {order}. Expected one of: {expected_orders}")
+
     # ocnn's key tables stop at depth 16; hilbert supports up to 21 and validates itself.
     if order in ("z", "z-trans") and depth > MAX_DEPTH:
         raise ValueError(
@@ -104,6 +105,7 @@ def serialize_pos(
                 f"Batch index {max_batch} needs {max_batch.bit_length()} bits above the {depth * 3} coordinate "
                 f"bits, exceeding the {MAX_CODE_BITS}-bit code capacity. Reduce `depth` or the batch size."
             )
+
         serialized_code = batch << depth * 3 | serialized_code
 
     return serialized_code

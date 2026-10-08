@@ -567,6 +567,7 @@ class PointMLPClassification(ClassificationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         if not self.head_channels:
             return nn.Linear(self.num_features, self.num_classes)
         return MLP(

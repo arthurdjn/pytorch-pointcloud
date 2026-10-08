@@ -505,7 +505,11 @@ class SECONDMultiHeadDetection(DetectionModel):
         return self.head(features)
 
     def forward(
-        self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
     ) -> AnchorHeadMultiOutput:
         features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         return self.forward_head(features)

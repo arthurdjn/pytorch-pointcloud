@@ -40,9 +40,11 @@ def hungarian_match(cost: Tensor) -> Tuple[Tensor, Tensor]:
     """
     if cost.ndim != 2:
         raise ValueError(f"`cost` must be a (Q, M) matrix, got shape {tuple(cost.shape)}.")
+
     if cost.numel() == 0:
         empty = torch.zeros((0,), dtype=torch.long, device=cost.device)
         return empty, empty
+
     if not torch.isfinite(cost).all():
         raise ValueError("`cost` must be finite; clamp or mask the degenerate pairs before matching.")
 
@@ -85,7 +87,6 @@ def hungarian_match_batched(cost: Tensor, num_targets: Sequence[int]) -> Tensor:
     """
     if cost.ndim != 3:
         raise ValueError(f"`cost` must be a (N, Q, M) tensor, got shape {tuple(cost.shape)}.")
-
     if len(num_targets) != cost.shape[0]:
         raise ValueError(f"`num_targets` lists {len(num_targets)} scenes for a cost of {cost.shape[0]}.")
 

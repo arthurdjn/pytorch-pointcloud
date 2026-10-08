@@ -78,7 +78,8 @@ def test_pointnet_segmentation_forward(model_seg: PointNetSegmentation, data: Di
 
 
 def test_pointnet_classification_forward_features_and_head(
-    model_clf: PointNetClassification, data: Dict[str, Tensor]
+    model_clf: PointNetClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     x = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.dim() == 2
@@ -87,7 +88,8 @@ def test_pointnet_classification_forward_features_and_head(
 
 
 def test_pointnet_segmentation_forward_features_and_head(
-    model_seg: PointNetSegmentation, data: Dict[str, Tensor]
+    model_seg: PointNetSegmentation,
+    data: Dict[str, Tensor],
 ) -> None:
     x, point_features = model_seg.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == point_features.shape[0] == data["pos"].shape[0]

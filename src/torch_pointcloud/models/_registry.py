@@ -238,6 +238,7 @@ def cache_path(url: str) -> Path:
             raise ValueError(
                 f"Expected a Hub URL of the form hf://<namespace>/<repo>/resolve/<revision>/<file>, got {url!r}."
             )
+
         return Path(MODELS_DIR, match["repo"], match["revision"], match["file"])
     return Path(MODELS_DIR, urlparse(url).path.lstrip("/"))
 
@@ -274,9 +275,9 @@ def resolve_weights(name: str, url: str) -> Path:
             f"Cannot load weights for {name!r}: the local cache path derived from {url!r} resolves to "
             f"{local_path.resolve().as_posix()}, outside the models cache directory ({Path(MODELS_DIR).as_posix()})."
         )
-
     if local_path.exists():
         return local_path
+
     if not url.startswith("hf://"):
         raise FileNotFoundError(
             f"Model weights for {name!r} not found at {local_path.as_posix()}. Download the weights at {url!r} and "
@@ -506,6 +507,7 @@ def create_model(
     if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
+
     if pretrained and checkpoint_path is not None:
         raise ValueError("'pretrained' and 'checkpoint_path' are mutually exclusive. Pass a single weight source.")
 
@@ -514,6 +516,7 @@ def create_model(
         if len(tasks) > 1:
             registered = " and ".join(f"{t!r}" for t in tasks)
             raise ValueError(f"Model {name!r} is registered under tasks {registered}; pass `task=` to pick one.")
+
         if not tasks:
             message = f"Model {name!r} is not registered."
             matches = difflib.get_close_matches(name, list_models(), n=3)
@@ -521,6 +524,7 @@ def create_model(
                 message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
             message += " Use `list_models()` to list the registered names."
             raise ValueError(message)
+
         task = tasks[0]
 
     entry = _REGISTERED_MODELS[task].get(name)
@@ -543,6 +547,7 @@ def create_model(
     except TypeError as err:
         if "required positional argument" not in str(err) and "required keyword-only argument" not in str(err):
             raise
+
         raise TypeError(
             f"Model {name!r} registers architecture hparams only; pass the data-dependent arguments to "
             f"`create_model` (e.g. `in_channels=`, `num_classes=`). Original error: {err}"

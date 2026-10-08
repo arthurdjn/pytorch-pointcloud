@@ -111,7 +111,12 @@ def test_lion_head_predict_supports_non_nuscenes_num_classes() -> None:
 
 class DummyDecoder(nn.Module):
     def forward(
-        self, query: Tensor, key: Tensor, query_pos: Tensor, key_pos: Tensor, key_padding_mask: Optional[Tensor] = None
+        self,
+        query: Tensor,
+        key: Tensor,
+        query_pos: Tensor,
+        key_pos: Tensor,
+        key_padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
         self.query_pos = query_pos
         self.key_pos = key_pos

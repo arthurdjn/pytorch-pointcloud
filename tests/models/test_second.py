@@ -17,7 +17,10 @@ RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
 
 
 def _voxelize(
-    model: SECONDDetection | SECONDMultiHeadDetection, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int
+    model: SECONDDetection | SECONDMultiHeadDetection,
+    data: Dict[str, Tensor],
+    max_num_points: int,
+    max_num_voxels: int,
 ) -> tuple:
     """Voxelize raw packed points the way the registered `HardVoxelize` transform + collate would."""
     points = torch.cat([data["pos"], data["x"]], dim=1)

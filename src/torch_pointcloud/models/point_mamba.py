@@ -70,6 +70,7 @@ def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Te
             "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
             "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
         )
+
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
     depth = max(int(pos_grid.max()).bit_length(), 1)
     serialized_code = serialize_pos(pos_grid, batch, depth=depth, order=order)

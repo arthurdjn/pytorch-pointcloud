@@ -200,7 +200,6 @@ class PVCNNClassification(ClassificationModel):
         """Builds the MLP applied to the pooled global feature, or `None` when `global_channels` is empty."""
         if not self.global_channels:
             return None
-
         return MLP(
             [self.channels[-1]] + list(self.global_channels),
             act=self.act,
@@ -374,7 +373,6 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         """Builds the MLP applied to the pooled global feature, or `None` when `global_channels` is empty."""
         if not self.global_channels:
             return None
-
         return MLP(
             [self.channels[-1]] + list(self.global_channels),
             act=self.act,
@@ -395,6 +393,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
+
         if not self.head_channels:
             return nn.Linear(self.num_features, self.num_classes)
 
@@ -509,6 +508,7 @@ def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     for pv in model.modules():
         if not isinstance(pv, PVConv):
             continue
+
         for block in pv.voxel_layers:
             if isinstance(block, Conv3dBlock):
                 if isinstance(block.norm, nn.BatchNorm3d):

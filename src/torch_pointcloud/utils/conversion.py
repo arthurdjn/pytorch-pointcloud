@@ -76,6 +76,7 @@ def ensure_iterable(value: Any, type: Type[T], recursive: bool = False, none_as_
     """
     if none_as_empty and value is None:
         return type([])
+
     if isinstance(value, np.ndarray):
         value = value.tolist() if value.ndim > 0 else value.item()
     elif isinstance(value, torch.Tensor):
@@ -86,7 +87,6 @@ def ensure_iterable(value: Any, type: Type[T], recursive: bool = False, none_as_
         if recursive:
             return type(ensure_iterable(v, type, recursive=True) if is_iterable(v) else v for v in value)
         return type(value)
-
     return type([value])
 
 
@@ -107,6 +107,7 @@ def ensure_iterable_size(
         return type([value[0]] * size)
     elif len(value) == size:
         return value
+
     raise ValueError(f"Expected a {type.__name__} of size {size}, got {len(value)}. {extra_msg}")
 
 
@@ -146,7 +147,11 @@ def ensure_list(value: Any, recursive: bool = False, none_as_empty: bool = False
 
 
 def ensure_list_size(
-    value: Any, size: int, recursive: bool = False, none_as_empty: bool = False, extra_msg: str = ""
+    value: Any,
+    size: int,
+    recursive: bool = False,
+    none_as_empty: bool = False,
+    extra_msg: str = "",
 ) -> List[Any]:
     """Convert a value to a list of a given size.
     If the value is a scalar, it will be repeated to match the size.
@@ -279,6 +284,7 @@ def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
     if value not in values:
         options = ", ".join([f"{v!r}" for v in values])
         raise ValueError(f"Invalid {name}: {value!r}. Valid options are: {options}.")
+
     return value
 
 
@@ -685,13 +691,11 @@ def convert_to_tensor(data: Any, /, strict: bool = True) -> Any:
         return torch.tensor(data)
     elif isinstance(data, dict):
         return {k: convert_to_tensor(v, strict=strict) for k, v in data.items()}
-
     if strict:
         raise TypeError(
             f"Unsupported data type. Got {type(data)!r}, "
             "expected 'list', 'tuple', 'torch.Tensor', 'numpy.ndarray' or 'dict'."
         )
-
     return data
 
 
@@ -743,13 +747,11 @@ def convert_to_numpy(data: Any, /, strict: bool = True) -> Any:
         return np.asarray(data)
     elif isinstance(data, dict):
         return {k: convert_to_numpy(v, strict=strict) for k, v in data.items()}
-
     if strict:
         raise TypeError(
             f"Unsupported data type. Got {type(data)!r}, "
             "expected 'list', 'tuple', 'torch.Tensor', 'numpy.ndarray' or 'dict'."
         )
-
     return data
 
 
@@ -819,4 +821,5 @@ def ensure_msg_list_size(value: Sequence[Any], size: int, extra_msg: str = "") -
     """
     if len(value) != size:
         raise ValueError(f"Expected a list of size {size}, got {len(value)}. {extra_msg}")
+
     return ensure_msg_list(value, extra_msg=extra_msg)

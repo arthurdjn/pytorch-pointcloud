@@ -301,7 +301,9 @@ def _lidar_to_global(record: Dict[str, Any], ego_pose: Dict[str, Any], calib: Di
 
 
 def _annotation_velocity(
-    ann: Dict[str, Any], ann_by_token: Dict[str, Dict[str, Any]], sample_timestamp: Dict[str, float]
+    ann: Dict[str, Any],
+    ann_by_token: Dict[str, Dict[str, Any]],
+    sample_timestamp: Dict[str, float],
 ) -> np.ndarray:
     r"""Global-frame velocity $(3,)$ of an annotation: the finite difference of its neighbors' translations.
 
@@ -454,7 +456,11 @@ def _keyframe_item(
 
 
 def _process_keyframe(
-    item: Dict[str, Any], raw_dir: str, processed_dir: str, max_sweeps: int, class_to_idx: Dict[str, int]
+    item: Dict[str, Any],
+    raw_dir: str,
+    processed_dir: str,
+    max_sweeps: int,
+    class_to_idx: Dict[str, int],
 ) -> str:
     """Aggregate one keyframe's sweeps and boxes and write its cache directory; returns its sample token."""
     record = item["record"]
@@ -574,9 +580,11 @@ class NuScenes(PointCloudDataset):
         super().__init__(root)
         if split is not None and split not in NUSCENES_SPLITS:
             raise ValueError(f"Unknown nuScenes split {split!r}; expected one of {NUSCENES_SPLITS} or None.")
+
         if version is None:
             if split is None:
                 raise ValueError("`version` is required when `split` is None.")
+
             version = _SPLIT_VERSIONS[split]
 
         self.split = split
@@ -621,6 +629,7 @@ class NuScenes(PointCloudDataset):
     def processed_files_exist(self) -> bool:
         if not Path(self.processed_dir, "keyframes.json").exists():
             return False
+
         check_cache_meta(Path(self.processed_dir, "meta.json"), self._cache_meta())
         return True
 
@@ -629,10 +638,13 @@ class NuScenes(PointCloudDataset):
         if self.split == "train":
             names = {record["name"] for record in read_nuscenes_table(Path(self.raw_dir, self.version), "scene")}
             return frozenset(names.difference(NUSCENES_VAL_SCENES))
+
         if self.split == "val":
             return frozenset(NUSCENES_VAL_SCENES)
+
         if self.split == "mini_train":
             return frozenset(NUSCENES_MINI_TRAIN_SCENES)
+
         if self.split == "mini_val":
             return frozenset(NUSCENES_MINI_VAL_SCENES)
         return None
@@ -641,6 +653,7 @@ class NuScenes(PointCloudDataset):
         """`sample_annotation` records grouped by sample token, each with its detection class, velocity and attribute."""
         if not (version_dir / "sample_annotation.json").exists():
             return {}
+
         ann_records = read_nuscenes_table(version_dir, "sample_annotation")
         if not ann_records:
             return {}
@@ -664,6 +677,7 @@ class NuScenes(PointCloudDataset):
     def process(self, force: bool = False) -> None:
         if not force and self.processed_files_exist():
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -728,6 +742,7 @@ class NuScenes(PointCloudDataset):
     def load(self) -> None:
         if not self.processed_files_exist():
             raise RuntimeError(f"Processed data not found at {self.processed_dir!r}. Run `process` first.")
+
         self.tokens: List[str] = json.loads(Path(self.processed_dir, "keyframes.json").read_text())
 
     @override
@@ -844,6 +859,7 @@ def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float
     for index, name in enumerate(NUSCENES_DETECTION_CLASSES):
         if name not in NUSCENES_MOVING_ATTRIBUTE:
             continue
+
         mask = labels == index
         attributes[mask & moving] = NUSCENES_ATTRIBUTES.index(NUSCENES_MOVING_ATTRIBUTE[name])
         attributes[mask & ~moving] = NUSCENES_ATTRIBUTES.index(NUSCENES_STATIONARY_ATTRIBUTE[name])

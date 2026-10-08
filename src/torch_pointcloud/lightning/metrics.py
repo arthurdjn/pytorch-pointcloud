@@ -263,6 +263,7 @@ class NuScenesDetection(Metric):
                 raise ValueError(
                     f"`{name}` must be passed on every update or on none; got it on {count} of {num_updates} updates."
                 )
+
         offset = int(self.num_samples.item())
         boxes = preds["boxes"]
         pred_velocity = preds.get("velocity")

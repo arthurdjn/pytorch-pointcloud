@@ -1092,7 +1092,6 @@ class ScanNet(PointCloudDataset):
         scene_dirs = list(scans_dir.glob("scene*"))
         if len(scene_dirs) == 0:
             return False
-
         return True
 
     @property
@@ -1138,11 +1137,13 @@ class ScanNet(PointCloudDataset):
                 f"{missing[:5]}, {len(incomplete)} incomplete scene(s) {incomplete[:5]}. "
                 "Pass `force_process=True` to reprocess the raw data."
             )
+
         return True
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
             return
+
         check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
 
         # Download the metadata, to get train / val / test splits
@@ -1195,6 +1196,7 @@ class ScanNet(PointCloudDataset):
                 out_path = Path(self.raw_dir, resource_path)
                 if not out_path.resolve().is_relative_to(raw_dir):
                     raise RuntimeError(f"Scan id {scan_id!r} resolves outside the raw directory: {out_path}.")
+
                 file_name = Path(resource_path).name
                 download_url(
                     url,
@@ -1207,6 +1209,7 @@ class ScanNet(PointCloudDataset):
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if not force and self.processed_files_exist():
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
@@ -1323,7 +1326,6 @@ class ScanNet(PointCloudDataset):
                 f"No processed scenes found under {Path(self.processed_dir, self.split).as_posix()!r}. "
                 "Pass `force_process=True` to reprocess the raw data."
             )
-
         if block_size is None or block_size <= 0:
             # Whole scenes are read in `__getitem__`, so the split costs no memory and no upfront pass.
             self.data = list(scene_paths)
@@ -1367,7 +1369,6 @@ class ScanNet(PointCloudDataset):
                 f"{scene_id}: superpoint/point count mismatch ({superpoint.shape[0]} vs {num_points}). "
                 "Pass `force_process=True` to reprocess the raw data."
             )
-
         return superpoint
 
     def read_scene(self, path: Path) -> Dict[str, Any]:

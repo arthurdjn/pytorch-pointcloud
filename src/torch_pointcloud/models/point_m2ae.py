@@ -539,6 +539,7 @@ class PointM2AEClassification(ClassificationModel):
                 f"{self.__class__.__name__} pools with a fixed mean / max scheme selected by `concat_pooling`; "
                 "`global_pool` is not configurable."
             )
+
         self.num_classes = num_classes
         self.head = self.configure_head()
 
@@ -715,6 +716,7 @@ class PointM2AEPartSegmentation(PartSegmentationModel):
                 f"{self.__class__.__name__} requires the same number of points per sample, got per-sample "
                 f"counts from {int(counts.min())} to {int(counts.max())}."
             )
+
         num_points = pos.size(0) // batch_size
         feats: List[Tensor] = []
         for i in range(len(x_vis_list)):
@@ -974,6 +976,7 @@ class HierarchicalEncoderMAE(nn.Module):
         super().__init__()
         if not 0.0 < mask_ratio < 1.0:
             raise ValueError(f"`mask_ratio` must be in (0, 1), got {mask_ratio}.")
+
         self.encoder_depths = list(encoder_depths)
         self.encoder_dims = list(encoder_dims)
         self.local_radius = list(local_radius)

@@ -44,6 +44,7 @@ def tnet_orthogonality_regularizer(module: nn.Module) -> Tensor:
     for layer in module.modules():
         if not isinstance(layer, (TNet, DynamicTNet)):
             continue
+
         if layer.running_transform is None:
             raise RuntimeError(
                 "`tnet_orthogonality_regularizer` needs a forward pass with `track_running_stats=True` first."

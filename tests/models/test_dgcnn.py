@@ -127,7 +127,8 @@ def test_dgcnn_encoder_block_act_first_forwarded() -> None:
 
 
 def test_dgcnn_classification_num_classes_zero_returns_features(
-    model_clf: DGCNNClassification, data: Dict[str, Tensor]
+    model_clf: DGCNNClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     model_clf.reset_classifier(num_classes=0)
     assert isinstance(model_clf.head, torch.nn.Identity)
@@ -143,7 +144,8 @@ def test_dgcnn_segmentation_forward_head_pre_logits(model_seg: DGCNNSegmentation
 
 
 def test_dgcnn_classification_forward_features_and_head(
-    model_clf: DGCNNClassification, data: Dict[str, Tensor]
+    model_clf: DGCNNClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     x, _, batch = model_clf.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == batch.shape[0]
@@ -191,7 +193,9 @@ def partseg_category(data: Dict[str, Tensor]) -> Tensor:
 
 
 def test_dgcnn_part_segmentation_forward(
-    model_partseg: DGCNNPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+    model_partseg: DGCNNPartSegmentation,
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
 ) -> None:
     logits = model_partseg(data["x"], data["pos"], data["batch"], partseg_category)
     assert logits.shape == (data["pos"].shape[0], model_partseg.num_classes)
@@ -199,7 +203,9 @@ def test_dgcnn_part_segmentation_forward(
 
 
 def test_dgcnn_part_segmentation_reset_classifier(
-    model_partseg: DGCNNPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+    model_partseg: DGCNNPartSegmentation,
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
 ) -> None:
     model_partseg.reset_classifier(num_classes=42)
     logits = model_partseg(data["x"], data["pos"], data["batch"], partseg_category)
@@ -207,7 +213,9 @@ def test_dgcnn_part_segmentation_reset_classifier(
 
 
 def test_dgcnn_part_segmentation_forward_features_and_head(
-    model_partseg: DGCNNPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+    model_partseg: DGCNNPartSegmentation,
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
 ) -> None:
     x, _, batch = model_partseg.forward_features(data["x"], data["pos"], data["batch"], partseg_category)
     assert x.shape[0] == data["pos"].shape[0]
@@ -216,7 +224,9 @@ def test_dgcnn_part_segmentation_forward_features_and_head(
 
 
 def test_dgcnn_part_segmentation_forward_head_pre_logits(
-    model_partseg: DGCNNPartSegmentation, data: Dict[str, Tensor], partseg_category: Tensor
+    model_partseg: DGCNNPartSegmentation,
+    data: Dict[str, Tensor],
+    partseg_category: Tensor,
 ) -> None:
     x, _, batch = model_partseg.forward_features(data["x"], data["pos"], data["batch"], partseg_category)
     feats = model_partseg.forward_head(x, batch, pre_logits=True)

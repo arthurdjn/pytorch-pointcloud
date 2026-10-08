@@ -93,7 +93,13 @@ class BiMamba(nn.Module):
         self.register_buffer("_eye", torch.eye(self.d_inner), persistent=False)
 
     def _scan(
-        self, xz: Tensor, conv1d: nn.Conv1d, x_proj: nn.Linear, dt_proj: nn.Linear, a_log: Tensor, d: Tensor
+        self,
+        xz: Tensor,
+        conv1d: nn.Conv1d,
+        x_proj: nn.Linear,
+        dt_proj: nn.Linear,
+        a_log: Tensor,
+        d: Tensor,
     ) -> Tensor:
         return mamba_inner_fn(
             xz,
@@ -144,7 +150,10 @@ class MambaBlock(nn.Module):
 
 @torch.no_grad()
 def window_partition(
-    pos: Tensor, sparse_shape: Sequence[int], window_shape: Sequence[int], shift: bool
+    pos: Tensor,
+    sparse_shape: Sequence[int],
+    window_shape: Sequence[int],
+    shift: bool,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     r"""Assign each voxel to a 3D window and return its in-window offset (`get_window_coors_shift_v2`).
 
@@ -315,6 +324,7 @@ class PatchMerging3D(nn.Module):
     ) -> Tuple["spconv.SparseConvTensor", Tensor]:
         if diffusion_scale not in (2, 4):
             raise ValueError(f"`diffusion_scale` must be 2 or 4, got {diffusion_scale}.")
+
         x = self.sub_conv(x)
         d, h, w = x.spatial_shape
         down_scale = self.down_scale
@@ -424,7 +434,10 @@ class PatchExpanding3D(nn.Module):
         self.dim = dim
 
     def forward(
-        self, x: "spconv.SparseConvTensor", up_x: "spconv.SparseConvTensor", unq_inv: Tensor
+        self,
+        x: "spconv.SparseConvTensor",
+        up_x: "spconv.SparseConvTensor",
+        unq_inv: Tensor,
     ) -> "spconv.SparseConvTensor":
         _, c = x.features.shape
         x_copy = torch.gather(x.features, 0, unq_inv.unsqueeze(1).repeat(1, c))
@@ -612,6 +625,7 @@ class LION3DBackbone(nn.Module):
                 f" `num_layers` ({num_layers}), got {len(depths)}, {len(layer_down_scales)},"
                 f" {len(window_shape)} and {len(group_size)}."
             )
+
         self.sparse_shape = list(grid_size[::-1])
         layer_dim = [channels] * num_layers
         block_kwargs: Dict[str, Any] = dict(d_state=d_state, d_conv=d_conv, expand=expand)
@@ -815,7 +829,12 @@ class TransFusionDecoderLayer(nn.Module):
         )
 
     def forward(
-        self, query: Tensor, key: Tensor, query_pos: Tensor, key_pos: Tensor, key_padding_mask: OptTensor = None
+        self,
+        query: Tensor,
+        key: Tensor,
+        query_pos: Tensor,
+        key_pos: Tensor,
+        key_padding_mask: OptTensor = None,
     ) -> Tensor:
         b, num_query, _ = query_pos.shape
         query_pos_embed = self.self_posembed(query_pos.reshape(b * num_query, -1)).reshape(b, num_query, -1)

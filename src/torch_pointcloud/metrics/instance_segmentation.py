@@ -193,6 +193,7 @@ def _instance_class_ap(
                 pred_index = pair_pred[row]
                 if not above[row] or visited[pred_index]:
                     continue
+
                 confidence = float(pred_scores[pred_index])
                 if matched:
                     y_true.append(0.0)
@@ -212,6 +213,7 @@ def _instance_class_ap(
             rows = np.flatnonzero(pair_pred == pred_index)
             if above[rows].any():
                 continue
+
             ignored = scene["pred_void"][pred_index] + pair_inter[rows][gt_counts[pair_gt[rows]] < min_points].sum()
             if ignored / pred_counts[pred_index] <= iou_threshold:
                 y_true.append(0.0)
@@ -219,6 +221,7 @@ def _instance_class_ap(
 
     if not has_gt:
         return float("nan")
+
     if not has_pred:
         return 0.0
     return _instance_ap(np.array(y_true), np.array(y_score), num_missed)
@@ -317,6 +320,7 @@ def instance_average_precision(
     """
     if class_names is not None and num_classes not in (None, len(class_names)):
         raise ValueError(f"Got {len(class_names)} `class_names` for `num_classes={num_classes}`.")
+
     if num_classes is None and class_names is not None:
         num_classes = len(class_names)
     if num_classes is None:
@@ -355,5 +359,6 @@ def instance_average_precision(
         return (
             torch.tensor(per_class, dtype=torch.float64) if class_names is None else dict(zip(class_names, per_class))
         )
+
     scored = [value for value in per_class if not math.isnan(value)]
     return float(np.mean(scored)) if scored else 0.0

@@ -48,6 +48,7 @@ def build_dataset(args: argparse.Namespace, transform: Any) -> Union[ModelNetNor
             transform=transform,
             download=args.download,
         )
+
     return ScanObjectNN(
         root=args.root,
         train=False,

@@ -154,6 +154,7 @@ def _box_list(gt: Any) -> List[Any]:
     """
     if gt is None:
         return []
+
     if hasattr(gt, "_fieldnames"):
         return [gt]
 
@@ -188,6 +189,7 @@ def parse_boxes(gt: Any, class_to_idx: Dict[str, int]) -> np.ndarray:
         name = str(b.classname)
         if name not in class_to_idx:
             continue
+
         cen = np.asarray(b.centroid, dtype=np.float32).reshape(-1)
         co = np.abs(np.asarray(b.coeffs, dtype=np.float32).reshape(-1))
         ori = np.asarray(b.orientation, dtype=np.float32).reshape(-1)
@@ -338,6 +340,7 @@ class SunRGBD(PointCloudDataset):
                 f"{missing[:5]}, {len(incomplete)} incomplete scene(s) {incomplete[:5]}. "
                 "Pass `force_process=True` to reprocess the raw data."
             )
+
         return True
 
     def download(self, force: bool = False) -> None:
@@ -386,6 +389,7 @@ class SunRGBD(PointCloudDataset):
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         if not force and self.processed_files_exist():
             return
+
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "

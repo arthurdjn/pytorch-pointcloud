@@ -54,7 +54,6 @@ def _nearest_index(query: Tensor, query_batch: Tensor, points: Tensor, point_bat
     r"""Packed index in `points` $(M, D)$ of the nearest point of the same set to every `query` $(N, D)$."""
     if _KAOLIN_AVAILABLE and query.is_cuda:
         return _padded_nearest_index(query, query_batch, points, point_batch, num_sets, _kaolin_nearest)
-
     if not _PYG_LIB_AVAILABLE:
         return _padded_nearest_index(query, query_batch, points, point_batch, num_sets, _dense_nearest)
 

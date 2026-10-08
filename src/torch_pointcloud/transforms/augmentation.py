@@ -102,6 +102,7 @@ class RandomRotate(DictTransform, Randomizable):
     ) -> None:
         if box_key is not None and axis != 2:
             raise ValueError(f"box_key rotation is only defined about the up axis (axis=2), got axis={axis}.")
+
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
@@ -198,6 +199,7 @@ class RandomScale(DictTransform, Randomizable):
     ) -> None:
         if anisotropic and box_key is not None:
             raise ValueError("box_key cannot be scaled anisotropically (an oriented box has no per-axis scale).")
+
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
@@ -221,6 +223,7 @@ class RandomScale(DictTransform, Randomizable):
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and not has_box:
             return data
+
         if self.anisotropic and first_key is not None:
             scale = torch.empty(data[first_key].shape[-1]).uniform_(lo, hi, generator=self.R)
         else:
@@ -235,6 +238,7 @@ class RandomScale(DictTransform, Randomizable):
                     f"RandomScale(anisotropic=True) draws one factor per channel of the first key "
                     f"({scale.numel()}); key '{key}' has {x.shape[-1]} channels."
                 )
+
             data[dst_key] = x * scale.to(x.dtype).to(x.device)
         return data
 
@@ -525,6 +529,7 @@ class RandomTranslate(DictTransform, Randomizable):
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and not has_box:
             return data
+
         d = data[first_key].shape[-1] if first_key is not None else 3
         translation = torch.empty(d).uniform_(lo, hi, generator=self.R)
         if box_key is not None and box_key in data:
@@ -537,6 +542,7 @@ class RandomTranslate(DictTransform, Randomizable):
                     f"RandomTranslate draws one offset per channel of the first key ({translation.numel()}); "
                     f"key '{key}' has {x.shape[-1]} channels."
                 )
+
             data[dst_key] = x + translation.to(x.dtype).to(x.device)
         return data
 
@@ -545,11 +551,13 @@ def _color_max(color: Tensor, int_color: bool) -> float:
     """Resolve the color range maximum from the tensor dtype, validating the `int_color` flag."""
     if color.dtype == torch.uint8 or int_color:
         return 255.0
+
     if color.numel() > 0 and float(color.max()) > 1.0:
         raise ValueError(
             f"Float colors with `int_color=False` must lie in [0, 1], but got a maximum of {float(color.max()):.4g}. "
             "Pass `int_color=True` for [0, 255] float colors, or divide by 255 first."
         )
+
     return 1.0
 
 
@@ -793,6 +801,7 @@ def color_grayscale(color: Tensor, int_color: bool = False) -> Tensor:
     if int_color:
         lum = (color.float() * weights).sum(dim=-1, keepdim=True)
         return lum.expand_as(color).to(color.dtype)
+
     lum = (color * weights).sum(dim=-1, keepdim=True)
     return lum.expand_as(color).to(color.dtype)
 
@@ -836,6 +845,7 @@ class RandomColorGrayScale(DictTransform, Randomizable):
         data = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
+
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = color_grayscale(data[key], int_color=self.int_color)
         return data
@@ -862,6 +872,7 @@ def color_auto_contrast(color: Tensor, blend: float = 0.5, int_color: bool = Fal
     """
     if color.shape[0] == 0:
         return color
+
     max_val = _color_max(color, int_color)
     out = color.float()
     lo = out.min(dim=0).values
@@ -916,6 +927,7 @@ class RandomColorAutoContrast(DictTransform, Randomizable):
         data = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
+
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = color_auto_contrast(data[key], blend=self.blend, int_color=self.int_color)
         return data
@@ -962,6 +974,7 @@ class RandomRotateChoice(DictTransform, Randomizable):
     ) -> None:
         if len(angles) == 0:
             raise ValueError("RandomRotateChoice requires at least one angle.")
+
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
@@ -976,6 +989,7 @@ class RandomRotateChoice(DictTransform, Randomizable):
         data = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
+
         idx = int(torch.randint(0, len(self.angles), (1,), generator=self.R).item())
         angle_deg = self.angles[idx]
         for key, dst_key in self.iter_keys(data, self.dst_keys):
@@ -1053,6 +1067,7 @@ class RandomColorShift(DictTransform, Randomizable):
         data = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
+
         lo, hi = self.shift_range
         shift = torch.empty(3).uniform_(lo, hi, generator=self.R)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
@@ -1088,6 +1103,7 @@ def random_elastic_distortion(
     """
     if pos.shape[0] == 0:
         return pos
+
     if pos.shape[-1] != 3:
         raise ValueError(f"random_elastic_distortion expects shape (N, 3); got {tuple(pos.shape)}.")
 
@@ -1195,9 +1211,11 @@ class RandomElasticDistortion(DictTransform, Randomizable):
         data = dict(data)
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
+
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None:
             return data
+
         reference = data[first_key]
         displacement = (
             random_elastic_distortion(reference, self.granularity, self.magnitude, generator=self.R) - reference

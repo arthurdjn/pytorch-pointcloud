@@ -39,6 +39,7 @@ class Point3DRoPE(nn.Module):
                 f"head_dim must be divisible by 6 for 3D RoPE (three axis chunks, each even-sized so channels "
                 f"rotate in pairs), got {head_dim}."
             )
+
         super().__init__()
         self.head_dim = head_dim
         self.chunk_dim = head_dim // 3

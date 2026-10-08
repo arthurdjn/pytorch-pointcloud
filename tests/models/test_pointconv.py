@@ -100,7 +100,8 @@ def test_pointconv_classification_forward(model_clf: PointConvDensityClassificat
 
 
 def test_pointconv_classification_reset_classifier(
-    model_clf: PointConvDensityClassification, data: Dict[str, Tensor]
+    model_clf: PointConvDensityClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     """Test PointConvDensityClassification reset_classifier."""
     new_num_classes = 5
@@ -112,7 +113,8 @@ def test_pointconv_classification_reset_classifier(
 
 
 def test_pointconv_classification_forward_features(
-    model_clf: PointConvDensityClassification, data: Dict[str, Tensor]
+    model_clf: PointConvDensityClassification,
+    data: Dict[str, Tensor],
 ) -> None:
     """Test PointConvDensityClassification forward_features."""
     out_features, out_pos, out_batch = model_clf.forward_features(data["features"], data["pos"], data["batch"])

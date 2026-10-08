@@ -124,7 +124,9 @@ class RemoveNearOrigin(DictTransform):
         if self.pos_key not in d:
             if self.allow_missing_keys:
                 return d
+
             raise KeyError(f"`RemoveNearOrigin` requires {self.pos_key!r} in data.")
+
         _, mask = remove_near_origin(d[self.pos_key], radius=self.radius, return_mask=True)
         for key in self.iter_keys(d):
             d[key] = d[key][mask]
@@ -310,7 +312,9 @@ class ApplyMask(DictTransform):
         if self.mask_key not in data:
             if self.allow_missing_keys:
                 return d
+
             raise KeyError(f"Mask key {self.mask_key!r} not found in data.")
+
         mask = d[self.mask_key]
         for key, dst_key in self.iter_keys(d, self.dst_keys):
             d[dst_key] = apply_mask(d[key], mask)
@@ -407,6 +411,7 @@ class CubeMask(DictTransform):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
             data[dst_key] = cube_mask(x, self.center, self.radius, dim=self.dim)
 
         return data
@@ -467,6 +472,7 @@ class SphereMask(DictTransform):
             x = data[key]
             if not torch.is_tensor(x):
                 raise TypeError(f"Expected a tensor, got {type(x).__name__!r}.")
+
             data[dst_key] = sphere_mask(x, self.center, self.radius, dim=self.dim)
 
         return data
