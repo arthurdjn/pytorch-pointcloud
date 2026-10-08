@@ -1374,6 +1374,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.datasets.repeat.RepeatSampler" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        RepeatSampler
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -6172,6 +6183,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.datasets.repeat.RepeatSampler" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        RepeatSampler
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -6279,10 +6301,20 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;RepeatDataset&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/4c2dcbd50e71d8714ed3ae623bcac2eda152f723/src/torch_pointcloud/datasets/repeat.py#L8-L27&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.repeat.RepeatDataset">RepeatDataset</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/462bae35ca139fe83c4e312341c336be85d37c95/src/torch_pointcloud/datasets/repeat.py#L11-L30&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.repeat.RepeatDataset">RepeatDataset</a></code></b>
           –
           <div class="doc-md-description">
             <p>Repeats a dataset <code>k</code> times so one epoch iterates it <code>k</code> times.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;RepeatSampler&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/462bae35ca139fe83c4e312341c336be85d37c95/src/torch_pointcloud/datasets/repeat.py#L33-L75&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.repeat.RepeatSampler">RepeatSampler</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Draws every sample of a dataset its own number of times per epoch.</p>
           </div>
         </li>
     </ul>
@@ -6311,7 +6343,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">RepeatDataset</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/4c2dcbd50e71d8714ed3ae623bcac2eda152f723/src/torch_pointcloud/datasets/repeat.py#L8-L27" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/462bae35ca139fe83c4e312341c336be85d37c95/src/torch_pointcloud/datasets/repeat.py#L11-L30" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.datasets.repeat.RepeatDataset" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">RepeatDataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">:</span> <span class="n"><span title="torch.utils.data.Dataset">Dataset</span></span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span>
@@ -6348,6 +6380,111 @@ without otherwise changing training.</p>
         </li>
     </ul>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.datasets.repeat.RepeatSampler" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">RepeatSampler</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/462bae35ca139fe83c4e312341c336be85d37c95/src/torch_pointcloud/datasets/repeat.py#L33-L75" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.datasets.repeat.RepeatSampler" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">RepeatSampler</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">counts</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">shuffle</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">generator</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch.Generator">Generator</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="torch.utils.data.Sampler">Sampler</span>[<span title="int">int</span>]</code></p>
+
+
+
+        <p>Draws every sample of a dataset its own number of times per epoch.</p>
+<p>An epoch yields index <span class="arithmatex">\(i\)</span> <code>counts[i]</code> times, shuffled unless <code>shuffle</code> is off, so unevenly sized samples
+can be visited in proportion to their size (large scenes more often than small ones).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>counts</code></b>
+              (<code><span title="typing.Sequence">Sequence</span>[<span title="int">int</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Number of draws per epoch of every sample, one non-negative count per dataset index.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>shuffle</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Shuffle the draws; <code>False</code> yields them grouped by sample, in index order.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>generator</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch.Generator">Generator</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Random generator of the shuffle; <code>None</code> uses the global one.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-pycon highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">&gt;&gt;&gt; </span><span class="n">sampler</span> <span class="o">=</span> <span class="n">RepeatSampler</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">sampler</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="go">[0, 0, 2, 2, 2, 3]</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">sampler</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="go">6</span>
+</code></pre></div>
+</details>
 
 
 
