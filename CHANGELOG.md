@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.12 (2026-10-07)
+
 - Reorganized `losses` into tiers: each tensor function sits next to its module and is re-exported by `losses.functional`; added the module forms `SigmoidFocalLoss`, `GaussianFocalLoss`, `ChamferDistance` and `CornerLoss`; the private copies inside the detection losses are gone.
 - Renamed the detection losses after their head (`AnchorHeadLoss`, `MultiGroupAnchorHeadLoss`, `CenterHeadLoss`, `VoxelNeXtHeadLoss`, `TransFusionHeadLoss`) and their reported terms to `<term>_loss`.
 - `VoteNetLoss` assigns its targets from the packed ground truth; the `GenerateVoteLabels` and `EncodeVoteNetTargets` transforms are removed.
@@ -18,6 +20,11 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
 - Fixed `assign_anchor_targets` matching by the rotated BEV IoU; the anchor recipes match by the nearest-axis-aligned one (`boxes_iou_nearest_bev`) unless `match_height` is set.
 - Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
+- Added `torch_pointcloud.engine`: `train_one_epoch`, `evaluate_classification`, `evaluate_segmentation` and `evaluate_detection`.
+- Added `torch_pointcloud.optim`: `param_groups`, `CosineWarmupLR`, `PolyLR` and the BatchNorm momentum schedules; `utils.optim.generate_param_groups` moved there.
+- Added the transform options of the reference recipes: `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)`, `RandomSample(allow_fewer=True)`, `S3DIS(num_nodes=None)` and the `mix` / `mix_prob` collate of `PointCloudDataLoader`.
+- Added `transforms.RandomApply`, `RandomBlockCrop`, `Translate` and `RepeatDataset(k=[...])`.
+- Added the reference training recipes as example scripts (Pointcept, openpoints, yanx27, spvnas, KPConv-PyTorch, RandLA-Net, PVCNN, Point-MAE-family finetuning, Sonata linear probing); they replace the generic classification and segmentation scripts.
 
 ## 0.0.11 (2026-10-06)
 
