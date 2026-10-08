@@ -143,9 +143,11 @@ def test_one_hot_foreground_drops_background_and_ignored_rows() -> None:
 
 def test_chamfer_distance_module_matches_function() -> None:
     torch.manual_seed(0)
-    pred, target = torch.randn(2, 8, 3), torch.randn(2, 6, 3)
+    pred, target = torch.randn(16, 3), torch.randn(12, 3)
+    pred_batch, target_batch = torch.arange(2).repeat_interleave(8), torch.arange(2).repeat_interleave(6)
     criterion = ChamferDistance(norm="l1")
-    assert torch.allclose(criterion(pred, target), chamfer_distance(pred, target, norm="l1"))
+    expected = chamfer_distance(pred, target, pred_batch=pred_batch, target_batch=target_batch, norm="l1")
+    assert torch.allclose(criterion(pred, target, pred_batch, target_batch), expected)
     assert "norm='l1'" in repr(criterion)
     with pytest.raises(ValueError, match="norm"):
         ChamferDistance(norm="linf")  # type: ignore[arg-type]
@@ -169,7 +171,12 @@ def test_chamfer_distance_matches_the_dense_formula_and_its_gradients(
     dense = sq_dist.min(2).values.mean() + sq_dist.min(1).values.mean()
     dense_grads = torch.autograd.grad(dense, (pred, target))
 
-    loss = chamfer_distance(pred, target, norm="l2")
+    loss = chamfer_distance(
+        pred.reshape(-1, 3),
+        target.reshape(-1, 3),
+        pred_batch=torch.arange(2).repeat_interleave(50),
+        target_batch=torch.arange(2).repeat_interleave(40),
+    )
     grads = torch.autograd.grad(loss, (pred, target))
     assert torch.allclose(loss, dense)
     assert all(torch.allclose(g, d) for g, d in zip(grads, dense_grads))
@@ -181,12 +188,16 @@ def test_chamfer_nearest_neighbor_backends_agree(monkeypatch: pytest.MonkeyPatch
     from torch_pointcloud.losses import chamfer as chamfer_module
 
     torch.manual_seed(0)
-    query, points = torch.randn(3, 64, 3, device="cuda"), torch.randn(3, 48, 3, device="cuda")
-    with_kaolin = chamfer_module._nearest_index(query, points)
+    query, query_batch = torch.randn(150, 3, device="cuda"), torch.tensor([0] * 64 + [1] * 30 + [2] * 56, device="cuda")
+    points, point_batch = (
+        torch.randn(120, 3, device="cuda"),
+        torch.tensor([0] * 48 + [1] * 60 + [2] * 12, device="cuda"),
+    )
+    with_kaolin = chamfer_module._nearest_index(query, query_batch, points, point_batch, 3)
 
     monkeypatch.setattr(chamfer_module, "_KAOLIN_AVAILABLE", False)
-    with_knn = chamfer_module._nearest_index(query, points)
-    assert torch.equal(with_kaolin, with_knn)
+    without = chamfer_module._nearest_index(query, query_batch, points, point_batch, 3)
+    assert torch.equal(with_kaolin, without)
 
 
 def test_lovasz_softmax_perfect_prediction_is_zero_and_validates_classes() -> None:
