@@ -280,6 +280,12 @@ nav = [
             { "serialization" = "api/ops/serialization.md" },
             { "voxelization" = "api/ops/voxelization.md" },
         ] },
+        { Optim = [
+            { "Overview" = "api/optim/index.md" },
+            { "bn_momentum" = "api/optim/bn_momentum.md" },
+            { "param_groups" = "api/optim/param_groups.md" },
+            { "schedulers" = "api/optim/schedulers.md" },
+        ] },
         { Transforms = [
             { "Overview" = "api/transforms/index.md" },
             { "augmentation" = "api/transforms/augmentation.md" },
@@ -302,7 +308,6 @@ nav = [
             { "imports" = "api/utils/imports.md" },
             { "io" = "api/utils/io.md" },
             { "misc" = "api/utils/misc.md" },
-            { "optim" = "api/utils/optim.md" },
             { "random" = "api/utils/random.md" },
             { "state_dict" = "api/utils/state_dict.md" },
             { "types" = "api/utils/types.md" },

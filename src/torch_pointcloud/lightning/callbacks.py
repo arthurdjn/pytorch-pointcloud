@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from torch import nn
 
+from torch_pointcloud.optim import bn_momentum, set_bn_momentum
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, _TORCHMETRICS_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ class BNMomentumScheduler(Callback):
     $$
 
     with $m_0$ the initial momentum, $\gamma$ the decay rate, $s$ the decay step (epochs) and
-    $m_\text{clip}$ the floor.
+    $m_\text{clip}$ the floor (`torch_pointcloud.optim.bn_momentum`).
 
     Args:
         bn_momentum_init: Initial BatchNorm momentum $m_0$.
@@ -54,15 +55,16 @@ class BNMomentumScheduler(Callback):
 
     def on_train_epoch_start(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
         """Set the decayed momentum on every BatchNorm module of the model."""
-        momentum = max(
-            self.bn_momentum_init * self.bn_decay_rate ** (trainer.current_epoch // self.bn_decay_step),
-            self.bn_momentum_clip,
+        momentum = bn_momentum(
+            trainer.current_epoch,
+            init=self.bn_momentum_init,
+            decay_rate=self.bn_decay_rate,
+            decay_step=self.bn_decay_step,
+            clip=self.bn_momentum_clip,
         )
         model = pl_module.model
         assert isinstance(model, nn.Module)
-        for module in model.modules():
-            if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
-                module.momentum = momentum
+        set_bn_momentum(model, momentum)
 
 
 class MetricCallback(Callback):
