@@ -499,6 +499,18 @@
         <loc>https://pytorch-pointcloud.org/latest/api/ops/voxelization/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/optim/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/optim/bn_momentum/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/optim/param_groups/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/optim/schedulers/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/transforms/</loc>
       </url>
       <url>
@@ -554,9 +566,6 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/misc/</loc>
-      </url>
-      <url>
-        <loc>https://pytorch-pointcloud.org/latest/api/utils/optim/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/random/</loc>
