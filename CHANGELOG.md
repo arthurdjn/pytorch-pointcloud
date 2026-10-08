@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 - Removed the scalar `loss_weight` of the single-term loss modules; `SumLoss` takes `weights` instead.
 - Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
 - Fixed `assign_anchor_targets` matching by the rotated BEV IoU; the anchor recipes match by the nearest-axis-aligned one (`boxes_iou_nearest_bev`) unless `match_height` is set.
+- Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
 
 ## 0.0.11 (2026-10-06)
 
