@@ -10,7 +10,7 @@ from torch_geometric.utils import scatter
 
 from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.conversion import ensure_list
-from torch_pointcloud.utils.types import AggrType
+from torch_pointcloud.utils.types import AggrType, OptTensor
 
 
 class TNet(nn.Module):
@@ -49,6 +49,8 @@ class TNet(nn.Module):
         bias: Whether to use bias in the linear layers.
         dropout: Dropout rate.
         aggr: Aggregation method to use.
+        track_running_stats: Whether to keep the per-sample transforms of the last forward pass
+            (`running_transform`, $(B, k, k)$) for `losses.tnet_orthogonality_regularizer`.
     """
 
     def __init__(
@@ -64,6 +66,7 @@ class TNet(nn.Module):
         bias: bool = True,
         dropout: float = 0.0,
         aggr: AggrType = "max",
+        track_running_stats: bool = True,
     ) -> None:
         super().__init__()
         kwargs = dict(
@@ -79,6 +82,8 @@ class TNet(nn.Module):
 
         self.k = k
         self.aggr = aggr
+        self.track_running_stats = track_running_stats
+        self.running_transform: OptTensor = None
 
         local_channels = [k] + ensure_list(local_channels)
         global_channels = [local_channels[-1]] + ensure_list(global_channels)
@@ -114,6 +119,8 @@ class TNet(nn.Module):
         xt = self.transform(xt)
         identity = torch.eye(self.k, dtype=xt.dtype, device=xt.device)
         xt = xt.view(-1, self.k, self.k) + identity
+        if self.track_running_stats:
+            self.running_transform = xt  # (B, k, k)
 
         xt = xt[batch]
         return torch.bmm(x.unsqueeze(1), xt).squeeze(1)
@@ -146,6 +153,8 @@ class DynamicTNet(nn.Module):
         bias: Whether to use bias in linear layers.
         dropout: Dropout rate.
         aggr: Aggregation method to use.
+        track_running_stats: Whether to keep the per-sample transforms of the last forward pass
+            (`running_transform`, $(B, k, k)$) for `losses.tnet_orthogonality_regularizer`.
     """
 
     def __init__(
@@ -163,6 +172,7 @@ class DynamicTNet(nn.Module):
         bias: bool = True,
         dropout: float = 0.0,
         aggr: AggrType = "max",
+        track_running_stats: bool = True,
     ) -> None:
         super().__init__()
         kwargs = dict(
@@ -179,6 +189,8 @@ class DynamicTNet(nn.Module):
         self.k = k
         self.num_neighbors = num_neighbors
         self.aggr = aggr
+        self.track_running_stats = track_running_stats
+        self.running_transform: OptTensor = None
 
         edge_channels = [2 * k] + ensure_list(edge_channels)
         local_channels = [edge_channels[-1]] + ensure_list(local_channels)
@@ -214,6 +226,8 @@ class DynamicTNet(nn.Module):
         xt = self.transform(xt)
         identity = torch.eye(self.k, dtype=xt.dtype, device=xt.device)
         xt = xt.view(-1, self.k, self.k) + identity
+        if self.track_running_stats:
+            self.running_transform = xt  # (B, k, k)
 
         xt = xt[batch]
         return torch.bmm(x.unsqueeze(1), xt).squeeze(1)

@@ -3,7 +3,7 @@ from typing import Any, Dict, Tuple
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import TransFusionLoss
+from torch_pointcloud.losses import TransFusionHeadLoss
 from torch_pointcloud.utils.data import DataKeys
 
 _POINT_CLOUD_RANGE = (-12.0, -12.0, -2.0, 12.0, 12.0, 4.0)
@@ -32,16 +32,16 @@ def _data(batch_size: int = 2, num_queries: int = 20, size: int = 24) -> Tuple[D
             [6.0, -3.0, 0.0, 3.2, 1.7, 1.5, 1.1],
         ]
     )
-    batch: Dict[str, Any] = {
+    data: Dict[str, Any] = {
         DataKeys.BOX: box,
         DataKeys.LABEL: torch.tensor([0, 1, 2]),
         DataKeys.BATCH_BOX: torch.tensor([0, 0, 1]),
     }
-    return output, batch
+    return output, data
 
 
-def _loss() -> TransFusionLoss:
-    return TransFusionLoss(
+def _loss() -> TransFusionHeadLoss:
+    return TransFusionHeadLoss(
         _NUM_CLASSES,
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
@@ -87,14 +87,14 @@ def _perfect_output(boxes: Tensor, labels: Tensor, num_queries: int = 4) -> Dict
 def test_transfusion_loss_perfect_queries_regression_terms_zero() -> None:
     boxes = torch.tensor([[2.0, 3.0, 0.2, 3.5, 2.0, 1.5, 0.4], [-5.0, 4.0, 0.1, 4.0, 1.8, 1.6, -0.6]])
     labels = torch.tensor([0, 2])
-    batch: Dict[str, Any] = {
+    data: Dict[str, Any] = {
         DataKeys.BOX: boxes,
         DataKeys.LABEL: labels,
         DataKeys.BATCH_BOX: torch.zeros(2, dtype=torch.long),
     }
     output = _perfect_output(boxes, labels)
-    out = _loss()(output, batch)
-    assert out["bbox_loss"] < 1e-5
+    out = _loss()(output, data)
+    assert out["box_loss"] < 1e-5
     assert out["iou_loss"] < 1e-5
     assert out["cls_loss"] < 1e-3
 
@@ -107,48 +107,54 @@ def test_transfusion_loss_encode_decode_height_convention() -> None:
     assert torch.isclose(targets[0, 2], torch.tensor(-1.0 + 0.9))
 
     output = _perfect_output(boxes, torch.tensor([0]))
-    decoded = loss_fn._decode_queries(output, 0)
+    decoded = loss_fn._decode_queries(output)[0]  # type: ignore[arg-type]
     assert torch.allclose(decoded[0], boxes[0], atol=1e-5)
 
 
 def test_transfusion_loss_perturbed_queries_are_larger() -> None:
     boxes = torch.tensor([[2.0, 3.0, 0.2, 3.5, 2.0, 1.5, 0.4], [-5.0, 4.0, 0.1, 4.0, 1.8, 1.6, -0.6]])
     labels = torch.tensor([0, 2])
-    batch: Dict[str, Any] = {
+    data: Dict[str, Any] = {
         DataKeys.BOX: boxes,
         DataKeys.LABEL: labels,
         DataKeys.BATCH_BOX: torch.zeros(2, dtype=torch.long),
     }
     output = _perfect_output(boxes, labels)
-    perfect = _loss()(output, batch)
+    perfect = _loss()(output, data)
     output["center"][0, 0, 0] += 0.5
-    out = _loss()(output, batch)
-    assert out["bbox_loss"] > perfect["bbox_loss"] + 1e-3
+    out = _loss()(output, data)
+    assert out["box_loss"] > perfect["box_loss"] + 1e-3
     assert out["loss"] > perfect["loss"]
 
 
 def test_transfusion_loss_returns_scalar_dict() -> None:
-    output, batch = _data()
-    out = _loss()(output, batch)
-    for key in ("loss", "heatmap_loss", "cls_loss", "bbox_loss", "iou_loss"):
+    output, data = _data()
+    out = _loss()(output, data)
+    for key in ("loss", "heatmap_loss", "cls_loss", "box_loss", "iou_loss"):
         assert key in out, key
         assert out[key].ndim == 0
         assert torch.isfinite(out[key])
 
 
+def test_transfusion_loss_forward_returns_dict() -> None:
+    output, data = _data()
+    out = _loss()(output, data)
+    assert isinstance(out, dict) and out["loss"].ndim == 0
+
+
 def test_transfusion_loss_backward() -> None:
-    output, batch = _data()
+    output, data = _data()
     for value in output.values():
         value.requires_grad_(True)
-    _loss()(output, batch)["loss"].backward()
+    _loss()(output, data)["loss"].backward()
     assert output["dense_heatmap"].grad is not None
     assert output["heatmap"].grad is not None
     assert output["iou"].grad is not None
 
 
 def test_transfusion_loss_no_boxes_is_finite() -> None:
-    output, batch = _data()
-    batch[DataKeys.BOX] = batch[DataKeys.BOX][:0]
-    batch[DataKeys.LABEL] = batch[DataKeys.LABEL][:0]
-    batch[DataKeys.BATCH_BOX] = batch[DataKeys.BATCH_BOX][:0]
-    assert torch.isfinite(_loss()(output, batch)["loss"])
+    output, data = _data()
+    data[DataKeys.BOX] = data[DataKeys.BOX][:0]
+    data[DataKeys.LABEL] = data[DataKeys.LABEL][:0]
+    data[DataKeys.BATCH_BOX] = data[DataKeys.BATCH_BOX][:0]
+    assert torch.isfinite(_loss()(output, data)["loss"])

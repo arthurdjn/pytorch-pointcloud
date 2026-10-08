@@ -1,45 +1,26 @@
-r"""TransFusion detection loss: Hungarian-matched query targets and a dense center-heatmap objective."""
+r"""Loss of the query-based `TransFusionHead` (LION): Hungarian-matched query targets and a dense center heatmap."""
 
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
 
 import torch
-from scipy.optimize import linear_sum_assignment
 from torch import Tensor, nn
 
-from torch_pointcloud.losses._utils import _clamp_sigmoid
-from torch_pointcloud.losses.anchor import sigmoid_focal_loss
+from torch_pointcloud.losses._utils import unbatch_boxes
+from torch_pointcloud.losses.focal import gaussian_focal_loss, sigmoid_focal_loss
+from torch_pointcloud.losses.matching import hungarian_match_batched
 from torch_pointcloud.ops.box3d import boxes_iou3d
 from torch_pointcloud.ops.heatmap import draw_heatmap_targets
-from torch_pointcloud.utils.data import DataKeys
+
+if TYPE_CHECKING:
+    from torch_pointcloud.models.lion import TransFusionHeadOutput
 
 _LOG_EPS = 1e-12
 
 
-def _gaussian_focal_loss(pred: Tensor, target: Tensor) -> Tensor:
-    r"""Penalty-reduced center focal loss over the dense heatmap, normalized by the peak-cell count.
+class TransFusionHeadLoss(nn.Module):
+    r"""Loss of the `TransFusionHead` (dense heatmap, matched classification, box, IoU rescore).
 
-    The positive term is $-\log(p)(1 - p)^2$ at cells whose Gaussian target is exactly $1$; every other
-    cell is a soft negative down-weighted by $(1 - y)^4$. Normalized by the number of positive cells.
-
-    Args:
-        pred: Clamped sigmoid probabilities, shape $(B, C, H, W)$.
-        target: Gaussian heatmap target of the same shape, values in $[0, 1]$.
-
-    Returns:
-        Scalar focal loss.
-    """
-    pos_weights = target.eq(1).float()
-    neg_weights = (1 - target).pow(4)
-    pos_loss = -(pred + _LOG_EPS).log() * (1 - pred).pow(2) * pos_weights
-    neg_loss = -(1 - pred + _LOG_EPS).log() * pred.pow(2) * neg_weights
-    num_pos = pos_weights.sum().clamp(min=1.0)
-    return (pos_loss + neg_loss).sum() / num_pos
-
-
-class TransFusionLoss(nn.Module):
-    r"""Query-based TransFusion detection loss (dense heatmap, matched classification, box, IoU rescore).
-
-    Reference: :arxiv: [Bai et al., 2022](https://arxiv.org/abs/2203.11496).
+    Reference: :arxiv: [TransFusion: Robust LiDAR-Camera Fusion for 3D Object Detection with Transformers](https://arxiv.org/abs/2203.11496) (Bai et al., 2022).
 
     The head predicts a dense per-class BEV heatmap plus a fixed set of object queries, each carrying a
     class logit vector and a box code. Four terms are summed:
@@ -132,131 +113,152 @@ class TransFusionLoss(nn.Module):
 
         self.register_buffer("code_weights", torch.tensor(list(code_weights), dtype=torch.float32))
 
-    def forward(self, output: Dict[str, Tensor], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the TransFusion loss and its components.
+    def forward(self, output: "TransFusionHeadOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the TransFusion loss and its terms.
 
         Args:
             output: The head's raw output: per-query `center` $(B, 2, Q)$, `height` $(B, 1, Q)$,
                 `dim` $(B, 3, Q)$, `rot` $(B, 2, Q)$, `vel` $(B, 2, Q)$, `iou` $(B, 1, Q)$ and `heatmap`
                 $(B, C, Q)$ class logits, plus the dense `dense_heatmap` $(B, C, H, W)$.
-            batch: Packed ground truth (`DataKeys.BOX` $(K, 7)$ full-extent, `DataKeys.LABEL` $(K,)$
+            data: Packed ground truth (`DataKeys.BOX` $(K, 7)$ full-extent, `DataKeys.LABEL` $(K,)$
                 $0$-based, `DataKeys.BATCH_BOX` $(K,)$ per-box scene index).
 
         Returns:
-            A dict with the scalar `loss` (to backprop) and detached `heatmap_loss`, `cls_loss`,
-            `bbox_loss`, `iou_loss` diagnostics.
+            A dict with the scalar `loss` and detached `heatmap_loss`, `cls_loss`, `box_loss`, `iou_loss`.
         """
         center = output["center"]
         batch_size, _, num_queries = center.shape
-        device = center.device
-        width, height = self.feature_map_size
 
-        boxes_per_scene, labels_per_scene = self._densify_gt(batch, batch_size, device)
+        boxes_per_scene, labels_per_scene = self._densify_gt(data, batch_size, center.device)
 
-        hm_target = torch.stack(
-            [
-                draw_heatmap_targets(
-                    boxes_per_scene[b],
-                    labels_per_scene[b],
-                    self.num_classes,
-                    self.feature_map_size,
-                    self.voxel_size,
-                    self.point_cloud_range,
-                    self.feature_map_stride,
-                    gaussian_overlap=self.gaussian_overlap,
-                    min_radius=self.min_radius,
-                )[0]
-                for b in range(batch_size)
-            ]
-        )
-        heatmap_loss = _gaussian_focal_loss(_clamp_sigmoid(output["dense_heatmap"]), hm_target) * self.heatmap_weight
+        hm_target = self._heatmap_targets(boxes_per_scene, labels_per_scene)
+        heatmap_loss = gaussian_focal_loss(output["dense_heatmap"].sigmoid(), hm_target) * self.heatmap_weight
 
+        decoded = self._decode_queries(output)
+        assignment, ious = self._match(decoded, output["heatmap"], boxes_per_scene, labels_per_scene)
+        counts = [boxes.shape[0] for boxes in boxes_per_scene]
+        num_pos = sum(min(num_queries, count) for count in counts)
+
+        # Targets of the matched queries, gathered from the ground truth of the whole batch at once.
         labels = center.new_full((batch_size, num_queries), self.num_classes, dtype=torch.long)
         bbox_targets = center.new_zeros((batch_size, num_queries, 10))
         bbox_weights = center.new_zeros((batch_size, num_queries, 10))
-        iou_terms: List[Tensor] = []
-        num_pos = 0
-        for b in range(batch_size):
-            decoded = self._decode_queries(output, b)
-            pos_inds, pos_gt = self._match(decoded, output["heatmap"][b].t(), boxes_per_scene[b], labels_per_scene[b])
-            num_pos += int(pos_inds.numel())
-            if pos_inds.numel() == 0:
-                continue
-            labels[b, pos_inds] = labels_per_scene[b][pos_gt]
-            bbox_targets[b, pos_inds] = self._encode(boxes_per_scene[b][pos_gt])
-            bbox_weights[b, pos_inds] = 1.0
-            iou = boxes_iou3d(decoded[pos_inds], boxes_per_scene[b][pos_gt, :7]).diagonal()
-            iou_terms.append((output["iou"][b, 0, pos_inds] - (iou * 2 - 1)).abs().sum())
+        iou_sum = center.new_zeros(())
+        if num_pos > 0:
+            matched = assignment >= 0
+            starts = center.new_tensor([sum(counts[:b]) for b in range(batch_size)], dtype=torch.long)
+            gt_index = assignment.clamp(min=0) + starts.unsqueeze(1)
+            all_boxes = torch.cat(boxes_per_scene)
+            all_labels = torch.cat(labels_per_scene)
+
+            labels = torch.where(matched, all_labels[gt_index], labels)
+            encoded = self._encode(all_boxes[gt_index.view(-1)]).view(batch_size, num_queries, 10)
+            bbox_targets = torch.where(matched.unsqueeze(-1), encoded, bbox_targets)
+            bbox_weights = matched.to(center.dtype).unsqueeze(-1).expand(batch_size, num_queries, 10)
+
+            # IoU-rescore target: the 3D IoU of each matched query's decoded box with its ground-truth box.
+            for b in range(batch_size):
+                if counts[b] == 0:
+                    continue
+
+                iou = ious[b].gather(1, assignment[b].clamp(min=0).unsqueeze(1)).squeeze(1)
+                iou_sum = iou_sum + ((output["iou"][b, 0] - (iou * 2 - 1)).abs() * matched[b]).sum()
 
         cls_loss = self._cls_loss(output["heatmap"], labels, num_pos) * self.cls_weight
-        bbox_loss = self._bbox_loss(output, bbox_targets, bbox_weights, num_pos) * self.loc_weight
-        iou_sum = torch.stack(iou_terms).sum() if iou_terms else center.new_zeros(())
+        box_loss = self._box_loss(output, bbox_targets, bbox_weights, num_pos) * self.loc_weight
         iou_loss = iou_sum / max(num_pos, 1) * self.iou_weight
 
-        total = heatmap_loss + cls_loss + bbox_loss + iou_loss
         return {
-            "loss": total,
+            "loss": heatmap_loss + cls_loss + box_loss + iou_loss,
             "heatmap_loss": heatmap_loss.detach(),
             "cls_loss": cls_loss.detach(),
-            "bbox_loss": bbox_loss.detach(),
+            "box_loss": box_loss.detach(),
             "iou_loss": iou_loss.detach(),
         }
 
-    def _densify_gt(
-        self, batch: Dict[str, Any], batch_size: int, device: torch.device
-    ) -> Tuple[List[Tensor], List[Tensor]]:
+    def _heatmap_targets(self, boxes_per_scene: List[Tensor], labels_per_scene: List[Tensor]) -> Tensor:
+        r"""Per-class Gaussian center heatmaps of every scene, stacked to $(B, C, H, W)$."""
+        heatmaps = []
+        for boxes, labels in zip(boxes_per_scene, labels_per_scene):
+            heatmap, _, _, _ = draw_heatmap_targets(
+                boxes,
+                labels,
+                self.num_classes,
+                self.feature_map_size,
+                self.voxel_size,
+                self.point_cloud_range,
+                self.feature_map_stride,
+                gaussian_overlap=self.gaussian_overlap,
+                min_radius=self.min_radius,
+            )
+            heatmaps.append(heatmap)
+
+        return torch.stack(heatmaps)
+
+    @staticmethod
+    def _densify_gt(data: Dict[str, Any], batch_size: int, device: torch.device) -> Tuple[List[Tensor], List[Tensor]]:
         r"""Split the packed ground truth into per-scene box / zero-based-label lists, dropping empty boxes."""
-        box: Tensor = batch[DataKeys.BOX]
-        label: Tensor = batch[DataKeys.LABEL].long()  # 0-based class index (nuScenes `class_to_idx`)
-        box_batch: Tensor = batch[DataKeys.BATCH_BOX]
+        boxes_per_scene, labels_per_scene = unbatch_boxes(data, batch_size, device)
+        kept_boxes: List[Tensor] = []
+        kept_labels: List[Tensor] = []
+        for boxes, labels in zip(boxes_per_scene, labels_per_scene):
+            keep = (boxes[:, 3] > 0) & (boxes[:, 4] > 0)
+            kept_boxes.append(boxes[keep])
+            kept_labels.append(labels[keep])
+        return kept_boxes, kept_labels
 
-        boxes_per_scene: List[Tensor] = []
-        labels_per_scene: List[Tensor] = []
-        for b in range(batch_size):
-            scene = box_batch == b
-            scene_boxes = box[scene].to(device)
-            scene_labels = label[scene].to(device)
-            keep = (scene_boxes[:, 3] > 0) & (scene_boxes[:, 4] > 0)
-            boxes_per_scene.append(scene_boxes[keep])
-            labels_per_scene.append(scene_labels[keep])
-        return boxes_per_scene, labels_per_scene
-
-    def _decode_queries(self, output: Dict[str, Tensor], b: int) -> Tensor:
-        r"""Decode one scene's per-query predictions to oriented boxes $(Q, 7)$ in metric coordinates."""
+    def _decode_queries(self, output: "TransFusionHeadOutput") -> Tensor:
+        r"""Decode the per-query predictions of every scene to oriented boxes $(B, Q, 7)$ in metric coordinates."""
         vs, pcr, stride = self.voxel_size, self.point_cloud_range, self.feature_map_stride
-        center = output["center"][b]
-        dim = output["dim"][b].exp()
-        rot = output["rot"][b]
-        x = center[0] * stride * vs[0] + pcr[0]
-        y = center[1] * stride * vs[1] + pcr[1]
-        z = output["height"][b][0] - dim[2] * 0.5
-        angle = torch.atan2(rot[0], rot[1])
-        return torch.stack([x, y, z, dim[0], dim[1], dim[2], angle], dim=-1)
+        center = output["center"]
+        dim = output["dim"].exp()
+        rot = output["rot"]
 
-    def _match(self, decoded: Tensor, cls_logits: Tensor, gt_boxes: Tensor, gt_labels: Tensor) -> Tuple[Tensor, Tensor]:
-        r"""Per-scene Hungarian match of queries to ground truth (focal cls + center $L_1$ + 3D-IoU cost)."""
-        if gt_boxes.shape[0] == 0 or decoded.shape[0] == 0:
-            empty = decoded.new_zeros((0,), dtype=torch.long)
-            return empty, empty
+        x = center[:, 0] * stride * vs[0] + pcr[0]
+        y = center[:, 1] * stride * vs[1] + pcr[1]
+        z = output["height"][:, 0] - dim[:, 2] * 0.5
+        angle = torch.atan2(rot[:, 0], rot[:, 1])
+        return torch.stack([x, y, z, dim[:, 0], dim[:, 1], dim[:, 2], angle], dim=-1)
 
-        prob = cls_logits.sigmoid()
+    @torch.no_grad()
+    def _match(
+        self,
+        decoded: Tensor,
+        cls_logits: Tensor,
+        boxes_per_scene: List[Tensor],
+        labels_per_scene: List[Tensor],
+    ) -> Tuple[Tensor, List[Tensor]]:
+        r"""Hungarian match of every scene's queries to its ground truth (focal cls + center $L_1$ + 3D-IoU cost).
+
+        The costs of all scenes are solved after a single device transfer. Returns the matched box index of
+        every query, $(B, Q)$ long with $-1$ when unmatched, and the per-scene query-to-box 3D IoU matrices
+        $(Q, K_b)$ the IoU-rescore term reuses.
+        """
+        batch_size, num_queries = decoded.shape[:2]
+        counts = [boxes.shape[0] for boxes in boxes_per_scene]
+
+        prob = cls_logits.sigmoid().permute(0, 2, 1)  # (B, Q, C)
         neg = -(1 - prob + _LOG_EPS).log() * (1 - self.focal_alpha) * prob.pow(self.focal_gamma)
         pos = -(prob + _LOG_EPS).log() * self.focal_alpha * (1 - prob).pow(self.focal_gamma)
-        cls_cost = (pos[:, gt_labels] - neg[:, gt_labels]) * self.matcher_cls_cost
-
         pc_start = decoded.new_tensor(self.point_cloud_range[0:2])
         pc_range = decoded.new_tensor(self.point_cloud_range[3:5]) - pc_start
-        reg_cost = torch.cdist((decoded[:, :2] - pc_start) / pc_range, (gt_boxes[:, :2] - pc_start) / pc_range, p=1)
-        reg_cost = reg_cost * self.matcher_reg_cost
 
-        iou_cost = -boxes_iou3d(decoded, gt_boxes[:, :7]) * self.matcher_iou_cost
+        cost = decoded.new_zeros(batch_size, num_queries, max(counts, default=0))
+        ious: List[Tensor] = []
+        for b, (gt_boxes, gt_labels) in enumerate(zip(boxes_per_scene, labels_per_scene)):
+            if counts[b] == 0:
+                ious.append(decoded.new_zeros(num_queries, 0))
+                continue
 
-        cost = cls_cost + reg_cost + iou_cost
-        row, col = linear_sum_assignment(cost.detach().cpu().numpy())
-        return (
-            torch.as_tensor(row, dtype=torch.long, device=decoded.device),
-            torch.as_tensor(col, dtype=torch.long, device=decoded.device),
-        )
+            cls_cost = (pos[b][:, gt_labels] - neg[b][:, gt_labels]) * self.matcher_cls_cost
+            reg_cost = torch.cdist(
+                (decoded[b, :, :2] - pc_start) / pc_range, (gt_boxes[:, :2] - pc_start) / pc_range, p=1
+            )
+            iou = boxes_iou3d(decoded[b], gt_boxes[:, :7])
+            ious.append(iou)
+            cost[b, :, : counts[b]] = cls_cost + reg_cost * self.matcher_reg_cost - iou * self.matcher_iou_cost
+
+        return hungarian_match_batched(cost, counts), ious
 
     def _encode(self, boxes: Tensor) -> Tensor:
         r"""Encode matched ground-truth boxes into the $10$-dim query box code (grid center, box-top $z$, log size, sincos).
@@ -283,13 +285,20 @@ class TransFusionLoss(nn.Module):
         one_hot = cls_score.new_zeros((batch_size, num_queries, self.num_classes + 1))
         one_hot.scatter_(-1, labels.unsqueeze(-1), 1.0)
         one_hot = one_hot[..., : self.num_classes]
-        weights = cls_score.new_ones((batch_size, num_queries))
-        loss = sigmoid_focal_loss(cls_score, one_hot, weights, alpha=self.focal_alpha, gamma=self.focal_gamma)
+        loss = sigmoid_focal_loss(cls_score, one_hot, alpha=self.focal_alpha, gamma=self.focal_gamma)
         return loss.sum() / max(num_pos, 1)
 
-    def _bbox_loss(self, output: Dict[str, Tensor], bbox_targets: Tensor, bbox_weights: Tensor, num_pos: int) -> Tensor:
+    def _box_loss(
+        self,
+        output: "TransFusionHeadOutput",
+        bbox_targets: Tensor,
+        bbox_weights: Tensor,
+        num_pos: int,
+    ) -> Tensor:
         r"""Code-weighted $L_1$ box regression over the matched queries."""
-        preds = torch.cat([output[k] for k in ("center", "height", "dim", "rot", "vel")], dim=1).permute(0, 2, 1)
+        preds = torch.cat(
+            [output["center"], output["height"], output["dim"], output["rot"], output["vel"]], dim=1
+        ).permute(0, 2, 1)
         reg_weights = bbox_weights * self.code_weights
         loss = (preds - bbox_targets).abs() * reg_weights
         return loss.sum() / max(num_pos, 1)

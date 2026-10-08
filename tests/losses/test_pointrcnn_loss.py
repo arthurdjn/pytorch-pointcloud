@@ -52,17 +52,17 @@ def _perfect_data(gt_shift_x: float = 0.0) -> Tuple[Dict[str, Tensor], Dict[str,
         "gt_of_rois_src": gt_box,
         "roi_ious": torch.tensor([0.9]),
     }
-    batch: Dict[str, Any] = {
+    data: Dict[str, Any] = {
         DataKeys.BOX: gt_box,
         DataKeys.LABEL: torch.tensor([0]),
         DataKeys.BATCH_BOX: torch.tensor([0]),
     }
-    return output, batch
+    return output, data
 
 
 def test_pointrcnn_loss_perfect_predictions_near_zero() -> None:
-    output, batch = _perfect_data()
-    out = _loss()(output, batch)
+    output, data = _perfect_data()
+    out = _loss()(output, data)
     assert out["point_box_loss"] == 0.0
     assert out["rcnn_box_loss"] == 0.0
     assert out["point_cls_loss"] < 1e-3
@@ -72,11 +72,11 @@ def test_pointrcnn_loss_perfect_predictions_near_zero() -> None:
 
 def test_pointrcnn_loss_perturbed_rcnn_regression_value() -> None:
     """A 0.2 residual error on the single foreground ROI costs exactly `smooth_l1(0.2)`."""
-    output, batch = _perfect_data()
-    perfect = _loss()(output, batch)
+    output, data = _perfect_data()
+    perfect = _loss()(output, data)
     output["rcnn_reg"] = output["rcnn_reg"].clone()
     output["rcnn_reg"][0, 0] = 0.2
-    out = _loss()(output, batch)
+    out = _loss()(output, data)
     expected = 0.2 - _BETA / 2
     assert torch.isclose(out["rcnn_box_loss"], torch.tensor(expected), atol=1e-6)
     assert out["loss"] > perfect["loss"]
@@ -84,8 +84,8 @@ def test_pointrcnn_loss_perturbed_rcnn_regression_value() -> None:
 
 def test_pointrcnn_loss_shifted_gt_box_value() -> None:
     """A GT box 0.5 m off the ROI: residual `0.5 / diagonal` plus a 0.125 corner term, both hand-computed."""
-    output, batch = _perfect_data(gt_shift_x=0.5)
-    out = _loss()(output, batch)
+    output, data = _perfect_data(gt_shift_x=0.5)
+    out = _loss()(output, data)
     diagonal = math.sqrt(3.9**2 + 1.6**2)
     residual_term = 0.5 / diagonal - _BETA / 2
     corner_term = 0.5 * 0.5**2  # all 8 corners are 0.5 m off, inside the smooth-l1 quadratic zone
@@ -93,48 +93,54 @@ def test_pointrcnn_loss_shifted_gt_box_value() -> None:
 
 
 def test_pointrcnn_loss_wrong_point_class_is_penalized() -> None:
-    output, batch = _perfect_data()
-    perfect = _loss()(output, batch)
+    output, data = _perfect_data()
+    perfect = _loss()(output, data)
     output["point_cls_preds"] = output["point_cls_preds"].clone()
     output["point_cls_preds"][0] = torch.tensor([-10.0, -10.0, 10.0])  # foreground point claims class 3
-    out = _loss()(output, batch)
+    out = _loss()(output, data)
     assert out["point_cls_loss"] > perfect["point_cls_loss"] + 1.0
 
 
 def test_pointrcnn_loss_ignored_shell_points_do_not_contribute() -> None:
     """A point between a box and its enlarged copy is ignored: flipping its logits changes nothing."""
-    output, batch = _perfect_data()
+    output, data = _perfect_data()
     output["point_pos"] = output["point_pos"].clone()
     output["point_pos"][1] = torch.tensor(_BOX[:3]) + torch.tensor([3.9 / 2 + 0.05, 0.0, 0.0])
-    base = _loss()(output, batch)
+    base = _loss()(output, data)
     output["point_cls_preds"] = output["point_cls_preds"].clone()
     output["point_cls_preds"][1] = 10.0
-    flipped = _loss()(output, batch)
+    flipped = _loss()(output, data)
     assert torch.isclose(base["point_cls_loss"], flipped["point_cls_loss"])
 
 
 def test_pointrcnn_loss_background_roi_has_no_box_loss() -> None:
-    output, batch = _perfect_data()
+    output, data = _perfect_data()
     output["roi_ious"] = torch.tensor([0.1])
     output["rcnn_reg"] = torch.full((1, 7), 5.0)
-    out = _loss()(output, batch)
+    out = _loss()(output, data)
     assert out["rcnn_box_loss"] == 0.0
 
 
 def test_pointrcnn_loss_no_boxes_is_finite() -> None:
-    output, batch = _perfect_data()
-    batch[DataKeys.BOX] = batch[DataKeys.BOX][:0]
-    batch[DataKeys.LABEL] = batch[DataKeys.LABEL][:0]
-    batch[DataKeys.BATCH_BOX] = batch[DataKeys.BATCH_BOX][:0]
+    output, data = _perfect_data()
+    data[DataKeys.BOX] = data[DataKeys.BOX][:0]
+    data[DataKeys.LABEL] = data[DataKeys.LABEL][:0]
+    data[DataKeys.BATCH_BOX] = data[DataKeys.BATCH_BOX][:0]
     output["roi_ious"] = torch.tensor([0.0])
-    assert torch.isfinite(_loss()(output, batch)["loss"])
+    assert torch.isfinite(_loss()(output, data)["loss"])
+
+
+def test_pointrcnn_loss_forward_returns_dict() -> None:
+    output, data = _perfect_data()
+    out = _loss()(output, data)
+    assert isinstance(out, dict) and out["loss"].ndim == 0
 
 
 def test_pointrcnn_loss_backward() -> None:
-    output, batch = _perfect_data(gt_shift_x=0.5)
+    output, data = _perfect_data(gt_shift_x=0.5)
     for key in ("point_cls_preds", "point_box_preds", "rcnn_cls", "rcnn_reg", "rcnn_boxes"):
         output[key].requires_grad_(True)
-    _loss()(output, batch)["loss"].backward()
+    _loss()(output, data)["loss"].backward()
     assert output["rcnn_reg"].grad is not None
     grad = output["point_cls_preds"].grad
     assert grad is not None and torch.isfinite(grad).all()

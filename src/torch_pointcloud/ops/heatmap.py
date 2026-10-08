@@ -7,7 +7,7 @@ box by at least `min_overlap` still lands inside the positive region.
 
 References:
     :arxiv: [Objects as Points](https://arxiv.org/abs/1904.07850) (the min-overlap Gaussian radius),
-    :arxiv: [Center-based 3D Object Detection and Tracking](https://arxiv.org/abs/2006.11275) (the BEV
+    :arxiv: [Center-based 3D Object Detection and Tracking](https://arxiv.org/abs/2006.11275) (Yin et al., 2021) (the BEV
     center-heatmap formulation used by the 3D heads).
 """
 
@@ -204,9 +204,12 @@ def draw_heatmap_targets(
     inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
     mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
 
-    if boxes.shape[0] == 0:
+    boxes, labels = boxes[:num_max_objs], labels[:num_max_objs]
+    num_objs = boxes.shape[0]
+    if num_objs == 0:
         return heatmap, reg_targets, inds, mask
 
+    # Project the centers to the feature map and solve the splat radius of every box at once.
     x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
     pos_x = (x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride
     pos_y = (y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride
@@ -221,26 +224,64 @@ def draw_heatmap_targets(
     radius = gaussian_radius(dy, dx, min_overlap=gaussian_overlap)
     radius = torch.clamp_min(radius.int(), min_radius)
 
-    for i in range(min(num_max_objs, boxes.shape[0])):
-        if dx[i] <= 0 or dy[i] <= 0:
-            continue
-        if not (0 <= center_int[i, 0] <= width and 0 <= center_int[i, 1] <= height):
-            continue
+    # Degenerate boxes and centers outside the map (impossible after the clamp, kept for parity) get no target.
+    in_map_x = (center_int[:, 0] >= 0) & (center_int[:, 0] <= width)
+    in_map_y = (center_int[:, 1] >= 0) & (center_int[:, 1] <= height)
+    valid = (dx > 0) & (dy > 0) & in_map_x & in_map_y
 
-        draw_gaussian_to_heatmap(heatmap[int(labels[i])], center[i], int(radius[i].item()))
+    # Per-object targets: the peak cell, its flat index and the regression code.
+    mask[:num_objs] = valid.long()
+    inds[:num_objs] = torch.where(valid, (center_int[:, 1] * width + center_int[:, 0]).long(), inds[:num_objs])
+    code = torch.cat(
+        [
+            center - center_int_float,
+            z[:, None],
+            boxes[:, 3:6].clamp_min(1e-5).log(),
+            torch.cos(boxes[:, 6:7]),
+            torch.sin(boxes[:, 6:7]),
+            boxes[:, 7:],
+        ],
+        dim=1,
+    )
+    reg_targets[:num_objs] = torch.where(valid[:, None], code, reg_targets[:num_objs])
 
-        inds[i] = center_int[i, 1] * width + center_int[i, 0]
-        mask[i] = 1
-
-        reg_targets[i, 0:2] = center[i] - center_int_float[i]
-        reg_targets[i, 2] = z[i]
-        reg_targets[i, 3:6] = boxes[i, 3:6].clamp_min(1e-5).log()
-        reg_targets[i, 6] = torch.cos(boxes[i, 6])
-        reg_targets[i, 7] = torch.sin(boxes[i, 6])
-        if boxes.shape[1] > 7:
-            reg_targets[i, 8:] = boxes[i, 7:]
+    # Splat every Gaussian at once: a (2 r_max + 1)^2 window per object, max-combined into the class map.
+    _splat_gaussians(heatmap, labels[valid], center_int[valid], radius[valid])
 
     return heatmap, reg_targets, inds, mask
+
+
+def _splat_gaussians(heatmap: Tensor, labels: Tensor, center_int: Tensor, radius: Tensor) -> None:
+    r"""Max-combine one Gaussian per object into the class maps of `heatmap` $(C, H, W)$, in place.
+
+    Every object gets the same $(2 r_\max + 1)^2$ window; the cells beyond its own radius (which
+    `draw_gaussian_to_heatmap` would not draw) and the cells outside the map are left out, so the
+    result equals drawing the objects one by one.
+    """
+    if labels.numel() == 0:
+        return
+
+    num_classes, height, width = heatmap.shape
+    device = heatmap.device
+    max_radius = int(radius.max())
+
+    # The Gaussian of `draw_gaussian_to_heatmap`: float64 values on the window, tiny ones zeroed.
+    offsets = torch.arange(-max_radius, max_radius + 1, dtype=torch.float64, device=device)
+    oy, ox = offsets[:, None], offsets[None, :]
+    diameter = 2 * radius.to(torch.float64) + 1
+    sigma = diameter / 6
+    gaussian = torch.exp(-(ox * ox + oy * oy) / (2 * sigma * sigma)[:, None, None])  # (K, D, D)
+    gaussian[gaussian < torch.finfo(torch.float64).eps] = 0
+
+    # Keep the cells of each object's own window that fall inside the map.
+    in_window = (ox.abs() <= radius[:, None, None]) & (oy.abs() <= radius[:, None, None])
+    xs = center_int[:, 0, None, None].long() + ox.long()
+    ys = center_int[:, 1, None, None].long() + oy.long()
+    in_map = (xs >= 0) & (xs < width) & (ys >= 0) & (ys < height)
+    inside = in_window & in_map
+
+    flat = (labels[:, None, None] * height + ys) * width + xs
+    heatmap.view(-1).scatter_reduce_(0, flat[inside], gaussian[inside].to(heatmap.dtype), reduce="amax")
 
 
 def transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:

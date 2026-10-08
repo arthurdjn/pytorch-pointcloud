@@ -14,10 +14,7 @@ from .anchors import (
     AnchorHead,
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
-    AnchorTargets,
     MultiGroupAnchorHead,
-    assign_anchor_targets,
-    generate_anchors,
     separate_branch,
 )
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d

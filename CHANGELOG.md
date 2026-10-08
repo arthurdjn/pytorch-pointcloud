@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Reorganized `losses` into tiers: each tensor function sits next to its module and is re-exported by `losses.functional`; added the module forms `SigmoidFocalLoss`, `GaussianFocalLoss`, `ChamferDistance` and `CornerLoss`; the private copies inside the detection losses are gone.
+- Renamed the detection losses after their head (`AnchorHeadLoss`, `MultiGroupAnchorHeadLoss`, `CenterHeadLoss`, `VoxelNeXtHeadLoss`, `TransFusionHeadLoss`) and their reported terms to `<term>_loss`.
+- `VoteNetLoss` assigns its targets from the packed ground truth; the `GenerateVoteLabels` and `EncodeVoteNetTargets` transforms are removed.
+- Added `tnet_orthogonality_regularizer` / `TNetOrthogonalityRegularizer`, PointNet's feature-transform regularization; `TNet` and `DynamicTNet` keep their last transform in `running_transform`.
+- Moved `generate_anchors`, `assign_anchor_targets` and `AnchorTargets` to `ops.anchors`; added `ops.box3d.points_in_boxes` and `boxes_iou_nearest_bev`.
+- Added `poly1_focal_loss` / `Poly1FocalLoss`.
+- Sped up the detection and segmentation losses 2x to 15x with identical values: vectorized heatmap and anchor targets, batched Hungarian matching, class-batched Lovász sort, an axis-aligned prefilter of the rotated IoU, and `chamfer_distance` on the nearest-neighbor kernels of kaolin (optional) or `torch_geometric` so whole clouds fit.
+- The detection losses take the collated dict as `data`: `forward(output, data)`.
+- Removed the scalar `loss_weight` of the single-term loss modules; `SumLoss` takes `weights` instead.
+- Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
+- Fixed `assign_anchor_targets` matching by the rotated BEV IoU; the anchor recipes match by the nearest-axis-aligned one (`boxes_iou_nearest_bev`) unless `match_height` is set.
 - Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
 
 ## 0.0.11 (2026-10-06)

@@ -11,10 +11,12 @@ from torch_pointcloud.ops.box3d import (
     box_corners,
     boxes_iou3d,
     boxes_iou_bev,
+    boxes_iou_nearest_bev,
     class_to_angle,
     class_to_size,
     count_points_in_boxes,
     nms3d,
+    points_in_boxes,
     projected_ignore_mask,
 )
 
@@ -361,3 +363,38 @@ def test_class_to_size_adds_residual_to_template() -> None:
     size_residual = torch.tensor([[0.1, -0.2, 0.3], [0.0, 0.5, -0.5], [-0.4, 0.0, 0.1]])
     size = class_to_size(size_class, size_residual, mean_sizes)
     assert torch.allclose(size, mean_sizes[size_class] + size_residual)
+
+
+def test_points_in_boxes_oriented_containment_matches_count() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.5, 0.0, 0.0], [0.0, 1.5, 0.0], [5.0, 5.0, 5.0]])
+    boxes = torch.tensor([[0.0, 0.0, 0.0, 4.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 4.0, 1.0, 2.0, math.pi / 2]])
+    inside = points_in_boxes(pos, boxes)
+    assert inside.tolist() == [[True, True], [True, False], [False, True], [False, False]]
+    assert torch.equal(count_points_in_boxes(pos, boxes), inside.sum(dim=0))
+
+
+def test_boxes_iou_aligned_matches_the_pairwise_matrix() -> None:
+    """`aligned=True` scores row-by-row pairs exactly as the corresponding entries of the full matrix."""
+    torch.manual_seed(0)
+    boxes_a = torch.cat([torch.rand(12, 3) * 6, torch.rand(12, 3) * 3 + 0.3, (torch.rand(12, 1) - 0.5) * 7], dim=1)
+    boxes_b = torch.cat([torch.rand(5, 3) * 6, torch.rand(5, 3) * 3 + 0.3, (torch.rand(5, 1) - 0.5) * 7], dim=1)
+    rows, cols = torch.meshgrid(torch.arange(12), torch.arange(5), indexing="ij")
+    rows, cols = rows.reshape(-1), cols.reshape(-1)
+    assert torch.equal(
+        boxes_iou_bev(boxes_a[rows], boxes_b[cols], aligned=True).view(12, 5), boxes_iou_bev(boxes_a, boxes_b)
+    )
+    assert torch.equal(
+        boxes_iou3d(boxes_a[rows], boxes_b[cols], aligned=True).view(12, 5), boxes_iou3d(boxes_a, boxes_b)
+    )
+    with pytest.raises(ValueError, match="aligned"):
+        boxes_iou_bev(boxes_a, boxes_b, aligned=True)
+
+
+def test_boxes_iou_nearest_bev_snaps_each_box_to_its_nearest_axis() -> None:
+    box = torch.tensor([[0.0, 0.0, 0.0, 2.0, 1.0, 1.0, 0.0]])
+    quarter_turn = torch.tensor([[0.0, 0.0, 0.0, 1.0, 2.0, 1.0, math.pi / 2]])
+    slightly_rotated = torch.tensor([[0.0, 0.0, 0.0, 2.0, 1.0, 1.0, 0.2]])
+    assert torch.allclose(boxes_iou_nearest_bev(box, quarter_turn), torch.ones(1, 1))
+    assert torch.allclose(boxes_iou_nearest_bev(box, slightly_rotated), torch.ones(1, 1))
+    assert torch.allclose(boxes_iou_nearest_bev(box, box), boxes_iou_bev(box, box))
+    assert boxes_iou_bev(box, slightly_rotated).item() < 1.0

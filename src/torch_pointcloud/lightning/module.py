@@ -131,6 +131,7 @@ class LitModel(LightningModule):
         if stage == "test":
             preds = self.inferer(batch, predictor=self.predict)
             return {"preds": preds, "target": batch[self.hparams["target_key"]].long()}
+
         outputs = self.step(batch, stage)
         return {"preds": outputs["preds"], "target": outputs["target"]}
 
@@ -141,6 +142,7 @@ class LitModel(LightningModule):
                     f"Metric input key {key!r} not found in the batch (available keys: {sorted(batch)}); "
                     "check the module's `metric_input_keys`."
                 )
+
             outputs[key] = batch[key]
         return outputs
 
@@ -151,6 +153,7 @@ class LitModel(LightningModule):
                 "No `optimizer` was provided, so this module is evaluation-only (benchmark mode); "
                 "pass `optimizer=` to train."
             )
+
         params = generate_param_groups(self, **self._param_groups) if self._param_groups else self.parameters()
         optimizer = self._optimizer(params)
         if self._scheduler is None:
@@ -242,6 +245,7 @@ class _LitSegmentationModel(LitModel):
                     f"index `batch_{self.inverse_key}`; add {self.inverse_key!r} to the datamodule's "
                     "`cat_keys` (or use an eval batch size of 1)."
                 )
+
             return inverse
         return offset_index(inverse, inverse_batch, batch[DataKeys.BATCH])
 
@@ -349,15 +353,15 @@ class LitDetectionModel(LitModel):
       eval output carries decoded proposals, not loss targets) validates cleanly.
 
     A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
-    from `decode(output)`, and (for training) is paired with a `criterion(output, batch)`.
+    from `decode(output)`, and (for training) is paired with a `criterion(output, data)`.
 
     Args:
         name: Registered detection model name; built via `create_model(name, task="detection")`.
         criterion: The training loss, in one of two forms. A ready-built `nn.Module` is used as-is (the
-            general case: instantiate it in config with its geometry params, e.g. `AnchorLoss`). A callable
+            general case: instantiate it in config with its geometry params, e.g. `AnchorHeadLoss`). A callable
             factory is completed with the model's head-geometry params, i.e. called as
             `criterion(num_heading_bins=..., num_size_clusters=..., num_classes=..., mean_sizes=...)` (the
-            `VoteNetLoss` carve-out). Either way its `forward(output, batch)` returns a dict whose `loss`
+            `VoteNetLoss` carve-out). Either way its `forward(output, data)` returns a dict whose `loss`
             entry is the total to optimize. Leave `None` to benchmark a detector whose training loss is not
             ported.
         score_threshold: Minimum score to keep a decoded box in the eval postprocess.
@@ -449,7 +453,7 @@ class LitDetectionModel(LitModel):
                 pos_batch=batch[DataKeys.BATCH],
                 box_batch=det["batch"],
             )
-            keep &= counts >= self.min_points
+            keep = keep & (counts >= self.min_points)
 
         boxes, scores, labels, det_batch = (
             det["boxes"][keep],

@@ -1,44 +1,20 @@
 r"""3DETR set-prediction detection loss: Hungarian query-to-object matching with per-layer aux losses."""
 
 import math
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import torch
 import torch.nn.functional as F
-from scipy.optimize import linear_sum_assignment
 from torch import Tensor, nn
 
+from torch_pointcloud.losses.matching import hungarian_match_batched
 from torch_pointcloud.ops.box3d import angle_to_class, box3d_overlap, box_corners
 from torch_pointcloud.utils.data import DataKeys
 
+if TYPE_CHECKING:
+    from torch_pointcloud.models.threedetr import ThreeDETRTrainOutput
+
 _EPS = 1e-8
-
-
-def _huber_loss(error: Tensor, delta: float = 1.0) -> Tensor:
-    r"""Element-wise Huber loss: $0.5 x^2$ for $|x| \le \delta$, else $\delta(|x| - 0.5\delta)$.
-
-    Args:
-        error: Residual $x$ of any shape.
-        delta: Quadratic-to-linear transition point $\delta$.
-
-    Returns:
-        Per-element Huber loss, same shape as `error`.
-
-    Shape:
-        - error: $(\ldots)$
-        - output: $(\ldots)$
-
-    Example:
-        ```pycon
-        >>> _huber_loss(torch.tensor([0.5, 2.0]), delta=1.0).tolist()
-        [0.125, 1.5]
-
-        ```
-    """
-    abs_error = error.abs()
-    quadratic = abs_error.clamp(max=delta)
-    linear = abs_error - quadratic
-    return 0.5 * quadratic**2 + delta * linear
 
 
 class _Targets:
@@ -71,7 +47,7 @@ class _Targets:
 class ThreeDETRLoss(nn.Module):
     r"""3DETR Hungarian set-prediction detection loss.
 
-    Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
+    Reference: :arxiv: [An End-to-End Transformer Model for 3D Object Detection](https://arxiv.org/abs/2109.08141) (Misra et al., 2021).
 
     Object queries are matched to ground-truth boxes one-to-one per scene by a Hungarian assignment whose
     cost combines the negative predicted class probability, the negative generalized 3D IoU, the $L_1$
@@ -100,9 +76,11 @@ class ThreeDETRLoss(nn.Module):
         matcher_giou_cost: Matcher weight on the negative generalized 3D IoU.
         matcher_center_cost: Matcher weight on the normalized-center $L_1$ distance.
         matcher_objectness_cost: Matcher weight on the negative objectness.
-        giou_weight: Weight of the GIoU term in the total. The reference trains with $0$ (the GIoU
-            drives only the matcher); note the rotated-box GIoU (scenes with non-zero headings) is
-            computed without gradients, so a non-zero weight trains only axis-aligned scenes.
+        giou_weight: Weight of the GIoU term in the total; $0$ (the published recipe) keeps the GIoU in the
+            matcher only. The rotated-box GIoU (scenes with non-zero headings) is computed without gradients,
+            so a non-zero weight trains only axis-aligned scenes. Its values differ slightly from
+            implementations that skip the polygon intersection of box pairs whose corner-spanned axis-aligned
+            rectangles do not overlap: `box3d_overlap` intersects every pair exactly.
         sem_cls_weight: Weight of the semantic-classification term in the total.
         no_object_weight: Cross-entropy weight of the background class.
         angle_cls_weight: Weight of the heading-bin classification term in the total.
@@ -148,84 +126,92 @@ class ThreeDETRLoss(nn.Module):
         semcls_weights[-1] = no_object_weight
         self.register_buffer("semcls_weights", semcls_weights)
 
-    def forward(self, output: Dict[str, Any], batch: Dict[str, Any]) -> Dict[str, Tensor]:
-        r"""Compute the 3DETR set-prediction loss and its components.
+    def forward(self, output: "ThreeDETRTrainOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the 3DETR set-prediction loss and its terms.
 
         Args:
             output: A training-mode `ThreeDETRTrainOutput`: `aux_outputs` (a per-decoder-layer list of head
                 dicts with `sem_cls_logits`, `sem_cls_prob`, `objectness_prob`, `center_normalized`,
                 `center_unnormalized`, `size_normalized`, `size_unnormalized`, `angle_logits`,
                 `angle_residual_normalized`, `angle_continuous`) and `point_cloud_dims`.
-            batch: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise
+            data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise
                 headings, `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box
                 scene index.
 
         Returns:
-            A dict with the scalar `loss` (summed over decoder layers) and detached `loss_sem_cls`,
-            `loss_center`, `loss_size`, `loss_angle_cls`, `loss_angle_reg`, `loss_giou`, `loss_cardinality`
-            (each summed over decoder layers).
+            A dict with the scalar `loss` (summed over decoder layers) and detached `sem_cls_loss`,
+            `center_loss`, `size_loss`, `angle_cls_loss`, `angle_reg_loss`, `giou_loss` and the
+            `cardinality_error` diagnostic (each summed over decoder layers).
         """
         point_cloud_dims = output["point_cloud_dims"]
         layers: List[Dict[str, Tensor]] = output["aux_outputs"]
-        targets = self._densify(batch, point_cloud_dims)
+        targets = self._densify(data, point_cloud_dims)
 
-        num_boxes = targets.nactual.sum().clamp(min=1).to(point_cloud_dims[0].dtype)
-        has_gt = bool(targets.nactual.sum() > 0)
-        rotated = bool(torch.any(targets.angle * targets.present != 0))
+        nactual = targets.nactual.tolist()
+        has_gt = sum(nactual) > 0
+        rotated = has_gt and bool(torch.any(targets.angle * targets.present != 0))
+        num_boxes = point_cloud_dims[0].new_tensor(float(max(sum(nactual), 1)))
+
+        gious = self._giou3d_layers(layers, targets, rotated)
+        with torch.no_grad():
+            center_dists = [torch.cdist(layer["center_normalized"], targets.center_normalized, p=1) for layer in layers]
+            assignments = self._match(layers, center_dists, gious, targets, nactual)
 
         total = point_cloud_dims[0].new_zeros(())
         components = {name: point_cloud_dims[0].new_zeros(()) for name in _COMPONENT_NAMES}
-        for layer in layers:
-            layer_losses = self._layer_loss(layer, targets, num_boxes, has_gt, rotated)
+        for layer, layer_gious, assignment in zip(layers, gious, assignments):
+            layer_losses = self._layer_loss(layer, targets, layer_gious, assignment, num_boxes, has_gt)
             total = total + (
-                self.giou_weight * layer_losses["loss_giou"]
-                + self.sem_cls_weight * layer_losses["loss_sem_cls"]
-                + self.angle_cls_weight * layer_losses["loss_angle_cls"]
-                + self.angle_reg_weight * layer_losses["loss_angle_reg"]
-                + self.center_weight * layer_losses["loss_center"]
-                + self.size_weight * layer_losses["loss_size"]
+                self.giou_weight * layer_losses["giou_loss"]
+                + self.sem_cls_weight * layer_losses["sem_cls_loss"]
+                + self.angle_cls_weight * layer_losses["angle_cls_loss"]
+                + self.angle_reg_weight * layer_losses["angle_reg_loss"]
+                + self.center_weight * layer_losses["center_loss"]
+                + self.size_weight * layer_losses["size_loss"]
             )
             for name, weight in _COMPONENT_WEIGHTS.items():
                 components[name] = components[name] + getattr(self, weight) * layer_losses[name]
-            components["loss_cardinality"] = components["loss_cardinality"] + layer_losses["loss_cardinality"]
+            components["cardinality_error"] = components["cardinality_error"] + layer_losses["cardinality_error"]
 
         result: Dict[str, Tensor] = {"loss": total}
         for name in _COMPONENT_NAMES:
             result[name] = components[name].detach()
         return result
 
-    def _densify(self, batch: Dict[str, Any], point_cloud_dims: Tuple[Tensor, Tensor]) -> _Targets:
-        r"""Split the packed GT into per-scene padded tensors in normalized and metric frames.
+    def _densify(self, data: Dict[str, Any], point_cloud_dims: Tuple[Tensor, Tensor]) -> _Targets:
+        r"""Pad the packed GT to per-scene tensors in normalized and metric frames.
 
         The packed boxes are full-extent $(K, 7)$ rows with counter-clockwise headings; the headings are
         negated into the model's native heading space before binning, so the pretrained heading head keeps
-        its meaning.
+        its meaning. Boxes keep their packed order within a scene.
         """
-        box: Tensor = batch[DataKeys.BOX]
-        cls: Tensor = batch[DataKeys.LABEL].long()
-        box_batch: Tensor = batch[DataKeys.BATCH_BOX]
+        box: Tensor = data[DataKeys.BOX]
+        cls: Tensor = data[DataKeys.LABEL].long()
+        box_batch: Tensor = data[DataKeys.BATCH_BOX]
         lo, hi = point_cloud_dims
         batch_size = lo.shape[0]
         device = lo.device
 
-        per_scene = [(box[box_batch == b], cls[box_batch == b]) for b in range(batch_size)]
-        max_obj = max((scene.shape[0] for scene, _ in per_scene), default=0)
-        max_obj = max(max_obj, 1)
-
+        counts = torch.bincount(box_batch, minlength=batch_size)
+        max_obj = max(int(counts.max()) if box.shape[0] else 0, 1)
         center = box.new_zeros(batch_size, max_obj, 3)
         size = box.new_zeros(batch_size, max_obj, 3)
         angle = box.new_zeros(batch_size, max_obj)
         label = torch.zeros(batch_size, max_obj, dtype=torch.long, device=device)
         present = box.new_zeros(batch_size, max_obj)
-        for b, (scene, scene_cls) in enumerate(per_scene):
-            k = scene.shape[0]
-            if k == 0:
-                continue
-            center[b, :k] = scene[:, :3]
-            size[b, :k] = scene[:, 3:6]
-            angle[b, :k] = -scene[:, 6]
-            label[b, :k] = scene_cls
-            present[b, :k] = 1.0
+
+        if box.shape[0]:
+            # The slot of a box is its rank among the boxes of its scene, in packed order.
+            order = torch.argsort(box_batch, stable=True)
+            starts = counts.cumsum(0) - counts
+            slot = torch.empty_like(box_batch)
+            slot[order] = torch.arange(box.shape[0], device=box_batch.device) - starts[box_batch[order]]
+
+            center[box_batch, slot] = box[:, :3]
+            size[box_batch, slot] = box[:, 3:6]
+            angle[box_batch, slot] = -box[:, 6]
+            label[box_batch, slot] = cls
+            present[box_batch, slot] = 1.0
 
         scene_scale = (hi - lo).clamp(min=1e-1)
         center_normalized = (center - lo.unsqueeze(1)) / (hi - lo).unsqueeze(1)
@@ -249,26 +235,24 @@ class ThreeDETRLoss(nn.Module):
         self,
         layer: Dict[str, Tensor],
         targets: _Targets,
+        gious: Tensor,
+        assignment: Tensor,
         num_boxes: Tensor,
         has_gt: bool,
-        rotated: bool,
     ) -> Dict[str, Tensor]:
-        r"""Match one decoder layer's queries to ground truth and compute every raw (unweighted) term."""
+        r"""Every raw (unweighted) term of one decoder layer, given its query-to-box `assignment` $(B, Q)$."""
         sem_cls_logits = layer["sem_cls_logits"]
-        sem_cls_prob = layer["sem_cls_prob"]
-        objectness_prob = layer["objectness_prob"]
-
-        gious = self._giou3d(layer, targets, rotated)
-        center_dist = torch.cdist(layer["center_normalized"], targets.center_normalized, p=1)
-        per_prop_gt_inds, matched_mask = self._match(sem_cls_prob, objectness_prob, center_dist, gious, targets)
+        per_prop_gt_inds = assignment.clamp(min=0)
+        matched_mask = (assignment >= 0).to(sem_cls_logits.dtype)
 
         gt_box_label = torch.gather(targets.label, 1, per_prop_gt_inds)
-        gt_box_label = gt_box_label.masked_fill(matched_mask == 0, self.num_classes)
+        gt_box_label = gt_box_label.masked_fill(assignment < 0, self.num_classes)
         sem_cls_loss = F.cross_entropy(
             sem_cls_logits.transpose(2, 1), gt_box_label, self.semcls_weights, reduction="mean"
         )
 
-        center_loss = torch.gather(center_dist, 2, per_prop_gt_inds.unsqueeze(-1)).squeeze(-1)
+        gt_center = torch.gather(targets.center_normalized, 1, per_prop_gt_inds.unsqueeze(-1).expand(-1, -1, 3))
+        center_loss = (layer["center_normalized"] - gt_center).abs().sum(dim=-1)
         center_loss = (center_loss * matched_mask).sum() / num_boxes
 
         giou_loss = torch.gather(1 - gious, 2, per_prop_gt_inds.unsqueeze(-1)).squeeze(-1)
@@ -288,13 +272,13 @@ class ThreeDETRLoss(nn.Module):
         cardinality = F.l1_loss(pred_objects.to(num_boxes.dtype), targets.nactual.to(num_boxes.dtype))
 
         return {
-            "loss_sem_cls": sem_cls_loss,
-            "loss_center": center_loss,
-            "loss_size": size_loss,
-            "loss_angle_cls": angle_cls_loss,
-            "loss_angle_reg": angle_reg_loss,
-            "loss_giou": giou_loss,
-            "loss_cardinality": cardinality,
+            "sem_cls_loss": sem_cls_loss,
+            "center_loss": center_loss,
+            "size_loss": size_loss,
+            "angle_cls_loss": angle_cls_loss,
+            "angle_reg_loss": angle_reg_loss,
+            "giou_loss": giou_loss,
+            "cardinality_error": cardinality,
         }
 
     def _angle_loss(
@@ -317,112 +301,120 @@ class ThreeDETRLoss(nn.Module):
         one_hot = torch.zeros_like(angle_residual_normalized)
         one_hot.scatter_(2, gt_angle_label.unsqueeze(-1), 1.0)
         residual_for_gt = (angle_residual_normalized * one_hot).sum(dim=-1)
-        angle_reg = _huber_loss(residual_for_gt - gt_residual, delta=1.0)
+        residual = residual_for_gt - gt_residual
+        angle_reg = F.huber_loss(residual, torch.zeros_like(residual), delta=1.0, reduction="none")
         angle_reg_loss = (angle_reg * matched_mask).sum() / num_boxes
         return angle_cls_loss, angle_reg_loss
 
     @torch.no_grad()
     def _match(
         self,
-        sem_cls_prob: Tensor,
-        objectness_prob: Tensor,
-        center_dist: Tensor,
-        gious: Tensor,
+        layers: List[Dict[str, Tensor]],
+        center_dists: List[Tensor],
+        gious: List[Tensor],
         targets: _Targets,
-    ) -> Tuple[Tensor, Tensor]:
-        r"""Per-scene Hungarian assignment of queries to ground-truth boxes.
+        nactual: List[int],
+    ) -> List[Tensor]:
+        r"""Hungarian assignment of the queries of every decoder layer and scene to the ground-truth boxes.
 
-        Returns per-query matched box indices $(B, Q)$ (0 where unmatched) and a matched mask $(B, Q)$.
+        The cost matrices of all layers are stacked and solved after a single device transfer. Returns one
+        $(B, Q)$ long tensor per layer holding the matched box index of each query ($-1$ when unmatched).
         """
-        batch_size, num_queries = sem_cls_prob.shape[:2]
+        batch_size, num_queries = layers[0]["sem_cls_prob"].shape[:2]
         num_gt = targets.label.shape[1]
         gt_labels = targets.label.unsqueeze(1).expand(batch_size, num_queries, num_gt)
-        class_mat = -torch.gather(sem_cls_prob, 2, gt_labels)
-        objectness_mat = -objectness_prob.unsqueeze(-1)
-        cost = (
-            self.matcher_cls_cost * class_mat
-            + self.matcher_objectness_cost * objectness_mat
-            + self.matcher_center_cost * center_dist
-            + self.matcher_giou_cost * (-gious)
-        )
-        cost_np = cost.detach().cpu().numpy()
 
-        device = sem_cls_prob.device
-        per_prop_gt_inds = torch.zeros(batch_size, num_queries, dtype=torch.long, device=device)
-        matched_mask = torch.zeros(batch_size, num_queries, device=device)
-        nactual = targets.nactual.tolist()
-        for b in range(batch_size):
-            n = int(nactual[b])
-            if n == 0:
-                continue
-            row, col = linear_sum_assignment(cost_np[b, :, :n])
-            row_t = torch.as_tensor(row, dtype=torch.long, device=device)
-            per_prop_gt_inds[b, row_t] = torch.as_tensor(col, dtype=torch.long, device=device)
-            matched_mask[b, row_t] = 1.0
-        return per_prop_gt_inds, matched_mask
+        costs = []
+        for layer, center_dist, layer_gious in zip(layers, center_dists, gious):
+            class_mat = -torch.gather(layer["sem_cls_prob"], 2, gt_labels)
+            objectness_mat = -layer["objectness_prob"].unsqueeze(-1)
+            costs.append(
+                self.matcher_cls_cost * class_mat
+                + self.matcher_objectness_cost * objectness_mat
+                + self.matcher_center_cost * center_dist
+                + self.matcher_giou_cost * (-layer_gious)
+            )
 
-    def _giou3d(self, layer: Dict[str, Tensor], targets: _Targets, rotated: bool) -> Tensor:
-        r"""Pairwise generalized 3D IoU between every query and every padded ground-truth box.
+        cost = torch.stack(costs).view(len(layers) * batch_size, num_queries, num_gt)
+        assignment = hungarian_match_batched(cost, nactual * len(layers))
+        return list(assignment.view(len(layers), batch_size, num_queries))
+
+    def _giou3d_layers(self, layers: List[Dict[str, Tensor]], targets: _Targets, rotated: bool) -> List[Tensor]:
+        r"""Pairwise generalized 3D IoU between every query of every layer and every padded ground-truth box.
 
         Uses the axis-aligned intersection / enclosing volumes for upright boxes (`rotated=False`), and
-        the rotated bird's-eye intersection otherwise. Malformed and padded columns are zeroed, matching
-        the reference criterion. Returns $(B, Q, M)$.
+        the rotated bird's-eye intersection otherwise. Malformed and padded columns are zeroed. Returns one
+        $(B, Q, M)$ tensor per layer.
         """
-        pred_center = layer["center_unnormalized"]
-        pred_size = layer["size_unnormalized"]
-        pred_angle = layer["angle_continuous"]
-        gt_center = targets.center_unnormalized
-        gt_size = targets.size_unnormalized
-        gt_angle = targets.angle
-        present = targets.present
+        present = targets.present.unsqueeze(1)
+        if rotated:
+            return [gious * present for gious in self._giou3d_rotated(layers, targets)]
 
-        if not rotated:
-            gious = self._giou3d_axis_aligned(pred_center, pred_size, gt_center, gt_size)
-        else:
-            gious = self._giou3d_rotated(pred_center, pred_size, pred_angle, gt_center, gt_size, gt_angle)
-        return gious * present.unsqueeze(1)
+        gious = []
+        for layer in layers:
+            layer_gious = self._giou3d_axis_aligned(
+                layer["center_unnormalized"],
+                layer["size_unnormalized"],
+                targets.center_unnormalized,
+                targets.size_unnormalized,
+            )
+            gious.append(layer_gious * present)
+
+        return gious
 
     @staticmethod
-    def _box_volume(size: Tensor) -> Tensor:
-        r"""Per-box volume $\prod \sqrt{\max(d^2, 10^{-6})}$, floored at $10^{-8}$ (reference convention)."""
-        return torch.sqrt((size**2).clamp(min=1e-6)).prod(dim=-1).clamp(min=_EPS)
+    def _prod3(x: Tensor) -> Tensor:
+        r"""Product over a trailing dimension of size $3$ as explicit multiplications (a cheap backward)."""
+        return x[..., 0] * x[..., 1] * x[..., 2]
+
+    def _box_volume(self, size: Tensor) -> Tensor:
+        r"""Per-box volume $\prod \sqrt{\max(d^2, 10^{-6})}$, floored at $10^{-8}$."""
+        return self._prod3(torch.sqrt((size**2).clamp(min=1e-6))).clamp(min=_EPS)
 
     def _giou3d_axis_aligned(
-        self, pred_center: Tensor, pred_size: Tensor, gt_center: Tensor, gt_size: Tensor
+        self,
+        pred_center: Tensor,
+        pred_size: Tensor,
+        gt_center: Tensor,
+        gt_size: Tensor,
     ) -> Tensor:
         r"""Vectorized axis-aligned generalized 3D IoU, $(B, Q, 3) \times (B, M, 3) \to (B, Q, M)$."""
         lo1 = (pred_center - pred_size / 2).unsqueeze(2)
         hi1 = (pred_center + pred_size / 2).unsqueeze(2)
         lo2 = (gt_center - gt_size / 2).unsqueeze(1)
         hi2 = (gt_center + gt_size / 2).unsqueeze(1)
-        inter = (torch.minimum(hi1, hi2) - torch.maximum(lo1, lo2)).clamp(min=0).prod(dim=-1)
-        enclosing = (torch.maximum(hi1, hi2) - torch.minimum(lo1, lo2)).prod(dim=-1)
+
+        inter = self._prod3((torch.minimum(hi1, hi2) - torch.maximum(lo1, lo2)).clamp(min=0))
+        enclosing = self._prod3(torch.maximum(hi1, hi2) - torch.minimum(lo1, lo2))
         vol1 = self._box_volume(pred_size).unsqueeze(2)
         vol2 = self._box_volume(gt_size).unsqueeze(1)
         return self._giou_from_volumes(inter, enclosing, vol1, vol2)
 
     @torch.no_grad()
-    def _giou3d_rotated(
-        self,
-        pred_center: Tensor,
-        pred_size: Tensor,
-        pred_angle: Tensor,
-        gt_center: Tensor,
-        gt_size: Tensor,
-        gt_angle: Tensor,
-    ) -> Tensor:
-        r"""Per-scene rotated generalized 3D IoU from the BEV-overlap intersection and corner-AABB enclosing.
+    def _giou3d_rotated(self, layers: List[Dict[str, Tensor]], targets: _Targets) -> List[Tensor]:
+        r"""Rotated generalized 3D IoU from the BEV-overlap intersection and corner-AABB enclosing.
 
         `box3d_overlap` computes the rotated intersection without gradients, so the whole rotated GIoU is
         gradient-free (a partially-detached term would push a biased gradient through the union / enclosing
-        volumes only); it feeds the matcher and monitoring, not training.
+        volumes only); it feeds the matcher and monitoring, not training. The queries of every layer of a
+        scene are intersected with its boxes in one call.
         """
-        batch_size, num_queries = pred_center.shape[:2]
-        num_gt = gt_center.shape[1]
-        gious = pred_center.new_zeros(batch_size, num_queries, num_gt)
+        num_layers = len(layers)
+        batch_size, num_queries = layers[0]["center_unnormalized"].shape[:2]
+        num_gt = targets.center_unnormalized.shape[1]
+        gious = targets.center_unnormalized.new_zeros(num_layers, batch_size, num_queries, num_gt)
+
         for b in range(batch_size):
-            pred_boxes = torch.cat([pred_center[b], pred_size[b], pred_angle[b].unsqueeze(-1)], dim=-1)
-            gt_boxes = torch.cat([gt_center[b], gt_size[b], gt_angle[b].unsqueeze(-1)], dim=-1)
+            # The queries of every layer of the scene, stacked along the rows: (L * Q, 7).
+            layer_boxes = []
+            for layer in layers:
+                center = layer["center_unnormalized"][b]
+                size = layer["size_unnormalized"][b]
+                angle = layer["angle_continuous"][b].unsqueeze(-1)
+                layer_boxes.append(torch.cat([center, size, angle], dim=-1))
+            pred_boxes = torch.cat(layer_boxes, dim=0)
+            gt_angle = targets.angle[b].unsqueeze(-1)
+            gt_boxes = torch.cat([targets.center_unnormalized[b], targets.size_unnormalized[b], gt_angle], dim=-1)
 
             corners1 = box_corners(pred_boxes)
             corners2 = box_corners(gt_boxes)
@@ -430,13 +422,14 @@ class ThreeDETRLoss(nn.Module):
 
             lo1, hi1 = corners1.amin(dim=1), corners1.amax(dim=1)
             lo2, hi2 = corners2.amin(dim=1), corners2.amax(dim=1)
-            enclosing = (
+            enclosing = self._prod3(
                 torch.maximum(hi1.unsqueeze(1), hi2.unsqueeze(0)) - torch.minimum(lo1.unsqueeze(1), lo2.unsqueeze(0))
-            ).prod(dim=-1)
+            )
             vol1 = self._box_volume(pred_boxes[:, 3:6]).unsqueeze(1)
             vol2 = self._box_volume(gt_boxes[:, 3:6]).unsqueeze(0)
-            gious[b] = self._giou_from_volumes(inter, enclosing, vol1, vol2)
-        return gious
+            gious[:, b] = self._giou_from_volumes(inter, enclosing, vol1, vol2).view(num_layers, num_queries, num_gt)
+
+        return list(gious)
 
     @staticmethod
     def _giou_from_volumes(inter: Tensor, enclosing: Tensor, vol1: Tensor, vol2: Tensor) -> Tensor:
@@ -454,20 +447,20 @@ class ThreeDETRLoss(nn.Module):
 
 
 _COMPONENT_NAMES = (
-    "loss_sem_cls",
-    "loss_center",
-    "loss_size",
-    "loss_angle_cls",
-    "loss_angle_reg",
-    "loss_giou",
-    "loss_cardinality",
+    "sem_cls_loss",
+    "center_loss",
+    "size_loss",
+    "angle_cls_loss",
+    "angle_reg_loss",
+    "giou_loss",
+    "cardinality_error",
 )
 
 _COMPONENT_WEIGHTS = {
-    "loss_sem_cls": "sem_cls_weight",
-    "loss_center": "center_weight",
-    "loss_size": "size_weight",
-    "loss_angle_cls": "angle_cls_weight",
-    "loss_angle_reg": "angle_reg_weight",
-    "loss_giou": "giou_weight",
+    "sem_cls_loss": "sem_cls_weight",
+    "center_loss": "center_weight",
+    "size_loss": "size_weight",
+    "angle_cls_loss": "angle_cls_weight",
+    "angle_reg_loss": "angle_reg_weight",
+    "giou_loss": "giou_weight",
 }
