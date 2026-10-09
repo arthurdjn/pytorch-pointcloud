@@ -7,7 +7,7 @@ A packed-format port of the anchor head from
   head (per-anchor class logits, box residuals and a direction bin).
 - [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead]: the multi-group
   separate-head variant (sincos + velocity box code) used by the nuScenes detectors.
-- [`separate_branch`][torch_pointcloud.layers.anchors.separate_branch]: the per-attribute
+- [`prediction_branch`][torch_pointcloud.layers.anchors.prediction_branch]: the per-attribute
   `SeparateHead` branch builder, also used by the Voxel Mamba center head.
 
 The anchors themselves come from [`generate_anchors`][torch_pointcloud.ops.anchors.generate_anchors]
@@ -104,6 +104,14 @@ class AnchorHead(nn.Module):
         self.conv_cls = nn.Conv2d(input_channels, num_anchors_per_location * num_classes, 1)
         self.conv_box = nn.Conv2d(input_channels, num_anchors_per_location * self.code_size, 1)
         self.conv_dir_cls = nn.Conv2d(input_channels, num_anchors_per_location * num_dir_bins, 1)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        r"""Start the class logits at the focal-loss prior of $1\%$ foreground anchors and the box residuals near zero."""
+        prior = 0.01
+        if self.conv_cls.bias is not None:
+            nn.init.constant_(self.conv_cls.bias, -math.log((1 - prior) / prior))
+        nn.init.normal_(self.conv_box.weight, mean=0.0, std=0.001)
 
     def forward(self, spatial_features_2d: Tensor) -> AnchorHeadOutput:
         cls_preds = self.conv_cls(spatial_features_2d).permute(0, 2, 3, 1).contiguous()
@@ -184,7 +192,7 @@ class AnchorHeadMultiOutput(TypedDict):
     multihead_label_mapping: List[Tensor]
 
 
-def separate_branch(
+def prediction_branch(
     in_channels: int,
     out_channels: int,
     num_middle_conv: int,
@@ -196,11 +204,10 @@ def separate_branch(
     norm_kwargs: Optional[Dict[str, Any]] = None,
     bias: bool = False,
 ) -> nn.Sequential:
-    r"""Build a `SeparateHead`-style prediction branch: middle conv blocks, then a plain output conv.
+    r"""Build a prediction branch: middle conv blocks, then a plain output conv.
 
-    The per-attribute branch shared by the separate detection heads (the anchor multi-head and the
-    center head): `num_middle_conv` blocks of ($3\times3$ conv, norm, act) followed by a
-    $3\times3$ output conv.
+    The per-attribute branch of the multi-head detectors: `num_middle_conv` blocks of ($3\times3$ conv, norm,
+    act) followed by a $3\times3$ output conv.
 
     Args:
         in_channels: Input channels.
@@ -222,7 +229,7 @@ def separate_branch(
 
     Example:
         ```pycon
-        >>> branch = separate_branch(64, 2, num_middle_conv=1, num_middle_filter=64)
+        >>> branch = prediction_branch(64, 2, num_middle_conv=1, num_middle_filter=64)
         >>> branch(torch.rand(2, 64, 16, 16)).shape
         torch.Size([2, 2, 16, 16])
 
@@ -312,7 +319,7 @@ class AnchorGroupHead(nn.Module):
         for reg_config in reg_list:
             name, channels = reg_config.split(":")
             key = f"conv_{name}"
-            self.conv_box[key] = separate_branch(
+            self.conv_box[key] = prediction_branch(
                 input_channels,
                 num_anchors_per_location * int(channels),
                 **branch_kwargs,
@@ -323,7 +330,15 @@ class AnchorGroupHead(nn.Module):
         if code_size_cnt != code_size:
             raise ValueError(f"Regression branches sum to {code_size_cnt} channels, expected code_size {code_size}.")
 
-        self.conv_cls = separate_branch(input_channels, num_anchors_per_location * num_classes, **branch_kwargs)
+        self.conv_cls = prediction_branch(input_channels, num_anchors_per_location * num_classes, **branch_kwargs)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        r"""Start the class logits at the focal-loss prior of $1\%$ foreground anchors."""
+        prior = 0.01
+        final_conv = [module for module in self.conv_cls if isinstance(module, nn.Conv2d)][-1]
+        if final_conv.bias is not None:
+            nn.init.constant_(final_conv.bias, -math.log((1 - prior) / prior))
 
     def forward(self, spatial_features_2d: Tensor) -> Tuple[Tensor, Tensor]:
         cls_preds = self.conv_cls(spatial_features_2d)

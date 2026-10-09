@@ -300,6 +300,75 @@ def resolve_weights(name: str, url: str) -> Path:
     return local_path
 
 
+def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[Task, ModelDict]:
+    """The registry entry of `name`, with its task inferred when the name is registered under a single one."""
+    if task is not None and task not in _REGISTERED_MODELS.keys():
+        expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
+        raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
+
+    if task is None:
+        tasks = [t for t, entries in _REGISTERED_MODELS.items() if name in entries]
+        if len(tasks) > 1:
+            registered = " and ".join(f"{t!r}" for t in tasks)
+            raise ValueError(f"Model {name!r} is registered under tasks {registered}; pass `task=` to pick one.")
+
+        if not tasks:
+            message = f"Model {name!r} is not registered."
+            matches = difflib.get_close_matches(name, list_models(), n=3)
+            if matches:
+                message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
+            message += " Use `list_models()` to list the registered names."
+            raise ValueError(message)
+
+        task = tasks[0]
+
+    entry = _REGISTERED_MODELS[task].get(name)
+    if entry is None:
+        message = f"Model {name!r} not found in the {task!r} registry."
+        other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
+        for other in other_tasks:
+            message += f" Model {name!r} is registered under task {other!r}; pass task={other!r}."
+        matches = difflib.get_close_matches(name, _REGISTERED_MODELS[task], n=3)
+        if matches:
+            message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
+        message += f" Use `list_models(task={task!r})` to list the registered names."
+        raise ValueError(message)
+
+    return task, entry
+
+
+def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
+    """The registry entry of a model without building it: its task, weights, transform, input keys and hparams.
+
+    Args:
+        name: Registered model name (see `list_models`).
+        task: Registry the model belongs to; optional when `name` is registered under a single task.
+
+    Returns:
+        The entry as a `ModelInfoDict`, with the registered `hparams`.
+
+    Raises:
+        ValueError: If `task` or `name` is unknown, or if `task` is omitted for a name registered under several tasks.
+
+    Example:
+        ```pycon
+        >>> info = model_info("pointnet.modelnet40")
+        >>> info["task"], info["input_keys"]
+        ('classification', ('x', 'pos', 'batch'))
+
+        ```
+    """
+    task, entry = _resolve_entry(name, task)
+    return {
+        "name": name,
+        "task": task,
+        "weights": entry["weights"],
+        "transform": entry["transform"],
+        "input_keys": entry["input_keys"],
+        "hparams": dict(entry["hparams"]),
+    }
+
+
 @overload
 def create_model(
     name: str,
@@ -504,40 +573,10 @@ def create_model(
     model, info = tp.create_model("pointnet.modelnet40", return_info=True)
     ```
     """
-    if task is not None and task not in _REGISTERED_MODELS.keys():
-        expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
-        raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
-
     if pretrained and checkpoint_path is not None:
         raise ValueError("'pretrained' and 'checkpoint_path' are mutually exclusive. Pass a single weight source.")
 
-    if task is None:
-        tasks = [t for t, entries in _REGISTERED_MODELS.items() if name in entries]
-        if len(tasks) > 1:
-            registered = " and ".join(f"{t!r}" for t in tasks)
-            raise ValueError(f"Model {name!r} is registered under tasks {registered}; pass `task=` to pick one.")
-
-        if not tasks:
-            message = f"Model {name!r} is not registered."
-            matches = difflib.get_close_matches(name, list_models(), n=3)
-            if matches:
-                message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
-            message += " Use `list_models()` to list the registered names."
-            raise ValueError(message)
-
-        task = tasks[0]
-
-    entry = _REGISTERED_MODELS[task].get(name)
-    if entry is None:
-        message = f"Model {name!r} not found in the {task!r} registry."
-        other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
-        for other in other_tasks:
-            message += f" Model {name!r} is registered under task {other!r}; pass task={other!r}."
-        matches = difflib.get_close_matches(name, _REGISTERED_MODELS[task], n=3)
-        if matches:
-            message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
-        message += f" Use `list_models(task={task!r})` to list the registered names."
-        raise ValueError(message)
+    task, entry = _resolve_entry(name, task)
 
     # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
     # caller (e.g. a LightningModule) can log exactly what built the model.

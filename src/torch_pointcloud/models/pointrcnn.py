@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDi
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP
+from torch_geometric.nn import MLP, Linear
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2GlobalSetAbstraction, PointNet2SetAbstraction
@@ -331,6 +331,17 @@ class PointRCNNRefinementHead(nn.Module):
             bias=[False] * len(reg_channels) + [True],
             plain_last=True,
         )
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        r"""Xavier-normal weights and zero biases on every layer, with the last regression weights near zero."""
+        for module in self.modules():
+            if isinstance(module, (nn.Conv2d, Linear)):
+                nn.init.xavier_normal_(module.weight)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0.0)
+
+        nn.init.normal_(self.reg_layers.lins[-1].weight, mean=0.0, std=0.001)
 
     def roipool(self, pos: Tensor, x: Tensor, rois: Tensor) -> Tuple[Tensor, Tensor]:
         r"""Pool a fixed number of in-box points per ROI and canonically transform them.
@@ -507,7 +518,7 @@ class PointRCNNRefinementHead(nn.Module):
 class PointRCNNDetection(DetectionModel):
     r"""PointRCNN two-stage point-based 3D object detector (packed point format).
 
-    Reference: :arxiv: [Shi et al., 2019](https://arxiv.org/abs/1812.04244).
+    Reference: :arxiv: [PointRCNN: 3D Object Proposal Generation and Detection from Point Cloud](https://arxiv.org/abs/1812.04244) (Shi et al., 2019).
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
     Stage 1 runs a multi-scale PointNet++ U-Net
@@ -1009,7 +1020,6 @@ class PointRCNNDetection(DetectionModel):
             hard = hard_bg[torch.randint(0, hard_bg.numel(), (hard_num,), device=device)]
             easy = easy_bg[torch.randint(0, easy_bg.numel(), (num - hard_num,), device=device)]
             return torch.cat([hard, easy])
-
         if hard_bg.numel() > 0:
             return hard_bg[torch.randint(0, hard_bg.numel(), (num,), device=device)]
         return easy_bg[torch.randint(0, easy_bg.numel(), (num,), device=device)]

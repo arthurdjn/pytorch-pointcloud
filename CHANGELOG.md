@@ -6,8 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `models.model_info`, the registry entry of a model without building it.
+- Added `transforms.functional.cut_boxes` and `transforms.PasteBoxes`, the copy-paste augmentation of box-annotated scenes.
+- Added `RandomScale(axes=...)` and per-channel `Clamp` bounds.
+- `AnchorHead`, `AnchorGroupHead`, `PointRCNNRefinementHead`, `VoxelNeXtSeparateHead` and `TransFusionHead` initialize their heads as the reference detectors do.
+- The box augmentations, `assign_anchor_targets` and `MultiGroupAnchorHeadLoss` carry the velocity columns of 9-column boxes.
+- Renamed `layers.separate_branch` to `prediction_branch`.
+- Added example scripts, one per model directory and dataset, that reproduce published training configurations: Point Transformer V3, PointNeXt, PointMLP, DGCNN, PointNet / PointNet++, the finetuning of Point-MAE, Point-BERT, Point-M2AE, PointMamba and PointGPT, SPVCNN, RandLA-Net, KP-FCNN, PVCNN, SpUNet and the linear probing of Sonata, Concerto and Utonia; the generic classification and segmentation scripts are removed.
 - Added `torch_pointcloud.optim`: `generate_param_groups` (moved from `utils.optim`), `CosineWarmupLR`, `PolyLR`, `bn_momentum`, `set_bn_momentum` and `BNMomentumScheduler`.
-
 - Added `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)` and `RandomSample(allow_fewer=True)`.
 - Added `transforms.RandomApply`, `RandomBlockCrop` and `Translate`, `S3DIS(num_nodes=None)`, `PointCloudDataLoader(mix=..., mix_prob=...)` and `datasets.RepeatSampler`.
 - The masked point modeling pretraining models return `(pred, target, pred_batch, target_batch)`, packed for `chamfer_distance`.
@@ -26,7 +32,6 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
 - Fixed `assign_anchor_targets` matching by the rotated BEV IoU; the anchor recipes match by the nearest-axis-aligned one (`boxes_iou_nearest_bev`) unless `match_height` is set.
 - Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
-- Added the reference training recipes as example scripts (Pointcept, openpoints, yanx27, spvnas, KPConv-PyTorch, RandLA-Net, PVCNN, Point-MAE-family finetuning, Sonata linear probing); they replace the generic classification and segmentation scripts.
 
 ## 0.0.11 (2026-10-06)
 

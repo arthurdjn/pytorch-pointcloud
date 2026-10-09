@@ -1,4 +1,5 @@
-"""Download, archive extraction, and hash verification helpers for disk-cached datasets."""
+"""Download, archive extraction and hash verification helpers for disk-cached datasets, and the object database
+of the detection ones."""
 
 import hashlib
 import json

@@ -15,7 +15,7 @@ from .augmentation import (
     scale_boxes,
     translate_boxes,
 )
-from .box import points_in_oriented_box
+from .box import cut_boxes, points_in_oriented_box
 from .geometry import axis_min_offset, estimate_normals, quantize, rotate_vectors, rotation_matrix, shift
 from .masking import apply_mask, bounding_box, box_mask, cube_mask, remove_near_origin, sphere_mask
 from .mixing import laser_mix_masks, polar_mix_masks
@@ -42,6 +42,7 @@ __all__ = [
     "color_jitter",
     "color_shift",
     "cube_mask",
+    "cut_boxes",
     "divisible_pad",
     "estimate_normals",
     "farthest_point_sample",

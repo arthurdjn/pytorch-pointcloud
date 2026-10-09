@@ -34,19 +34,23 @@ def rotate_boxes(boxes: Tensor, rotation: Tensor, angle: float) -> Tensor:
 
     Box centers are rotated by `rotation` (`centers @ rotation.transpose(-1, -2)`) and the heading is
     incremented by `angle`, so a counterclockwise rotation about $+z$ keeps the counterclockwise heading
-    aligned with the jointly rotated points. Sizes are unchanged.
+    aligned with the jointly rotated points. Sizes are unchanged. Boxes with a planar velocity $(v_x, v_y)$ in
+    columns $7{:}9$ have it rotated in the plane; further columns are kept as they are.
 
     Args:
-        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$.
+        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$, or $(K, 7 + C)$.
         rotation: A $3 \times 3$ rotation matrix rotating by `angle` counterclockwise about the $z$ axis.
         angle: Rotation angle in **radians**, added to the heading.
 
     Returns:
-        The rotated box tensor of shape $(K, 7)$.
+        The rotated box tensor, same shape as `boxes`.
     """
     boxes = boxes.clone()
-    boxes[:, 0:3] = boxes[:, 0:3] @ rotation.to(boxes).transpose(-1, -2)
+    rotation = rotation.to(boxes)
+    boxes[:, 0:3] = boxes[:, 0:3] @ rotation.transpose(-1, -2)
     boxes[:, 6] = boxes[:, 6] + angle
+    if boxes.shape[1] >= 9:
+        boxes[:, 7:9] = boxes[:, 7:9] @ rotation[:2, :2].transpose(-1, -2)
     return boxes
 
 
@@ -81,7 +85,8 @@ class RandomRotate(DictTransform, Randomizable):
         angle_range: Min and max rotation angle, in **degrees**.
         axis: Axis index to rotate around (0=X, 1=Y, 2=Z).
         p: Probability of applying the transform.
-        box_key: Optional key of a $(K, 7)$ oriented-box tensor to rotate jointly (requires `axis=2`).
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to rotate jointly (requires `axis=2`); a
+            $(K, 9)$ tensor carries a planar velocity in its last two columns, rotated with the boxes.
         center: Point the rotation is about: `"origin"`, `"bbox"` (the midrange of the first key),
             `"centroid"` (its mean) or an explicit $(x, y, z)$.
         vector_keys: Direction fields (normals) rotated without the recentering, whatever `center` is.
@@ -180,18 +185,21 @@ class RandomRotate(DictTransform, Randomizable):
 def scale_boxes(boxes: Tensor, scale: Union[float, Tensor]) -> Tensor:
     r"""Scale oriented 3D boxes by an isotropic factor.
 
-    Both centers and extents (columns $0$ to $6$) are multiplied by `scale`. Heading is unchanged.
+    Both centers and extents (columns $0$ to $6$) are multiplied by `scale`, and so is a planar velocity
+    $(v_x, v_y)$ in columns $7{:}9$. Heading and further columns are unchanged.
 
     Args:
-        boxes: Box tensor of shape $(K, 7)$.
-        scale: Isotropic scalar factor applied to centers and sizes.
+        boxes: Box tensor of shape $(K, 7)$ or $(K, 7 + C)$.
+        scale: Isotropic scalar factor applied to centers, sizes and velocity.
 
     Returns:
-        The scaled box tensor of shape $(K, 7)$.
+        The scaled box tensor, same shape as `boxes`.
     """
     boxes = boxes.clone()
     factor = scale.to(boxes) if isinstance(scale, Tensor) else scale
     boxes[:, 0:6] = boxes[:, 0:6] * factor
+    if boxes.shape[1] >= 9:
+        boxes[:, 7:9] = boxes[:, 7:9] * factor
     return boxes
 
 
@@ -222,8 +230,11 @@ class RandomScale(DictTransform, Randomizable):
         keys: Keys to scale. Point-like keys only; do not list direction vectors such as `normal`.
         scale_range: Min and max scaling factor.
         anisotropic: If `True`, sample a separate scale per axis of the last dim (incompatible with `box_key`).
+        axes: Channels of the last dim that receive the factor, the others keep their values; `None` scales
+            them all (incompatible with `anisotropic` and `box_key`).
         p: Probability of applying the transform.
-        box_key: Optional key of a $(K, 7)$ oriented-box tensor to scale jointly.
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to scale jointly; a $(K, 9)$ tensor carries a
+            planar velocity in its last two columns, scaled with the boxes.
         dst_keys: Where to store the scaled tensors.
         dst_box_key: Where to store the scaled boxes. Defaults to `box_key` (in-place).
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
@@ -235,6 +246,7 @@ class RandomScale(DictTransform, Randomizable):
         keys: KeyCollection,
         scale_range: Tuple[float, float] = (0.8, 1.25),
         anisotropic: bool = False,
+        axes: Optional[Sequence[int]] = None,
         p: float = 1.0,
         box_key: Optional[str] = None,
         dst_keys: Optional[KeyCollection] = None,
@@ -245,12 +257,18 @@ class RandomScale(DictTransform, Randomizable):
         if anisotropic and box_key is not None:
             raise ValueError("box_key cannot be scaled anisotropically (an oriented box has no per-axis scale).")
 
+        if axes is not None and (anisotropic or box_key is not None):
+            raise ValueError(
+                "`axes` scales a subset of the channels with one factor: incompatible with `anisotropic` and `box_key`."
+            )
+
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
         super().__init__(keys, allow_missing_keys)
         self.scale_range = scale_range
         self.anisotropic = anisotropic
+        self.axes = None if axes is None else tuple(axes)
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -284,7 +302,13 @@ class RandomScale(DictTransform, Randomizable):
                     f"({scale.numel()}); key '{key}' has {x.shape[-1]} channels."
                 )
 
-            data[dst_key] = x * scale.to(x.dtype).to(x.device)
+            factor = scale.to(x.dtype).to(x.device)
+            if self.axes is not None:
+                factor = torch.ones(x.shape[-1], dtype=x.dtype, device=x.device).index_fill(
+                    0, torch.tensor(self.axes, device=x.device), factor.squeeze()
+                )
+
+            data[dst_key] = x * factor
         return data
 
 
@@ -294,17 +318,20 @@ def flip_boxes(boxes: Tensor, axis: int) -> Tensor:
     Boxes are stored as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ with full extents and heading
     in radians counterclockwise about $+z$ from $+x$. A flip negates the center component along `axis`. A
     flip along `axis` $0$ (the $yz$ plane) maps the heading to $\pi - \theta$; a flip along `axis` $1$ (the
-    $xz$ plane) maps the heading to $-\theta$. Sizes are unchanged.
+    $xz$ plane) maps the heading to $-\theta$. Sizes are unchanged. Boxes with a planar velocity $(v_x, v_y)$ in
+    columns $7{:}9$ have its `axis` component negated too; further columns are kept as they are.
 
     Args:
-        boxes: Box tensor of shape $(K, 7)$.
+        boxes: Box tensor of shape $(K, 7)$ or $(K, 7 + C)$.
         axis: Center axis index to negate (0=X, 1=Y).
 
     Returns:
-        The flipped box tensor of shape $(K, 7)$.
+        The flipped box tensor, same shape as `boxes`.
     """
     boxes = boxes.clone()
     boxes[:, axis] = -boxes[:, axis]
+    if boxes.shape[1] >= 9:
+        boxes[:, 7 + axis] = -boxes[:, 7 + axis]
     if axis == 0:
         boxes[:, 6] = math.pi - boxes[:, 6]
     elif axis == 1:
@@ -358,7 +385,8 @@ class RandomFlip(DictTransform, Randomizable):
         keys: Keys to flip. Each must be a $(\ldots, 3)$ or $(N, 3G)$ vector field.
         axes: Axis indices (into each 3D triple) to consider for flipping.
         p: Per-axis flip probability.
-        box_key: Optional key of a $(K, 7)$ oriented-box tensor to flip jointly.
+        box_key: Optional key of a $(K, 7)$ oriented-box tensor to flip jointly; a $(K, 9)$ tensor carries a
+            planar velocity in its last two columns, flipped with the boxes.
         dst_keys: Where to store the flipped tensors.
         dst_box_key: Where to store the flipped boxes. Defaults to `box_key` (in-place).
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
@@ -495,14 +523,15 @@ class RandomJitter(DictTransform, Randomizable):
 def translate_boxes(boxes: Tensor, translation: Tensor) -> Tensor:
     r"""Translate oriented 3D boxes by a fixed offset.
 
-    Centers (columns $0$ to $3$) are offset by `translation`. Sizes and heading are unchanged.
+    Centers (columns $0$ to $3$) are offset by `translation`. Sizes, heading and any further column (such as a
+    velocity) are unchanged.
 
     Args:
-        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$.
+        boxes: Box tensor of shape $(K, 7)$ as $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$, or $(K, 7 + C)$.
         translation: Translation vector of shape $(3,)$.
 
     Returns:
-        The shifted box tensor of shape $(K, 7)$.
+        The shifted box tensor, same shape as `boxes`.
     """
     boxes = boxes.clone()
     boxes[:, 0:3] = boxes[:, 0:3] + translation.to(boxes)

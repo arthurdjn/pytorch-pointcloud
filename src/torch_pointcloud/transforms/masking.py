@@ -165,7 +165,8 @@ def box_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1, strict: bool = F
 
     Args:
         x: The input tensor of shape $(\ldots, D)$ along `dim`.
-        bbox: AABB as a flat tuple `(*bbmin, *bbmax)` of length $2 \cdot D$.
+        bbox: AABB as a flat tuple `(*bbmin, *bbmax)` of length $2 \cdot D$; a row longer than $D$ is tested by
+            its first $D$ coordinates, so a box row $(c_x, c_y, c_z, \ldots)$ is tested by its center.
         dim: The dimension to compute the mask over.
         strict: If `True`, use strict inequalities (points exactly on the boundary are excluded).
 
@@ -173,11 +174,14 @@ def box_mask(x: Tensor, bbox: tuple[float, ...], dim: int = -1, strict: bool = F
         The boolean mask, with `dim` reduced.
 
     Raises:
-        ValueError: If `len(bbox) != 2 * x.shape[dim]`.
+        ValueError: If `len(bbox)` is odd or larger than `2 * x.shape[dim]`.
     """
     size = len(bbox)
-    if not size == x.shape[dim] * 2:
+    if size % 2 or x.shape[dim] * 2 < size:
         raise ValueError(f"Bounding box size mismatch, got {size} for dimension {dim} but expected {x.shape[dim] * 2}.")
+
+    # A longer row is tested by its leading coordinates: a box row (c_x, c_y, c_z, ...) by its center.
+    x = x.narrow(dim, 0, size // 2)
 
     bbmin = torch.tensor(bbox[: size // 2], device=x.device, dtype=x.dtype)
     bbmax = torch.tensor(bbox[size // 2 :], device=x.device, dtype=x.dtype)

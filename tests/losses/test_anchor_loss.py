@@ -122,7 +122,7 @@ def test_anchor_loss_validates_per_class_geometry() -> None:
         )
 
 
-def _multi_loss() -> MultiGroupAnchorHeadLoss:
+def _multi_loss(**kwargs: Any) -> MultiGroupAnchorHeadLoss:
     return MultiGroupAnchorHeadLoss(
         2,
         class_groups=[[0], [1]],
@@ -133,6 +133,7 @@ def _multi_loss() -> MultiGroupAnchorHeadLoss:
         feature_map_stride=1,
         matched_thresholds=[0.6, 0.6],
         unmatched_thresholds=[0.45, 0.45],
+        **kwargs,
     )
 
 
@@ -185,6 +186,18 @@ def test_multihead_anchor_loss_velocity_codes_unsupervised_by_default() -> None:
     output["box"][0][0, idx, 8:10] = 5.0  # velocity codes carry zero default weight
     out = loss_fn(output, data)
     assert out["box_loss"] == 0.0
+
+
+def test_multihead_anchor_loss_velocity_targets_from_the_box_columns() -> None:
+    """A (K, 9) box supervises the velocity codes: a zero prediction costs `loc_weight * weight * |v|` per code."""
+    loss_fn = _multi_loss(code_weights=(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2))
+    output, data, idx = _perfect_multi(loss_fn)
+    data[DataKeys.BOX] = torch.cat([data[DataKeys.BOX], torch.tensor([[1.0, -2.0]])], dim=1)
+    out = loss_fn(output, data)
+    assert torch.isclose(out["box_loss"], torch.tensor(0.25 * 0.2 * 3.0), atol=1e-6)
+
+    output["box"][0][0, idx, 8:10] = torch.tensor([1.0, -2.0])
+    assert loss_fn(output, data)["box_loss"] == 0.0
 
 
 def test_multihead_anchor_loss_rejects_misordered_class_groups() -> None:

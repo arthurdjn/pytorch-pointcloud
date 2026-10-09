@@ -71,6 +71,18 @@ def test_lion_head_decode_packs_detections() -> None:
     assert set(det["batch"].tolist()) <= {0, 1}
 
 
+def test_lion_head_decoder_starts_xavier_uniform() -> None:
+    """A square decoder matrix reaches beyond the default Kaiming bound, which Xavier's wider one allows."""
+    torch.manual_seed(0)
+    head = TransFusionHead(16, 3, (40, 40, 32), RANGE, (0.3, 0.3, 0.25), num_proposals=20)
+    square = [p for p in head.decoder.parameters() if p.dim() == 2 and p.shape[0] == p.shape[1]]
+    assert square
+    for weight in square:
+        fan_in = weight.shape[1]
+        assert weight.abs().max() <= (6.0 / (2 * fan_in)) ** 0.5
+    assert any(weight.abs().max() > 1.0 / weight.shape[1] ** 0.5 for weight in square)
+
+
 def test_lion_head_decode_returns_velocity() -> None:
     """Decoded candidates carry the head's predicted BEV velocity unchanged under `velocity`."""
     torch.manual_seed(0)
