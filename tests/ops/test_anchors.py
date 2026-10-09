@@ -105,3 +105,22 @@ def test_assign_batched_matches_per_scene_assignment() -> None:
         assign_anchor_targets(
             anchors, gt_boxes, gt_labels, matched_threshold=0.5, unmatched_threshold=0.3, gt_batch=gt_batch
         )
+
+
+def test_assign_copies_the_extra_box_columns_into_the_targets() -> None:
+    """A velocity in the box columns beyond the geometry reaches the targets unchanged, and only the positives."""
+    anchors = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0],
+            [50.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0],
+        ]
+    )
+    gt_boxes = torch.tensor([[0.3, 0.1, 0.0, 4.0, 2.0, 1.5, 0.0, 1.5, -0.5]])
+    gt_labels = torch.tensor([1])
+
+    out = assign_anchor_targets(anchors, gt_boxes, gt_labels, matched_threshold=0.6, unmatched_threshold=0.45)
+
+    assert out["box_reg_targets"].shape == (2, 9)
+    assert torch.allclose(out["box_reg_targets"][0, 7:], gt_boxes[0, 7:])
+    assert torch.allclose(decode_box_residuals(out["box_reg_targets"][:1, :7], anchors[:1]), gt_boxes[:, :7], atol=1e-5)
+    assert torch.count_nonzero(out["box_reg_targets"][1]) == 0

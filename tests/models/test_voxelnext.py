@@ -8,7 +8,12 @@ from torch import Tensor
 import torch_pointcloud.models.voxelnext  # noqa: F401
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.voxelnext import VoxelNeXtDetection, VoxelNeXtHead, VoxelNeXtHeadOutput
+from torch_pointcloud.models.voxelnext import (
+    VoxelNeXtDetection,
+    VoxelNeXtHead,
+    VoxelNeXtHeadOutput,
+    VoxelNeXtSeparateHead,
+)
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
@@ -97,6 +102,15 @@ def test_voxelnext_decode_empty_batch_keeps_int64_labels() -> None:
     assert det["labels"].dtype == torch.long
     assert det["batch"].dtype == torch.long
     assert det["velocity"].shape == (0, 2)
+
+
+def test_voxelnext_separate_head_starts_at_the_heatmap_prior() -> None:
+    """The heatmap conv starts at the reference prior bias; the regression convs at zero biases."""
+    head_dict = {"hm": {"out_channels": 2, "num_conv": 2}, "center": {"out_channels": 2, "num_conv": 2}}
+    head = VoxelNeXtSeparateHead(8, head_dict, head_kernel_size=1, use_bias=True)
+    parameters = dict(head.named_parameters())
+    assert torch.all(parameters["hm.1.bias"] == -2.19)
+    assert torch.all(parameters["center.1.bias"] == 0.0) and torch.all(parameters["center.0.0.bias"] == 0.0)
 
 
 def test_voxelnext_decode_returns_velocity() -> None:

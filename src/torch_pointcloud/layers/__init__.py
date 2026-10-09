@@ -15,7 +15,7 @@ from .anchors import (
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
     MultiGroupAnchorHead,
-    separate_branch,
+    prediction_branch,
 )
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .conv2d_blocks import Conv2dBlock

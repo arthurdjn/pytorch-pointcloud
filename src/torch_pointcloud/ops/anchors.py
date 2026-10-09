@@ -85,10 +85,10 @@ def _assign_from_overlap(
     matched_threshold: float,
     unmatched_threshold: float,
 ) -> Tuple[Tensor, Tensor]:
-    r"""Labels $(A,)$ and residual targets $(A, 7)$ of one scene from its $(A, G)$ IoU matrix."""
+    r"""Labels $(A,)$ and residual targets $(A, 7 + C)$ of one scene from its $(A, G)$ IoU matrix."""
     num_anchors, num_gt = overlap.shape
     labels = anchors.new_full((num_anchors,), -1, dtype=torch.long)
-    box_reg_targets = anchors.new_zeros((num_anchors, 7))
+    box_reg_targets = anchors.new_zeros((num_anchors, gt_boxes.shape[-1]))
 
     anchor_to_gt_argmax = overlap.argmax(dim=1)
     anchor_to_gt_max = overlap[torch.arange(num_anchors, device=anchors.device), anchor_to_gt_argmax]
@@ -106,8 +106,12 @@ def _assign_from_overlap(
     labels[bg_inds] = 0
     labels[anchors_with_max_overlap] = gt_labels[gt_inds_force]
 
+    # The extra box columns (a velocity) have no anchor counterpart: zero-padded anchors encode them as they are.
     fg_inds = (labels > 0).nonzero()[:, 0]
-    box_reg_targets[fg_inds] = encode_box_residuals(gt_boxes[anchor_to_gt_argmax[fg_inds]], anchors[fg_inds])
+    fg_anchors = anchors[fg_inds]
+    padding = fg_anchors.new_zeros((fg_anchors.shape[0], gt_boxes.shape[-1] - 7))
+    fg_anchors = torch.cat([fg_anchors, padding], dim=-1)
+    box_reg_targets[fg_inds] = encode_box_residuals(gt_boxes[anchor_to_gt_argmax[fg_inds]], fg_anchors)
     return labels, box_reg_targets
 
 
@@ -129,7 +133,8 @@ def assign_anchor_targets(
     between is ignored. Each ground-truth box additionally force-matches its single highest-IoU anchor, so a
     box with no anchor above threshold still receives one positive. Positive anchors' regression targets are
     the residual encoding of their matched box against the anchor (the inverse of
-    `decode_box_residuals`).
+    `decode_box_residuals`); the columns a box carries beyond its geometry (a velocity) are copied into the
+    targets as they are.
 
     Callers with several class groups (one anchor set per class) invoke this once per group with that class's
     anchors, ground truth, and thresholds, then concatenate the results. With `gt_batch` (the scene index of
@@ -138,7 +143,7 @@ def assign_anchor_targets(
 
     Args:
         anchors: Anchors $(x, y, z, d_x, d_y, d_z, \theta)$ for one class group, shape $(A, 7)$.
-        gt_boxes: Ground-truth boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(G, 7)$.
+        gt_boxes: Ground-truth boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta, \ldots)$, shape $(G, 7 + C)$.
         gt_labels: Ground-truth class labels ($1$-based foreground indices), shape $(G,)$.
         matched_threshold: IoU at or above which an anchor becomes a positive.
         unmatched_threshold: IoU below which an anchor becomes background.
@@ -150,15 +155,15 @@ def assign_anchor_targets(
 
     Returns:
         A `TypedDict` with `cls_labels` $(A,)$ ($-1$ ignore, $0$ background, $\ge 1$ foreground class) and
-        `box_reg_targets` $(A, 7)$ (residual encodings, zero for non-positive anchors); $(B, A)$ and $(B, A, 7)$
-        with `gt_batch`.
+        `box_reg_targets` $(A, 7 + C)$ (residual encodings, zero for non-positive anchors); $(B, A)$ and
+        $(B, A, 7 + C)$ with `gt_batch`.
 
     Shape:
         - anchors: $(A, 7)$
-        - gt_boxes: $(G, 7)$
+        - gt_boxes: $(G, 7 + C)$
         - gt_labels: $(G,)$
         - cls_labels: $(A,)$
-        - box_reg_targets: $(A, 7)$
+        - box_reg_targets: $(A, 7 + C)$
 
     Example:
         ```pycon
@@ -177,10 +182,11 @@ def assign_anchor_targets(
     num_anchors, num_gt = anchors.shape[0], gt_boxes.shape[0]
     num_scenes = 1 if batch_size is None else batch_size
     labels = anchors.new_full((num_scenes, num_anchors), -1, dtype=torch.long)
-    box_reg_targets = anchors.new_zeros((num_scenes, num_anchors, 7))
+    box_reg_targets = anchors.new_zeros((num_scenes, num_anchors, gt_boxes.shape[-1]))
 
     if num_gt > 0 and num_anchors > 0:
-        overlap = boxes_iou3d(anchors, gt_boxes) if match_height else boxes_iou_nearest_bev(anchors, gt_boxes)
+        geometry = gt_boxes[:, :7]
+        overlap = boxes_iou3d(anchors, geometry) if match_height else boxes_iou_nearest_bev(anchors, geometry)
         # The columns of each scene, as contiguous slices of the boxes sorted by scene (one sync for the counts).
         if gt_batch is None:
             order, counts = torch.arange(num_gt, device=anchors.device), [num_gt]
