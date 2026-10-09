@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the detection training scripts of SECOND, PointPillars, PointRCNN, VoxelNeXt, LION, VoteNet and 3DETR.
 - Added the finetuning scripts of Point-MAE, Point-BERT, Point-M2AE, PointMamba and PointGPT.
 - Added the semantic segmentation training scripts of DGCNN, KP-FCNN, OctFormer, Point Transformer V3, PointNet++, PointNeXt, PVCNN, RandLA-Net, SphereFormer, SpUNet and SPVCNN, and the linear probing of Sonata, Concerto and Utonia.
 - Added the classification and part segmentation training scripts of DGCNN, OctFormer, PointConv, PointMLP, PointNet++ and PointNeXt.
