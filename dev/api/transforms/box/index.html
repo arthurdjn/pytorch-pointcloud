@@ -5706,10 +5706,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.box.PasteBoxes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        PasteBoxes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#torch_pointcloud.transforms.box.points_in_oriented_box" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
         points_in_oriented_box
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.box.cut_boxes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cut_boxes
       </span>
     </span>
   </a>
@@ -6350,10 +6372,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.box.PasteBoxes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        PasteBoxes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#torch_pointcloud.transforms.box.points_in_oriented_box" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
         points_in_oriented_box
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#torch_pointcloud.transforms.box.cut_boxes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        cut_boxes
       </span>
     </span>
   </a>
@@ -6467,7 +6511,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;RelabelBoxes&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/box.py#L21-L124&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.RelabelBoxes">RelabelBoxes</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L25-L128&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.RelabelBoxes">RelabelBoxes</a></code></b>
           –
           <div class="doc-md-description">
             <p>Map raw box labels to a detection class set and flag don't-care boxes for the AP metric.</p>
@@ -6477,10 +6521,20 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;InstanceToBox&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/box.py#L127-L200&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.InstanceToBox">InstanceToBox</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L131-L204&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.InstanceToBox">InstanceToBox</a></code></b>
           –
           <div class="doc-md-description">
             <p>Axis-aligned bounding boxes from per-point instance ids (e.g. ScanNet detection targets).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+          <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PasteBoxes&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L291-L416&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.PasteBoxes">PasteBoxes</a></code></b>
+          –
+          <div class="doc-md-description">
+            <p>Paste objects cut out by <code>cut_boxes</code> into the scene, a target number per label.</p>
           </div>
         </li>
     </ul>
@@ -6509,7 +6563,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">RelabelBoxes</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/box.py#L21-L124" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L25-L128" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.box.RelabelBoxes" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">RelabelBoxes</span><span class="p">(</span>
@@ -6531,7 +6585,7 @@
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/base.py#L255-L320&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/base.py#L255-L320&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
 
 
 
@@ -6693,7 +6747,7 @@ a foreground box outside any range becomes an ignore region.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">InstanceToBox</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/box.py#L127-L200" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L131-L204" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.box.InstanceToBox" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">InstanceToBox</span><span class="p">(</span>
@@ -6712,7 +6766,7 @@ a foreground box outside any range becomes an ignore region.</p>
               Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/base.py#L255-L320&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/base.py#L255-L320&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code></p>
 
 
 
@@ -6835,6 +6889,199 @@ down to the detection classes.</p>
 
 </div>
 
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="torch_pointcloud.transforms.box.PasteBoxes" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PasteBoxes</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L291-L416" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.box.PasteBoxes" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PasteBoxes</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">objects</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="typing.Mapping">Mapping</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">num_samples</span><span class="p">:</span> <span class="n"><span title="typing.Mapping">Mapping</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="n"><span title="int">int</span></span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">keys</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">box_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.BOX">BOX</span></span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">label_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.LABEL">LABEL</span></span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">attribute_keys</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">count_existing</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">seed</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="int">int</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;DictTransform&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/base.py#L255-L320&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../base/#torch_pointcloud.transforms.base.DictTransform">DictTransform</a></code>, <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Randomizable&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/utils/random.py#L68-L113&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/random/#torch_pointcloud.utils.random.Randomizable">Randomizable</a></code></p>
+
+
+
+        <p>Paste objects cut out by <code>cut_boxes</code> into the scene, a target number per label.</p>
+<p>For each label of <code>num_samples</code>, objects are drawn at random from <code>objects</code> and pasted: the scene points
+inside their boxes are removed, the object points, moved to their box center, are placed before the remaining
+scene points with their features, and the boxes, labels and attributes are appended. A drawn object whose box
+overlaps in bird's-eye view a box of the scene or of another drawn object is left out. With <code>count_existing</code>
+the objects of a label already in the scene count towards its target, otherwise the target is pasted in full.
+Per-box keys of the scene other than <code>box_key</code>, <code>label_key</code> and <code>attribute_keys</code> are not extended: drop them
+beforehand (e.g. with <code>KeepItems</code>).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>objects</code></b>
+              (<code><span title="typing.Sequence">Sequence</span>[<span title="typing.Mapping">Mapping</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Objects of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;cut_boxes&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L230-L288&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.cut_boxes"><code>cut_boxes</code></a>, holding <code>keys</code>, <code>box_key</code>,
+<code>label_key</code> and <code>attribute_keys</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>num_samples</code></b>
+              (<code><span title="typing.Mapping">Mapping</span>[<span title="int">int</span>, <span title="int">int</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Target number of objects per label, <code>{label: count}</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>keys</code></b>
+              (<code><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></code>, default:
+                  <code><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Point keys pasted: the coordinates first, then the features.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>box_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code><span title="torch_pointcloud.utils.data.DataKeys.BOX">BOX</span></code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the boxes.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>label_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code><span title="torch_pointcloud.utils.data.DataKeys.LABEL">LABEL</span></code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the labels.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>attribute_keys</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Per-box keys appended with the attributes of the pasted objects (e.g. a velocity).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>count_existing</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>True</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Count the objects already in the scene towards the targets.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>seed</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Seed of the transform's own random stream; <code>None</code> draws from the global generator (see <code>Randomizable</code>).</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>allow_missing_keys</code></b>
+              (<code><span title="bool">bool</span></code>, default:
+                  <code>False</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>If <code>True</code>, silently skip absent keys.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">T</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">scene</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="s2">&quot;pos&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="s2">&quot;intensity&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="s2">&quot;box&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">]]),</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">}</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">objects</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">cut_boxes</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;intensity&quot;</span><span class="p">])</span>  <span class="c1"># from one scene here, from a dataset in practice</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">paste</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">PasteBoxes</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="mi">15</span><span class="p">},</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;intensity&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">out</span> <span class="o">=</span> <span class="n">paste</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="s2">&quot;box&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</code></pre></div>
+</details>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
 
 <div class="doc doc-object doc-function">
 
@@ -6843,7 +7090,7 @@ down to the detection classes.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">points_in_oriented_box</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5a9a81ab10186e0047c93eab973546463ad64534/src/torch_pointcloud/transforms/box.py#L203-L223" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L207-L227" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.transforms.box.points_in_oriented_box" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">points_in_oriented_box</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">box</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -6890,6 +7137,122 @@ test.</p>
         </li>
     </ul>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="torch_pointcloud.transforms.box.cut_boxes" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">cut_boxes</span>
+
+  
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L230-L288" title="View source on GitHub">[source]</a>
+
+<a href="#torch_pointcloud.transforms.box.cut_boxes" class="headerlink" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">cut_boxes</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">data</span><span class="p">:</span> <span class="n"><span title="typing.Mapping">Mapping</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">keys</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">box_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.BOX">BOX</span></span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">label_key</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="n"><span title="torch_pointcloud.utils.data.DataKeys.LABEL">LABEL</span></span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">attribute_keys</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="typing.Dict">Dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Cut the annotated objects of a scene out by their boxes, one dict per object.</p>
+<p>An object holds the points inside its box under <code>keys</code>, the coordinates relative to the box center under the
+first key, its box under <code>box_key</code>, its label under <code>label_key</code> and its value of every <code>attribute_keys</code>. A
+point inside several boxes belongs to each of them. The keys are plain strings, so a list of objects saves
+with <code>torch.save</code> and loads back with <code>weights_only=True</code>.
+<a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PasteBoxes&lt;/span&gt;
+
+  
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/ed43ba7bd2d926f64913cdff4dfb916880ed13a2/src/torch_pointcloud/transforms/box.py#L291-L416&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.transforms.box.PasteBoxes"><code>PasteBoxes</code></a> pastes such objects into other scenes.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+            <b><code>data</code></b>
+              (<code><span title="typing.Mapping">Mapping</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>)
+          –
+          <div class="doc-md-description">
+            <p>Scene holding the packed points under <code>keys</code>, the boxes <span class="arithmatex">\((K, 7)\)</span> or wider under <code>box_key</code>, the
+labels <span class="arithmatex">\((K,)\)</span> under <code>label_key</code> and one row per box under each of <code>attribute_keys</code>.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>keys</code></b>
+              (<code><span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span></code>, default:
+                  <code><span title="torch_pointcloud.utils.data.DataKeys.POS">POS</span></code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Point keys cut out with the objects, the coordinates first.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>box_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code><span title="torch_pointcloud.utils.data.DataKeys.BOX">BOX</span></code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the boxes, whose first seven columns are read.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>label_key</code></b>
+              (<code><span title="str">str</span></code>, default:
+                  <code><span title="torch_pointcloud.utils.data.DataKeys.LABEL">LABEL</span></code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Key of the labels.</p>
+          </div>
+        </li>
+        <li class="doc-section-item field-body">
+            <b><code>attribute_keys</code></b>
+              (<code><span title="typing.Optional">Optional</span>[<span title="torch_pointcloud.utils.types.KeyCollection">KeyCollection</span>]</code>, default:
+                  <code>None</code>
+)
+          –
+          <div class="doc-md-description">
+            <p>Per-box keys cut out with the objects (e.g. a velocity).</p>
+          </div>
+        </li>
+    </ul>
+
+
+<p><span class="doc-section-title">Returns:</span></p>
+    <ul>
+        <li class="doc-section-item field-body">
+              <code><span title="typing.List">List</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="torch.Tensor">Tensor</span>]]</code>
+          –
+          <div class="doc-md-description">
+            <p>The objects of the scene, in the order of its boxes.</p>
+          </div>
+        </li>
+    </ul>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch_pointcloud.transforms.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">KITTI</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">objects</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">KITTI</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data/KITTI&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">objects</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">cut_boxes</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;intensity&quot;</span><span class="p">]))</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">objects</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">]</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="s2">&quot;objects.pt&quot;</span><span class="p">)</span>
+</code></pre></div>
+</details>
 
     </div>
 
