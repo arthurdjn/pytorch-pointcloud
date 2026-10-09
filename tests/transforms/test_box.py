@@ -1,12 +1,14 @@
 import math
+from pathlib import Path
 from typing import Any, Dict
 
+import pytest
 import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
-from torch_pointcloud.ops.box3d import box_corners
+from torch_pointcloud.ops.box3d import box_corners, points_in_boxes
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -242,3 +244,131 @@ def test_relabel_boxes_difficulty_to_ignore() -> None:
     )(data)
     assert out[DataKeys.LABEL].tolist() == [0, 0]
     assert out["ignore_mask"].tolist() == [False, True]
+
+
+def _scene_with_boxes() -> Dict[str, Any]:
+    # two boxes with four points each, one lone point outside, intensities equal to the point index
+    boxes = torch.tensor([[2.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [10.0, 5.0, 0.0, 2.0, 2.0, 2.0, 0.5]])
+    inside_first = torch.tensor([[1.5, 0.2, 0.1], [2.5, -0.3, 0.0], [2.0, 0.4, 0.4], [1.8, -0.6, -0.5]])
+    inside_second = torch.tensor([[10.0, 5.0, 0.1], [10.3, 5.2, 0.0], [9.8, 4.9, 0.4], [10.1, 5.1, -0.5]])
+    outside = torch.tensor([[30.0, 30.0, 0.0]])
+    pos = torch.cat([inside_first, inside_second, outside])
+    return {
+        DataKeys.POS: pos,
+        DataKeys.INTENSITY: torch.arange(pos.shape[0], dtype=torch.float32)[:, None],
+        DataKeys.BOX: boxes,
+        DataKeys.LABEL: torch.tensor([0, 1]),
+        DataKeys.OCCLUSION: torch.tensor([0, 2]),
+    }
+
+
+def test_cut_boxes_centers_the_points_of_every_object() -> None:
+    scene = _scene_with_boxes()
+    objects = F.cut_boxes(scene, keys=[DataKeys.POS, DataKeys.INTENSITY], attribute_keys=DataKeys.OCCLUSION)
+    assert len(objects) == 2 and [int(obj[DataKeys.LABEL]) for obj in objects] == [0, 1]
+    assert all(type(key) is str for key in objects[0])
+
+    first, second = objects
+    assert torch.allclose(first[DataKeys.POS] + first[DataKeys.BOX][:3], scene[DataKeys.POS][:4])
+    assert torch.equal(second[DataKeys.INTENSITY][:, 0], torch.arange(4.0, 8.0))
+    assert [int(obj[DataKeys.OCCLUSION]) for obj in objects] == [0, 2]
+
+    empty: Dict[str, Any] = {
+        DataKeys.POS: torch.zeros(3, 3),
+        DataKeys.BOX: torch.zeros(0, 7),
+        DataKeys.LABEL: torch.zeros(0),
+    }
+    assert F.cut_boxes(empty) == []
+
+
+def test_cut_boxes_objects_round_trip_through_the_safe_loader(tmp_path: Path) -> None:
+    objects = F.cut_boxes(_scene_with_boxes(), keys=[DataKeys.POS, DataKeys.INTENSITY])
+    torch.save(objects, tmp_path / "objects.pt")
+    loaded = torch.load(tmp_path / "objects.pt", weights_only=True)
+    assert len(loaded) == 2 and torch.equal(loaded[1][DataKeys.BOX], objects[1][DataKeys.BOX])
+
+
+def test_paste_boxes_pastes_the_objects_that_do_not_overlap() -> None:
+    scene = _scene_with_boxes()
+    # three objects of label 0 with two points each: one lands on the scene's first box, two on free ground
+    boxes = torch.tensor(
+        [
+            [2.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [20.0, -5.0, 0.0, 2.0, 2.0, 2.0, 0.3],
+            [40.0, 8.0, 0.0, 2.0, 2.0, 2.0, 1.0],
+        ]
+    )
+    objects: list[Dict[str, Tensor]] = [
+        {
+            DataKeys.POS: torch.tensor([[0.1, 0.1, 0.1], [-0.2, 0.0, 0.3]]),
+            DataKeys.INTENSITY: torch.full((2, 1), 100.0 + k),
+            DataKeys.BOX: box,
+            DataKeys.LABEL: torch.tensor(0),
+        }
+        for k, box in enumerate(boxes)
+    ]
+    transform = T.PasteBoxes(
+        objects, num_samples={0: 3}, keys=[DataKeys.POS, DataKeys.INTENSITY], count_existing=False, seed=0
+    )
+    out = transform(scene)
+
+    # the overlapping object is left out, the two others are appended with their labels
+    assert out[DataKeys.BOX].shape[0] == 4 and out[DataKeys.LABEL].tolist() == [0, 1, 0, 0]
+    assert torch.allclose(out[DataKeys.BOX][2:].sort(dim=0).values, boxes[1:].sort(dim=0).values)
+    # 4 pasted points come first, then the 9 scene points (none fell inside the pasted boxes)
+    assert out[DataKeys.POS].shape[0] == 13 and out[DataKeys.INTENSITY].shape == (13, 1)
+    assert (out[DataKeys.INTENSITY][:4] >= 100).all() and (out[DataKeys.INTENSITY][4:] < 100).all()
+    for box in out[DataKeys.BOX][2:]:
+        assert points_in_boxes(out[DataKeys.POS][:4], box[None]).any()
+
+    # counting the single object of label 0 already in the scene lowers the target
+    counted = T.PasteBoxes(objects, num_samples={0: 2}, keys=[DataKeys.POS, DataKeys.INTENSITY], seed=0)
+    assert counted(scene)[DataKeys.BOX].shape[0] == 3
+
+
+def test_paste_boxes_clears_the_scene_points_under_the_pasted_object() -> None:
+    scene = _scene_with_boxes()
+    objects: list[Dict[str, Tensor]] = [
+        {
+            DataKeys.POS: torch.zeros(3, 3),
+            DataKeys.BOX: torch.tensor([30.0, 30.0, 0.0, 2.0, 2.0, 2.0, 0.0]),
+            DataKeys.LABEL: torch.tensor(1),
+        }
+    ]
+    out = T.PasteBoxes(objects, num_samples={1: 5}, count_existing=False)(scene)
+
+    # the lone scene point at (30, 30, 0) is inside the pasted box and goes away; the three object points come first
+    assert out[DataKeys.POS].shape[0] == 11
+    assert torch.allclose(out[DataKeys.POS][:3], torch.tensor([[30.0, 30.0, 0.0]]).expand(3, 3))
+    assert out[DataKeys.LABEL].tolist() == [0, 1, 1]
+
+
+def test_paste_boxes_appends_the_attributes_of_the_pasted_objects() -> None:
+    scene = _scene_with_boxes()
+    scene[DataKeys.VELOCITY] = torch.tensor([[0.5, 0.0], [0.0, 0.5]])
+    # every object moves along x at the speed of its x coordinate, so the pasted rows can be told apart
+    objects: list[Dict[str, Tensor]] = [
+        {
+            DataKeys.POS: torch.zeros(2, 3),
+            DataKeys.BOX: torch.tensor([20.0, -5.0, 0.0, 2.0, 2.0, 2.0, 0.3]),
+            DataKeys.LABEL: torch.tensor(0),
+            DataKeys.VELOCITY: torch.tensor([20.0, 0.0]),
+        },
+        {
+            DataKeys.POS: torch.zeros(2, 3),
+            DataKeys.BOX: torch.tensor([40.0, 8.0, 0.0, 2.0, 2.0, 2.0, 1.0]),
+            DataKeys.LABEL: torch.tensor(0),
+            DataKeys.VELOCITY: torch.tensor([40.0, 0.0]),
+        },
+    ]
+    transform = T.PasteBoxes(
+        objects, num_samples={0: 2}, attribute_keys=DataKeys.VELOCITY, count_existing=False, seed=0
+    )
+    out = transform(scene)
+
+    assert out[DataKeys.BOX].shape[0] == 4 and out[DataKeys.VELOCITY].shape == (4, 2)
+    assert torch.equal(out[DataKeys.VELOCITY][:2], scene[DataKeys.VELOCITY])
+    assert torch.equal(out[DataKeys.VELOCITY][2:, 0], out[DataKeys.BOX][2:, 0])
+
+    with pytest.raises(ValueError, match="cut_boxes"):
+        T.PasteBoxes(objects, num_samples={0: 2}, attribute_keys=DataKeys.OCCLUSION)
