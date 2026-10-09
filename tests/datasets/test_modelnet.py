@@ -727,7 +727,7 @@ def test_modelnet40_hdf5_dataset_loads_shards_in_list_order(
     datasets_dir_factory: Callable[..., Path], train: bool, expected_labels: list[int]
 ) -> None:
     """Shards are concatenated in the split file-list order, with the release's `(N, 1)` labels squeezed."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
 
     dataset = ModelNet40Hdf5(root=datasets_dir, train=train, show_progress=False)
@@ -742,7 +742,7 @@ def test_modelnet40_hdf5_dataset_loads_shards_in_list_order(
 
 def test_modelnet40_hdf5_dataset_transform_called(datasets_dir_factory: Callable[..., Path]) -> None:
     """The transform is applied to every sample at `__getitem__` time."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
 
     transform = Mock(side_effect=lambda data: data)
@@ -753,7 +753,7 @@ def test_modelnet40_hdf5_dataset_transform_called(datasets_dir_factory: Callable
 
 def test_modelnet40_hdf5_getitem_returns_detached_copy(datasets_dir_factory: Callable[..., Path]) -> None:
     """In-place user edits on a returned sample never reach the in-memory cache."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
 
     dataset = ModelNet40Hdf5(root=datasets_dir, train=False, show_progress=False)
@@ -767,7 +767,7 @@ def test_modelnet40_hdf5_download_extracts_archive(
     tmp_path: Path, datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`download=True` fetches the archive, strips its root directory into `raw/`, and removes the archive."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     archive = _modelnet40_hdf5_zip_bytes(tmp_path)
     monkeypatch.setattr(ModelNet40Hdf5, "md5", hashlib.md5(archive).hexdigest())
 
@@ -785,7 +785,7 @@ def test_modelnet40_hdf5_download_raises_when_redownload_still_corrupt(
     datasets_dir_factory: Callable[..., Path],
 ) -> None:
     """If the re-downloaded archive still fails the checksum, download() raises with both hashes."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
     dataset = ModelNet40Hdf5(root=datasets_dir, train=True, show_progress=False)
     resource_path = Path(dataset.raw_dir, dataset.resource)
@@ -802,7 +802,7 @@ def test_modelnet40_hdf5_download_raises_when_redownload_still_corrupt(
 
 def test_modelnet40_hdf5_leftover_archive_detected(datasets_dir_factory: Callable[..., Path]) -> None:
     """A leftover archive marks an interrupted extraction, so the partial raw tree is not loaded."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     raw_dir = datasets_dir / "ModelNet40Hdf5" / "raw"
     _write_modelnet40_hdf5_raw(raw_dir)
     archive_path = raw_dir / ModelNet40Hdf5.resource
@@ -820,7 +820,7 @@ def test_modelnet40_hdf5_force_download_implies_download(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`force_download=True` triggers the download even when `download` is left False."""
-    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/scripts/*")
     _write_modelnet40_hdf5_raw(datasets_dir / "ModelNet40Hdf5" / "raw")
     mock = Mock()
     monkeypatch.setattr(ModelNet40Hdf5, "download", mock)

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the classification and part segmentation training scripts of DGCNN, OctFormer, PointConv, PointMLP, PointNet++ and PointNeXt.
 - Moved the example scripts to one directory per model, named `<task>_<dataset>_<kind>.py`, and removed the generic classification and segmentation scripts.
 - Added `transforms.functional.cut_boxes` and `transforms.PasteBoxes`, the copy-paste augmentation of box-annotated scenes.
 - Added `RandomScale(axes=...)` and per-channel `Clamp` bounds.

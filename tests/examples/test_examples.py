@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Iterator, Tuple
 
 import pytest
-from _pytest.mark.structures import ParameterSet
 
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
@@ -51,6 +50,12 @@ BENCHMARKS = [
         id="pointnext/shapenetpart",
     ),
     pytest.param(
+        "pointnext/classification_scanobjectnn_benchmark.py",
+        ("--model", "pointnext-sm.scanobjectnn-hardest.openpoints", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointnext/scanobjectnn",
+    ),
+    pytest.param(
         "pointnet2/segmentation_s3dis_benchmark.py",
         ("--model", "pointnet2.s3dis-area5.xu-yan", "--limit", "1"),
         marks=_CLUSTER,
@@ -61,6 +66,12 @@ BENCHMARKS = [
         ("--model", "pointnet2.s3dis-area5.openpoints", "--limit", "1"),
         marks=_CLUSTER,
         id="pointnet2/s3dis-openpoints",
+    ),
+    pytest.param(
+        "pointnet2/classification_modelnet40_benchmark.py",
+        ("--model", "pointnet2-msg.modelnet40.xu-yan", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointnet2/modelnet40",
     ),
     pytest.param(
         "pointnet2/classification_scanobjectnn_benchmark.py",
@@ -122,6 +133,15 @@ BENCHMARKS = [
         id="point_m2ae/shapenetpart",
     ),
     pytest.param(
+        "pointmlp/classification_scanobjectnn_benchmark.py",
+        ("--model", "pointmlp-base.scanobjectnn-hardest.xu-ma", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointmlp/scanobjectnn",
+    ),
+    pytest.param(
+        "pointconv/classification_modelnet40_benchmark.py", ("--limit", "8"), marks=_CLUSTER, id="pointconv/modelnet40"
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
@@ -146,7 +166,92 @@ _SMOKE = ("--limit-train-batches", "2", "--limit-test-batches", "2", "--epochs",
 # The reproduction scripts (one per reference recipe) validate on `--limit-val-batches` scenes.
 _SMOKE_RECIPE = ("--limit-train-batches", "2", "--limit-val-batches", "2", "--epochs", "1", "--eval-every", "1")
 # One classification and one segmentation dataset per training script; VoteNet has no SUN RGB-D dummy data.
-TRAININGS: list[ParameterSet] = []
+TRAININGS = [
+    pytest.param(
+        "dgcnn/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="dgcnn/modelnet40",
+    ),
+    pytest.param(
+        "dgcnn/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="dgcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointmlp/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointmlp/scanobjectnn",
+    ),
+    pytest.param(
+        "pointmlp/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointmlp/modelnet40",
+    ),
+    pytest.param(
+        "pointnet2/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/modelnet40-ssg",
+    ),
+    pytest.param(
+        "pointnet2/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--model", "pointnet2-msg.modelnet40.xu-yan", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/modelnet40-msg",
+    ),
+    pytest.param(
+        "pointnet2/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet/modelnet40",
+    ),
+    pytest.param(
+        "pointnext/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnext/scanobjectnn",
+    ),
+    pytest.param(
+        "pointnet2/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/scanobjectnn-train",
+    ),
+    pytest.param(
+        "pointnext/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnext/modelnet40",
+    ),
+    pytest.param(
+        "pointnext/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--model", "pointnet2.modelnet40.openpoints", "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/modelnet40-openpoints",
+    ),
+    pytest.param(
+        "pointnext/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnext/shapenetpart",
+    ),
+    pytest.param(
+        "octformer/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_OCTREE,
+        id="octformer/modelnet40",
+    ),
+    pytest.param(
+        "pointconv/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointconv/modelnet40",
+    ),
+]
 
 
 @pytest.fixture(scope="module")
@@ -168,6 +273,7 @@ def test_every_script_has_a_row() -> None:
     """Every example script is exercised by at least one row, or is named here with the reason it is not."""
     without_dummy_data = {
         "dgcnn/classification_modelnet40_benchmark.py",
+        "pointmlp/classification_modelnet40_benchmark.py",
         "pointnext/classification_modelnet40_benchmark.py",
         "sphereformer/segmentation_semantickitti_benchmark.py",
         "votenet/detection_sunrgbd_benchmark.py",
