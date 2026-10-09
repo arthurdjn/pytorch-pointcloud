@@ -65,6 +65,15 @@ def test_anchor_head_multi_forward_decode_velocity_matches_batch_box() -> None:
     assert torch.equal(det["velocity"], out["batch_box"][..., 7:9].reshape(-1, 2))
 
 
+def test_anchor_head_multi_starts_at_the_foreground_prior() -> None:
+    """Every group head's class logits start at the focal-loss prior, so a fresh model scores 1% everywhere."""
+    head = _make_multi_head().eval()
+    with torch.no_grad():
+        out = head(torch.zeros(1, 8, 4, 4))
+    for cls_preds in out["cls"]:
+        assert torch.allclose(cls_preds.sigmoid(), torch.full_like(cls_preds, 0.01), atol=1e-6)
+
+
 def test_anchor_head_single_decode_has_no_velocity() -> None:
     """The 7-DoF single head (no velocity in the box code) decodes without a `velocity` key."""
     torch.manual_seed(0)

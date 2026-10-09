@@ -245,9 +245,9 @@ class MultiGroupAnchorHeadLoss(nn.Module):
       $(\cos, \sin)$ residual, so no separate direction classifier is used.
 
     !!! note
-        The nuScenes ground-truth boxes carry no velocity ($(K, 7)$), so the velocity targets are zero. Set
-        the last two `code_weights` entries to $0$ to leave the velocity branch unsupervised; the default
-        does so.
+        Ground-truth boxes of $(K, 9)$ columns carry the velocity $(v_x, v_y)$ the last two codes regress; with
+        $(K, 7)$ boxes those targets are zero, so leave the last two `code_weights` at their default $0$ to
+        keep the velocity branch unsupervised.
 
     Anchors are rebuilt in the constructor from the same geometry the head uses
     ([`generate_anchors`][torch_pointcloud.ops.anchors.generate_anchors]), in the head's class-group
@@ -360,8 +360,8 @@ class MultiGroupAnchorHeadLoss(nn.Module):
         Args:
             output: The head's raw output: per-head `cls` $(B, A_g, C_g)$ and `box` $(B, A_g, 10)$ lists,
                 plus `multihead_label_mapping` (per-head 1-based global class indices).
-            data: Ground truth: packed `box` $(K, 7)$ full-extent, `label` $(K,)$ ($0$-based classes) and
-                `batch_box` $(K,)$ per-box scene index.
+            data: Ground truth: packed `box` $(K, 7)$ full-extent, or $(K, 9)$ with the velocity in the last
+                two columns, `label` $(K,)$ ($0$-based classes) and `batch_box` $(K,)$ per-box scene index.
 
         Returns:
             A dict with the scalar `loss` and detached `cls_loss`, `box_loss`.
@@ -422,14 +422,17 @@ class MultiGroupAnchorHeadLoss(nn.Module):
 
         The center / size residuals are shared with the plain encoding; the heading delta $\theta_g - \theta_a$
         (stored in channel 6, zero for non-positive anchors) is expanded to
-        $(\cos\theta_g - \cos\theta_a, \sin\theta_g - \sin\theta_a)$ and the velocity codes are appended as
-        zeros (the nuScenes ground truth has no velocity).
+        $(\cos\theta_g - \cos\theta_a, \sin\theta_g - \sin\theta_a)$ and the velocity codes follow: the extra
+        target columns when the ground-truth boxes carry a velocity, zeros otherwise.
         """
         anchor_yaw = anchors[:, 6]
         gt_yaw = box_reg_targets[..., 6] + anchor_yaw
         cos_diff = (torch.cos(gt_yaw) - torch.cos(anchor_yaw)).unsqueeze(-1)
         sin_diff = (torch.sin(gt_yaw) - torch.sin(anchor_yaw)).unsqueeze(-1)
-        velocity = box_reg_targets.new_zeros((*box_reg_targets.shape[:-1], self.num_velocity))
+
+        velocity = box_reg_targets[..., 7 : 7 + self.num_velocity]
+        if velocity.shape[-1] < self.num_velocity:
+            velocity = box_reg_targets.new_zeros((*box_reg_targets.shape[:-1], self.num_velocity))
         return torch.cat([box_reg_targets[..., :6], cos_diff, sin_diff, velocity], dim=-1)
 
     def _cls_loss(self, cls_preds: List[Tensor], box_cls_labels: Tensor, label_mapping: List[Tensor]) -> Tensor:

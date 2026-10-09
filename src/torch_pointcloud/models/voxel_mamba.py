@@ -13,7 +13,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseConvBlock, SubMConv3dResidualBlock
-from torch_pointcloud.layers.anchors import separate_branch
+from torch_pointcloud.layers.anchors import prediction_branch
 from torch_pointcloud.layers.bev_backbone import BEVResidualBackbone
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.norms import create_norm
@@ -526,12 +526,12 @@ class SeparateHead(nn.Module):
             norm_kwargs=norm_kwargs,
             bias=bias,
         )
-        self.center = separate_branch(in_channels, 2, **branch_kwargs)
-        self.center_z = separate_branch(in_channels, 1, **branch_kwargs)
-        self.dim = separate_branch(in_channels, 3, **branch_kwargs)
-        self.rot = separate_branch(in_channels, 2, **branch_kwargs)
-        self.iou = separate_branch(in_channels, 1, **branch_kwargs)
-        self.heatmap = separate_branch(in_channels, num_classes, **branch_kwargs)
+        self.center = prediction_branch(in_channels, 2, **branch_kwargs)
+        self.center_z = prediction_branch(in_channels, 1, **branch_kwargs)
+        self.dim = prediction_branch(in_channels, 3, **branch_kwargs)
+        self.rot = prediction_branch(in_channels, 2, **branch_kwargs)
+        self.iou = prediction_branch(in_channels, 1, **branch_kwargs)
+        self.heatmap = prediction_branch(in_channels, num_classes, **branch_kwargs)
 
     def forward(self, x: Tensor) -> CenterHeadOutput:
         return {

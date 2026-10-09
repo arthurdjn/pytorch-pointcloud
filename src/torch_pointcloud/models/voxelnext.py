@@ -211,6 +211,7 @@ class VoxelNeXtSeparateHead(nn.Module):
         head_dict: Mapping attribute name -> `{"out_channels": int, "num_conv": int}`.
         head_kernel_size: Kernel size of the hidden `SubMConv2d` blocks.
         use_bias: Whether the hidden conv carries a bias (`USE_BIAS_BEFORE_NORM`).
+        init_bias: Bias initialization of the heatmap output conv.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
@@ -224,6 +225,7 @@ class VoxelNeXtSeparateHead(nn.Module):
         *,
         head_kernel_size: int,
         use_bias: bool,
+        init_bias: float = -2.19,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -231,6 +233,7 @@ class VoxelNeXtSeparateHead(nn.Module):
     ) -> None:
         super().__init__()
         self.head_names = list(head_dict.keys())
+        self.init_bias = init_bias
         for name, cfg in head_dict.items():
             out_channels = cfg["out_channels"]
             num_conv = cfg["num_conv"]
@@ -252,6 +255,25 @@ class VoxelNeXtSeparateHead(nn.Module):
                 )
             layers.append(spconv.SubMConv2d(in_channels, out_channels, 1, bias=True, indice_key=name + "out"))
             self.add_module(name, nn.Sequential(*layers))
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        r"""Start the heatmap logits at `init_bias`, the regression convs at Kaiming-normal weights and zero biases."""
+        for name in self.head_names:
+            stack = self.get_submodule(name)
+            assert isinstance(stack, nn.Sequential)
+            if "hm" in name:
+                final_bias = stack[-1].bias
+                assert isinstance(final_bias, Tensor)
+                nn.init.constant_(final_bias, self.init_bias)
+                continue
+
+            for module in stack.modules():
+                if isinstance(module, spconv.SubMConv2d):
+                    nn.init.kaiming_normal_(module.weight)
+                    if module.bias is not None:
+                        nn.init.constant_(module.bias, 0.0)
 
     def forward(self, x: "spconv.SparseConvTensor") -> Dict[str, Tensor]:
         return {name: self.get_submodule(name)(x).features for name in self.head_names}
@@ -419,7 +441,7 @@ class VoxelNeXtHead(nn.Module):
 class VoxelNeXtDetection(DetectionModel):
     r"""VoxelNeXt fully sparse 3D object detector (packed point format).
 
-    Reference: :arxiv: [Chen et al., 2023](https://arxiv.org/abs/2303.11301).
+    Reference: :arxiv: [VoxelNeXt: Fully Sparse VoxelNet for 3D Object Detection and Tracking](https://arxiv.org/abs/2303.11301) (Chen et al., 2023).
     Reference implementation: :github: [dvlab-research/VoxelNeXt](https://github.com/dvlab-research/VoxelNeXt)
     (ported via :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet),
     `cbgs_voxel0075_voxelnext`). A residual sparse 3D backbone

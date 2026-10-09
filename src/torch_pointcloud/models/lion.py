@@ -955,6 +955,7 @@ class TransFusionHead(nn.Module):
         self.prediction_head = SeparateHeadTransfusion(
             hidden_channel, 64, num_classes, num_heatmap_layers=num_heatmap_layers, bias=True
         )
+        self.reset_parameters()
 
         for m in self.modules():
             if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
@@ -967,6 +968,12 @@ class TransFusionHead(nn.Module):
         )
         bev_pos = torch.cat([(bx + 0.5)[None], (by + 0.5)[None]], dim=0)[None]
         self.register_buffer("bev_pos", bev_pos.view(1, 2, -1).permute(0, 2, 1), persistent=False)
+
+    def reset_parameters(self) -> None:
+        r"""Start the weight matrices of the transformer decoder Xavier-uniform."""
+        for parameter in self.decoder.parameters():
+            if parameter.dim() > 1:
+                nn.init.xavier_uniform_(parameter)
 
     def predict(self, inputs: Tensor) -> TransFusionHeadOutput:
         r"""Runs the head on a BEV feature map: initializes the queries from the dense heatmap, then decodes them.
@@ -1154,7 +1161,7 @@ class TransFusionHead(nn.Module):
 class LIONDetection(DetectionModel):
     r"""LION: linear group RNN (Mamba) 3D object detector (packed point format).
 
-    Reference: :arxiv: [Liu et al., 2024](https://arxiv.org/abs/2407.18232). Reference implementation:
+    Reference: :arxiv: [LION: Linear Group RNN for 3D Object Detection in Point Clouds](https://arxiv.org/abs/2407.18232) (Liu et al., 2024). Reference implementation:
     :github: [happinesslz/LION](https://github.com/happinesslz/LION).
 
     Points are encoded into voxels by a dynamic mean VFE, processed by a hierarchical sparse backbone
