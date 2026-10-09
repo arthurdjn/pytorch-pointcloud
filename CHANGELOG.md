@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Moved the example scripts to one directory per model, named `<task>_<dataset>_<kind>.py`, and removed the generic classification and segmentation scripts.
 - Added `transforms.functional.cut_boxes` and `transforms.PasteBoxes`, the copy-paste augmentation of box-annotated scenes.
 - Added `RandomScale(axes=...)` and per-channel `Clamp` bounds.
 - The box augmentations carry the velocity columns of 9-column boxes.
@@ -33,7 +34,6 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `TransFusionHeadLoss` backpropagating through its IoU-rescore target.
 - Fixed `assign_anchor_targets` matching by the rotated BEV IoU; the anchor recipes match by the nearest-axis-aligned one (`boxes_iou_nearest_bev`) unless `match_height` is set.
 - Removed ML monitoring dependencies (`mlflow`, `tensorboard`, `aim`) from the `dev` dependencies.
-- Added the reference training recipes as example scripts (Pointcept, openpoints, yanx27, spvnas, KPConv-PyTorch, RandLA-Net, PVCNN, Point-MAE-family finetuning, Sonata linear probing); they replace the generic classification and segmentation scripts.
 
 ## 0.0.11 (2026-10-06)
 
