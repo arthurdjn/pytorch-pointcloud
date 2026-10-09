@@ -6,12 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `transforms.functional.cut_boxes` and `transforms.PasteBoxes`, the copy-paste augmentation of box-annotated scenes.
+- Added `RandomScale(axes=...)` and per-channel `Clamp` bounds.
+- The box augmentations carry the velocity columns of 9-column boxes.
 - `AnchorHead`, `AnchorGroupHead`, `PointRCNNRefinementHead`, `VoxelNeXtSeparateHead` and `TransFusionHead` initialize their heads as the reference detectors do.
 - `assign_anchor_targets` and `MultiGroupAnchorHeadLoss` carry the velocity columns of 9-column boxes.
 - Renamed `layers.separate_branch` to `prediction_branch`.
 - Added `models.model_info`, the registry entry of a model without building it.
 - Added `torch_pointcloud.optim`: `generate_param_groups` (moved from `utils.optim`), `CosineWarmupLR`, `PolyLR`, `bn_momentum`, `set_bn_momentum` and `BNMomentumScheduler`.
-
 - Added `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)` and `RandomSample(allow_fewer=True)`.
 - Added `transforms.RandomApply`, `RandomBlockCrop` and `Translate`, `S3DIS(num_nodes=None)`, `PointCloudDataLoader(mix=..., mix_prob=...)` and `datasets.RepeatSampler`.
 - The masked point modeling pretraining models return `(pred, target, pred_batch, target_batch)`, packed for `chamfer_distance`.

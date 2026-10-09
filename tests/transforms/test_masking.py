@@ -362,9 +362,10 @@ def test_box_mask_2d() -> None:
 def test_box_mask_invalid_bbox_size() -> None:
     """Test that box_mask raises ValueError for mismatched bbox size."""
     x = torch.tensor([[1.0, 2.0, 3.0]])
-    bbox = (0.0, 0.0, 3.0, 3.0)  # size 4, but dim size is 3 -> expects 6
     with pytest.raises(ValueError, match="Bounding box size mismatch"):
-        F.box_mask(x, bbox, dim=-1)
+        F.box_mask(x, (0.0, 0.0, 0.0, 0.0, 3.0, 3.0, 3.0, 3.0), dim=-1)  # size 8 for 3 coordinates
+    with pytest.raises(ValueError, match="Bounding box size mismatch"):
+        F.box_mask(x, (0.0, 0.0, 3.0, 3.0, 3.0), dim=-1)  # odd size
 
 
 def test_functional_apply_mask_basic() -> None:
@@ -474,3 +475,12 @@ def test_remove_near_origin_uses_sphere_mask_semantics() -> None:
     filtered = F.remove_near_origin(pos, radius=1.0)
     # Points with L2 > 1.0 survive: the (2, 0, 0) and (0.6, 0.6, 0.6)
     assert filtered.shape == (2, 3)
+
+
+def test_box_mask_tests_box_rows_by_their_center() -> None:
+    boxes = torch.tensor([[1.0, 1.0, 0.0, 4.0, 2.0, 1.5, 0.3], [50.0, 1.0, 0.0, 4.0, 2.0, 1.5, 0.3]])
+    mask = T.BoxMask(keys="box", bbox=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0), dst_keys="box_mask")({"box": boxes})
+    assert mask["box_mask"].tolist() == [True, True]
+    assert T.BoxMask(keys="box", bbox=(0.0, -40.0, -3.0, 20.0, 40.0, 1.0), dst_keys="m")({"box": boxes})[
+        "m"
+    ].tolist() == [True, False]

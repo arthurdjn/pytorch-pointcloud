@@ -828,8 +828,8 @@ class Clamp(DictTransform):
 
     Args:
         keys: Keys to clamp.
-        min: Lower bound. `None` disables the lower clamp.
-        max: Upper bound. `None` disables the upper clamp.
+        min: Lower bound, one value or one per channel of the last dim. `None` disables the lower clamp.
+        max: Upper bound, one value or one per channel of the last dim. `None` disables the upper clamp.
         dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
         allow_missing_keys: If `True`, silently skip absent keys.
     """
@@ -837,8 +837,8 @@ class Clamp(DictTransform):
     def __init__(
         self,
         keys: KeyCollection,
-        min: Optional[float] = None,
-        max: Optional[float] = None,
+        min: Union[float, Sequence[float], None] = None,
+        max: Union[float, Sequence[float], None] = None,
         dst_keys: Optional[KeyCollection] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -846,12 +846,15 @@ class Clamp(DictTransform):
         if min is None and max is None:
             raise ValueError("Clamp requires at least one of `min` or `max`.")
 
-        self.min = min
-        self.max = max
+        self.min = torch.as_tensor(min, dtype=torch.float32) if isinstance(min, Sequence) else min
+        self.max = torch.as_tensor(max, dtype=torch.float32) if isinstance(max, Sequence) else max
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = data[key].clamp(min=self.min, max=self.max)
+            x = data[key]
+            low = self.min.to(x) if isinstance(self.min, Tensor) else self.min
+            high = self.max.to(x) if isinstance(self.max, Tensor) else self.max
+            data[dst_key] = x.clamp(min=low, max=high)
         return data

@@ -1,11 +1,14 @@
 """Transforms that build and encode 3D box targets."""
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
 
+from torch_pointcloud.ops.box3d import boxes_iou_bev, points_in_boxes
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection
 
 from .base import DictTransform
@@ -14,6 +17,7 @@ from .utils import relabel
 
 __all__ = [
     "InstanceToBox",
+    "PasteBoxes",
     "RelabelBoxes",
 ]
 
@@ -221,3 +225,192 @@ def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:
     rotation = rotation_matrix(float(-heading), axis=2, device=pos.device).to(pos.dtype)
     local = (pos - center) @ rotation.transpose(-1, -2)
     return (local.abs() <= half).all(dim=1)
+
+
+def cut_boxes(
+    data: Mapping[str, Any],
+    keys: KeyCollection = DataKeys.POS,
+    box_key: str = DataKeys.BOX,
+    label_key: str = DataKeys.LABEL,
+    attribute_keys: Optional[KeyCollection] = None,
+) -> List[Dict[str, Tensor]]:
+    r"""Cut the annotated objects of a scene out by their boxes, one dict per object.
+
+    An object holds the points inside its box under `keys`, the coordinates relative to the box center under the
+    first key, its box under `box_key`, its label under `label_key` and its value of every `attribute_keys`. A
+    point inside several boxes belongs to each of them. The keys are plain strings, so a list of objects saves
+    with `torch.save` and loads back with `weights_only=True`.
+    [`PasteBoxes`][torch_pointcloud.transforms.box.PasteBoxes] pastes such objects into other scenes.
+
+    Args:
+        data: Scene holding the packed points under `keys`, the boxes $(K, 7)$ or wider under `box_key`, the
+            labels $(K,)$ under `label_key` and one row per box under each of `attribute_keys`.
+        keys: Point keys cut out with the objects, the coordinates first.
+        box_key: Key of the boxes, whose first seven columns are read.
+        label_key: Key of the labels.
+        attribute_keys: Per-box keys cut out with the objects (e.g. a velocity).
+
+    Returns:
+        The objects of the scene, in the order of its boxes.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms.functional as F
+        from torch_pointcloud.datasets import KITTI
+
+        objects = []
+        for data in KITTI(root="data/KITTI"):
+            objects.extend(F.cut_boxes(data, keys=["pos", "intensity"]))
+        objects = [obj for obj in objects if len(obj["pos"]) >= 5]
+        torch.save(objects, "objects.pt")
+        ```
+    """
+    keys = ensure_tuple(keys)
+    attribute_keys = ensure_tuple(attribute_keys, none_as_empty=True)
+    pos_key = keys[0]
+    boxes = data[box_key]
+    if boxes.shape[0] == 0:
+        return []
+
+    inside = points_in_boxes(data[pos_key], boxes[:, :7])  # (N, K)
+    objects: List[Dict[str, Tensor]] = []
+    for k in range(boxes.shape[0]):
+        index = inside[:, k].nonzero(as_tuple=True)[0]
+        obj = {str(pos_key): data[pos_key][index] - boxes[k, :3]}
+        for key in keys[1:]:
+            obj[str(key)] = data[key][index]
+        obj[str(box_key)] = boxes[k].clone()
+        obj[str(label_key)] = data[label_key][k].clone()
+        for key in attribute_keys:
+            obj[str(key)] = data[key][k].clone()
+        objects.append(obj)
+    return objects
+
+
+class PasteBoxes(DictTransform, Randomizable):
+    r"""Paste objects cut out by `cut_boxes` into the scene, a target number per label.
+
+    For each label of `num_samples`, objects are drawn at random from `objects` and pasted: the scene points
+    inside their boxes are removed, the object points, moved to their box center, are placed before the remaining
+    scene points with their features, and the boxes, labels and attributes are appended. A drawn object whose box
+    overlaps in bird's-eye view a box of the scene or of another drawn object is left out. With `count_existing`
+    the objects of a label already in the scene count towards its target, otherwise the target is pasted in full.
+    Per-box keys of the scene other than `box_key`, `label_key` and `attribute_keys` are not extended: drop them
+    beforehand (e.g. with `KeepItems`).
+
+    Args:
+        objects: Objects of [`cut_boxes`][torch_pointcloud.transforms.box.cut_boxes], holding `keys`, `box_key`,
+            `label_key` and `attribute_keys`.
+        num_samples: Target number of objects per label, `{label: count}`.
+        keys: Point keys pasted: the coordinates first, then the features.
+        box_key: Key of the boxes.
+        label_key: Key of the labels.
+        attribute_keys: Per-box keys appended with the attributes of the pasted objects (e.g. a velocity).
+        count_existing: Count the objects already in the scene towards the targets.
+        seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+        import torch_pointcloud.transforms.functional as F
+
+        scene = {
+            "pos": torch.randn(1000, 3) * 10,
+            "intensity": torch.rand(1000, 1),
+            "box": torch.tensor([[2.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0], [10.0, 5.0, 0.0, 1.0, 1.0, 2.0, 0.3]]),
+            "label": torch.tensor([0, 1]),
+        }
+        objects = F.cut_boxes(scene, keys=["pos", "intensity"])  # from one scene here, from a dataset in practice
+        paste = T.PasteBoxes(objects, num_samples={0: 20, 1: 15}, keys=["pos", "intensity"])
+        out = paste(scene)
+        print(out["box"].shape[0])
+        ```
+    """
+
+    def __init__(
+        self,
+        objects: Sequence[Mapping[str, Tensor]],
+        num_samples: Mapping[int, int],
+        keys: KeyCollection = DataKeys.POS,
+        box_key: str = DataKeys.BOX,
+        label_key: str = DataKeys.LABEL,
+        attribute_keys: Optional[KeyCollection] = None,
+        count_existing: bool = True,
+        seed: Optional[int] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        attribute_keys = ensure_tuple(attribute_keys, none_as_empty=True)
+        if len(objects) == 0:
+            raise ValueError("`objects` is empty.")
+        needed = (*self.keys, box_key, label_key, *attribute_keys)
+        missing = [key for key in needed if key not in objects[0]]
+        if missing:
+            raise ValueError(f"The objects hold no {missing}; `cut_boxes` must store these keys.")
+
+        self.objects = list(objects)
+        self.num_samples = dict(num_samples)
+        self.box_key = box_key
+        self.label_key = label_key
+        self.attribute_keys = attribute_keys
+        self.count_existing = count_existing
+        self.set_random_state(seed)
+
+        # The boxes of all objects for the overlap checks, and the objects of every label to draw from.
+        self._boxes = torch.stack([obj[box_key] for obj in self.objects]).float()
+        labels = torch.tensor([int(obj[label_key]) for obj in self.objects])
+        self._members = {label: (labels == label).nonzero(as_tuple=True)[0] for label in self.num_samples}
+
+    def _draw(self, label: int, count: int) -> Tensor:
+        """Indices of `count` objects of `label`, drawn without replacement."""
+        members = self._members[label]
+        if count <= 0 or members.numel() == 0:
+            return members[:0]
+
+        order = torch.randperm(members.numel(), generator=self.R)[:count]
+        return members[order]
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        boxes, labels = d[self.box_key], d[self.label_key]
+        pos_key = self.keys[0]
+
+        # Draw per label, leaving out the candidates that overlap a scene box or another candidate.
+        existing = boxes[:, :7].to(self._boxes)
+        chosen: List[Tensor] = []
+        for label, target in self.num_samples.items():
+            count = target - int((labels == label).sum()) if self.count_existing else target
+            drawn = self._draw(label, count)
+            if drawn.numel() == 0:
+                continue
+
+            candidates = self._boxes[drawn, :7]
+            overlap = boxes_iou_bev(candidates, candidates).fill_diagonal_(0).amax(dim=1)
+            if existing.shape[0] > 0:
+                overlap = overlap + boxes_iou_bev(candidates, existing).amax(dim=1)
+            kept = drawn[overlap == 0]
+            existing = torch.cat([existing, self._boxes[kept, :7]])
+            chosen.append(kept)
+
+        index = torch.cat(chosen) if chosen else torch.empty(0, dtype=torch.long)
+        if index.numel() == 0:
+            return d
+
+        # The scene points under the pasted boxes go away; the object points come first, at their box center.
+        pasted = [self.objects[i] for i in index.tolist()]
+        pasted_boxes = self._boxes[index]
+        keep = ~points_in_boxes(d[pos_key], pasted_boxes[:, :7].to(d[pos_key])).any(dim=1)
+        pos = torch.cat([obj[pos_key] + obj[self.box_key][:3] for obj in pasted])
+        d[pos_key] = torch.cat([pos.to(d[pos_key]), d[pos_key][keep]])
+        for key in self.keys[1:]:
+            features = torch.cat([obj[key] for obj in pasted])
+            d[key] = torch.cat([features.to(d[key]), d[key][keep]])
+        d[self.box_key] = torch.cat([boxes, pasted_boxes.to(boxes)])
+        d[self.label_key] = torch.cat([labels, torch.stack([obj[self.label_key] for obj in pasted]).to(labels)])
+        for key in self.attribute_keys:
+            attributes = torch.stack([obj[key] for obj in pasted])
+            d[key] = torch.cat([d[key], attributes.to(d[key])])
+        return d

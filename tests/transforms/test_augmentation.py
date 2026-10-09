@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import torch
 
@@ -39,6 +41,14 @@ def test_random_scale_anisotropic_per_axis() -> None:
     out = T.RandomScale(keys="pos", scale_range=(0.5, 2.0), anisotropic=True, seed=0)({"pos": pos.clone()})
     # All axes scaled (possibly differently); shape preserved.
     assert out["pos"].shape == pos.shape
+
+
+def test_random_scale_axes_scales_only_those_channels() -> None:
+    pos = torch.tensor([[1.0, 2.0, 3.0]])
+    out = T.RandomScale(keys="pos", scale_range=(2.0, 2.0), axes=(0, 1), seed=0)({"pos": pos.clone()})
+    assert torch.allclose(out["pos"], torch.tensor([[2.0, 4.0, 3.0]]))
+    with pytest.raises(ValueError, match="axes"):
+        T.RandomScale(keys="pos", axes=(0, 1), anisotropic=True)
 
 
 def test_random_flip_p_one_flips_all_listed_axes() -> None:
@@ -389,3 +399,21 @@ def test_random_elastic_distortion_wrong_shape_raises() -> None:
     pos = torch.randn(10, 2)
     with pytest.raises(ValueError, match=r"\(N, 3\)"):
         F.random_elastic_distortion(pos, granularity=0.2, magnitude=0.4)
+
+
+def test_box_augmentations_carry_the_velocity_columns() -> None:
+    """A (K, 9) box has its planar velocity flipped, rotated and scaled with the box, and kept by a translation."""
+    boxes = torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.3, 3.0, 4.0]])
+
+    flipped = F.flip_boxes(boxes, axis=1)
+    assert torch.allclose(flipped[0, 7:9], torch.tensor([3.0, -4.0]))
+
+    rotated = F.rotate_boxes(boxes, F.rotation_matrix(math.pi / 2), math.pi / 2)
+    assert torch.allclose(rotated[0, 7:9], torch.tensor([-4.0, 3.0]), atol=1e-6)
+    assert torch.allclose(rotated[0, :2], torch.tensor([-2.0, 1.0]), atol=1e-6)
+
+    scaled = F.scale_boxes(boxes, 2.0)
+    assert torch.allclose(scaled[0, 7:9], torch.tensor([6.0, 8.0])) and scaled[0, 6] == boxes[0, 6]
+
+    shifted = F.translate_boxes(boxes, torch.tensor([1.0, 1.0, 1.0]))
+    assert torch.allclose(shifted[0, 7:9], boxes[0, 7:9])

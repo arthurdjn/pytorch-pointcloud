@@ -234,6 +234,12 @@ def test_divide() -> None:
     assert result["other"] is sentinel.other
 
 
+def test_clamp_per_channel_bounds() -> None:
+    pos = torch.tensor([[-3.0, 0.5, 9.0], [0.0, -2.0, -9.0]])
+    out = T.Clamp(keys="pos", min=(-1.0, -1.0, -4.0), max=(1.0, 1.0, 2.0))({"pos": pos})
+    assert torch.equal(out["pos"], torch.tensor([[-1.0, 0.5, 2.0], [0.0, -1.0, -4.0]]))
+
+
 def test_clamp_clamps_within_range() -> None:
     pos = torch.tensor([[-2.0, 0.5, 3.0]])
     out = T.Clamp(keys="pos", min=-1.0, max=1.0)({"pos": pos})
