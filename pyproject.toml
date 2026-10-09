@@ -114,6 +114,8 @@ convention = "google"
 known-first-party = ["torch_pointcloud"]
 
 [tool.mypy]
+explicit_package_bases = true
+mypy_path = "src"
 untyped_calls_exclude = "torch"
 disallow_untyped_calls = true
 disallow_untyped_defs = true
