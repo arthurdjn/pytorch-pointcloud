@@ -121,10 +121,22 @@ BENCHMARKS = [
     ),
     pytest.param("octformer/classification_modelnet40_benchmark.py", (), marks=_GPU_OCTREE, id="octformer/modelnet40"),
     pytest.param(
+        "point_bert/classification_modelnet40_benchmark.py",
+        ("--model", "point-bert-base.modelnet40.xumin-yu", "--limit", "8"),
+        marks=_CLUSTER,
+        id="point_bert/modelnet40",
+    ),
+    pytest.param(
         "point_bert/classification_scanobjectnn_benchmark.py",
         ("--model", "point-bert-base.scanobjectnn-hardest.xumin-yu", "--limit", "8"),
         marks=_CLUSTER,
         id="point_bert/scanobjectnn",
+    ),
+    pytest.param(
+        "point_mae/classification_scanobjectnn_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="point_mae/scanobjectnn",
     ),
     pytest.param(
         "point_m2ae/classification_scanobjectnn_benchmark.py",
@@ -133,16 +145,46 @@ BENCHMARKS = [
         id="point_m2ae/scanobjectnn",
     ),
     pytest.param(
+        "point_mamba/classification_scanobjectnn_benchmark.py",
+        ("--limit", "8"),
+        marks=_GPU_MAMBA,
+        id="point_mamba/scanobjectnn",
+    ),
+    pytest.param(
+        "point_mae/classification_modelnet40_benchmark.py",
+        ("--model", "point-mae-base.modelnet40.yatian-pang", "--limit", "8"),
+        marks=_CLUSTER,
+        id="point_mae/modelnet40",
+    ),
+    pytest.param(
         "point_mae/part_segmentation_shapenetpart_benchmark.py",
         ("--limit", "8"),
         marks=_CLUSTER,
         id="point_mae/shapenetpart",
     ),
     pytest.param(
+        "point_m2ae/classification_modelnet40_benchmark.py",
+        ("--model", "point-m2ae-base.modelnet40.renrui-zhang", "--limit", "8"),
+        marks=_CLUSTER,
+        id="point_m2ae/modelnet40",
+    ),
+    pytest.param(
         "point_m2ae/part_segmentation_shapenetpart_benchmark.py",
         ("--limit", "8"),
         marks=_CLUSTER,
         id="point_m2ae/shapenetpart",
+    ),
+    pytest.param(
+        "pointgpt/classification_scanobjectnn_benchmark.py",
+        ("--model", "pointgpt-s.scanobjectnn-objonly.guangyan-chen", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointgpt/scanobjectnn",
+    ),
+    pytest.param(
+        "point_mamba/classification_modelnet40_benchmark.py",
+        ("--model", "point-mamba-base.modelnet40.dingkang-liang", "--limit", "8"),
+        marks=_GPU_MAMBA,
+        id="point_mamba/modelnet40",
     ),
     pytest.param(
         "pointmlp/classification_scanobjectnn_benchmark.py",
@@ -199,6 +241,36 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--model", "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas", "--batch-size", "2"),
         marks=_CLUSTER,
         id="kpconv/s3dis-deform",
+    ),
+    pytest.param(
+        "point_mae/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_mae/finetune",
+    ),
+    pytest.param(
+        "point_bert/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_bert/finetune",
+    ),
+    pytest.param(
+        "point_m2ae/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_m2ae/finetune",
+    ),
+    pytest.param(
+        "point_mamba/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_GPU_MAMBA,
+        id="point_mamba/finetune",
+    ),
+    pytest.param(
+        "pointgpt/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointgpt/scanobjectnn",
     ),
     pytest.param(
         "pointmlp/classification_scanobjectnn_train.py",
@@ -379,10 +451,40 @@ TRAININGS = [
         id="octformer/modelnet40",
     ),
     pytest.param(
+        "point_bert/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_bert/modelnet40",
+    ),
+    pytest.param(
+        "point_m2ae/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_m2ae/modelnet40",
+    ),
+    pytest.param(
+        "point_mae/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_mae/modelnet40",
+    ),
+    pytest.param(
+        "point_mamba/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_GPU_MAMBA,
+        id="point_mamba/modelnet40",
+    ),
+    pytest.param(
         "pointconv/classification_modelnet40_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointconv/modelnet40",
+    ),
+    pytest.param(
+        "pointgpt/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointgpt/modelnet40",
     ),
     pytest.param(
         "octformer/segmentation_scannet_train.py",
@@ -414,6 +516,18 @@ TRAININGS = [
         marks=_CLUSTER,
         id="dgcnn/scannet-train",
     ),
+    pytest.param(
+        "point_mae/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_mae/shapenetpart-train",
+    ),
+    pytest.param(
+        "point_m2ae/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point_m2ae/shapenetpart-train",
+    ),
 ]
 
 
@@ -439,6 +553,7 @@ def test_every_script_has_a_row() -> None:
         "octformer/segmentation_scannet200_benchmark.py",
         "point_transformer_v3/segmentation_s3dis_benchmark.py",
         "point_transformer_v3/segmentation_scannet200_benchmark.py",
+        "pointgpt/classification_modelnet40_benchmark.py",
         "pointmlp/classification_modelnet40_benchmark.py",
         "pointnext/classification_modelnet40_benchmark.py",
         "sphereformer/segmentation_semantickitti_benchmark.py",
