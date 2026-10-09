@@ -14,6 +14,7 @@ from torch_pointcloud.models import (
     WeightsDict,
     create_model,
     list_models,
+    model_info,
     register_model,
 )
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, cache_path
@@ -394,3 +395,10 @@ def test_cache_path_is_keyed_by_revision() -> None:
     new = cache_path("hf://torch-pointcloud/ckpt/resolve/bbb/model.safetensors")
     assert old.parent.name == "aaa"
     assert old != new
+
+
+def test_model_info_matches_the_entry_of_create_model() -> None:
+    _, built = create_model("pointnet.modelnet40", return_info=True)
+    assert model_info("pointnet.modelnet40") == built
+    with pytest.raises(ValueError, match="not registered"):
+        model_info("not-a-model")

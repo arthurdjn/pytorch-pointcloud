@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `models.model_info`, the registry entry of a model without building it.
 - Added `torch_pointcloud.optim`: `generate_param_groups` (moved from `utils.optim`), `CosineWarmupLR`, `PolyLR`, `bn_momentum`, `set_bn_momentum` and `BNMomentumScheduler`.
 
 - Added `RandomRotate(center=..., vector_keys=...)`, `RandomColorAutoContrast(blend=None)`, multi-pass `RandomElasticDistortion`, `SphereCrop(max_ratio=..., dst_center_key=...)` and `RandomSample(allow_fewer=True)`.
