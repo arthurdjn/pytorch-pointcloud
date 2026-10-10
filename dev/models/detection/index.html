@@ -1644,7 +1644,7 @@
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">The published number needs the difficulty rules too</p>
-<p>KITTI scores its moderate split only: <code>RelabelBoxes</code> turns <code>Van</code> and <code>Person_sitting</code> into ignore regions and downgrades boxes past the occlusion, truncation and 2D-height limits, and predictions projecting to under 25 px are dropped. <code>examples/pointpillars_benchmark_detection.py</code> is this loop with those rules in place.</p>
+<p>KITTI scores its moderate split only: <code>RelabelBoxes</code> turns <code>Van</code> and <code>Person_sitting</code> into ignore regions and downgrades boxes past the occlusion, truncation and 2D-height limits, and predictions projecting to under 25 px are dropped. <code>examples/pointpillars/detection_kitti_benchmark.py</code> is this loop with those rules in place.</p>
 </div>
 <h2 id="train-from-scratch">Train from scratch<a class="headerlink" href="#train-from-scratch" title="Anchor link to this section">&para;</a></h2>
 <p>While <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 167.29 200.00">
