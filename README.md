@@ -1,80 +1,38 @@
-> [!WARNING]
-> `torch-pointcloud` is in alpha and active development. Expect breaking changes.
-
-# pytorch-pointcloud
-
-<div align="center" style="width: 100%; margin: auto">
+<div align="center">
   <a href="https://pytorch-pointcloud.org/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
-
-[![python](https://img.shields.io/pypi/pyversions/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
-[![pytorch](https://img.shields.io/badge/pytorch-2.8+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white)](https://pytorch.org/)  
-[![tests](https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white)](https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml)
-[![pypi](https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white)](https://pypi.org/project/torch-pointcloud/)
-[![license](https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C)](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE)
-[![doi](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22159632-red.svg?color=EE4C2C&labelColor=11001C)](https://doi.org/10.5281/zenodo.22159632)
-[![docs](https://img.shields.io/badge/docs-pytorch--pointcloud.org-red.svg?color=EE4C2C&labelColor=11001C&logo=materialformkdocs&logoColor=white)](https://pytorch-pointcloud.org/)  
-
+  <p>
+    <b>Deep learning on point clouds, with PyTorch.</b><br>
+    Models, pretrained weights, datasets, transforms and inferers, in the style of
+    <a href="https://github.com/huggingface/pytorch-image-models">timm</a> and
+    <a href="https://pytorch-geometric.readthedocs.io/">PyG</a>.
+  </p>
+  <p>
+    <a href="https://pypi.org/project/torch-pointcloud/"><img src="https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white" alt="PyPI"></a>
+    <a href="https://pypi.org/project/torch-pointcloud/"><img src="https://img.shields.io/pypi/pyversions/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white" alt="Python"></a>
+    <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/pytorch-2.8+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white" alt="PyTorch"></a>
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white" alt="Tests"></a>
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C" alt="License"></a>
+  </p>
+  <p>
+    <a href="https://pytorch-pointcloud.org/">Documentation</a>
+    &nbsp;·&nbsp;
+    <a href="https://pytorch-pointcloud.org/latest/models/overview/">Model zoo</a>
+    &nbsp;·&nbsp;
+    <a href="https://pytorch-pointcloud.org/latest/examples/">Tutorials</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CHANGELOG.md">Changelog</a>
+  </p>
 </div>
 
-<p align="center">
-A PyTorch library for deep learning on point clouds: models, pretrained weights, datasets, transforms and inferers, inspired by <a href="https://github.com/huggingface/pytorch-image-models">timm</a>.
-<br>
-<br>
-<i>Check out the documentation at <a href="https://www.pytorch-pointcloud.org">pytorch-pointcloud.org</a>!</i>
-</p>
+<a href="https://pytorch-pointcloud.org/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/hero-dark.webp">
+    <img src="./docs/assets/brand/hero-light.webp" alt="Six tasks, six pretrained checkpoints" width="100%">
+  </picture>
+</a>
 
-<br>
-
-<table align="center">
-  <tr>
-    <td align="center" width="33%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/classification_dark.webp">
-        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/classification.webp" alt="A chair turning a full circle, classified as a chair" width="100%">
-      </picture><br>
-      <b>Object classification</b><br><code>pointnet2-ssg.modelnet40.xu-yan</code>
-    </td>
-    <td align="center" width="33%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/part_segmentation_dark.webp">
-        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/part_segmentation.webp" alt="An airplane turning a full circle, its parts colored by class" width="100%">
-      </picture><br>
-      <b>Part segmentation</b><br><code>pointnext-sm.shapenetpart.openpoints</code>
-    </td>
-    <td align="center" width="33%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/indoor_dark.webp">
-        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/indoor.webp" alt="A camera gliding through a scanned house, every point colored by semantic class" width="100%">
-      </picture><br>
-      <b>Indoor segmentation / detection</b><br><code>ptv3-base.scannet20.pointcept</code>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="33%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/driving_dark.webp">
-        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/driving.webp" alt="A bird's-eye camera riding down a LiDAR sequence with segmented points and detected boxes" width="100%">
-      </picture><br>
-      <b>Outdoor segmentation / detection</b><br><code>spvcnn-119gmacs.semantickitti.mit-han-lab</code><br><code>second.kitti.openpcdet</code>
-    </td>
-    <td align="center" width="33%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/survey_dark.webp">
-        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/survey.webp" alt="A slow turn around the Eiffel Tower as an airborne LiDAR survey, colored by embedding" width="100%">
-      </picture><br>
-      <b>Large scale segmentation</b><br><code>utonia-lp.scannet20.pointcept</code>
-    </td>
-    <td align="center" width="33%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/similarity_dark.webp">
-        <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/animations/hero/similarity.webp" alt="The same house seen by a self-supervised encoder, points lit by similarity to a query" width="100%">
-      </picture><br>
-      <b>Feature extraction</b><br><code>sonata-lp.scannet20.fair</code>
-    </td>
-  </tr>
-</table>
-
-<br>
+> [!WARNING]
+> `torch-pointcloud` is in alpha and active development. Expect breaking changes.
 
 ## Installation
 
@@ -83,9 +41,7 @@ pip install torch-pointcloud
 ```
 
 Most models also need `pyg-lib`, and some a CUDA extension (`spconv`, `flash-attn`, ...), built for your torch and
-CUDA versions. The [installation](https://pytorch-pointcloud.org/latest/installation/) page writes the commands.
-
-<br>
+CUDA versions. Read the [installation](https://pytorch-pointcloud.org/latest/installation/) documentation for further details.
 
 ## Quickstart
 
@@ -108,7 +64,7 @@ with torch.no_grad():
     logits = model(x, pos, batch)  # (1, 15)
 ```
 
-Each checkpoint ships the transform that turns a raw point cloud into what the network expects:
+Each checkpoint ships information about the model, such as the transform used to preprocess the input, metrics, license and more.
 
 ```python
 import torch_pointcloud as tp
@@ -124,8 +80,6 @@ tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 
 See the [examples](https://github.com/arthurdjn/pytorch-pointcloud/tree/main/examples) directory for benchmarks and training recipes.
 
-<br>
-
 ## Why torch-pointcloud?
 
 `torch-pointcloud` is a library of pretrained models that makes common layers and backbones easy to reuse. It does
@@ -133,24 +87,10 @@ not replace research-first codebases such as
 [Pointcept](https://github.com/Pointcept/Pointcept), [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) and
 [MMDetection3D](https://github.com/open-mmlab/mmdetection3d) or [OpenPoints](https://github.com/guochengqian/openpoints)
 but it complements them with a common interface that makes benchmarking and interoperability across architectures easier.
-It builds on [PyG](https://pytorch-geometric.readthedocs.io/) for the packed batch format and the neighbor search,
-and adds what PyG does not ship for point clouds: the models, their weights, the datasets and the transforms.
-
-<br>
-
-## Documentation
-
-The [documentation](https://pytorch-pointcloud.org/) covers [installation](https://pytorch-pointcloud.org/latest/installation/), a [get-started](https://pytorch-pointcloud.org/latest/get-started/) guide,
-the [model zoo](https://pytorch-pointcloud.org/latest/models/overview/), [datasets](https://pytorch-pointcloud.org/latest/datasets/overview/), [transforms](https://pytorch-pointcloud.org/latest/transforms/overview/),
-tutorials and the full API reference.
-
-<br>
 
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CONTRIBUTING.md) for the development setup and the pull request checks.
-
-<br>
 
 ## Citation
 
@@ -166,8 +106,6 @@ If you find this project useful, please consider citing:
   license = {Apache-2.0}
 }
 ```
-
-<br>
 
 ## License
 
