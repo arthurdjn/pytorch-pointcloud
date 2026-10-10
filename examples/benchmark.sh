@@ -10,8 +10,17 @@ ROOT="${ROOT:-data}"
 RUN="uv run --no-sync python"
 
 # Classification (ModelNet40, ScanObjectNN)
+$RUN examples/pointnet2/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet2-ssg.modelnet40.xu-yan
+$RUN examples/pointnet2/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet2-msg.modelnet40.xu-yan
+$RUN examples/pointnet2/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet2.modelnet40.openpoints
 $RUN examples/pointnet2/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pointnet2.scanobjectnn-hardest.openpoints
 $RUN examples/pointnext/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnext-sm-c64.modelnet40.openpoints
+$RUN examples/pointnext/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pointnext-sm.scanobjectnn-hardest.openpoints
+$RUN examples/pointmlp/classification_modelnet40_benchmark.py --root "$ROOT" --model pointmlp-base.modelnet40.xu-ma
+$RUN examples/pointmlp/classification_modelnet40_benchmark.py --root "$ROOT" --model pointmlp-elite.modelnet40.xu-ma
+$RUN examples/pointmlp/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pointmlp-base.scanobjectnn-hardest.xu-ma
+$RUN examples/pointmlp/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pointmlp-elite.scanobjectnn-hardest.xu-ma
+$RUN examples/pointconv/classification_modelnet40_benchmark.py --root "$ROOT" --model pointconv-density-base.modelnet40.wenxuan-wu
 $RUN examples/dgcnn/classification_modelnet40_benchmark.py --root "$ROOT" --model dgcnn.modelnet40-1024.an-tao
 $RUN examples/dgcnn/classification_modelnet40_benchmark.py --root "$ROOT" --model dgcnn.modelnet40-2048.an-tao
 $RUN examples/point_bert/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point-bert-base.scanobjectnn-objbg.xumin-yu
