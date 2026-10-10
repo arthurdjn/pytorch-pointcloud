@@ -6523,27 +6523,27 @@
 <li><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead"><code>AnchorHead</code></a>: the single-stage anchor
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead"><code>AnchorHead</code></a>: the single-stage anchor
   head (per-anchor class logits, box residuals and a direction bin).</li>
 <li><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiGroupAnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>: the multi-group
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>: the multi-group
   separate-head variant (sincos + velocity box code) used by the nuScenes detectors.</li>
 <li><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;prediction_branch&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L195-L256&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.prediction_branch"><code>prediction_branch</code></a>: the per-attribute
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L195-L256&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.prediction_branch"><code>prediction_branch</code></a>: the per-attribute
   <code>SeparateHead</code> branch builder, also used by the Voxel Mamba center head.</li>
 </ul>
 <p>The anchors themselves come from <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;generate_anchors&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/ops/anchors.py#L19-L70&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../ops/anchors/#torch_pointcloud.ops.anchors.generate_anchors"><code>generate_anchors</code></a>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/ops/anchors.py#L19-L70&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../ops/anchors/#torch_pointcloud.ops.anchors.generate_anchors"><code>generate_anchors</code></a>
 and their training targets from <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;assign_anchor_targets&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/ops/anchors.py#L118-L216&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../ops/anchors/#torch_pointcloud.ops.anchors.assign_anchor_targets"><code>assign_anchor_targets</code></a>,
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/ops/anchors.py#L118-L216&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../ops/anchors/#torch_pointcloud.ops.anchors.assign_anchor_targets"><code>assign_anchor_targets</code></a>,
 in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residuals</code>.</p>
 
 
@@ -6561,20 +6561,20 @@ in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residua
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHeadOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L32-L39&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadOutput">AnchorHeadOutput</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L32-L39&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadOutput">AnchorHeadOutput</a></code></b>
           –
           <div class="doc-md-description">
             <p>Raw and decoded predictions of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead"><code>AnchorHead</code></a>.</p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead"><code>AnchorHead</code></a>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead">AnchorHead</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead">AnchorHead</a></code></b>
           –
           <div class="doc-md-description">
             <p>Single-stage anchor head.</p>
@@ -6584,33 +6584,33 @@ in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residua
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHeadMultiOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L186-L192&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L186-L192&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></code></b>
           –
           <div class="doc-md-description">
             <p>Predictions of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiGroupAnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorGroupHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L259-L352&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorGroupHead">AnchorGroupHead</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L259-L352&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorGroupHead">AnchorGroupHead</a></code></b>
           –
           <div class="doc-md-description">
             <p>One RPN head of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiGroupAnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiGroupAnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead">MultiGroupAnchorHead</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead">MultiGroupAnchorHead</a></code></b>
           –
           <div class="doc-md-description">
             <p>Multi-group anchor head, one separate head per group of classes.</p>
@@ -6627,7 +6627,7 @@ in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residua
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-function&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;prediction_branch&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L195-L256&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.prediction_branch">prediction_branch</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L195-L256&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.prediction_branch">prediction_branch</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build a prediction branch: middle conv blocks, then a plain output conv.</p>
@@ -6657,7 +6657,7 @@ in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residua
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">AnchorHeadOutput</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L32-L39" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L32-L39" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorHeadOutput" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -6671,7 +6671,7 @@ in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residua
         <p>Raw and decoded predictions of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead"><code>AnchorHead</code></a>.</p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L42-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead"><code>AnchorHead</code></a>.</p>
 
 
 
@@ -6715,7 +6715,7 @@ in <code>ops.anchors</code>; residuals are decoded with <code>decode_box_residua
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">AnchorHead</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L42-L183" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L42-L183" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorHead" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">AnchorHead</span><span class="p">(</span>
@@ -6863,7 +6863,7 @@ heading is snapped to the predicted direction bin (<code>dir_offset</code> / <co
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;reset_parameters&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L109-L114&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead.reset_parameters">reset_parameters</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L109-L114&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead.reset_parameters">reset_parameters</a></code></b>
             –
             <div class="doc-md-description">
               <p>Start the class logits at the focal-loss prior of <span class="arithmatex">\(1\%\)</span> foreground anchors and the box residuals near zero.</p>
@@ -6873,7 +6873,7 @@ heading is snapped to the predicted direction bin (<code>dir_offset</code> / <co
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;generate_predicted_boxes&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L137-L161&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead.generate_predicted_boxes">generate_predicted_boxes</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L137-L161&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead.generate_predicted_boxes">generate_predicted_boxes</a></code></b>
             –
             <div class="doc-md-description">
               <p>Decode raw head outputs into per-anchor class logits and absolute boxes.</p>
@@ -6883,7 +6883,7 @@ heading is snapped to the predicted direction bin (<code>dir_offset</code> / <co
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;decode&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L163-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead.decode">decode</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L163-L183&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHead.decode">decode</a></code></b>
             –
             <div class="doc-md-description">
               <p>Decode a forward output into raw per-anchor detections (no score threshold or NMS).</p>
@@ -6914,7 +6914,7 @@ heading is snapped to the predicted direction bin (<code>dir_offset</code> / <co
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">reset_parameters</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L109-L114" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L109-L114" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorHead.reset_parameters" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">reset_parameters</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
@@ -6936,7 +6936,7 @@ heading is snapped to the predicted direction bin (<code>dir_offset</code> / <co
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">generate_predicted_boxes</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L137-L161" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L137-L161" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorHead.generate_predicted_boxes" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">generate_predicted_boxes</span><span class="p">(</span>
@@ -6982,16 +6982,16 @@ heading is snapped to the predicted direction bin (<code>dir_offset</code> / <co
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">decode</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L163-L183" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L163-L183" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorHead.decode" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">decode</span><span class="p">(</span><span class="n">out</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHeadOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L32-L39&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadOutput">AnchorHeadOutput</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L32-L39&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadOutput">AnchorHeadOutput</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7008,7 +7008,7 @@ full per-anchor set is returned; the evaluation pipeline applies score threshold
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),</p>
@@ -7018,7 +7018,7 @@ full per-anchor set is returned; the evaluation pipeline applies score threshold
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>"batch": (B * A,)}` (PyG layout).</p>
@@ -7047,7 +7047,7 @@ full per-anchor set is returned; the evaluation pipeline applies score threshold
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">AnchorHeadMultiOutput</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L186-L192" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L186-L192" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 
@@ -7061,7 +7061,7 @@ full per-anchor set is returned; the evaluation pipeline applies score threshold
         <p>Predictions of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiGroupAnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
 
 
 
@@ -7105,7 +7105,7 @@ full per-anchor set is returned; the evaluation pipeline applies score threshold
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">AnchorGroupHead</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L259-L352" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L259-L352" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorGroupHead" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">AnchorGroupHead</span><span class="p">(</span>
@@ -7134,7 +7134,7 @@ full per-anchor set is returned; the evaluation pipeline applies score threshold
         <p>One RPN head of <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;MultiGroupAnchorHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead"><code>MultiGroupAnchorHead</code></a>.</p>
 <p>A <code>SeparateHead</code>-style head over the shared feature: a classification branch plus one regression
 branch per box-code group (<code>reg</code>, <code>height</code>, <code>size</code>, <code>angle</code>, <code>velo</code>), whose outputs are
 concatenated into the per-anchor box code. Predictions are reshaped to the multihead layout
@@ -7262,7 +7262,7 @@ concatenated into the per-anchor box code. Predictions are reshaped to the multi
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;reset_parameters&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L336-L341&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorGroupHead.reset_parameters">reset_parameters</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L336-L341&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorGroupHead.reset_parameters">reset_parameters</a></code></b>
             –
             <div class="doc-md-description">
               <p>Start the class logits at the focal-loss prior of <span class="arithmatex">\(1\%\)</span> foreground anchors.</p>
@@ -7293,7 +7293,7 @@ concatenated into the per-anchor box code. Predictions are reshaped to the multi
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">reset_parameters</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L336-L341" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L336-L341" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.AnchorGroupHead.reset_parameters" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">reset_parameters</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
@@ -7324,7 +7324,7 @@ concatenated into the per-anchor box code. Predictions are reshaped to the multi
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">MultiGroupAnchorHead</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L355-L525" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L355-L525" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.MultiGroupAnchorHead" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">MultiGroupAnchorHead</span><span class="p">(</span>
@@ -7367,7 +7367,7 @@ concatenated into the per-anchor box code. Predictions are reshaped to the multi
 <p>A shared conv feeds several <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorGroupHead&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L259-L352&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorGroupHead"><code>AnchorGroupHead</code></a>s,
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L259-L352&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorGroupHead"><code>AnchorGroupHead</code></a>s,
 one per class group. Anchors (7-DoF, padded to the box-code size) are decoded with
 <code>decode_box_residuals</code> (sincos heading,
 velocity deltas); per-head class scores stay separate (with their global label mapping) for
@@ -7570,7 +7570,7 @@ classes in each group share one <code>SeparateHead</code>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;decode&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L489-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead.decode">decode</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L489-L525&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.MultiGroupAnchorHead.decode">decode</a></code></b>
             –
             <div class="doc-md-description">
               <p>Decode a multihead forward output into raw per-anchor detections (no score threshold or NMS).</p>
@@ -7601,16 +7601,16 @@ classes in each group share one <code>SeparateHead</code>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">decode</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L489-L525" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L489-L525" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.MultiGroupAnchorHead.decode" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">decode</span><span class="p">(</span><span class="n">out</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;AnchorHeadMultiOutput&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L186-L192&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L186-L192&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.layers.anchors.AnchorHeadMultiOutput">AnchorHeadMultiOutput</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7630,7 +7630,7 @@ benchmark examples).</p>
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),</p>
@@ -7640,7 +7640,7 @@ benchmark examples).</p>
               <code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Detection3D&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/utils/types.py#L46-L63&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.Detection3D">Detection3D</a></code>
           –
           <div class="doc-md-description">
             <p>"batch": (B * A,)}<code>(PyG layout), plus</code>"velocity"` <span class="arithmatex">\((B \cdot A, 2)\)</span> when the head predicts it.</p>
@@ -7669,7 +7669,7 @@ benchmark examples).</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">prediction_branch</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/9ad662930427a8eb09b673fab29f5b812e7a23c1/src/torch_pointcloud/layers/anchors.py#L195-L256" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/c33c09565fac5419f1e5678997ad4b8b85e067f9/src/torch_pointcloud/layers/anchors.py#L195-L256" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.layers.anchors.prediction_branch" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">prediction_branch</span><span class="p">(</span>
