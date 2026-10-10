@@ -68,10 +68,16 @@ $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$RO
 
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
+$RUN examples/votenet/detection_scannet_benchmark.py --root "$ROOT" --model votenet.scannet.fair
+$RUN examples/threedetr/detection_sunrgbd_benchmark.py --root "$ROOT" --model 3detr.sunrgbd.fair
 $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3detr.scannet.fair
 $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3detr-m.scannet.fair
 
 # Outdoor detection (KITTI, nuScenes)
+$RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --model pointpillars-multihead.nuscenes.openpcdet
+$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/second/detection_nuscenes_benchmark.py --root "$ROOT" --model second-multihead.nuscenes.openpcdet
 $RUN examples/pointrcnn/detection_kitti_benchmark.py --root "$ROOT" --model pointrcnn.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model voxelnext.nuscenes.openpcdet
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu

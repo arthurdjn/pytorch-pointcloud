@@ -196,10 +196,40 @@ BENCHMARKS = [
         "pointconv/classification_modelnet40_benchmark.py", ("--limit", "8"), marks=_CLUSTER, id="pointconv/modelnet40"
     ),
     pytest.param(
+        "votenet/detection_scannet_benchmark.py",
+        ("--model", "votenet.scannet.fair", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/scannet",
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
         id="3detr/scannet",
+    ),
+    pytest.param(
+        "second/detection_kitti_benchmark.py",
+        ("--model", "second.kitti.openpcdet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="second/kitti",
+    ),
+    pytest.param(
+        "second/detection_nuscenes_benchmark.py",
+        ("--model", "second-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="second/nuscenes",
+    ),
+    pytest.param(
+        "pointpillars/detection_kitti_benchmark.py",
+        ("--model", "pointpillars.kitti.openpcdet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/kitti",
+    ),
+    pytest.param(
+        "pointpillars/detection_nuscenes_benchmark.py",
+        ("--model", "pointpillars-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/nuscenes",
     ),
     pytest.param("pointrcnn/detection_kitti_benchmark.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
     pytest.param(
@@ -487,6 +517,30 @@ TRAININGS = [
         id="pointgpt/modelnet40",
     ),
     pytest.param(
+        "threedetr/detection_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="threedetr/scannet",
+    ),
+    pytest.param(
+        "threedetr/detection_sunrgbd_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="threedetr/sunrgbd",
+    ),
+    pytest.param(
+        "votenet/detection_sunrgbd_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="votenet/sunrgbd-train",
+    ),
+    pytest.param(
+        "votenet/detection_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="votenet/scannet-train",
+    ),
+    pytest.param(
         "octformer/segmentation_scannet_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2"),
         marks=_GPU_OCTREE,
@@ -528,6 +582,48 @@ TRAININGS = [
         marks=_CLUSTER,
         id="point_m2ae/shapenetpart-train",
     ),
+    pytest.param(
+        "second/detection_kitti_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="second/kitti-train",
+    ),
+    pytest.param(
+        "pointpillars/detection_kitti_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/kitti-train",
+    ),
+    pytest.param(
+        "pointrcnn/detection_kitti_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointrcnn/kitti-train",
+    ),
+    pytest.param(
+        "second/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="second/nuscenes-train",
+    ),
+    pytest.param(
+        "pointpillars/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/nuscenes-train",
+    ),
+    pytest.param(
+        "voxelnext/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="voxelnext/nuscenes-train",
+    ),
+    pytest.param(
+        "lion/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_MAMBA,
+        id="lion/nuscenes-train",
+    ),
 ]
 
 
@@ -557,6 +653,7 @@ def test_every_script_has_a_row() -> None:
         "pointmlp/classification_modelnet40_benchmark.py",
         "pointnext/classification_modelnet40_benchmark.py",
         "sphereformer/segmentation_semantickitti_benchmark.py",
+        "threedetr/detection_sunrgbd_benchmark.py",
         "votenet/detection_sunrgbd_benchmark.py",
     }
     covered = {str(param.values[0]) for param in BENCHMARKS + TRAININGS}
