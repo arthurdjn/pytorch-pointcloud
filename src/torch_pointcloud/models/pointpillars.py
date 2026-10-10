@@ -158,7 +158,7 @@ def scatter_to_bev(
 class PointPillarsDetection(DetectionModel):
     r"""PointPillars 3D object detector (packed point format).
 
-    Reference: :arxiv: [Lang et al., 2019](https://arxiv.org/abs/1812.05784).
+    Reference: :arxiv: [PointPillars: Fast Encoders for Object Detection from Point Clouds](https://arxiv.org/abs/1812.05784) (Lang et al., 2019).
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
     Args:

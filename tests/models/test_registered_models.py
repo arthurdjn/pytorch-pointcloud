@@ -899,7 +899,11 @@ def test_model_pre_logits_matches_headless_forward(
 
     assert pre_logits.shape == headless.shape, f"{model_name}: {tuple(pre_logits.shape)} != {tuple(headless.shape)}"
     # CUDA scatter reductions are not deterministic: two forwards of one PVCNN differ by 2e-5.
-    assert torch.allclose(pre_logits, headless, atol=1e-4, equal_nan=True), f"{model_name}: pre_logits != headless"
+    max_abs_diff = (pre_logits - headless).abs().max().item()
+    max_abs_value = pre_logits.abs().max().item()
+    assert torch.allclose(pre_logits, headless, atol=1e-4, equal_nan=True), (
+        f"{model_name}: pre_logits != headless (max abs diff {max_abs_diff:.3e}, max abs value {max_abs_value:.3e})"
+    )
 
     if device == "cuda":
         torch.cuda.empty_cache()

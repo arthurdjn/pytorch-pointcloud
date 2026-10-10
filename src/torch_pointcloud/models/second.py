@@ -111,7 +111,7 @@ class VoxelBackbone8x(nn.Module):
 class SECONDDetection(DetectionModel):
     r"""SECOND 3D object detector (packed point format).
 
-    Reference: :arxiv: [Yan et al., 2018](https://www.mdpi.com/1424-8220/18/10/3337).
+    Reference: :arxiv: [SECOND: Sparsely Embedded Convolutional Detection](https://www.mdpi.com/1424-8220/18/10/3337) (Yan et al., 2018).
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
     Args:

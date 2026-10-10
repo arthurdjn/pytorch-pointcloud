@@ -2,7 +2,7 @@ r"""3DETR: an end-to-end transformer detector for 3D point clouds.
 
 {{ paper("2109.08141") }}
 
-Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
+Reference: :arxiv: [An End-to-End Transformer Model for 3D Object Detection](https://arxiv.org/abs/2109.08141) (Misra et al., 2021).
 Reference implementation: :github: [facebookresearch/3detr](https://github.com/facebookresearch/3detr).
 """
 
@@ -412,7 +412,7 @@ class GenericConvMLP(nn.Module):
 class ThreeDETRDetection(DetectionModel):
     r"""3DETR end-to-end transformer 3D object detector (packed point format).
 
-    Reference: :arxiv: [Misra et al., 2021](https://arxiv.org/abs/2109.08141).
+    Reference: :arxiv: [An End-to-End Transformer Model for 3D Object Detection](https://arxiv.org/abs/2109.08141) (Misra et al., 2021).
     Reference implementation: :github: [facebookresearch/3detr](https://github.com/facebookresearch/3detr).
 
     A set-abstraction tokenizer downsamples the cloud to a fixed set of point tokens, a transformer encoder
@@ -555,7 +555,6 @@ class ThreeDETRDetection(DetectionModel):
                 act=self.act,
                 act_kwargs=self.act_kwargs,
             )
-
         return TransformerEncoder(
             self.encoder_embed_dim,
             self.encoder_num_heads,
