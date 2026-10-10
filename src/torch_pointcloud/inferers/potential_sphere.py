@@ -70,7 +70,7 @@ def potential_sphere_inference(
     center where the sphere's context is complete. The loop stops once every cell's potential reaches
     `num_votes`, so each region has been predicted about that many times.
 
-    This is the test protocol of :arxiv: [KPConv](https://arxiv.org/abs/1904.08889) (radius-defined input
+    This is the test protocol of :arxiv: [KPConv: Flexible and Deformable Convolution for Point Clouds](https://arxiv.org/abs/1904.08889) (Thomas et al., 2019) (radius-defined input
     spheres, `test_smooth` EMA, potential sampling), and it composes with any model that consumes a packed
     sphere: the per-sphere `transform` sees the centered sphere dict and can add the reference's stochastic
     test-time augmentation and the model's feature stack. Points that no sphere reaches keep all-zero
@@ -113,28 +113,20 @@ def potential_sphere_inference(
     """
     if pos_key not in data:
         raise KeyError(f"`data` is missing the required key {pos_key!r}.")
-
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
-
     if radius <= 0.0:
         raise ValueError(f"`radius` must be > 0, got {radius}.")
-
     if num_votes <= 0.0:
         raise ValueError(f"`num_votes` must be > 0, got {num_votes}.")
-
     if potential_size is not None and potential_size <= 0.0:
         raise ValueError(f"`potential_size` must be > 0, got {potential_size}.")
-
     if jitter is not None and jitter < 0.0:
         raise ValueError(f"`jitter` must be >= 0, got {jitter}.")
-
     if not 0.0 < inner_ratio <= 1.0:
         raise ValueError(f"`inner_ratio` must be in (0, 1], got {inner_ratio}.")
-
     if not 0.0 <= ema_smoothing < 1.0:
         raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
-
     if sw_batch_size < 1:
         raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
 
