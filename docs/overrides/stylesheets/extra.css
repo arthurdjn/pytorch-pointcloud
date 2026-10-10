@@ -170,28 +170,6 @@ div > div.n {
     margin-top: 0.4rem;
   }
 }
-.md-typeset .tp-hero__eyebrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0 0 0.9rem;
-  font-size: 0.62rem;
-  color: var(--md-default-fg-color--light);
-}
-.md-typeset .tp-pill {
-  display: inline-block;
-  padding: 0.08rem 0.5rem;
-  border: 1px solid color-mix(in srgb, #ee4c2c 30%, transparent);
-  border-radius: 1rem;
-  background-color: color-mix(in srgb, #ee4c2c 10%, transparent);
-  font-family: var(--md-code-font-family);
-  font-size: 0.56rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #ee4c2c;
-}
 .md-typeset .tp-hero__lead {
   max-width: 36rem;
   margin: 0 0 1.3rem;
@@ -733,7 +711,7 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
   border-radius: 0.5rem;
-  background-color: #f7f7f9;
+  background-color: #ffffff;
 }
 [data-md-color-scheme="slate"] .md-typeset .tp-panel {
   background-color: #151a21;

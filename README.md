@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://pytorch-pointcloud.org/" rel="noopener"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="Banner"></a>
+  <a href="https://pytorch-pointcloud.org/"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="PyTorch PointCloud"></a>
   <p>
     <b>Deep learning on point clouds, with PyTorch.</b><br>
     Models, pretrained weights, datasets, transforms and inferers, in the style of
@@ -22,14 +22,9 @@
     &nbsp;·&nbsp;
     <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CHANGELOG.md">Changelog</a>
   </p>
+  <br>
+  <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/hero.webp" alt="Six tasks" width="100%">
 </div>
-
-<a href="https://pytorch-pointcloud.org/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/hero-dark.webp">
-    <img src="./docs/assets/brand/hero-light.webp" alt="Six tasks, six pretrained checkpoints" width="100%">
-  </picture>
-</a>
 
 > [!WARNING]
 > `torch-pointcloud` is in alpha and active development. Expect breaking changes.
