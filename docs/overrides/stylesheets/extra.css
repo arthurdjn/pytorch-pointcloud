@@ -707,24 +707,76 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
 
 /* ----------- End Paper card ----------- */
 
-/* ----------- Start Hero sheet ----------- */
-/* The same sheet as the README: six tasks, one per shipped checkpoint, with its corners and its hairline
-   baked into the image. One file per theme, since the ground is part of the picture */
-.md-typeset .tp-sheet {
+/* ----------- Start Hero panels ----------- */
+/* The six panels of the README sheet, laid out by the page instead of baked into one image, so the grid
+   reflows: three across, then two, then one on a phone. Each panel is rendered on the card surface, so
+   the card is its own background; one file per theme, since the ground is part of the picture */
+.md-typeset .tp-panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
   margin: 0 0 3.4rem;
 }
-.md-typeset .tp-sheet__image {
+@media screen and (max-width: 76.1875em) {
+  .md-typeset .tp-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-panels {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.8rem;
+  }
+}
+.md-typeset .tp-panel {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  border-radius: 0.5rem;
+  background-color: #f7f7f9;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-panel {
+  background-color: #151a21;
+}
+.md-typeset .tp-panel__image {
   display: block;
   width: 100%;
   height: auto;
 }
-.md-typeset .tp-sheet__image--dark {
+.md-typeset .tp-panel__image--dark {
   display: none;
 }
-[data-md-color-scheme="slate"] .md-typeset .tp-sheet__image--light {
+[data-md-color-scheme="slate"] .md-typeset .tp-panel__image--light {
   display: none;
 }
-[data-md-color-scheme="slate"] .md-typeset .tp-sheet__image--dark {
+[data-md-color-scheme="slate"] .md-typeset .tp-panel__image--dark {
   display: block;
 }
-/* ----------- End Hero sheet ----------- */
+.md-typeset .tp-panel figcaption {
+  margin: 0;
+  padding: 0.2rem 1rem 0.9rem;
+  font-size: 0.66rem;
+  font-style: normal;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-panel figcaption strong {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--md-default-fg-color);
+}
+/* Checkpoint names are one unbroken dotted token each: one line each, clipped rather than wrapped */
+.md-typeset .tp-panel figcaption code {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border: none !important;
+  background-color: transparent;
+  font-size: 0.6rem !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--md-default-fg-color--light);
+}
+/* ----------- End Hero panels ----------- */
