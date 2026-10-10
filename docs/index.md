@@ -1,57 +1,60 @@
-# PyTorch PointCloud
+---
+title: PyTorch PointCloud
+hide:
+  - navigation
+  - toc
+---
 
-![PyTorch-PointCloud](./assets/pytorch-pointcloud.png)
+<section class="tp-hero">
+  <h1 class="tp-visually-hidden">PyTorch PointCloud</h1>
+  <a class="tp-hero__banner" href="https://github.com/arthurdjn/pytorch-pointcloud"><img src="assets/pytorch-pointcloud.png" alt="PyTorch PointCloud" width="1080" height="223"></a>
+  <p class="tp-hero__eyebrow"><span class="tp-pill">Alpha</span> Apache-2.0 · Not affiliated with the PyTorch project</p>
+  <p class="tp-hero__lead">
+    <strong>Deep learning on point clouds, with PyTorch.</strong>
+    Models, pretrained weights, datasets, transforms and inferers, in the style of
+    <a href="https://github.com/huggingface/pytorch-image-models">timm</a> and
+    <a href="https://pytorch-geometric.readthedocs.io/">PyG</a>.
+  </p>
+  <p class="tp-hero__actions">
+    <a class="tp-button tp-button--primary" href="get-started/">Get started</a>
+    <a class="tp-button" href="models/overview/">Browse the models</a>
+    <code class="tp-hero__install">pip install torch-pointcloud</code>
+  </p>
+</section>
 
-A PyTorch library for deep learning on point clouds. Models for classification, segmentation, and detection, pretrained-weight registry, and composable transforms in the style of :pytorch: [`timm`](https://github.com/huggingface/pytorch-image-models) and :pyg: [`torch_geometric`](https://pytorch-geometric.readthedocs.io/).
-
-<div class="tp-tasks" markdown>
-
-<figure markdown="1">
-<video class="tp-tile tp-tile--light" src="./assets/animations/hero/classification.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A chair turning a full circle, in the accent color, classified by a pretrained PointNet++"></video>
-<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/classification_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A chair turning a full circle, in the accent color, classified by a pretrained PointNet++"></video>
-<figcaption markdown="span">**Object classification**`pointnet2-ssg.modelnet40.xu-yan`</figcaption>
+<figure class="tp-sheet">
+  <img class="tp-sheet__image tp-sheet__image--light" src="assets/brand/hero-light.webp" alt="Six tasks, six pretrained checkpoints" width="3000" height="2383">
+  <img class="tp-sheet__image tp-sheet__image--dark" src="assets/brand/hero-dark.webp" alt="Six tasks, six pretrained checkpoints" width="3000" height="2383">
 </figure>
 
-<figure markdown="1">
-<video class="tp-tile tp-tile--light" src="./assets/animations/hero/part_segmentation.mp4" autoplay loop muted playsinline preload="metadata" aria-label="An airplane turning a full circle, its wings, body, tail and engines each in their own color"></video>
-<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/part_segmentation_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="An airplane turning a full circle, its wings, body, tail and engines each in their own color"></video>
-<figcaption markdown="span">**Part segmentation**`pointnext-sm.shapenetpart.openpoints`</figcaption>
-</figure>
+<div class="tp-section" markdown>
 
-<figure markdown="1">
-<video class="tp-tile tp-tile--light" src="./assets/animations/hero/indoor.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, crossing in turn from its true color, to the semantic class predicted for every point, to a wireframe box around each piece of furniture the instance head found"></video>
-<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/indoor_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A camera gliding from room to room over a scanned house sliced open above the furniture, crossing in turn from its true color, to the semantic class predicted for every point, to a wireframe box around each piece of furniture the instance head found"></video>
-<figcaption markdown="span">**Indoor segmentation / detection**`ptv3-base.scannet20.pointcept`</figcaption>
-</figure>
+## In a few lines
 
-<figure markdown="1">
-<video class="tp-tile tp-tile--light" src="./assets/animations/hero/driving.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A bird's-eye camera riding above the car down a LiDAR sequence, one sweep per frame, every point colored by its predicted class and every vehicle boxed as it goes past"></video>
-<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/driving_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A bird's-eye camera riding above the car down a LiDAR sequence, one sweep per frame, every point colored by its predicted class and every vehicle boxed as it goes past"></video>
-<figcaption markdown="span">**Outdoor segmentation / detection**`spvcnn-119gmacs.semantickitti.mit-han-lab`<br>`second.kitti.openpcdet`</figcaption>
-</figure>
+Every checkpoint is one `create_model` call away, and ships the transform that turns a raw point cloud into what the
+network expects:
 
-<figure markdown="1">
-<video class="tp-tile tp-tile--light" src="./assets/animations/hero/survey.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A slow turn around the Eiffel Tower as an airborne survey recorded it, crossing from the sensor's own return strength, to the classification the survey ships with, to the principal components an encoder reads off the geometry alone"></video>
-<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/survey_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="A slow turn around the Eiffel Tower as an airborne survey recorded it, crossing from the sensor's own return strength, to the classification the survey ships with, to the principal components an encoder reads off the geometry alone"></video>
-<figcaption markdown="span">**Large scale segmentation**`utonia-lp.scannet20.pointcept`</figcaption>
-</figure>
+```{.python notest}
+import torch_pointcloud as tp
 
-<figure markdown="1">
-<video class="tp-tile tp-tile--light" src="./assets/animations/hero/similarity.mp4" autoplay loop muted playsinline preload="metadata" aria-label="The same house seen by a self-supervised encoder: first colored by the principal components of its features, then queried one object at a time, so that asking from a single chair lights every chair in the house, and asking from a table or a sofa lights those instead"></video>
-<video class="tp-tile tp-tile--dark" src="./assets/animations/hero/similarity_dark.mp4" autoplay loop muted playsinline preload="metadata" aria-label="The same house seen by a self-supervised encoder: first colored by the principal components of its features, then queried one object at a time, so that asking from a single chair lights every chair in the house, and asking from a table or a sofa lights those instead"></video>
-<figcaption markdown="span">**Feature extraction**`sonata-lp.scannet20.fair`</figcaption>
-</figure>
+model, info = tp.create_model(
+    "ptv3-base.scannet20.pointcept",
+    task="semantic-segmentation",
+    pretrained=True,
+    return_info=True,
+)
+info["transform"]  # the preprocessing pipeline of that checkpoint
+info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}
 
-</div>
+tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
+```
 
 ## Why torch-pointcloud?
 
 `torch-pointcloud` is a library of pretrained models that makes common layers and backbones easy to reuse. It does
 not replace research-first codebases such as :github: [Pointcept](https://github.com/Pointcept/Pointcept), :github: [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) and
 :github: [MMDetection3D](https://github.com/open-mmlab/mmdetection3d); it complements them with a common interface that makes benchmarking and
-interoperability across architectures easier. It builds on :pyg: [PyG](https://pytorch-geometric.readthedocs.io/) for the packed batch format and the
-neighbor search, and adds what PyG does not ship for point clouds: the models, their weights, the datasets and the
-transforms.
+interoperability across architectures easier.
 
 ## What's inside
 
@@ -81,13 +84,11 @@ transforms.
 
     Auto-generated reference for every public class and function.
 
--   :material-github: __[Source](https://github.com/arthurdjn/pytorch-pointcloud)__
-
-    Browse the source, file issues, or contribute.
-
 </div>
 
 ## License
 
 Apache 2.0, see [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE). Pretrained weights keep the
 license of their source, see [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
+
+</div>

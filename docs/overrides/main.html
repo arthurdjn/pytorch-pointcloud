@@ -15,6 +15,17 @@
 {% endblock %}
 <!-- end outdated block -->
 
+<!-- start htmltitle block -->
+{% block htmltitle %}
+  {# The landing page carries the site name as its title, so the tab says it once, not twice #}
+  {% if page and page.meta and page.meta.title == config.site_name %}
+    <title>{{ config.site_name }}</title>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+<!-- end htmltitle block -->
+
 <!-- start extrahead block -->
 {% block extrahead %}
   <link rel="icon" type="image/svg+xml" href="{{ 'assets/favicon.svg' | url }}">
