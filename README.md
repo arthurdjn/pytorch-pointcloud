@@ -1,5 +1,6 @@
 <div align="center">
   <a href="https://pytorch-pointcloud.org/"><img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/pytorch-pointcloud.png" alt="PyTorch PointCloud"></a>
+  <br>
   <p>
     <b>Deep learning on point clouds, with PyTorch.</b><br>
     Models, pretrained weights, datasets, transforms and inferers, in the style of
@@ -25,6 +26,8 @@
   <br>
   <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/hero.webp" alt="Six tasks" width="100%">
 </div>
+
+<br>
 
 > [!WARNING]
 > `torch-pointcloud` is in alpha and active development. Expect breaking changes.
