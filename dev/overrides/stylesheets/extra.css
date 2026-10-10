@@ -136,64 +136,136 @@ div > div.n {
 /* ----------- End General ----------- */
 
 /* ----------- Start Homepage ----------- */
-#glowing-logo-container {
+/* The landing page hides both sidebars (front matter). The hero is the hand-drawn banner, mark and
+   wordmark together, with the copy under it */
+.md-typeset .tp-hero {
   display: flex;
-  align-items: center;
-  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 1.2rem 0 3rem;
 }
-#glowing-logo-container svg {
-  overflow: visible;
+/* The banner carries the wordmark, so the heading is kept for the outline and the tab only. Without
+   one in the content, the theme would print the page title above the banner */
+.md-typeset .tp-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.md-typeset .tp-hero__banner {
+  display: block;
+  width: min(100%, 26rem);
+  margin: 0 0 1.6rem;
+}
+.md-typeset .tp-hero__banner img {
+  display: block;
   width: 100%;
   height: auto;
-  max-height: 100%;
-  aspect-ratio: 1 / 1; 
 }
-
-section#hero {
-  display: grid;
-  grid-template-columns: 2fr 3fr; 
-  align-items: end;
-  gap: 4rem;
-  width: 100%;
-  max-width: 1080px;
+@media screen and (max-width: 59.9375em) {
+  .md-typeset .tp-hero {
+    margin-top: 0.4rem;
+  }
 }
-
-.hero-logo {
+.md-typeset .tp-hero__eyebrow {
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.62rem;
+  color: var(--md-default-fg-color--light);
 }
-.hero-logo svg {
-  padding: 0 0 1.5em 0;
-}
-
-.hero-content {
-  display: flex;
-  flex-direction: column;
-}
-a.pill {
-  width: fit-content;
-  font-size: 0.64em;
+.md-typeset .tp-pill {
+  display: inline-block;
+  padding: 0.08rem 0.5rem;
+  border: 1px solid color-mix(in srgb, #ee4c2c 30%, transparent);
+  border-radius: 1rem;
+  background-color: color-mix(in srgb, #ee4c2c 10%, transparent);
   font-family: var(--md-code-font-family);
-  padding: 0 1em;
-  color: var(--pill-color) !important;
-  background-color: var(--pill-bg-color);
-  border: 1px solid var(--pill-bg-color);
-  border-radius: 1.5em;
+  font-size: 0.56rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ee4c2c;
+}
+.md-typeset .tp-hero__lead {
+  max-width: 36rem;
+  margin: 0 0 1.3rem;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-hero__lead strong {
+  display: block;
+  font-weight: 500;
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-hero__lead a {
+  font-weight: 500;
+  color: inherit !important;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.2em;
+}
+.md-typeset .tp-hero__lead a:hover {
+  text-decoration-color: var(--md-accent-fg-color);
+}
+.md-typeset .tp-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+/* Monochrome buttons: the mark is the only orange thing in the hero, and hover is the accent */
+.md-typeset .tp-button {
+  display: inline-block;
+  padding: 0.42rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 18%, transparent);
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600 !important;
+  line-height: 1.2;
+  color: var(--md-default-fg-color) !important;
   text-decoration: none !important;
+  transition: border-color 125ms, background-color 125ms, color 125ms;
 }
-a.pill.hero-pill {
-  --pill-color: #f04d28;
-  --pill-bg-color: color-mix(in srgb, #f04d28 10%, transparent);
+.md-typeset .tp-button:hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color) !important;
 }
-.hero-title {
-  font-size: 6em !important;
-  font-weight: 300 !important;
-  line-height: 1 !important;
-  margin: 0.25em 0 0.5em 0 !important;
+.md-typeset .tp-button--primary {
+  border-color: var(--md-default-fg-color);
+  background-color: var(--md-default-fg-color);
+  color: var(--md-default-bg-color) !important;
 }
-.hero-title b {
-  font-weight: 500 !important;
+.md-typeset .tp-button--primary:hover {
+  border-color: var(--md-accent-fg-color);
+  background-color: var(--md-accent-fg-color);
+  color: #fff !important;
+}
+.md-typeset code.tp-hero__install {
+  margin-left: 0.4rem;
+  padding: 0.42rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  border-radius: 0.3rem;
+  font-size: 0.66rem !important;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset code.tp-hero__install::before {
+  content: "$ ";
+  color: var(--md-default-fg-color--lighter);
+}
+/* Prose under the hero keeps a readable measure; the card grid still spans the full width */
+.md-typeset .tp-section > p,
+.md-typeset .tp-section > h2,
+.md-typeset .tp-section > .highlight,
+.md-typeset .tp-section > pre {
+  max-width: 46rem;
 }
 /* ----------- End Homepage ----------- */
 
@@ -635,86 +707,76 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
 
 /* ----------- End Paper card ----------- */
 
-/* ----------- Start Task tiles ----------- */
-/* The landing-page hero: one animation per task, laid out here rather than baked into a single
-   asset, so each tile keeps its own camera and its own loop length */
-.md-typeset .tp-tasks {
+/* ----------- Start Hero panels ----------- */
+/* The six panels of the README sheet, laid out by the page instead of baked into one image, so the grid
+   reflows: three across, then two, then one on a phone. Each panel is rendered on the card surface, so
+   the card is its own background; one file per theme, since the ground is part of the picture */
+.md-typeset .tp-panels {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.6rem;
-  margin: 1.4em 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0 0 3.4rem;
 }
 @media screen and (max-width: 76.1875em) {
-  .md-typeset .tp-tasks {
-    grid-template-columns: repeat(2, 1fr);
+  .md-typeset .tp-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media screen and (max-width: 44.9375em) {
-  .md-typeset .tp-tasks {
-    gap: 0.4rem;
+  .md-typeset .tp-panels {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.8rem;
   }
 }
-/* The same surface the cards below the hero sit on, so the two blocks read as one page */
-.md-typeset .tp-tasks figure {
+.md-typeset .tp-panel {
   margin: 0;
   overflow: hidden;
-  border: 0.05rem solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
-  border-radius: 0.2rem;
-  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
-  transition: border-color 125ms;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  border-radius: 0.5rem;
+  background-color: #f7f7f9;
 }
-.md-typeset .tp-tasks figure:hover {
-  border-color: var(--md-accent-fg-color);
+[data-md-color-scheme="slate"] .md-typeset .tp-panel {
+  background-color: #151a21;
 }
-.md-typeset .tp-tasks figure > p {
-  margin: 0;
-}
-/* Square, and reserved before the tile loads, so the grid does not reflow on a slow connection. The
-   background matches the one baked into the video, so the panel is already the right color while it
-   buffers */
-.md-typeset .tp-tasks video {
+.md-typeset .tp-panel__image {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
-  background-color: #f5f5f6;
+  height: auto;
 }
-/* A tile bakes its surface into the frames, so each theme gets its own file rather than a filter over
-   one. The hidden half is display:none, which keeps it out of the accessibility tree as well */
-.md-typeset .tp-tasks video.tp-tile--dark {
+.md-typeset .tp-panel__image--dark {
   display: none;
 }
-[data-md-color-scheme="slate"] .md-typeset .tp-tasks video {
-  background-color: #0b0c0f;
-}
-[data-md-color-scheme="slate"] .md-typeset .tp-tasks video.tp-tile--light {
+[data-md-color-scheme="slate"] .md-typeset .tp-panel__image--light {
   display: none;
 }
-[data-md-color-scheme="slate"] .md-typeset .tp-tasks video.tp-tile--dark {
+[data-md-color-scheme="slate"] .md-typeset .tp-panel__image--dark {
   display: block;
 }
-.md-typeset .tp-tasks figcaption {
+.md-typeset .tp-panel figcaption {
   margin: 0;
-  padding: 0.7rem;
-  text-align: center;
-  font-size: 0.7rem;
-  line-height: 1.45;
+  padding: 0.2rem 1rem 0.9rem;
+  font-size: 0.66rem;
+  font-style: normal;
+  line-height: 1.5;
+  text-align: left;
   color: var(--md-default-fg-color--light);
 }
-@media screen and (max-width: 44.9375em) {
-  .md-typeset .tp-tasks figcaption {
-    padding: 0.45rem 0.3rem;
-    font-size: 0.6rem;
-  }
-}
-.md-typeset .tp-tasks figcaption strong {
+.md-typeset .tp-panel figcaption strong {
   display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--md-default-fg-color);
 }
-/* Checkpoint names are one unbroken dotted token, which a two-column phone layout cannot fit */
-.md-typeset .tp-tasks figcaption code {
-  font-size: 0.92em;
-  background-color: transparent;
+/* Checkpoint names are one unbroken dotted token each: one line each, clipped rather than wrapped */
+.md-typeset .tp-panel figcaption code {
+  display: block;
+  overflow: hidden;
   padding: 0;
-  overflow-wrap: anywhere;
+  border: none !important;
+  background-color: transparent;
+  font-size: 0.6rem !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--md-default-fg-color--light);
 }
-/* ----------- End Task tiles ----------- */
+/* ----------- End Hero panels ----------- */

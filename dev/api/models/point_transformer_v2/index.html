@@ -28,10 +28,15 @@
       <meta name="generator" content="zensical-0.0.53">
     
     
+  
+  
+    
       
         <title>Point Transformer V2 - PyTorch PointCloud</title>
       
     
+  
+
     
       
         
@@ -6603,7 +6608,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Block&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L31-L77&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Block">PointTransformerV2Block</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L31-L77&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Block">PointTransformerV2Block</a></code></b>
           –
           <div class="doc-md-description">
             <p>Residual bottleneck around a <code>GroupedVectorAttention</code>, with a linear projection before and after it.</p>
@@ -6613,7 +6618,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2GridPool&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L80-L138&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2GridPool">PointTransformerV2GridPool</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L80-L138&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2GridPool">PointTransformerV2GridPool</a></code></b>
           –
           <div class="doc-md-description">
             <p>Partition-based pooling: projects the features, then reduces every <code>grid_size</code> voxel to a single point.</p>
@@ -6623,7 +6628,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2InversePool&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L141-L184&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2InversePool">PointTransformerV2InversePool</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L141-L184&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2InversePool">PointTransformerV2InversePool</a></code></b>
           –
           <div class="doc-md-description">
             <p>Undoes a <code>PointTransformerV2GridPool</code>: scatters the pooled features back to the finer points and adds the projected skip.</p>
@@ -6633,7 +6638,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2EncoderBlock&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L187-L270&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2EncoderBlock">PointTransformerV2EncoderBlock</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L187-L270&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2EncoderBlock">PointTransformerV2EncoderBlock</a></code></b>
           –
           <div class="doc-md-description">
             <p>One encoder stage: an optional <code>PointTransformerV2GridPool</code> downsampling, then <code>depth</code> <code>PointTransformerV2Block</code> units sharing a single</p>
@@ -6643,7 +6648,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2DecoderBlock&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L273-L333&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2DecoderBlock">PointTransformerV2DecoderBlock</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L273-L333&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2DecoderBlock">PointTransformerV2DecoderBlock</a></code></b>
           –
           <div class="doc-md-description">
             <p>One decoder stage: an optional <code>PointTransformerV2InversePool</code> upsampling onto the skip resolution, then <code>depth</code> <code>PointTransformerV2Block</code></p>
@@ -6653,7 +6658,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder">PointTransformerV2Encoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder">PointTransformerV2Encoder</a></code></b>
           –
           <div class="doc-md-description">
             <p>Point Transformer V2 encoder: <code>PointTransformerV2EncoderBlock</code> stages from finest to coarsest, every stage but</p>
@@ -6663,7 +6668,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Decoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L488-L600&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Decoder">PointTransformerV2Decoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L488-L600&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Decoder">PointTransformerV2Decoder</a></code></b>
           –
           <div class="doc-md-description">
             <p>Point Transformer V2 decoder: <code>PointTransformerV2DecoderBlock</code> stages from coarsest to finest, each preceded</p>
@@ -6673,7 +6678,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Classification&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L603-L810&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification">PointTransformerV2Classification</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L603-L810&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification">PointTransformerV2Classification</a></code></b>
           –
           <div class="doc-md-description">
             <p>Implementation of the Point Transformer V2 model for classification as described in the paper</p>
@@ -6683,7 +6688,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Segmentation&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L813-L1053&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation">PointTransformerV2Segmentation</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L813-L1053&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation">PointTransformerV2Segmentation</a></code></b>
           –
           <div class="doc-md-description">
             <p>Implementation of the Point Transformer V2 model for semantic segmentation as described in the paper</p>
@@ -6715,7 +6720,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2Block</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L31-L77" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L31-L77" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Block" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2Block</span><span class="p">(</span>
@@ -6783,7 +6788,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2GridPool</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L80-L138" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L80-L138" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2GridPool" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2GridPool</span><span class="p">(</span>
@@ -6851,7 +6856,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2InversePool</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L141-L184" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L141-L184" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2InversePool" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2InversePool</span><span class="p">(</span>
@@ -6916,7 +6921,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2EncoderBlock</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L187-L270" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L187-L270" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2EncoderBlock" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2EncoderBlock</span><span class="p">(</span>
@@ -6936,7 +6941,7 @@
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">downsample</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2GridPool&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L80-L138&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2GridPool">PointTransformerV2GridPool</a></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L80-L138&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2GridPool">PointTransformerV2GridPool</a></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
 </code></pre></div>
 
@@ -6991,7 +6996,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2DecoderBlock</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L273-L333" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L273-L333" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2DecoderBlock" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2DecoderBlock</span><span class="p">(</span>
@@ -7012,7 +7017,7 @@
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2InversePool&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L141-L184&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2InversePool">PointTransformerV2InversePool</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L141-L184&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2InversePool">PointTransformerV2InversePool</a></span>
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="p">)</span>
 </code></pre></div>
@@ -7068,7 +7073,7 @@ units sharing a single <span class="arithmatex">\(k\)</span>-NN graph built on t
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2Encoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2Encoder</span><span class="p">(</span>
@@ -7359,7 +7364,7 @@ per-stage skips (features, coordinates, batch indices and pooling inverse) consu
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2Decoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L488-L600" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L488-L600" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Decoder" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2Decoder</span><span class="p">(</span>
@@ -7640,7 +7645,7 @@ intermediates: Per-stage skips returned by <code>PointTransformerV2Encoder</code
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2Classification</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L603-L810" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L603-L810" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2Classification</span><span class="p">(</span>
@@ -7878,7 +7883,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_stem&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L680-L691&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.configure_stem">configure_stem</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L680-L691&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.configure_stem">configure_stem</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the linear stem lifting the input features to the first encoder channel.</p>
@@ -7888,7 +7893,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L693-L710&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.configure_encoder">configure_encoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L693-L710&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.configure_encoder">configure_encoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>PointTransformerV2Encoder</code> backbone.</p>
@@ -7898,7 +7903,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;reset_classifier&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L722-L736&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.reset_classifier">reset_classifier</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L722-L736&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.reset_classifier">reset_classifier</a></code></b>
             –
             <div class="doc-md-description">
               <p>Resets the classification head with new parameters.</p>
@@ -7908,7 +7913,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward_features&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L756-L780&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward_features">forward_features</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L756-L780&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward_features">forward_features</a></code></b>
             –
             <div class="doc-md-description">
               <p>Forward features through the encoder blocks, before the global pooling.</p>
@@ -7918,7 +7923,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward_head&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L782-L796&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward_head">forward_head</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L782-L796&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward_head">forward_head</a></code></b>
             –
             <div class="doc-md-description">
               <p>Forward pass of the classification head from pre-pooling x.</p>
@@ -7928,7 +7933,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L798-L810&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L798-L810&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Forward pass of the classification network.</p>
@@ -8001,7 +8006,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_stem</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L680-L691" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L680-L691" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.configure_stem" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_stem</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
@@ -8023,13 +8028,13 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_encoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L693-L710" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L693-L710" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.configure_encoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_encoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder">PointTransformerV2Encoder</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder">PointTransformerV2Encoder</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -8048,7 +8053,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">reset_classifier</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L722-L736" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L722-L736" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.reset_classifier" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">reset_classifier</span><span class="p">(</span>
@@ -8112,7 +8117,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward_features</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L756-L780" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L756-L780" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward_features" class="headerlink" title="Anchor link to this section">&para;</a></h4>
           <div class="doc-overloads">
@@ -8125,7 +8130,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PooledFeaturesDict&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/utils/types.py#L82-L89&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.PooledFeaturesDict">PooledFeaturesDict</a></span><span class="p">]</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/utils/types.py#L82-L89&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.PooledFeaturesDict">PooledFeaturesDict</a></span><span class="p">]</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">]</span>
 </code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward_features</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span><span class="p">,</span>
@@ -8231,7 +8236,7 @@ coordinates, batch indices and pooling inverse for each encoder block.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward_head</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L782-L796" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L782-L796" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward_head" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward_head</span><span class="p">(</span>
@@ -8298,7 +8303,7 @@ coordinates, batch indices and pooling inverse for each encoder block.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L798-L810" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L798-L810" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Classification.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -8370,7 +8375,7 @@ coordinates, batch indices and pooling inverse for each encoder block.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PointTransformerV2Segmentation</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L813-L1053" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L813-L1053" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PointTransformerV2Segmentation</span><span class="p">(</span>
@@ -8656,7 +8661,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_stem&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L901-L912&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_stem">configure_stem</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L901-L912&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_stem">configure_stem</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the linear stem lifting the input features to the first encoder channel.</p>
@@ -8666,7 +8671,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L914-L931&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_encoder">configure_encoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L914-L931&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_encoder">configure_encoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>PointTransformerV2Encoder</code> backbone.</p>
@@ -8676,7 +8681,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;configure_decoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L933-L950&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_decoder">configure_decoder</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L933-L950&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_decoder">configure_decoder</a></code></b>
             –
             <div class="doc-md-description">
               <p>Build the <code>PointTransformerV2Decoder</code> upsampling the coarsest features back through the encoder skips.</p>
@@ -8686,7 +8691,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;reset_classifier&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L962-L973&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.reset_classifier">reset_classifier</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L962-L973&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.reset_classifier">reset_classifier</a></code></b>
             –
             <div class="doc-md-description">
               <p>Resets the head with new class parameters.</p>
@@ -8696,7 +8701,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward_features&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L993-L1017&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward_features">forward_features</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L993-L1017&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward_features">forward_features</a></code></b>
             –
             <div class="doc-md-description">
               <p>Forward features through the encoder blocks, before the global pooling.</p>
@@ -8706,7 +8711,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward_head&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L1026-L1038&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward_head">forward_head</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L1026-L1038&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward_head">forward_head</a></code></b>
             –
             <div class="doc-md-description">
               <p>Forward pass of the classification head from up-sampled x.</p>
@@ -8716,7 +8721,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
             <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;forward&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L1040-L1053&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward">forward</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L1040-L1053&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward">forward</a></code></b>
             –
             <div class="doc-md-description">
               <p>Forward pass of the model.</p>
@@ -8789,7 +8794,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_stem</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L901-L912" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L901-L912" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_stem" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_stem</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.nn.Module">Module</span></span>
@@ -8811,13 +8816,13 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_encoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L914-L931" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L914-L931" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_encoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_encoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Encoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder">PointTransformerV2Encoder</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L336-L485&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Encoder">PointTransformerV2Encoder</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -8836,13 +8841,13 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">configure_decoder</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L933-L950" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L933-L950" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.configure_decoder" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">configure_decoder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PointTransformerV2Decoder&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L488-L600&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Decoder">PointTransformerV2Decoder</a></span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L488-L600&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Decoder">PointTransformerV2Decoder</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -8861,7 +8866,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">reset_classifier</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L962-L973" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L962-L973" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.reset_classifier" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">reset_classifier</span><span class="p">(</span><span class="n">num_classes</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n"><span title="typing.Any">Any</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
@@ -8911,7 +8916,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward_features</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L993-L1017" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L993-L1017" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward_features" class="headerlink" title="Anchor link to this section">&para;</a></h4>
           <div class="doc-overloads">
@@ -8924,7 +8929,7 @@ batch: Long tensor of shape <span class="arithmatex">\((N,)\)</span>.</p>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PooledFeaturesDict&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/utils/types.py#L82-L89&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.PooledFeaturesDict">PooledFeaturesDict</a></span><span class="p">]</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/utils/types.py#L82-L89&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="../../utils/types/#torch_pointcloud.utils.types.PooledFeaturesDict">PooledFeaturesDict</a></span><span class="p">]</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">]</span>
 </code></pre></div><div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward_features</span><span class="p">(</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span><span class="p">,</span>
@@ -9030,7 +9035,7 @@ coordinates, batch indices and pooling inverse for each encoder block.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward_head</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L1026-L1038" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L1026-L1038" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward_head" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward_head</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">pre_logits</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
@@ -9087,7 +9092,7 @@ coordinates, batch indices and pooling inverse for each encoder block.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">forward</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/64cab0e8d199e362a9780d8003a883b0072a010e/src/torch_pointcloud/models/point_transformer_v2.py#L1040-L1053" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/5942f15bc470a49675e060f2240b86027331c3e6/src/torch_pointcloud/models/point_transformer_v2.py#L1040-L1053" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.models.point_transformer_v2.PointTransformerV2Segmentation.forward" class="headerlink" title="Anchor link to this section">&para;</a></h4>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">forward</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n"><span title="torch_pointcloud.utils.types.OptTensor">OptTensor</span></span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n"><span title="torch.Tensor">Tensor</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="torch.Tensor">Tensor</span></span>
