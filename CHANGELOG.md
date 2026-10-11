@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- `DynamicMeanVFE.forward` takes `(x, pos, batch)` like every other packed layer; swap the first two arguments of existing `vfe(pos, x, batch)` calls.
+- `create_pool(None)`, `create_adaptive_pool(None)` and `create_dropout(None)` return `None` like `create_norm` / `create_act` instead of raising (overloaded, so a non-`None` argument still types as `nn.Module`). `create_act("swish")` resolves to `nn.SiLU` instead of PyG's `swish` function.
+- `AnchorHeadLoss` accepts 9-column boxes and ignores their velocity columns; no call changes.
+- `TransFusionHeadLoss` supervises the velocity codes from 9-column boxes once `code_weights` enables them; its docstring no longer states that the velocity targets are always zero.
+- Removed `optim.generate_param_groups` (its overlapping groups are rejected by `torch.optim`); use `optim.param_groups(model, overrides=[dict(keyword=..., lr=...)])` (or `match=` with a `(name, param)` callable), and pass those kwargs as `LitModel(param_groups=...)`.
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.

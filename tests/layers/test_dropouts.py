@@ -46,3 +46,7 @@ def test_create_dropout_from_float() -> None:
     layer = create_dropout(0.25)
     assert isinstance(layer, nn.Dropout)
     assert layer.p == 0.25
+
+
+def test_create_dropout_none_returns_none() -> None:
+    assert create_dropout(None) is None

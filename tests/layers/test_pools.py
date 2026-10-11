@@ -57,6 +57,10 @@ def test_create_pool_unknown_name_raises() -> None:
         create_pool("median")  # type: ignore[arg-type]
 
 
+def test_create_pool_none_returns_none() -> None:
+    assert create_pool(None) is None
+
+
 def test_cat_pool() -> None:
     pool = CatPool(pools=("max", "mean"), dim=0, dim_size=None)
     assert pool.num_pools == 2
@@ -70,6 +74,10 @@ def test_cat_pool() -> None:
 def test_create_adaptive_pool(name: str, expected_cls: type) -> None:
     pool = create_adaptive_pool(name)  # type: ignore[arg-type]
     assert isinstance(pool, expected_cls)
+
+
+def test_create_adaptive_pool_none_returns_none() -> None:
+    assert create_adaptive_pool(None) is None
 
 
 def test_create_adaptive_pool_defaults_to_global_output() -> None:

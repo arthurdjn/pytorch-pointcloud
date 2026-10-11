@@ -10,7 +10,7 @@ from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
-from torch_pointcloud.optim import generate_param_groups
+from torch_pointcloud.optim import param_groups
 from torch_pointcloud.utils.data import DataKeys, offset_index, select_inputs
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Boxes3D
@@ -51,7 +51,7 @@ class LitModel(LightningModule):
             batch raises.
         scheduler_interval: Whether the scheduler steps per `"epoch"` or `"step"`.
         param_groups: Optional dict of kwargs forwarded to
-            `torch_pointcloud.optim.generate_param_groups`.
+            `torch_pointcloud.optim.param_groups`.
         **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
     """
 
@@ -154,7 +154,7 @@ class LitModel(LightningModule):
                 "pass `optimizer=` to train."
             )
 
-        params = generate_param_groups(self, **self._param_groups) if self._param_groups else self.parameters()
+        params = param_groups(self, **self._param_groups) if self._param_groups else self.parameters()
         optimizer = self._optimizer(params)
         if self._scheduler is None:
             return optimizer

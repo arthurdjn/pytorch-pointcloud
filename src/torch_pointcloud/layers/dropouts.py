@@ -1,6 +1,6 @@
 """Dropout layers: stochastic depth (`DropPath`) and the `create_dropout` factory."""
 
-from typing import Any, Dict, Literal, Union
+from typing import Any, Dict, Literal, Optional, Union, overload
 
 import torch.nn as nn
 from torch import Tensor
@@ -57,18 +57,28 @@ _DROPOUT_REGISTRY: Dict[DropoutName, RegisteredModuleLike] = dict(
 )
 
 
-def create_dropout(name: Union[DropoutLike, float], *args: Any, **kwargs: Any) -> nn.Module:
-    """Resolve a dropout layer from a name, a class, an instance, or a probability.
+@overload
+def create_dropout(name: None, *args: Any, **kwargs: Any) -> None: ...
+
+
+@overload
+def create_dropout(name: Union[DropoutLike, float], *args: Any, **kwargs: Any) -> nn.Module: ...
+
+
+def create_dropout(name: Union[DropoutLike, float, None], *args: Any, **kwargs: Any) -> Optional[nn.Module]:
+    """Resolve a dropout layer from a name, a class, an instance, or a probability, returning `None` for `name=None`.
 
     Args:
-        name: Dropout name (e.g., `"dropout"`, `"drop_path"`), a class, an instance, or a float
-            probability, which is a shorthand for `nn.Dropout(p=name)`.
+        name: Dropout name (e.g., `"dropout"`, `"drop_path"`), a class, an instance, a float
+            probability, which is a shorthand for `nn.Dropout(p=name)`, or `None`.
         *args: Forwarded to the dropout constructor.
         **kwargs: Forwarded to the dropout constructor (ignored if `name` is already an instance).
 
     Returns:
-        The instantiated dropout module.
+        The instantiated dropout module, or `None` if `name is None`.
     """
+    if name is None:
+        return None
     if isinstance(name, (int, float)):
         return create_module("dropout", p=name, *args, registry=_DROPOUT_REGISTRY, **kwargs)
     return create_module(name, *args, registry=_DROPOUT_REGISTRY, **kwargs)
