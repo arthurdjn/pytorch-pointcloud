@@ -454,14 +454,17 @@ div > div.n {
   --admonition-fg-color: var(--md-default-fg-color) !important;
   --admonition-bg-color: transparent !important;
   margin: 0.5em 0;
+  padding-left: 1.2rem;
   border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
 }
 [data-md-color-scheme="slate"] .md-typeset details.faq {
   --admonition-fg-color: hsla(var(--md-hue), 0%, 100%, 1) !important;
 }
+/* The summary bleeds back to the box edge so the chevron sits on it, and the question text lines up with the answer */
 .md-typeset details.faq > summary {
+  margin-left: -1.2rem;
   padding-right: 0.8rem;
-  padding-left: 1.8rem;
+  padding-left: 1.2rem;
   background-color: transparent;
 }
 .md-typeset details.faq > summary::before {
@@ -469,7 +472,7 @@ div > div.n {
 }
 .md-typeset details.faq > summary::after {
   right: auto;
-  left: 0.5rem;
+  left: 0;
 }
 /* ----------- End Admonition ----------- */
 
