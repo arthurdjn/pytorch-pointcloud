@@ -582,6 +582,8 @@ permalink_title = "Anchor link to this section"
 
 # PyMdown extensions
 [project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
 [project.markdown_extensions.pymdownx.superfences]
 [project.markdown_extensions.pymdownx.highlight]
 pygments_lang_class = true

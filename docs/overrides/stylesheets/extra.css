@@ -449,6 +449,19 @@ div > div.n {
 .md-typeset details summary, .admonition .admonition-title {
   color: var(--admonition-fg-color) !important;
 }
+/* FAQ entries: a neutral collapsible block with the question icon, the card surface and no type colour */
+.md-typeset details.faq {
+  --admonition-fg-color: var(--md-default-fg-color) !important;
+  --admonition-bg-color: transparent !important;
+  border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+.md-typeset details.faq > summary {
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+}
+.md-typeset details.faq > summary::before {
+  -webkit-mask-image: var(--md-admonition-icon--question);
+  mask-image: var(--md-admonition-icon--question);
+}
 /* ----------- End Admonition ----------- */
 
 /* ----------- Start Cards ----------- */
