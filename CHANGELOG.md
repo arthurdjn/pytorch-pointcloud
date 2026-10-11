@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed the `TORCH_POINTCLOUD_MODELS_DIR` variable: the pretrained weights always live under `<cache>/models`, and `TORCH_POINTCLOUD_CACHE_DIR` moves the cache.
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.

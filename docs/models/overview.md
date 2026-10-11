@@ -11,7 +11,7 @@ tp.list_models(task="classification", pretrained=True)  # or "semantic-segmentat
 ```
 
 Weights are downloaded from the Hugging Face Hub on first use and cached under `~/.cache/torch-pointcloud/models`
-(`TORCH_POINTCLOUD_MODELS_DIR` moves them). Each checkpoint keeps the license of its source, listed on the task pages,
+(`TORCH_POINTCLOUD_CACHE_DIR` moves the cache). Each checkpoint keeps the license of its source, listed on the task pages,
 and a few are restricted to non-commercial use: see
 [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
 
