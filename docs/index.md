@@ -107,6 +107,30 @@ interoperability across architectures easier.
 
     Composable, non-mutating dict transforms inspired by :monai: [MONAI](https://docs.monai.io/).
 
+-   :material-layers-triple: __[Inferers](inferers/overview.md)__
+
+    Sliding windows, voxel partitions, potential spheres and test-time augmentation for scenes of any size.
+
+-   :material-function-variant: __[Losses](api/losses/index.md)__
+
+    Focal, Lovász, Chamfer and the detection criteria, as functions and modules.
+
+-   :material-chart-box-outline: __[Metrics](api/metrics/index.md)__
+
+    Confusion matrices, IoU, box and instance mAP, the KITTI and nuScenes protocols.
+
+-   :material-vector-polyline: __[Ops](api/ops/index.md)__
+
+    Neighbor search, voxelization, box geometry, serialization: tensor functions on packed clouds.
+
+-   :material-speedometer: __[Optim](api/optim/index.md)__
+
+    Parameter groups, warm-up schedules and batch-norm momentum decay.
+
+-   :material-table-column: __[Data Format](data-format.md)__
+
+    The sample dict, packed batches, collation and the sampling keys, in one place.
+
 -   :material-school: __[Tutorials](examples/index.md)__
 
     Ready-to-use notebooks, from a first classification to survey-scale inference.

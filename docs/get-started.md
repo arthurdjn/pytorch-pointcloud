@@ -57,10 +57,6 @@ are concatenated and each point is tagged with its sample index. For $B$ samples
 
 ![Three clouds of different sizes as a list of tensors, as one padded tensor, and packed](./assets/animations/batch_modes.webp)
 
-| Tensor  | Shape    | Description                              |
-| ------- | -------- | ---------------------------------------- |
-| `pos`   | $(N, 3)$ | 3D coordinates, all points concatenated  |
-| `x`     | $(N, C)$ | Per-point features                       |
-| `batch` | $(N,)$   | Per-point batch index $(0, \ldots, B-1)$ |
-
-Datasets emit the other keys (`normal`, `color`, `segment`, `label`, ...), listed on the [Datasets](datasets/overview.md#dict-keys) page.
+Every tensor of a batch follows this layout: `pos` $(N, 3)$, the features `x` $(N, C)$, and the per-point `batch`
+index $(N,)$ that `collate` writes. The [data format](data-format.md) page lists every key, its shape and dtype, and
+how `collate` batches each of them.
