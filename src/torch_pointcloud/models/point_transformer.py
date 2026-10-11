@@ -30,6 +30,9 @@ from torch_pointcloud.utils.types import FeaturesDict
 class PointTransformerBlock(torch.nn.Module):
     """Residual bottleneck around a `PointTransformerConv`: a linear projection down, vector attention, and a
     linear projection back, each followed by normalization and activation.
+
+    The attention MLP normalizes and activates the attention logits before its first linear layer, and the
+    query, key and value projections carry a bias.
     """
 
     def __init__(
@@ -68,8 +71,13 @@ class PointTransformerBlock(torch.nn.Module):
             spatial_dim=spatial_dim,
             num_groups=num_groups,
             pos_nn=MLP([spatial_dim, spatial_dim, out_channels], **kwargs),
-            attn_nn=MLP([out_channels, out_channels // num_groups, out_channels // num_groups], **kwargs),
+            attn_nn=nn.Sequential(
+                create_norm(norm, out_channels, **norm_kwargs) or nn.Identity(),
+                create_act(act, **act_kwargs) or nn.Identity(),
+                MLP([out_channels, out_channels // num_groups, out_channels // num_groups], **kwargs),
+            ),
             add_self_loops=add_self_loops,
+            bias=True,
         )
         self.norm2 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.lin3 = nn.Linear(out_channels, out_channels)
@@ -181,6 +189,30 @@ class PointTransformerTransitionUp(torch.nn.Module):
         x = self.mlp(x)
         x_interpolated = knn_interpolate(x, pos_x=pos, pos_y=pos_skip, k=3, batch_x=batch, batch_y=batch_skip)
         return self.mlp_skip(x_skip) + x_interpolated
+
+
+class PointTransformerGlobalTransition(torch.nn.Module):
+    """Coarsest-level transition of the segmentation decoder: appends a projected global mean feature to every
+    point and projects the pair back to `channels`.
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+        kwargs = dict(act=act, act_kwargs=act_kwargs, act_first=act_first, plain_last=False)
+        self.mlp = MLP([2 * channels, channels], norm=norm, norm_kwargs=norm_kwargs, **kwargs)
+        self.mlp_global = MLP([channels, channels], norm=None, **kwargs)
+
+    def forward(self, x: Tensor, batch: Tensor) -> Tensor:
+        global_feat = scatter(x, batch, dim=0, reduce="mean")
+        return self.mlp(torch.cat([x, self.mlp_global(global_feat)[batch]], dim=1))
 
 
 class PointTransformerEncoderBlock(torch.nn.Module):
@@ -397,17 +429,25 @@ class PointTransformerEncoder(torch.nn.Module):
 
 
 class PointTransformerDecoder(torch.nn.Module):
-    """Stack of `PointTransformerDecoderBlock` stages that consume the encoder intermediates in reverse,
-    walking the features back to full resolution.
+    r"""A `PointTransformerGlobalTransition` and one `PointTransformerBlock` at the coarsest resolution, then a
+    stack of `PointTransformerDecoderBlock` stages that consume the encoder intermediates in reverse, walking
+    the features back to full resolution.
+
+    Args:
+        channels: Feature width entering the decoder followed by the width of each upsampling stage.
+        depths: Number of `PointTransformerBlock` blocks per upsampling stage.
+        num_groups: Number of shared-weight vector-attention groups per upsampling stage.
+        num_neighbors: Number of neighbors in the $k$-NN graph of each upsampling stage.
+        global_num_neighbors: Number of neighbors in the $k$-NN graph of the coarsest-level block.
     """
 
     def __init__(
         self,
         channels: Sequence[int],
-        # skip_channels: Sequence[int],
         depths: Sequence[int],
         num_groups: Sequence[int],
         num_neighbors: Sequence[int],
+        global_num_neighbors: int,
         spatial_dim: int = 3,
         add_self_loops: bool = False,
         act: Union[str, Callable, None] = "relu",
@@ -430,6 +470,28 @@ class PointTransformerDecoder(torch.nn.Module):
             num_neighbors,
             size=n,
             extra_msg=extra_msg.format(param="num_neighbors", size=n),
+        )
+
+        self.global_num_neighbors = global_num_neighbors
+        self.global_transition = PointTransformerGlobalTransition(
+            channels[0],
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+        )
+        self.global_block = PointTransformerBlock(
+            in_channels=channels[0],
+            out_channels=channels[0],
+            spatial_dim=spatial_dim,
+            num_groups=num_groups[0],
+            add_self_loops=add_self_loops,
+            act=act,
+            act_kwargs=act_kwargs,
+            act_first=act_first,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
         )
 
         self.blocks = nn.ModuleList()
@@ -467,6 +529,9 @@ class PointTransformerDecoder(torch.nn.Module):
         batch: Tensor,
         intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
+        x = self.global_transition(x, batch)
+        edge_index = knn_graph(pos, k=self.global_num_neighbors, batch=batch, loop=True)
+        x = self.global_block(x, pos, edge_index)
         for block, intermediate in zip(self.blocks, reversed(intermediates)):
             x, pos, batch = block(x, pos, batch, intermediate["x"], intermediate["pos"], intermediate["batch"])
         return x, pos, batch
@@ -631,8 +696,9 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
     by Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun.
 
     An encoder-decoder with skip connections: vector-attention `PointTransformerBlock` stages with
-    `PointTransformerTransitionDown` downsampling, mirrored by `PointTransformerTransitionUp` upsampling,
-    followed by a per-point linear head.
+    `PointTransformerTransitionDown` downsampling, a `PointTransformerGlobalTransition` mixing a global mean
+    feature into the coarsest stage, `PointTransformerTransitionUp` upsampling mirroring the encoder, and a
+    per-point MLP head.
 
     Args:
         in_channels: Number of input feature channels. Pass $0$ to use the raw positions as features.
@@ -740,6 +806,7 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
             depths=self.decoder_depths,
             num_groups=self.decoder_attention_groups,
             num_neighbors=self.decoder_num_neighbors,
+            global_num_neighbors=self.encoder_num_neighbors[-1],
             spatial_dim=self.spatial_dim,
             add_self_loops=self.add_self_loops,
             act=self.act,
@@ -757,7 +824,15 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
             return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+        return MLP(
+            [self.num_features, self.num_features, self.num_classes],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            plain_last=True,
+        )
 
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes

@@ -142,7 +142,7 @@ def test_point_transformer_seg_reset_classifier(
     model_seg.reset_classifier(new_num_classes)
 
     assert model_seg.num_classes == new_num_classes
-    assert model_seg.head.out_features == new_num_classes
+    assert model_seg.head.out_channels == new_num_classes
     logits = model_seg(data["features"], data["pos"], data["batch"])
     assert logits.shape == (data["pos"].shape[0], new_num_classes)
 

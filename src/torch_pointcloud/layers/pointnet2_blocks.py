@@ -284,9 +284,7 @@ class PointNet2FeaturePropagation(nn.Module):
     :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413).
 
     The interpolated features are concatenated **before** the skip features
-    (`cat([interp, skip])`). Models with the opposite upstream cat order
-    (RandLA-Net's `cat([skip, interp])`) must swap the first linear layer's
-    column blocks at conversion time to stay weight-compatible.
+    (`cat([interp, skip])`).
 
     Args:
         channels: Per-layer channel sizes of the MLP, starting with its input width (interpolated plus skip channels).
