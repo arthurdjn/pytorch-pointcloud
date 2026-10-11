@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.13 (2026-10-11)
+
 - Updated some model references in docstrings to include full paper titles.
 - Added the detection training scripts of SECOND, PointPillars, PointRCNN, VoxelNeXt, LION, VoteNet and 3DETR.
 - Added the finetuning scripts of Point-MAE, Point-BERT, Point-M2AE, PointMamba and PointGPT.
