@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- `create_model` raises an `ImportError` naming the model and the installation page when an optional dependency is missing; `optional_import` tells a package that is not installed from one that does not meet its version requirement, and the flash attention errors point at `use_flash_attn=False`.
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.

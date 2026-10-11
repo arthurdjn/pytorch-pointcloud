@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterator
 from unittest.mock import Mock
@@ -18,6 +20,7 @@ from torch_pointcloud.models import (
     register_model,
 )
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, cache_path
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 
 class DummyClassificationModel(ClassificationModel):
@@ -326,6 +329,36 @@ def test_create_model_arch_only_entry_raises_actionable_type_error() -> None:
         create_model("pointnext-sm", task="classification")
     model = create_model("pointnext-sm", task="classification", in_channels=4, num_classes=15)
     assert model.num_classes == 15
+
+
+def test_create_model_missing_optional_dependency_raises_actionable_import_error() -> None:
+    """With `spconv` absent, building a model that needs it must name the model, the dependency and the
+    installation page, and not the generic requirement wording."""
+    code = (
+        "import sys\n"
+        "sys.modules['spconv'] = None\n"
+        "from torch_pointcloud.models import create_model\n"
+        "try:\n"
+        "    create_model('spunet-v1m1.scannet20.pointcept')\n"
+        "except ImportError as err:\n"
+        "    print(err)\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    message = result.stdout.strip()
+    assert "Model 'spunet-v1m1.scannet20.pointcept'" in message
+    assert "Optional module 'spconv.pytorch' is not installed." in message
+    assert "https://pytorch-pointcloud.org/latest/installation/" in message
+    assert "does not meet the requirement" not in message
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_create_model_missing_flash_attn_hints_use_flash_attn_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.layers.serialized_attention._FLASH_ATTN_AVAILABLE", False)
+    with pytest.raises(ImportError, match="or pass `use_flash_attn=False`") as exc_info:
+        create_model("ptv3-base.scannet20.pointcept", use_flash_attn=True)
+    assert "Model 'ptv3-base.scannet20.pointcept'" in str(exc_info.value)
+    assert "https://pytorch-pointcloud.org/latest/installation/" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, ImportError)
 
 
 def test_create_model_pretrained_rejects_weight_path_escaping_cache(
