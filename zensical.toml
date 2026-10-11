@@ -314,10 +314,11 @@ nav = [
             { "types" = "api/utils/types.md" },
         ] },
     ] },
-    { "Project" = [
-        { "FAQ" = "faq.md" },
+    { "About" = [
         { "About" = "about.md" },
-        { "Changelog" = "https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CHANGELOG.md" },
+        { "FAQ" = "faq.md" },
+        { "Roadmap" = "roadmap.md" },
+        { "Changelog" = "changelog.md" },
     ] },
 ]
 
