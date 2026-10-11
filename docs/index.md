@@ -121,7 +121,7 @@ interoperability across architectures easier.
 
 -   :material-information-outline: __[About](about.md)__
 
-    Why the library exists, how to cite it, the roadmap and the changelog.
+    Why the library exists, how to cite it, and the changelog.
 
 </div>
 

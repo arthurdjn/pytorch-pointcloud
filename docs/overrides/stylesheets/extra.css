@@ -183,7 +183,7 @@ div > div.n {
 }
 .md-typeset .tp-hero__lead strong {
   display: block;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--md-default-fg-color);
 }
 [data-md-color-scheme="slate"] .md-typeset .tp-hero__lead strong {
@@ -449,18 +449,22 @@ div > div.n {
 .md-typeset details summary, .admonition .admonition-title {
   color: var(--admonition-fg-color) !important;
 }
-/* FAQ entries: a neutral collapsible block with the question icon, the card surface and no type colour */
+/* FAQ entries: a bare collapsible block, the question in white with the chevron on the right, no icon, no fill */
 .md-typeset details.faq {
   --admonition-fg-color: var(--md-default-fg-color) !important;
   --admonition-bg-color: transparent !important;
+  margin: 0.5em 0;
   border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
 }
+[data-md-color-scheme="slate"] .md-typeset details.faq {
+  --admonition-fg-color: hsla(var(--md-hue), 0%, 100%, 1) !important;
+}
 .md-typeset details.faq > summary {
-  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+  padding-left: 0.8rem;
+  background-color: transparent;
 }
 .md-typeset details.faq > summary::before {
-  -webkit-mask-image: var(--md-admonition-icon--question);
-  mask-image: var(--md-admonition-icon--question);
+  display: none;
 }
 /* ----------- End Admonition ----------- */
 
@@ -470,7 +474,7 @@ div > div.n {
 .md-typeset .grid.cards > ol > li,
 .md-typeset .grid.cards > ul > li {
   position: relative;
-  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+  background-color: var(--tp-panel-surface);
   border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
 }
 .md-typeset .grid.cards > ol > li,
