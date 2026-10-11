@@ -449,7 +449,7 @@ div > div.n {
 .md-typeset details summary, .admonition .admonition-title {
   color: var(--admonition-fg-color) !important;
 }
-/* FAQ entries: a bare collapsible block, the question in white with the chevron on the right, no icon, no fill */
+/* FAQ entries: a bare collapsible block, the question in white with the chevron on the left, no icon, no fill */
 .md-typeset details.faq {
   --admonition-fg-color: var(--md-default-fg-color) !important;
   --admonition-bg-color: transparent !important;
@@ -460,11 +460,16 @@ div > div.n {
   --admonition-fg-color: hsla(var(--md-hue), 0%, 100%, 1) !important;
 }
 .md-typeset details.faq > summary {
-  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+  padding-left: 1.8rem;
   background-color: transparent;
 }
 .md-typeset details.faq > summary::before {
   display: none;
+}
+.md-typeset details.faq > summary::after {
+  right: auto;
+  left: 0.5rem;
 }
 /* ----------- End Admonition ----------- */
 
