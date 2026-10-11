@@ -15,6 +15,23 @@ if TYPE_CHECKING:
     from torch_pointcloud.models.threedetr import ThreeDETRTrainOutput
 
 _EPS = 1e-8
+_COMPONENT_NAMES = (
+    "sem_cls_loss",
+    "center_loss",
+    "size_loss",
+    "angle_cls_loss",
+    "angle_reg_loss",
+    "giou_loss",
+    "cardinality_error",
+)
+_COMPONENT_WEIGHTS = {
+    "sem_cls_loss": "sem_cls_weight",
+    "center_loss": "center_weight",
+    "size_loss": "size_weight",
+    "angle_cls_loss": "angle_cls_weight",
+    "angle_reg_loss": "angle_reg_weight",
+    "giou_loss": "giou_weight",
+}
 
 
 class _Targets:
@@ -444,23 +461,3 @@ class ThreeDETRLoss(nn.Module):
         union = (sum_vols - inter).clamp(min=_EPS)
         giou = inter / union - (1 - union / enclosing.clamp(min=_EPS))
         return giou * good
-
-
-_COMPONENT_NAMES = (
-    "sem_cls_loss",
-    "center_loss",
-    "size_loss",
-    "angle_cls_loss",
-    "angle_reg_loss",
-    "giou_loss",
-    "cardinality_error",
-)
-
-_COMPONENT_WEIGHTS = {
-    "sem_cls_loss": "sem_cls_weight",
-    "center_loss": "center_weight",
-    "size_loss": "size_weight",
-    "angle_cls_loss": "angle_cls_weight",
-    "angle_reg_loss": "angle_reg_weight",
-    "giou_loss": "giou_weight",
-}
