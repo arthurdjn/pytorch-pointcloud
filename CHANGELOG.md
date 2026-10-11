@@ -10,7 +10,7 @@ All notable changes to this project are documented in this file. The format is b
 - `create_pool(None)`, `create_adaptive_pool(None)` and `create_dropout(None)` return `None` like `create_norm` / `create_act` instead of raising (overloaded, so a non-`None` argument still types as `nn.Module`). `create_act("swish")` resolves to `nn.SiLU` instead of PyG's `swish` function.
 - `AnchorHeadLoss` accepts 9-column boxes and ignores their velocity columns; no call changes.
 - `TransFusionHeadLoss` supervises the velocity codes from 9-column boxes once `code_weights` enables them; its docstring no longer states that the velocity targets are always zero.
-- Removed `optim.generate_param_groups` (its overlapping groups are rejected by `torch.optim`); use `optim.param_groups(model, overrides=[dict(keyword=..., lr=...)])` (or `match=` with a `(name, param)` callable), and pass those kwargs as `LitModel(param_groups=...)`.
+- Renamed `optim.param_groups` to `generate_param_groups` and removed the MONAI-signature function of that name (its overlapping groups are rejected by `torch.optim`): `generate_param_groups(model, overrides=[dict(keyword=..., lr=...)])`, and the same kwargs as `LitModel(param_groups=...)`.
 
 ## 0.0.13 (2026-10-11)
 

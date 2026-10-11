@@ -33,7 +33,7 @@ def _no_decay_rule(rule: NoDecayRule) -> Callable[[str, Tensor], bool]:
     return predicate
 
 
-def param_groups(
+def generate_param_groups(
     model: nn.Module,
     *,
     weight_decay: float = 0.0,
@@ -66,10 +66,10 @@ def param_groups(
         ```pycon
         >>> import torch.nn as nn
         >>> model = nn.Sequential(nn.Linear(4, 4), nn.LayerNorm(4), nn.Linear(4, 2))
-        >>> groups = param_groups(model, weight_decay=0.05, no_decay=True)
+        >>> groups = generate_param_groups(model, weight_decay=0.05, no_decay=True)
         >>> [(len(g["params"]), g["weight_decay"]) for g in groups]
         [(2, 0.05), (4, 0.0)]
-        >>> groups = param_groups(model, weight_decay=0.05, overrides=[dict(keyword="2.", lr=1e-4)])
+        >>> groups = generate_param_groups(model, weight_decay=0.05, overrides=[dict(keyword="2.", lr=1e-4)])
         >>> [(len(g["params"]), g.get("lr")) for g in groups]
         [(4, None), (2, 0.0001)]
 
