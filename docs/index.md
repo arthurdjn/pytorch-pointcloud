@@ -89,7 +89,7 @@ interoperability across architectures easier.
 
 ## What's inside
 
-<div class="grid cards field-cards" markdown>
+<div class="grid cards" markdown>
 
 -   :material-rocket-launch: __[Get Started](get-started.md)__
 
