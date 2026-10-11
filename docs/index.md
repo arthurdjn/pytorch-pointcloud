@@ -21,38 +21,38 @@ title: PyTorch PointCloud
 <div class="tp-panels">
 
 <figure class="tp-panel">
-<img class="tp-panel__image tp-panel__image--light" src="assets/brand/panels/classification-light.webp" alt="Classification" width="1200" height="1200">
-<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/panels/classification-dark.webp" alt="Classification" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--light" src="assets/brand/figures/classification-light.webp" alt="Classification" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/figures/classification-dark.webp" alt="Classification" width="1200" height="1200">
 <figcaption><strong>Classification</strong><code>pointnet2-ssg.modelnet40.xu-yan</code></figcaption>
 </figure>
 
 <figure class="tp-panel">
-<img class="tp-panel__image tp-panel__image--light" src="assets/brand/panels/part-segmentation-light.webp" alt="Part segmentation" width="1200" height="1200">
-<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/panels/part-segmentation-dark.webp" alt="Part segmentation" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--light" src="assets/brand/figures/part-segmentation-light.webp" alt="Part segmentation" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/figures/part-segmentation-dark.webp" alt="Part segmentation" width="1200" height="1200">
 <figcaption><strong>Part segmentation</strong><code>pointnext-sm.shapenetpart.openpoints</code></figcaption>
 </figure>
 
 <figure class="tp-panel">
-<img class="tp-panel__image tp-panel__image--light" src="assets/brand/panels/indoor-light.webp" alt="Indoor segmentation + detection" width="1200" height="1200">
-<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/panels/indoor-dark.webp" alt="Indoor segmentation + detection" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--light" src="assets/brand/figures/indoor-light.webp" alt="Indoor segmentation + detection" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/figures/indoor-dark.webp" alt="Indoor segmentation + detection" width="1200" height="1200">
 <figcaption><strong>Indoor segmentation + detection</strong><code>ptv3-base.scannet20.pointcept</code><code>3detr-m.scannet.fair</code></figcaption>
 </figure>
 
 <figure class="tp-panel">
-<img class="tp-panel__image tp-panel__image--light" src="assets/brand/panels/similarity-light.webp" alt="Feature similarity" width="1200" height="1200">
-<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/panels/similarity-dark.webp" alt="Feature similarity" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--light" src="assets/brand/figures/similarity-light.webp" alt="Feature similarity" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/figures/similarity-dark.webp" alt="Feature similarity" width="1200" height="1200">
 <figcaption><strong>Feature similarity</strong><code>sonata-base.pretrain.fair</code></figcaption>
 </figure>
 
 <figure class="tp-panel">
-<img class="tp-panel__image tp-panel__image--light" src="assets/brand/panels/lidar-light.webp" alt="LiDAR segmentation + detection" width="1200" height="1200">
-<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/panels/lidar-dark.webp" alt="LiDAR segmentation + detection" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--light" src="assets/brand/figures/lidar-light.webp" alt="LiDAR segmentation + detection" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/figures/lidar-dark.webp" alt="LiDAR segmentation + detection" width="1200" height="1200">
 <figcaption><strong>LiDAR segmentation + detection</strong><code>spvcnn-119gmacs.semantickitti.mit-han-lab</code><code>voxelnext.nuscenes.openpcdet</code></figcaption>
 </figure>
 
 <figure class="tp-panel">
-<img class="tp-panel__image tp-panel__image--light" src="assets/brand/panels/survey-light.webp" alt="Large-scale features, 30M points" width="1200" height="1200">
-<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/panels/survey-dark.webp" alt="Large-scale features, 30M points" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--light" src="assets/brand/figures/survey-light.webp" alt="Large-scale features, 30M points" width="1200" height="1200">
+<img class="tp-panel__image tp-panel__image--dark" src="assets/brand/figures/survey-dark.webp" alt="Large-scale features, 30M points" width="1200" height="1200">
 <figcaption><strong>Large-scale features, 30M points</strong><code>sonata-base.pretrain.fair</code></figcaption>
 </figure>
 
