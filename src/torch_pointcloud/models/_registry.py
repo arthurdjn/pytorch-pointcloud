@@ -545,7 +545,8 @@ def create_model(
         name: Registered model name (see `list_models`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
             `part-segmentation` or `detection`). Optional when `name` is registered under a single task.
-        pretrained: Load the registered pretrained weights. Mutually exclusive with `checkpoint_path`.
+        pretrained: Load the registered pretrained weights, warning when their license is non-commercial. Mutually
+            exclusive with `checkpoint_path`.
         checkpoint_path: Local checkpoint to load instead of the registered weights. Supports `torch.save`
             files, `.safetensors`, and Lightning checkpoints (the wrapped network is extracted).
         return_info: Also return the registry entry (`ModelInfoDict`), with the resolved `task` and the effective
@@ -609,6 +610,13 @@ def create_model(
                 f"No pretrained weights are registered for model {name!r}. Pass `pretrained=False` for a random "
                 f"initialization, or use `list_models(task={task!r}, pretrained=True)` to list the models that ship "
                 "weights."
+            )
+        license = weights.get("license", "")
+        if "-NC" in license.upper():
+            warnings.warn(
+                f"Pretrained weights of {name!r} are released under {license} (non-commercial); check the license terms "
+                "before using them.",
+                stacklevel=2,
             )
 
         local_path = resolve_weights(name, weights["url"])
