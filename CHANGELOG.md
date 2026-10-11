@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changelog entries are grouped under Added, Changed, Removed and Fixed, and an API change carries its one-line migration (see `CONTRIBUTING.md`).
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.
