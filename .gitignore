@@ -163,6 +163,7 @@ cython_debug/
 weights/**
 data/**
 docs/api/**
+docs/changelog.md
 docs/assets/data/
 docs/examples/**
 docs/scripts/**
