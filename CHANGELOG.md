@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Fixed the stem and pooling BatchNorm `eps` of the Point Transformer V3 segmentation checkpoints (`1e-3`).
+- Added `datasets.semantickitti.SEMANTIC_KITTI_LEARNING_MAP`, the official 19-class learning map of the single-scan benchmark.
 - Fixed `PointTransformerSegmentation` to match the reference network: the attention MLP of `PointTransformerBlock` starts with normalization and activation, the query / key / value projections carry a bias (`PointTransformerConv(bias=True)`), the decoder opens with a `PointTransformerGlobalTransition` that mixes a global mean feature into the coarsest stage followed by one transformer block, and the head is `Linear -> norm -> act -> Linear` (architecture snapshots regenerated).
 
 ## 0.0.16 (2026-10-14)
