@@ -23,11 +23,12 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers import SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SemanticSegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.utils.conversion import (
     convert_from_spconv_tensor,
     convert_to_spconv_tensor,
@@ -604,4 +605,55 @@ def spformer_unet_scannet(**hparams: Any) -> SPFormerUNetSegmentation:
     ),
 )
 def spformer_unet_scannet20(**hparams: Any) -> SPFormerUNetSegmentation:
+    return SPFormerUNetSegmentation(**hparams)
+
+
+@register_model(
+    "spformer-unet.scannet20.open3d",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/spformer-unet.scannet20.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet20",
+        # NOTE: Open3D-ML's 68 is at voxel level; this is full resolution through the inverse map (68.5 at voxel level).
+        metrics={"mIoU": 67.71, "OA": 87.99},
+        classes=SCANNET20_CLASSES,
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            # 2 cm voxels, with the voxel index as the position the network sees and the raw 0-255 colors as input.
+            T.Scale(keys=DataKeys.POS, scale=50.0),
+            T.Shift(keys=DataKeys.POS, method="min"),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="grid",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.NORMAL, DataKeys.INSTANCE],
+                reduce=["mean", "first", "first", "first"],
+                size=1.0,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.CopyItems(keys=DataKeys.COLOR, dst_keys=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=20,
+        channels=[32, 64, 96, 128, 160, 192, 224],
+        depths=1,
+        stem_kernel_size=3,
+        norm_kwargs=dict(eps=1e-4, momentum=0.01),
+        spatial_padding=96,
+    ),
+)
+def spformer_unet_open3d_scannet20_seg(**hparams: Any) -> SPFormerUNetSegmentation:
     return SPFormerUNetSegmentation(**hparams)

@@ -14,12 +14,13 @@ from torch_geometric.typing import Adj, OptTensor
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.point_transformer_conv import PointTransformerConv
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
-from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.ops.cluster import fps, knn, knn_graph, knn_interpolate
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -929,11 +930,40 @@ def _point_transformer_seg_transforms(
 
 
 @register_model(
-    "point-transformer.s3dis-area5",
+    "point-transformer.s3dis-area5.open3d",
     task="semantic-segmentation",
-    # No ported pretrained weights for Point Transformer yet.
-    weights=None,
-    transform=_point_transformer_seg_transforms([DataKeys.POS, DataKeys.COLOR], estimate_normals=True),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/point-transformer.s3dis-area5.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        # NOTE: Open3D-ML's 69.2 is a voxel-level validation on cropped rooms; this is every room at full resolution
+        # (68.2 under its protocol).
+        metrics={"mIoU": 67.72, "OA": 88.78},
+        classes=S3DIS_CLASSES,
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="min"),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
+                reduce=["mean", "first", "first"],
+                size=0.04,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="bbox"),
+            T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
     hparams=dict(
         in_channels=6,
         num_classes=13,
@@ -948,7 +978,7 @@ def _point_transformer_seg_transforms(
         decoder_num_neighbors=(16, 16, 16, 8),
     ),
 )
-def point_transformer_s3dis_area5(**hparams: Any) -> PointTransformerSegmentation:
+def point_transformer_open3d_s3dis_area5_seg(**hparams: Any) -> PointTransformerSegmentation:
     return PointTransformerSegmentation(**hparams)
 
 

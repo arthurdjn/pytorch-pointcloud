@@ -25,7 +25,11 @@ from torch_geometric.nn.pool.decimation import decimation_indices
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
+from torch_pointcloud.datasets.parislille3d import PARISLILLE3D_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.semantic3d import SEMANTIC3D_CLASSES
+from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES, SEMANTIC_KITTI_LEARNING_MAP
+from torch_pointcloud.datasets.toronto3d import TORONTO3D_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.randlanet_blocks import RandLANetResidualBlock
@@ -199,13 +203,6 @@ class RandLANetDecoder(nn.Module):
     linear+norm+act projection. The first block consumes the bottleneck features
     and the deepest encoder skip; subsequent blocks each cut the resolution by a
     stage of `decimation` until the finest (full-resolution) skip is reached.
-
-    Note:
-        Upstream RandLA-Net cats `[skip, interp]` while
-        `PointNet2FeaturePropagation` cats `[interp, skip]`. To preserve weight
-        equivalence with the upstream checkpoint, the conversion utilities
-        (`convert_randlanet_state_dict`, `convert_open3d_randlanet_state_dict`)
-        swap the first linear layer's column blocks per FP block.
 
     Args:
         in_channels: Channels at the bottleneck (input to the first FP).
@@ -758,3 +755,289 @@ def randlanet_tsunghanwu_semantickitti_seg(**hparams: Any) -> RandLANetSegmentat
             m.momentum = 0.99
 
     return model
+
+
+def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
+    model = RandLANetSegmentation(**hparams)
+    # The activation after the residual sum has slope 0.01; every other activation of the network 0.2.
+    for block in model.encoder.blocks:
+        block.act = nn.LeakyReLU(0.01)
+    return model
+
+
+@register_model(
+    "randlanet.semantickitti.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.semantickitti.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="semantickitti",
+        # NOTE: Open3D-ML's 52.8 belongs to a 2020 checkpoint it no longer publishes; its own code gives this one 43.2.
+        metrics={"mIoU": 46.18, "OA": 83.99},
+        classes=SEMANTIC_KITTI_CLASSES,
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
+                reduce="first",
+                size=0.06,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=19,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512],
+        fp_channels=[256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=512,
+        decimation=[4, 4, 4, 4],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_semantickitti_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
+
+
+@register_model(
+    "randlanet.s3dis-area3.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.s3dis-area3.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area3",
+        # NOTE: Open3D-ML's 70.9 is the best epoch of a patch-level validation; this is all of Area 3, full resolution.
+        metrics={"mIoU": 70.43, "OA": 87.90},
+        classes=S3DIS_CLASSES,
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
+                reduce=["mean", "first", "first"],
+                size=0.04,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=13,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_s3dis_area3_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
+
+
+@register_model(
+    "randlanet.toronto3d.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.toronto3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="toronto3d",
+        # NOTE: Open3D-ML's 74.0 is the best epoch over ten random patches; this is the whole L002 tile.
+        metrics={"mIoU": 73.88, "OA": 95.85},
+        classes=TORONTO3D_CLASSES[1:],
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 9), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.INTENSITY, DataKeys.GPS_TIME, DataKeys.SEGMENT],
+                reduce=["mean", "first", "first", "first"],
+                size=0.05,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid"),
+            T.Rescale(keys=DataKeys.POS, method="centroid_extent", eps=0.0),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=8,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_toronto3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
+
+
+@register_model(
+    "randlanet.semantic3d.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.semantic3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="semantic3d",
+        # NOTE: the two scenes Open3D-ML holds out; its 76.0 is the best epoch over ten random patches of them, and its
+        # own inference scores them 67.6 (the checkpoint takes most of the domfountain facades for vegetation).
+        metrics={"mIoU": 70.97, "OA": 83.39},
+        classes=SEMANTIC3D_CLASSES[1:],
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 9), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.INTENSITY, DataKeys.SEGMENT],
+                reduce=["mean", "first", "first"],
+                size=0.06,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=8,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
+
+
+@register_model(
+    "randlanet.parislille3d.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.parislille3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="parislille3d",
+        # NOTE: Open3D-ML's 70.0 is the authors' hidden-test figure; on Lille2 four classes under 0.2% of the points
+        # pull the mean down (ground, building, car and vegetation score 66 to 97).
+        metrics={"mIoU": 48.10, "OA": 96.08},
+        classes=PARISLILLE3D_CLASSES[1:],
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 10), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.INTENSITY, DataKeys.SEGMENT],
+                reduce="first",
+                size=0.06,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid"),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=9,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_parislille3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
