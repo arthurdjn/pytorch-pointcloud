@@ -157,7 +157,7 @@ div > div.n {
 }
 .md-typeset .tp-hero__banner {
   display: block;
-  width: min(100%, 26rem);
+  width: 100%;
   margin: 0 0 1.6rem;
 }
 .md-typeset .tp-hero__banner img {
@@ -237,6 +237,24 @@ div > div.n {
 .md-typeset code.tp-hero__install::before {
   content: "$ ";
   color: var(--md-default-fg-color--lighter);
+}
+/* On a phone the two buttons share a row and the install line sits under them at its own width, rather
+   than wrapping as a third flex item with the desktop gap in front of it */
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-hero__actions {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+  .md-typeset .tp-button {
+    padding: 0.42rem 0.7rem;
+    white-space: nowrap;
+  }
+  .md-typeset code.tp-hero__install {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-left: 0;
+  }
 }
 /* Prose under the hero keeps a readable measure; the card grid still spans the full width */
 .md-typeset .tp-section > p,
@@ -687,26 +705,18 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
 
 /* ----------- Start Hero panels ----------- */
 /* The six panels of the README sheet, laid out by the page instead of baked into one image, so the grid
-   reflows: three across, then two, then one on a phone. Each panel is rendered on the card surface, so
-   the card is its own background; one file per theme, since the ground is part of the picture */
+   reflows: three across, two on a phone, never one, since a single panel at phone width is taller than
+   the screen. Each panel is rendered on the card surface, so the card is its own background; one file
+   per theme, since the ground is part of the picture */
 .md-typeset .tp-panels {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin: 0 0 3.4rem;
 }
-@media screen and (max-width: 76.1875em) {
-  .md-typeset .tp-panels {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media screen and (max-width: 44.9375em) {
-  .md-typeset .tp-panels {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.8rem;
-  }
-}
 .md-typeset .tp-panel {
+  container-type: inline-size;
+  width: 100%;
   margin: 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
@@ -714,7 +724,7 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
   background-color: #ffffff;
 }
 [data-md-color-scheme="slate"] .md-typeset .tp-panel {
-  background-color: #151a21;
+  background-color: #151a22;
 }
 .md-typeset .tp-panel__image {
   display: block;
@@ -730,22 +740,27 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
 [data-md-color-scheme="slate"] .md-typeset .tp-panel__image--dark {
   display: block;
 }
+/* Caption sizes follow the card width, which runs from ~160px on a phone to ~400px on a wide screen */
 .md-typeset .tp-panel figcaption {
   margin: 0;
-  padding: 0.2rem 1rem 0.9rem;
+  padding: 0.2rem clamp(0.5rem, 4cqw, 1rem) clamp(0.6rem, 3.6cqw, 0.9rem);
   font-size: 0.66rem;
   font-style: normal;
   line-height: 1.5;
   text-align: left;
   color: var(--md-default-fg-color--light);
 }
+/* Title and checkpoint names are one line each, clipped rather than wrapped, so every caption has the
+   same height whatever the column width */
 .md-typeset .tp-panel figcaption strong {
   display: block;
-  font-size: 0.8rem;
+  overflow: hidden;
+  font-size: clamp(0.6rem, 5.4cqw, 0.8rem);
   font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--md-default-fg-color);
 }
-/* Checkpoint names are one unbroken dotted token each: one line each, clipped rather than wrapped */
 .md-typeset .tp-panel figcaption code {
   display: block;
   overflow: hidden;
@@ -756,5 +771,11 @@ body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--md-default-fg-color--light);
+}
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
 }
 /* ----------- End Hero panels ----------- */
