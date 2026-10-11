@@ -119,6 +119,8 @@ nav = [
         ] },
         { "Advanced" = [
             { "Driving Detection" = "examples/07-driving-detection.md" },
+            { "Large-Scale LiDAR" = "examples/08-large-scale-lidar.md" },
+            { "Dental Scans" = "examples/09-dental-scans.md" },
         ] },
     ] },
     { "API Reference" = [

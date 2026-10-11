@@ -16,6 +16,7 @@ from pathlib import Path
 
 import nbformat
 from nbconvert import MarkdownExporter
+from nbconvert.preprocessors import TagRemovePreprocessor
 
 REPO = "arthurdjn/pytorch-pointcloud"
 BRANCH = "main"
@@ -71,7 +72,10 @@ def main() -> None:
     args = parser.parse_args()
 
     exporter = MarkdownExporter(exclude_output=True)
-    notebooks = sorted(args.dir.glob("*/*.ipynb"))
+    # A cell tagged `hide` renders nothing on the site: the card thumbnails are drawn by such cells.
+    exporter.register_preprocessor(TagRemovePreprocessor(remove_cell_tags={"hide"}), enabled=True)
+
+    notebooks = sorted(path for path in args.dir.glob("*/*.ipynb") if path.parent.name != "executed")
     for path in notebooks:
         out = render(path, exporter)
         print(f"Rendered: {out.relative_to(REPO_DIR)}")
