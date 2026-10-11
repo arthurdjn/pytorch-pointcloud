@@ -538,8 +538,9 @@ def create_model(
     """Build a registered model, optionally loading pretrained or local checkpoint weights.
 
     Weights load through a head-adapting policy: overriding `num_classes` (or `in_channels`) keeps the
-    matching backbone weights and leaves the rebuilt head at its fresh initialization with a warning, while
-    an untouched configuration loads completely. Model keys missing from the checkpoint raise.
+    matching backbone weights and leaves the rebuilt head at its fresh initialization with a warning, a headless
+    `num_classes=0` build drops the registered head keys silently, and an untouched configuration loads
+    completely. Model keys missing from the checkpoint raise.
 
     Args:
         name: Registered model name (see `list_models`).
@@ -609,7 +610,12 @@ def create_model(
             )
 
         local_path = resolve_weights(name, weights["url"])
-        load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+        state_dict = read_state_dict(local_path)
+        if task != "detection" and hparams.get("num_classes") == 0:
+            # A headless build has no module for the registered checkpoint's head keys, so they are expected.
+            model_keys = model.state_dict()
+            state_dict = {key: value for key, value in state_dict.items() if key in model_keys}
+        load_state_dict(model, state_dict, source=weights["url"])
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)
         if not path.exists():

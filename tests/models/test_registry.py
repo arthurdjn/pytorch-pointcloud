@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterator
 from unittest.mock import Mock
@@ -244,7 +245,9 @@ def test_list_models_invalid_task_raises() -> None:
 
 
 def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path) -> None:
-    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
@@ -258,6 +261,16 @@ def test_create_model_pretrained_num_classes_override_adapts_head(_register_pret
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert model.fc.weight.shape == (3, 8)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+
+
+def test_create_model_pretrained_headless_loads_backbone_without_warning(_register_pretrained_dummy: Path) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=0)
+    assert isinstance(model, DummyClassificationModel)
+    assert isinstance(model.fc, nn.Identity)
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
 
 
