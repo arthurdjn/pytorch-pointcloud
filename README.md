@@ -41,6 +41,8 @@
 > [!WARNING]
 > `torch-pointcloud` is in alpha and active development. Expect breaking changes.
 
+<br>
+
 ## Installation
 
 ```bash
@@ -49,6 +51,8 @@ pip install torch-pointcloud
 
 Most models also need `pyg-lib`, and some a CUDA extension (`spconv`, `flash-attn`, ...), built for your torch and
 CUDA versions. Read the [installation](https://pytorch-pointcloud.org/latest/installation/) documentation for further details.
+
+<br>
 
 ## Quickstart
 
@@ -87,6 +91,8 @@ tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 
 See the [examples](https://github.com/arthurdjn/pytorch-pointcloud/tree/main/examples) directory for benchmarks and training recipes.
 
+<br>
+
 ## Why torch-pointcloud?
 
 `torch-pointcloud` is a library of pretrained models that makes common layers and backbones easy to reuse. It does
@@ -95,9 +101,13 @@ not replace research-first codebases such as
 [MMDetection3D](https://github.com/open-mmlab/mmdetection3d) or [OpenPoints](https://github.com/guochengqian/openpoints)
 but it complements them with a common interface that makes benchmarking and interoperability across architectures easier.
 
+<br>
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CONTRIBUTING.md) for the development setup and the pull request checks.
+
+<br>
 
 ## Citation
 
@@ -113,6 +123,8 @@ If you find this project useful, please consider citing:
   license = {Apache-2.0}
 }
 ```
+
+<br>
 
 ## License
 
