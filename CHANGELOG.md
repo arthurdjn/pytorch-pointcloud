@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Every package `__init__` defines `__all__`, `transforms` imports its classes explicitly and `implicit_reexport` is off, so the documented names type-check under `mypy --strict`.
+- `torch_pointcloud.ops` imports its modules: `tp.ops.box3d`, `tp.ops.cluster`, `tp.ops.voxelization`, ... are reachable after `import torch_pointcloud`.
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.
