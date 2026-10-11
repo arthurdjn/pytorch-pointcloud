@@ -1,8 +1,5 @@
 ---
 title: PyTorch PointCloud
-hide:
-  - navigation
-  - toc
 ---
 
 <section class="tp-hero">
