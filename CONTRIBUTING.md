@@ -6,7 +6,7 @@ following two categories:
 1. You want to implement a new feature:
    - In general, we accept any features as long as they fit the scope of this package. If you are unsure about this or
      need help on the design / implementation of your feature, post about it in an issue.
-1. You want to fix a bug:
+2. You want to fix a bug:
    - Feel free to send a Pull Request (PR) any time you encounter a bug. Please provide a clear and concise description
      of what the bug was. If you are unsure about if this is a bug at all or how to fix, post about it in an issue.
 
@@ -24,7 +24,7 @@ To develop `torch-pointcloud` on your machine, here are some tips:
    cd pytorch-pointcloud
    ```
 
-1. Install the package in editable mode together with the development tooling, using [`uv`](https://docs.astral.sh/uv/):
+2. Install the package in editable mode together with the development tooling, using [`uv`](https://docs.astral.sh/uv/):
 
    ```bash
    uv sync --all-extras --dev
@@ -33,7 +33,7 @@ To develop `torch-pointcloud` on your machine, here are some tips:
    This mode will symlink the Python files from the current local source tree into the Python install.
    Hence, if you modify a Python file, you do not need to re-install the package again.
 
-1. Follow the [installation instructions](https://pytorch-pointcloud.org/latest/installation/) to install the PyG
+3. Follow the [installation instructions](https://pytorch-pointcloud.org/latest/installation/) to install the PyG
    kernels (`pyg-lib`) for your PyTorch and CUDA versions. The other extensions (`spconv`,
    `flash-attn`, `mamba`, `ocnn`, `torchsparse`, `sptr`) are optional and only necessary if you develop a feature that
    uses one of these libraries.
@@ -45,7 +45,7 @@ To develop `torch-pointcloud` on your machine, here are some tips:
    where `${TORCH}` should be replaced by your PyTorch version (*e.g.*, `2.10.0`), and `${CUDA}` should be replaced by
    your CUDA version (*e.g.*, `cpu`, `cu126`, or `cu128`).
 
-1. Ensure that you have a working installation by running the entire test suite with
+4. Ensure that you have a working installation by running the entire test suite with
 
    ```bash
    make test
@@ -80,29 +80,41 @@ Every time you send a Pull Request, your commit will be built and checked agains
    make type
    ```
 
-1. Ensure that the entire test suite passes.
+2. Ensure that the entire test suite passes.
    Please feel encouraged to provide a test with your submitted code.
 
-1. Give your PR a [Conventional Commits](https://www.conventionalcommits.org/) title, *e.g.*,
+3. Give your PR a [Conventional Commits](https://www.conventionalcommits.org/) title, *e.g.*,
    `fix: handle empty batches in nms3d`. The allowed types are `feat`, `fix`, `docs`, `chore`, `refactor`, `perf`,
    `test`, `build`, `ci` and `revert`, and the subject starts with a lowercase character.
 
-1. Add your feature / bugfix to the [`CHANGELOG.md`](CHANGELOG.md), under the `Unreleased` section.
+4. Add your feature / bugfix to the [`CHANGELOG.md`](CHANGELOG.md), under the `Unreleased` section, grouped under
+   `### Added`, `### Changed`, `### Removed` or `### Fixed`.
    If multiple PRs move towards integrating a single feature, it is advised to group them together into one bullet
-   point.
+   point. A change of the public API (a renamed or removed public name, a signature, a registered model name, a
+   `state_dict` key or a `DataKeys` member) states its one-line migration, *e.g.*,
+   `layers.separate_branch` -> `prediction_branch`.
+
+5. If `state_dict` keys change, migrate the released weights of every registered checkpoint that loads them with a
+   key-rename script, verify a strict load, upload the migrated file and pin the registry entry to its new Hub
+   revision. Then regenerate the architecture snapshots under `tests/data/models/` and check that the diff is exactly
+   the intended key change:
+
+   ```bash
+   uv run --no-sync pytest tests/models/test_registered_models.py -k architecture --force-regen
+   ```
 
 ## Building Documentation
 
 To build the documentation:
 
 1. [Build and install](#developing-pytorch-pointcloud) the package from source.
-1. Generate the documentation via:
+2. Generate the documentation via:
 
    ```bash
    make docs
    ```
 
-1. Or serve it locally with live reload at `127.0.0.1:8000`:
+3. Or serve it locally with live reload at `127.0.0.1:8000`:
 
    ```bash
    make serve
