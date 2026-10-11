@@ -931,7 +931,7 @@ class ScanNet(PointCloudDataset):
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/,
         and extracted it under `data/ScanNet/raw`, you can load the dataset as follows:
 
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ScanNet
 
         dataset = ScanNet(
@@ -947,7 +947,9 @@ class ScanNet(PointCloudDataset):
 
         For example, to use the `raw_category` column and the `id` column, you can do:
 
-        ```python
+        ```{.python notest}
+        from torch_pointcloud.datasets import ScanNet
+
         dataset = ScanNet(
             root="data",
             version="v2",
@@ -1450,7 +1452,7 @@ class ScanNet20(ScanNet):
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
         and extracted it under `data/ScanNet/raw`, you can load the benchmark labels as follows:
 
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ScanNet20
 
         dataset = ScanNet20(root="data", split="val")
@@ -1559,7 +1561,7 @@ class ScanNet200(ScanNet):
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
         and extracted it under `data/ScanNet/raw`, you can load the benchmark labels as follows:
 
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ScanNet200
 
         dataset = ScanNet200(root="data", split="val")

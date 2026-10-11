@@ -258,7 +258,8 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
         from torch_pointcloud.utils.data import collate, select_inputs
 
         model, info = tp.create_model("pointnet.modelnet40", return_info=True)
-        batch = collate([info["transform"]({"pos": torch.rand(2048, 3)})])
+        samples = [info["transform"]({"pos": torch.rand(2048, 3), "normal": torch.rand(2048, 3)}) for _ in range(2)]
+        batch = collate(samples)
         logits = model(*select_inputs(batch, info["input_keys"]))
         ```
     """

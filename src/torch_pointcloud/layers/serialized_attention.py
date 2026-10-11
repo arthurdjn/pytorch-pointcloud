@@ -131,6 +131,10 @@ class RelativePositionalEncoding(nn.Module):
 
     Example:
         ```python
+        import torch
+
+        from torch_pointcloud.layers import RelativePositionalEncoding
+
         rpe = RelativePositionalEncoding(patch_size=8, num_heads=4)
         bias = rpe(torch.randint(0, 16, (2, 8, 3)))
         bias.shape  # (2, 4, 8, 8)

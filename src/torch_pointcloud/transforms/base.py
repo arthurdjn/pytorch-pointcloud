@@ -56,6 +56,7 @@ class Transform(metaclass=ABCMeta):
         as follows:
 
         ```python
+        import torch
         from torch import Tensor
 
         from torch_pointcloud.transforms import Transform
@@ -135,7 +136,7 @@ class Compose(Transform, Randomizable):
         we can do the following:
 
         ```python
-        from torch import Tensor
+        import torch
 
         from torch_pointcloud.transforms import Compose, RandomSample, Rescale
 

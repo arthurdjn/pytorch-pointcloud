@@ -28,7 +28,7 @@ def kpconv_deform_regularizer(module: nn.Module, fitting_power: float = 1.0, rep
         `module` has none.
 
     Example:
-        ```python
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.layers import KPConv
         >>> from torch_pointcloud.losses import kpconv_deform_regularizer

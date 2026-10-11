@@ -44,7 +44,7 @@ def load_kitti_calib(calib_file: PathLike) -> KittiCalib:
         A `KittiCalib` dict holding the `P2`, `R0_rect`, and `Tr_velo_to_cam` arrays.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets.kitti import load_kitti_calib
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
@@ -82,10 +82,12 @@ def lidar_to_rect(points: np.ndarray, calib: KittiCalib) -> np.ndarray:
         - Output: $(N, 3)$.
 
     Example:
-        ```python
+        ```{.python notest}
+        import numpy as np
         from torch_pointcloud.datasets.kitti import lidar_to_rect, load_kitti_calib
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
         rect = lidar_to_rect(points, calib)
         ```
     """
@@ -108,10 +110,12 @@ def rect_to_img(points: np.ndarray, calib: KittiCalib) -> Tuple[np.ndarray, np.n
         - Output `pixels`: $(N, 2)$, `depth`: $(N,)$.
 
     Example:
-        ```python
+        ```{.python notest}
+        import numpy as np
         from torch_pointcloud.datasets.kitti import lidar_to_rect, load_kitti_calib, rect_to_img
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
         pixels, depth = rect_to_img(lidar_to_rect(points, calib), calib)
         ```
     """
@@ -137,11 +141,13 @@ def rect_to_lidar(points: np.ndarray, calib: KittiCalib) -> np.ndarray:
         - Output: $(N, 3)$.
 
     Example:
-        ```python
-        from torch_pointcloud.datasets.kitti import load_kitti_calib, rect_to_lidar
+        ```{.python notest}
+        import numpy as np
+        from torch_pointcloud.datasets.kitti import lidar_to_rect, load_kitti_calib, rect_to_lidar
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
-        lidar = rect_to_lidar(centers, calib)
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
+        lidar = rect_to_lidar(lidar_to_rect(points, calib), calib)  # back to `points`
         ```
     """
     r0_ext = np.eye(4, dtype=np.float32)
@@ -171,10 +177,12 @@ def fov_flag(points: np.ndarray, image_shape: Tuple[int, int], calib: KittiCalib
         - Output: $(N,)$.
 
     Example:
-        ```python
+        ```{.python notest}
+        import numpy as np
         from torch_pointcloud.datasets.kitti import fov_flag, load_kitti_calib
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
         points = points[fov_flag(points, (375, 1242), calib)]
         ```
     """
@@ -201,7 +209,7 @@ def load_kitti_boxes(label_file: PathLike, calib: KittiCalib) -> Dict[str, np.nd
         `occlusion` $(K,)$, and `bbox_height` $(K,)$.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets.kitti import load_kitti_boxes, load_kitti_calib
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
@@ -252,7 +260,7 @@ def _read_image_shape(image_path: PathLike) -> Tuple[int, int]:
         The image `(height, width)` in pixels.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets.kitti import _read_image_shape
 
         height, width = _read_image_shape("data/KITTI/raw/training/image_2/000000.png")
@@ -297,7 +305,7 @@ class KITTI(PointCloudDataset):
     Example:
         Assuming the raw split is extracted under `data/KITTI/raw/training/`:
 
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import KITTI
 
         dataset = KITTI(root="data", train=True)

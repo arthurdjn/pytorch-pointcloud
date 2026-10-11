@@ -66,6 +66,9 @@ class CornerLoss(nn.Module):
 
     Example:
         ```python
+        import torch
+        from torch_pointcloud.losses import CornerLoss
+
         criterion = CornerLoss()
         box = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.3]])
         criterion(box, box).item()  # 0.0

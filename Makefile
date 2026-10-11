@@ -53,6 +53,7 @@ doctest-docs: ## Run python code blocks in source docstrings and the docs markdo
 	$(CMD) pytest --markdown-docs --markdown-docs-syntax=superfences $(SRC) $(DOCS) \
 		--ignore=$(DOCS)/scripts --ignore=$(DOCS)/examples --ignore=$(SRC)/torch_pointcloud/lightning \
 		$(addprefix --ignore=,$(NOTEBOOK_PAGES))
+	$(CMD) pytest $(TESTS)/test_docstring_examples.py
 
 # Documentation
 

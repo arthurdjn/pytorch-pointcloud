@@ -258,6 +258,8 @@ class Shift(DictTransform):
         a single `Shift` suffices:
 
         ```python
+        from torch_pointcloud.transforms import Shift
+
         Shift(keys="pos", method="bbox", axes=[0, 1])
         ```
     """
@@ -315,6 +317,7 @@ class BBoxCenter(DictTransform):
 
     Example:
         ```python
+        import torch
         from torch_pointcloud.transforms import BBoxCenter
 
         data = {"block_bbox": torch.tensor([0.0, 0.0, 0.0, 1.5, 1.5, 2.8])}
@@ -504,6 +507,7 @@ class AxisMinOffset(DictTransform):
         i.e. computing the height above the local floor.
 
         ```python
+        import torch
         from torch_pointcloud.transforms import AxisMinOffset
 
         data = {

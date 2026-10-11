@@ -282,7 +282,7 @@ class ModelNet10(_ModelNet):
         num_workers: The number of workers to use for parallel processing.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ModelNet10
 
         train_dataset = ModelNet10(root="data", train=True, download=True)
@@ -318,7 +318,7 @@ class ModelNet40(_ModelNet):
         num_workers: The number of workers to use for parallel processing.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ModelNet40
 
         train_dataset = ModelNet40(root="data", train=True, download=True)
@@ -362,7 +362,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         - `label`: scalar class index.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ModelNetNormalResampled
 
         train_dataset = ModelNetNormalResampled(root="data", variant="40", train=True, download=True)
@@ -555,7 +555,7 @@ class ModelNet40Hdf5(PointCloudDataset):
         show_progress: If `True`, displays a progress bar of the download and loading.
 
     Example:
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import ModelNet40Hdf5
 
         train_dataset = ModelNet40Hdf5(root="data", train=True, download=True)
