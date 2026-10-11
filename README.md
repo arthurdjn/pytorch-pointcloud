@@ -27,27 +27,29 @@
   <p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/classification-dark-title.webp">
-    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/classification-light-title.webp" alt="Classification" width="32%">
+    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/classification-light-title.webp" alt="Classification" width="30%" hspace="8">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/part-segmentation-dark-title.webp">
-    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/part-segmentation-light-title.webp" alt="Part segmentation" width="32%">
+    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/part-segmentation-light-title.webp" alt="Part segmentation" width="30%" hspace="8">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/indoor-dark-title.webp">
-    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/indoor-light-title.webp" alt="Indoor segmentation and detection" width="32%">
+    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/indoor-light-title.webp" alt="Indoor segmentation and detection" width="30%" hspace="8">
   </picture>
+  </p>
+  <p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/similarity-dark-title.webp">
-    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/similarity-light-title.webp" alt="Feature similarity" width="32%">
+    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/similarity-light-title.webp" alt="Feature similarity" width="30%" hspace="8">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/lidar-dark-title.webp">
-    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/lidar-light-title.webp" alt="LiDAR segmentation and detection" width="32%">
+    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/lidar-light-title.webp" alt="LiDAR segmentation and detection" width="30%" hspace="8">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/survey-dark-title.webp">
-    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/survey-light-title.webp" alt="Large-scale features" width="32%">
+    <img src="https://raw.githubusercontent.com/arthurdjn/pytorch-pointcloud/main/docs/assets/brand/figures/survey-light-title.webp" alt="Large-scale features" width="30%" hspace="8">
   </picture>
   </p>
 </div>
