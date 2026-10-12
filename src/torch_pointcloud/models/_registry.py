@@ -301,6 +301,11 @@ def resolve_weights(name: str, url: str) -> Path:
     return local_path
 
 
+def _is_non_commercial_license(license: Optional[str]) -> bool:
+    """Whether a license identifier restricts the weights to non-commercial use (e.g. `CC-BY-NC-4.0`)."""
+    return license is not None and "-NC" in license.upper()
+
+
 def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[Task, ModelDict]:
     """The registry entry of `name`, with its task inferred when the name is registered under a single one."""
     if task is not None and task not in _REGISTERED_MODELS.keys():
@@ -611,8 +616,8 @@ def create_model(
                 f"initialization, or use `list_models(task={task!r}, pretrained=True)` to list the models that ship "
                 "weights."
             )
-        license = weights.get("license", "")
-        if "-NC" in license.upper():
+        license = weights.get("license")
+        if _is_non_commercial_license(license):
             warnings.warn(
                 f"Pretrained weights of {name!r} are released under {license} (non-commercial); check the license terms "
                 "before using them.",
