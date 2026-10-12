@@ -547,13 +547,13 @@ class NuScenes(PointCloudDataset):
         num_workers: Worker processes for processing, or `None` for sequential processing.
 
     Example:
-        Assuming the raw `v1.0-trainval` release is extracted under `data/NuScenes/raw/`:
+        Assuming the raw `v1.0-mini` release is extracted under `data/NuScenes/raw/` (`split="val"` reads
+        `v1.0-trainval` from the same place):
 
-        ```{.python skip}
+        ```{.python notest}
         from torch_pointcloud.datasets import NuScenes
 
-        dataset = NuScenes(root="data", split="val", num_workers=8)
-        len(dataset)          # 6019
+        dataset = NuScenes(root="data", split="mini_val", num_workers=8)
         sample = dataset[0]
         sample["pos"].shape   # torch.Size([N, 3])
         sample["box"].shape   # torch.Size([K, 7])

@@ -1,8 +1,7 @@
 """Run the ```python fences of the `torch_pointcloud` docstrings and the docs pages as pasted.
 
 A plain `python` fence runs in the default suite. A `{.python notest}` fence reads the fixture datasets under `data/`
-or downloads pretrained weights, so it runs only with `--run-docs`, from a copy of `tests/data/datasets`. A
-`{.python skip}` fence never runs.
+or downloads pretrained weights, so it runs only with `--run-docs`, from a copy of `tests/data/datasets`.
 """
 
 import re

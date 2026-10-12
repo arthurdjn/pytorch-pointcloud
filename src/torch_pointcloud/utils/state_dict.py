@@ -34,10 +34,14 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
             `model.`-prefixed key to extract.
 
     Example:
-        ```{.python skip}
+        ```{.python notest}
+        import torch
+        from torch import nn
+
         from torch_pointcloud.utils.state_dict import read_state_dict
 
-        state_dict = read_state_dict("checkpoints/last.ckpt")
+        torch.save({"state_dict": nn.Linear(3, 2).state_dict()}, "checkpoint.pt")
+        state_dict = read_state_dict("checkpoint.pt")
         ```
     """
     path = Path(path)
@@ -86,10 +90,15 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
         RuntimeError: If `strict` and the checkpoint is missing keys the model requires.
 
     Example:
-        ```{.python skip}
+        ```{.python notest}
+        import torch
+        from torch import nn
+
         from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 
-        load_state_dict(model, read_state_dict("checkpoints/last.ckpt"), source="last.ckpt")
+        torch.save(nn.Linear(3, 2).state_dict(), "checkpoint.pt")
+        model = nn.Linear(3, 2)
+        load_state_dict(model, read_state_dict("checkpoint.pt"), source="checkpoint.pt")
         ```
     """
     model_state = model.state_dict()

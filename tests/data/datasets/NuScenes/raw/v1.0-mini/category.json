@@ -1,0 +1,22 @@
+[
+  {
+    "token": "893463116daa7ff83c931872f795a3e4",
+    "name": "vehicle.car",
+    "description": ""
+  },
+  {
+    "token": "b0198cad0f2444c710c588c2a4d7d331",
+    "name": "human.pedestrian.adult",
+    "description": ""
+  },
+  {
+    "token": "17f2285d17077b7739446f7f3db9360b",
+    "name": "movable_object.barrier",
+    "description": ""
+  },
+  {
+    "token": "a0faeb8b22847f272be24dbed34bdcae",
+    "name": "animal",
+    "description": ""
+  }
+]
