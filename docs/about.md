@@ -1,6 +1,6 @@
 # About
 
-:pytorch-pointcloud-mini: `torch-pointcloud` is a :pytorch: [PyTorch](https://pytorch.org) library for deep learning on point clouds: models, pretrained weights, datasets, transforms, losses, metrics and inferers. The design was heavily inspired by :torch: [timm](https://github.com/huggingface/pytorch-image-models) and :pyg: [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/). Point clouds expect packed batches, the PyG layout, so a model trained on one benchmark runs in another codebase without changing the tensor layout.
+:pytorch-pointcloud-mini: `torch-pointcloud` is a :pytorch: [PyTorch](https://pytorch.org) library for deep learning on point clouds: models, pretrained weights, datasets, transforms, losses, metrics and inferers. The design was heavily inspired by :pytorch: [timm](https://github.com/huggingface/pytorch-image-models) and :pyg: [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/). Point clouds expect packed batches, the PyG layout, so a model trained on one benchmark runs in another codebase without changing the tensor layout.
 
 _This project is independent and has no affiliation with the PyTorch team._
 
