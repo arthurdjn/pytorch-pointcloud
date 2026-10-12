@@ -3362,7 +3362,7 @@ wheels = [
 
 [[package]]
 name = "torch-pointcloud"
-version = "0.0.13"
+version = "0.0.14"
 source = { editable = "." }
 dependencies = [
     { name = "h5py" },
