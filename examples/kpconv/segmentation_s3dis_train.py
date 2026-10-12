@@ -19,7 +19,7 @@ from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.losses import KPConvDeformRegularizer
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import param_groups
+from torch_pointcloud.optim import generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -221,7 +221,7 @@ def configure_model(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(model, overrides=[dict(keyword="offset", lr=args.lr * 0.1)])  # deform_lr_factor
+    groups = generate_param_groups(model, overrides=[dict(keyword="offset", lr=args.lr * 0.1)])  # deform_lr_factor
     optimizer = torch.optim.SGD(groups, lr=args.lr, momentum=args.momentum)
 
     # Stepped once per epoch: lr x 0.1^(1/150) per epoch.

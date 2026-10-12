@@ -18,7 +18,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import PolyLR, param_groups
+from torch_pointcloud.optim import PolyLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -237,7 +237,7 @@ def configure_model(args: Namespace) -> nn.Module:
 
 def configure_optimizers(args: Namespace, model: nn.Module, steps_per_epoch: int) -> tuple[Optimizer, LRScheduler]:
     # The transformer blocks train at a tenth of the base learning rate.
-    groups = param_groups(
+    groups = generate_param_groups(
         model,
         weight_decay=args.weight_decay,
         overrides=[dict(keyword="transformer_block", lr=args.lr * TRANSFORMER_LR_SCALE)],

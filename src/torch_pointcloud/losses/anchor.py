@@ -132,8 +132,8 @@ class AnchorHeadLoss(nn.Module):
         Args:
             output: The head's raw output: `cls` $(B, H, W, A_\text{loc} \cdot C)$,
                 `box` $(B, H, W, A_\text{loc} \cdot 7)$ and `dir_cls` $(B, H, W, A_\text{loc} \cdot 2)$.
-            data: Ground truth: packed `box` $(K, 7)$ full-extent, `label` $(K,)$ ($0$-based classes)
-                and `batch_box` $(K,)$ per-box scene index.
+            data: Ground truth: packed `box` $(K, 7)$ full-extent (the velocity columns of $(K, 9)$ boxes are
+                ignored), `label` $(K,)$ ($0$-based classes) and `batch_box` $(K,)$ per-box scene index.
 
         Returns:
             A dict with the scalar `loss` and detached `cls_loss`, `box_loss`, `dir_loss`.
@@ -182,7 +182,7 @@ class AnchorHeadLoss(nn.Module):
             gt_c = gt_labels == (c + 1)
             targets = assign_anchor_targets(
                 anchors[anchor_idx],
-                gt_boxes[gt_c],
+                gt_boxes[gt_c, :7],
                 gt_labels[gt_c],
                 matched_threshold=self.matched_thresholds[c],
                 unmatched_threshold=self.unmatched_thresholds[c],
