@@ -42,7 +42,7 @@ Your own data and a plain PyTorch training loop.
 
     ![Several clouds collated into one packed batch, one color per sample](../assets/tutorials/thumbs/04-custom-dataset.png)
 
-    Wrap your own point cloud files in a dataset with disk caching and packed-batch collation.
+    Wrap your own point cloud files in a `Dataset`, attach a transform, and collate them into packed batches.
 
 -   :material-school: __[Train a model](05-training.md)__
 

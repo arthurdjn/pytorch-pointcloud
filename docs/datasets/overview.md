@@ -74,20 +74,10 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 
 | Dataset                                                | Task  | Notes                                                                                                                                   |
 | ------------------------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **[PointCloudDataset](../api/datasets/pointcloud.md)** | (any) | Abstract base class all loaders build on: `raw/` + `processed/` disk layout, `download` / `process` hooks. Subclass it for custom data. |
+| **[PointCloudDataset](../api/datasets/pointcloud.md)** | (any) | Base class of the loaders: the `root/<name>/raw` and `processed` paths and their existence checks. It has no download, process or transform hook; a loader implements `__getitem__` and `__len__`, and any `torch.utils.data.Dataset` returning sample dicts works as well. |
 
 ## Dict keys
 
-All datasets emit dicts using the standard key conventions from `DataKeys` in `torch_pointcloud.utils.data`:
-
-| Key        | Shape    | Description                                 |
-| ---------- | -------- | ------------------------------------------- |
-| `pos`      | $(N, 3)$ | 3D coordinates                              |
-| `color`    | $(N, 3)$ | RGB (uint8 or float, depending on dataset)  |
-| `normal`   | $(N, 3)$ | Surface normals (when available)            |
-| `segment`  | $(N,)$   | Semantic labels (segmentation datasets)     |
-| `instance` | $(N,)$   | Instance IDs (ScanNet)                      |
-| `label`    | scalar   | Object class (classification datasets)      |
-| `face`     | $(F, 3)$ | Triangle indices (ModelNet / mesh datasets) |
-
-After `collate`, per-point tensors are concatenated along axis 0 and a `batch` key of shape $(N,)$ gives each point's source scene.
+Every loader returns sample dicts keyed by `DataKeys` (`torch_pointcloud.utils.data`): `pos`, `color`, `normal`,
+`segment`, `instance`, `label`, `box`, `face`, ... The [data format](../data-format.md) page lists each key with its
+shape and dtype, and how `collate` batches it; the task pages below note what each dataset adds.

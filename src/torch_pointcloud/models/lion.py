@@ -855,7 +855,7 @@ class TransFusionHead(nn.Module):
 
     A shared conv produces a BEV feature map and a dense class heatmap; the top `num_proposals` heatmap
     peaks initialize object queries that attend (self- then local-cross-attention) to BEV features via
-    a [`TransformerDecoderLayer`][torch_pointcloud.models.lion.TransformerDecoderLayer]. Per-query box
+    a [`TransformerDecoderLayer`][torch_pointcloud.layers.transformer.TransformerDecoderLayer]. Per-query box
     attributes are regressed by a
     [`SeparateHeadTransfusion`][torch_pointcloud.models.lion.SeparateHeadTransfusion]. `decode` rescores
     by IoU and applies per-task circular NMS (nuScenes ped/cone) to yield final boxes.

@@ -87,6 +87,7 @@ nav = [
         { "Overview" = "index.md" },
         { "Installation" = "installation.md" },
         { "Quick Start" = "get-started.md" },
+        { "Data Format" = "data-format.md" },
     ] },
     { "Models" = [
         { "Overview" = "models/overview.md" },
@@ -312,6 +313,11 @@ nav = [
             { "state_dict" = "api/utils/state_dict.md" },
             { "types" = "api/utils/types.md" },
         ] },
+    ] },
+    { "About" = [
+        { "About" = "about.md" },
+        { "FAQ" = "faq.md" },
+        { "Changelog" = "changelog.md" },
     ] },
 ]
 
@@ -543,6 +549,22 @@ admonition = { example = "lucide/book-open-check", note = "lucide/info", tip = "
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/arthurdjn/pytorch-pointcloud"
+name = "torch-pointcloud on GitHub"
+
+[[project.extra.social]]
+icon = "simple/pypi"
+link = "https://pypi.org/project/torch-pointcloud/"
+name = "torch-pointcloud on PyPI"
+
+[[project.extra.social]]
+icon = "simple/huggingface"
+link = "https://huggingface.co/torch-pointcloud"
+name = "Pretrained weights on Hugging Face"
+
+[[project.extra.social]]
+icon = "simple/zenodo"
+link = "https://doi.org/10.5281/zenodo.22159632"
+name = "Zenodo DOI"
 
 # ----------------------------------------------------------------------------
 # Markdown extensions
@@ -559,6 +581,8 @@ permalink_title = "Anchor link to this section"
 
 # PyMdown extensions
 [project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
 [project.markdown_extensions.pymdownx.superfences]
 [project.markdown_extensions.pymdownx.highlight]
 pygments_lang_class = true
@@ -622,3 +646,9 @@ canonical_version = "latest"
 # ----------------------------------------------------------------------------
 [project.plugins.exclude]
 glob = ["plugins/*", "__pycache__/*", "scripts/*"]
+
+# ----------------------------------------------------------------------------
+# Minify the generated HTML
+# ----------------------------------------------------------------------------
+[project.plugins.minify]
+minify_html = true

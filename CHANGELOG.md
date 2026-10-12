@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the Data Format, FAQ and About pages to the documentation.
 - Every package `__init__` defines `__all__`, `transforms` imports its classes explicitly and `implicit_reexport` is off, so the documented names type-check under `mypy --strict`.
 - `torch_pointcloud.ops` imports its modules: `tp.ops.box3d`, `tp.ops.cluster`, `tp.ops.voxelization`, ... are reachable after `import torch_pointcloud`.
 - Removed the `TORCH_POINTCLOUD_MODELS_DIR` variable: the pretrained weights always live under `<cache>/models`, and `TORCH_POINTCLOUD_CACHE_DIR` moves the cache.

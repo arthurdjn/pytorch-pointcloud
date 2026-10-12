@@ -66,6 +66,10 @@ notebooks: ## Render the committed notebooks to Markdown (docs/<section>/*.ipynb
 api: ## Regenerate the per-module API reference stubs (docs/api/)
 	$(CMD) python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
 
+.PHONY: changelog
+changelog: ## Render CHANGELOG.md as the changelog page (docs/changelog.md), unreleased section included
+	$(CMD) python docs/scripts/build_changelog.py --unreleased
+
 .PHONY: papers
 papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
 	$(CMD) python docs/scripts/build_paper_cards.py
@@ -74,11 +78,11 @@ papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
 	rm -rf .cache
 
 .PHONY: docs
-docs: tables notebooks api ## Generate documentation
+docs: tables notebooks api changelog ## Generate documentation
 	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical build --strict
 
 .PHONY: serve
-serve: tables notebooks api ## Serve documentation
+serve: tables notebooks api changelog ## Serve documentation
 	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical serve
 
 # Docker (isolated CUDA environments, see docker/Dockerfile)

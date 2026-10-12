@@ -66,7 +66,7 @@ class PointCloudDataset(Dataset):
 
     def __repr__(self) -> str:
         head = "Dataset " + self.__class__.__name__
-        body = [f"Number of points: {self.__len__():,}"]
+        body = [f"Number of samples: {self.__len__():,}"]
         if self.data_dir is not None:
             body.append(f"Data location: {self.data_dir}")
         body += self.extra_repr().splitlines()

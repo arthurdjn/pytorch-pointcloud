@@ -183,15 +183,23 @@ div > div.n {
 }
 .md-typeset .tp-hero__lead strong {
   display: block;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--md-default-fg-color);
 }
+[data-md-color-scheme="slate"] .md-typeset .tp-hero__lead strong {
+  color: #fff;
+}
+/* The links read like the links of the body: the page's link colour and a heavier weight than the lead */
 .md-typeset .tp-hero__lead a {
-  font-weight: 500;
-  color: inherit !important;
+  font-weight: 600;
+  color: var(--md-typeset-a-color) !important;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
   text-underline-offset: 0.2em;
+}
+/* The hero section is parsed as Markdown for the badges in the lead, which wraps the banner link in a paragraph */
+.md-typeset .tp-hero > p:has(> .tp-hero__banner) {
+  margin: 0;
 }
 .md-typeset .tp-hero__lead a:hover {
   text-decoration-color: var(--md-accent-fg-color);
@@ -299,6 +307,10 @@ div > div.n {
   margin-left: 0.5em;
   font-size: 0.7em;
   font-weight: normal;
+  color: var(--md-default-fg-color--light);
+}
+.doc-heading a.doc-source-link:hover {
+  color: var(--md-accent-fg-color);
 }
 .doc-heading span.doc-object-name > span.doc-object-path {
   color: color-mix(in srgb, var(--md-default-fg-color) 75%, transparent);
@@ -437,16 +449,46 @@ div > div.n {
 .md-typeset details summary, .admonition .admonition-title {
   color: var(--admonition-fg-color) !important;
 }
+/* FAQ entries: a bare collapsible block, the question in white with the chevron on the left, no icon, no fill */
+.md-typeset details.faq {
+  --admonition-fg-color: var(--md-default-fg-color) !important;
+  --admonition-bg-color: transparent !important;
+  margin: 0.5em 0;
+  padding-left: 1.2rem;
+  border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+[data-md-color-scheme="slate"] .md-typeset details.faq {
+  --admonition-fg-color: hsla(var(--md-hue), 0%, 100%, 1) !important;
+}
+/* The summary bleeds back to the box edge so the chevron sits on it, and the question text lines up with the answer */
+.md-typeset details.faq > summary {
+  margin-left: -1.2rem;
+  padding-right: 0.8rem;
+  padding-left: 1.2rem;
+  background-color: transparent;
+}
+.md-typeset details.faq > summary::before {
+  display: none;
+}
+.md-typeset details.faq > summary::after {
+  right: auto;
+  left: 0;
+}
 /* ----------- End Admonition ----------- */
 
 /* ----------- Start Cards ----------- */
 /* A surface of its own, so a card is legible as a card: the page background alone left only the
-   border to carry the shape. Kept off the code surface, which the inline chips inside cards use */
+   border to carry the shape. The code surface, like the code blocks; the inline chips inside cards get
+   their own fill below so they stay visible on it */
 .md-typeset .grid.cards > ol > li,
 .md-typeset .grid.cards > ul > li {
   position: relative;
-  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+  background-color: var(--md-code-bg-color);
   border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+.md-typeset .grid.cards > ol > li code,
+.md-typeset .grid.cards > ul > li code {
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 7%, transparent);
 }
 .md-typeset .grid.cards > ol > li,
 .md-typeset .grid.cards > ul > li,
@@ -475,7 +517,8 @@ div > div.n {
 }
 /* Instant previews open on every internal link, and that overlay makes the whole card one, so a preview would cover
    the card being clicked. The popup is a child of `body`; its host carries `aria-haspopup` while it is open */
-body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
+body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"],
+body:has(.tp-hero__actions a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
   display: none;
 }
 /* Links cited in the body sit above that overlay so they stay reachable */

@@ -35,16 +35,11 @@ scene = pipeline({"pos": pos, "color": color})
 
 ### Sampling keys
 
-Any transform that changes the number of points keeps `pos`, `x`, `segment` and `batch` aligned at the new resolution and records how to get back:
-
-| Key              | Shape                  | Written by                                                                                                | Meaning                                                                 |
-| ---------------- | ---------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `origin_pos`     | $(N_\text{origin}, 3)$ | a `CopyItems` step in every registered pipeline                                                           | the source cloud, in the same frame as `pos`                            |
-| `origin_segment` | $(N_\text{origin},)$   | the same step, when the pipeline carries labels                                                           | the source labels, in the model's label space                           |
-| `inverse`        | $(N_\text{origin},)$   | `Voxelize`, `DivisiblePad` through `dst_inverse_key`                                                      | source row to predictor row: `preds[inverse]` scores at full resolution |
-| `index`          | $(N,)$                 | the selection samplers (`FarthestPointSample`, `RandomSample`, `SphereCrop`, ...) through `dst_index_key` | predictor row to source row: `origin_pos[index]` is `pos`               |
-
-Chained steps compose these maps, so they always address the outermost source. Registered pipelines set the keys; set them on your own samplers to get the maps.
+A transform that changes the number of points keeps `pos`, `x`, `segment` and `batch` aligned at the new resolution,
+and records how to get back when given the `dst_*` keys: `inverse` from `Voxelize` and `DivisiblePad`
+(`dst_inverse_key`), `index` from the selection samplers (`dst_index_key`), next to the `origin_pos` copy the
+registered pipelines keep. The [sampling keys](../data-format.md#sampling-keys) of the data format page define the
+four keys and how they compose.
 
 ## Geometry / shifting
 

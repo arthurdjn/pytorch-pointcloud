@@ -2,14 +2,14 @@
 title: PyTorch PointCloud
 ---
 
-<section class="tp-hero">
+<section class="tp-hero" markdown>
   <h1 class="tp-visually-hidden">PyTorch PointCloud</h1>
   <a class="tp-hero__banner" href="https://github.com/arthurdjn/pytorch-pointcloud"><img src="assets/pytorch-pointcloud.png" alt="PyTorch PointCloud" width="1080" height="223"></a>
-  <p class="tp-hero__lead">
+  <p class="tp-hero__lead" markdown="span">
     <strong>Deep learning on point clouds, with PyTorch.</strong>
     Models, pretrained weights, datasets, transforms and inferers, in the style of
-    <a href="https://github.com/huggingface/pytorch-image-models">timm</a> and
-    <a href="https://pytorch-geometric.readthedocs.io/">PyG</a>.
+    :github: [timm](https://github.com/huggingface/pytorch-image-models) and
+    :pyg: [PyG](https://pytorch-geometric.readthedocs.io/).
   </p>
   <p class="tp-hero__actions">
     <a class="tp-button tp-button--primary" href="get-started/">Get started</a>
@@ -93,7 +93,7 @@ interoperability across architectures easier.
 
 -   :material-rocket-launch: __[Get Started](get-started.md)__
 
-    Install, run your first model, and learn the library's conventions.
+    Install, run a first model, and learn the data format.
 
 -   :material-cube-outline: __[Models](models/overview.md)__
 
@@ -107,6 +107,10 @@ interoperability across architectures easier.
 
     Composable, non-mutating dict transforms inspired by :monai: [MONAI](https://docs.monai.io/).
 
+-   :material-layers-triple: __[Inferers](inferers/overview.md)__
+
+    Sliding windows, voxel partitions, potential spheres and test-time augmentation for scenes of any size.
+
 -   :material-school: __[Tutorials](examples/index.md)__
 
     Ready-to-use notebooks, from a first classification to survey-scale inference.
@@ -114,6 +118,10 @@ interoperability across architectures easier.
 -   :material-book-open-page-variant: __[API Reference](api/index.md)__
 
     Auto-generated reference for every public class and function.
+
+-   :material-information-outline: __[About](about.md)__
+
+    Why the library exists, how to cite it, and the changelog.
 
 </div>
 
