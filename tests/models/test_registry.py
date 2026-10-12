@@ -275,12 +275,14 @@ def test_create_model_pretrained_registered_num_classes_keeps_head(_register_pre
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
-def test_create_model_pretrained_in_channels_override_warns(_register_pretrained_dummy: Path) -> None:
-    with pytest.warns(UserWarning, match=r"mismatched shapes, keeping their initialization: encoder\.weight\.$"):
+def test_create_model_pretrained_in_channels_override_keeps_fresh_stem(_register_pretrained_dummy: Path) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, in_channels=4)
     assert isinstance(model, DummyClassificationModel)
     assert model.encoder.weight.shape == (8, 4)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    assert torch.equal(model.encoder.bias, state_dict["encoder.bias"])
     assert isinstance(model.fc, nn.Linear)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 

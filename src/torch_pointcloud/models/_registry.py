@@ -538,8 +538,8 @@ def create_model(
     """Build a registered model, optionally loading pretrained or local checkpoint weights.
 
     Registered weights load into the registered configuration, then an overridden `num_classes` rebuilds the head
-    at its fresh initialization (`0` drops it). Other overrides (e.g. `in_channels`) keep the matching weights and
-    skip the mismatched ones with a warning. Model keys missing from the checkpoint raise.
+    at its fresh initialization (`0` drops it). Other overrides (e.g. `in_channels`) keep the matching weights, and
+    the keys whose shape changed keep their initialization. Model keys missing from the checkpoint raise.
 
     Args:
         name: Registered model name (see `list_models`).
