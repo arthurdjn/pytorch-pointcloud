@@ -1,0 +1,825 @@
+:root, 
+[data-md-color-scheme="default"] {
+  --md-default-fg-color--lightest: var(--md-code-bg-color);
+  --tp-panel-surface: #ffffff;
+  --tp-button-primary: var(--md-default-fg-color);
+  --md-typeset-a-color: var(--md-default-fg-color) !important;
+  --md-typeset-table-color: var(--md-code-bg-color);
+
+  /* Admonition color */
+  --admonition-note-fg-color: #448aff;
+  --admonition-note-bg-color: #448aff1a;
+  --admonition-abstract-fg-color: #00b0ff;
+  --admonition-abstract-bg-color: #00b0ff1a;
+  --admonition-info-fg-color: #00b8d4;
+  --admonition-info-bg-color: #00b8d41a;
+  --admonition-tip-fg-color: #00bfa5;
+  --admonition-tip-bg-color: #00bfa51a;
+  --admonition-success-fg-color: #00c853;
+  --admonition-success-bg-color: #00c8531a;
+  --admonition-question-fg-color: #64dd17;
+  --admonition-question-bg-color: #64dd171a;
+  --admonition-warning-fg-color: #ff9100;
+  --admonition-warning-bg-color: #ff91001a;
+  --admonition-failure-fg-color: #ff5252;
+  --admonition-failure-bg-color: #ff52521a;
+  --admonition-danger-fg-color: #ff1744;
+  --admonition-danger-bg-color: #ff17441a;
+  --admonition-bug-fg-color: #f50057;
+  --admonition-bug-bg-color: #f500571a;
+  --admonition-important-fg-color: #7c4dff;
+  --admonition-important-bg-color: #7c4dff1a;
+  --admonition-example-fg-color: var(--md-code-hl-operator-color);
+  --admonition-example-bg-color: var(--md-code-bg-color);
+  --admonition-quote-fg-color: var(--md-code-hl-operator-color);
+  --admonition-quote-bg-color: var(--md-code-bg-color);
+}
+[data-md-color-scheme="slate"] {
+  --md-default-fg-color--lightest: var(--md-code-bg-color);
+  --tp-panel-surface: #151a22;
+  --tp-button-primary: #ffffff;
+  --md-typeset-a-color: hsla(var(--md-hue), 0%, 100%, .9) !important;
+  --md-typeset-table-color: var(--md-code-bg-color);
+
+  /* Admonition color */
+  --admonition-note-fg-color: #448aff;
+  --admonition-note-bg-color: #448aff1a;
+  --admonition-abstract-fg-color: #00b0ff;
+  --admonition-abstract-bg-color: #00b0ff1a;
+  --admonition-info-fg-color: #00b8d4;
+  --admonition-info-bg-color: #00b8d41a;
+  --admonition-tip-fg-color: #00bfa5;
+  --admonition-tip-bg-color: #00bfa51a;
+  --admonition-success-fg-color: #00c853;
+  --admonition-success-bg-color: #00c8531a;
+  --admonition-question-fg-color: #64dd17;
+  --admonition-question-bg-color: #64dd171a;
+  --admonition-warning-fg-color: #ff9100;
+  --admonition-warning-bg-color: #ff91001a;
+  --admonition-failure-fg-color: #ff5252;
+  --admonition-failure-bg-color: #ff52521a;
+  --admonition-danger-fg-color: #ff1744;
+  --admonition-danger-bg-color: #ff17441a;
+  --admonition-bug-fg-color: #f50057;
+  --admonition-bug-bg-color: #f500571a;
+  --admonition-important-fg-color: #7c4dff;
+  --admonition-important-bg-color: #7c4dff1a;
+  --admonition-example-fg-color: var(--md-code-hl-operator-color);
+  --admonition-example-bg-color: var(--md-code-bg-color);
+  --admonition-quote-fg-color: var(--md-code-hl-operator-color);
+  --admonition-quote-bg-color: var(--md-code-bg-color);
+}
+
+/* ----------- Start Header & Footer ----------- */
+header.md-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--md-default-fg-color--lightest) 75%, transparent);
+}
+
+footer.md-footer {
+  border-top: 1px solid color-mix(in srgb, var(--md-default-fg-color--lightest) 75%, transparent);
+}
+[data-md-color-scheme="slate"] footer.md-footer .md-footer-meta {
+  /* background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 25%, transparent); */
+  background-color: black;
+}
+/* ----------- End Header & Footer ----------- */
+
+/* ----------- Start General ----------- */
+/* Text spacing */
+p, li {
+  line-height: 1.7;
+}
+/* Small border around inline code */
+p > code, a > code, li > code, td > code {
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
+}
+.md-content__inner a {
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+.md-content__inner b {
+  font-weight: 700;
+  color: var(--md-typeset-a-color) !important;
+}
+.md-content__inner p > a:hover {
+  text-decoration-color: var(--md-accent-fg-color) !important;
+}
+/* Larger font size for code blocks */
+.md-typeset code {
+  font-size: 0.9em !important;
+}
+/* Better spacing for lists */
+.md-typeset ol li, .md-typeset ul li {
+  margin-bottom: 0.25em !important;
+}
+/* Navbar link color */
+.md-sidebar.md-sidebar--secondary .md-nav__link--active {
+  color: var(--md-accent-fg-color);
+}
+/* Search button */
+.md-search button.md-search__button:hover {
+  background-color: var(--md-default-fg-color--lightest);
+}
+/* Search combobox */
+div > div.n {
+  background-color: red !important;
+}
+.md-nav__link {
+  line-height: 1.4;
+}
+.md-nav__link .md-ellipsis {
+  line-height: 1.1;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important; 
+}
+/* Smaller gap between nav items (default is 0.2rem) */
+.md-nav__list {
+  gap: 0.1rem;
+}
+/* ----------- End General ----------- */
+
+/* ----------- Start Homepage ----------- */
+/* The landing page hides both sidebars (front matter). The hero is the hand-drawn banner, mark and
+   wordmark together, with the copy under it */
+.md-typeset .tp-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 1.2rem 0 3rem;
+}
+/* The banner carries the wordmark, so the heading is kept for the outline and the tab only. Without
+   one in the content, the theme would print the page title above the banner */
+.md-typeset .tp-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.md-typeset .tp-hero__banner {
+  display: block;
+  width: 100%;
+  margin: 0 0 1.6rem;
+}
+.md-typeset .tp-hero__banner img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+@media screen and (max-width: 59.9375em) {
+  .md-typeset .tp-hero {
+    margin-top: 0.4rem;
+  }
+}
+.md-typeset .tp-hero__lead {
+  max-width: 36rem;
+  margin: 0 0 1.3rem;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-hero__lead strong {
+  display: block;
+  font-weight: 700;
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-hero__lead strong {
+  color: #fff;
+}
+/* The links read like the links of the body: the page's link colour and a heavier weight than the lead */
+.md-typeset .tp-hero__lead a {
+  font-weight: 600;
+  color: var(--md-typeset-a-color) !important;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.2em;
+}
+/* The hero section is parsed as Markdown for the badges in the lead, which wraps the banner link in a paragraph */
+.md-typeset .tp-hero > p:has(> .tp-hero__banner) {
+  margin: 0;
+}
+.md-typeset .tp-hero__lead a:hover {
+  text-decoration-color: var(--md-accent-fg-color);
+}
+.md-typeset .tp-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+/* Monochrome buttons: the mark is the only orange thing in the hero, and hover is the accent */
+.md-typeset .tp-button {
+  display: inline-block;
+  padding: 0.42rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 18%, transparent);
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600 !important;
+  line-height: 1.2;
+  color: var(--md-default-fg-color) !important;
+  text-decoration: none !important;
+  transition: border-color 125ms, background-color 125ms, color 125ms;
+}
+.md-typeset .tp-button:hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color) !important;
+}
+.md-typeset .tp-button--primary {
+  border-color: var(--tp-button-primary);
+  background-color: var(--tp-button-primary);
+  color: var(--md-default-bg-color) !important;
+}
+.md-typeset .tp-button--primary:hover {
+  border-color: var(--md-accent-fg-color);
+  background-color: var(--md-accent-fg-color);
+  color: #fff !important;
+}
+.md-typeset code.tp-hero__install {
+  margin-left: 0.4rem;
+  padding: 0.42rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  border-radius: 0.3rem;
+  font-size: 0.66rem !important;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset code.tp-hero__install::before {
+  content: "$ ";
+  color: var(--md-default-fg-color--lighter);
+}
+/* On a phone the two buttons share a row and the install line sits under them at its own width, rather
+   than wrapping as a third flex item with the desktop gap in front of it */
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-hero__actions {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+  .md-typeset .tp-button {
+    padding: 0.42rem 0.7rem;
+    white-space: nowrap;
+  }
+  .md-typeset code.tp-hero__install {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-left: 0;
+  }
+}
+/* Prose under the hero keeps a readable measure; the card grid still spans the full width */
+.md-typeset .tp-section > p,
+.md-typeset .tp-section > h2,
+.md-typeset .tp-section > .highlight,
+.md-typeset .tp-section > pre {
+  max-width: 46rem;
+}
+/* ----------- End Homepage ----------- */
+
+/* ----------- Start Docstrings ----------- */
+.doc.doc-object + .doc.doc-object {
+  margin-top: 2em !important;
+}
+.doc-object span.doc-section-title {
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme=slate] .doc-object span.doc-section-title {
+  color: hsla(var(--md-hue), 0%, 100%, 1);
+}
+.doc-heading .doc-heading {
+  display: flex;
+  align-items: center;
+}
+.doc-heading code.doc-symbol {
+  padding: 0 0.4em;
+  border-color: color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 1em;
+  font-size: 0.85em;
+}
+.doc-heading span.doc-labels:first-child {
+  margin-left: 0;
+}
+.doc-heading span.doc-labels {
+  flex-shrink: 0;
+}
+.doc-heading a.doc-source-link {
+  margin-left: 0.5em;
+  font-size: 0.7em;
+  font-weight: normal;
+  color: var(--md-default-fg-color--light);
+}
+.doc-heading a.doc-source-link:hover {
+  color: var(--md-accent-fg-color);
+}
+.doc-heading span.doc-object-name > span.doc-object-path {
+  color: color-mix(in srgb, var(--md-default-fg-color) 75%, transparent);
+}
+.doc-object .doc-overloads {
+  display: none;
+}
+/* Color of the parameter names in the docstring signature */
+.doc-object .doc-signature span.n:not(:has(*)) {
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme=slate] .doc-object .doc-signature span.n:not(:has(*)) {
+  color: hsla(var(--md-hue), 0%, 100%, 0.85);
+}
+.doc-object .doc-signature span.n:has(*), 
+.doc-object .doc-signature span.p {
+  color: var(--md-default-fg-color--light);
+}
+.doc-object .doc-signature span.kc {
+  color: var(--md-code-hl-keyword-color);
+}
+/* Color of the parameter names in the docstring section */
+.doc-object ul li.doc-section-item b:first-of-type code {
+  color: var(--md-default-fg-color);
+}
+[data-md-color-scheme=slate] .doc-object ul li.doc-section-item b:first-of-type code {
+  color: hsla(var(--md-hue), 0%, 100%, 0.9);
+}
+/* ----------- End Docstrings ----------- */
+
+/* ----------- Table format like GitHub ----------- */
+.md-typeset__table {
+  width: 100%;
+}
+.md-typeset__table table:not([class]) {
+  display: table
+}
+.md-typeset__table table {
+  line-height: 1.2;
+  font-size: .75rem !important;
+}
+.md-typeset__table table thead, .md-typeset__table table tbody {
+  width: 100%;
+}
+.md-typeset__table table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--md-default-fg-color--lightest) 25%, transparent) !important;
+}
+/* Cells are mostly identifiers, so never split one mid-token: a column that cannot fit its longest
+   word widens the table and the wrapper scrolls, which stays readable where a broken name does not */
+.md-typeset__table table th, .md-typeset__table table td {
+  overflow-wrap: normal;
+}
+/* Catalog tables (a badged paper title in column two) carry full paper names. Auto layout hands the
+   width to whichever column has the longest unbreakable run, so pin the split and let titles wrap */
+.md-typeset__table table:has(td:nth-child(2) > .twemoji) {
+  table-layout: fixed;
+  width: 100%;
+}
+.md-typeset__table table:has(td:nth-child(2) > .twemoji) th:first-child {
+  width: 24%;
+}
+.md-typeset__table table:has(td:nth-child(2) > .twemoji) th:nth-child(2) {
+  width: 46%;
+}
+/* ----------- End Table format like GitHub ----------- */
+
+/* ----------- Start Admonition ----------- */
+.md-typeset details, .admonition {
+  --admonition-fg-color: var(--admonition-note-fg-color) !important;
+  --admonition-bg-color: var(--admonition-note-bg-color) !important;
+}
+.md-typeset details.note, .admonition.note {
+  --admonition-fg-color: var(--admonition-note-fg-color) !important;
+  --admonition-bg-color: var(--admonition-note-bg-color) !important;
+}
+.md-typeset details.abstract, .admonition.abstract {
+  --admonition-fg-color: var(--admonition-abstract-fg-color) !important;
+  --admonition-bg-color: var(--admonition-abstract-bg-color) !important;
+}
+.md-typeset details.info, .admonition.info {
+  --admonition-fg-color: var(--admonition-info-fg-color) !important;
+  --admonition-bg-color: var(--admonition-info-bg-color) !important;
+}
+.md-typeset details.tip, .admonition.tip {
+  --admonition-fg-color: var(--admonition-tip-fg-color) !important;
+  --admonition-bg-color: var(--admonition-tip-bg-color) !important;
+}
+.md-typeset details.success, .admonition.success {
+  --admonition-fg-color: var(--admonition-success-fg-color) !important;
+  --admonition-bg-color: var(--admonition-success-bg-color) !important;
+}
+.md-typeset details.question, .admonition.question {
+  --admonition-fg-color: var(--admonition-question-fg-color) !important;
+  --admonition-bg-color: var(--admonition-question-bg-color) !important;
+}
+.md-typeset details.warning, .admonition.warning {
+  --admonition-fg-color: var(--admonition-warning-fg-color) !important;
+  --admonition-bg-color: var(--admonition-warning-bg-color) !important;
+}
+.md-typeset details.failure, .admonition.failure {
+  --admonition-fg-color: var(--admonition-failure-fg-color) !important;
+  --admonition-bg-color: var(--admonition-failure-bg-color) !important;
+}
+.md-typeset details.danger, .admonition.danger {
+  --admonition-fg-color: var(--admonition-danger-fg-color) !important;
+  --admonition-bg-color: var(--admonition-danger-bg-color) !important;
+}
+.md-typeset details.bug, .admonition.bug {
+  --admonition-fg-color: var(--admonition-bug-fg-color) !important;
+  --admonition-bg-color: var(--admonition-bug-bg-color) !important;
+}
+.md-typeset details.example, .admonition.example {
+  --admonition-fg-color: var(--admonition-example-fg-color) !important;
+  --admonition-bg-color: var(--admonition-example-bg-color) !important;
+}
+.md-typeset details.quote, .admonition.quote {
+  --admonition-fg-color: var(--admonition-quote-fg-color) !important;
+  --admonition-bg-color: var(--admonition-quote-bg-color) !important;
+}
+.md-typeset details.important, .admonition.important {
+  --admonition-fg-color: var(--admonition-important-fg-color) !important;
+  --admonition-bg-color: var(--admonition-important-bg-color) !important;
+}
+
+.md-typeset details summary::before, .md-typeset details summary::after,
+.admonition .admonition-title::before, .admonition .admonition-title::after {
+  background-color: var(--admonition-fg-color) !important;
+}
+.md-typeset details pre code, .admonition pre code {
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
+}
+.md-typeset details, .admonition {
+    background-color: var(--admonition-bg-color) !important;
+    font-size: 0.75rem !important;
+}
+.md-typeset details summary, .admonition .admonition-title {
+  color: var(--admonition-fg-color) !important;
+}
+/* FAQ entries: a bare collapsible block, the question in white with the chevron on the left, no icon, no fill */
+.md-typeset details.faq {
+  --admonition-fg-color: var(--md-default-fg-color) !important;
+  --admonition-bg-color: transparent !important;
+  margin: 0.5em 0;
+  padding-left: 1.2rem;
+  border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+[data-md-color-scheme="slate"] .md-typeset details.faq {
+  --admonition-fg-color: hsla(var(--md-hue), 0%, 100%, 1) !important;
+}
+/* The summary bleeds back to the box edge so the chevron sits on it, and the question text lines up with the answer */
+.md-typeset details.faq > summary {
+  margin-left: -1.2rem;
+  padding-right: 0.8rem;
+  padding-left: 1.2rem;
+  background-color: transparent;
+}
+.md-typeset details.faq > summary::before {
+  display: none;
+}
+.md-typeset details.faq > summary::after {
+  right: auto;
+  left: 0;
+}
+/* ----------- End Admonition ----------- */
+
+/* ----------- Start Cards ----------- */
+/* A surface of its own, so a card is legible as a card: the page background alone left only the
+   border to carry the shape. The code surface, like the code blocks; the inline chips inside cards get
+   their own fill below so they stay visible on it */
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid.cards > ul > li {
+  position: relative;
+  background-color: var(--md-code-bg-color);
+  border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+.md-typeset .grid.cards > ol > li code,
+.md-typeset .grid.cards > ul > li code {
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 7%, transparent);
+}
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li:hover,
+.md-typeset .grid.cards > ul > li:hover {
+  box-shadow: none;
+}
+.md-typeset .grid.cards > ol > li:hover,
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+}
+.md-typeset .grid.cards > ol > li:hover .twemoji,
+.md-typeset .grid.cards > ul > li:hover .twemoji,
+.md-typeset .grid.cards > ol > li:hover a,
+.md-typeset .grid.cards > ul > li:hover a {
+  color: var(--md-accent-fg-color) !important;
+}
+/* The title link stretches over the card, so the whole card is the click target. Match the heading
+   line only: `:first-of-type` counts siblings, so a link in the body is "first" within its own
+   paragraph and would lay a second, later-painted overlay over the whole card */
+.md-typeset .grid.cards > ol > li > p:first-child a::after,
+.md-typeset .grid.cards > ul > li > p:first-child a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+/* Instant previews open on every internal link, and that overlay makes the whole card one, so a preview would cover
+   the card being clicked. The popup is a child of `body`; its host carries `aria-haspopup` while it is open */
+body:has(.grid.cards a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"],
+body:has(.tp-hero__actions a[aria-haspopup="dialog"]) > .md-tooltip2[role="dialog"] {
+  display: none;
+}
+/* Links cited in the body sit above that overlay so they stay reachable */
+.md-typeset .grid.cards > ol > li > p:not(:first-child) a,
+.md-typeset .grid.cards > ul > li > p:not(:first-child) a {
+  position: relative;
+  z-index: 1;
+}
+/* The heading is a flex row so the tile centres against the title itself; a fixed `vertical-align`
+   cannot track the line box and leaves the icon sitting low */
+.md-typeset .grid.cards > ol > li > p:first-child,
+.md-typeset .grid.cards > ul > li > p:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+/* The heading icon reads as a tile rather than a loose glyph, which gives the accent a shape to
+   fill on hover. Scoped to the heading line so badges cited in the body stay inline text size */
+.md-typeset .grid.cards > ol > li > p:first-child .twemoji,
+.md-typeset .grid.cards > ul > li > p:first-child .twemoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.3rem;
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 7%, transparent);
+  color: var(--md-default-fg-color--light);
+  transition: background-color 125ms, color 125ms;
+}
+.md-typeset .grid.cards > ol > li > p:first-child .twemoji svg,
+.md-typeset .grid.cards > ul > li > p:first-child .twemoji svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.md-typeset .grid.cards > ol > li:hover > p:first-child .twemoji,
+.md-typeset .grid.cards > ul > li:hover > p:first-child .twemoji {
+  background-color: color-mix(in srgb, var(--md-accent-fg-color) 16%, transparent);
+}
+/* The whole card is the target, so the title does not need to advertise itself as a link */
+.md-typeset .grid.cards > ol > li > p:first-child a,
+.md-typeset .grid.cards > ul > li > p:first-child a,
+.md-typeset .grid.cards > ol > li:hover > p:first-child a,
+.md-typeset .grid.cards > ul > li:hover > p:first-child a {
+  text-decoration: none;
+}
+/* A go-there affordance, kept out of the text flow by the card's own bottom padding */
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid.cards > ul > li {
+  padding-bottom: 2.2rem;
+}
+.md-typeset .grid.cards > ol > li::after,
+.md-typeset .grid.cards > ul > li::after {
+  content: "→";
+  position: absolute;
+  bottom: 0.8rem;
+  left: 0.8rem;
+  color: var(--md-default-fg-color--lighter);
+  transition: color 125ms;
+}
+.md-typeset .grid.cards > ol > li:hover::after,
+.md-typeset .grid.cards > ul > li:hover::after {
+  color: var(--md-accent-fg-color);
+}
+/* Tutorial cards carry a thumbnail under the title: the second paragraph of the card, bled out to
+   the card edges by cancelling its padding. The title stays `p:first-child`, so the click overlay
+   and the heading layout above keep applying to it untouched */
+.md-typeset .grid.cards.tutorial-cards > ol > li,
+.md-typeset .grid.cards.tutorial-cards > ul > li {
+  overflow: hidden;
+}
+.md-typeset .grid.cards.tutorial-cards > ol > li > p:nth-child(2),
+.md-typeset .grid.cards.tutorial-cards > ul > li > p:nth-child(2) {
+  margin: 0.6rem -0.8rem 0.8rem;
+}
+.md-typeset .grid.cards.tutorial-cards > ol > li img,
+.md-typeset .grid.cards.tutorial-cards > ul > li img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ----------- End Cards ----------- */
+
+/* ----------- Start Paper card ----------- */
+/* Reads as an embedded external artifact: the code surface is never used by prose */
+.md-typeset .paper-card {
+  position: relative;
+  margin: 1.6em 0;
+  padding: 0.9rem 1rem;
+  background-color: var(--md-code-bg-color);
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  border-radius: 0.2rem;
+}
+.md-typeset .paper-card::after {
+  content: "\2197";
+  position: absolute;
+  top: 0.7rem;
+  right: 0.9rem;
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--lighter);
+}
+.md-typeset .paper-card:hover::after,
+.md-typeset .paper-card:hover a {
+  color: var(--md-accent-fg-color) !important;
+}
+.md-typeset .paper-card > p {
+  margin: 0;
+}
+.md-typeset .paper-card__meta {
+  font-size: 0.6rem;
+  color: var(--md-default-fg-color--lighter);
+}
+/* Material forces code down to 0.9em, which drops it off the line's baseline */
+.md-typeset .paper-card__meta code {
+  padding: 0;
+  border: none !important;
+  background: none;
+  font-size: inherit !important;
+  color: inherit;
+}
+.md-typeset .paper-card__meta .twemoji {
+  width: auto;
+  height: 1.1em;
+  margin-right: 0.4em;
+  vertical-align: -0.2em;
+}
+/* Material pins every icon to a 1.125em square, which squashes a wordmark */
+.md-typeset .paper-card__meta .twemoji svg {
+  width: auto;
+  height: 100%;
+}
+/* A wordmark spells the publisher out in the art, so it needs the height a glyph does not */
+.md-typeset .paper-card__meta--wordmark .twemoji {
+  height: 1.5em;
+  margin-right: 0.5em;
+  vertical-align: -0.4em;
+}
+.md-typeset .paper-card__title {
+  margin-top: 0.7em !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.md-typeset .paper-card a {
+  text-decoration: none;
+}
+.md-typeset .paper-card__authors {
+  margin-top: 0.2em !important;
+  font-size: 0.64rem;
+  color: var(--md-default-fg-color--lighter);
+}
+.md-typeset .paper-card__abstract {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.5em !important;
+  font-size: 0.64rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color--light);
+}
+/* Each card holds exactly one link, and it stretches over the card as the click target */
+.md-typeset .paper-card a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.md-typeset .paper-card--preview::after {
+  content: none;
+}
+.md-typeset .paper-card--preview > p:first-child {
+  margin: 0 0 0.9rem 0;
+}
+/* Blending drops the page white into the card surface, so only the ink is left */
+.md-typeset .paper-card__header {
+  display: block;
+  width: calc(100% + 2rem);
+  margin-left: -1rem;
+  mix-blend-mode: darken;
+}
+[data-md-color-scheme="slate"] .md-typeset .paper-card__header {
+  filter: invert(1);
+  mix-blend-mode: lighten;
+}
+.md-typeset .paper-card--page > p:first-child {
+  margin: 0;
+}
+.md-typeset .paper-card__page {
+  display: block;
+  width: 100%;
+  background-color: #fff;
+  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 68%, transparent 97%);
+}
+[data-md-color-scheme="slate"] .md-typeset .paper-card__page {
+  filter: brightness(0.92);
+}
+.md-typeset .paper-card--page .paper-card__meta {
+  padding: 0 1rem 0.85rem 1rem;
+}
+.md-typeset .paper-card--page::after {
+  top: auto;
+  bottom: 0.75rem;
+}
+
+/* A real page: the top of page 1, its fade baked into the asset's alpha so no
+   runtime mask, blend or filter is needed (all three cost a repaint per scroll) */
+.md-typeset .paper-card--page {
+  padding: 0;
+  overflow: hidden;
+}
+.md-typeset .paper-card--page > p:first-child {
+  margin: 0;
+}
+.md-typeset .paper-card__page {
+  display: block;
+  width: 100%;
+}
+.md-typeset .paper-card--page .paper-card__meta {
+  padding: 0 1rem 0.85rem 1rem;
+}
+.md-typeset .paper-card--page::after {
+  top: auto;
+  bottom: 0.75rem;
+}
+
+/* ----------- End Paper card ----------- */
+
+/* ----------- Start Hero panels ----------- */
+/* The six panels of the README sheet, laid out by the page instead of baked into one image, so the grid
+   reflows: three across, two on a phone, never one, since a single panel at phone width is taller than
+   the screen. The panels are transparent, so the card colour is the `--tp-panel-surface` token; still
+   one file per theme, since the point colours are tuned to a light or a dark ground */
+.md-typeset .tp-panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0 0 3.4rem;
+}
+.md-typeset .tp-panel {
+  container-type: inline-size;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  border-radius: 0.5rem;
+  background-color: var(--tp-panel-surface);
+}
+.md-typeset .tp-panel__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.md-typeset .tp-panel__image--dark {
+  display: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-panel__image--light {
+  display: none;
+}
+[data-md-color-scheme="slate"] .md-typeset .tp-panel__image--dark {
+  display: block;
+}
+/* Caption sizes follow the card width, which runs from ~160px on a phone to ~400px on a wide screen */
+.md-typeset .tp-panel figcaption {
+  margin: 0;
+  padding: 0.2rem clamp(0.5rem, 4cqw, 1rem) clamp(0.6rem, 3.6cqw, 0.9rem);
+  font-size: 0.66rem;
+  font-style: normal;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--md-default-fg-color--light);
+}
+/* Title and checkpoint names are one line each, clipped rather than wrapped, so every caption has the
+   same height whatever the column width */
+.md-typeset .tp-panel figcaption strong {
+  display: block;
+  overflow: hidden;
+  font-size: clamp(0.6rem, 5.4cqw, 0.8rem);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-panel figcaption code {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border: none !important;
+  background-color: transparent;
+  font-size: 0.6rem !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--md-default-fg-color--light);
+}
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .tp-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+}
+/* ----------- End Hero panels ----------- */
