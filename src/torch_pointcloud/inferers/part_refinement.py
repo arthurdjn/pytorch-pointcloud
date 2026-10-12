@@ -121,11 +121,21 @@ class PartRefinementInferer(Inferer):
     All parameters are forwarded verbatim to `part_refinement_inference`.
 
     Example:
-        ```{.python notest}
+        ```python
+        import torch
+
+        import torch_pointcloud as tp
         from torch_pointcloud.inferers import PartRefinementInferer, SimpleInferer
 
+        model = tp.create_model("dgcnn.shapenetpart.an-tao").eval()
+        shapes = {
+            "pos": torch.rand(2048, 3),
+            "batch": torch.zeros(2048, dtype=torch.long),
+            "category": torch.nn.functional.one_hot(torch.tensor([0]), num_classes=16).float(),
+        }
+
         inferer = PartRefinementInferer(SimpleInferer())
-        scores = inferer(shapes, predictor=lambda d: model(d["x"], d["pos"], d["batch"], d["category"]))
+        scores = inferer(shapes, predictor=lambda d: model(None, d["pos"], d["batch"], d["category"]))
         labels = scores.argmax(dim=1)
         ```
     """

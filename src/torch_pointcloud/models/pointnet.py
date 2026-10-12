@@ -42,8 +42,15 @@ class PointNetEncoder(nn.Module):
         like:
 
         ```python
+        import torch
+        from torch_geometric.utils import scatter
+
+        from torch_pointcloud.models.pointnet import PointNetEncoder
+
         encoder = PointNetEncoder()
-        out = encoder(x, pos, batch)
+        pos = torch.rand(2048, 3)
+        batch = torch.arange(2).repeat_interleave(1024)
+        out = encoder(None, pos, batch)
         global_features = scatter(out, batch, dim=0, reduce="max")
         ```
 

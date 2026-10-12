@@ -128,7 +128,7 @@ class CatPool(nn.Module):
         Output: $(B, C \cdot P)$ where $P$ is the number of pools.
 
     Example:
-        ```{.python notest}
+        ```python
         import torch
         from torch_pointcloud.layers import CatPool
 

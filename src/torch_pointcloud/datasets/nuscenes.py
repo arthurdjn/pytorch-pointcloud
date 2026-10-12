@@ -549,7 +549,7 @@ class NuScenes(PointCloudDataset):
     Example:
         Assuming the raw `v1.0-trainval` release is extracted under `data/NuScenes/raw/`:
 
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import NuScenes
 
         dataset = NuScenes(root="data", split="val", num_workers=8)
@@ -849,9 +849,12 @@ def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float
 
     Example:
         ```python
+        import torch
         from torch_pointcloud.datasets.nuscenes import velocity_attributes
 
-        attributes = velocity_attributes(det["labels"], det["velocity"])
+        labels = torch.tensor([0, 0, 5])  # car, car, barrier
+        velocity = torch.tensor([[3.0, 0.0], [0.2, 0.0], [3.0, 0.0]])
+        velocity_attributes(labels, velocity)  # tensor([ 0,  2, -1]): vehicle.moving, vehicle.parked, none
         ```
     """
     moving = torch.linalg.norm(velocity, dim=1) > speed_threshold

@@ -28,7 +28,7 @@ class VoxelGridPool(nn.Module):
           cell index of every input point.
 
     Example:
-        ```python
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.layers import VoxelGridPool
         >>> pool = VoxelGridPool(grid_size=0.5)

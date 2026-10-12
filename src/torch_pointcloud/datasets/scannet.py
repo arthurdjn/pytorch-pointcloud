@@ -948,6 +948,8 @@ class ScanNet(PointCloudDataset):
         For example, to use the `raw_category` column and the `id` column, you can do:
 
         ```python
+        from torch_pointcloud.datasets import ScanNet
+
         dataset = ScanNet(
             root="data",
             version="v2",
@@ -1382,7 +1384,10 @@ class ScanNet(PointCloudDataset):
             The scene as a `DataKeys`-keyed dict of tensors plus its `DataKeys.SCENE` id.
 
         Example:
-            ```{.python notest}
+            ```python
+            from torch_pointcloud.datasets import ScanNet20
+
+            dataset = ScanNet20(root="data", split="val")
             scene = dataset.read_scene(dataset.processed_files[0])
             scene["pos"].shape  # (N, 3)
             ```
