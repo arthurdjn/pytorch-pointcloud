@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changelog entries are grouped under Added, Changed, Removed and Fixed, and an API change carries its one-line migration (see `CONTRIBUTING.md`).
 - `create_model` raises an `ImportError` naming the model and the installation page when an optional dependency is missing; `optional_import` tells a package that is not installed from one that does not meet its version requirement, and the flash attention errors point at `use_flash_attn=False`.
 - `DynamicMeanVFE.forward` takes `(x, pos, batch)` like every other packed layer; swap the first two arguments of existing `vfe(pos, x, batch)` calls.
 - `create_pool(None)`, `create_adaptive_pool(None)` and `create_dropout(None)` return `None` like `create_norm` / `create_act` instead of raising (overloaded, so a non-`None` argument still types as `nn.Module`). `create_act("swish")` resolves to `nn.SiLU` instead of PyG's `swish` function.
