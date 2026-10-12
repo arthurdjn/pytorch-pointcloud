@@ -478,12 +478,17 @@ div > div.n {
 
 /* ----------- Start Cards ----------- */
 /* A surface of its own, so a card is legible as a card: the page background alone left only the
-   border to carry the shape. Kept off the code surface, which the inline chips inside cards use */
+   border to carry the shape. The code surface, like the code blocks; the inline chips inside cards get
+   their own fill below so they stay visible on it */
 .md-typeset .grid.cards > ol > li,
 .md-typeset .grid.cards > ul > li {
   position: relative;
-  background-color: var(--tp-panel-surface);
+  background-color: var(--md-code-bg-color);
   border-color: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+.md-typeset .grid.cards > ol > li code,
+.md-typeset .grid.cards > ul > li code {
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 7%, transparent);
 }
 .md-typeset .grid.cards > ol > li,
 .md-typeset .grid.cards > ul > li,

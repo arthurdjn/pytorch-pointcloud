@@ -35,7 +35,7 @@
 ??? faq "Where are the weights stored?"
 
     Under `~/.cache/torch-pointcloud/models/<repo>/<revision>/<file>`, the same path as on the Hub.
-    `TORCH_POINTCLOUD_MODELS_DIR` moves the models cache and `TORCH_POINTCLOUD_CACHE_DIR` the whole cache. A checkpoint
+    `TORCH_POINTCLOUD_CACHE_DIR` moves the cache. A checkpoint
     pinned to a new revision is downloaded again.
 
 ??? faq "Can I run offline?"
