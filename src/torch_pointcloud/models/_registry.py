@@ -23,6 +23,7 @@ Task = Literal["pretraining", "classification", "semantic-segmentation", "part-s
 
 HF_ENDPOINT = "https://huggingface.co"
 HF_URL_RE = re.compile(r"^hf://(?P<namespace>[^/]+)/(?P<repo>[^/]+)/resolve/(?P<revision>[^/]+)/(?P<file>.+)$")
+_INSTALLATION_URL = "https://pytorch-pointcloud.org/latest/installation/"
 
 
 class WeightsDict(TypedDict):
@@ -560,6 +561,8 @@ def create_model(
             registers no weights.
         TypeError: If the entry registers architecture hparams only and the data-dependent arguments
             (typically `in_channels` and `num_classes`) are not passed.
+        ImportError: If the model needs an optional dependency that is not installed or does not meet its version
+            requirement; the original error is chained.
         FileNotFoundError: If the checkpoint file does not exist, or if the registered weights are absent from
             the models cache and cannot be downloaded.
 
@@ -583,6 +586,10 @@ def create_model(
     hparams = {**entry["hparams"], **kwargs}
     try:
         model = entry["fn"](**hparams)
+    except ImportError as err:
+        raise ImportError(
+            f"Model {name!r} needs an optional dependency that could not be imported: {err} See {_INSTALLATION_URL}."
+        ) from err
     except TypeError as err:
         if "required positional argument" not in str(err) and "required keyword-only argument" not in str(err):
             raise
