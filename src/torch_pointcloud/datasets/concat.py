@@ -20,7 +20,7 @@ class ConcatDataset(Dataset):
             `SingleDatasetBatchSampler` (its exhaustion ends the epoch).
 
     Example:
-        ```{.python data}
+        ```{.python notest}
         from torch_pointcloud.datasets import ConcatDataset, S3DIS, ScanNet20
 
         dataset = ConcatDataset([ScanNet20(root="data", split="train"), S3DIS(root="data", areas=["Area_1"])])

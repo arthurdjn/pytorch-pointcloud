@@ -3,7 +3,7 @@
 :pytorch-pointcloud-mini: `torch-pointcloud` ships architectures for point cloud classification, semantic and part
 segmentation, object detection and self-supervised pretraining, behind one :pytorch: timm-style factory:
 
-```{.python data}
+```{.python notest}
 import torch_pointcloud as tp
 
 model = tp.create_model("pointnext-sm.scanobjectnn-hardest.openpoints", pretrained=True)

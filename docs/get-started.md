@@ -5,7 +5,7 @@
 The example reads one object of the ModelNet40 test set, which
 [`ModelNetNormalResampled`](api/datasets/modelnet.md) downloads on first use:
 
-```{.python data}
+```{.python notest}
 import torch
 
 import torch_pointcloud as tp

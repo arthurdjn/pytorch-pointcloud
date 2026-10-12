@@ -1,8 +1,8 @@
 """Run the ```python fences of the `torch_pointcloud` docstrings and the docs pages as pasted.
 
-A plain `python` fence runs in the default suite. A `{.python data}` fence reads the fixture datasets under `data/`
+A plain `python` fence runs in the default suite. A `{.python notest}` fence reads the fixture datasets under `data/`
 or downloads pretrained weights, so it runs only with `--run-docs`, from a copy of `tests/data/datasets`. A
-`{.python notest}` fence never runs.
+`{.python skip}` fence never runs.
 """
 
 import re
@@ -20,7 +20,8 @@ SRC = ROOT / "src" / "torch_pointcloud"
 DOCS = ROOT / "docs"
 DATASETS_DIR = ROOT / "tests" / "data" / "datasets"
 FENCE = re.compile(
-    r"^(?P<indent>[ \t]*)```(?P<info>python|\{\.python data\})\n(?P<code>.*?)^(?P=indent)```", re.MULTILINE | re.DOTALL
+    r"^(?P<indent>[ \t]*)```(?P<info>python|\{\.python notest\})\n(?P<code>.*?)^(?P=indent)```",
+    re.MULTILINE | re.DOTALL,
 )
 
 
@@ -36,7 +37,7 @@ def docs_pages() -> Iterator[Path]:
 
 
 def python_fences(path: Path) -> Iterator[Tuple[int, str, str]]:
-    """Yield `(line, info, code)` for every `python` or `{.python data}` fence of `path`, dedented."""
+    """Yield `(line, info, code)` for every `python` or `{.python notest}` fence of `path`, dedented."""
     text = path.read_text()
     for match in FENCE.finditer(text):
         yield text.count("\n", 0, match.start()) + 1, match.group("info"), textwrap.dedent(match.group("code"))

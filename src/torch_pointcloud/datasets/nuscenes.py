@@ -549,7 +549,7 @@ class NuScenes(PointCloudDataset):
     Example:
         Assuming the raw `v1.0-trainval` release is extracted under `data/NuScenes/raw/`:
 
-        ```{.python notest}
+        ```{.python skip}
         from torch_pointcloud.datasets import NuScenes
 
         dataset = NuScenes(root="data", split="val", num_workers=8)
@@ -793,7 +793,7 @@ class NuScenesMini(NuScenes):
     Example:
         Assuming the raw mini split is extracted under `data/NuScenesMini/raw/`:
 
-        ```{.python data}
+        ```{.python notest}
         from torch_pointcloud.datasets import NuScenesMini
 
         dataset = NuScenesMini(root="data")
