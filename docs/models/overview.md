@@ -14,7 +14,6 @@ Weights are downloaded from the Hugging Face Hub on first use and cached under `
 (`TORCH_POINTCLOUD_CACHE_DIR` moves the cache). Each checkpoint keeps the license of its source, listed on the task pages,
 and a few are restricted to non-commercial use: see
 [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
-`create_model` warns when it loads a non-commercial checkpoint.
 
 ![Five pretrained checkpoints on two committed sample clouds: object classification, part segmentation, scene segmentation, 3D detection, and LiDAR segmentation](../assets/tasks/hero.png)
 
