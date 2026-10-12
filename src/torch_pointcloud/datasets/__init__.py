@@ -16,3 +16,31 @@ from .semantickitti import SemanticKITTI
 from .shapenetpart import ShapeNetPart
 from .sunrgbd import SunRGBD
 from .toronto3d import Toronto3D
+
+__all__ = [
+    "ConcatDataset",
+    "SingleDatasetBatchSampler",
+    "KITTI",
+    "MixDataset",
+    "ModelNet10",
+    "ModelNet40",
+    "ModelNet40Hdf5",
+    "ModelNetNormalResampled",
+    "NuScenes",
+    "NuScenesMini",
+    "ParisLille3D",
+    "PointCloudDataset",
+    "RepeatDataset",
+    "RepeatSampler",
+    "S3DIS",
+    "S3DISHdf5",
+    "ScanNet",
+    "ScanNet20",
+    "ScanNet200",
+    "ScanObjectNN",
+    "Semantic3D",
+    "SemanticKITTI",
+    "ShapeNetPart",
+    "SunRGBD",
+    "Toronto3D",
+]

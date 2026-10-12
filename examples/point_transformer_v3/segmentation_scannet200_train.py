@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 import torch
 from torch import Tensor, nn
+from torch.amp.grad_scaler import GradScaler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -20,7 +21,7 @@ from torch_pointcloud.datasets import ScanNet200
 from torch_pointcloud.losses import LovaszLoss, SumLoss
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import param_groups
+from torch_pointcloud.optim import generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -116,7 +117,7 @@ def main() -> None:
     criterion = configure_criterion(args)
     optimizer, scheduler = configure_optimizers(args, model, len(train_loader))
     amp = not args.no_amp and torch.device(args.device).type == "cuda"
-    scaler = torch.amp.GradScaler("cuda") if amp else None
+    scaler = GradScaler("cuda") if amp else None
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scenes, validating on {num_val}.")
@@ -210,7 +211,7 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module, steps_per_epoch: int) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(
+    groups = generate_param_groups(
         model,
         weight_decay=args.weight_decay,
         overrides=[dict(match=lambda name, param: bool(TRANSFORMER_BLOCK.search(name)), lr=args.lr / 10)],
@@ -237,7 +238,7 @@ def train_one_epoch(
     scheduler: LRScheduler,
     loader: DataLoader,
     device: str,
-    scaler: Optional[torch.amp.GradScaler],
+    scaler: Optional[GradScaler],
 ) -> float:
     model.train()
     total_loss = 0.0

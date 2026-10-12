@@ -69,22 +69,35 @@ class TTAInferer(Inferer):
         A 4-pass TTA over random Z rotations and X/Y flips:
 
         ```python
-        from torch_pointcloud.inferers import TTAInferer, SlidingWindowInferer
-        from torch_pointcloud.transforms import Compose, RandomRotate, RandomFlip
+        import torch
+
+        import torch_pointcloud as tp
+        from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
+        from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate
+
+        model = tp.create_model("pointnet.s3dis-area5").eval()
+        data = {
+            "pos": torch.rand(4096, 3) * 10,
+            "x": torch.rand(4096, 9),
+            "batch": torch.zeros(4096, dtype=torch.long),
+        }
 
         base = SlidingWindowInferer(block_size=6.0)
         aug = Compose([
             RandomRotate(keys="pos", angle_range=(-180.0, 180.0), axis=2, p=1.0),
             RandomFlip(keys="pos", axes=[0, 1], p=0.5),
         ])
-        inferer = TTAInferer(base=base, transforms=aug, num_passes=4,
-                             aggregate="mean")
+        inferer = TTAInferer(base=base, transforms=aug, num_passes=4, aggregate="mean")
         probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
 
         Enumerated 8-view TTA (ScanNet ablation):
 
         ```python
+        from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
+        from torch_pointcloud.transforms import Compose, RandomRotate
+
+        base = SlidingWindowInferer(block_size=6.0)
         views = [Compose([RandomRotate(keys="pos", angle_range=(a, a), axis=2, p=1.0)])
                  for a in (0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0)]
         inferer = TTAInferer(base=base, transforms=views, aggregate="mean")

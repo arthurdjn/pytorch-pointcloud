@@ -498,14 +498,24 @@ class SlidingWindowInferer(Inferer):
 
     Example:
         ```python
+        import torch
+
+        import torch_pointcloud as tp
         from torch_pointcloud.inferers import SlidingWindowInferer
+
+        model = tp.create_model("pointnet.s3dis-area5").eval()
+        data = {
+            "pos": torch.rand(4096, 3) * 10,
+            "x": torch.rand(4096, 9),
+            "batch": torch.zeros(4096, dtype=torch.long),
+        }
 
         # Non-overlapping partition: one prediction per point.
         inferer = SlidingWindowInferer(block_size=6.0, overlap=0.0)
 
         # 25 % overlap with Gaussian blending at boundaries:
         inferer = SlidingWindowInferer(block_size=6.0, overlap=0.25, mode="gaussian")
-        probs = inferer(data, predictor=lambda d: model(d["pos"], d["x"], d["batch"]))
+        probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
 

@@ -23,6 +23,7 @@ Task = Literal["pretraining", "classification", "semantic-segmentation", "part-s
 
 HF_ENDPOINT = "https://huggingface.co"
 HF_URL_RE = re.compile(r"^hf://(?P<namespace>[^/]+)/(?P<repo>[^/]+)/resolve/(?P<revision>[^/]+)/(?P<file>.+)$")
+_INSTALLATION_URL = "https://pytorch-pointcloud.org/latest/installation/"
 
 
 class WeightsDict(TypedDict):
@@ -260,7 +261,7 @@ def resolve_weights(name: str, url: str) -> Path:
         ValueError: If the URL path escapes the models cache directory.
         FileNotFoundError: If the file is absent and cannot be downloaded.
 
-    ```{.python notest}
+    ```python
     from torch_pointcloud.models._registry import resolve_weights
 
     path = resolve_weights(
@@ -298,6 +299,11 @@ def resolve_weights(name: str, url: str) -> Path:
 
     partial_path.replace(local_path)
     return local_path
+
+
+def _is_non_commercial_license(license: Optional[str]) -> bool:
+    """Whether a license identifier restricts the weights to non-commercial use (e.g. `CC-BY-NC-4.0`)."""
+    return license is not None and "-NC" in license.upper()
 
 
 def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[Task, ModelDict]:
@@ -536,15 +542,16 @@ def create_model(
 ) -> Any:
     """Build a registered model, optionally loading pretrained or local checkpoint weights.
 
-    Weights load through a head-adapting policy: overriding `num_classes` (or `in_channels`) keeps the
-    matching backbone weights and leaves the rebuilt head at its fresh initialization with a warning, while
-    an untouched configuration loads completely. Model keys missing from the checkpoint raise.
+    Registered weights load into the registered configuration, then an overridden `num_classes` rebuilds the head
+    at its fresh initialization (`0` drops it). Other overrides (e.g. `in_channels`) keep the matching weights, and
+    the keys whose shape changed keep their initialization. Model keys missing from the checkpoint raise.
 
     Args:
         name: Registered model name (see `list_models`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
             `part-segmentation` or `detection`). Optional when `name` is registered under a single task.
-        pretrained: Load the registered pretrained weights. Mutually exclusive with `checkpoint_path`.
+        pretrained: Load the registered pretrained weights, warning when their license is non-commercial. Mutually
+            exclusive with `checkpoint_path`.
         checkpoint_path: Local checkpoint to load instead of the registered weights. Supports `torch.save`
             files, `.safetensors`, and Lightning checkpoints (the wrapped network is extracted).
         return_info: Also return the registry entry (`ModelInfoDict`), with the resolved `task` and the effective
@@ -560,6 +567,8 @@ def create_model(
             registers no weights.
         TypeError: If the entry registers architecture hparams only and the data-dependent arguments
             (typically `in_channels` and `num_classes`) are not passed.
+        ImportError: If the model needs an optional dependency that is not installed or does not meet its version
+            requirement; the original error is chained.
         FileNotFoundError: If the checkpoint file does not exist, or if the registered weights are absent from
             the models cache and cannot be downloaded.
 
@@ -581,8 +590,15 @@ def create_model(
     # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
     # caller (e.g. a LightningModule) can log exactly what built the model.
     hparams = {**entry["hparams"], **kwargs}
+    # Registered weights load into the registered head; an overridden `num_classes` rebuilds it afterwards.
+    rebuild_head = pretrained and task not in ("detection", "pretraining") and "num_classes" in kwargs
+    overrides = {key: value for key, value in kwargs.items() if key != "num_classes"} if rebuild_head else kwargs
     try:
-        model = entry["fn"](**hparams)
+        model = entry["fn"](**{**entry["hparams"], **overrides})
+    except ImportError as err:
+        raise ImportError(
+            f"Model {name!r} needs an optional dependency that could not be imported: {err} See {_INSTALLATION_URL}."
+        ) from err
     except TypeError as err:
         if "required positional argument" not in str(err) and "required keyword-only argument" not in str(err):
             raise
@@ -600,9 +616,18 @@ def create_model(
                 f"initialization, or use `list_models(task={task!r}, pretrained=True)` to list the models that ship "
                 "weights."
             )
+        license = weights.get("license")
+        if _is_non_commercial_license(license):
+            warnings.warn(
+                f"Pretrained weights of {name!r} are released under {license} (non-commercial); check the license terms "
+                "before using them.",
+                stacklevel=2,
+            )
 
         local_path = resolve_weights(name, weights["url"])
         load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+        if rebuild_head and model.num_classes != kwargs["num_classes"]:
+            model.reset_classifier(kwargs["num_classes"])
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)
         if not path.exists():

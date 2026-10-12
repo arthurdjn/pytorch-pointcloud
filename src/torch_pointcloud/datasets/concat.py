@@ -23,7 +23,7 @@ class ConcatDataset(Dataset):
         ```python
         from torch_pointcloud.datasets import ConcatDataset, S3DIS, ScanNet20
 
-        dataset = ConcatDataset([ScanNet20(root, split="train"), S3DIS(root, areas=["Area_1"])])
+        dataset = ConcatDataset([ScanNet20(root="data", split="train"), S3DIS(root="data", areas=["Area_1"])])
         len(dataset)  # len(scannet) + len(s3dis)
         dataset.sizes  # [len(scannet), len(s3dis)]
         ```
@@ -80,13 +80,15 @@ class SingleDatasetBatchSampler(Sampler[List[int]]):
 
     Example:
         ```python
-        from torch.utils.data import DataLoader
+        import torch
+        from torch.utils.data import DataLoader, TensorDataset
 
         from torch_pointcloud.datasets import ConcatDataset, SingleDatasetBatchSampler
 
-        dataset = ConcatDataset([scannet, s3dis])
+        dataset = ConcatDataset([TensorDataset(torch.zeros(16, 3)), TensorDataset(torch.zeros(8, 3))])
         sampler = SingleDatasetBatchSampler(dataset.sizes, ratios=[2, 1], batch_size=4)
         loader = DataLoader(dataset, batch_sampler=sampler)
+        len(loader)  # 6: two batches of the first dataset for one of the second, until the first is exhausted
         ```
     """
 

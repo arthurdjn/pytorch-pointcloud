@@ -83,9 +83,11 @@ def lidar_to_rect(points: np.ndarray, calib: KittiCalib) -> np.ndarray:
 
     Example:
         ```python
+        import numpy as np
         from torch_pointcloud.datasets.kitti import lidar_to_rect, load_kitti_calib
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
         rect = lidar_to_rect(points, calib)
         ```
     """
@@ -109,9 +111,11 @@ def rect_to_img(points: np.ndarray, calib: KittiCalib) -> Tuple[np.ndarray, np.n
 
     Example:
         ```python
+        import numpy as np
         from torch_pointcloud.datasets.kitti import lidar_to_rect, load_kitti_calib, rect_to_img
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
         pixels, depth = rect_to_img(lidar_to_rect(points, calib), calib)
         ```
     """
@@ -138,10 +142,12 @@ def rect_to_lidar(points: np.ndarray, calib: KittiCalib) -> np.ndarray:
 
     Example:
         ```python
-        from torch_pointcloud.datasets.kitti import load_kitti_calib, rect_to_lidar
+        import numpy as np
+        from torch_pointcloud.datasets.kitti import lidar_to_rect, load_kitti_calib, rect_to_lidar
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
-        lidar = rect_to_lidar(centers, calib)
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
+        lidar = rect_to_lidar(lidar_to_rect(points, calib), calib)  # back to `points`
         ```
     """
     r0_ext = np.eye(4, dtype=np.float32)
@@ -172,9 +178,11 @@ def fov_flag(points: np.ndarray, image_shape: Tuple[int, int], calib: KittiCalib
 
     Example:
         ```python
+        import numpy as np
         from torch_pointcloud.datasets.kitti import fov_flag, load_kitti_calib
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
+        points = np.fromfile("data/KITTI/raw/training/velodyne/000000.bin", dtype=np.float32).reshape(-1, 4)[:, :3]
         points = points[fov_flag(points, (375, 1242), calib)]
         ```
     """
@@ -197,7 +205,7 @@ def load_kitti_boxes(label_file: PathLike, calib: KittiCalib) -> Dict[str, np.nd
         calib: Calibration matrices from `load_kitti_calib`, used to convert box centers to the LiDAR frame.
 
     Returns:
-        A dict of arrays keyed by cache file name: `boxes` $(K, 7)$, `labels` $(K,)$, `truncation` $(K,)$,
+        A dict of arrays keyed by cache file name: `box` $(K, 7)$, `label` $(K,)$, `truncation` $(K,)$,
         `occlusion` $(K,)$, and `bbox_height` $(K,)$.
 
     Example:
@@ -206,7 +214,7 @@ def load_kitti_boxes(label_file: PathLike, calib: KittiCalib) -> Dict[str, np.nd
 
         calib = load_kitti_calib("data/KITTI/raw/training/calib/000000.txt")
         annotations = load_kitti_boxes("data/KITTI/raw/training/label_2/000000.txt", calib)
-        annotations["boxes"].shape  # (K, 7)
+        annotations["box"].shape  # (K, 7)
         ```
     """
     rows: List[List[float]] = []

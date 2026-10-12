@@ -569,7 +569,8 @@ class PointGPTPretraining(PretrainingModel):
 
     Shape:
         - Input: $(N, 3)$ and $(N,)$.
-        - Output: predicted and target patches, each of shape $(B \cdot G, M, 3)$.
+        - Output: $(B \cdot G \cdot M, 3)$ predicted and target coordinates, each with its $(B \cdot G \cdot M,)$ patch
+          index.
 
     Example:
         ```python
@@ -579,7 +580,7 @@ class PointGPTPretraining(PretrainingModel):
         model = PointGPTPretraining(in_channels=0)
         pos = torch.randn(2048, 3)
         batch = torch.cat([torch.zeros(1024), torch.ones(1024)]).long()
-        pred, target = model(None, pos, batch)
+        pred, target, pred_batch, target_batch = model(None, pos, batch)
         print(pred.shape, target.shape)
         ```
     """

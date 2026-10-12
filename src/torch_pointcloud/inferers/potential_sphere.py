@@ -237,8 +237,14 @@ class PotentialSphereInferer(Inferer):
     numbers, and a fresh instance replays the same sequence.
 
     Example:
-        ```{.python notest}
+        ```python
+        import torch
+
+        import torch_pointcloud as tp
         from torch_pointcloud.inferers import PotentialSphereInferer
+
+        model = tp.create_model("pointnet.s3dis-area5").eval()
+        room = {"pos": torch.rand(4096, 3) * 3, "x": torch.rand(4096, 9), "batch": torch.zeros(4096, dtype=torch.long)}
 
         inferer = PotentialSphereInferer(radius=1.5, num_votes=10.0)
         probs = inferer(room, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))

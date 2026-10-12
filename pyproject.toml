@@ -75,7 +75,6 @@ lightning = ["lightning>=2.0.0,<2.6.0", "torchmetrics>=1.0.0"]
 dev = [
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
-    "pytest-markdown-docs>=0.6.0",
     "ruff>=0.9.1",
     "ipykernel>=6.29.5",
     "mkdocs-jupyter>=0.25.1",
@@ -126,7 +125,7 @@ no_implicit_optional = true
 show_error_codes = true
 ignore_missing_imports = true
 check_untyped_defs = true
-implicit_reexport = true
+implicit_reexport = false
 # Because multiple files in the tests/data/**/scripts have the same name
 exclude = ["tests/data/", "notebooks", "docs"]
 

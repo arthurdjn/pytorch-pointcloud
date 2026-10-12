@@ -159,6 +159,8 @@ class ChamferDistance(nn.Module):
     Example:
         ```python
         import torch
+        from torch_pointcloud.losses import ChamferDistance
+
         criterion = ChamferDistance(norm="l1")
         criterion(torch.zeros(8, 3), torch.zeros(4, 3)).item()  # 0.0
         ```

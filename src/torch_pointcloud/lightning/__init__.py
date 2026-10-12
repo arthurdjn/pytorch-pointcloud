@@ -16,3 +16,19 @@ from torch_pointcloud.lightning.module import (
     LitPartSegmentationModel,
     LitSemanticSegmentationModel,
 )
+
+__all__ = [
+    "BNMomentumScheduler",
+    "MetricCallback",
+    "PointCloudDataModule",
+    "BoxAveragePrecision",
+    "BoxMeanAveragePrecision",
+    "InstanceAveragePrecision",
+    "InstancePartMeanIntersectionOverUnion",
+    "NuScenesDetection",
+    "LitClassificationModel",
+    "LitDetectionModel",
+    "LitModel",
+    "LitPartSegmentationModel",
+    "LitSemanticSegmentationModel",
+]

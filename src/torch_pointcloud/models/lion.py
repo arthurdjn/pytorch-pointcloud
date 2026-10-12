@@ -1300,7 +1300,7 @@ class LIONDetection(DetectionModel):
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         batch_size = int(batch.max().item()) + 1
-        voxel_features, voxel_indices = self.vfe(pos, x, batch)
+        voxel_features, voxel_indices = self.vfe(x, pos, batch)
         encoded = self.backbone_3d(voxel_features, voxel_indices, batch_size)
         dense = encoded.dense()
         b, c, d, h, w = dense.shape

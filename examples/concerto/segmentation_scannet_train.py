@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 import torch
 from torch import Tensor, nn
+from torch.amp.grad_scaler import GradScaler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -109,7 +110,7 @@ def main() -> None:
     criterion = configure_criterion(args)
     optimizer, scheduler = configure_optimizers(args, model, len(train_loader))
     amp = not args.no_amp and torch.device(args.device).type == "cuda"
-    scaler = torch.amp.GradScaler("cuda") if amp else None
+    scaler = GradScaler("cuda") if amp else None
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training the head of {args.model!r} on {num_train} scenes, validating on {num_val}.")
@@ -247,7 +248,7 @@ def train_one_epoch(
     scheduler: LRScheduler,
     loader: DataLoader,
     device: str,
-    scaler: Optional[torch.amp.GradScaler],
+    scaler: Optional[GradScaler],
 ) -> float:
     model.train()
     total_loss = 0.0

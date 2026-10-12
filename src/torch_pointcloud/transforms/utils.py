@@ -211,11 +211,15 @@ class Relabel(DictTransform):
 
     Example:
         ```python
+        import torch
+        import torch_pointcloud.transforms as T
+
         # 1:1 - keep raw NYU40 ids 1, 2, 3, 4, 5 and remap them to 0..4
-        T.Relabel(keys="segment", labels=[1, 2, 3, 4, 5])
+        relabel = T.Relabel(keys="segment", labels=[1, 2, 3, 4, 5], default=255)
+        relabel({"segment": torch.tensor([1, 3, 5, 7])})["segment"]  # tensor([0, 2, 4, 255])
 
         # N:1 - SemanticKITTI 19-class benchmark (merges moving-* into static)
-        T.Relabel(
+        relabel = T.Relabel(
             keys="segment",
             labels={
                 10: 0, 252: 0,    # car        (+ moving-car)
@@ -226,6 +230,7 @@ class Relabel(DictTransform):
             },
             default=255,
         )
+        relabel({"segment": torch.tensor([10, 252, 11, 99])})["segment"]  # tensor([0, 0, 1, 255])
         ```
     """
 
@@ -426,6 +431,8 @@ class Cat(DictTransform):
         into a single feature tensor (to feed into your model), you can do the following:
 
         ```python
+        import torch
+
         from torch_pointcloud.transforms import Cat
 
         data = {
@@ -586,6 +593,8 @@ class KeepItems(DictTransform):
         you can do the following:
 
         ```python
+        import torch
+
         from torch_pointcloud.transforms import KeepItems
 
         data = {

@@ -207,15 +207,18 @@ def tile_s3dis_room(
         Positions are origin-shifted (room minimum at origin).
 
     Example:
-        Assuming you have downloaded the raw dataset and extracted it under `data/S3DIS/raw`,
-        you can tile the room into 1m x 1m blocks as follows:
+        Tile a room into 1m x 1m blocks of 4096 nodes:
 
         ```python
-        from torch_pointcloud.datasets.s3dis import load_s3dis_room, tile_s3dis_room
+        import torch
+        from torch_pointcloud.datasets.s3dis import tile_s3dis_room
 
-        room_dir = "data/S3DIS/raw/Area_1/conferenceRoom_1"
-        data = load_s3dis_room(room_dir)
-        blocks = tile_s3dis_room(data)
+        room = {
+            "pos": torch.rand(20_000, 3) * torch.tensor([4.0, 3.0, 2.5]),
+            "segment": torch.randint(0, 13, (20_000,)),
+        }
+        blocks = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=4096)
+        len(blocks), blocks[0]["pos"].shape  # (12, torch.Size([4096, 3]))
         ```
     """
     pos = room[DataKeys.POS]
@@ -333,6 +336,8 @@ class S3DIS(PointCloudDataset):
         To split rooms into 1m x 1m blocks (matching the DGCNN evaluation protocol):
 
         ```python
+        from torch_pointcloud.datasets import S3DIS
+
         dataset = S3DIS(
             root="data",
             areas=["Area_5"],
