@@ -7,7 +7,6 @@ from torch import Tensor
 from torch_pointcloud.layers.torchsparse_blocks import TorchSparseResidualBlock
 from torch_pointcloud.models.spvcnn import (
     PointTensor,
-    SparseTensor,
     SPVCNNClassification,
     SPVCNNDecoder,
     SPVCNNDecoderBlock,
@@ -210,6 +209,8 @@ def test_spvcnn_semantickitti_transform_back_projects_to_full_resolution() -> No
 
 
 def test_spvcnn_point_to_voxel_masks_out_of_grid_points() -> None:
+    from torchsparse.tensor import SparseTensor
+
     x_voxels = SparseTensor(
         feats=torch.zeros(2, 1).cuda(),
         coords=torch.tensor([[0, 0, 0, 0], [0, 1, 1, 1]], dtype=torch.int32).cuda(),

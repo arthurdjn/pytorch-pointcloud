@@ -6,7 +6,8 @@ from typing import Any, Dict, Mapping, Tuple
 
 import numpy as np
 import torch
-from safetensors.torch import safe_open, save_file
+from safetensors import safe_open
+from safetensors.torch import save_file
 from torch import Tensor
 
 from .types import PathLike

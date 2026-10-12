@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Every package `__init__` defines `__all__`, `transforms` imports its classes explicitly and `implicit_reexport` is off, so the documented names type-check under `mypy --strict`.
+- `torch_pointcloud.ops` imports its modules: `tp.ops.box3d`, `tp.ops.cluster`, `tp.ops.voxelization`, ... are reachable after `import torch_pointcloud`.
 - Removed the `TORCH_POINTCLOUD_MODELS_DIR` variable: the pretrained weights always live under `<cache>/models`, and `TORCH_POINTCLOUD_CACHE_DIR` moves the cache.
 - `create_model` raises an `ImportError` naming the model and the installation page when an optional dependency is missing; `optional_import` tells a package that is not installed from one that does not meet its version requirement, and the flash attention errors point at `use_flash_attn=False`.
 - `DynamicMeanVFE.forward` takes `(x, pos, batch)` like every other packed layer; swap the first two arguments of existing `vfe(pos, x, batch)` calls.
