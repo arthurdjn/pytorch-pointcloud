@@ -13,7 +13,7 @@ All notable changes to this project are documented in this file. The format is b
 - `TransFusionHeadLoss` supervises the velocity codes from 9-column boxes once `code_weights` enables them; its docstring no longer states that the velocity targets are always zero.
 - Renamed `optim.param_groups` to `generate_param_groups` and removed the MONAI-signature function of that name (its overlapping groups are rejected by `torch.optim`): `generate_param_groups(model, overrides=[dict(keyword=..., lr=...)])`, and the same kwargs as `LitModel(param_groups=...)`.
 - Fixed the DGCNN segmentation lines of `examples/benchmark.sh`, which passed `--dataset` and `--area` to scripts that take `--model`; a test now checks every line of the file against the argparse interface of the script it calls.
-- `create_model(..., pretrained=True, num_classes=0)` loads the backbone without warning about the head keys of the registered checkpoint.
+- `create_model(..., pretrained=True, num_classes=K)` loads the registered checkpoint and then rebuilds the head for `K` classes (`0` drops it), without warnings about the head keys.
 
 ## 0.0.13 (2026-10-11)
 
