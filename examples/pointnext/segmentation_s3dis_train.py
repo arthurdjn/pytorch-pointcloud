@@ -19,7 +19,7 @@ from torch_pointcloud.datasets import S3DIS, RepeatDataset
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import CosineWarmupLR, param_groups
+from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -205,7 +205,7 @@ def configure_model(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(model, weight_decay=args.weight_decay, no_decay=True)
+    groups = generate_param_groups(model, weight_decay=args.weight_decay, no_decay=True)
     optimizer = torch.optim.AdamW(groups, lr=args.lr, weight_decay=args.weight_decay)
 
     # Stepped once per epoch.

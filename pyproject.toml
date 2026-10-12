@@ -75,7 +75,6 @@ lightning = ["lightning>=2.0.0,<2.6.0", "torchmetrics>=1.0.0"]
 dev = [
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
-    "pytest-markdown-docs>=0.6.0",
     "ruff>=0.9.1",
     "ipykernel>=6.29.5",
     "mkdocs-jupyter>=0.25.1",

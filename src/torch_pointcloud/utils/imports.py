@@ -269,16 +269,13 @@ def optional_import(
         >>> IS_PKG_AVAILABLE
         False
         >>> pkg.some_function()  # doctest: +SKIP
-        ImportError: Optional module 'missing_package' does not meet the requirement missing_package.
+        ImportError: Optional module 'missing_package' is not installed.
 
         ```
     """
     package_name = module_path.split(".")[0]
     # In case the requirement is in the format "package>=1.0.0"
     requirement = requirement.replace(package_name, "")
-
-    # Extra message in case the module is not installed
-    msg = ""
 
     if requirement:
         if check_requirement(f"{package_name}{requirement}"):
@@ -293,10 +290,18 @@ def optional_import(
                 )
             except Exception:
                 msg = f"Optional module '{module_path}' is installed but failed to load."
+        elif package_available(package_name):
+            msg = (
+                f"Optional module '{module_path}' is installed but does not meet the requirement "
+                f"{package_name}{requirement}."
+            )
+        else:
+            msg = f"Optional module '{module_path}' is not installed, but expected {package_name}{requirement}."
     elif package_available(package_name):
         return _LazyImportProxy(module_path, name, url), True
+    else:
+        msg = f"Optional module '{module_path}' is not installed."
 
-    msg = msg or f"Optional module '{module_path}' does not meet the requirement {package_name}{requirement}."
     if url:
         msg += f" Check official documentation to install it: {url}."
 

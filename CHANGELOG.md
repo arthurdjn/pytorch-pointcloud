@@ -8,6 +8,17 @@ All notable changes to this project are documented in this file. The format is b
 
 - Every package `__init__` defines `__all__`, `transforms` imports its classes explicitly and `implicit_reexport` is off, so the documented names type-check under `mypy --strict`.
 - `torch_pointcloud.ops` imports its modules: `tp.ops.box3d`, `tp.ops.cluster`, `tp.ops.voxelization`, ... are reachable after `import torch_pointcloud`.
+- Removed the `TORCH_POINTCLOUD_MODELS_DIR` variable: the pretrained weights always live under `<cache>/models`, and `TORCH_POINTCLOUD_CACHE_DIR` moves the cache.
+- `create_model` raises an `ImportError` naming the model and the installation page when an optional dependency is missing; `optional_import` tells a package that is not installed from one that does not meet its version requirement, and the flash attention errors point at `use_flash_attn=False`.
+- `DynamicMeanVFE.forward` takes `(x, pos, batch)` like every other packed layer; swap the first two arguments of existing `vfe(pos, x, batch)` calls.
+- `create_pool(None)`, `create_adaptive_pool(None)` and `create_dropout(None)` return `None` like `create_norm` / `create_act` instead of raising (overloaded, so a non-`None` argument still types as `nn.Module`). `create_act("swish")` resolves to `nn.SiLU` instead of PyG's `swish` function.
+- `AnchorHeadLoss` accepts 9-column boxes and ignores their velocity columns; no call changes.
+- `TransFusionHeadLoss` supervises the velocity codes from 9-column boxes once `code_weights` enables them; its docstring no longer states that the velocity targets are always zero.
+- Renamed `optim.param_groups` to `generate_param_groups` and removed the MONAI-signature function of that name (its overlapping groups are rejected by `torch.optim`): `generate_param_groups(model, overrides=[dict(keyword=..., lr=...)])`, and the same kwargs as `LitModel(param_groups=...)`.
+- Fixed the DGCNN segmentation lines of `examples/benchmark.sh`, which passed `--dataset` and `--area` to scripts that take `--model`; a test now checks every line of the file against the argparse interface of the script it calls.
+- `create_model(..., pretrained=True)` no longer warns about overrides: `num_classes=K` loads the registered checkpoint and then rebuilds the head for `K` classes (`0` drops it), and the keys whose shape changed under another override (e.g. the stem after `in_channels=`) keep their initialization.
+- `create_model(..., pretrained=True)` warns when the registered weights are released under a non-commercial license.
+- Added `tests/test_docs_examples.py`, which runs every ```python fence of the docstrings and the docs pages as pasted with `--run-docs` (`make doctest-docs`); a block that cannot run is tagged `{.python notest}`. Fixed the examples that did not run (missing imports, placeholder names, stale calls, the argument order of the `SlidingWindowInferer` predictor) and removed the `pytest-markdown-docs` dependency.
 
 ## 0.0.13 (2026-10-11)
 

@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterator
 from unittest.mock import Mock
@@ -18,6 +20,7 @@ from torch_pointcloud.models import (
     register_model,
 )
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, cache_path
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 
 class DummyClassificationModel(ClassificationModel):
@@ -240,6 +243,7 @@ def test_list_models_invalid_task_raises() -> None:
         list_models(task="invalid")  # type: ignore[arg-type]
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path) -> None:
     model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
     assert isinstance(model, DummyClassificationModel)
@@ -249,12 +253,79 @@ def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
-def test_create_model_pretrained_num_classes_override_adapts_head(_register_pretrained_dummy: Path) -> None:
-    with pytest.warns(UserWarning, match="mismatched shapes"):
-        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=3)
+def test_create_model_pretrained_non_commercial_license_warns(_register_pretrained_dummy: Path) -> None:
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = WeightsDict(
+        url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
+        license="CC-BY-NC-4.0",
+    )
+    with pytest.warns(UserWarning, match=r"'dummy-pretrained.classification' are released under CC-BY-NC-4.0"):
+        create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+@pytest.mark.parametrize(
+    "weights",
+    [
+        pytest.param(
+            WeightsDict(url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt", license="MIT"), id="mit"
+        ),
+        pytest.param(WeightsDict(url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt"), id="no-license"),
+    ],
+)
+def test_create_model_pretrained_other_license_does_not_warn(
+    _register_pretrained_dummy: Path,
+    weights: WeightsDict,
+) -> None:
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = weights
+    create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_num_classes_override_rebuilds_head(_register_pretrained_dummy: Path) -> None:
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=3)
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert model.fc.weight.shape == (3, 8)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_registered_num_classes_keeps_head(_register_pretrained_dummy: Path) -> None:
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=5)
+    assert isinstance(model, DummyClassificationModel)
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_in_channels_override_keeps_fresh_stem(_register_pretrained_dummy: Path) -> None:
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, in_channels=4)
+    assert isinstance(model, DummyClassificationModel)
+    assert model.encoder.weight.shape == (8, 4)
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    assert torch.equal(model.encoder.bias, state_dict["encoder.bias"])
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_headless_loads_backbone_without_warning(_register_pretrained_dummy: Path) -> None:
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=0)
+    assert isinstance(model, DummyClassificationModel)
+    assert isinstance(model.fc, nn.Identity)
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+
+
+def test_create_model_pretrained_headless_warns_about_unexpected_keys(_register_pretrained_dummy: Path) -> None:
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    state_dict["extra.weight"] = torch.ones(2)
+    torch.save(state_dict, _register_pretrained_dummy)
+    with pytest.warns(UserWarning, match=r"absent from the model: extra\.weight\.$"):
+        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=0)
+    assert isinstance(model, DummyClassificationModel)
+    assert isinstance(model.fc, nn.Identity)
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
 
 
@@ -326,6 +397,36 @@ def test_create_model_arch_only_entry_raises_actionable_type_error() -> None:
         create_model("pointnext-sm", task="classification")
     model = create_model("pointnext-sm", task="classification", in_channels=4, num_classes=15)
     assert model.num_classes == 15
+
+
+def test_create_model_missing_optional_dependency_raises_actionable_import_error() -> None:
+    """With `spconv` absent, building a model that needs it must name the model, the dependency and the
+    installation page, and not the generic requirement wording."""
+    code = (
+        "import sys\n"
+        "sys.modules['spconv'] = None\n"
+        "from torch_pointcloud.models import create_model\n"
+        "try:\n"
+        "    create_model('spunet-v1m1.scannet20.pointcept')\n"
+        "except ImportError as err:\n"
+        "    print(err)\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    message = result.stdout.strip()
+    assert "Model 'spunet-v1m1.scannet20.pointcept'" in message
+    assert "Optional module 'spconv.pytorch' is not installed." in message
+    assert "https://pytorch-pointcloud.org/latest/installation/" in message
+    assert "does not meet the requirement" not in message
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_create_model_missing_flash_attn_hints_use_flash_attn_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.layers.serialized_attention._FLASH_ATTN_AVAILABLE", False)
+    with pytest.raises(ImportError, match="or pass `use_flash_attn=False`") as exc_info:
+        create_model("ptv3-base.scannet20.pointcept", use_flash_attn=True)
+    assert "Model 'ptv3-base.scannet20.pointcept'" in str(exc_info.value)
+    assert "https://pytorch-pointcloud.org/latest/installation/" in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, ImportError)
 
 
 def test_create_model_pretrained_rejects_weight_path_escaping_cache(

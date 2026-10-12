@@ -190,6 +190,15 @@ def test_load_state_dict_supports_lazy_parameters() -> None:
     assert target(torch.randn(2, 3)).shape == (2, 4)
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_load_state_dict_mismatched_shapes_keep_initialization() -> None:
+    model = nn.Linear(4, 2)
+    weight = model.weight.clone()
+    load_state_dict(model, {"weight": torch.zeros(2, 3), "bias": torch.ones(2)}, source="test")
+    assert torch.equal(model.weight, weight)
+    assert torch.equal(model.bias, torch.ones(2))
+
+
 def test_load_state_dict_missing_keys_raise_by_default() -> None:
     model = nn.Linear(3, 4)
 

@@ -131,6 +131,10 @@ class RelativePositionalEncoding(nn.Module):
 
     Example:
         ```python
+        import torch
+
+        from torch_pointcloud.layers import RelativePositionalEncoding
+
         rpe = RelativePositionalEncoding(patch_size=8, num_heads=4)
         bias = rpe(torch.randint(0, 16, (2, 8, 3)))
         bias.shape  # (2, 4, 8, 8)
@@ -222,7 +226,8 @@ class SerializedAttention(nn.Module):
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
-                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
+                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                    "or pass `use_flash_attn=False`."
                 )
 
             if upcast_attn:
@@ -423,7 +428,8 @@ class SerializedAttentionRoPE(nn.Module):
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
-                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
+                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                    "or pass `use_flash_attn=False`."
                 )
 
             if upcast_attn:

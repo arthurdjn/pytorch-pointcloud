@@ -8,8 +8,8 @@ import pytest
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
+from torch_pointcloud.models import create_model, list_models, model_info
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, _is_non_commercial_license
 from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
@@ -202,6 +202,19 @@ DETECTION_MODELS = [
 ]
 
 
+NON_COMMERCIAL_MODELS = [
+    "concerto-tiny.pretrain.pointcept",
+    "concerto-small.pretrain.pointcept",
+    "concerto-base.pretrain.pointcept",
+    "concerto-large.pretrain.pointcept",
+    "concerto-large-lp.scannet20.pointcept",
+    "sonata-base.pretrain.fair",
+    "sonata-lp.scannet20.fair",
+    "utonia.pretrain.pointcept",
+    "utonia-lp.scannet20.pointcept",
+]
+
+
 def _skip_if_model_deps_missing(model_name: str) -> None:
     if model_name.startswith("point-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
@@ -349,6 +362,27 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
             err_msg += f"\nExtra models: {', '.join(sorted(extra_models))}"
 
         raise AssertionError(err_msg)
+
+
+def test_non_commercial_models() -> None:
+    non_commercial = []
+    for name in list_models(pretrained=True):
+        weights = model_info(name)["weights"]
+        assert weights is not None
+        if _is_non_commercial_license(weights.get("license")):
+            non_commercial.append(name)
+
+    assert sorted(non_commercial) == sorted(NON_COMMERCIAL_MODELS)
+
+
+@pytest.mark.parametrize("model_name", NON_COMMERCIAL_MODELS)
+def test_non_commercial_model_warns(model_name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    _skip_if_model_deps_missing(model_name)
+    monkeypatch.setattr("torch_pointcloud.models._registry.resolve_weights", lambda name, url: url)
+    monkeypatch.setattr("torch_pointcloud.models._registry.read_state_dict", lambda path: {})
+    monkeypatch.setattr("torch_pointcloud.models._registry.load_state_dict", lambda *args, **kwargs: None)
+    with pytest.warns(UserWarning, match=f"{model_name!r} are released under CC-BY-NC-4.0"):
+        create_model(model_name, pretrained=True)
 
 
 @pytest.mark.skipif(

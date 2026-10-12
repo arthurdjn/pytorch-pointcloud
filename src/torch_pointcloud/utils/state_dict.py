@@ -67,12 +67,12 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
 
 
 def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, strict: bool = True) -> None:
-    """Load `state_dict` into `model`, adapting the head instead of failing on a rebuilt classifier.
+    """Load `state_dict` into `model`, keeping the initialization of the keys whose shapes do not match.
 
-    Checkpoint keys absent from the model are ignored with a warning (e.g. head weights when the model was
-    built with `num_classes=0`), keys with mismatched tensor shapes are skipped with a warning and keep their
-    fresh initialization (e.g. after a `num_classes` override), and model keys missing from the checkpoint
-    raise. A checkpoint matching the model exactly loads completely, as with a strict load.
+    Checkpoint keys absent from the model are ignored with a warning, keys with mismatched tensor shapes are
+    skipped and keep their fresh initialization (e.g. the stem after an `in_channels` override), and model keys
+    missing from the checkpoint raise. A checkpoint matching the model exactly loads completely, as with a
+    strict load.
 
     Args:
         model: Module to load the parameters into.
@@ -113,13 +113,6 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
             f"Ignoring checkpoint keys from {source!r} absent from the model: {', '.join(unexpected)}.",
             stacklevel=2,
         )
-    if mismatched:
-        warnings.warn(
-            f"Skipping checkpoint keys from {source!r} with mismatched shapes, keeping their initialization: "
-            f"{', '.join(mismatched)}.",
-            stacklevel=2,
-        )
-
     dropped = set(unexpected) | set(mismatched)
     model.load_state_dict({key: value for key, value in state_dict.items() if key not in dropped}, strict=False)
 

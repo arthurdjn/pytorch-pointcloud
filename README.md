@@ -131,5 +131,6 @@ If you find this project useful, please consider citing:
 Apache 2.0. See [LICENSE](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
 
 Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to
-non-commercial use. Most were trained on research-only datasets, whose terms also apply to the weights.
+non-commercial use (`create_model` warns when loading them). Most were trained on research-only datasets, whose terms
+also apply to the weights.
 See [THIRD_PARTY_NOTICES.md](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
