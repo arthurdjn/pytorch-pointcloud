@@ -8,7 +8,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.models import create_model, list_models
+from torch_pointcloud.models import create_model, list_models, model_info
 from torch_pointcloud.models._registry import _REGISTERED_MODELS
 from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.imports import (
@@ -227,6 +227,18 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
 
 # Models whose `forward` cannot run on the synthetic `data_factory` input: they expect
 # serialized / octree-encoded inputs that the factory doesn't emit yet.
+NON_COMMERCIAL_MODELS = [
+    "concerto-tiny.pretrain.pointcept",
+    "concerto-small.pretrain.pointcept",
+    "concerto-base.pretrain.pointcept",
+    "concerto-large.pretrain.pointcept",
+    "concerto-large-lp.scannet20.pointcept",
+    "sonata-base.pretrain.fair",
+    "sonata-lp.scannet20.fair",
+    "utonia.pretrain.pointcept",
+    "utonia-lp.scannet20.pointcept",
+]
+
 _UNSUPPORTED_BY_DATA_FACTORY = frozenset(
     {
         "octformer-base.modelnet40.octree-nn",
@@ -349,6 +361,17 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
             err_msg += f"\nExtra models: {', '.join(sorted(extra_models))}"
 
         raise AssertionError(err_msg)
+
+
+def test_non_commercial_models() -> None:
+    non_commercial = []
+    for name in list_models(pretrained=True):
+        weights = model_info(name)["weights"]
+        assert weights is not None
+        if "-NC" in weights.get("license", "").upper():
+            non_commercial.append(name)
+
+    assert sorted(non_commercial) == sorted(NON_COMMERCIAL_MODELS)
 
 
 @pytest.mark.skipif(
