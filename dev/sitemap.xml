@@ -10,6 +10,9 @@
         <loc>https://pytorch-pointcloud.org/latest/get-started/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/data-format/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/models/overview/</loc>
       </url>
       <url>
@@ -575,5 +578,14 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/types/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/about/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/faq/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/changelog/</loc>
       </url>
 </urlset>
