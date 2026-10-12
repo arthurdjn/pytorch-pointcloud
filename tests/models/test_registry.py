@@ -253,6 +253,33 @@ def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
+def test_create_model_pretrained_non_commercial_license_warns(_register_pretrained_dummy: Path) -> None:
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = WeightsDict(
+        url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
+        license="CC-BY-NC-4.0",
+    )
+    with pytest.warns(UserWarning, match=r"'dummy-pretrained.classification' are released under CC-BY-NC-4.0"):
+        create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+@pytest.mark.parametrize(
+    "weights",
+    [
+        pytest.param(
+            WeightsDict(url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt", license="MIT"), id="mit"
+        ),
+        pytest.param(WeightsDict(url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt"), id="no-license"),
+    ],
+)
+def test_create_model_pretrained_other_license_does_not_warn(
+    _register_pretrained_dummy: Path,
+    weights: WeightsDict,
+) -> None:
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = weights
+    create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+
 @pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_num_classes_override_rebuilds_head(_register_pretrained_dummy: Path) -> None:
     model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=3)
