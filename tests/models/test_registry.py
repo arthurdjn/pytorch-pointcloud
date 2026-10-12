@@ -274,6 +274,17 @@ def test_create_model_pretrained_headless_loads_backbone_without_warning(_regist
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
 
 
+def test_create_model_pretrained_headless_warns_about_unexpected_keys(_register_pretrained_dummy: Path) -> None:
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    state_dict["extra.weight"] = torch.ones(2)
+    torch.save(state_dict, _register_pretrained_dummy)
+    with pytest.warns(UserWarning, match=r"absent from the model: extra\.weight\.$"):
+        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=0)
+    assert isinstance(model, DummyClassificationModel)
+    assert isinstance(model.fc, nn.Identity)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+
+
 def test_create_model_pretrained_ignores_unexpected_keys(_register_pretrained_dummy: Path) -> None:
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     state_dict["extra.weight"] = torch.ones(2)

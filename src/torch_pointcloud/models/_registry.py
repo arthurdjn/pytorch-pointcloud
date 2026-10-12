@@ -539,8 +539,8 @@ def create_model(
 
     Weights load through a head-adapting policy: overriding `num_classes` (or `in_channels`) keeps the
     matching backbone weights and leaves the rebuilt head at its fresh initialization with a warning, a headless
-    `num_classes=0` build drops the registered head keys silently, and an untouched configuration loads
-    completely. Model keys missing from the checkpoint raise.
+    `num_classes=0` build loads the complete checkpoint and then drops its head, and an untouched configuration
+    loads completely. Model keys missing from the checkpoint raise.
 
     Args:
         name: Registered model name (see `list_models`).
@@ -585,8 +585,11 @@ def create_model(
     # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
     # caller (e.g. a LightningModule) can log exactly what built the model.
     hparams = {**entry["hparams"], **kwargs}
+    # A headless pretrained build keeps the registered head until the checkpoint has loaded, then drops it.
+    headless = pretrained and task not in ("detection", "pretraining") and kwargs.get("num_classes") == 0
+    overrides = {key: value for key, value in kwargs.items() if key != "num_classes"} if headless else kwargs
     try:
-        model = entry["fn"](**hparams)
+        model = entry["fn"](**{**entry["hparams"], **overrides})
     except ImportError as err:
         raise ImportError(
             f"Model {name!r} needs an optional dependency that could not be imported: {err} See {_INSTALLATION_URL}."
@@ -610,12 +613,9 @@ def create_model(
             )
 
         local_path = resolve_weights(name, weights["url"])
-        state_dict = read_state_dict(local_path)
-        if task != "detection" and hparams.get("num_classes") == 0:
-            # A headless build has no module for the registered checkpoint's head keys, so they are expected.
-            model_keys = model.state_dict()
-            state_dict = {key: value for key, value in state_dict.items() if key in model_keys}
-        load_state_dict(model, state_dict, source=weights["url"])
+        load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+        if headless:
+            model.reset_classifier(0)
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)
         if not path.exists():
