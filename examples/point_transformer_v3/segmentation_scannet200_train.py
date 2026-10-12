@@ -20,7 +20,7 @@ from torch_pointcloud.datasets import ScanNet200
 from torch_pointcloud.losses import LovaszLoss, SumLoss
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import param_groups
+from torch_pointcloud.optim import generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -210,7 +210,7 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module, steps_per_epoch: int) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(
+    groups = generate_param_groups(
         model,
         weight_decay=args.weight_decay,
         overrides=[dict(match=lambda name, param: bool(TRANSFORMER_BLOCK.search(name)), lr=args.lr / 10)],

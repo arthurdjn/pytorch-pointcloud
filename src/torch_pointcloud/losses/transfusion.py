@@ -39,10 +39,6 @@ class TransFusionHeadLoss(nn.Module):
 
     The loss holds no reference to the model: the grid geometry is rebuilt from the constructor params.
 
-    !!! note
-        nuScenes ground-truth boxes carry no velocity ($(K, 7)$), so the velocity targets are zero. The
-        default `code_weights` zeroes the last two (velocity) codes to leave that branch unsupervised.
-
     Args:
         num_classes: Number of foreground classes (heatmap channels and query logits).
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
@@ -120,8 +116,9 @@ class TransFusionHeadLoss(nn.Module):
             output: The head's raw output: per-query `center` $(B, 2, Q)$, `height` $(B, 1, Q)$,
                 `dim` $(B, 3, Q)$, `rot` $(B, 2, Q)$, `vel` $(B, 2, Q)$, `iou` $(B, 1, Q)$ and `heatmap`
                 $(B, C, Q)$ class logits, plus the dense `dense_heatmap` $(B, C, H, W)$.
-            data: Packed ground truth (`DataKeys.BOX` $(K, 7)$ full-extent, `DataKeys.LABEL` $(K,)$
-                $0$-based, `DataKeys.BATCH_BOX` $(K,)$ per-box scene index).
+            data: Packed ground truth (`DataKeys.BOX` $(K, 7)$ full-extent, or $(K, 9)$ with the velocity in
+                the last two columns, `DataKeys.LABEL` $(K,)$ $0$-based, `DataKeys.BATCH_BOX` $(K,)$ per-box
+                scene index).
 
         Returns:
             A dict with the scalar `loss` and detached `heatmap_loss`, `cls_loss`, `box_loss`, `iou_loss`.

@@ -17,7 +17,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ConcatDataset, ShapeNetPart
 from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import CosineWarmupLR, param_groups
+from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -168,7 +168,7 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(model, weight_decay=args.weight_decay, no_decay=["token"])
+    groups = generate_param_groups(model, weight_decay=args.weight_decay, no_decay=["token"])
     optimizer = torch.optim.AdamW(groups, lr=args.lr, weight_decay=args.weight_decay)
 
     # Stepped once per epoch: cosine with a linear warm-up.
