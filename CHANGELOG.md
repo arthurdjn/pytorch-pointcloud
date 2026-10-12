@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the DGCNN segmentation lines of `examples/benchmark.sh`, which passed `--dataset` and `--area` to scripts that take `--model`; a test now checks every line of the file against the argparse interface of the script it calls.
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.
