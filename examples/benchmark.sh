@@ -83,13 +83,13 @@ $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model v
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu
 
 # Segmentation (S3DIS, ScanNet, SemanticKITTI)
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset scannet
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset s3dis --area 1
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset s3dis --area 2
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset s3dis --area 3
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset s3dis --area 4
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset s3dis --area 5
-$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --dataset s3dis --area 6
+$RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --model dgcnn.scannet20.an-tao
+$RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area1.an-tao
+$RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area2.an-tao
+$RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area3.an-tao
+$RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area4.an-tao
+$RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area5.an-tao
+$RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area6.an-tao
 $RUN examples/pvcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model pvcnn.s3dis-area5.mit-han-lab --areas Area_5
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base.s3dis-area5.hugues-thomas
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base-sm.s3dis-area5.hugues-thomas
