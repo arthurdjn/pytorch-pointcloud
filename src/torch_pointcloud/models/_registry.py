@@ -537,9 +537,9 @@ def create_model(
 ) -> Any:
     """Build a registered model, optionally loading pretrained or local checkpoint weights.
 
-    Weights load through a head-adapting policy: overriding `num_classes` (or `in_channels`) keeps the
-    matching backbone weights and leaves the rebuilt head at its fresh initialization with a warning, while
-    an untouched configuration loads completely. Model keys missing from the checkpoint raise.
+    Registered weights load into the registered configuration, then an overridden `num_classes` rebuilds the head
+    at its fresh initialization (`0` drops it). Other overrides (e.g. `in_channels`) keep the matching weights, and
+    the keys whose shape changed keep their initialization. Model keys missing from the checkpoint raise.
 
     Args:
         name: Registered model name (see `list_models`).
@@ -584,8 +584,11 @@ def create_model(
     # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
     # caller (e.g. a LightningModule) can log exactly what built the model.
     hparams = {**entry["hparams"], **kwargs}
+    # Registered weights load into the registered head; an overridden `num_classes` rebuilds it afterwards.
+    rebuild_head = pretrained and task not in ("detection", "pretraining") and "num_classes" in kwargs
+    overrides = {key: value for key, value in kwargs.items() if key != "num_classes"} if rebuild_head else kwargs
     try:
-        model = entry["fn"](**hparams)
+        model = entry["fn"](**{**entry["hparams"], **overrides})
     except ImportError as err:
         raise ImportError(
             f"Model {name!r} needs an optional dependency that could not be imported: {err} See {_INSTALLATION_URL}."
@@ -610,6 +613,8 @@ def create_model(
 
         local_path = resolve_weights(name, weights["url"])
         load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+        if rebuild_head and model.num_classes != kwargs["num_classes"]:
+            model.reset_classifier(kwargs["num_classes"])
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)
         if not path.exists():
