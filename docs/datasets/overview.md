@@ -8,7 +8,7 @@ ScanObjectNN are released under terms of use: read them (each class links its `t
 `accept_terms=True` next to `download=True`. The original files are kept in `root/<dataset>/raw`, and the cache built
 from them in `processed`.
 
-```{.python notest}
+```{.python data}
 from torch_pointcloud.datasets import ModelNet40
 from torch_pointcloud.utils.data import PointCloudDataLoader
 

@@ -139,7 +139,7 @@ def load_semantickitti_scan(file_path: PathLike) -> tuple[Tensor, Tensor]:
         A pair `(pos, intensity)` of tensors with shapes $(N, 3)$ and $(N, 1)$.
 
     Example:
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets.semantickitti import load_semantickitti_scan
 
         pos, intensity = load_semantickitti_scan(
@@ -170,7 +170,7 @@ def load_semantickitti_labels(file_path: PathLike) -> tuple[Tensor, Tensor]:
         instance ids.
 
     Example:
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets.semantickitti import load_semantickitti_labels
 
         segment, instance = load_semantickitti_labels(
@@ -245,7 +245,7 @@ class SemanticKITTI(PointCloudDataset):
         Assuming you have downloaded the raw dataset and extracted it under
         `data/SemanticKITTI/raw/sequences/...`, you can load the validation split:
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets import SemanticKITTI
 
         dataset = SemanticKITTI(root="data", split="val")
@@ -262,7 +262,7 @@ class SemanticKITTI(PointCloudDataset):
         on-rails (16) into other-vehicle and lane-marking (60) into road, whereas this one
         sends them to the ignore index.
 
-        ```{.python notest}
+        ```{.python data}
         import torch_pointcloud.transforms as T
         from torch_pointcloud.datasets import SemanticKITTI
 

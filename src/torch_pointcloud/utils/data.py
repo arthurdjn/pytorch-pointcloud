@@ -339,12 +339,14 @@ def seed_worker(worker_id: int) -> None:
         worker_id: Index of the worker, as passed by the `DataLoader`.
 
     Example:
-        ```{.python notest}
-        from torch.utils.data import DataLoader
+        ```python
+        import torch
+        from torch.utils.data import DataLoader, TensorDataset
 
         from torch_pointcloud.utils.data import seed_worker
 
-        loader = DataLoader(dataset, num_workers=4, worker_init_fn=seed_worker)
+        loader = DataLoader(TensorDataset(torch.arange(8)), num_workers=2, worker_init_fn=seed_worker)
+        batch = next(iter(loader))
         ```
     """
     info = get_worker_info()

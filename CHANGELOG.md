@@ -16,7 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed the DGCNN segmentation lines of `examples/benchmark.sh`, which passed `--dataset` and `--area` to scripts that take `--model`; a test now checks every line of the file against the argparse interface of the script it calls.
 - `create_model(..., pretrained=True)` no longer warns about overrides: `num_classes=K` loads the registered checkpoint and then rebuilds the head for `K` classes (`0` drops it), and the keys whose shape changed under another override (e.g. the stem after `in_channels=`) keep their initialization.
 - `create_model(..., pretrained=True)` warns when the registered weights are released under a non-commercial license.
-- Added `tests/test_docstring_examples.py`, which runs every ```python fence of the docstrings as pasted; fixed the examples that did not run (missing imports, placeholder names, stale calls, the argument order of the `SlidingWindowInferer` predictor) and marked those needing a dataset on disk `{.python notest}`.
+- Added `tests/test_docs_examples.py`, which runs every ```python fence of the docstrings and the docs pages as pasted; the `{.python data}` fences read the fixture datasets or download weights and run with `--run-docs` (`make doctest-docs`). Fixed the examples that did not run (missing imports, placeholder names, stale calls, the argument order of the `SlidingWindowInferer` predictor) and removed the `pytest-markdown-docs` dependency.
 
 ## 0.0.13 (2026-10-11)
 

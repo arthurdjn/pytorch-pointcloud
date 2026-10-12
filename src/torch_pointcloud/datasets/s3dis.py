@@ -111,7 +111,7 @@ def load_s3dis_room(room_dir: PathLike, alignment_angle: float | None = None) ->
         Assuming you have downloaded the raw dataset and extracted it under `data/S3DIS/raw`,
         you can load the alignment angles for the Area_1 as follows:
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets.s3dis import load_s3dis_room
 
         room_dir = "data/S3DIS/raw/Area_1/conferenceRoom_1"
@@ -164,7 +164,7 @@ def load_s3dis_alignment_angles(file_path: PathLike) -> dict[str, float]:
         Assuming you have downloaded the raw dataset and extracted it under `data/S3DIS/raw`,
         you can load the alignment angles for the Area_1 as follows:
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets.s3dis import load_s3dis_alignment_angles
 
         file_path = "data/S3DIS/raw/Area_1/Area_1_alignmentAngle.txt"
@@ -324,7 +324,7 @@ class S3DIS(PointCloudDataset):
         Assuming you have downloaded the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/,
         and extracted it under `data/S3DIS/raw`, you can load the dataset as follows:
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets import S3DIS
 
         dataset = S3DIS(
@@ -335,7 +335,7 @@ class S3DIS(PointCloudDataset):
 
         To split rooms into 1m x 1m blocks (matching the DGCNN evaluation protocol):
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets import S3DIS
 
         dataset = S3DIS(
@@ -722,7 +722,7 @@ class S3DISHdf5(PointCloudDataset):
         Assuming you have downloaded the HDF5 files from https://shapenet.cs.stanford.edu/media/,
         and extracted it under `data/S3DIS/indoor3d_sem_seg_hdf5_data`, you can load the dataset as follows:
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets import S3DISHdf5
 
         dataset = S3DISHdf5(root="data", areas=["Area_1"])

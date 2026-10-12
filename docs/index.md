@@ -65,7 +65,7 @@ title: PyTorch PointCloud
 Every checkpoint is one `create_model` call away, and ships the transform that turns a raw point cloud into what the
 network expects:
 
-```{.python notest}
+```{.python data}
 import torch_pointcloud as tp
 
 model, info = tp.create_model(

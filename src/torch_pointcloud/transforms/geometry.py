@@ -161,10 +161,15 @@ def shift(
     so axes not listed are left untouched. This is the composable knob for
     mixed-method shifts:
 
-    ```{.python notest}
+    ```python
+    import torch
+
+    import torch_pointcloud.transforms.functional as F
+
+    x = torch.rand(100, 3)
     # Center XY at the bbox midpoint and Z at the minimum
     x = F.shift(x, method="bbox", axes=[0, 1])
-    x = F.shift(x, method="min",  axes=[2])
+    x = F.shift(x, method="min", axes=[2])
     ```
 
     The two calls touch disjoint axes, so they commute.

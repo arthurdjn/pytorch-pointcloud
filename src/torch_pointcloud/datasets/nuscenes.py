@@ -793,7 +793,7 @@ class NuScenesMini(NuScenes):
     Example:
         Assuming the raw mini split is extracted under `data/NuScenesMini/raw/`:
 
-        ```{.python notest}
+        ```{.python data}
         from torch_pointcloud.datasets import NuScenesMini
 
         dataset = NuScenesMini(root="data")

@@ -4,9 +4,6 @@ SRC:=src
 TESTS:=tests
 EXAMPLES:=examples
 DOCS:=docs
-# Pages generated from a notebook: the notebook is the source of truth, and its cells need
-# pretrained weights, datasets and a GPU that the doctest run has no access to.
-NOTEBOOK_PAGES:=$(patsubst %.ipynb,%.md,$(wildcard $(DOCS)/*/*.ipynb))
 CMD:=uv run --no-sync
 
 # Linting, formatting, etc.
@@ -49,11 +46,8 @@ doctest: ## Run doctests in source docstrings (>>> examples)
 	$(CMD) pytest --doctest-modules $(SRC)
 
 .PHONY: doctest-docs
-doctest-docs: ## Run python code blocks in source docstrings and the docs markdown
-	$(CMD) pytest --markdown-docs --markdown-docs-syntax=superfences $(SRC) $(DOCS) \
-		--ignore=$(DOCS)/scripts --ignore=$(DOCS)/examples --ignore=$(SRC)/torch_pointcloud/lightning \
-		$(addprefix --ignore=,$(NOTEBOOK_PAGES))
-	$(CMD) pytest $(TESTS)/test_docstring_examples.py
+doctest-docs: ## Run every python code block of the docstrings and the docs pages, the data ones included
+	$(CMD) pytest $(TESTS)/test_docs_examples.py --run-docs
 
 # Documentation
 

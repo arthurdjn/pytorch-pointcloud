@@ -254,13 +254,13 @@ def cut_boxes(
         The objects of the scene, in the order of its boxes.
 
     Example:
-        ```{.python notest}
+        ```{.python data}
         import torch
         import torch_pointcloud.transforms.functional as F
         from torch_pointcloud.datasets import KITTI
 
         objects = []
-        for data in KITTI(root="data/KITTI"):
+        for data in KITTI(root="data"):
             objects.extend(F.cut_boxes(data, keys=["pos", "intensity"]))
         objects = [obj for obj in objects if len(obj["pos"]) >= 5]
         torch.save(objects, "objects.pt")
