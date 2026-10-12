@@ -1,25 +1,13 @@
 # About
 
-:pytorch-pointcloud-mini: `torch-pointcloud` is a :pytorch: [PyTorch](https://pytorch.org) library for deep learning on
-point clouds: models, pretrained weights, datasets, transforms, losses, metrics and inferers. The design follows
-:github: [timm](https://github.com/huggingface/pytorch-image-models) for images and :pyg: [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/)
-for graphs, with a `create_model` factory, a registry of pretrained weights and composable transforms. Point clouds
-move as packed batches, the PyG layout, so a model trained on one benchmark runs in another codebase without changing
-the tensor layout.
+:pytorch-pointcloud-mini: `torch-pointcloud` is a :pytorch: [PyTorch](https://pytorch.org) library for deep learning on point clouds: models, pretrained weights, datasets, transforms, losses, metrics and inferers. The design was heavily inspired by :torch: [timm](https://github.com/huggingface/pytorch-image-models) and :pyg: [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/). Point clouds expect packed batches, the PyG layout, so a model trained on one benchmark runs in another codebase without changing the tensor layout.
 
-The project is independent and has no affiliation with the PyTorch team.
+_This project is independent and has no affiliation with the PyTorch team._
 
 ## Scope
 
-Every piece is importable on its own and works in a plain PyTorch loop. The
-[examples](https://github.com/arthurdjn/pytorch-pointcloud/tree/main/examples) reproduce the authors' recipes with
-that API and nothing else. There is no config system in the library, and :lightning: [Lightning](https://lightning.ai/docs/pytorch/stable/)
-stays an optional extra.
-
-`torch-pointcloud` does not replace research codebases such as :github: [Pointcept](https://github.com/Pointcept/Pointcept),
-:github: [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) and :github: [MMDetection3D](https://github.com/open-mmlab/mmdetection3d).
-They own the configs and the experiment management. `torch-pointcloud` gives their architectures a common interface and
-converts their checkpoints, so benchmarking across families is one script.
+`torch-pointcloud` does not replace research codebases such as :github: [Pointcept](https://github.com/Pointcept/Pointcept), :github: [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) and :github: [MMDetection3D](https://github.com/open-mmlab/mmdetection3d).
+Instead this project focuses on providing a common interface for different models to ease benchmarking and reusability of common architectures without having to reimplement the wheel every time.
 
 ## Design
 
@@ -39,6 +27,8 @@ converts their checkpoints, so benchmarking across families is one script.
 
 ## Citation
 
+If you find this project useful, please cite it as follows:
+
 ```bibtex
 @software{dujardin2026pytorchpointcloud,
   author = {Dujardin, Arthur},
@@ -50,15 +40,11 @@ converts their checkpoints, so benchmarking across families is one script.
 }
 ```
 
-The concept DOI [10.5281/zenodo.22159632](https://doi.org/10.5281/zenodo.22159632) resolves to the latest release.
-[`CITATION.cff`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CITATION.cff) has the same entry.
-
 ## License
 
-The code is Apache-2.0, see [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE). Pretrained
-weights keep the license of their source, stored in `model_info(name)["weights"]["license"]` and listed in
-[`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md). The
-Sonata, Concerto and Utonia checkpoints are CC-BY-NC-4.0.
+The code is Apache-2.0, see [`LICENSE`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
+Pretrained weights keep the license of their source, listed in
+[`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).
 
 ## Contributing
 
