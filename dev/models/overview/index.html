@@ -1443,7 +1443,7 @@ segmentation, object detection and self-supervised pretraining, behind one <span
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">tp</span><span class="o">.</span><span class="n">list_models</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;classification&quot;</span><span class="p">,</span> <span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># or &quot;semantic-segmentation&quot;, &quot;detection&quot;, ...</span>
 </code></pre></div>
 <p>Weights are downloaded from the Hugging Face Hub on first use and cached under <code>~/.cache/torch-pointcloud/models</code>
-(<code>TORCH_POINTCLOUD_MODELS_DIR</code> moves them). Each checkpoint keeps the license of its source, listed on the task pages,
+(<code>TORCH_POINTCLOUD_CACHE_DIR</code> moves the cache). Each checkpoint keeps the license of its source, listed on the task pages,
 and a few are restricted to non-commercial use: see
 <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md"><code>THIRD_PARTY_NOTICES.md</code></a>.</p>
 <p><img alt="Five pretrained checkpoints on two committed sample clouds: object classification, part segmentation, scene segmentation, 3D detection, and LiDAR segmentation" src="../../assets/tasks/hero.png" /></p>

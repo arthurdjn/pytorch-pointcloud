@@ -6285,14 +6285,14 @@
 
     <div class="doc doc-contents first">
 
-        <p>Environment-variable configuration of cache, model, and data directories and randomness defaults.</p>
-<p>This module contains the following global variables for configuration:</p>
+        <p>Cache and data directories of the package.</p>
 <table>
 <thead>
 <tr>
 <th>Variable</th>
 <th>Description</th>
 <th>Default</th>
+<th>Environment variable</th>
 </tr>
 </thead>
 <tbody>
@@ -6300,21 +6300,25 @@
 <td><code>HOME_DIR</code></td>
 <td>The home directory of the user.</td>
 <td><code>Path.home().as_posix()</code></td>
+<td></td>
 </tr>
 <tr>
 <td><code>CACHE_DIR</code></td>
-<td>The cache directory for the package.</td>
+<td>The cache directory of the package.</td>
 <td><code>Path(HOME_DIR, ".cache", "torch-pointcloud").as_posix()</code></td>
+<td><code>TORCH_POINTCLOUD_CACHE_DIR</code></td>
 </tr>
 <tr>
 <td><code>MODELS_DIR</code></td>
-<td>The directory for the models.</td>
+<td>The pretrained weights, inside the cache.</td>
 <td><code>Path(CACHE_DIR, "models").as_posix()</code></td>
+<td></td>
 </tr>
 <tr>
 <td><code>DATA_DIR</code></td>
-<td>The directory for the data.</td>
+<td>The datasets.</td>
 <td><code>"data"</code></td>
+<td><code>TORCH_POINTCLOUD_DATA_DIR</code></td>
 </tr>
 </tbody>
 </table>
