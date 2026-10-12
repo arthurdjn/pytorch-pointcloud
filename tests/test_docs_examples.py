@@ -1,7 +1,7 @@
-"""Run the ```python fences of the `torch_pointcloud` docstrings and the docs pages as pasted.
+"""Run every ```python fence of the `torch_pointcloud` docstrings and the docs pages as pasted.
 
-A plain `python` fence runs in the default suite. A `{.python notest}` fence reads the fixture datasets under `data/`
-or downloads pretrained weights, so it runs only with `--run-docs`, from a copy of `tests/data/datasets`.
+The fences run with `--run-docs` only, from a directory holding a copy of `tests/data/datasets` as `data/`: the dataset
+examples read it and the pretrained ones download their weights. A `{.python notest}` fence cannot run and is left out.
 """
 
 import re
@@ -18,10 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "torch_pointcloud"
 DOCS = ROOT / "docs"
 DATASETS_DIR = ROOT / "tests" / "data" / "datasets"
-FENCE = re.compile(
-    r"^(?P<indent>[ \t]*)```(?P<info>python|\{\.python notest\})\n(?P<code>.*?)^(?P=indent)```",
-    re.MULTILINE | re.DOTALL,
-)
+FENCE = re.compile(r"^(?P<indent>[ \t]*)```python\n(?P<code>.*?)^(?P=indent)```", re.MULTILINE | re.DOTALL)
 
 
 def docs_pages() -> Iterator[Path]:
@@ -35,17 +32,17 @@ def docs_pages() -> Iterator[Path]:
         yield path
 
 
-def python_fences(path: Path) -> Iterator[Tuple[int, str, str]]:
-    """Yield `(line, info, code)` for every `python` or `{.python notest}` fence of `path`, dedented."""
+def python_fences(path: Path) -> Iterator[Tuple[int, str]]:
+    """Yield `(line, code)` for every fence of `path` whose info string is exactly `python`, dedented."""
     text = path.read_text()
     for match in FENCE.finditer(text):
-        yield text.count("\n", 0, match.start()) + 1, match.group("info"), textwrap.dedent(match.group("code"))
+        yield text.count("\n", 0, match.start()) + 1, textwrap.dedent(match.group("code"))
 
 
 FENCES = [
-    (info, pytest.param(code, id=f"{path.relative_to(ROOT)}:{line}"))
+    pytest.param(code, id=f"{path.relative_to(ROOT)}:{line}")
     for path in [*sorted(SRC.rglob("*.py")), *docs_pages()]
-    for line, info, code in python_fences(path)
+    for line, code in python_fences(path)
 ]
 
 
@@ -57,15 +54,9 @@ def docs_data_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return root
 
 
-@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
-@pytest.mark.parametrize("code", [param for info, param in FENCES if info == "python"])
-def test_docs_example_runs(code: str) -> None:
-    exec(compile(code, "<docs>", "exec"), {"__name__": "__docs__"})
-
-
 @pytest.mark.docs
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
-@pytest.mark.parametrize("code", [param for info, param in FENCES if info != "python"])
-def test_docs_data_example_runs(code: str, docs_data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("code", FENCES)
+def test_docs_example_runs(code: str, docs_data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(docs_data_dir)
     exec(compile(code, "<docs>", "exec"), {"__name__": "__docs__"})

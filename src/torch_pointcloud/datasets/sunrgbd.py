@@ -245,7 +245,7 @@ class SunRGBD(PointCloudDataset):
         Assuming you have downloaded `SUNRGBD.zip` and `SUNRGBDtoolbox.zip` under
         `data/SunRGBD/raw`, you can load the dataset as follows:
 
-        ```{.python notest}
+        ```python
         from torch_pointcloud.datasets import SunRGBD
 
         dataset = SunRGBD(root="data", train=False)

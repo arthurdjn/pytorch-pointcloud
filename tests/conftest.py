@@ -261,7 +261,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--run-docs",
         action="store_true",
         default=False,
-        help="Run the docs examples that read the fixture datasets or download weights (skipped by default)",
+        help="Run the code blocks of the docstrings and the docs pages (reads the fixture datasets, downloads weights)",
     )
 
 
@@ -279,7 +279,7 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "docs: docs examples that read the fixture datasets or download weights. Skipped unless --run-docs is passed.",
+        "docs: the code blocks of the docstrings and the docs pages. Skipped unless --run-docs is passed.",
     )
 
 
@@ -287,8 +287,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     """Skip tests marked `pretrained`, `example` or `docs` unless their opt-in flag is passed.
 
     `pretrained` tests need local weights CI does not cache; `example` tests run every example script on
-    the dummy datasets (slow); `docs` tests run the docs examples that read the fixture datasets or download
-    weights. All stay opt-in via `--run-pretrained` / `--run-examples` / `--run-docs`.
+    the dummy datasets (slow); `docs` tests run the code blocks of the docstrings and the docs pages. All stay opt-in
+    via `--run-pretrained` / `--run-examples` / `--run-docs`.
     """
     if not config.getoption("--run-pretrained"):
         skip_pretrained = pytest.mark.skip(reason="needs --run-pretrained to run")

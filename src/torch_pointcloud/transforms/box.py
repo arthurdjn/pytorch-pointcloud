@@ -254,7 +254,7 @@ def cut_boxes(
         The objects of the scene, in the order of its boxes.
 
     Example:
-        ```{.python notest}
+        ```python
         import torch
         import torch_pointcloud.transforms.functional as F
         from torch_pointcloud.datasets import KITTI

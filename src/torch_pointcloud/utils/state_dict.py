@@ -35,13 +35,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
 
     Example:
         ```{.python notest}
-        import torch
-        from torch import nn
-
         from torch_pointcloud.utils.state_dict import read_state_dict
 
-        torch.save({"state_dict": nn.Linear(3, 2).state_dict()}, "checkpoint.pt")
-        state_dict = read_state_dict("checkpoint.pt")
+        state_dict = read_state_dict("checkpoints/last.ckpt")
         ```
     """
     path = Path(path)
@@ -91,14 +87,9 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
 
     Example:
         ```{.python notest}
-        import torch
-        from torch import nn
-
         from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 
-        torch.save(nn.Linear(3, 2).state_dict(), "checkpoint.pt")
-        model = nn.Linear(3, 2)
-        load_state_dict(model, read_state_dict("checkpoint.pt"), source="checkpoint.pt")
+        load_state_dict(model, read_state_dict("checkpoints/last.ckpt"), source="last.ckpt")
         ```
     """
     model_state = model.state_dict()

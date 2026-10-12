@@ -62,8 +62,8 @@ make test
 
 or test individual files via, *e.g.*, `uv run --no-sync pytest tests/transforms/test_functional.py`.
 Tests that need an optional dependency or a GPU are skipped when it is missing.
-The code blocks of the docstrings and the docs pages run as tests too; the ones tagged `{.python notest}` read the
-fixture datasets or download weights, so they run with `make doctest-docs` (`pytest --run-docs`).
+The code blocks of the docstrings and the docs pages run as tests with `make doctest-docs` (`pytest --run-docs`); a
+block that cannot run is tagged `{.python notest}`.
 
 ## Continuous Integration
 
