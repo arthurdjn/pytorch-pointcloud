@@ -222,7 +222,8 @@ class SerializedAttention(nn.Module):
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
-                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
+                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                    "or pass `use_flash_attn=False`."
                 )
 
             if upcast_attn:
@@ -423,7 +424,8 @@ class SerializedAttentionRoPE(nn.Module):
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
-                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
+                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                    "or pass `use_flash_attn=False`."
                 )
 
             if upcast_attn:

@@ -1,6 +1,6 @@
 """Per-segment pooling modules over packed batches and the `create_pool` / `create_adaptive_pool` factories."""
 
-from typing import Any, Dict, Literal, Optional, Sequence
+from typing import Any, Dict, Literal, Optional, Sequence, overload
 
 import torch
 import torch.nn as nn
@@ -182,33 +182,54 @@ _ADAPTIVE_POOL_REGISTRY: Dict[AdaptivePoolName, RegisteredModuleLike] = dict(
 )
 
 
-def create_pool(name: PoolLike, *args: Any, **kwargs: Any) -> nn.Module:
-    """Resolve a packed-batch pooling module from a name, class, or instance.
+@overload
+def create_pool(name: None, *args: Any, **kwargs: Any) -> None: ...
+
+
+@overload
+def create_pool(name: PoolLike, *args: Any, **kwargs: Any) -> nn.Module: ...
+
+
+def create_pool(name: Optional[PoolLike], *args: Any, **kwargs: Any) -> Optional[nn.Module]:
+    """Resolve a packed-batch pooling module from a name, class, or instance, returning `None` for `name=None`.
 
     Args:
-        name: Pool name (`"max"`, `"min"`, `"mean"`, `"mul"`, `"sum"`), a module class, or an existing instance
-            (returned as-is).
+        name: Pool name (`"max"`, `"min"`, `"mean"`, `"mul"`, `"sum"`), a module class, an existing instance
+            (returned as-is), or `None`.
         *args: Positional arguments forwarded to the pool constructor.
         **kwargs: Keyword arguments forwarded to the pool constructor (`dim`, `dim_size`).
 
     Returns:
-        The instantiated pooling module.
+        The instantiated pooling module, or `None` if `name is None`.
     """
+    if name is None:
+        return None
     return create_module(name, *args, registry=_POOL_REGISTRY, **kwargs)
 
 
-def create_adaptive_pool(name: AdaptivePoolLike, *args: Any, **kwargs: Any) -> nn.Module:
-    """Resolve a dense adaptive pooling module (`nn.AdaptiveAvgPool1d` / `nn.AdaptiveMaxPool1d`).
+@overload
+def create_adaptive_pool(name: None, *args: Any, **kwargs: Any) -> None: ...
+
+
+@overload
+def create_adaptive_pool(name: AdaptivePoolLike, *args: Any, **kwargs: Any) -> nn.Module: ...
+
+
+def create_adaptive_pool(name: Optional[AdaptivePoolLike], *args: Any, **kwargs: Any) -> Optional[nn.Module]:
+    """Resolve a dense adaptive pooling module (`nn.AdaptiveAvgPool1d` / `nn.AdaptiveMaxPool1d`), returning `None`
+    for `name=None`.
 
     Args:
-        name: Pool name (`"mean"`, `"max"`), a module class, or an existing instance
-            (returned as-is).
+        name: Pool name (`"mean"`, `"max"`), a module class, an existing instance
+            (returned as-is), or `None`.
         *args: Positional arguments forwarded to the pool constructor.
         **kwargs: Keyword arguments forwarded to the pool constructor. `output_size`
             defaults to `1` (global pooling).
 
     Returns:
-        The instantiated pooling module.
+        The instantiated pooling module, or `None` if `name is None`.
     """
+    if name is None:
+        return None
     kwargs.setdefault("output_size", 1)
     return create_module(name, *args, registry=_ADAPTIVE_POOL_REGISTRY, **kwargs)

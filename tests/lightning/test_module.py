@@ -313,19 +313,13 @@ def test_configure_optimizers_without_optimizer_raises() -> None:
 
 
 def test_configure_optimizers_uses_param_groups() -> None:
-    lit = _make_seg_module(
-        param_groups={
-            "layer_matches": [lambda name: name.startswith("model.fc")],
-            "match_types": "filter",
-            "lr_values": 0.0001,
-        },
-    )
+    lit = _make_seg_module(param_groups={"overrides": [dict(keyword="fc.bias", lr=0.0001)]})
     optim = lit.configure_optimizers()
-    # 2 groups: matched + others (others is empty since fc is the only sub-module).
     assert len(optim.param_groups) == 2
-    assert optim.param_groups[0]["lr"] == 0.0001
-    matched_ids = {id(p) for p in optim.param_groups[0]["params"]}
-    expected_ids = {id(p) for n, p in lit.named_parameters() if n.startswith("model.fc")}
+    assert optim.param_groups[0]["lr"] == 0.01
+    assert optim.param_groups[1]["lr"] == 0.0001
+    matched_ids = {id(p) for p in optim.param_groups[1]["params"]}
+    expected_ids = {id(p) for n, p in lit.named_parameters() if n == "model.fc.bias"}
     assert matched_ids == expected_ids
 
 

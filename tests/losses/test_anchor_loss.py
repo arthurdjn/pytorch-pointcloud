@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pytest
 import torch
@@ -48,9 +48,19 @@ def _perfect_single(loss_fn: AnchorHeadLoss) -> Tuple[Dict[str, Tensor], Dict[st
     return output, data, idx
 
 
-def test_anchor_loss_perfect_predictions_near_zero() -> None:
+@pytest.mark.parametrize(
+    "velocity",
+    [
+        pytest.param(None, id="7-column"),
+        pytest.param(torch.tensor([[1.0, -2.0]]), id="9-column"),
+    ],
+)
+def test_anchor_loss_perfect_predictions_near_zero(velocity: Optional[Tensor]) -> None:
+    """A (K, 9) box is matched on its geometry columns; the single-group loss does not regress the velocity."""
     loss_fn = _single_loss()
     output, data, _ = _perfect_single(loss_fn)
+    if velocity is not None:
+        data[DataKeys.BOX] = torch.cat([data[DataKeys.BOX], velocity], dim=1)
     out = loss_fn(output, data)
     assert out["box_loss"] == 0.0
     assert out["cls_loss"] < 1e-3

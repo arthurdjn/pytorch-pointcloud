@@ -20,6 +20,7 @@ def test_none_or_identity_idiom() -> None:
         pytest.param("relu", nn.ReLU, id="relu"),
         pytest.param("gelu", nn.GELU, id="gelu"),
         pytest.param("leaky_relu", nn.LeakyReLU, id="leaky_relu"),
+        pytest.param("swish", nn.SiLU, id="swish"),
     ],
 )
 def test_string_resolves_to_module(act: str, expected: type) -> None:
