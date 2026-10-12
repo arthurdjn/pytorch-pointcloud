@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterator
 from unittest.mock import Mock
@@ -244,10 +243,9 @@ def test_list_models_invalid_task_raises() -> None:
         list_models(task="invalid")  # type: ignore[arg-type]
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path) -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
@@ -255,30 +253,27 @@ def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_num_classes_override_rebuilds_head(_register_pretrained_dummy: Path) -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=3)
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=3)
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert model.fc.weight.shape == (3, 8)
     assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_registered_num_classes_keeps_head(_register_pretrained_dummy: Path) -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=5)
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=5)
     assert isinstance(model, DummyClassificationModel)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert isinstance(model.fc, nn.Linear)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_in_channels_override_keeps_fresh_stem(_register_pretrained_dummy: Path) -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, in_channels=4)
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, in_channels=4)
     assert isinstance(model, DummyClassificationModel)
     assert model.encoder.weight.shape == (8, 4)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
@@ -287,10 +282,9 @@ def test_create_model_pretrained_in_channels_override_keeps_fresh_stem(_register
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_headless_loads_backbone_without_warning(_register_pretrained_dummy: Path) -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=0)
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=0)
     assert isinstance(model, DummyClassificationModel)
     assert isinstance(model.fc, nn.Identity)
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
