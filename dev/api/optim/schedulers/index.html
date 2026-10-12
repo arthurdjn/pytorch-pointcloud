@@ -6452,7 +6452,7 @@ iteration for an iteration-based one; <code>total_steps</code> and <code>warmup_
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CosineWarmupLR&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/optim/schedulers.py#L71-L101&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.optim.schedulers.CosineWarmupLR">CosineWarmupLR</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/optim/schedulers.py#L71-L109&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.optim.schedulers.CosineWarmupLR">CosineWarmupLR</a></code></b>
           –
           <div class="doc-md-description">
             <p>Cosine decay with linear warm-up (one cycle).</p>
@@ -6462,7 +6462,7 @@ iteration for an iteration-based one; <code>total_steps</code> and <code>warmup_
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;PolyLR&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/optim/schedulers.py#L104-L158&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.optim.schedulers.PolyLR">PolyLR</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/optim/schedulers.py#L112-L174&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.optim.schedulers.PolyLR">PolyLR</a></code></b>
           –
           <div class="doc-md-description">
             <p>Polynomial decay with linear warm-up (one cycle).</p>
@@ -6494,7 +6494,7 @@ iteration for an iteration-based one; <code>total_steps</code> and <code>warmup_
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">CosineWarmupLR</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/optim/schedulers.py#L71-L101" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/optim/schedulers.py#L71-L109" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.optim.schedulers.CosineWarmupLR" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">CosineWarmupLR</span><span class="p">(</span>
@@ -6598,9 +6598,17 @@ iteration for an iteration-based one; <code>total_steps</code> and <code>warmup_
 <details class="example" open>
   <summary>Example</summary>
   <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)],</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">sched</span> <span class="o">=</span> <span class="n">CosineWarmupLR</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">total_steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">warmup_steps</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lr_min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">sched</span><span class="o">.</span><span class="n">get_last_lr</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">sched</span><span class="o">.</span><span class="n">step</span><span class="p">()]</span>  <span class="c1"># [0.5, 0.905, 0.794, 0.655, 0.5, 0.345, 0.206, 0.095, 0.024, 0.0]</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">CosineWarmupLR</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)],</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">sched</span> <span class="o">=</span> <span class="n">CosineWarmupLR</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">total_steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">warmup_steps</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lr_min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">lrs</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">sched</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">lrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">sched</span><span class="o">.</span><span class="n">get_last_lr</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">lrs</span>  <span class="c1"># [0.5, 0.905, 0.794, 0.655, 0.5, 0.345, 0.206, 0.095, 0.024, 0.0]</span>
 </code></pre></div>
 </details>
 
@@ -6645,7 +6653,7 @@ iteration for an iteration-based one; <code>total_steps</code> and <code>warmup_
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PolyLR</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/optim/schedulers.py#L104-L158" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/optim/schedulers.py#L112-L174" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.optim.schedulers.PolyLR" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PolyLR</span><span class="p">(</span>
@@ -6674,7 +6682,7 @@ iteration for an iteration-based one; <code>total_steps</code> and <code>warmup_
 <p>after the warm-up; see <a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;CosineWarmupLR&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/optim/schedulers.py#L71-L101&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.optim.schedulers.CosineWarmupLR"><code>CosineWarmupLR</code></a> for how <span class="arithmatex">\(t\)</span>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/optim/schedulers.py#L71-L109&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.optim.schedulers.CosineWarmupLR"><code>CosineWarmupLR</code></a> for how <span class="arithmatex">\(t\)</span>
 and <span class="arithmatex">\(T\)</span> are counted. The decay reaches <code>lr_min</code> at step <code>total_steps</code>; to keep a non-zero rate on the last of
 <span class="arithmatex">\(n\)</span> steps, pass <code>total_steps=n + 1</code>.</p>
 
@@ -6763,9 +6771,17 @@ and <span class="arithmatex">\(T\)</span> are counted. The decay reaches <code>l
 <details class="example" open>
   <summary>Example</summary>
   <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)],</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">sched</span> <span class="o">=</span> <span class="n">PolyLR</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">total_steps</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">power</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">sched</span><span class="o">.</span><span class="n">get_last_lr</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">sched</span><span class="o">.</span><span class="n">step</span><span class="p">()]</span>  <span class="c1"># [0.75, 0.5, 0.25, 0.0]</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">PolyLR</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">([</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">True</span><span class="p">)],</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">sched</span> <span class="o">=</span> <span class="n">PolyLR</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">total_steps</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">power</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">lrs</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">sched</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">lrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">sched</span><span class="o">.</span><span class="n">get_last_lr</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">lrs</span>  <span class="c1"># [0.75, 0.5, 0.25, 0.0]</span>
 </code></pre></div>
 </details>
 

@@ -6450,7 +6450,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;ConcatDataset&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/datasets/concat.py#L10-L55&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.concat.ConcatDataset">ConcatDataset</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/datasets/concat.py#L10-L55&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.concat.ConcatDataset">ConcatDataset</a></code></b>
           –
           <div class="doc-md-description">
             <p>Concatenates several datasets into one flat index space.</p>
@@ -6460,7 +6460,7 @@
           <b><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;SingleDatasetBatchSampler&lt;/span&gt;
 
   
-    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/datasets/concat.py#L58-L165&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.concat.SingleDatasetBatchSampler">SingleDatasetBatchSampler</a></code></b>
+    &lt;a class=&quot;doc-source-link&quot; href=&quot;https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/datasets/concat.py#L58-L167&quot; title=&quot;View source on GitHub&quot;&gt;[source]&lt;/a&gt;" href="./#torch_pointcloud.datasets.concat.SingleDatasetBatchSampler">SingleDatasetBatchSampler</a></code></b>
           –
           <div class="doc-md-description">
             <p>Yields batches whose global indices all come from one dataset of a <code>ConcatDataset</code>.</p>
@@ -6492,7 +6492,7 @@
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ConcatDataset</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/datasets/concat.py#L10-L55" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/datasets/concat.py#L10-L55" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.datasets.concat.ConcatDataset" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ConcatDataset</span><span class="p">(</span><span class="n">datasets</span><span class="p">:</span> <span class="n"><span title="typing.Sequence">Sequence</span></span><span class="p">[</span><span class="n"><span title="torch.utils.data.Dataset">Dataset</span></span><span class="p">])</span>
@@ -6529,7 +6529,7 @@ normalization statistics (BatchNorm, PDNorm) stay clean.</p>
   <summary>Example</summary>
   <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcatDataset</span><span class="p">,</span> <span class="n">S3DIS</span><span class="p">,</span> <span class="n">ScanNet20</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ConcatDataset</span><span class="p">([</span><span class="n">ScanNet20</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">),</span> <span class="n">S3DIS</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">areas</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Area_1&quot;</span><span class="p">])])</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ConcatDataset</span><span class="p">([</span><span class="n">ScanNet20</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">),</span> <span class="n">S3DIS</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">areas</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Area_1&quot;</span><span class="p">])])</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>  <span class="c1"># len(scannet) + len(s3dis)</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">dataset</span><span class="o">.</span><span class="n">sizes</span>  <span class="c1"># [len(scannet), len(s3dis)]</span>
 </code></pre></div>
@@ -6576,7 +6576,7 @@ normalization statistics (BatchNorm, PDNorm) stay clean.</p>
 <code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">SingleDatasetBatchSampler</span>
 
   
-    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/2bbb2a30a84b26d6964341894dac6f12105cc476/src/torch_pointcloud/datasets/concat.py#L58-L165" title="View source on GitHub">[source]</a>
+    <a class="doc-source-link" href="https://github.com/arthurdjn/pytorch-pointcloud/blob/55c7f558ebfda38da77057fc1721f3d69d2618e6/src/torch_pointcloud/datasets/concat.py#L58-L167" title="View source on GitHub">[source]</a>
 
 <a href="#torch_pointcloud.datasets.concat.SingleDatasetBatchSampler" class="headerlink" title="Anchor link to this section">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">SingleDatasetBatchSampler</span><span class="p">(</span>
@@ -6672,13 +6672,15 @@ single domain.</p>
 
 <details class="example" open>
   <summary>Example</summary>
-  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcatDataset</span><span class="p">,</span> <span class="n">SingleDatasetBatchSampler</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ConcatDataset</span><span class="p">([</span><span class="n">scannet</span><span class="p">,</span> <span class="n">s3dis</span><span class="p">])</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">sampler</span> <span class="o">=</span> <span class="n">SingleDatasetBatchSampler</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">sizes</span><span class="p">,</span> <span class="n">ratios</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_sampler</span><span class="o">=</span><span class="n">sampler</span><span class="p">)</span>
+  <div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">TensorDataset</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch_pointcloud.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConcatDataset</span><span class="p">,</span> <span class="n">SingleDatasetBatchSampler</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">ConcatDataset</span><span class="p">([</span><span class="n">TensorDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">3</span><span class="p">)),</span> <span class="n">TensorDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">))])</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">sampler</span> <span class="o">=</span> <span class="n">SingleDatasetBatchSampler</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">sizes</span><span class="p">,</span> <span class="n">ratios</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_sampler</span><span class="o">=</span><span class="n">sampler</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="nb">len</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>  <span class="c1"># 6: two batches of the first dataset for one of the second, until the first is exhausted</span>
 </code></pre></div>
 </details>
 
