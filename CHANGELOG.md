@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the module paths in `THIRD_PARTY_NOTICES.md`, the FAQ entry on `num_classes=` overrides, the tutorials index, and the model zoo notebooks that did not run top to bottom.
+
 ## 0.0.14 (2026-10-12)
 
 - Added the Data Format, FAQ and About pages to the documentation.
