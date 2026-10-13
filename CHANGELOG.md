@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the `SyntaxWarning` that a docstring of `ops.box3d` raised on first import under Python 3.12+.
+
 ## 0.0.14 (2026-10-12)
 
 - Added the Data Format, FAQ and About pages to the documentation.
