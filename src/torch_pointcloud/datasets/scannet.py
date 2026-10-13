@@ -18,8 +18,8 @@ from urllib.request import urlopen
 
 import numpy as np
 import pandas as pd
-import plyfile
 import torch
+from numpy.lib.recfunctions import structured_to_unstructured
 from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import NotRequired, override
@@ -27,7 +27,7 @@ from typing_extensions import NotRequired, override
 import torch_pointcloud.transforms as T
 from torch_pointcloud.ops.geometry import transform_points, vertex_normals
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.io import load_json
+from torch_pointcloud.utils.io import load_json, load_ply
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
@@ -528,11 +528,10 @@ def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[Tensor, Tensor]:
 
         ```
     """
-    with open(file_path, "rb") as f:
-        plydata = plyfile.PlyData.read(f)
-
-    vertices = np.array([tuple(vertex) for vertex in plydata["vertex"].data], dtype=np.float32)
-    face = np.stack(plydata["face"].data["vertex_indices"], axis=0)
+    plydata = load_ply(file_path)
+    vertices = structured_to_unstructured(plydata["vertex"], dtype=np.float32)
+    indices = plydata["face"]["vertex_indices"]
+    face = np.stack(list(indices), axis=0) if indices.dtype.kind == "O" else indices
     return torch.from_numpy(vertices), torch.from_numpy(face).long()
 
 

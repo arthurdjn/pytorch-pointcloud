@@ -13,9 +13,9 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 import numpy as np
-import plyfile
 
 from torch_pointcloud.datasets.toronto3d import TORONTO3D_UTM_OFFSET
+from torch_pointcloud.utils.io import save_ply
 
 DEFAULT_FILES = ("L001.ply", "L002.ply", "L003.ply", "L004.ply")
 
@@ -80,7 +80,7 @@ def generate_raw(args: Namespace) -> None:
         vertex["scalar_Label"] = label
 
         dst = dst_root / fname
-        plyfile.PlyData([plyfile.PlyElement.describe(vertex, "vertex")], text=False).write(dst.as_posix())
+        save_ply(dst, {"vertex": vertex})
         print(f"  {dst}  (vertices={args.num_points})")
 
 
