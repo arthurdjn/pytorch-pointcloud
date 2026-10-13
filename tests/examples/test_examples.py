@@ -246,7 +246,6 @@ BENCHMARKS = [
     ),
 ]
 
-_SMOKE = ("--limit-train-batches", "2", "--limit-test-batches", "2", "--epochs", "1")
 # The reproduction scripts (one per reference recipe) validate on `--limit-val-batches` scenes.
 _SMOKE_RECIPE = ("--limit-train-batches", "2", "--limit-val-batches", "2", "--epochs", "1", "--eval-every", "1")
 # One classification and one segmentation dataset per training script; VoteNet has no SUN RGB-D dummy data.

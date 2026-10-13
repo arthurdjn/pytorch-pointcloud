@@ -953,6 +953,7 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
         author="yatian-pang",
         license="MIT",
     ),
+    # The reference feeds the raw 2048-point ScanObjectNN sample, without sampling or normalization.
     transform=None,
     hparams=dict(
         in_channels=0,
@@ -986,6 +987,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
         author="yatian-pang",
         license="MIT",
     ),
+    # The reference feeds the raw 2048-point ScanObjectNN sample, without sampling or normalization.
     transform=None,
     hparams=dict(
         in_channels=0,
@@ -1019,6 +1021,7 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
         author="yatian-pang",
         license="MIT",
     ),
+    # The reference feeds the raw 2048-point ScanObjectNN sample, without sampling or normalization.
     transform=None,
     hparams=dict(
         in_channels=0,
