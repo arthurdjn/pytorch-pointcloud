@@ -88,9 +88,9 @@
 
 ??? faq "How do I reuse a pretrained encoder with my own head?"
 
-    Pass your class count: `create_model(name, pretrained=True, num_classes=K)` loads the encoder weights and skips
-    the head's, with a warning listing the checkpoint keys it ignored. `reset_classifier(K)` does the same on a
-    built model. For a head of your own, build with `num_classes=0` and wrap the model in your `nn.Module`.
+    Pass your class count: `create_model(name, pretrained=True, num_classes=K)` loads the registered checkpoint and
+    then rebuilds the head for `K` classes. `reset_classifier(K)` does the same on a built model. For a head of
+    your own, build with `num_classes=0` and wrap the model in your `nn.Module`.
 
 ??? faq "`TypeError: Model 'pointnext-sm' registers architecture hparams only`"
 

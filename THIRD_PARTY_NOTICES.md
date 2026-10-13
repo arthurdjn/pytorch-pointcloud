@@ -41,11 +41,11 @@ Licenses of the datasets the checkpoints were trained on.
 
 | dataset                                         | terms                                                     | checkpoints |
 | ----------------------------------------------- | --------------------------------------------------------- | ----------- |
-| S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 43          |
+| S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
-| ScanNet                                         | terms of use, non-commercial research and educational use | 13          |
+| ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
 | SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
@@ -62,11 +62,11 @@ Files adapted from other implementations, with the copyright notice each source 
 | open-mmlab/OpenPCDet              | Apache-2.0 | `models/pointpillars.py`, `models/pointrcnn.py`, `models/second.py`, `models/voxelnext.py`, `models/voxel_mamba.py` | not stated upstream                                                           |
 | facebookresearch/3detr            | Apache-2.0 | `models/threedetr.py`                                                                                               | Copyright (c) Facebook, Inc. and its affiliates                               |
 | facebookresearch/votenet          | MIT        | `models/votenet.py`, `lightning/callbacks.py`                                                                       | Copyright (c) Facebook, Inc. and its affiliates                               |
-| Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `utils/hilbert.py`                                                                | Copyright (c) 2023 Pointcept                                                  |
-| PrincetonLIPS/numpy-hilbert-curve | MIT        | `utils/hilbert.py`                                                                                                  | Copyright (c) 2020 Princeton Laboratory for Intelligent Probabilistic Systems |
+| Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `ops/hilbert.py`                                                                  | Copyright (c) 2023 Pointcept                                                  |
+| PrincetonLIPS/numpy-hilbert-curve | MIT        | `ops/hilbert.py`                                                                                                    | Copyright (c) 2020 Princeton Laboratory for Intelligent Probabilistic Systems |
 | pyg-team/pytorch_geometric        | MIT        | `models/point_transformer.py`                                                                                       | Copyright (c) 2023 PyG Team <team@pyg.org>                                    |
 | Project-MONAI/MONAI               | Apache-2.0 | `datasets/utils.py`                                                                                                 | Copyright (c) MONAI Consortium                                                |
-| mit-han-lab/pvcnn                 | MIT        | `utils/voxelization.py`                                                                                             | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin                       |
+| mit-han-lab/pvcnn                 | MIT        | `ops/voxelization.py`                                                                                               | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin                       |
 | mit-han-lab/bevfusion             | Apache-2.0 | `models/lion.py`                                                                                                    | Copyright 2018-2019 Open-MMLab. All rights reserved.                          |
 | happinesslz/LION                  | Apache-2.0 | `models/lion.py`                                                                                                    | not stated upstream                                                           |
 | gwenzhang/Voxel-Mamba             | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py`                                                                            | not stated upstream                                                           |
