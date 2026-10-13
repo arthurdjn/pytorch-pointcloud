@@ -92,7 +92,6 @@ Installed by `pip` next to the package, never bundled with it.
 | `pillow`                                     | MIT-CMU                    |
 | `tqdm`                                       | MPL-2.0 AND MIT            |
 | `typing-extensions`                          | PSF-2.0                    |
-| `plyfile`                                    | GPL-3.0-or-later           |
 
 ## Optional dependencies
 

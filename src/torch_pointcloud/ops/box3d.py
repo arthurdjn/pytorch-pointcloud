@@ -249,7 +249,7 @@ def _convex_quad_intersection_area(quads_a: Tensor, quads_b: Tensor, eps: float 
 
 
 def _quad_rings_intersection_area(a: Tensor, b: Tensor, eps: float = 1e-6) -> Tensor:
-    """Intersection area of counter-clockwise convex quads paired over broadcast leading dims, $(\ldots, 4, 2)$."""
+    r"""Intersection area of counter-clockwise convex quads paired over broadcast leading dims, $(\ldots, 4, 2)$."""
     lead = torch.broadcast_shapes(a.shape[:-2], b.shape[:-2])
     a = a.expand(*lead, 4, 2)
     b = b.expand(*lead, 4, 2)

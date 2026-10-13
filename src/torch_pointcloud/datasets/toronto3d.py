@@ -14,13 +14,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Sequence, Tuple, get_args
 
 import numpy as np
-import plyfile
 import torch
 from torch import Tensor
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.io import load_ply
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -77,11 +77,10 @@ def load_toronto3d_data(path: PathLike, /, utm_offset: Sequence[float] = TORONTO
             small numerical range. Defaults to `TORONTO3D_UTM_OFFSET`; pass
             `(0, 0, 0)` to keep raw UTM coordinates.
     """
-    plydata = plyfile.PlyData.read(Path(path).as_posix())
-    v = plydata["vertex"].data
+    v = load_ply(path)["vertex"]
 
-    # Per-property arrays returned by `plyfile` are non-contiguous views into the
-    # interleaved buffer; copy via `np.ascontiguousarray` before the dtype cast so
+    # Per-property views of the structured array are strided over the interleaved
+    # buffer; copy via `np.ascontiguousarray` before the dtype cast so
     # `torch.from_numpy` can take ownership without re-strided slices.
     # Subtract the UTM offset in float64 before the float32 cast: raw UTM coordinates are ~4.8e6,
     # where float32 resolution is 0.5 m, so casting first quantizes the positions.

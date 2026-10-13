@@ -19,13 +19,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Sequence, Tuple, get_args
 
 import numpy as np
-import plyfile
 import torch
 from torch import Tensor
 from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.io import load_ply
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
@@ -70,8 +70,7 @@ def load_parislille3d_data(ply_path: PathLike, /) -> Dict[str, Tensor]:
     | `intensity` | $(N, 1)$ | uint8   |
     | `segment`   | $(N,)$   | int64   | (optional)
     """
-    plydata = plyfile.PlyData.read(Path(ply_path).as_posix())
-    v = plydata["vertex"].data
+    v = load_ply(ply_path)["vertex"]
     fields = set(v.dtype.names or ())
 
     pos = np.ascontiguousarray(np.stack([v["x"], v["y"], v["z"]], axis=1)).astype(np.float32)
