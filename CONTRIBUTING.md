@@ -85,9 +85,8 @@ Every time you send a Pull Request, your commit will be built and checked agains
 1. Ensure that the entire test suite passes.
    Please feel encouraged to provide a test with your submitted code.
 
-1. Give your PR a [Conventional Commits](https://www.conventionalcommits.org/) title, *e.g.*,
-   `fix: handle empty batches in nms3d`. The allowed types are `feat`, `fix`, `docs`, `chore`, `refactor`, `perf`,
-   `test`, `build`, `ci` and `revert`, and the subject starts with a lowercase character.
+1. Give your PR a short title that says what it changes, starting with a capital letter, *e.g.*,
+   `Handle empty batches in nms3d`.
 
 1. Add your feature / bugfix to the [`CHANGELOG.md`](CHANGELOG.md), under the `Unreleased` section.
    If multiple PRs move towards integrating a single feature, it is advised to group them together into one bullet
