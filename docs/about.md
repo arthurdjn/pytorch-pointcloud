@@ -7,7 +7,7 @@ _This project is independent and has no affiliation with the PyTorch team._
 ## Scope
 
 `torch-pointcloud` does not replace research codebases such as :github: [Pointcept](https://github.com/Pointcept/Pointcept), :github: [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) and :github: [MMDetection3D](https://github.com/open-mmlab/mmdetection3d).
-Instead this project focuses on providing a common interface for different models to ease benchmarking and reusability of common architectures without having to reimplement the wheel every time.
+Instead this project focuses on providing a common interface for different models to ease benchmarking and reusability of common architectures without reinventing the wheel every time.
 
 ## Design
 

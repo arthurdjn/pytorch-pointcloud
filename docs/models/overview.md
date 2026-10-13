@@ -76,7 +76,7 @@ Best for **dense per-point labeling** (S3DIS, ScanNet, SemanticKITTI). Inputs ar
 | [**Point Transformer V3**](../api/models/point_transformer_v3.md) | :arxiv: [Point Transformer V3: Simpler, Faster, Stronger](https://arxiv.org/abs/2312.10035)                                |
 | [**RandLA-Net**](../api/models/randlanet.md)                      | :arxiv: [RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds](https://arxiv.org/abs/1911.11236)        |
 | [**SPVCNN**](../api/models/spvcnn.md)                             | :arxiv: [Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution](https://arxiv.org/abs/2007.16100)       |
-| [**SPUNet**](../api/models/spunet.md)                             | :arxiv: [4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural Networks](https://arxiv.org/abs/1904.08755)           |
+| [**SpUNet**](../api/models/spunet.md)                             | :arxiv: [4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural Networks](https://arxiv.org/abs/1904.08755)           |
 | [**OctFormer**](../api/models/octformer.md)                       | :arxiv: [OctFormer: Octree-based Transformers for 3D Point Clouds](https://arxiv.org/abs/2305.03045)                       |
 | [**SphereFormer**](../api/models/sphereformer.md)                 | :arxiv: [Spherical Transformer for LiDAR-based 3D Recognition](https://arxiv.org/abs/2303.12766)                           |
 | [**PVCNN / PVCNN++**](../api/models/pvcnn2.md)                    | :arxiv: [Point-Voxel CNN for Efficient 3D Deep Learning](https://arxiv.org/abs/1907.03739)                                 |

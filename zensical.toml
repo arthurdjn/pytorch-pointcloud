@@ -34,7 +34,7 @@ edit_uri = "edit/main/docs/"
 # fragment.
 # Read more: https://zensical.org/docs/setup/basics/#copyright
 copyright = """
-Copyright &copy; 2025 Arthur Dujardin
+Copyright &copy; 2025-2026 Arthur Dujardin
 """
 
 # Use documentation inside the "docs" folder.
