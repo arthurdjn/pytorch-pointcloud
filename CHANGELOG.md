@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the module paths in `THIRD_PARTY_NOTICES.md`, the FAQ entry on `num_classes=` overrides, the tutorials index, and the model zoo notebooks that did not run top to bottom.
 - Removed the `plyfile` dependency (GPL-3.0): `utils.io.load_ply` and `save_ply` read and write PLY files with NumPy, and the ScanNet, Paris-Lille-3D and Toronto-3D loaders use them.
 - Fixed the `SyntaxWarning` that a docstring of `ops.box3d` raised on first import under Python 3.12+.
 

@@ -37,8 +37,9 @@ ROOT=/path/to/datasets bash examples/benchmark.sh
 
 ## Results
 
-The measured scores are the `score` column of the model catalog, `docs/data/models.csv`, rendered on the
-[model pages](https://pytorch-pointcloud.org/latest/models/overview/) next to the reference numbers.
+The measured scores are the `score` column of the model catalog, `docs/data/models.csv`, next to the `reference`
+numbers the authors publish; the registry `metrics` are rendered on the
+[model pages](https://pytorch-pointcloud.org/latest/models/overview/).
 
 ## Tests
 

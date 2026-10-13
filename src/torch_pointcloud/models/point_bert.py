@@ -1066,6 +1066,7 @@ def point_bert_base_modelnet40_8k(**kwargs: Any) -> PointBERTClassification:
         license="MIT",
     ),
     transform=_scanobjectnn_transforms(),
+    # The upstream ScanObjectNN configs set `cls_dim=40`, so the head keeps 40 outputs for the 15 classes.
     hparams=dict(num_classes=40, **_CLS_HPARAMS),
 )
 def point_bert_base_scanobjectnn_objonly(**kwargs: Any) -> PointBERTClassification:
@@ -1083,6 +1084,7 @@ def point_bert_base_scanobjectnn_objonly(**kwargs: Any) -> PointBERTClassificati
         license="MIT",
     ),
     transform=_scanobjectnn_transforms(),
+    # The upstream ScanObjectNN configs set `cls_dim=40`, so the head keeps 40 outputs for the 15 classes.
     hparams=dict(num_classes=40, **_CLS_HPARAMS),
 )
 def point_bert_base_scanobjectnn_objbg(**kwargs: Any) -> PointBERTClassification:
@@ -1100,6 +1102,7 @@ def point_bert_base_scanobjectnn_objbg(**kwargs: Any) -> PointBERTClassification
         license="MIT",
     ),
     transform=_scanobjectnn_transforms(),
+    # The upstream ScanObjectNN configs set `cls_dim=40`, so the head keeps 40 outputs for the 15 classes.
     hparams=dict(num_classes=40, **_CLS_HPARAMS),
 )
 def point_bert_base_scanobjectnn_hardest(**kwargs: Any) -> PointBERTClassification:

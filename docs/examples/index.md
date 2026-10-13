@@ -60,7 +60,7 @@ Your own data and a plain PyTorch training loop.
 
 ## Advanced
 
-3D object detection on driving LiDAR, semantic segmentation of an aerial LiDAR survey, and tooth segmentation on intraoral scans.
+3D object detection on driving LiDAR.
 
 <div class="grid cards tutorial-cards" markdown>
 
