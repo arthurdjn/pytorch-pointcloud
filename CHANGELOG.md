@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed the `plyfile` dependency (GPL-3.0): `utils.io.load_ply` and `save_ply` read and write PLY files with NumPy, and the ScanNet, Paris-Lille-3D and Toronto-3D loaders use them.
+
 ## 0.0.14 (2026-10-12)
 
 - Added the Data Format, FAQ and About pages to the documentation.
