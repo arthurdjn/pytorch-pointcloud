@@ -1,9 +1,12 @@
+import warnings
+from typing import Callable, List
 from unittest.mock import Mock, patch, sentinel
 
 import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.ops import cluster
 from torch_pointcloud.ops.cluster import (
     dense_neighbors,
     fps,
@@ -12,8 +15,14 @@ from torch_pointcloud.ops.cluster import (
     knn,
     knn_graph,
     radius,
+    radius_graph,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
+
+
+@pytest.fixture
+def no_pyg_lib(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cluster, "_PYG_LIB_AVAILABLE", False)
 
 
 def test_fps_with_ratio_and_num_nodes() -> None:
@@ -23,8 +32,9 @@ def test_fps_with_ratio_and_num_nodes() -> None:
 
 
 @patch("torch_pointcloud.ops.cluster.pool.fps")
-def test_fps_with_ratio(mock_fps: Mock) -> None:
+def test_fps_with_ratio(mock_fps: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the utility fps wraps `torch_geometric.nn.pool.fps` and passes the correct arguments."""
+    monkeypatch.setattr(cluster, "_PYG_LIB_AVAILABLE", True)
     src = torch.randn(6, 3)
     batch = torch.zeros(6, dtype=torch.long)
     out = fps(
@@ -302,6 +312,85 @@ def test_radius_sort_keeps_smallest_source_indices() -> None:
         picked = sorted(col[row == q].tolist())
         expected = [0, 1, 2] if q < 3 else [3, 4, 5]
         assert picked == expected
+
+
+def _uneven_clouds() -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    torch.manual_seed(0)
+    sizes, query_sizes = torch.tensor([37, 300, 5, 128]), torch.tensor([10, 50, 3, 20])
+    x, y = torch.randn(int(sizes.sum()), 3), torch.randn(int(query_sizes.sum()), 3)
+    return x, y, torch.repeat_interleave(torch.arange(4), sizes), torch.repeat_interleave(torch.arange(4), query_sizes)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_fallbacks_match_pyg_lib_knn_and_fps(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without pyg-lib, kNN returns the same edges in the same order and FPS the same indices."""
+    x, y, batch_x, batch_y = _uneven_clouds()
+    calls: List[Callable[[], Tensor]] = [
+        lambda: knn(x, y, 16, batch_x, batch_y),
+        lambda: knn(x, y, 8),
+        lambda: knn_graph(x, 16, batch_x),
+        lambda: knn_graph(x, 16, batch_x, loop=True, flow="target_to_source"),
+        lambda: fps(x, batch_x, ratio=0.25, random_start=False),
+        lambda: fps(x, batch_x, num_nodes=32, random_start=False),
+    ]
+    expected = [call() for call in calls]
+
+    monkeypatch.setattr(cluster, "_PYG_LIB_AVAILABLE", False)
+    for call, reference in zip(calls, expected):
+        assert torch.equal(call(), reference)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_fallbacks_match_pyg_lib_radius(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without pyg-lib, radius search returns the same edges as long as no ball holds more than `max_num_neighbors`."""
+    x, y, batch_x, batch_y = _uneven_clouds()
+    calls: List[Callable[[], Tensor]] = [
+        lambda: torch.stack(radius(x, y, 0.8, batch_x, batch_y, max_num_neighbors=1000)),
+        lambda: radius_graph(x, 0.8, batch_x, max_num_neighbors=1000),
+        lambda: radius_graph(x, 0.8, batch_x, loop=True, max_num_neighbors=1000),
+    ]
+    expected = [call() for call in calls]
+
+    monkeypatch.setattr(cluster, "_PYG_LIB_AVAILABLE", False)
+    for call, reference in zip(calls, expected):
+        assert _edge_set(call()) == _edge_set(reference)
+
+
+@pytest.mark.usefixtures("no_pyg_lib")
+def test_knn_without_pyg_lib() -> None:
+    x = torch.tensor([[0.0, 0, 0], [1, 0, 0], [3, 0, 0], [10, 0, 0], [11, 0, 0]])
+    y = torch.tensor([[0.9, 0, 0], [10.2, 0, 0]])
+    row, col = knn(x, y, 3, batch_x=torch.tensor([0, 0, 0, 1, 1]), batch_y=torch.tensor([0, 1]))
+    assert row.tolist() == [0, 0, 0, 1, 1]
+    assert col.tolist() == [1, 0, 2, 3, 4]
+
+
+@pytest.mark.usefixtures("no_pyg_lib")
+def test_fps_without_pyg_lib_repeats_indices() -> None:
+    src = torch.tensor([[0.0], [1.0], [10.0], [3.0], [2.0], [4.0], [0.0], [4.0], [1.0]])
+    batch = torch.tensor([0, 0, 0, 0, 0, 0, 1, 1, 1])
+    out = fps(src, batch=batch, num_nodes=5, random_start=False)
+    assert out.tolist() == [0, 2, 5, 4, 1, 6, 7, 8, 6, 6]
+
+
+@pytest.mark.usefixtures("no_pyg_lib")
+def test_radius_graph_without_pyg_lib_drops_self_loops_before_the_cap() -> None:
+    source, target = radius_graph(torch.zeros(4, 3), r=1.0, max_num_neighbors=2)
+    assert target.tolist() == [0, 0, 1, 1, 2, 2, 3, 3]
+    assert source.tolist() == [1, 2, 0, 2, 0, 1, 0, 1]
+
+
+@pytest.mark.usefixtures("no_pyg_lib")
+def test_fallbacks_warn_once_without_pyg_lib() -> None:
+    cluster._warn_pyg_lib_missing.cache_clear()
+    pos = torch.randn(32, 3)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        fps(pos, ratio=0.5)
+        knn(pos, pos, 4)
+        radius(pos, pos, 0.5)
+        radius_graph(pos, 0.5)
+    assert sum("pyg-lib" in str(w.message) for w in caught) == 1
 
 
 def test_dense_neighbors_grouped_edges() -> None:

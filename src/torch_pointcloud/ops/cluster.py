@@ -1,14 +1,117 @@
 """Neighbor search and grouping: kNN, FPS, radius queries, local grids, decimation, and kNN interpolation."""
 
+import math
+import warnings
+from functools import lru_cache
 from typing import List, Literal, Optional, Tuple, Union, overload
 
 import torch
+import torch.nn.functional as F
 import torch_geometric.nn.pool as pool
 from torch import Tensor
-from torch_geometric.utils import scatter
+from torch_geometric.utils import scatter, to_dense_batch
 
 from torch_pointcloud.utils.conversion import ensure_option
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 from torch_pointcloud.utils.types import OptTensor
+
+
+@lru_cache
+def _warn_pyg_lib_missing() -> None:
+    warnings.warn(
+        "`pyg-lib` is not installed, so FPS, kNN and radius search run on slower PyTorch implementations whose memory "
+        "grows with the square of the cloud size. Install it for your torch and CUDA versions: "
+        "https://pytorch-pointcloud.org/latest/installation/",
+        stacklevel=2,
+    )
+
+
+def _dense_knn(
+    x: Tensor,
+    y: Tensor,
+    k: int,
+    batch_x: OptTensor = None,
+    batch_y: OptTensor = None,
+    cosine: bool = False,
+    batch_size: Optional[int] = None,
+) -> Tensor:
+    r"""Exact $k$-NN over the dense distances of padded sets, ordered like `torch_geometric.nn.pool.knn`."""
+    if batch_x is None:
+        batch_x = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+    if batch_y is None:
+        batch_y = torch.zeros(y.size(0), dtype=torch.long, device=y.device)
+    if batch_size is None:
+        batch_size = int(torch.cat([batch_x, batch_y]).max()) + 1
+
+    x_dense, x_mask = to_dense_batch(x, batch_x, batch_size=batch_size)
+    y_dense, y_mask = to_dense_batch(y, batch_y, batch_size=batch_size)
+    if cosine:
+        dist = 1 - F.normalize(y_dense, dim=-1) @ F.normalize(x_dense, dim=-1).transpose(1, 2)
+    else:
+        dist = torch.cdist(y_dense, x_dense, compute_mode="donot_use_mm_for_euclid_dist")
+    dist = dist.masked_fill(~x_mask.unsqueeze(1), float("inf"))
+    dist, col = dist.topk(min(k, dist.size(-1)), dim=-1, largest=False)  # (B, M_max, k), closest first
+
+    # Back to packed indices: the points of a set start where the previous sets end.
+    x_counts, y_counts = x_mask.sum(dim=1), y_mask.sum(dim=1)
+    col = col + (x_counts.cumsum(dim=0) - x_counts).view(-1, 1, 1)
+    row = torch.arange(y_dense.size(1), device=y.device).view(1, -1, 1) + (y_counts.cumsum(dim=0) - y_counts).view(
+        -1, 1, 1
+    )
+    valid = dist.isfinite() & y_mask.unsqueeze(-1)
+    return torch.stack([row.expand_as(col)[valid], col[valid]])
+
+
+def _greedy_fps(src: Tensor, batch: OptTensor, ratio: float, random_start: bool, batch_size: Optional[int]) -> Tensor:
+    r"""Farthest point sampling of one sample at a time, matching `torch_geometric.nn.pool.fps`."""
+    if batch is None:
+        ptr = [0, src.size(0)]
+    else:
+        ptr = [0, *batch.bincount(minlength=batch_size or 0).cumsum(dim=0).tolist()]
+
+    out: List[Tensor] = []
+    for start, end in zip(ptr[:-1], ptr[1:]):
+        pos = src[start:end]
+        idx = torch.empty(math.ceil((end - start) * ratio), dtype=torch.long, device=src.device)
+        idx[0] = int(torch.randint(end - start, (1,))) if random_start else 0
+        dist = ((pos - pos[idx[0]]) ** 2).sum(dim=-1)
+        for i in range(1, idx.numel()):
+            idx[i] = dist.argmax()
+            dist = torch.minimum(dist, ((pos - pos[idx[i]]) ** 2).sum(dim=-1))
+        out.append(idx + start)
+    return torch.cat(out)
+
+
+def _fps(src: Tensor, batch: OptTensor, ratio: float, random_start: bool, batch_size: Optional[int]) -> Tensor:
+    if not _PYG_LIB_AVAILABLE:
+        _warn_pyg_lib_missing()
+        return _greedy_fps(src, batch, ratio, random_start, batch_size)
+    return pool.fps(src, batch, ratio=ratio, random_start=random_start, batch_size=batch_size)
+
+
+def _knn(
+    x: Tensor,
+    y: Tensor,
+    k: int,
+    batch_x: OptTensor = None,
+    batch_y: OptTensor = None,
+    cosine: bool = False,
+    num_workers: int = 1,
+    batch_size: Optional[int] = None,
+) -> Tensor:
+    if not _PYG_LIB_AVAILABLE:
+        _warn_pyg_lib_missing()
+        return _dense_knn(x, y, k, batch_x, batch_y, cosine, batch_size)
+    return pool.knn(
+        x=x,
+        y=y,
+        k=k,
+        batch_x=batch_x,
+        batch_y=batch_y,
+        cosine=cosine,
+        num_workers=num_workers,
+        batch_size=batch_size,
+    )
 
 
 def _check_sorted_batch(batch: Tensor, name: str) -> None:
@@ -37,7 +140,8 @@ def knn(
 ) -> Tensor:
     r"""Find the $k$ nearest neighbors in $x$ for each point in $y$.
 
-    A wrapper around `torch_geometric.nn.pool.knn` that checks its inputs.
+    A wrapper around `torch_geometric.nn.pool.knn` that checks its inputs. Without `pyg-lib`, an exact dense search in
+    PyTorch returns the same neighbors.
 
     Important:
         If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order; unsorted batches
@@ -67,7 +171,7 @@ def knn(
     if batch_y is not None:
         _check_sorted_batch(batch_y, "batch_y")
 
-    return pool.knn(
+    return _knn(
         x=x,
         y=y,
         k=k,
@@ -91,7 +195,8 @@ def knn_graph(
 ) -> Tensor:
     r"""Compute the kNN graph of $x$.
 
-    A wrapper around `torch_geometric.nn.pool.knn_graph` that checks its inputs.
+    A wrapper around `torch_geometric.nn.pool.knn_graph` that checks its inputs. Without `pyg-lib`, an exact dense
+    search in PyTorch returns the same edges.
 
     Important:
         If provided, the `batch` tensor must be sorted in non-decreasing order; an unsorted batch raises a
@@ -115,6 +220,12 @@ def knn_graph(
     _check_packed_2d(x, "x")
     if batch is not None:
         _check_sorted_batch(batch, "batch")
+
+    if not _PYG_LIB_AVAILABLE:
+        edge_index = _knn(x, x, k if loop else k + 1, batch, batch, cosine=cosine, batch_size=batch_size)
+        if not loop:
+            edge_index = edge_index[:, edge_index[0] != edge_index[1]]
+        return edge_index.flip([0]) if flow == "source_to_target" else edge_index
 
     return pool.knn_graph(
         x=x,
@@ -143,7 +254,7 @@ def fps(
     to the rest points.
 
     This function wraps `torch_geometric.nn.pool.fps` and supports sampling a fixed number of nodes per sample
-    with the `num_nodes` argument.
+    with the `num_nodes` argument. Without `pyg-lib`, a greedy loop in PyTorch returns the same indices.
 
     Important:
         If provided, the `batch` tensor is expected to be sorted.
@@ -200,7 +311,7 @@ def fps(
         batch = torch.repeat_interleave(torch.arange(ptr.numel() - 1, device=src.device), ptr[1:] - ptr[:-1])
 
     if ratio is not None and not (isinstance(ratio, Tensor) and ratio.numel() > 1):
-        return pool.fps(src, batch, ratio=float(ratio), random_start=random_start, batch_size=batch_size)
+        return _fps(src, batch, ratio=float(ratio), random_start=random_start, batch_size=batch_size)
 
     if batch is not None:
         if batch_size is None:
@@ -226,7 +337,7 @@ def fps(
     # FPS takes one ratio for the whole batch. It is greedy, so sampling every sample at the largest requested
     # ratio and keeping the first `req_nodes` indices of each gives the same indices as a per-sample ratio.
     max_ratio = (req_nodes.double() / node_counts.clamp(min=1).double()).max().item()
-    idx = pool.fps(src, batch, ratio=max_ratio, random_start=random_start, batch_size=batch_size)
+    idx = _fps(src, batch, ratio=max_ratio, random_start=random_start, batch_size=batch_size)
 
     sampled_batch = torch.searchsorted(ptr, idx, right=True) - 1
     sampled_counts = sampled_batch.bincount(minlength=batch_size)
@@ -294,7 +405,7 @@ def radius(
     `max_num_neighbors` source points lie inside a ball, the $k$ smallest source
     indices are kept (PointNet++'s reference `query_ball_point` behavior). Pretrained
     PointNet++ checkpoints from yanx27 / charlesq34 overfit to this selection rule,
-    so reproducing their accuracy requires `sort=True`.
+    so reproducing their accuracy requires `sort=True`. Without `pyg-lib`, both modes run the sorted search in PyTorch.
 
     Important:
         If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
@@ -323,10 +434,24 @@ def radius(
     # The CUDA kernel scans the sources of every query in index order and keeps the first `max_num_neighbors` it
     # finds, which is exactly the sorted selection, so the sort below is only needed on the CPU (whose kernel does
     # not): on 3DETR-sized inputs it is 25x slower and materializes the full distance matrix.
-    if not sort or x.is_cuda:
+    if _PYG_LIB_AVAILABLE and (not sort or x.is_cuda):
         edge_index = pool.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
         return edge_index[0], edge_index[1]
 
+    if not _PYG_LIB_AVAILABLE:
+        _warn_pyg_lib_missing()
+    return _sorted_radius(x, y, r, batch_x, batch_y, max_num_neighbors)
+
+
+def _sorted_radius(
+    x: Tensor,
+    y: Tensor,
+    r: float,
+    batch_x: OptTensor,
+    batch_y: OptTensor,
+    max_num_neighbors: int,
+    ignore_same_index: bool = False,
+) -> tuple[Tensor, Tensor]:
     # Custom sort-by-source-index ball query. Asking `radius` for the
     # full `max_num_neighbors=Nx` over-allocates memory; instead we materialise the
     # squared-distance matrix per batch element (bounded by $(N_y^b \cdot N_x^b)$).
@@ -357,6 +482,8 @@ def radius(
         sqr = ((y_b.unsqueeze(1) - x_b.unsqueeze(0)) ** 2).sum(-1)  # (Ny_b, Nx_b)
         local = torch.arange(nx_b, device=device).unsqueeze(0).expand(ny_b, -1).clone()
         local = local.masked_fill(sqr > r_sq, nx_b)  # nx_b is the out-of-radius sentinel
+        if ignore_same_index:
+            local = local.masked_fill(y_idx_global.unsqueeze(1) == x_idx_global.unsqueeze(0), nx_b)
         sorted_local, _ = local.sort(dim=-1)
         picked = sorted_local[:, :k]  # (Ny_b, min(k, Nx_b))
         valid_mask = picked < nx_b
@@ -371,6 +498,60 @@ def radius(
         empty = torch.empty(0, dtype=torch.long, device=device)
         return empty, empty
     return torch.cat(rows_out), torch.cat(cols_out)
+
+
+def radius_graph(
+    x: Tensor,
+    r: float,
+    batch: OptTensor = None,
+    loop: bool = False,
+    max_num_neighbors: int = 32,
+    flow: str = "source_to_target",
+    num_workers: int = 1,
+    batch_size: Optional[int] = None,
+) -> Tensor:
+    r"""Compute the radius graph of $x$.
+
+    A wrapper around `torch_geometric.nn.pool.radius_graph` that checks its inputs. Without `pyg-lib`, a dense search
+    in PyTorch keeps the `max_num_neighbors` smallest source indices of every ball.
+
+    Important:
+        If provided, the `batch` tensor must be sorted in non-decreasing order; an unsorted batch raises a
+        `ValueError`.
+
+    Args:
+        x: The input tensor of shape $(N, *)$.
+        r: The ball radius.
+        batch: The batch tensor of shape $(N,)$.
+        loop: Whether to include self-edges.
+        max_num_neighbors: The maximum number of neighbors of every point.
+        flow: Either `"source_to_target"` (PyG default, `edge_index = (src, dst)`
+            where `src` is the neighbor and `dst` is the central point) or `"target_to_source"`.
+        num_workers: The number of workers to use for the computation.
+        batch_size: The batch size to use for the computation.
+
+    Returns:
+        Edge index of shape $(2, E)$.
+    """
+    _check_packed_2d(x, "x")
+    if batch is not None:
+        _check_sorted_batch(batch, "batch")
+
+    if not _PYG_LIB_AVAILABLE:
+        _warn_pyg_lib_missing()
+        edge_index = torch.stack(_sorted_radius(x, x, r, batch, batch, max_num_neighbors, ignore_same_index=not loop))
+        return edge_index.flip([0]) if flow == "source_to_target" else edge_index
+
+    return pool.radius_graph(
+        x=x,
+        r=r,
+        batch=batch,
+        loop=loop,
+        max_num_neighbors=max_num_neighbors,
+        flow=flow,
+        num_workers=num_workers,
+        batch_size=batch_size,
+    )
 
 
 @overload
@@ -527,7 +708,7 @@ def knn_interpolate(
     weighting = ensure_option(weighting, ("squared", "inverse"), name="weighting")
 
     with torch.no_grad():
-        assign_index = pool.knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
+        assign_index = _knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
         y_idx, x_idx = assign_index[0], assign_index[1]
         diff = pos_x[x_idx] - pos_y[y_idx]
         squared_distance = (diff * diff).sum(dim=-1, keepdim=True)

@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- The point-based models run without `pyg-lib`: FPS, kNN and radius search in `ops.cluster` fall back to PyTorch implementations that return the same neighbors, and warn once that they are slower. Added `ops.cluster.radius_graph`; KPConv, PointNeXt and Point Transformer V2 search their neighbors through `ops.cluster`.
+- The README examples run on CPU.
+
 ## 0.0.16 (2026-10-14)
 
 - Added scores charts and tables to the documentation for better comparison of the models.

@@ -42,13 +42,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.nn import MLP, MessagePassing, radius_graph
+from torch_geometric.nn import MLP, MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.typing import Adj, NoneType, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
 from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
-from torch_pointcloud.ops.cluster import fps, radius
+from torch_pointcloud.ops.cluster import fps, radius, radius_graph
 from torch_pointcloud.utils.conversion import ensure_list, ensure_tuple_size
 from torch_pointcloud.utils.types import AggrType, MessagePassingParams
 

@@ -10,7 +10,7 @@ selector writes the commands.
 
 | Dependency    | Needed by                                                                                                                              |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pyg-lib`     | FPS, kNN and radius search: nearly every point-based model                                                                             |
+| `pyg-lib`     | Fast FPS, kNN and radius search for the point-based models, which run on slower PyTorch fallbacks without it                           |
 | `spconv`      | Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION              |
 | `flash-attn`  | Point Transformer V3, Sonata, Concerto, Utonia (`use_flash_attn=False` runs the dense attention instead)                               |
 | `mamba`       | PointMamba, Voxel-Mamba, LION (`mamba-ssm` and `causal-conv1d`)                                                                        |

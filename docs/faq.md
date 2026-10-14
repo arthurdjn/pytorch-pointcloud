@@ -8,10 +8,12 @@
     The [installation](installation.md) table says which package each family needs, and the selector writes the
     `pip` line for your torch and CUDA versions. Everything else imports and runs without it.
 
-??? faq "`pyg-lib` errors on a point-based model"
+??? faq "`pyg-lib` is not installed, so FPS, kNN and radius search run on slower PyTorch implementations"
 
     Farthest point sampling, $k$-NN and radius search go through :pyg: [`torch-geometric`](https://pytorch-geometric.readthedocs.io/),
-    which runs them on `pyg-lib`. Install the wheel built for your torch version:
+    which runs them on `pyg-lib`. Without it, `torch_pointcloud.ops.cluster` returns the same neighbors from PyTorch
+    implementations whose memory grows with the square of the cloud size, which is fine for objects and slow on scenes.
+    Install the wheel built for your torch version:
 
     ```bash
     pip install pyg-lib -f https://data.pyg.org/whl/torch-2.10.0+cu128.html
