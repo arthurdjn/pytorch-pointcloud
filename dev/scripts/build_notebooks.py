@@ -21,7 +21,8 @@ REPO = "arthurdjn/pytorch-pointcloud"
 BRANCH = "main"
 DOCS_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = DOCS_DIR.parent
-# Model pages end with their task's checkpoint table, rendered by the `model_table` macro from `docs/data/models.csv`.
+# Model pages end with their task's parity plot and checkpoint table, rendered by the `parity_plot` and `model_table`
+# macros from `docs/data/models.csv`.
 MODEL_TABLES = {
     "models/classification.ipynb": "classification",
     "models/segmentation.ipynb": "semantic-segmentation",
@@ -59,7 +60,7 @@ def render(path: Path, exporter: MarkdownExporter) -> Path:
     markdown = insert_badges(body.strip(), path)
     task = MODEL_TABLES.get(path.relative_to(DOCS_DIR).as_posix())
     if task:
-        markdown += f'\n\n## Checkpoints\n\n{{{{ model_table("{task}") }}}}'
+        markdown += f'\n\n## Checkpoints\n\n{{{{ parity_plot("{task}") }}}}\n\n{{{{ model_table("{task}") }}}}'
     out = path.with_suffix(".md")
     out.write_text(markdown + "\n")
     return out
