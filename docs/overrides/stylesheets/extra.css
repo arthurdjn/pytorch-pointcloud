@@ -348,7 +348,7 @@ div > div.n {
 .md-typeset__table table:not([class]) {
   display: table
 }
-.md-typeset__table table {
+.md-typeset__table table:not(.tp-catalog__table) {
   line-height: 1.2;
   font-size: .75rem !important;
 }
@@ -376,6 +376,359 @@ div > div.n {
   width: 46%;
 }
 /* ----------- End Table format like GitHub ----------- */
+
+/* ----------- Start Model catalog ----------- */
+/* One hue per task, validated all-pairs against each page colour with the marker shape as second encoding. The dark
+   steps of blue and violet are lighter and deeper than the paper's, which merge on the slate page. */
+:root,
+[data-md-color-scheme="default"] {
+  --tp-task-classification: #2a78d6;
+  --tp-task-part-segmentation: #eb6834;
+  --tp-task-semantic-segmentation: #1baf7a;
+  --tp-task-detection: #4a3aa7;
+}
+[data-md-color-scheme="slate"] {
+  --tp-task-classification: #3f93ee;
+  --tp-task-part-segmentation: #d95926;
+  --tp-task-semantic-segmentation: #199e70;
+  --tp-task-detection: #5b3fd4;
+}
+.md-typeset [data-task="classification"] { --tp-task: var(--tp-task-classification); }
+.md-typeset [data-task="part-segmentation"] { --tp-task: var(--tp-task-part-segmentation); }
+.md-typeset [data-task="semantic-segmentation"] { --tp-task: var(--tp-task-semantic-segmentation); }
+.md-typeset [data-task="detection"] { --tp-task: var(--tp-task-detection); }
+
+/* Parity plot */
+.md-typeset figure.tp-parity {
+  display: block;
+  width: 100%;
+  max-width: 30rem;
+  margin: 1.5em auto;
+}
+/* Legend keys are toggles: a hidden task keeps its key, dimmed and with a hollow marker */
+.tp-parity__legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .3rem .4rem;
+  margin-bottom: .6rem;
+}
+.md-typeset .tp-parity__key {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .15rem .55rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  border-radius: 1rem;
+  background: none;
+  font: inherit;
+  font-size: .62rem;
+  color: var(--md-default-fg-color--light);
+  cursor: pointer;
+}
+.md-typeset .tp-parity__key:hover {
+  border-color: color-mix(in srgb, var(--md-default-fg-color) 30%, transparent);
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-parity__key[aria-pressed="false"] {
+  opacity: .45;
+}
+.tp-parity__key svg {
+  width: .6rem;
+  height: .6rem;
+}
+.tp-parity__key path,
+.tp-parity__tooltip-meta path {
+  fill: var(--tp-task);
+}
+.tp-parity__key[aria-pressed="false"] path {
+  fill: none;
+  stroke: var(--tp-task);
+  stroke-width: 1.5;
+}
+.tp-parity__point.is-hidden,
+.tp-parity__point.is-outside {
+  display: none;
+}
+.tp-parity__plot {
+  position: relative;
+}
+/* Dragging a box zooms, so the plot area shows a crosshair; over a point it is a link */
+.tp-parity__plot > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  cursor: crosshair;
+  user-select: none;
+}
+.tp-parity__plot:has(.is-active) > svg {
+  cursor: pointer;
+}
+.tp-parity__selection {
+  fill: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent);
+  stroke: var(--md-accent-fg-color);
+  stroke-width: 1;
+}
+.md-typeset .tp-parity__reset {
+  position: absolute;
+  padding: .15rem .55rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  border-radius: 1rem;
+  background-color: var(--md-default-bg-color);
+  font: inherit;
+  font-size: .62rem;
+  color: var(--md-default-fg-color--light);
+  cursor: pointer;
+}
+.md-typeset .tp-parity__reset:hover {
+  border-color: color-mix(in srgb, var(--md-default-fg-color) 30%, transparent);
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-parity__reset[hidden] {
+  display: none;
+}
+.tp-parity__grid {
+  stroke: color-mix(in srgb, var(--md-default-fg-color) 8%, transparent);
+  stroke-width: 1;
+}
+.tp-parity__axis {
+  fill: none;
+  stroke: var(--md-default-fg-color--lighter);
+  stroke-width: 1;
+}
+.tp-parity__tick,
+.tp-parity__title {
+  fill: var(--md-default-fg-color--light);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.tp-parity__title {
+  font-size: 12px;
+}
+.tp-parity__band {
+  fill: color-mix(in srgb, var(--md-default-fg-color) 9%, transparent);
+}
+.tp-parity__diagonal {
+  stroke: var(--md-default-fg-color--lighter);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.tp-parity__point path {
+  fill: var(--tp-task);
+  stroke: var(--md-default-bg-color);
+  stroke-width: 1.5;
+}
+.tp-parity__point:focus {
+  outline: none;
+}
+.tp-parity__point.is-active path,
+.tp-parity__point:focus-visible path {
+  stroke: var(--md-default-fg-color);
+  stroke-width: 2;
+}
+.tp-parity__tooltip {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+  max-width: 17rem;
+  padding: .5rem .65rem;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+  border-radius: .4rem;
+  background-color: var(--tp-panel-surface);
+  box-shadow: 0 .2rem .8rem rgba(0, 0, 0, .15);
+  font-size: .65rem;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.tp-parity__tooltip-name {
+  font-family: var(--md-code-font-family);
+  font-size: .6rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tp-parity__tooltip-meta {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  margin: .1rem 0 .4rem;
+  color: var(--md-default-fg-color--light);
+}
+.tp-parity__tooltip-meta svg {
+  flex: none;
+  width: .55rem;
+  height: .55rem;
+}
+.md-typeset .tp-parity__tooltip dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: .05rem 1.2rem;
+  margin: 0;
+}
+.md-typeset .tp-parity__tooltip dt {
+  text-align: left;
+  font-weight: 400;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-parity__tooltip dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Checkpoint tables: grouped by dataset, the name and the measured score carry the ink */
+.md-typeset .tp-catalog {
+  margin: 1em 0;
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  border-radius: .4rem;
+}
+.md-typeset .tp-catalog__table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: .7rem;
+  line-height: 1.45;
+}
+.md-typeset .tp-catalog__table th,
+.md-typeset .tp-catalog__table td {
+  padding: .45rem .35rem;
+  vertical-align: baseline;
+  text-align: left;
+}
+.md-typeset .tp-catalog__table :is(th, td):first-child {
+  padding-left: .75rem;
+}
+.md-typeset .tp-catalog__table :is(th, td):last-child {
+  padding-right: .75rem;
+}
+.md-typeset .tp-catalog__table thead th {
+  font-size: .65rem;
+  font-weight: 500;
+  color: var(--md-default-fg-color--light);
+  white-space: nowrap;
+}
+.md-typeset .tp-catalog__table td {
+  border-top: 1px solid color-mix(in srgb, var(--md-default-fg-color) 6%, transparent);
+  color: var(--md-default-fg-color--light);
+}
+/* Number and license columns shrink to their content, so the checkpoint name gets the rest of the width */
+.md-typeset .tp-catalog__table .tp-num,
+.md-typeset .tp-catalog__table .tp-catalog__license {
+  width: 1%;
+  white-space: nowrap;
+}
+.md-typeset .tp-catalog__table .tp-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.md-typeset .tp-catalog__group th {
+  padding-top: .55rem;
+  border-top: 1px solid color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+  font-weight: 600;
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-catalog__group th span {
+  margin-left: .4rem;
+  font-weight: 400;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-catalog__table tbody tr:not(.tp-catalog__group):hover {
+  background-color: color-mix(in srgb, var(--md-default-fg-color) 3%, transparent);
+}
+.md-typeset .tp-catalog__table tr:target {
+  background-color: color-mix(in srgb, var(--md-accent-fg-color) 14%, transparent);
+}
+.md-typeset .tp-catalog__table tr[id] {
+  scroll-margin-top: 7rem;
+}
+.md-typeset a.tp-catalog__name {
+  font-family: var(--md-code-font-family);
+  font-size: .6rem;
+  font-weight: 400;
+  color: var(--md-default-fg-color);
+  text-decoration: none;
+}
+.md-typeset a.tp-catalog__name:hover {
+  color: var(--md-accent-fg-color);
+}
+/* Markdown tables in a catalog: the theme's scroll wrapper sits inside the bordered box, and identifiers drop their
+   chip to read like the generated names */
+.md-typeset .tp-catalog :is(.md-typeset__scrollwrap, .md-typeset__table) {
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+.md-typeset .tp-catalog__table td a {
+  font-weight: 400;
+  color: var(--md-default-fg-color);
+  text-decoration: none;
+}
+.md-typeset .tp-catalog__table td a:hover {
+  color: var(--md-accent-fg-color);
+}
+.md-typeset .tp-catalog__table td code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: .6rem !important;
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-catalog__table td a:hover code {
+  color: var(--md-accent-fg-color);
+}
+.md-typeset a.tp-catalog__name span {
+  white-space: nowrap;
+}
+.md-typeset .tp-catalog__tag {
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-catalog__table .tp-catalog__score,
+.md-typeset .tp-catalog__table .tp-catalog__gap--off,
+.md-typeset .tp-catalog__table .tp-catalog__license--nc {
+  color: var(--md-default-fg-color);
+}
+.md-typeset .tp-catalog__table .tp-catalog__score {
+  font-weight: 600;
+}
+.md-typeset .tp-catalog__table .tp-catalog__gap {
+  font-size: .65rem;
+}
+
+/* Index tables (architectures, datasets): the name is the only bold link, its paper or a note a muted line under it */
+.md-typeset .tp-index table {
+  line-height: 1.45;
+}
+.md-typeset .tp-index td {
+  vertical-align: baseline;
+}
+.md-typeset .tp-index :is(th, td):nth-child(n + 2) {
+  width: 1%;
+  white-space: nowrap;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-index td a {
+  text-decoration: none;
+}
+.md-typeset .tp-index td > a:first-child {
+  font-weight: 600;
+}
+.md-typeset .tp-index td:nth-child(n + 2) a,
+.md-typeset .tp-index__detail a {
+  font-weight: 400;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .tp-index td a:hover {
+  color: var(--md-accent-fg-color);
+}
+.md-typeset .tp-index__detail {
+  font-size: .65rem;
+  color: var(--md-default-fg-color--light);
+}
+/* ----------- End Model catalog ----------- */
 
 /* ----------- Start Admonition ----------- */
 .md-typeset details, .admonition {
