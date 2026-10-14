@@ -70,6 +70,7 @@ extra_javascript = [
     "overrides/javascripts/links.js",
     "overrides/javascripts/tablesort.js",
     "overrides/javascripts/table-wordbreak.js",
+    "overrides/javascripts/catalog.js",
     "overrides/javascripts/katex.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
