@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.16 (2026-10-14)
+
+- Added scores charts and tables to the documentation for better comparison of the models.
+
 ## 0.0.15 (2026-10-13)
 
 - Fixed the module paths in `THIRD_PARTY_NOTICES.md`, the FAQ entry on `num_classes=` overrides, the tutorials index, and the model zoo notebooks that did not run top to bottom.
