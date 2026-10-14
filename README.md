@@ -46,7 +46,9 @@
 ## Installation
 
 ```bash
+pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu
 pip install torch-pointcloud
+pip install pyg-lib -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
 ```
 
 Most models also need `pyg-lib`, and some a CUDA extension (`spconv`, `flash-attn`, ...), built for your torch and
@@ -80,10 +82,9 @@ Each checkpoint ships information about the model, such as the transform used to
 ```python
 import torch_pointcloud as tp
 
-# Requires spconv and flash-attn
-model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="semantic-segmentation", pretrained=True, return_info=True)
+model, info = tp.create_model("randlanet.semantickitti.tsung-han-wu", task="semantic-segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
-info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}
+info["weights"]["metrics"]  # {"mIoU": 55.39, "OA": 90.05}
 
 tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
