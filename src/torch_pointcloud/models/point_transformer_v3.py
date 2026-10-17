@@ -1666,9 +1666,9 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
 def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", patch_size: int = 1024) -> Dict[str, Any]:
     """Shared PT-v3m1 segmentation hparams (ScanNet / ScanNet200 / S3DIS share the architecture).
 
-    `legacy=True` reproduces the released v1.5.1 checkpoints. The S3DIS variant uses `attn_kind="rpe"` with
-    `patch_size=128` (the relative-position table size is derived from the patch size). RPE attention computes
-    the explicit attention matrix, so flash attention is disabled.
+    `legacy=True` and the stem / pooling BatchNorm settings (`eps=1e-3`) reproduce the released v1.5.1 checkpoints.
+    The S3DIS variant uses `attn_kind="rpe"` with `patch_size=128` (the relative-position table size is derived from
+    the patch size). RPE attention computes the explicit attention matrix, so flash attention is disabled.
     """
     return dict(
         in_channels=6,
@@ -1691,6 +1691,7 @@ def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", pa
         pooling="serialized",
         stem_type="sparse_conv",
         norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         legacy=True,
     )
 
@@ -1744,7 +1745,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.scannet20.pointcept/resolve/3a8e0a66d76ecfb57d4dd0e4ef43de18f1491b41/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 77.40, "OA": 92.01},
+        metrics={"mIoU": 77.42, "OA": 92.00},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="MIT",
@@ -1763,7 +1764,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.scannet200.pointcept/resolve/1f1232df7e827ff72dd7cd038763e75516494462/model.safetensors",
         dataset="scannet200",
-        metrics={"mIoU": 34.99, "OA": 83.27},
+        metrics={"mIoU": 35.12, "OA": 83.31},
         classes=SCANNET200_CLASSES,
         author="pointcept",
         license="MIT",
@@ -1782,7 +1783,7 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.s3dis-area5.pointcept/resolve/95d483ef0e186a94ffbf8302a2bba9b5ba710344/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 72.06, "OA": 91.16},
+        metrics={"mIoU": 72.03, "OA": 91.15},
         classes=S3DIS_CLASSES,
         author="pointcept",
         license="MIT",
