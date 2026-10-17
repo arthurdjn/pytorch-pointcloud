@@ -60,7 +60,7 @@
 <a id=__codelineno-6-6 name=__codelineno-6-6 href=#__codelineno-6-6></a><span class=c1>#  &#39;ptv3-base.scannet20.pointcept&#39;,</span>
 <a id=__codelineno-6-7 name=__codelineno-6-7 href=#__codelineno-6-7></a><span class=c1>#  &#39;ptv3-base.scannet200.pointcept&#39;,</span>
 <a id=__codelineno-6-8 name=__codelineno-6-8 href=#__codelineno-6-8></a><span class=c1>#  &#39;spunet-v1m1.scannet20.pointcept&#39;,</span>
-<a id=__codelineno-6-9 name=__codelineno-6-9 href=#__codelineno-6-9></a><span class=c1>#  &#39;utonia-lp.scannet20.pointcept&#39;]</span>
+<a id=__codelineno-6-9 name=__codelineno-6-9 href=#__codelineno-6-9></a><span class=c1>#  &#39;utonia-base-lp.scannet20.pointcept&#39;]</span>
 </code></pre></div> <p><code>create_model</code> returns a typed <code>SemanticSegmentationModel</code>, a regular <code>torch.nn.Module</code>, so <code>.eval()</code> and <code>.to(device)</code> work as usual.</p> <div class="language-python highlight"><pre><span></span><code><a id=__codelineno-7-1 name=__codelineno-7-1 href=#__codelineno-7-1></a><span class=n>model</span><span class=p>,</span> <span class=n>info</span> <span class=o>=</span> <span class=n>tp</span><span class=o>.</span><span class=n>create_model</span><span class=p>(</span>
 <a id=__codelineno-7-2 name=__codelineno-7-2 href=#__codelineno-7-2></a>    <span class=s2>&quot;spunet-v1m1.scannet20.pointcept&quot;</span><span class=p>,</span>
 <a id=__codelineno-7-3 name=__codelineno-7-3 href=#__codelineno-7-3></a>    <span class=n>task</span><span class=o>=</span><span class=s2>&quot;semantic-segmentation&quot;</span><span class=p>,</span>
