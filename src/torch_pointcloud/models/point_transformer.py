@@ -933,7 +933,7 @@ def _point_transformer_seg_transforms(
     "point-transformer.s3dis-area5.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/point-transformer.s3dis-area5.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/point-transformer.s3dis-area5.open3d/resolve/c3c0aa159d53990d3f2cd75b47a3642c07ae554a/model.safetensors",
         dataset="s3dis-area5",
         # NOTE: Open3D-ML's 69.2 is a voxel-level validation on cropped rooms. Here we evaluate at full resolution (68.2 under its protocol).
         metrics={"mIoU": 67.72, "OA": 88.78},

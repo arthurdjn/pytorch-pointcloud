@@ -769,7 +769,7 @@ def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
     "randlanet.semantickitti.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/randlanet.semantickitti.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/randlanet.semantickitti.open3d/resolve/103b4fc4f1563992fa090289b46909660c431b3d/model.safetensors",
         dataset="semantickitti",
         # NOTE: Open3D-ML's 52.8 belongs to a 2020 checkpoint it no longer publishes; its own code gives this one 43.2.
         metrics={"mIoU": 46.18, "OA": 83.99},
@@ -824,7 +824,7 @@ def randlanet_open3d_semantickitti_seg(**hparams: Any) -> RandLANetSegmentation:
     "randlanet.s3dis-area3.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/randlanet.s3dis-area3.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/randlanet.s3dis-area3.open3d/resolve/6a3e8db3f6a37c3dba1febd6b67ceaff1ccf315c/model.safetensors",
         dataset="s3dis-area3",
         # NOTE: Open3D-ML's 70.9 is the best epoch of a patch-level validation; this is all of Area 3, full resolution.
         metrics={"mIoU": 70.43, "OA": 87.90},
@@ -878,7 +878,7 @@ def randlanet_open3d_s3dis_area3_seg(**hparams: Any) -> RandLANetSegmentation:
     "randlanet.toronto3d.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/randlanet.toronto3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/randlanet.toronto3d.open3d/resolve/70bda7400a0944262eff307f946851183e892ec8/model.safetensors",
         dataset="toronto3d",
         # NOTE: Open3D-ML's 74.0 is the best epoch over ten random patches; this is the whole L002 tile.
         metrics={"mIoU": 73.88, "OA": 95.85},
@@ -934,7 +934,7 @@ def randlanet_open3d_toronto3d_seg(**hparams: Any) -> RandLANetSegmentation:
     "randlanet.semantic3d.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/randlanet.semantic3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/randlanet.semantic3d.open3d/resolve/3a3f5f5b869e2860e2607335fb31eaa802be8cb8/model.safetensors",
         dataset="semantic3d",
         # NOTE: Open3D-ML 76.0 performance was on ten random patches. Open3D-ML inference pipeline scores at 67.6.
         metrics={"mIoU": 70.97, "OA": 83.39},
@@ -990,7 +990,7 @@ def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
     "randlanet.parislille3d.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/randlanet.parislille3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/randlanet.parislille3d.open3d/resolve/58beb0036070d020696bcb69aeb331d4fe5744fb/model.safetensors",
         dataset="parislille3d",
         # NOTE: Open3D-ML's 70.0 is the authors' hidden-test figure; on Lille2 four classes under 0.2% of the points
         # pull the mean down (ground, building, car and vegetation score 66 to 97).

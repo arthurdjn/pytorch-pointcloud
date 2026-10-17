@@ -1117,7 +1117,7 @@ def kpfcnn_base_sm_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
     "kpfcnn.s3dis-area3.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn.s3dis-area3.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/kpfcnn.s3dis-area3.open3d/resolve/4954b31cff5c16896f2db985e877f235f727a238/model.safetensors",
         dataset="s3dis-area3",
         # NOTE: Open3D-ML's 60.0 is the best epoch of a patch-level validation; this is all of Area 3, full resolution.
         metrics={"mIoU": 60.85, "OA": 80.69},
@@ -1187,7 +1187,7 @@ def kpfcnn_open3d_s3dis_area3_seg(**hparams: Any) -> KPFCNNSegmentation:
     "kpfcnn.semantickitti.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn.semantickitti.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/kpfcnn.semantickitti.open3d/resolve/316c72da1910c37a92394139b95dac6ff42e7b8f/model.safetensors",
         dataset="semantickitti",
         # NOTE: first 200 scans of sequence 08. Open3D-ML's 58.0 is its 2020 best-epoch statistic; its current code
         # gives this checkpoint 30.1 (sphere-relative height); the absolute height used here recovers most of the gap.
@@ -1258,7 +1258,7 @@ def kpfcnn_open3d_semantickitti_seg(**hparams: Any) -> KPFCNNSegmentation:
     "kpfcnn.toronto3d.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn.toronto3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/kpfcnn.toronto3d.open3d/resolve/2aa7ce38ff91fe9fec5b88a43971f16820118192/model.safetensors",
         dataset="toronto3d",
         # NOTE: Open3D-ML's 65.6 is the best epoch over ten random patches; this is the whole L002 tile.
         metrics={"mIoU": 62.73, "OA": 94.11},
@@ -1322,7 +1322,7 @@ def kpfcnn_open3d_toronto3d_seg(**hparams: Any) -> KPFCNNSegmentation:
     "kpfcnn-deform.parislille3d.open3d",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/kpfcnn-deform.parislille3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/kpfcnn-deform.parislille3d.open3d/resolve/a430eb1dacca08aab82c019733e363c44362774b/model.safetensors",
         dataset="parislille3d",
         # NOTE: Lille2 was a training tile of this checkpoint (it scores the same on its other training tiles): not a
         # held-out figure. Open3D-ML's 76.7 comes from its validation pass.

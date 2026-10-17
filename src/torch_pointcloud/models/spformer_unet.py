@@ -613,7 +613,7 @@ def spformer_unet_scannet20(**hparams: Any) -> SPFormerUNetSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/spformer-unet.scannet20.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/spformer-unet.scannet20.open3d/resolve/b354a4f33409effc955829c014035d5fdea7fae3/model.safetensors",
         dataset="scannet20",
         # NOTE: Open3D-ML's 68 is at voxel level; this is full resolution through the inverse map (68.5 at voxel level).
         metrics={"mIoU": 67.71, "OA": 87.99},
