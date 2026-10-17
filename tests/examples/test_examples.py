@@ -41,7 +41,21 @@ _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
 # weights have no row.
 BENCHMARKS = [
     pytest.param("spunet/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="spunet/scannet"),
+    pytest.param(
+        "spformer_unet/segmentation_scannet_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="spformer_unet/scannet",
+    ),
     pytest.param("kpconv/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
+    pytest.param(
+        "kpconv/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1"),
+        marks=_CLUSTER,
+        id="kpconv/semantickitti",
+    ),
+    pytest.param("kpconv/segmentation_toronto3d_benchmark.py", (), marks=_CLUSTER, id="kpconv/toronto3d"),
+    pytest.param("kpconv/segmentation_parislille3d_benchmark.py", (), marks=_CLUSTER, id="kpconv/parislille3d"),
     pytest.param("pointnext/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="pointnext/s3dis"),
     pytest.param(
         "pointnext/part_segmentation_shapenetpart_benchmark.py",
@@ -92,10 +106,25 @@ BENCHMARKS = [
         id="ptv3/scannet",
     ),
     pytest.param(
+        "point_transformer/segmentation_s3dis_benchmark.py",
+        ("--limit", "1"),
+        marks=_CLUSTER,
+        id="point_transformer/s3dis",
+    ),
+    pytest.param(
         "randlanet/segmentation_semantickitti_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,
         id="randlanet/semantickitti",
+    ),
+    pytest.param("randlanet/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="randlanet/s3dis"),
+    pytest.param("randlanet/segmentation_toronto3d_benchmark.py", (), marks=_CLUSTER, id="randlanet/toronto3d"),
+    pytest.param("randlanet/segmentation_parislille3d_benchmark.py", (), marks=_CLUSTER, id="randlanet/parislille3d"),
+    pytest.param(
+        "randlanet/segmentation_semantic3d_benchmark.py",
+        ("--scenes", "bildstein_station1_xyz_intensity_rgb"),
+        marks=_CLUSTER,
+        id="randlanet/semantic3d",
     ),
     pytest.param(
         "spvcnn/segmentation_semantickitti_benchmark.py",

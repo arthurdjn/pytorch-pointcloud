@@ -629,6 +629,7 @@ def spformer_unet_scannet20(**hparams: Any) -> SPFormerUNetSegmentation:
                 dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
+            T.ToFloat(keys=DataKeys.COLOR),
             # 2 cm voxels, with the voxel index as the position the network sees and the raw 0-255 colors as input.
             T.Scale(keys=DataKeys.POS, scale=50.0),
             T.Shift(keys=DataKeys.POS, method="min"),
