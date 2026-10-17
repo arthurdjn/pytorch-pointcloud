@@ -33,6 +33,7 @@ from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
+from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
 if TYPE_CHECKING:
@@ -1661,6 +1662,87 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         )
         x, _, _ = self.forward_decoder(x, intermediates, condition=resolved)
         return self.forward_head(x)
+
+
+_ENCODER_CHECKPOINT_MAPPING = {
+    "embedding.stem.linear.{param}": "stem.stem.{param}",
+    "embedding.stem.norm.{param}": "stem.norm.{param}",
+    "enc.enc{i}.down.proj.{param}": "blocks.{i}.downsample.proj.{param}",
+    "enc.enc{i}.down.norm.0.{param}": "blocks.{i}.downsample.norm.{param}",
+    "enc.enc{i}.block{j}.cpe.0.{param}": "blocks.{i}.blocks.{j}.cpe_conv.{param}",
+    "enc.enc{i}.block{j}.cpe.1.{param}": "blocks.{i}.blocks.{j}.cpe_proj.{param}",
+    "enc.enc{i}.block{j}.cpe.2.{param}": "blocks.{i}.blocks.{j}.cpe_norm.{param}",
+    "enc.enc{i}.block{j}.norm1.0.{param}": "blocks.{i}.blocks.{j}.norm1.{param}",
+    "enc.enc{i}.block{j}.norm2.0.{param}": "blocks.{i}.blocks.{j}.norm2.{param}",
+    "enc.enc{i}.block{j}.attn.{layer}.{param}": "blocks.{i}.blocks.{j}.attn.{layer}.{param}",
+    "enc.enc{i}.block{j}.mlp.0.fc1.{param}": "blocks.{i}.blocks.{j}.mlp.0.{param}",
+    "enc.enc{i}.block{j}.mlp.0.fc2.{param}": "blocks.{i}.blocks.{j}.mlp.3.{param}",
+}
+
+
+def encoder_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Rename the keys of a released Sonata, Concerto or Utonia encoder checkpoint to the `PointTransformerV3Encoder`
+    ones, as the `pretrained_filter_fn` of a `WeightsDict`.
+
+    The masked-modelling `embedding.mask_token` is dropped. When `model` holds the encoder as its `encoder` submodule
+    (a linear-probing segmentation model), the encoder keys move under `encoder.` and the `seg_head` of the probe
+    head file becomes `head`.
+
+    Args:
+        state_dict: State dict keyed as in the released checkpoint files.
+        model: Model the state dict is loaded into.
+
+    Returns:
+        The state dict keyed as `model` expects.
+    """
+    prefix = "encoder." if any(key.startswith("encoder.") for key in model.state_dict()) else ""
+    mapping = {source: prefix + target for source, target in _ENCODER_CHECKPOINT_MAPPING.items()}
+    mapping["seg_head.{param}"] = "head.{param}"
+    state_dict = {key: value for key, value in state_dict.items() if key != "embedding.mask_token"}
+    return transform_state_dict(state_dict, mapping)
+
+
+def pretrained_encoder_hparams(
+    encoder_depths: Sequence[int],
+    encoder_channels: Sequence[int],
+    encoder_num_heads: Sequence[int],
+) -> Dict[str, Any]:
+    """The `PointTransformerV3Encoder` hparams shared by the released Sonata, Concerto and Utonia encoders: a linear
+    stem on 9 input channels (position, color, normal), grid pooling and node-mode layer norm. The sizes differ
+    by depth, width and head count only.
+
+    Args:
+        encoder_depths: Number of blocks per stage.
+        encoder_channels: Feature width per stage.
+        encoder_num_heads: Attention heads per stage.
+
+    Returns:
+        Keyword arguments for `PointTransformerV3Encoder`.
+    """
+    return dict(
+        in_channels=9,
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=encoder_depths,
+        encoder_channels=encoder_channels,
+        encoder_num_heads=encoder_num_heads,
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        norm="layer_norm",
+        act="gelu",
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        use_flash_attn=True,
+        upcast_attn=False,
+        upcast_softmax=False,
+        pooling="grid",
+        stem_type="linear",
+        norm_kwargs={"mode": "node"},
+    )
 
 
 def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", patch_size: int = 1024) -> Dict[str, Any]:

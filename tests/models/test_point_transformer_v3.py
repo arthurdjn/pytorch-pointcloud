@@ -2,11 +2,12 @@ from typing import Dict
 
 import pytest
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Segmentation,
+    encoder_checkpoint_filter_fn,
     serialize,
 )
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
@@ -214,3 +215,33 @@ def test_serialize_negative_grid_raises() -> None:
     batch = torch.zeros(2, dtype=torch.long)
     with pytest.raises(ValueError, match="non-negative"):
         serialize(grid, batch, orders=["hilbert"])
+
+
+_RELEASED_ENCODER_KEYS = {
+    "embedding.mask_token": torch.zeros(1, 4),
+    "embedding.stem.linear.weight": torch.ones(4, 2),
+    "enc.enc1.block0.mlp.0.fc2.bias": torch.ones(4),
+    "enc.enc1.down.norm.0.weight": torch.ones(4),
+    "seg_head.weight": torch.ones(3, 4),
+}
+
+
+def test_encoder_checkpoint_filter_fn_keys_a_bare_encoder() -> None:
+    filtered = encoder_checkpoint_filter_fn(dict(_RELEASED_ENCODER_KEYS), nn.Linear(2, 4))
+    assert sorted(filtered) == [
+        "blocks.1.blocks.0.mlp.3.bias",
+        "blocks.1.downsample.norm.weight",
+        "head.weight",
+        "stem.stem.weight",
+    ]
+
+
+def test_encoder_checkpoint_filter_fn_prefixes_a_wrapped_encoder() -> None:
+    model = nn.ModuleDict({"encoder": nn.Linear(2, 4), "head": nn.Linear(4, 3)})
+    filtered = encoder_checkpoint_filter_fn(dict(_RELEASED_ENCODER_KEYS), model)
+    assert sorted(filtered) == [
+        "encoder.blocks.1.blocks.0.mlp.3.bias",
+        "encoder.blocks.1.downsample.norm.weight",
+        "encoder.stem.stem.weight",
+        "head.weight",
+    ]

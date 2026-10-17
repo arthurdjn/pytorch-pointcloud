@@ -66,7 +66,9 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(
         description="Benchmark the Utonia linear-probe head on ScanNet with the indoor precise-evaluation protocol."
     )
-    parser.add_argument("--model", default="utonia-lp.scannet20.pointcept", help="Registered segmentation model name")
+    parser.add_argument(
+        "--model", default="utonia-base-lp.scannet20.pointcept", help="Registered segmentation model name"
+    )
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
