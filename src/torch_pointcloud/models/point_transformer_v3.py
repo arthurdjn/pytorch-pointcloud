@@ -1666,9 +1666,9 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
 def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", patch_size: int = 1024) -> Dict[str, Any]:
     """Shared PT-v3m1 segmentation hparams (ScanNet / ScanNet200 / S3DIS share the architecture).
 
-    `legacy=True` and the stem / pooling BatchNorm settings (`eps=1e-3`) reproduce the released v1.5.1 checkpoints.
-    The S3DIS variant uses `attn_kind="rpe"` with `patch_size=128` (the relative-position table size is derived from
-    the patch size). RPE attention computes the explicit attention matrix, so flash attention is disabled.
+    `legacy=True` reproduces the released v1.5.1 checkpoints. The S3DIS variant uses `attn_kind="rpe"` with
+    `patch_size=128` (the relative-position table size is derived from the patch size). RPE attention computes
+    the explicit attention matrix, so flash attention is disabled.
     """
     return dict(
         in_channels=6,
