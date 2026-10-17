@@ -9,8 +9,9 @@ import torch
 import torch.nn as nn
 
 from torch_pointcloud.models import create_model, list_models, model_info
-from torch_pointcloud.models._registry import _REGISTERED_MODELS, _is_non_commercial_license
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, HF_URL_RE, _is_non_commercial_license
 from torch_pointcloud.ops.octree import build_octree
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -86,7 +87,10 @@ CLASSIFICATION_MODELS = [
 ]
 PRETRAINING_MODELS = [
     "concerto-base.pretrain.pointcept",
+    "concerto-base-origin.pretrain.pointcept",
+    "concerto-base-siglip.pretrain.pointcept",
     "concerto-large.pretrain.pointcept",
+    "concerto-large-origin.pretrain.pointcept",
     "concerto-small.pretrain.pointcept",
     "concerto-tiny.pretrain.pointcept",
     "point-bert-base.dvae.xumin-yu",
@@ -98,12 +102,15 @@ PRETRAINING_MODELS = [
     "pointgpt-b.pretrain.guangyan-chen",
     "pointgpt-l.pretrain.guangyan-chen",
     "sonata-base.pretrain.fair",
-    "utonia.pretrain.pointcept",
+    "sonata-small.pretrain.fair",
+    "utonia-base.pretrain.pointcept",
+    "utonia-small.pretrain.pointcept",
+    "utonia-tiny.pretrain.pointcept",
 ]
 SEMANTIC_SEGMENTATION_MODELS = [
     "spformer-unet.scannet",
     "concerto-large-lp.scannet20.pointcept",
-    "utonia-lp.scannet20.pointcept",
+    "utonia-base-lp.scannet20.pointcept",
     "dgcnn.s3dis-area1.an-tao",
     "dgcnn.s3dis-area2.an-tao",
     "dgcnn.s3dis-area3.an-tao",
@@ -177,7 +184,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "randlanet.toronto3d.open3d",
     "randlanet.semantic3d.open3d",
     "randlanet.parislille3d.open3d",
-    "sonata-lp.scannet20.fair",
+    "sonata-base-lp.scannet20.fair",
     "spformer-unet.scannet20",
     "spformer-unet.scannet20.open3d",
     "sphereformer.nuscenes",
@@ -216,12 +223,18 @@ NON_COMMERCIAL_MODELS = [
     "concerto-tiny.pretrain.pointcept",
     "concerto-small.pretrain.pointcept",
     "concerto-base.pretrain.pointcept",
+    "concerto-base-origin.pretrain.pointcept",
+    "concerto-base-siglip.pretrain.pointcept",
     "concerto-large.pretrain.pointcept",
+    "concerto-large-origin.pretrain.pointcept",
     "concerto-large-lp.scannet20.pointcept",
+    "sonata-small.pretrain.fair",
     "sonata-base.pretrain.fair",
-    "sonata-lp.scannet20.fair",
-    "utonia.pretrain.pointcept",
-    "utonia-lp.scannet20.pointcept",
+    "sonata-base-lp.scannet20.fair",
+    "utonia-tiny.pretrain.pointcept",
+    "utonia-small.pretrain.pointcept",
+    "utonia-base.pretrain.pointcept",
+    "utonia-base-lp.scannet20.pointcept",
 ]
 
 
@@ -823,16 +836,19 @@ def test_registered_input_keys_fill_the_forward_arguments() -> None:
             assert len(required) <= len(entry["input_keys"]) <= len(params), (name, entry["input_keys"])
 
 
-def test_registered_weights_urls_name_the_hub_repo() -> None:
+def test_registered_weights_urls_pin_a_hub_revision() -> None:
+    """Weights load from `torch-pointcloud/<name>` or from the authors' Hub repository, pinned to a commit."""
     for entries in _REGISTERED_MODELS.values():
         for name, entry in entries.items():
             weights = entry["weights"]
             if weights is None:
                 continue
 
-            assert re.fullmatch(
-                rf"hf://torch-pointcloud/{re.escape(name)}/resolve/[0-9a-f]{{40}}/model\.safetensors", weights["url"]
-            ), name
+            for url in ensure_tuple(weights["url"]):
+                match = HF_URL_RE.fullmatch(url)
+                assert match is not None and re.fullmatch(r"[0-9a-f]{40}", match["revision"]), (name, url)
+                if match["namespace"] == "torch-pointcloud":
+                    assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
             assert weights["author"], name
 

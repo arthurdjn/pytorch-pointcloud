@@ -65,7 +65,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(
         description="Benchmark the Sonata linear-probe head on ScanNet with the indoor precise-evaluation protocol."
     )
-    parser.add_argument("--model", default="sonata-lp.scannet20.fair", help="Registered segmentation model name")
+    parser.add_argument("--model", default="sonata-base-lp.scannet20.fair", help="Registered segmentation model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)

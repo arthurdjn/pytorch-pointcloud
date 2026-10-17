@@ -131,7 +131,7 @@ randlanet.semantic3d.open3d,randlanet,semantic-segmentation,semantic3d,true,MIT,
 randlanet.semantickitti.open3d,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.8,46.18,mIoU 46.18 · OA 83.99
 randlanet.semantickitti.tsung-han-wu,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.9,55.39,mIoU 55.39 · OA 90.05
 randlanet.toronto3d.open3d,randlanet,semantic-segmentation,toronto3d,true,MIT,4.99,mIoU,74,73.88,mIoU 73.88 · OA 95.85
-sonata-lp.scannet20.fair,sonata,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,108.49,mIoU,72.5,72.60,mIoU 72.60 · OA 89.80
+sonata-base-lp.scannet20.fair,sonata,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,108.49,mIoU,72.5,72.60,mIoU 72.60 · OA 89.80
 spformer-unet.scannet,spformer_unet,semantic-segmentation,scannet,false,,10.96,mIoU,,,
 spformer-unet.scannet20,spformer_unet,semantic-segmentation,scannet20,false,,10.96,mIoU,,,
 spformer-unet.scannet20.open3d,spformer_unet,semantic-segmentation,scannet20,true,MIT,17.32,mIoU,68,67.71,mIoU 67.71 · OA 87.99
@@ -141,7 +141,7 @@ spunet-v1m1.scannet20.pointcept,spunet,semantic-segmentation,scannet20,true,MIT,
 spvcnn-119gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,21.78,mIoU,63.8,63.74,mIoU 63.74 · OA 92.46
 spvcnn-30gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,5.45,mIoU,60.7,60.70,mIoU 60.70 · OA 91.94
 spvcnn-47gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,8.79,mIoU,61.4,61.59,mIoU 61.59 · OA 92.22
-utonia-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,137.28,mIoU,77.7,77.70,mIoU 77.70 · OA 91.88
+utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,137.28,mIoU,77.7,77.70,mIoU 77.70 · OA 91.88
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
 point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.05,ins_mIoU 86.05 · cls_mIoU 84.12
@@ -161,7 +161,10 @@ votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
 voxelnext.nuscenes.openpcdet,voxelnext,detection,nuscenes,true,Apache-2.0,7.98,mAP,60.5,61.20,mAP 61.20 · NDS 66.81
+concerto-base-origin.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
+concerto-base-siglip.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
 concerto-base.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
+concerto-large-origin.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,207.67,,,,
 concerto-large.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,207.67,,,,
 concerto-small.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,38.65,,,,
 concerto-tiny.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,4.86,,,,
@@ -174,4 +177,7 @@ pointgpt-b.pretrain.guangyan-chen,pointgpt,pretraining,shapenet55,true,MIT,119.9
 pointgpt-l.pretrain.guangyan-chen,pointgpt,pretraining,shapenet55,true,MIT,359.76,,,,
 pointgpt-s.pretrain.guangyan-chen,pointgpt,pretraining,shapenet55,true,MIT,28.93,,,,
 sonata-base.pretrain.fair,sonata,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
-utonia.pretrain.pointcept,utonia,pretraining,pretrain,true,CC-BY-NC-4.0,137.25,,,,
+sonata-small.pretrain.fair,sonata,pretraining,pretrain,true,CC-BY-NC-4.0,38.65,,,,
+utonia-base.pretrain.pointcept,utonia,pretraining,pretrain,true,CC-BY-NC-4.0,137.25,,,,
+utonia-small.pretrain.pointcept,utonia,pretraining,pretrain,true,CC-BY-NC-4.0,37.25,,,,
+utonia-tiny.pretrain.pointcept,utonia,pretraining,pretrain,true,CC-BY-NC-4.0,9.33,,,,

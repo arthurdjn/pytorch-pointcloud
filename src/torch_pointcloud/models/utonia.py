@@ -14,7 +14,12 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Encoder, SerializedFeaturesDict
+from torch_pointcloud.models.point_transformer_v3 import (
+    PointTransformerV3Encoder,
+    SerializedFeaturesDict,
+    encoder_checkpoint_filter_fn,
+    pretrained_encoder_hparams,
+)
 from torch_pointcloud.ops.serialization import SerializationOrder
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
@@ -265,57 +270,93 @@ _UTONIA_SEG_TRANSFORMS = T.Compose(
 )
 
 
-def _utonia_encoder_hparams() -> Dict[str, Any]:
-    return dict(
-        in_channels=9,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
-        encoder_depths=(3, 3, 3, 12, 3),
-        encoder_channels=(54, 108, 216, 432, 576),
-        encoder_num_heads=(3, 6, 12, 24, 32),
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        norm="layer_norm",
-        act="gelu",
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        use_flash_attn=True,
-        upcast_attn=False,
-        upcast_softmax=False,
-        pooling="grid",
-        stem_type="linear",
-        norm_kwargs={"mode": "node"},
-        attn_kind="rope",
-        rope_base=10.0,
-    )
-
-
 @register_model(
-    "utonia.pretrain.pointcept",
+    "utonia-tiny.pretrain.pointcept",
     task="pretraining",
     input_keys=("x", "pos_grid", "batch", "pos"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/utonia.pretrain.pointcept/resolve/33e4b0c0c25e4400ba420d9d9d373daba3433f67/model.safetensors",
+        url="hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia_tiny.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
     transform=_UTONIA_TRANSFORMS,
-    hparams=_utonia_encoder_hparams(),
+    hparams=dict(
+        attn_kind="rope",
+        rope_base=10.0,
+        **pretrained_encoder_hparams(
+            encoder_depths=(2, 2, 2, 6, 2),
+            encoder_channels=(18, 36, 72, 144, 216),
+            encoder_num_heads=(1, 2, 4, 8, 12),
+        ),
+    ),
 )
-def utonia(**hparams: Any) -> PointTransformerV3Encoder:
+def utonia_tiny(**hparams: Any) -> PointTransformerV3Encoder:
     return PointTransformerV3Encoder(**hparams)
 
 
 @register_model(
-    "utonia-lp.scannet20.pointcept",
+    "utonia-small.pretrain.pointcept",
+    task="pretraining",
+    input_keys=("x", "pos_grid", "batch", "pos"),
+    weights=WeightsDict(
+        url="hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia_small.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_UTONIA_TRANSFORMS,
+    hparams=dict(
+        attn_kind="rope",
+        rope_base=10.0,
+        **pretrained_encoder_hparams(
+            encoder_depths=(2, 2, 2, 6, 2),
+            encoder_channels=(36, 72, 144, 288, 432),
+            encoder_num_heads=(2, 4, 8, 16, 24),
+        ),
+    ),
+)
+def utonia_small(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
+
+
+@register_model(
+    "utonia-base.pretrain.pointcept",
+    task="pretraining",
+    deprecated_names="utonia.pretrain.pointcept",
+    input_keys=("x", "pos_grid", "batch", "pos"),
+    weights=WeightsDict(
+        url="hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_UTONIA_TRANSFORMS,
+    hparams=dict(
+        attn_kind="rope",
+        rope_base=10.0,
+        **pretrained_encoder_hparams(
+            encoder_depths=(3, 3, 3, 12, 3),
+            encoder_channels=(54, 108, 216, 432, 576),
+            encoder_num_heads=(3, 6, 12, 24, 32),
+        ),
+    ),
+)
+def utonia_base(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
+
+
+@register_model(
+    "utonia-base-lp.scannet20.pointcept",
     task="semantic-segmentation",
+    deprecated_names="utonia-lp.scannet20.pointcept",
     input_keys=("x", "pos", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/utonia-lp.scannet20.pointcept/resolve/1811ef3a4de3df47bf17b932f07eb72e80472e37/model.safetensors",
+        url=(
+            "hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia.pth",
+            "hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia_linear_prob_head_sc.pth",
+        ),
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         dataset="scannet20",
         metrics={"mIoU": 77.70, "OA": 91.88},
         classes=SCANNET20_CLASSES,
@@ -325,29 +366,12 @@ def utonia(**hparams: Any) -> PointTransformerV3Encoder:
     transform=_UTONIA_SEG_TRANSFORMS,
     hparams=dict(
         num_classes=20,
-        in_channels=9,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
-        encoder_depths=(3, 3, 3, 12, 3),
-        encoder_channels=(54, 108, 216, 432, 576),
-        encoder_num_heads=(3, 6, 12, 24, 32),
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        norm="layer_norm",
-        act="gelu",
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        use_flash_attn=True,
-        upcast_attn=False,
-        upcast_softmax=False,
-        pooling="grid",
-        stem_type="linear",
-        norm_kwargs={"mode": "node"},
         rope_base=10.0,
+        **pretrained_encoder_hparams(
+            encoder_depths=(3, 3, 3, 12, 3),
+            encoder_channels=(54, 108, 216, 432, 576),
+            encoder_num_heads=(3, 6, 12, 24, 32),
+        ),
     ),
 )
 def utonia_scannet20(**hparams: Any) -> UtoniaSegmentation:

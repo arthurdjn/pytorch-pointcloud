@@ -12,6 +12,11 @@ All notable changes to this project are documented in this file. The format is b
 - `Semantic3D(download=True, accept_terms=True)` fetches the requested scenes and their labels from the benchmark's ETH mirror (7z archives, read with the optional `py7zr` package).
 - Added `datasets.semantickitti.SEMANTIC_KITTI_LEARNING_MAP`, the official 19-class learning map of the single-scan benchmark.
 - Fixed `PointTransformerSegmentation` to match the reference network: the attention MLP of `PointTransformerBlock` starts with normalization and activation, the query / key / value projections carry a bias (`PointTransformerConv(bias=True)`), the decoder opens with a `PointTransformerGlobalTransition` that mixes a global mean feature into the coarsest stage followed by one transformer block, and the head is `Linear -> norm -> act -> Linear` (architecture snapshots regenerated).
+- Added the `sonata-small`, `utonia-small`, `utonia-tiny`, `concerto-base-origin`, `concerto-large-origin` and `concerto-base-siglip` pretrained encoders.
+- Renamed `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept` and `sonata-lp.scannet20.fair` to `utonia-base.pretrain.pointcept`, `utonia-base-lp.scannet20.pointcept` and `sonata-base-lp.scannet20.fair`; the former names still load, with a `FutureWarning`.
+- Added `register_model(deprecated_names=...)`, which keeps renamed models reachable under their former names.
+- Added `WeightsDict(pretrained_filter_fn=...)`, which maps a checkpoint onto the model keys at load, and `WeightsDict(url=...)` accepts several files, warning when a later file overrides keys.
+- The Sonata, Concerto and Utonia weights download from the authors' Hugging Face repositories.
 
 ## 0.0.16 (2026-10-14)
 
