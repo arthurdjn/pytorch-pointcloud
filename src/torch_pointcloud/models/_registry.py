@@ -14,8 +14,9 @@ from typing_extensions import NotRequired
 
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.transforms.base import Transform
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
-from torch_pointcloud.utils.types import PathLike
+from torch_pointcloud.utils.types import PathLike, ValueCollection
 
 from ._base import ClassificationModel, DetectionModel, PartSegmentationModel, SemanticSegmentationModel
 
@@ -32,6 +33,10 @@ class WeightsDict(TypedDict):
     Attributes:
         url: Location of the weight file, mirroring the Hub path so that `hf://` stands for
             `https://huggingface.co/` (e.g. `hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors`).
+            Several URLs are read in order into a single state dict (e.g. an encoder file and its head file).
+        pretrained_filter_fn: Called as `pretrained_filter_fn(state_dict, model)` on the state dict read from `url`
+            before it is loaded, to rename, drop or reorder the entries of a checkpoint saved with another parameter
+            layout (e.g. the authors' original release).
         dataset: Benchmark the checkpoint was trained on (e.g. `scanobjectnn`, `s3dis-area5`).
         metrics: Scores measured with this package's benchmark scripts, keyed by metric name
             (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
@@ -40,7 +45,8 @@ class WeightsDict(TypedDict):
         license: License of the weight file (e.g. `CC-BY-NC-4.0`), when the source repository declares one.
     """
 
-    url: str
+    url: ValueCollection[str]
+    pretrained_filter_fn: NotRequired[Callable[[Dict[str, Any], nn.Module], Dict[str, Any]]]
     dataset: NotRequired[str]
     metrics: NotRequired[Dict[str, float]]
     classes: NotRequired[Sequence[str]]
@@ -78,6 +84,8 @@ _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
     "detection": {},
 }
 
+_DEPRECATED_MODELS: Dict[Task, Dict[str, str]] = {task: {} for task in _REGISTERED_MODELS}
+
 
 @overload
 def register_model(
@@ -87,6 +95,7 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    deprecated_names: ValueCollection[str] = (),
     task: Literal["pretraining"],
 ) -> Callable[[Callable[..., nn.Module]], Callable[..., nn.Module]]: ...
 
@@ -99,6 +108,7 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    deprecated_names: ValueCollection[str] = (),
     task: Literal["classification"],
 ) -> Callable[[Callable[..., ClassificationModel]], Callable[..., ClassificationModel]]: ...
 
@@ -111,6 +121,7 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    deprecated_names: ValueCollection[str] = (),
     task: Literal["semantic-segmentation"],
 ) -> Callable[[Callable[..., SemanticSegmentationModel]], Callable[..., SemanticSegmentationModel]]: ...
 
@@ -123,6 +134,7 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    deprecated_names: ValueCollection[str] = (),
     task: Literal["part-segmentation"],
 ) -> Callable[[Callable[..., PartSegmentationModel]], Callable[..., PartSegmentationModel]]: ...
 
@@ -135,6 +147,7 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    deprecated_names: ValueCollection[str] = (),
     task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
 
@@ -147,6 +160,7 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    deprecated_names: ValueCollection[str] = (),
 ) -> Callable:
     """Register a model entry point under `name` for `task`.
 
@@ -162,9 +176,16 @@ def register_model(
         input_keys: Batch keys `forward` takes positionally, in order; a dotted key reads an attribute (e.g.
             `octree.depth`). `utils.data.select_inputs` gathers them from a collated batch.
         weights: Pretrained checkpoint, either a URL string or a `WeightsDict` with metadata.
+        deprecated_names: Former name or names of the entry under `task`: `create_model` and `model_info` still resolve
+            them for `task`, with a `FutureWarning`, and `list_models` does not list them. A model of the same name
+            registered under another task is not affected.
 
     Returns:
         The decorator registering its target callable.
+
+    Raises:
+        ValueError: If `task` is unknown, if a deprecated name is `name` itself, a registered model of `task` or the
+            deprecated name of another model of `task`, or if `name` is the deprecated name of another model of `task`.
 
     Registering a classification entry point with weight metadata:
 
@@ -187,6 +208,7 @@ def register_model(
     ```
     """
     hparams = hparams or {}
+    former_names: Tuple[str, ...] = ensure_tuple(deprecated_names)
     weights_dict: Optional[WeightsDict] = {"url": weights} if isinstance(weights, str) else weights
 
     if task not in _REGISTERED_MODELS.keys():
@@ -194,11 +216,28 @@ def register_model(
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
 
     def decorator(fn: Callable) -> Callable:
+        if name in _DEPRECATED_MODELS[task]:
+            raise ValueError(
+                f"Model name {name!r} is a deprecated name of {_DEPRECATED_MODELS[task][name]!r} for task {task!r}."
+            )
+
+        for old in former_names:
+            if old == name:
+                raise ValueError(f"Deprecated model name {old!r} is the registered name itself.")
+            if old in _REGISTERED_MODELS[task]:
+                raise ValueError(f"Deprecated model name {old!r} is already a registered {task!r} model name.")
+            if _DEPRECATED_MODELS[task].get(old, name) != name:
+                raise ValueError(
+                    f"Deprecated model name {old!r} is already a deprecated name of {_DEPRECATED_MODELS[task][old]!r} "
+                    f"for task {task!r}."
+                )
+
         if name in _REGISTERED_MODELS[task]:
             warnings.warn(
                 f"Model {name!r} is already registered for task {task!r}; overwriting the existing entry.",
                 stacklevel=2,
             )
+
         _REGISTERED_MODELS[task][name] = {
             "name": name,
             "transform": transform,
@@ -207,6 +246,9 @@ def register_model(
             "weights": weights_dict,
             "fn": fn,
         }
+
+        for old in former_names:
+            _DEPRECATED_MODELS[task][old] = name
         return fn
 
     return decorator
@@ -219,12 +261,13 @@ def cache_path(url: str) -> Path:
     checkpoint pinned to a new revision is downloaded again. Any other URL maps to `MODELS_DIR/<path>`.
 
     Args:
-        url: The `url` of a registered `WeightsDict`.
+        url: One `url` of a registered `WeightsDict` (a `WeightsDict` listing several files names each one separately).
 
     Returns:
         Path of the weight file inside the models cache.
 
     Raises:
+        TypeError: If `url` is not a single URL string.
         ValueError: If a `hf://` URL does not follow the Hub path layout.
 
     ```python
@@ -233,6 +276,11 @@ def cache_path(url: str) -> Path:
     path = cache_path("hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors")
     ```
     """
+    if not isinstance(url, str):
+        raise TypeError(
+            f"Expected a single weight URL string, got {type(url).__name__}; a `WeightsDict` may list several files "
+            "in its `url`, pass them one at a time."
+        )
     if url.startswith("hf://"):
         match = HF_URL_RE.match(url)
         if match is None:
@@ -252,12 +300,13 @@ def resolve_weights(name: str, url: str) -> Path:
 
     Args:
         name: Registered model name, used in error messages.
-        url: The `url` of the registered `WeightsDict`.
+        url: One `url` of the registered `WeightsDict` (a `WeightsDict` listing several files names each one separately).
 
     Returns:
         Path of the weight file inside the models cache.
 
     Raises:
+        TypeError: If `url` is not a single URL string.
         ValueError: If the URL path escapes the models cache directory.
         FileNotFoundError: If the file is absent and cannot be downloaded.
 
@@ -306,14 +355,15 @@ def _is_non_commercial_license(license: Optional[str]) -> bool:
     return license is not None and "-NC" in license.upper()
 
 
-def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[Task, ModelDict]:
-    """The registry entry of `name`, with its task inferred when the name is registered under a single one."""
+def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDict]:
+    """The registered name, task and entry of `name`, with its task inferred when the name is registered under a single
+    one. A former name of a model renamed under that task resolves to its new name, with a `FutureWarning`."""
     if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
 
     if task is None:
-        tasks = [t for t, entries in _REGISTERED_MODELS.items() if name in entries]
+        tasks = [t for t in _REGISTERED_MODELS if name in _REGISTERED_MODELS[t] or name in _DEPRECATED_MODELS[t]]
         if len(tasks) > 1:
             registered = " and ".join(f"{t!r}" for t in tasks)
             raise ValueError(f"Model {name!r} is registered under tasks {registered}; pass `task=` to pick one.")
@@ -328,19 +378,33 @@ def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[Task, ModelDict]:
 
         task = tasks[0]
 
+    new = _DEPRECATED_MODELS[task].get(name)
+    if new is not None:
+        warnings.warn(
+            f"Model {name!r} was renamed to {new!r}; the former name will be removed in a future release.",
+            FutureWarning,
+            stacklevel=3,
+        )
+        name = new
+
     entry = _REGISTERED_MODELS[task].get(name)
     if entry is None:
         message = f"Model {name!r} not found in the {task!r} registry."
-        other_tasks = [t for t, entries in _REGISTERED_MODELS.items() if t != task and name in entries]
-        for other in other_tasks:
-            message += f" Model {name!r} is registered under task {other!r}; pass task={other!r}."
+        for other in _REGISTERED_MODELS:
+            if other == task:
+                continue
+            if name in _REGISTERED_MODELS[other]:
+                message += f" Model {name!r} is registered under task {other!r}; pass task={other!r}."
+            elif name in _DEPRECATED_MODELS[other]:
+                renamed = _DEPRECATED_MODELS[other][name]
+                message += f" Model {name!r} was renamed to {renamed!r} under task {other!r}; pass task={other!r}."
         matches = difflib.get_close_matches(name, _REGISTERED_MODELS[task], n=3)
         if matches:
             message += " Did you mean " + " or ".join(f"{m!r}" for m in matches) + "?"
         message += f" Use `list_models(task={task!r})` to list the registered names."
         raise ValueError(message)
 
-    return task, entry
+    return name, task, entry
 
 
 def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
@@ -364,7 +428,7 @@ def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
 
         ```
     """
-    task, entry = _resolve_entry(name, task)
+    name, task, entry = _resolve_entry(name, task)
     return {
         "name": name,
         "task": task,
@@ -585,7 +649,7 @@ def create_model(
     if pretrained and checkpoint_path is not None:
         raise ValueError("'pretrained' and 'checkpoint_path' are mutually exclusive. Pass a single weight source.")
 
-    task, entry = _resolve_entry(name, task)
+    name, task, entry = _resolve_entry(name, task)
 
     # The returned info carries the EFFECTIVE hparams (registry defaults updated by `kwargs`), so a
     # caller (e.g. a LightningModule) can log exactly what built the model.
@@ -624,8 +688,22 @@ def create_model(
                 stacklevel=2,
             )
 
-        local_path = resolve_weights(name, weights["url"])
-        load_state_dict(model, read_state_dict(local_path), source=weights["url"])
+        urls = ensure_tuple(weights["url"])
+        state_dict: Dict[str, Any] = {}
+        for url in urls:
+            local_path = resolve_weights(name, url)
+            file_state_dict = read_state_dict(local_path)
+            duplicates = sorted(key for key in file_state_dict if key in state_dict)
+            if duplicates:
+                warnings.warn(
+                    f"Weight file {url!r} of {name!r} overrides keys of the files before it: {', '.join(duplicates)}.",
+                    stacklevel=2,
+                )
+            state_dict.update(file_state_dict)
+        if "pretrained_filter_fn" in weights:
+            state_dict = weights["pretrained_filter_fn"](state_dict, model)
+
+        load_state_dict(model, state_dict, source=", ".join(urls))
         if rebuild_head and model.num_classes != kwargs["num_classes"]:
             model.reset_classifier(kwargs["num_classes"])
     elif checkpoint_path is not None:

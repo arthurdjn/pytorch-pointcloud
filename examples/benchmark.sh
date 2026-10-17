@@ -137,6 +137,6 @@ $RUN examples/spunet/segmentation_scannet_benchmark.py --root "$ROOT" --model sp
 $RUN examples/point_transformer_v3/segmentation_scannet_benchmark.py --root "$ROOT" --model ptv3-base.scannet20.pointcept --sw-batch-size 8
 $RUN examples/point_transformer_v3/segmentation_scannet200_benchmark.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
 $RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
-$RUN examples/sonata/segmentation_scannet_benchmark.py --root "$ROOT" --model sonata-lp.scannet20.fair --sw-batch-size 4
+$RUN examples/sonata/segmentation_scannet_benchmark.py --root "$ROOT" --model sonata-base-lp.scannet20.fair --sw-batch-size 4
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
-$RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-lp.scannet20.pointcept --sw-batch-size 2
+$RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2

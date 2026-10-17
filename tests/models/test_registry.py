@@ -1,7 +1,7 @@
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, List
 from unittest.mock import Mock
 
 import pytest
@@ -19,7 +19,7 @@ from torch_pointcloud.models import (
     model_info,
     register_model,
 )
-from torch_pointcloud.models._registry import _REGISTERED_MODELS, cache_path
+from torch_pointcloud.models._registry import _DEPRECATED_MODELS, _REGISTERED_MODELS, cache_path
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 
@@ -109,6 +109,35 @@ def _register_pretrained_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     torch.save(DummyClassificationModel().state_dict(), weights_path)
     yield weights_path
     _REGISTERED_MODELS["classification"].pop("dummy-pretrained.classification", None)
+
+
+@pytest.fixture
+def _register_renamed_dummy() -> Iterator[None]:
+    """Register `dummy-renamed.classification` with the former name `dummy-former.classification`, then drop both."""
+    register_model(
+        "dummy-renamed.classification",
+        task="classification",
+        deprecated_names="dummy-former.classification",
+    )(_dummy_classification)
+    yield
+    _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification", None)
+    _DEPRECATED_MODELS["classification"].pop("dummy-former.classification", None)
+
+
+@pytest.fixture
+def _register_renamed_in_one_task_dummy() -> Iterator[None]:
+    """Register `dummy-shared.demo` for semantic segmentation and, renamed from that name for classification only,
+    `dummy-shared-v2.demo`, then drop them."""
+    register_model("dummy-shared.demo", task="semantic-segmentation")(_dummy_segmentation)
+    register_model(
+        "dummy-shared-v2.demo",
+        task="classification",
+        deprecated_names="dummy-shared.demo",
+    )(_dummy_classification)
+    yield
+    _REGISTERED_MODELS["semantic-segmentation"].pop("dummy-shared.demo", None)
+    _REGISTERED_MODELS["classification"].pop("dummy-shared-v2.demo", None)
+    _DEPRECATED_MODELS["classification"].pop("dummy-shared.demo", None)
 
 
 def test_create_model_returns_model() -> None:
@@ -243,6 +272,116 @@ def test_list_models_invalid_task_raises() -> None:
         list_models(task="invalid")  # type: ignore[arg-type]
 
 
+def test_create_model_former_name_warns_and_builds_the_renamed_model(_register_renamed_dummy: None) -> None:
+    with pytest.warns(
+        FutureWarning, match="'dummy-former.classification' was renamed to 'dummy-renamed.classification'"
+    ):
+        model, info = create_model("dummy-former.classification", return_info=True)
+    assert isinstance(model, DummyClassificationModel)
+    assert info["name"] == "dummy-renamed.classification"
+
+
+def test_model_info_former_name_warns_and_returns_the_renamed_entry(_register_renamed_dummy: None) -> None:
+    with pytest.warns(FutureWarning, match="renamed"):
+        info = model_info("dummy-former.classification")
+    assert info["name"] == "dummy-renamed.classification"
+
+
+def test_list_models_skips_former_names(_register_renamed_dummy: None) -> None:
+    assert list_models("dummy*", task="classification") == ["dummy-renamed.classification", "dummy.classification"]
+
+
+@pytest.mark.parametrize(
+    "deprecated_names,former_names",
+    [
+        pytest.param("dummy-former.classification", ["dummy-former.classification"], id="str"),
+        pytest.param(
+            ["dummy-former.classification", "dummy-older.classification"],
+            ["dummy-former.classification", "dummy-older.classification"],
+            id="list",
+        ),
+        pytest.param(("dummy-former.classification",), ["dummy-former.classification"], id="tuple"),
+    ],
+)
+def test_register_model_deprecated_names_takes_a_name_or_a_sequence(
+    deprecated_names: Any, former_names: List[str]
+) -> None:
+    register_model(
+        "dummy-renamed.classification",
+        task="classification",
+        deprecated_names=deprecated_names,
+    )(_dummy_classification)
+    try:
+        for former in former_names:
+            with pytest.warns(FutureWarning, match=f"'{former}' was renamed to 'dummy-renamed.classification'"):
+                assert model_info(former)["name"] == "dummy-renamed.classification"
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification", None)
+        for former in former_names:
+            _DEPRECATED_MODELS["classification"].pop(former, None)
+
+
+def test_register_model_deprecated_name_of_a_registered_model_raises() -> None:
+    with pytest.raises(ValueError, match="'dummy.classification' is already a registered 'classification' model name"):
+        register_model(
+            "dummy-other.classification",
+            task="classification",
+            deprecated_names=("dummy.classification",),
+        )(_dummy_classification)
+
+
+def test_register_model_under_a_deprecated_name_raises(_register_renamed_dummy: None) -> None:
+    with pytest.raises(ValueError, match="'dummy-former.classification' is a deprecated name of"):
+        register_model("dummy-former.classification", task="classification")(_dummy_classification)
+
+
+def test_create_model_former_name_resolves_under_its_task(_register_renamed_in_one_task_dummy: None) -> None:
+    with pytest.warns(FutureWarning, match="'dummy-shared.demo' was renamed to 'dummy-shared-v2.demo'"):
+        model = create_model("dummy-shared.demo", task="classification")
+    assert isinstance(model, DummyClassificationModel)
+
+
+@pytest.mark.filterwarnings("error::FutureWarning")
+def test_create_model_name_kept_under_another_task_does_not_warn(_register_renamed_in_one_task_dummy: None) -> None:
+    model = create_model("dummy-shared.demo", task="semantic-segmentation")
+    assert isinstance(model, DummySemanticSegmentationModel)
+
+
+def test_create_model_name_renamed_under_one_task_only_needs_task(_register_renamed_in_one_task_dummy: None) -> None:
+    with pytest.raises(ValueError, match="pass `task=` to pick one"):
+        create_model("dummy-shared.demo")
+
+
+def test_create_model_former_name_under_another_task_hints_the_rename(
+    _register_renamed_in_one_task_dummy: None,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="was renamed to 'dummy-shared-v2.demo' under task 'classification'; pass task='classification'",
+    ):
+        create_model("dummy-shared.demo", task="pretraining")
+
+
+def test_register_model_deprecated_name_equal_to_the_name_raises() -> None:
+    with pytest.raises(ValueError, match="'dummy-self.classification' is the registered name itself"):
+        register_model(
+            "dummy-self.classification",
+            task="classification",
+            deprecated_names="dummy-self.classification",
+        )(_dummy_classification)
+
+
+def test_register_model_deprecated_name_of_another_model_raises(_register_renamed_dummy: None) -> None:
+    with pytest.raises(
+        ValueError, match="'dummy-former.classification' is already a deprecated name of 'dummy-renamed.classification'"
+    ):
+        register_model(
+            "dummy-other.classification",
+            task="classification",
+            deprecated_names="dummy-former.classification",
+        )(_dummy_classification)
+
+
 @pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path) -> None:
     model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
@@ -345,6 +484,67 @@ def test_create_model_pretrained_missing_keys_raise(_register_pretrained_dummy: 
     torch.save(state_dict, _register_pretrained_dummy)
     with pytest.raises(RuntimeError, match="missing model keys"):
         create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+
+def _strip_backbone_prefix(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    return {key.removeprefix("backbone."): value for key, value in state_dict.items()}
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_applies_pretrained_filter_fn(_register_pretrained_dummy: Path) -> None:
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    torch.save({f"backbone.{key}": value for key, value in state_dict.items()}, _register_pretrained_dummy)
+    filter_fn = Mock(wraps=_strip_backbone_prefix)
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = WeightsDict(
+        url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
+        pretrained_filter_fn=filter_fn,
+    )
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+    assert isinstance(model, DummyClassificationModel)
+    filter_fn.assert_called_once()
+    assert filter_fn.call_args.args[1] is model
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_reads_several_urls_into_one_state_dict(_register_pretrained_dummy: Path) -> None:
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    head_path = _register_pretrained_dummy.with_name("head.pt")
+    torch.save({key: value for key, value in state_dict.items() if key.startswith("fc.")}, head_path)
+    torch.save(
+        {key: value for key, value in state_dict.items() if key.startswith("encoder.")},
+        _register_pretrained_dummy,
+    )
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = WeightsDict(
+        url=(
+            "hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
+            "hf://torch-pointcloud/dummy-pretrained/resolve/main/head.pt",
+        ),
+    )
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+    assert isinstance(model, DummyClassificationModel)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+def test_create_model_pretrained_warns_when_a_later_url_overrides_keys(_register_pretrained_dummy: Path) -> None:
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    head_path = _register_pretrained_dummy.with_name("head.pt")
+    torch.save({**state_dict, "fc.weight": torch.zeros_like(state_dict["fc.weight"])}, head_path)
+    _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = WeightsDict(
+        url=(
+            "hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
+            "hf://torch-pointcloud/dummy-pretrained/resolve/main/head.pt",
+        ),
+    )
+    with pytest.warns(UserWarning, match=r"head\.pt' of 'dummy-pretrained.classification' overrides keys .*fc\.weight"):
+        model = create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+    assert isinstance(model, DummyClassificationModel)
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, torch.zeros_like(state_dict["fc.weight"]))
 
 
 def test_create_model_checkpoint_path(tmp_path: Path) -> None:
@@ -488,6 +688,11 @@ def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeyp
         _REGISTERED_MODELS["classification"].pop("dummy-offline.classification", None)
 
     assert not (tmp_path / "dummy-offline" / "main" / "model.pt").exists()
+
+
+def test_cache_path_rejects_several_urls() -> None:
+    with pytest.raises(TypeError, match="Expected a single weight URL string, got tuple"):
+        cache_path(("hf://torch-pointcloud/ckpt/resolve/aaa/model.safetensors",))  # type: ignore[arg-type]
 
 
 def test_cache_path_is_keyed_by_revision() -> None:

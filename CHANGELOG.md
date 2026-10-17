@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the `sonata-small`, `utonia-small`, `utonia-tiny`, `concerto-base-origin`, `concerto-large-origin` and `concerto-base-siglip` pretrained encoders.
+- Renamed `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept` and `sonata-lp.scannet20.fair` to `utonia-base.pretrain.pointcept`, `utonia-base-lp.scannet20.pointcept` and `sonata-base-lp.scannet20.fair`; the former names still load, with a `FutureWarning`.
+- Added `register_model(deprecated_names=...)`, which keeps renamed models reachable under their former names.
+- Added `WeightsDict(pretrained_filter_fn=...)`, which maps a checkpoint onto the model keys at load, and `WeightsDict(url=...)` accepts several files, warning when a later file overrides keys.
+- The Sonata, Concerto and Utonia weights download from the authors' Hugging Face repositories.
+
 ## 0.0.16 (2026-10-14)
 
 - Added scores charts and tables to the documentation for better comparison of the models.

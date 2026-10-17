@@ -26,8 +26,8 @@ from torch_pointcloud.utils.random import seed_everything
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
-MODEL = "utonia-lp.scannet20.pointcept"
-PRETRAIN = "utonia.pretrain.pointcept"
+MODEL = "utonia-base-lp.scannet20.pointcept"
+PRETRAIN = "utonia-base.pretrain.pointcept"
 GRID_SIZE = 0.01
 NUM_CLASSES = 20
 POINT_KEYS = [DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.SEGMENT]

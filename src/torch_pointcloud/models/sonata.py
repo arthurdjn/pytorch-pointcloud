@@ -18,6 +18,8 @@ from torch_pointcloud.models.point_transformer_v3 import (
     AttentionKind,
     PointTransformerV3Encoder,
     SerializedFeaturesDict,
+    encoder_checkpoint_filter_fn,
+    pretrained_encoder_hparams,
 )
 from torch_pointcloud.ops.serialization import SerializationOrder
 from torch_pointcloud.utils.data import DataKeys
@@ -206,62 +208,68 @@ class SonataSegmentation(SemanticSegmentationModel):
         return self.forward_head(x)
 
 
+_SONATA_TRANSFORMS = T.Compose(
+    [
+        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
+        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
+        T.Divide(keys=DataKeys.COLOR, divisor=255),
+        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
+        T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="first",
+            dst_pos_grid_key=DataKeys.POS_GRID,
+            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+            reduce="first",
+            size=0.02,
+            method="fnv",
+            allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
+        ),
+    ]
+)
+
+
+@register_model(
+    "sonata-small.pretrain.fair",
+    task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://facebook/sonata/resolve/df99897472c09f91ba9288da0a034aacffc0b010/sonata_small.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
+        author="fair",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_SONATA_TRANSFORMS,
+    hparams=pretrained_encoder_hparams(
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(32, 64, 128, 256, 512),
+        encoder_num_heads=(2, 4, 8, 16, 32),
+    ),
+)
+def sonata_small(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
+
+
 @register_model(
     "sonata-base.pretrain.fair",
     task="pretraining",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/sonata-base.pretrain.fair/resolve/26b9ca196f66540b193bf5a48b2b093e785e63ba/model.safetensors",
+        url="hf://facebook/sonata/resolve/df99897472c09f91ba9288da0a034aacffc0b010/model.safetensors",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         author="fair",
         license="CC-BY-NC-4.0",
     ),
-    transform=T.Compose(
-        [
-            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # XY: bbox midrange
-            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
-            T.Divide(keys=DataKeys.COLOR, divisor=255),
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-            T.CopyItems(
-                keys=[DataKeys.POS, DataKeys.SEGMENT],
-                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
-                allow_missing_keys=True,
-            ),
-            T.Voxelize(
-                pos_key=DataKeys.POS,
-                pos_reduce="first",
-                dst_pos_grid_key=DataKeys.POS_GRID,
-                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
-                reduce="first",
-                size=0.02,
-                method="fnv",
-                allow_missing_keys=True,
-                dst_inverse_key=DataKeys.INVERSE,
-            ),
-        ]
-    ),
-    hparams=dict(
-        in_channels=9,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
+    transform=_SONATA_TRANSFORMS,
+    hparams=pretrained_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(48, 96, 192, 384, 512),
         encoder_num_heads=(3, 6, 12, 24, 32),
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        norm="layer_norm",
-        act="gelu",
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        use_flash_attn=True,
-        upcast_attn=False,
-        upcast_softmax=False,
-        pooling="grid",
-        stem_type="linear",
-        norm_kwargs={"mode": "node"},
     ),
 )
 def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
@@ -269,11 +277,16 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
-    "sonata-lp.scannet20.fair",
+    "sonata-base-lp.scannet20.fair",
     task="semantic-segmentation",
+    deprecated_names="sonata-lp.scannet20.fair",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/sonata-lp.scannet20.fair/resolve/140cf11dc2301ecc2f1e540ae11b04ff78457103/model.safetensors",
+        url=(
+            "hf://facebook/sonata/resolve/df99897472c09f91ba9288da0a034aacffc0b010/model.safetensors",
+            "hf://facebook/sonata/resolve/df99897472c09f91ba9288da0a034aacffc0b010/sonata_linear_prob_head_sc.pth",
+        ),
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         dataset="scannet20",
         metrics={"mIoU": 72.60, "OA": 89.80},
         classes=SCANNET20_CLASSES,
@@ -306,29 +319,12 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
         ]
     ),
     hparams=dict(
-        in_channels=9,
         num_classes=20,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
-        encoder_depths=(3, 3, 3, 12, 3),
-        encoder_channels=(48, 96, 192, 384, 512),
-        encoder_num_heads=(3, 6, 12, 24, 32),
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        norm="layer_norm",
-        act="gelu",
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        use_flash_attn=True,
-        upcast_attn=False,
-        upcast_softmax=False,
-        pooling="grid",
-        stem_type="linear",
-        norm_kwargs={"mode": "node"},
+        **pretrained_encoder_hparams(
+            encoder_depths=(3, 3, 3, 12, 3),
+            encoder_channels=(48, 96, 192, 384, 512),
+            encoder_num_heads=(3, 6, 12, 24, 32),
+        ),
     ),
 )
 def sonata_scannet20(**hparams: Any) -> SonataSegmentation:
