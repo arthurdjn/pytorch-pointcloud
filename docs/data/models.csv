@@ -69,11 +69,15 @@ kpfcnn-base-deform.s3dis-area5.hugues-thomas,kpconv,semantic-segmentation,s3dis-
 kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas,kpconv,semantic-segmentation,s3dis-area5,true,MIT,25.59,mIoU,66.7,66.01,mIoU 66.01 · OA 89.53
 kpfcnn-base-sm.s3dis-area5.hugues-thomas,kpconv,semantic-segmentation,s3dis-area5,true,MIT,23.90,mIoU,65.4,65.27,mIoU 65.27 · OA 88.93
 kpfcnn-base.s3dis-area5.hugues-thomas,kpconv,semantic-segmentation,s3dis-area5,true,MIT,24.38,mIoU,66.4,66.60,mIoU 66.60 · OA 89.63
+kpfcnn-deform.parislille3d.open3d,kpconv,semantic-segmentation,parislille3d,true,MIT,14.94,mIoU,76.7,91.83,mIoU 91.83 · OA 99.42
+kpfcnn.s3dis-area3.open3d,kpconv,semantic-segmentation,s3dis-area3,true,MIT,18.34,mIoU,60,60.85,mIoU 60.85 · OA 80.69
+kpfcnn.semantickitti.open3d,kpconv,semantic-segmentation,semantickitti,true,MIT,18.34,mIoU,58,51.04,mIoU 51.04 · OA 91.22
+kpfcnn.toronto3d.open3d,kpconv,semantic-segmentation,toronto3d,true,MIT,14.08,mIoU,65.6,62.73,mIoU 62.73 · OA 94.11
 octformer-base.scannet20.octree-nn,octformer,semantic-segmentation,scannet20,true,MIT,44.03,mIoU,74.8,74.78,mIoU 74.78 · OA 90.90
 octformer-base.scannet200.octree-nn,octformer,semantic-segmentation,scannet200,true,MIT,44.06,mIoU,31.7,31.71,mIoU 31.71 · OA 82.00
 octformer-lg,octformer,semantic-segmentation,,false,,,mIoU,,,
 octformer-sm,octformer,semantic-segmentation,,false,,,mIoU,,,
-point-transformer.s3dis-area5,point_transformer,semantic-segmentation,s3dis-area5,false,,5.61,mIoU,,,
+point-transformer.s3dis-area5.open3d,point_transformer,semantic-segmentation,s3dis-area5,true,MIT,7.78,mIoU,69.2,67.72,mIoU 67.72 · OA 88.78
 point-transformer.scannet20,point_transformer,semantic-segmentation,scannet20,false,,5.61,mIoU,,,
 pointcnn-base,pointcnn,semantic-segmentation,,false,,,mIoU,,,
 pointmlp-base,pointmlp,semantic-segmentation,,false,,,mIoU,,,
@@ -121,10 +125,16 @@ ptv3-base.scannet20.pointcept,point_transformer_v3,semantic-segmentation,scannet
 ptv3-base.scannet200.pointcept,point_transformer_v3,semantic-segmentation,scannet200,true,MIT,46.18,mIoU,35.3,35.12,mIoU 35.12 · OA 83.31
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
 pvcnn2.s3dis-area5,pvcnn2,semantic-segmentation,s3dis-area5,false,,13.71,mIoU,,,
+randlanet.parislille3d.open3d,randlanet,semantic-segmentation,parislille3d,true,MIT,4.99,mIoU,70,48.10,mIoU 48.10 · OA 96.08
+randlanet.s3dis-area3.open3d,randlanet,semantic-segmentation,s3dis-area3,true,MIT,4.99,mIoU,70.9,70.43,mIoU 70.43 · OA 87.90
+randlanet.semantic3d.open3d,randlanet,semantic-segmentation,semantic3d,true,MIT,4.99,mIoU,76,70.97,mIoU 70.97 · OA 83.39
+randlanet.semantickitti.open3d,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.8,46.18,mIoU 46.18 · OA 83.99
 randlanet.semantickitti.tsung-han-wu,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.9,55.39,mIoU 55.39 · OA 90.05
+randlanet.toronto3d.open3d,randlanet,semantic-segmentation,toronto3d,true,MIT,4.99,mIoU,74,73.88,mIoU 73.88 · OA 95.85
 sonata-lp.scannet20.fair,sonata,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,108.49,mIoU,72.5,72.60,mIoU 72.60 · OA 89.80
 spformer-unet.scannet,spformer_unet,semantic-segmentation,scannet,false,,10.96,mIoU,,,
 spformer-unet.scannet20,spformer_unet,semantic-segmentation,scannet20,false,,10.96,mIoU,,,
+spformer-unet.scannet20.open3d,spformer_unet,semantic-segmentation,scannet20,true,MIT,17.32,mIoU,68,67.71,mIoU 67.71 · OA 87.99
 sphereformer.nuscenes,sphereformer,semantic-segmentation,nuscenes,false,,32.31,mIoU,,,
 sphereformer.semantickitti,sphereformer,semantic-segmentation,semantickitti,false,,32.31,mIoU,67.8,,
 spunet-v1m1.scannet20.pointcept,spunet,semantic-segmentation,scannet20,true,MIT,39.16,mIoU,75.67,75.67,mIoU 75.67 · OA 91.28

@@ -118,6 +118,42 @@ SEMANTIC_KITTI_CLASSES = (
     "traffic-sign",
 )
 
+# Raw label id to 19-class index, the `semantic-kitti-api` learning map of the single-scan benchmark: moving
+# objects merge with their static class, bus and on-rails with other-vehicle, lane marking with road. Unlabeled,
+# outlier, other-structure and other-object are absent, so a `Relabel` with this map sends them to its `default`.
+SEMANTIC_KITTI_LEARNING_MAP: Dict[int, int] = {
+    10: 0,  # car
+    252: 0,  # moving-car
+    11: 1,  # bicycle
+    15: 2,  # motorcycle
+    18: 3,  # truck
+    258: 3,  # moving-truck
+    13: 4,  # bus
+    16: 4,  # on-rails
+    20: 4,  # other-vehicle
+    256: 4,  # moving-on-rails
+    257: 4,  # moving-bus
+    259: 4,  # moving-other-vehicle
+    30: 5,  # person
+    254: 5,  # moving-person
+    31: 6,  # bicyclist
+    253: 6,  # moving-bicyclist
+    32: 7,  # motorcyclist
+    255: 7,  # moving-motorcyclist
+    40: 8,  # road
+    60: 8,  # lane-marking
+    44: 9,  # parking
+    48: 10,  # sidewalk
+    49: 11,  # other-ground
+    50: 12,  # building
+    51: 13,  # fence
+    70: 14,  # vegetation
+    71: 15,  # trunk
+    72: 16,  # terrain
+    80: 17,  # pole
+    81: 18,  # traffic-sign
+}
+
 
 def _check_sequences(sequences: Sequence[str]) -> None:
     for seq in sequences:
@@ -255,38 +291,21 @@ class SemanticKITTI(PointCloudDataset):
         sample["segment"].shape     # torch.Size([N]) - raw label ids in [0, 259]
         ```
 
-        To map raw labels onto a 19-class training set, compose a `Relabel` transform yourself.
-        The mapping below follows the evaluation protocol this library's SemanticKITTI
-        pretrained weights were trained against. It is *not* the official
-        `semantic-kitti-api` learning map: the official 19-class map merges bus (13) and
-        on-rails (16) into other-vehicle and lane-marking (60) into road, whereas this one
-        sends them to the ignore index.
+        To map raw labels onto the 19-class benchmark, compose a `Relabel` transform with
+        `SEMANTIC_KITTI_LEARNING_MAP`, the official `semantic-kitti-api` learning map (bus and
+        on-rails merge into other-vehicle, lane-marking into road). Checkpoints trained with
+        another map register their own: `randlanet.semantickitti.tsung-han-wu` sends those
+        three classes to the ignore index.
 
         ```python
         import torch_pointcloud.transforms as T
         from torch_pointcloud.datasets import SemanticKITTI
+        from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_LEARNING_MAP
 
-        # `{raw_id: contiguous_index}`
-        # (moving-* are merged with their static counterpart; bus/on-rails/
-        # lane-marking/other-* fall through to `default=255`).
-        labels = {
-            10: 0, 252: 0,                  # car (+ moving-car)
-            11: 1,                          # bicycle
-            15: 2,                          # motorcycle
-            18: 3, 258: 3,                  # truck (+ moving-truck)
-            20: 4, 259: 4,                  # other-vehicle (+ moving-other-vehicle)
-            30: 5, 254: 5,                  # person (+ moving-person)
-            31: 6, 253: 6,                  # bicyclist (+ moving-bicyclist)
-            32: 7, 255: 7,                  # motorcyclist (+ moving-motorcyclist)
-            40: 8, 44: 9, 48: 10, 49: 11,   # road, parking, sidewalk, other-ground
-            50: 12, 51: 13,                 # building, fence
-            70: 14, 71: 15, 72: 16,         # vegetation, trunk, terrain
-            80: 17, 81: 18,                 # pole, traffic-sign
-        }
         dataset = SemanticKITTI(
             root="data",
             split="val",
-            transform=T.Relabel(keys="segment", labels=labels, default=255),
+            transform=T.Relabel(keys="segment", labels=SEMANTIC_KITTI_LEARNING_MAP, default=255),
         )
         ```
     """

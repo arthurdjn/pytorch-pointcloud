@@ -17,6 +17,7 @@ Each scene is distributed as a pair of plain-text files:
 
 from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Sequence, Tuple, get_args
+from urllib.parse import urljoin
 
 import numpy as np
 import torch
@@ -25,9 +26,13 @@ from typing_extensions import override
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.imports import optional_import
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
+from .utils import check_terms_accepted, download_url
+
+py7zr, _PY7ZR_AVAILABLE = optional_import("py7zr", url="https://github.com/miurahr/py7zr")
 
 # 9 raw classes; class 0 ("unlabelled") is the standard ignored label.
 Semantic3DClass = Literal[
@@ -99,12 +104,20 @@ class Semantic3D(PointCloudDataset):
         scenes: Optional explicit list of scene names (without the `.txt` / `.labels`
             suffix). Overrides `split`.
         transform: Callable applied to each loaded sample dict at `__getitem__` time.
+        download: Whether to download the requested scenes when they are missing.
+        force_download: Whether to download and extract them again even when present.
+        accept_terms: Confirm that you have accepted the Semantic3D licence (`terms_url`). When left `False`,
+            `download` asks for the confirmation on the terminal, once in every process that triggers the download.
+        show_progress: Whether to show the download progress bars.
 
     !!! note
-        The dataset must be downloaded manually from
-        [semantic3d.net](http://semantic3d.net) (a license must be accepted). The
-        expected layout under `<root>/Semantic3D/raw/` is one `<scene>.txt` (and
-        matching `<scene>.labels` for training scenes) per scene.
+        The data come from the benchmark site, [semantic3d.net](https://semantic3d.ethz.ch) (archived; the
+        original links now ask for a login), which serves its scenes as 7z archives from an ETH mirror,
+        https://share.phys.ethz.ch/~pf/semantic3d/data/ (`data_url`), under the CC BY-NC-SA 3.0 licence
+        (`terms_url`). Accept it, then pass `download=True, accept_terms=True` (or answer the prompt;
+        `download=True` alone asks on the terminal) to fetch the requested scenes and the labels of the training
+        ones; reading the archives needs the optional `py7zr` package. Or place one `<scene>.txt` (and the matching
+        `<scene>.labels` for training scenes) per scene under `<root>/Semantic3D/raw/` by hand.
 
     !!! warning
         Loading is done with `np.loadtxt`, which reads the (often 100M+-row) ASCII
@@ -112,7 +125,9 @@ class Semantic3D(PointCloudDataset):
         consider extracting only the scenes you need for evaluation.
     """
 
-    data_url: str = "http://semantic3d.net"
+    data_url: str = "https://share.phys.ethz.ch/~pf/semantic3d/data/"
+    terms_url: str = "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    labels_archive: str = "sem8_labels_training.7z"
     train_scenes: Tuple[str, ...] = (
         "bildstein_station1_xyz_intensity_rgb",
         "bildstein_station3_xyz_intensity_rgb",
@@ -144,10 +159,16 @@ class Semantic3D(PointCloudDataset):
         split: Semantic3DSplit = "train",
         scenes: Optional[Sequence[str]] = None,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+        download: bool = False,
+        force_download: bool = False,
+        accept_terms: bool = False,
+        show_progress: bool = True,
     ) -> None:
         super().__init__(root)
         self.split = split
         self.transform = transform
+        self.accept_terms = accept_terms
+        self.show_progress = show_progress
 
         if scenes is not None:
             self.scenes: Tuple[str, ...] = ensure_tuple(scenes)
@@ -161,6 +182,8 @@ class Semantic3D(PointCloudDataset):
             raise ValueError(f"Unknown split {split!r}. Expected one of: train, test, all.")
 
         self.txt_paths: Tuple[Path, ...] = tuple(Path(self.raw_dir, f"{s}.txt") for s in self.scenes)
+        if download or force_download:
+            self.download(force=force_download)
         self.label_paths: Tuple[Optional[Path], ...] = tuple(
             (Path(self.raw_dir, f"{s}.labels") if Path(self.raw_dir, f"{s}.labels").exists() else None)
             for s in self.scenes
@@ -168,26 +191,84 @@ class Semantic3D(PointCloudDataset):
         for txt in self.txt_paths:
             if not txt.exists():
                 raise FileNotFoundError(
-                    f"Dataset not found: expected Semantic3D scene at {txt.as_posix()}; "
-                    f"download from {self.data_url} and place under {self.raw_dir!r}."
+                    f"Dataset not found: expected Semantic3D scene at {txt.as_posix()}; pass `download=True` "
+                    f"(the data are released under {self.terms_url}) or place the `.txt` / `.labels` files under "
+                    f"{self.raw_dir!r}."
                 )
 
     @override
     def raw_files_exist(self) -> bool:
         return all(p.exists() for p in self.txt_paths)
 
-    def download(self, force: bool = False) -> None:
-        """Semantic3D must be downloaded manually (a license must be accepted).
+    @classmethod
+    def archive_url(cls, scene: str) -> str:
+        """URL of the 7z archive holding `<scene>.txt` on the benchmark's mirror.
 
         Args:
-            force: Unused; present to mirror the other datasets' `download` signature.
+            scene: A training or reduced-8 test scene name.
+
         Raises:
-            RuntimeError: Always; automatic download is not supported.
+            ValueError: If the scene is not one the mirror serves.
         """
-        raise RuntimeError(
-            f"{self.__class__.__name__} does not support automatic download. Download the Semantic3D scenes "
-            f"from {self.data_url!r} and place the `.txt` / `.labels` files under {self.raw_dir!r}."
+        if scene in cls.train_scenes:
+            return urljoin(cls.data_url, f"point-clouds/training1/{scene}.7z")
+        if scene in cls.test_scenes:
+            return urljoin(cls.data_url, f"point-clouds/testing2/{scene}.txt.7z")
+        raise ValueError(
+            f"Unknown Semantic3D scene {scene!r}: the mirror at {cls.data_url} serves the training and reduced-8 scenes."
         )
+
+    def download(self, force: bool = False) -> None:
+        """Fetch the requested scenes, and the labels of the training ones, from the benchmark's mirror.
+
+        Every scene is a 7z archive holding its `.txt`, read with the optional `py7zr` package; the training labels
+        come in one archive, of which only the requested scenes are extracted. Reduced-8 test scenes have no labels.
+
+        Args:
+            force: Download and extract the scenes again even when their files are present.
+
+        Raises:
+            RuntimeError: If the licence is not accepted.
+            ImportError: If `py7zr` is not installed.
+        """
+        if self.raw_files_exist() and not force:
+            return
+
+        check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
+        raw_dir = Path(self.raw_dir)
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        overwrite: Literal[True, "incomplete"] = True if force else "incomplete"
+
+        for scene, txt in zip(self.scenes, self.txt_paths):
+            if txt.exists() and not force:
+                continue
+            archive = raw_dir / f"{scene}.7z"
+            download_url(
+                self.archive_url(scene),
+                archive,
+                description=f"Downloading {scene}",
+                show_progress=self.show_progress,
+                overwrite=overwrite,
+            )
+            with py7zr.SevenZipFile(archive, mode="r") as reader:
+                reader.extractall(path=raw_dir)
+
+        missing_labels = [
+            scene
+            for scene in self.scenes
+            if scene in self.train_scenes and (force or not Path(raw_dir, f"{scene}.labels").exists())
+        ]
+        if missing_labels:
+            archive = raw_dir / self.labels_archive
+            download_url(
+                urljoin(self.data_url, self.labels_archive),
+                archive,
+                description=f"Downloading {self.labels_archive}",
+                show_progress=self.show_progress,
+                overwrite=overwrite,
+            )
+            with py7zr.SevenZipFile(archive, mode="r") as reader:
+                reader.extract(path=raw_dir, targets=[f"{scene}.labels" for scene in missing_labels])
 
     def __len__(self) -> int:
         return len(self.scenes)

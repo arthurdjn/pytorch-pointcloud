@@ -67,6 +67,7 @@ class PointTransformerConv(MessagePassing):
             node features of shape $[-1, \text{out\_channels}]$
             to shape $[-1, \text{out\_channels}]$.
         add_self_loops: If `False`, do not add self-loops to the input graph.
+        bias: Whether the query, key and value projections carry a bias.
 
     Shapes:
         - **input:**
@@ -89,6 +90,7 @@ class PointTransformerConv(MessagePassing):
         pos_nn: Optional[Callable[[Tensor], Tensor]] = None,
         attn_nn: Optional[Callable[[Tensor], Tensor]] = None,
         add_self_loops: bool = False,  # noqa: F811
+        bias: bool = False,
         **kwargs: Unpack[MessagePassingParams],
     ) -> None:
         kwargs.setdefault("aggr", "add")
@@ -122,9 +124,9 @@ class PointTransformerConv(MessagePassing):
             nn.Linear(out_channels // num_groups, out_channels // num_groups),
         )
 
-        self.lin = nn.Linear(in_channels[0], out_channels, bias=False)
-        self.lin_src = nn.Linear(in_channels[0], out_channels, bias=False)
-        self.lin_dst = nn.Linear(in_channels[1], out_channels, bias=False)
+        self.lin = nn.Linear(in_channels[0], out_channels, bias=bias)
+        self.lin_src = nn.Linear(in_channels[0], out_channels, bias=bias)
+        self.lin_dst = nn.Linear(in_channels[1], out_channels, bias=bias)
 
         self.reset_parameters()
 

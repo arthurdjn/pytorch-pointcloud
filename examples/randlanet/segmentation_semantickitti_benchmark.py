@@ -1,8 +1,8 @@
-"""Benchmark RandLA-Net semantic segmentation on SemanticKITTI with the authors' voting protocol."""
+"""Benchmark the RandLA-Net SemanticKITTI models on sequence 08 with their kNN-window voting protocols."""
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Any
+from typing import Any, Dict, Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -23,7 +23,25 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 WINDOW_NUM_POINTS = 45056
-IGNORE_INDEX = 255
+# The ignore index of each entry's registered label map.
+IGNORE_INDEX: Dict[str, int] = {
+    "randlanet.semantickitti.tsung-han-wu": 255,
+    "randlanet.semantickitti.open3d": -1,
+}
+EMA_SMOOTHING: Dict[str, float] = {
+    "randlanet.semantickitti.tsung-han-wu": 0.98,
+    "randlanet.semantickitti.open3d": 0.95,
+}
+# tsung-han-wu feeds the voxel coordinates as they are; Open3D-ML recentres every window on its x/y centroid.
+WINDOW_TRANSFORM: Dict[str, Optional[T.Transform]] = {
+    "randlanet.semantickitti.tsung-han-wu": None,
+    "randlanet.semantickitti.open3d": T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
+        ]
+    ),
+}
 
 
 def main() -> None:
@@ -39,7 +57,7 @@ def main() -> None:
 
     num_scenes = len(dataloader.dataset)  # type: ignore[arg-type]
     print(f"Test set: {num_scenes} scans  (KNN windows with EMA voting, scored at full resolution)")
-    metrics = evaluate(model, dataloader, inferer, args.device, num_classes)
+    metrics = evaluate(model, dataloader, inferer, args.device, num_classes, IGNORE_INDEX[args.model])
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -47,9 +65,7 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark RandLA-Net semantic segmentation on SemanticKITTI.")
-    parser.add_argument(
-        "--model", default="randlanet.semantickitti.tsung-han-wu", help="Registered segmentation model name"
-    )
+    parser.add_argument("--model", default="randlanet.semantickitti.tsung-han-wu", choices=list(IGNORE_INDEX))
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])
@@ -93,14 +109,20 @@ def configure_inferer(args: Namespace) -> Inferer:
         roi_num_points=WINDOW_NUM_POINTS,
         overlap=0.5,
         aggregate="ema",
-        ema_smoothing=0.98,
+        ema_smoothing=EMA_SMOOTHING[args.model],
+        transform=WINDOW_TRANSFORM[args.model],
         seed=args.seed,
     )
 
 
 @torch.no_grad()
 def evaluate(
-    model: SemanticSegmentationModel, dataloader: DataLoader, inferer: Inferer, device: str, num_classes: int
+    model: SemanticSegmentationModel,
+    dataloader: DataLoader,
+    inferer: Inferer,
+    device: str,
+    num_classes: int,
+    ignore_index: int,
 ) -> dict[str, Any]:
     model.to(device).eval()
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
@@ -108,9 +130,9 @@ def evaluate(
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        scores = inferer(data, predictor=lambda d: model(None, d[DataKeys.POS], d[DataKeys.BATCH]))
+        scores = inferer(data, predictor=lambda d: model(d.get(DataKeys.X), d[DataKeys.POS], d[DataKeys.BATCH]))
         preds = scores.argmax(dim=1)[data[DataKeys.INVERSE]]
-        cm += confusion_matrix(preds.cpu(), data[DataKeys.ORIGIN_SEGMENT].cpu(), num_classes, ignore_index=IGNORE_INDEX)
+        cm += confusion_matrix(preds.cpu(), data[DataKeys.ORIGIN_SEGMENT].cpu(), num_classes, ignore_index=ignore_index)
         oa = accuracy(cm)
         pbar.set_postfix({"oa": f"{oa:.4f}"})
 

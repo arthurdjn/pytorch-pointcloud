@@ -82,7 +82,7 @@ $RUN examples/pointrcnn/detection_kitti_benchmark.py --root "$ROOT" --model poin
 $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model voxelnext.nuscenes.openpcdet
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu
 
-# Segmentation (S3DIS, ScanNet, SemanticKITTI)
+# Segmentation (S3DIS, ScanNet, SemanticKITTI, Toronto-3D, Paris-Lille-3D)
 $RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --model dgcnn.scannet20.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area1.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area2.an-tao
@@ -95,6 +95,10 @@ $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfc
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base-sm.s3dis-area5.hugues-thomas
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base-deform.s3dis-area5.hugues-thomas
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas
+$RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn.s3dis-area3.open3d
+$RUN examples/kpconv/segmentation_toronto3d_benchmark.py --root "$ROOT" --model kpfcnn.toronto3d.open3d
+$RUN examples/kpconv/segmentation_parislille3d_benchmark.py --root "$ROOT" --model kpfcnn-deform.parislille3d.open3d
+$RUN examples/kpconv/segmentation_semantickitti_benchmark.py --root "$ROOT" --model kpfcnn.semantickitti.open3d
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area5.xu-yan --areas Area_5
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 4
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1
@@ -103,6 +107,13 @@ $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model p
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 4
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area6.openpoints --areas Area_6 --sw-batch-size 4
 $RUN examples/randlanet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model randlanet.semantickitti.tsung-han-wu
+$RUN examples/randlanet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model randlanet.semantickitti.open3d
+$RUN examples/randlanet/segmentation_s3dis_benchmark.py --root "$ROOT" --model randlanet.s3dis-area3.open3d
+$RUN examples/randlanet/segmentation_toronto3d_benchmark.py --root "$ROOT" --model randlanet.toronto3d.open3d
+$RUN examples/randlanet/segmentation_parislille3d_benchmark.py --root "$ROOT" --model randlanet.parislille3d.open3d
+$RUN examples/randlanet/segmentation_semantic3d_benchmark.py --root "$ROOT" --model randlanet.semantic3d.open3d
+$RUN examples/point_transformer/segmentation_s3dis_benchmark.py --root "$ROOT" --model point-transformer.s3dis-area5.open3d
+$RUN examples/spformer_unet/segmentation_scannet_benchmark.py --root "$ROOT" --model spformer-unet.scannet20.open3d
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-119gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-47gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-30gmacs.semantickitti.mit-han-lab
