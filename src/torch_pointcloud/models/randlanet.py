@@ -936,8 +936,7 @@ def randlanet_open3d_toronto3d_seg(**hparams: Any) -> RandLANetSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/randlanet.semantic3d.open3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantic3d",
-        # NOTE: the two scenes Open3D-ML holds out; its 76.0 is the best epoch over ten random patches of them, and its
-        # own inference scores them 67.6 (the checkpoint takes most of the domfountain facades for vegetation).
+        # NOTE: Open3D-ML 76.0 performance was on ten random patches. Open3D-ML inference pipeline scores at 67.6.
         metrics={"mIoU": 70.97, "OA": 83.39},
         classes=SEMANTIC3D_CLASSES[1:],
         author="open3d",
