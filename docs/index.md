@@ -75,7 +75,7 @@ model, info = tp.create_model(
     return_info=True,
 )
 info["transform"]  # the preprocessing pipeline of that checkpoint
-info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}
+info["weights"]["metrics"]  # {"mIoU": 77.42, "OA": 92.00}
 
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```

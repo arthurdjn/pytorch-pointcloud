@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the stem and pooling BatchNorm `eps` of the Point Transformer V3 segmentation checkpoints (`1e-3`).
+
 ## 0.0.16 (2026-10-14)
 
 - Added scores charts and tables to the documentation for better comparison of the models.
