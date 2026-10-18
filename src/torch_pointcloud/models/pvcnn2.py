@@ -943,7 +943,7 @@ def _patch_pvcnn2_segmentation_mit_han_lab(model: PVCNN2Segmentation) -> PVCNN2S
     task="semantic-segmentation",
     deprecated_names="pvcnn2.s3dis-area5",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn2.s3dis-area5.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn2.s3dis-area5.mit-han-lab/resolve/f391d0bc11d9e0436b6eac21f3471871777b73e1/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 59.95, "OA": 87.62, "simple/mIoU": 57.27, "simple/OA": 86.33},
         classes=S3DIS_CLASSES,
@@ -968,7 +968,7 @@ def pvcnn2_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNN2Segmentation:
     "pvcnn2-c0p5.s3dis-area5.mit-han-lab",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn2-c0p5.s3dis-area5.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn2-c0p5.s3dis-area5.mit-han-lab/resolve/1bdccb57093f74bd4c09c41d9fd33cbddac691fe/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 59.83, "OA": 87.22, "simple/mIoU": 56.87, "simple/OA": 85.81},
         classes=S3DIS_CLASSES,
