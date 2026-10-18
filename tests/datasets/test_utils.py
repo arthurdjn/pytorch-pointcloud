@@ -2,17 +2,16 @@ import io
 import tarfile
 import tempfile
 import zipfile
-from email.message import Message
+from http.client import HTTPMessage
 from pathlib import Path
 from ssl import SSLContext
 from typing import Generator
 from unittest.mock import Mock, patch
-from urllib.request import Request
+from urllib.request import HTTPRedirectHandler
 
 import pytest
 
 from torch_pointcloud.datasets.utils import (
-    _RedirectHandler,
     check_terms_accepted,
     compute_hash,
     download_url,
@@ -64,13 +63,8 @@ def mock_response() -> Mock:
 
 @pytest.fixture
 def mock_urlopen(mock_response: Mock) -> Generator[Mock, None, None]:
-    """One mock serves `urlopen` (`urlsize`) and the opener `download_url` builds."""
-    with (
-        patch("torch_pointcloud.datasets.utils.urlopen") as mock,
-        patch("torch_pointcloud.datasets.utils.build_opener") as build_opener,
-    ):
+    with patch("torch_pointcloud.datasets.utils.urlopen") as mock:
         mock.return_value.__enter__.return_value = mock_response
-        build_opener.return_value.open = mock
         yield mock
 
 
@@ -134,12 +128,12 @@ def test_download_url_with_progress(mock_urlopen: Mock, tmp_path: Path, capsys: 
 
 
 def test_download_url_passes_timeout(mock_urlopen: Mock, tmp_path: Path) -> None:
-    """The timeout is forwarded to the opener so a stalled server raises instead of hanging."""
+    """The timeout is forwarded to `urlopen` so a stalled server raises instead of hanging."""
     download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=False, timeout=5.0)
     assert mock_urlopen.call_args.kwargs["timeout"] == 5.0
 
 
-def test_download_url_sends_headers(mock_urlopen: Mock, tmp_path: Path) -> None:
+def test_download_url_sends_headers_without_forwarding_them_on_redirect(mock_urlopen: Mock, tmp_path: Path) -> None:
     download_url(
         "https://example.com/file.txt",
         tmp_path / "file.txt",
@@ -150,25 +144,17 @@ def test_download_url_sends_headers(mock_urlopen: Mock, tmp_path: Path) -> None:
     assert request.get_header("Authorization") == "Bearer t"
     assert request.get_header("User-agent") == "torch_pointcloud"
 
+    handler = HTTPRedirectHandler()
+    redirected = handler.redirect_request(request, io.BytesIO(), 302, "Found", HTTPMessage(), "https://cdn.example/x")
+    assert redirected is not None and redirected.get_header("Authorization") is None
+    assert redirected.get_header("User-agent") == "torch_pointcloud"
+
 
 def test_download_url_failure_removes_the_partial_file(mock_urlopen: Mock, mock_response: Mock, tmp_path: Path) -> None:
     mock_response.read.side_effect = [b"cont", OSError("connection reset")]
     with pytest.raises(OSError, match="connection reset"):
         download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=False)
     assert not list(tmp_path.iterdir())
-
-
-def test_redirect_handler_drops_the_authorization_header_off_the_host() -> None:
-    handler = _RedirectHandler()
-    request = Request(
-        "https://huggingface.co/authors/ckpt/resolve/main/model.pt", headers={"Authorization": "Bearer t"}
-    )
-
-    same_host = handler.redirect_request(request, None, 302, "Found", Message(), "https://huggingface.co/other")
-    other_host = handler.redirect_request(request, None, 302, "Found", Message(), "https://cdn-lfs.hf.co/blob")
-
-    assert same_host is not None and same_host.get_header("Authorization") == "Bearer t"
-    assert other_host is not None and other_host.get_header("Authorization") is None
 
 
 def test_extract_zip(tmp_path: Path) -> None:

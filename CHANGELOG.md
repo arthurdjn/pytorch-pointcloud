@@ -10,7 +10,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `DALES` dataset, read with the optional `laspy` package, and the `return_number` and `number_of_returns` data keys.
 - Added the `MaxAbsScale` transform.
 - `create_model(pretrained=True)` downloads with the Hugging Face token of the environment (`utils.hub.load_hub_token`), so weights hosted in a gated repository load; `read_state_dict` unwraps a `model_state_dict` key.
-- `download_url` takes request `headers` and removes its partial file when the download fails.
+- `download_url` takes request `headers`, not forwarded on redirects, and removes its partial file when the download fails.
 - `PointTransformerV3DecoderBlock(cpe_from_skip=)` picks what the block xCPE convolves after upsampling; `PointTransformerV3Decoder(pooling="grid")` uses the summed features, as the reference grid unpooling does.
 - `PointTransformerV3Classification.forward` and `PointTransformerV3Segmentation.forward` take `pos` as their fourth argument, like the encoder, and `condition` by keyword only.
 - Fixed the stem and pooling BatchNorm `eps` of the Point Transformer V3 segmentation checkpoints (`1e-3`).
