@@ -12,6 +12,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.typing import OptTensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
@@ -21,7 +22,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict
 
 from ._base import ClassificationModel, SemanticSegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PVCNN2EncoderBlock(nn.Module):
@@ -51,7 +52,9 @@ class PVCNN2EncoderBlock(nn.Module):
         - `pos`: $(N, 3)$ point coordinates.
         - `batch`: $(N,)$ batch indices.
         - output: $(M, C_{out})$ features with matching `pos` / `batch`, where $M \le N$ is the
-          number of points kept by the set-abstraction module ($M = N$ without one).
+          number of points kept by the set-abstraction module ($M = N$ without one), and the
+          $(M, C_{in})$ skip features the decoder consumes: the set-abstraction output before the
+          conv stack (the block input without one).
     """
 
     def __init__(
@@ -101,13 +104,14 @@ class PVCNN2EncoderBlock(nn.Module):
 
             self.layers.append(layer)
 
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         if self.sa_module is not None:
             x, pos, batch = self.sa_module(x, pos, batch)
 
+        x_skip = x
         for layer in self.layers:
             x = layer(x) if isinstance(layer, MLP) else layer(x, pos, batch)
-        return x, pos, batch
+        return x, pos, batch, x_skip
 
 
 class PVCNN2Encoder(nn.Module):
@@ -145,7 +149,9 @@ class PVCNN2Encoder(nn.Module):
         - `pos`: $(N, 3)$ point coordinates.
         - `batch`: $(N,)$ batch indices.
         - output: $(M, \text{channels}[-1])$ features with matching `pos` / `batch`, where $M$ is
-          the number of points left after all set-abstraction stages.
+          the number of points left after all set-abstraction stages. With `return_intermediates`,
+          also the skips of every block but the last, fine to coarse: the encoder input, then each
+          set-abstraction output before its block's conv stack.
     """
 
     def __init__(
@@ -178,6 +184,13 @@ class PVCNN2Encoder(nn.Module):
         self.ratios = ensure_tuple_size(ratios, size=num_blocks)
         self.radii = ensure_tuple_size(radii, size=num_blocks)
         self.num_neighbors = ensure_tuple_size(num_neighbors, size=num_blocks)
+        for i in range(1, num_blocks):
+            sa_out_channels = sum(int(mlp[-1]) for mlp in self.sa_channels[i - 1])
+            if sa_out_channels != self.channels[i + 1]:
+                raise ValueError(
+                    f"Expected the set abstraction of block {i} to output channels[{i + 1}]={self.channels[i + 1]} "
+                    f"features (the conv stack input), got {sa_out_channels}."
+                )
 
         self.blocks = nn.ModuleList([])
         for i in range(num_blocks):
@@ -189,6 +202,8 @@ class PVCNN2Encoder(nn.Module):
                     ratio=self.ratios[i - 1],
                     radii=self.radii[i - 1],
                     num_neighbors=self.num_neighbors[i - 1],
+                    pos_first=True,
+                    normalize_pos=False,
                     act=act,
                     act_kwargs=act_kwargs,
                     act_first=act_first,
@@ -235,10 +250,10 @@ class PVCNN2Encoder(nn.Module):
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
         intermediates: List[FeaturesDict] = []
 
-        for block in self.blocks:
-            if return_intermediates:
-                intermediates.append({"x": x, "pos": pos, "batch": batch})
-            x, pos, batch = block(x, pos, batch)
+        for i, block in enumerate(self.blocks):
+            x, pos, batch, x_skip = block(x, pos, batch)
+            if return_intermediates and i < len(self.blocks) - 1:
+                intermediates.append({"x": x_skip, "pos": pos, "batch": batch})
 
         if return_intermediates:
             return x, pos, batch, intermediates
@@ -654,7 +669,7 @@ class PVCNN2Segmentation(SemanticSegmentationModel):
         fp_channels: MLP channels of each feature-propagation module, deepest stage first.
         decoder_channels: Per-block feature widths of the decoder conv stacks.
         decoder_depths: Number of point-voxel conv layers per decoder block; $0$ keeps the block
-            feature-propagation-only. At most as many decoder blocks as encoder blocks.
+            feature-propagation-only. At most one decoder block per set-abstraction level (encoder blocks minus one).
         decoder_resolutions: Voxel grid resolution per decoder block; $0$ or `None` uses MLP
             layers instead of point-voxel convs.
         decoder_kernel_sizes: Voxel conv kernel size per decoder block.
@@ -760,9 +775,10 @@ class PVCNN2Segmentation(SemanticSegmentationModel):
         """Build the `PVCNN2Decoder` upsampling the coarsest features back through the encoder skips."""
         num_blocks = len(self.encoder.depths)
         num_decoder_blocks = len(self.decoder_depths)
-        if num_decoder_blocks > num_blocks:
+        if num_decoder_blocks > num_blocks - 1:
             raise ValueError(
-                f"Expected at most {num_blocks} decoder blocks (one per encoder block), got {num_decoder_blocks}."
+                f"Expected at most {num_blocks - 1} decoder blocks (one per set-abstraction level), "
+                f"got {num_decoder_blocks}."
             )
 
         skip_channels = [int(self.encoder.channels[num_blocks - 1 - i]) for i in range(num_decoder_blocks - 1)]
@@ -868,48 +884,47 @@ class PVCNN2Segmentation(SemanticSegmentationModel):
         return self.forward_head(x)
 
 
-@register_model(
-    "pvcnn2.s3dis-area5",
-    task="semantic-segmentation",
-    # No ported pretrained weights for PVCNN2 yet.
-    weights=None,
-    hparams=dict(
+_PVCNN2_S3DIS_TRANSFORMS = T.Compose(
+    [
+        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
+    ]
+)
+
+
+def _pvcnn2_s3dis_hparams(
+    sa_channels: Sequence[Sequence[int]],
+    encoder_channels: Sequence[int],
+    fp_channels: Sequence[Sequence[int]],
+    decoder_channels: Sequence[int],
+    head_channels: Sequence[int],
+) -> Dict[str, Any]:
+    return dict(
         in_channels=9,
         num_classes=13,
         # The four SA lists pad to the encoder block count; block 0 has no SA module, so their last entry is unused.
         ratios=[0.125, 0.25, 0.25, 0.25, 0.25],
         radii=[0.1, 0.2, 0.4, 0.8, 0.8],
         num_neighbors=[32, 32, 32, 32, 32],
-        sa_channels=[[32, 64], [64, 128], [128, 256], [256, 256, 512], [256, 256, 512]],
-        encoder_channels=[9, 32, 64, 128, 256, 512],
+        sa_channels=sa_channels,
+        encoder_channels=encoder_channels,
         encoder_depths=[2, 3, 3, 0, 0],
         encoder_resolutions=[32, 16, 8, 0, 0],
         encoder_kernel_sizes=[3, 3, 3, 0, 0],
-        fp_channels=[[256, 256], [256, 256], [256, 128], [128, 128, 64]],
-        decoder_channels=[256, 256, 128, 64],
+        fp_channels=fp_channels,
+        decoder_channels=decoder_channels,
         decoder_depths=[1, 1, 2, 1],
         decoder_resolutions=[8, 8, 16, 32],
         decoder_kernel_sizes=[3, 3, 3, 3],
         use_se=True,
         normalize=True,
-        head_channels=[128],
+        head_channels=head_channels,
         head_dropout=0.5,
         act="relu",
-    ),
-    transform=T.Compose(
-        [
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
-        ]
-    ),
-)
-def pvcnn2_s3dis_area5(**hparams: Any) -> PVCNN2Segmentation:
-    r"""Paper-faithful PVCNN++ for S3DIS Area-5 semantic segmentation.
+    )
 
-    The generic `PVCNN2Segmentation` uses `act="relu"` and `nn.BatchNorm3d` defaults for both
-    branches. The reference training splits them: the voxel branch uses `LeakyReLU(0.1)` and
-    `nn.BatchNorm3d` with $\epsilon=10^{-4}$, while the point branch keeps ReLU.
-    """
-    model = PVCNN2Segmentation(**hparams)
+
+def _patch_pvcnn2_segmentation_mit_han_lab(model: PVCNN2Segmentation) -> PVCNN2Segmentation:
+    """Give the voxel branch upstream's `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\\epsilon=10^{-4}$."""
     for pv in model.modules():
         if not isinstance(pv, PVConv):
             continue
@@ -921,3 +936,54 @@ def pvcnn2_s3dis_area5(**hparams: Any) -> PVCNN2Segmentation:
                 if isinstance(block.act, nn.ReLU):
                     block.act = nn.LeakyReLU(negative_slope=0.1, inplace=True)
     return model
+
+
+@register_model(
+    "pvcnn2.s3dis-area5.mit-han-lab",
+    task="semantic-segmentation",
+    deprecated_names="pvcnn2.s3dis-area5",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn2.s3dis-area5.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 59.95, "OA": 87.62, "simple/mIoU": 57.27, "simple/OA": 86.33},
+        classes=S3DIS_CLASSES,
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=_pvcnn2_s3dis_hparams(
+        sa_channels=[[32, 64], [64, 128], [128, 256], [256, 256, 512], [256, 256, 512]],
+        encoder_channels=[9, 32, 64, 128, 256, 512],
+        fp_channels=[[256, 256], [256, 256], [256, 128], [128, 128, 64]],
+        decoder_channels=[256, 256, 128, 64],
+        head_channels=[128],
+    ),
+    transform=_PVCNN2_S3DIS_TRANSFORMS,
+)
+def pvcnn2_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNN2Segmentation:
+    model = PVCNN2Segmentation(**hparams)
+    return _patch_pvcnn2_segmentation_mit_han_lab(model)
+
+
+@register_model(
+    "pvcnn2-c0p5.s3dis-area5.mit-han-lab",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn2-c0p5.s3dis-area5.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 59.83, "OA": 87.22, "simple/mIoU": 56.87, "simple/OA": 85.81},
+        classes=S3DIS_CLASSES,
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=_pvcnn2_s3dis_hparams(
+        sa_channels=[[16, 32], [32, 64], [64, 128], [128, 128, 256], [128, 128, 256]],
+        encoder_channels=[9, 16, 32, 64, 128, 256],
+        fp_channels=[[128, 128], [128, 128], [128, 64], [64, 64, 32]],
+        decoder_channels=[128, 128, 64, 32],
+        head_channels=[64],
+    ),
+    transform=_PVCNN2_S3DIS_TRANSFORMS,
+)
+def pvcnn2_c0p5_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNN2Segmentation:
+    model = PVCNN2Segmentation(**hparams)
+    return _patch_pvcnn2_segmentation_mit_han_lab(model)

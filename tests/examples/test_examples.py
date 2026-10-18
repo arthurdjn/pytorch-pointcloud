@@ -458,7 +458,7 @@ TRAININGS = [
     ),
     pytest.param(
         "pvcnn/segmentation_s3dis_train.py",
-        (*_SMOKE_RECIPE, "--model", "pvcnn2.s3dis-area5", "--batch-size", "2", "--val-batch-size", "2"),
+        (*_SMOKE_RECIPE, "--model", "pvcnn2.s3dis-area5.mit-han-lab", "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="pvcnn/s3dis-pvcnn2",
     ),

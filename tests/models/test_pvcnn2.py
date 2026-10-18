@@ -56,14 +56,14 @@ def model_seg() -> PVCNN2Segmentation:
     return PVCNN2Segmentation(
         in_channels=6,
         num_classes=10,
-        ratios=[0.5, 0.5],
-        radii=[0.2, 0.4],
-        num_neighbors=[16, 16],
-        sa_channels=[[32, 64], [64, 64]],
-        encoder_channels=[6, 32, 64],
-        encoder_depths=[1, 1],
-        encoder_resolutions=[8, 8],
-        encoder_kernel_sizes=[3, 3],
+        ratios=[0.5, 0.5, 0.5],
+        radii=[0.2, 0.4, 0.4],
+        num_neighbors=[16, 16, 16],
+        sa_channels=[[32, 64], [64, 64], [64, 64]],
+        encoder_channels=[6, 32, 64, 64],
+        encoder_depths=[1, 1, 1],
+        encoder_resolutions=[8, 8, 8],
+        encoder_kernel_sizes=[3, 3, 3],
         fp_channels=[[64, 32], [32, 32]],
         decoder_channels=[32, 32],
         decoder_depths=[1, 1],
@@ -161,6 +161,27 @@ def test_pvcnn2_segmentation_asymmetric_decoder(data: Dict[str, Tensor]) -> None
     assert logits.shape == (data["pos"].shape[0], 10)
 
 
+def test_pvcnn2_segmentation_set_abstraction_width_mismatch() -> None:
+    with pytest.raises(ValueError, match="set abstraction of block 1"):
+        PVCNN2Segmentation(
+            in_channels=6,
+            num_classes=10,
+            ratios=[0.5, 0.5, 0.5],
+            radii=[0.2, 0.4, 0.4],
+            num_neighbors=[8, 8, 8],
+            sa_channels=[[16, 24], [32, 64], [32, 64]],
+            encoder_channels=[6, 16, 32, 64],
+            encoder_depths=[1, 1, 1],
+            encoder_resolutions=[4, 4, 4],
+            encoder_kernel_sizes=[3, 3, 3],
+            fp_channels=[[32, 32], [32, 16]],
+            decoder_channels=[32, 16],
+            decoder_depths=[1, 1],
+            decoder_resolutions=[4, 4],
+            decoder_kernel_sizes=[3, 3],
+        )
+
+
 def test_pvcnn2_segmentation_too_many_decoder_blocks() -> None:
     with pytest.raises(ValueError, match="decoder blocks"):
         PVCNN2Segmentation(
@@ -184,7 +205,7 @@ def test_pvcnn2_segmentation_too_many_decoder_blocks() -> None:
 
 def test_pvcnn2_segmentation_reference_hparams() -> None:
     torch.manual_seed(42)
-    model = create_model("pvcnn2.s3dis-area5", task="semantic-segmentation")
+    model = create_model("pvcnn2.s3dis-area5.mit-han-lab", task="semantic-segmentation")
     assert isinstance(model, PVCNN2Segmentation)
     assert isinstance(model.head, MLP)
     assert model.decoder.skip_channels == (256, 128, 64, 6)

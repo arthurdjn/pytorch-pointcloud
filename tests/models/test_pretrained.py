@@ -78,6 +78,10 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnet2.s3dis-area5.xu-yan", "semantic-segmentation", "s3dis_hdf5"),
     *[(f"pointnet2.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis") for i in range(1, 7)],
     ("pvcnn.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
+    ("pvcnn-c0p25.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
+    ("pvcnn-c0p125.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
+    ("pvcnn2.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
+    ("pvcnn2-c0p5.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
     ("ptv3-base.s3dis-area5.pointcept", "semantic-segmentation", "s3dis"),
     # ShapenetPart based models
     ("pointnext-sm.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),

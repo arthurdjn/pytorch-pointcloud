@@ -25,7 +25,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 # Points per block of each model.
-MODELS = {"pvcnn.s3dis-area5.mit-han-lab": 4096, "pvcnn2.s3dis-area5": 8192}
+MODELS = {"pvcnn.s3dis-area5.mit-han-lab": 4096, "pvcnn2.s3dis-area5.mit-han-lab": 8192}
 NUM_CLASSES = 13
 BLOCK_SIZE = 1.5
 BLOCK_STRIDE = 0.75

@@ -32,18 +32,6 @@ TRANSFORM = T.Compose(
         T.Reduce(keys=DataKeys.POS, op="max", dst_keys="coord_max"),
     ]
 )
-INFERER_TRANSFORM = T.Compose(
-    [
-        T.BBoxCenter(keys=DataKeys.BLOCK_BBOX, dst_keys=DataKeys.BLOCK_CENTER),
-        T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.NORM_POS),
-        T.DivideItems(keys=DataKeys.NORM_POS, div_keys="coord_max"),
-        T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
-        T.ToFloat(keys=DataKeys.COLOR),
-        T.Divide(keys=DataKeys.COLOR, divisor=255.0),
-        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X, dim=1),
-        T.DivisiblePad(num_samples=BLOCK_NUM_POINTS, pad_fill="random", dst_inverse_key=DataKeys.INVERSE),
-    ]
-)
 
 
 def main() -> None:
@@ -73,6 +61,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Blocks per forward.")
+    parser.add_argument("--num-points", default=BLOCK_NUM_POINTS, type=int, help="Points per block.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
@@ -107,16 +96,31 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
     return create_model(args.model, task="semantic-segmentation", pretrained=True)
 
 
+def configure_inferer_transform(args: Namespace) -> T.Compose:
+    return T.Compose(
+        [
+            T.BBoxCenter(keys=DataKeys.BLOCK_BBOX, dst_keys=DataKeys.BLOCK_CENTER),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.NORM_POS),
+            T.DivideItems(keys=DataKeys.NORM_POS, div_keys="coord_max"),
+            T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
+            T.ToFloat(keys=DataKeys.COLOR),
+            T.Divide(keys=DataKeys.COLOR, divisor=255.0),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X, dim=1),
+            T.DivisiblePad(num_samples=args.num_points, pad_fill="random", dst_inverse_key=DataKeys.INVERSE),
+        ]
+    )
+
+
 def configure_inferer(args: Namespace) -> Inferer:
     return SlidingWindowInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),
-        roi_num_points=BLOCK_NUM_POINTS,
+        roi_num_points=args.num_points,
         sw_batch_size=args.sw_batch_size,
         softmax=True,
         aggregate="max",
-        transform=INFERER_TRANSFORM,
+        transform=configure_inferer_transform(args),
         inverse_key=DataKeys.INVERSE,
         seed=args.seed,
     )

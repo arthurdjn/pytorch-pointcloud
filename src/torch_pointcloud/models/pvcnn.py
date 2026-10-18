@@ -466,45 +466,36 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         return x
 
 
-@register_model(
-    "pvcnn.s3dis-area5.mit-han-lab",
-    task="semantic-segmentation",
-    weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn.s3dis-area5.mit-han-lab/resolve/a098f49f11480c59e19b14cebb8f40df11fdccdc/model.safetensors",
-        dataset="s3dis-area5",
-        metrics={"mIoU": 57.51, "OA": 86.58},
-        classes=S3DIS_CLASSES,
-        author="mit-han-lab",
-        license="MIT",
-    ),
-    hparams=dict(
+_PVCNN_S3DIS_TRANSFORMS = T.Compose(
+    [
+        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
+    ]
+)
+
+
+def _pvcnn_s3dis_hparams(
+    channels: Sequence[int],
+    global_channels: Sequence[int],
+    head_channels: Sequence[int],
+) -> Dict[str, Any]:
+    return dict(
         in_channels=9,
         num_classes=13,
-        channels=[64, 64, 128, 1024],
-        global_channels=[256, 128],
+        channels=channels,
+        global_channels=global_channels,
         depths=[1, 2, 1, 1],
         kernel_sizes=[3, 3, 3, 3],
         resolutions=[32, 16, 16, 0],
         use_se=False,
         normalize=True,
-        head_channels=[512, 256],
+        head_channels=head_channels,
         head_dropout=0.3,
         act="relu",
-    ),
-    transform=T.Compose(
-        [
-            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
-        ]
-    ),
-)
-def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    r"""Paper-faithful PVCNN for S3DIS Area-5, from :github: [mit-han-lab/pvcnn](https://github.com/mit-han-lab/pvcnn).
+    )
 
-    The generic `PVCNNSegmentation` uses `act="relu"` and `nn.BatchNorm3d` defaults for
-    both branches. Upstream's reference implementation splits them: the voxel branch
-    uses `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\epsilon=10^{-4}$, while the point branch keeps ReLU.
-    """
-    model = PVCNNSegmentation(**hparams)
+
+def _patch_pvcnn_segmentation_mit_han_lab(model: PVCNNSegmentation) -> PVCNNSegmentation:
+    """Give the voxel branch upstream's `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\\epsilon=10^{-4}$."""
     for pv in model.modules():
         if not isinstance(pv, PVConv):
             continue
@@ -516,3 +507,72 @@ def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
                 if isinstance(block.act, nn.ReLU):
                     block.act = nn.LeakyReLU(negative_slope=0.1, inplace=True)
     return model
+
+
+@register_model(
+    "pvcnn.s3dis-area5.mit-han-lab",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn.s3dis-area5.mit-han-lab/resolve/a098f49f11480c59e19b14cebb8f40df11fdccdc/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 57.51, "OA": 86.58},
+        classes=S3DIS_CLASSES,
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=_pvcnn_s3dis_hparams(
+        channels=[64, 64, 128, 1024],
+        global_channels=[256, 128],
+        head_channels=[512, 256],
+    ),
+    transform=_PVCNN_S3DIS_TRANSFORMS,
+)
+def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
+    model = PVCNNSegmentation(**hparams)
+    return _patch_pvcnn_segmentation_mit_han_lab(model)
+
+
+@register_model(
+    "pvcnn-c0p25.s3dis-area5.mit-han-lab",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn-c0p25.s3dis-area5.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 53.31, "OA": 84.93, "simple/mIoU": 51.05, "simple/OA": 83.29},
+        classes=S3DIS_CLASSES,
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=_pvcnn_s3dis_hparams(
+        channels=[16, 16, 32, 256],
+        global_channels=[64, 32],
+        head_channels=[128, 64],
+    ),
+    transform=_PVCNN_S3DIS_TRANSFORMS,
+)
+def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
+    model = PVCNNSegmentation(**hparams)
+    return _patch_pvcnn_segmentation_mit_han_lab(model)
+
+
+@register_model(
+    "pvcnn-c0p125.s3dis-area5.mit-han-lab",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn-c0p125.s3dis-area5.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 49.25, "OA": 83.04, "simple/mIoU": 46.36, "simple/OA": 80.74},
+        classes=S3DIS_CLASSES,
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=_pvcnn_s3dis_hparams(
+        channels=[8, 8, 16, 128],
+        global_channels=[32, 16],
+        head_channels=[64, 32],
+    ),
+    transform=_PVCNN_S3DIS_TRANSFORMS,
+)
+def pvcnn_c0p125_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
+    model = PVCNNSegmentation(**hparams)
+    return _patch_pvcnn_segmentation_mit_han_lab(model)
