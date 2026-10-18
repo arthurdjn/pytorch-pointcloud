@@ -60,6 +60,7 @@ DISPLAY_TITLES = {
     "sonata": "Sonata",
     "concerto": "Concerto",
     "utonia": "Utonia",
+    "dales": "DALES",
     "modelnet": "ModelNet",
     "scannet": "ScanNet",
     "s3dis": "S3DIS",

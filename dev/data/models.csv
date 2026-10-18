@@ -123,6 +123,7 @@ ptv2-base.scannet200,point_transformer_v2,semantic-segmentation,scannet200,false
 ptv3-base.s3dis-area5.pointcept,point_transformer_v3,semantic-segmentation,s3dis-area5,true,MIT,46.19,mIoU,73.6,72.03,mIoU 72.03 · OA 91.15
 ptv3-base.scannet20.pointcept,point_transformer_v3,semantic-segmentation,scannet20,true,MIT,46.17,mIoU,77.6,77.42,mIoU 77.42 · OA 92.00
 ptv3-base.scannet200.pointcept,point_transformer_v3,semantic-segmentation,scannet200,true,MIT,46.18,mIoU,35.3,35.12,mIoU 35.12 · OA 83.31
+ptv3.dales.jayakumar-pujar,point_transformer_v3,semantic-segmentation,dales,true,MIT,103.77,mIoU,69.29,68.70,mIoU 68.70 · OA 96.47
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
 pvcnn2.s3dis-area5,pvcnn2,semantic-segmentation,s3dis-area5,false,,13.71,mIoU,,,
 randlanet.parislille3d.open3d,randlanet,semantic-segmentation,parislille3d,true,MIT,4.99,mIoU,70,48.10,mIoU 48.10 · OA 96.08

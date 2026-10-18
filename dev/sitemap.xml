@@ -88,6 +88,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/datasets/concat/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/dales/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/datasets/kitti/</loc>
       </url>
       <url>
@@ -560,6 +563,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/data/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/utils/hub/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/utils/imports/</loc>
