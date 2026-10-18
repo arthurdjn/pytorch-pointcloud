@@ -73,6 +73,7 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 | [Semantic3D](../api/datasets/semantic3d.md)<br><span class="tp-index__detail">:arxiv: [Semantic3D.net: A new Large-scale Point Cloud Classification Benchmark](https://arxiv.org/abs/1704.03847)</span> | 30 scenes | 8 |
 | [Toronto3D](../api/datasets/toronto3d.md)<br><span class="tp-index__detail">:arxiv: [Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways](https://arxiv.org/abs/2003.08284)</span> | 4 areas | 8 |
 | [ParisLille3D](../api/datasets/parislille3d.md)<br><span class="tp-index__detail">:arxiv: [Paris-Lille-3D: a large and high-quality ground truth urban point cloud dataset for automatic segmentation and classification](https://arxiv.org/abs/1712.00032)</span> | 3 scenes | 9 |
+| [DALES](../api/datasets/dales.md)<br><span class="tp-index__detail">:arxiv: [DALES: A Large-scale Aerial LiDAR Data Set for Semantic Segmentation](https://arxiv.org/abs/2004.11985)</span> | 40 tiles | 8 |
 
 </div>
 

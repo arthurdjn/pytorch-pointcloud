@@ -1,6 +1,7 @@
 """Benchmark point cloud datasets with disk caching and download helpers."""
 
 from .concat import ConcatDataset, SingleDatasetBatchSampler
+from .dales import DALES
 from .kitti import KITTI
 from .mix import MixDataset
 from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResampled
@@ -20,6 +21,7 @@ from .toronto3d import Toronto3D
 __all__ = [
     "ConcatDataset",
     "SingleDatasetBatchSampler",
+    "DALES",
     "KITTI",
     "MixDataset",
     "ModelNet10",

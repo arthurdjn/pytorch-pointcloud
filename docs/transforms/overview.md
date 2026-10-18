@@ -54,6 +54,7 @@ four keys and how they compose.
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | <img src="../assets/transforms/thumbs/rescale.png" width="220">   | [`Rescale`](../api/transforms/scaling.md#torch_pointcloud.transforms.scaling.Rescale)     | Center and rescale to unit extent (`centroid` / `bbox` / `centroid_extent` / `min_sphere`) |
 | <img src="../assets/transforms/thumbs/normalize.png" width="220"> | [`Normalize`](../api/transforms/scaling.md#torch_pointcloud.transforms.scaling.Normalize) | Per-channel $(x - \mu) / \sigma$ standardization                                           |
+|                                                                   | [`MaxAbsScale`](../api/transforms/scaling.md#torch_pointcloud.transforms.scaling.MaxAbsScale) | Per-channel division by the largest absolute value of the sample                           |
 
 ## Masking and filtering
 

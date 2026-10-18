@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import Dataset
 
 from torch_pointcloud.datasets import (
+    DALES,
     S3DIS,
     ModelNet40,
     ModelNetNormalResampled,
@@ -108,6 +109,10 @@ def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI
     )
 
 
+def dales_dataset(transform: Optional[Callable] = None) -> DALES:
+    return DALES(root=DATASETS_DIR, train=False, transform=transform)
+
+
 @pytest.fixture
 def dataset_factory() -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
@@ -121,6 +126,7 @@ def dataset_factory() -> Callable[..., Dataset]:
         "scannet20": scannet20_dataset,
         "scannet20_blocks": scannet20_blocks_dataset,
         "semantickitti": semantickitti_dataset,
+        "dales": dales_dataset,
     }
 
     def factory(name: str, transform: Optional[Callable] = None) -> Dataset:

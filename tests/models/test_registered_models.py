@@ -9,9 +9,10 @@ import torch
 import torch.nn as nn
 
 from torch_pointcloud.models import create_model, list_models, model_info
-from torch_pointcloud.models._registry import _REGISTERED_MODELS, HF_URL_RE, _is_non_commercial_license
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, _is_non_commercial_license
 from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.hub import HF_URL_RE
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -149,6 +150,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3-base.scannet20.pointcept",
     "ptv3-base.scannet200.pointcept",
     "ptv3-base.s3dis-area5.pointcept",
+    "ptv3.dales.jayakumar-pujar",
     "pvcnn.s3dis-area5.mit-han-lab",
     "pvcnn2.s3dis-area5",
     "pointnext-base",

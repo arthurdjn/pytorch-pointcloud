@@ -35,6 +35,7 @@ neither are marked as such.
 | DylanWusee/pointconv_pytorch                    | `wenxuan-wu`     | MIT          | 1     | Copyright (c) 2019 Wenxuan Wu                                                                                              |
 | tsunghan-wu/RandLA-Net-pytorch                  | `tsung-han-wu`   | MIT          | 1     | Copyright (c) 2020 Tsunghan Wu                                                                                             |
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
+| jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
 
 ## Training data
 
@@ -51,6 +52,7 @@ Licenses of the datasets the checkpoints were trained on.
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
+| DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 
 ## Source code
@@ -108,3 +110,4 @@ Installed separately, only for the architectures that need them.
 | `mamba-ssm`, `causal-conv1d`                                                                     | Apache-2.0 AND BSD-3-Clause |
 | `sptr` (JIA-Lab-research/SparseTransformer, installed from the arthurdjn/SparseTransformer fork) | Apache-2.0                  |
 | `lightning`, `torchmetrics`                                                                      | Apache-2.0                  |
+| `laspy`                                                                                          | BSD-2-Clause                |

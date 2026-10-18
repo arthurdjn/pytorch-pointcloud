@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the Point Transformer V3 DALES checkpoint `ptv3.dales.jayakumar-pujar` (MIT) and its benchmark on the DALES test tiles.
+- Added the `DALES` dataset, read with the optional `laspy` package, and the `return_number` and `number_of_returns` data keys.
+- Added the `MaxAbsScale` transform.
+- `create_model(pretrained=True)` downloads with the Hugging Face token of the environment (`utils.hub.load_hub_token`), so weights hosted in a gated repository load; `read_state_dict` unwraps a `model_state_dict` key.
+- `download_url` takes request `headers`, not forwarded on redirects, and removes its partial file when the download fails.
+- `PointTransformerV3DecoderBlock(cpe_from_skip=)` picks what the block xCPE convolves after upsampling; `PointTransformerV3Decoder(pooling="grid")` uses the summed features, as the reference grid unpooling does.
+- `PointTransformerV3Classification.forward` and `PointTransformerV3Segmentation.forward` take `pos` as their fourth argument, like the encoder, and `condition` by keyword only.
 - Fixed the stem and pooling BatchNorm `eps` of the Point Transformer V3 segmentation checkpoints (`1e-3`).
 - Added the Open3D-ML model zoo (MIT): `randlanet.{semantickitti,s3dis-area3,toronto3d,semantic3d,parislille3d}.open3d`, `kpfcnn.{s3dis-area3,semantickitti,toronto3d}.open3d`, `kpfcnn-deform.parislille3d.open3d`, `point-transformer.s3dis-area5.open3d` and `spformer-unet.scannet20.open3d`, with their inference transforms and the benchmark scripts of their validation protocols under `examples/randlanet`, `examples/kpconv`, `examples/point_transformer` and `examples/spformer_unet`.
 - Renamed `point-transformer.s3dis-area5` to `point-transformer.s3dis-area5.open3d`, which now ships pretrained weights.

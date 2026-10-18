@@ -2,19 +2,21 @@
 
 import difflib
 import fnmatch
-import re
 import warnings
+from http.client import HTTPException
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union, overload
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 
-import torch
 from torch import nn
 from typing_extensions import NotRequired
 
 from torch_pointcloud.config import MODELS_DIR
+from torch_pointcloud.datasets.utils import download_url
 from torch_pointcloud.transforms.base import Transform
 from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.hub import HF_ENDPOINT, HF_URL_RE, load_hub_token
 from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
@@ -22,8 +24,6 @@ from ._base import ClassificationModel, DetectionModel, PartSegmentationModel, S
 
 Task = Literal["pretraining", "classification", "semantic-segmentation", "part-segmentation", "detection"]
 
-HF_ENDPOINT = "https://huggingface.co"
-HF_URL_RE = re.compile(r"^hf://(?P<namespace>[^/]+)/(?P<repo>[^/]+)/resolve/(?P<revision>[^/]+)/(?P<file>.+)$")
 _INSTALLATION_URL = "https://pytorch-pointcloud.org/latest/installation/"
 
 
@@ -33,7 +33,8 @@ class WeightsDict(TypedDict):
     Attributes:
         url: Location of the weight file, mirroring the Hub path so that `hf://` stands for
             `https://huggingface.co/` (e.g. `hf://torch-pointcloud/pointnext-sm.scanobjectnn-hardest.openpoints/resolve/a98ba0b8f7c9615acf0f38a1a20c97bfb01c2e79/model.safetensors`).
-            Several URLs are read in order into a single state dict (e.g. an encoder file and its head file).
+            Several URLs are read in order into a single state dict (e.g. an encoder file and its head file). A file
+            in a gated repository downloads with the Hub token of the environment (see `load_hub_token`).
         pretrained_filter_fn: Called as `pretrained_filter_fn(state_dict, model)` on the state dict read from `url`
             before it is loaded, to rename, drop or reorder the entries of a checkpoint saved with another parameter
             layout (e.g. the authors' original release).
@@ -296,7 +297,8 @@ def resolve_weights(name: str, url: str) -> Path:
     """Return the local cache path of a registered weight file, downloading it on first use.
 
     A `hf://` URL mirrors the Hub path, so it is fetched by replacing the scheme with `https://huggingface.co/`
-    when the file is absent from the cache. Any other scheme is expected to be placed in the cache by hand.
+    when the file is absent from the cache, with the Hub token of the environment (`load_hub_token`) when there is one.
+    Any other scheme is expected to be placed in the cache by hand.
 
     Args:
         name: Registered model name, used in error messages.
@@ -334,19 +336,24 @@ def resolve_weights(name: str, url: str) -> Path:
             f"place them in the models cache directory ({Path(MODELS_DIR).as_posix()})."
         )
 
-    download_url = HF_ENDPOINT + "/" + url[len("hf://") :]
-    local_path.parent.mkdir(parents=True, exist_ok=True)
-    partial_path = local_path.with_name(local_path.name + ".part")
+    file_url = HF_ENDPOINT + "/" + url[len("hf://") :]
+    token = load_hub_token()
+    headers = {"Authorization": f"Bearer {token}"} if token else None
     try:
-        torch.hub.download_url_to_file(download_url, partial_path.as_posix(), progress=True)
-    except OSError as e:
-        partial_path.unlink(missing_ok=True)
+        download_url(file_url, local_path, description=f"Downloading {local_path.name}", headers=headers)
+    except (OSError, HTTPException) as e:
+        if isinstance(e, HTTPError) and e.code in (401, 403):
+            repo_url = file_url.split("/resolve/", 1)[0]
+            raise FileNotFoundError(
+                f"Could not download weights for {name!r} from {file_url}: {e}. The repository is gated: accept "
+                f"its terms at {repo_url} and log in with `hf auth login` or set `HF_TOKEN`, or download the file "
+                f"manually and place it at {local_path.as_posix()}."
+            ) from e
         raise FileNotFoundError(
-            f"Could not download weights for {name!r} from {download_url}: {e}. Download the file manually and "
+            f"Could not download weights for {name!r} from {file_url}: {e}. Download the file manually and "
             f"place it at {local_path.as_posix()}."
         ) from e
 
-    partial_path.replace(local_path)
     return local_path
 
 

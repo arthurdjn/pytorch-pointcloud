@@ -26,7 +26,7 @@ from .sampling import (
     random_sample_face_vertices,
     shuffle_indices,
 )
-from .scaling import minimal_enclosing_ball, normalize, rescale
+from .scaling import maxabs_scale, minimal_enclosing_ball, normalize, rescale
 from .utils import absolute, relabel
 from .voxelization import divisible_pad
 
@@ -49,6 +49,7 @@ __all__ = [
     "flip_boxes",
     "flip_vectors",
     "laser_mix_masks",
+    "maxabs_scale",
     "minimal_enclosing_ball",
     "normalize",
     "points_in_oriented_box",

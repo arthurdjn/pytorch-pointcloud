@@ -143,6 +143,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("spvcnn-30gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-47gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    # DALES based models
+    ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
 ]
 
 
