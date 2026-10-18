@@ -24,6 +24,10 @@ All notable changes to this project are documented in this file. The format is b
 - Added `register_model(deprecated_names=...)`, which keeps renamed models reachable under their former names.
 - Added `WeightsDict(pretrained_filter_fn=...)`, which maps a checkpoint onto the model keys at load, and `WeightsDict(url=...)` accepts several files, warning when a later file overrides keys.
 - The Sonata, Concerto and Utonia weights download from the authors' Hugging Face repositories.
+- Added the `pvcnn-c0p25`, `pvcnn-c0p125`, `pvcnn2` and `pvcnn2-c0p5` S3DIS Area 5 pretrained weights.
+- Renamed `pvcnn2.s3dis-area5` to `pvcnn2.s3dis-area5.mit-han-lab`; the former name still loads, with a `FutureWarning`.
+- Fixed `PVCNN2Segmentation` to match PVCNN++: set abstraction groups unscaled relative positions before the features, the decoder skips take each set-abstraction output before its point-voxel convs, and the decoder takes at most one block per set-abstraction level.
+- Added `--num-points` to the PVCNN S3DIS benchmark.
 
 ## 0.0.16 (2026-10-14)
 

@@ -91,6 +91,10 @@ $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area5.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area6.an-tao
 $RUN examples/pvcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model pvcnn.s3dis-area5.mit-han-lab --areas Area_5
+$RUN examples/pvcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model pvcnn-c0p25.s3dis-area5.mit-han-lab --areas Area_5
+$RUN examples/pvcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model pvcnn-c0p125.s3dis-area5.mit-han-lab --areas Area_5
+$RUN examples/pvcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model pvcnn2.s3dis-area5.mit-han-lab --areas Area_5 --num-points 8192
+$RUN examples/pvcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model pvcnn2-c0p5.s3dis-area5.mit-han-lab --areas Area_5 --num-points 8192
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base.s3dis-area5.hugues-thomas
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base-sm.s3dis-area5.hugues-thomas
 $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfcnn-base-deform.s3dis-area5.hugues-thomas
