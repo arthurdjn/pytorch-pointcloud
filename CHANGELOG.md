@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.17 (2026-10-18)
+
 - Added the Point Transformer V3 DALES checkpoint `ptv3.dales.jayakumar-pujar` (MIT) and its benchmark on the DALES test tiles.
 - Added the `DALES` dataset, read with the optional `laspy` package, and the `return_number` and `number_of_returns` data keys.
 - Added the `MaxAbsScale` transform.
