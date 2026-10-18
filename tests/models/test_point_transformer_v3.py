@@ -8,6 +8,7 @@ from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Segmentation,
     encoder_checkpoint_filter_fn,
+    segmentation_checkpoint_filter_fn,
     serialize,
 )
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
@@ -200,6 +201,35 @@ def test_pt_v3_pdnorm_forward_with_condition(
     assert logits.shape == (data["pos_grid"].shape[0], model_seg_pdnorm.num_classes)
 
 
+def test_pt_v3_segmentation_grid_pooling_feeds_the_summed_upsampling_to_cpe(data: Dict[str, Tensor]) -> None:
+    model = PointTransformerV3Segmentation(
+        in_channels=6,
+        num_classes=10,
+        strides=(2, 2),
+        encoder_depths=(1, 1, 1),
+        encoder_channels=(16, 32, 64),
+        encoder_num_heads=(2, 4, 8),
+        encoder_patch_size=(16, 16, 16),
+        decoder_depths=(1, 1),
+        decoder_channels=(32, 16),
+        decoder_num_heads=(4, 2),
+        decoder_patch_size=(16, 16),
+        use_flash_attn=False,
+        pooling="grid",
+    ).cuda()
+    assert not any(block.cpe_from_skip for block in model.decoder.blocks)
+
+    logits = model(data["x"], data["pos_grid"], data["batch"])
+    assert logits.shape == (data["x"].shape[0], 10)
+
+
+def test_pt_v3_segmentation_condition_is_keyword_only(
+    model_seg_pdnorm: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+) -> None:
+    with pytest.raises(TypeError, match="positional argument"):
+        model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"], None, "ScanNet")
+
+
 def test_serialize_single_voxel_scene() -> None:
     """An all-zero grid has `bit_length() == 0`; the depth floor keeps the encoders valid."""
     grid = torch.zeros(6, 3, dtype=torch.long)
@@ -241,6 +271,31 @@ def test_encoder_checkpoint_filter_fn_prefixes_a_wrapped_encoder() -> None:
     filtered = encoder_checkpoint_filter_fn(dict(_RELEASED_ENCODER_KEYS), model)
     assert sorted(filtered) == [
         "encoder.blocks.1.blocks.0.mlp.3.bias",
+        "encoder.blocks.1.downsample.norm.weight",
+        "encoder.stem.stem.weight",
+        "head.weight",
+    ]
+
+
+_RELEASED_SEGMENTATION_KEYS = {
+    "backbone.embedding.stem.linear.weight": torch.ones(4, 2),
+    "backbone.enc.enc1.down.norm.0.weight": torch.ones(4),
+    "backbone.dec.dec1.up.proj_skip.1.bias": torch.ones(4),
+    "backbone.dec.dec0.block0.cpe.0.weight": torch.ones(4, 3, 3, 3, 4),
+    "backbone.dec.dec0.block0.attn.qkv.weight": torch.ones(12, 4),
+    "seg_head.weight": torch.ones(3, 4),
+}
+
+
+def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_order(
+    model_seg: PointTransformerV3Segmentation,
+) -> None:
+    assert len(model_seg.decoder.blocks) == 2
+    filtered = segmentation_checkpoint_filter_fn(dict(_RELEASED_SEGMENTATION_KEYS), model_seg)
+    assert sorted(filtered) == [
+        "decoder.blocks.0.upsample.norm_skip.bias",
+        "decoder.blocks.1.blocks.0.attn.qkv.weight",
+        "decoder.blocks.1.blocks.0.cpe_conv.weight",
         "encoder.blocks.1.downsample.norm.weight",
         "encoder.stem.stem.weight",
         "head.weight",

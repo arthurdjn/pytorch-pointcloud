@@ -19,8 +19,8 @@ _PLACEHOLDER_RE = re.compile(r"^\s*(\w+)\s*(?:([+-])\s*(\d+))?\s*$")
 def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
-    Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` key if present. Lightning
-    checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
+    Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
+    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
     only `model.`-prefixed keys are kept, with the prefix stripped.
 
     Args:
@@ -51,7 +51,7 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
             f"tensors, got {type(data).__name__}."
         )
 
-    state_dict = data["state_dict"] if "state_dict" in data else data
+    state_dict = next((data[key] for key in ("state_dict", "model_state_dict") if key in data), data)
     if "pytorch-lightning_version" in data:
         extracted = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
         if state_dict and not extracted:

@@ -311,6 +311,7 @@ def optional_import(
 _DWCONV_GITHUB_URL = "https://github.com/octree-nn/dwconv"
 _FLASH_ATTN_GITHUB_URL = "https://github.com/Dao-AILab/flash-attention"
 _KAOLIN_GITHUB_URL = "https://github.com/NVIDIAGameWorks/kaolin"
+_LASPY_GITHUB_URL = "https://github.com/laspy/laspy"
 _LIGHTNING_GITHUB_URL = "https://github.com/Lightning-AI/pytorch-lightning"
 _MAMBA_SSM_GITHUB_URL = "https://github.com/state-spaces/mamba"
 _OCNN_GITHUB_URL = "https://github.com/octree-nn/ocnn-pytorch"
@@ -325,6 +326,7 @@ _AVAILABILITY_FLAGS: Dict[str, Callable[[], bool]] = {
     "_CUDA_AVAILABLE": torch.cuda.is_available,
     "_DWCONV_AVAILABLE": partial(module_available, "dwconv"),
     "_FLASH_ATTN_AVAILABLE": partial(module_available, "flash_attn"),
+    "_LASPY_AVAILABLE": partial(module_available, "laspy"),
     "_LIGHTNING_AVAILABLE": partial(module_available, "lightning.pytorch"),
     "_MAMBA_SSM_AVAILABLE": partial(module_available, "mamba_ssm"),
     "_OCNN_AVAILABLE": partial(module_available, "ocnn"),

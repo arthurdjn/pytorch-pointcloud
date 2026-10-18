@@ -87,6 +87,7 @@ dev = [
     "mypy>=1.19.0",
     "zensical>=0.0.50",
     "ipywidgets>=8.1.8",
+    "laspy>=2.5.0",
 ]
 
 [tool.uv]

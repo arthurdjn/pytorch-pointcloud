@@ -106,6 +106,12 @@ BENCHMARKS = [
         id="ptv3/scannet",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_dales_benchmark.py",
+        ("--model", "ptv3.dales.jayakumar-pujar", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="ptv3/dales",
+    ),
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,

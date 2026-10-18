@@ -10,7 +10,7 @@ from pathlib import Path
 from ssl import SSLContext, create_default_context
 from typing import Any, Callable, Dict, Literal, Optional, Union
 from urllib.parse import unquote, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from tqdm import tqdm
 
@@ -25,6 +25,19 @@ SUPPORTED_HASH_TYPES: Dict[HashType, Callable] = {
 }
 
 USER_AGENT = "torch_pointcloud"
+
+
+class _RedirectHandler(HTTPRedirectHandler):
+    """Drops the `Authorization` header when a redirect leaves the host, as browsers do: a presigned content delivery
+    URL rejects a bearer token."""
+
+    def redirect_request(
+        self, req: Request, fp: Any, code: int, msg: str, headers: Any, newurl: str
+    ) -> Optional[Request]:
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is not None and urlparse(newurl).netloc != urlparse(req.full_url).netloc:
+            redirected.remove_header("Authorization")
+        return redirected
 
 
 def urltailname(url: str) -> str:
@@ -129,6 +142,7 @@ def download_url(
     show_progress: bool = True,
     overwrite: Union[bool, Literal["incomplete"]] = False,
     timeout: float = 30.0,
+    headers: Optional[Dict[str, str]] = None,
 ) -> str:
     """Download a file from a URL to a local path.
 
@@ -145,6 +159,8 @@ def download_url(
             the local file will not be overwritten if it already exists.
         timeout: Timeout in seconds passed to `urlopen`, covering the connection and each blocking read, so a
             stalled server raises instead of hanging forever.
+        headers: Extra request headers, such as `{"Authorization": "Bearer <token>"}` for a gated file. An
+            `Authorization` header is dropped when the download is redirected to another host.
 
     Returns:
         The local path to the downloaded file.
@@ -170,8 +186,10 @@ def download_url(
             return file_path.as_posix()
 
     part_path = file_path.with_name(file_path.name + ".part")
-    with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout) as response:
-        with open(part_path, "wb") as fh:
+    request = Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
+    opener = build_opener(_RedirectHandler())
+    try:
+        with opener.open(request, timeout=timeout) as response, open(part_path, "wb") as fh:
             with tqdm(
                 total=response.length,
                 desc=description,
@@ -183,6 +201,9 @@ def download_url(
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
                     pbar.update(len(chunk))
+    except BaseException:
+        part_path.unlink(missing_ok=True)
+        raise
     part_path.replace(file_path)
 
     return file_path.as_posix()

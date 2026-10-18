@@ -228,6 +228,15 @@ def test_read_state_dict_non_mapping_checkpoint_raises(tmp_path: Path) -> None:
         read_state_dict(path)
 
 
+def test_read_state_dict_unwraps_model_state_dict(tmp_path: Path) -> None:
+    path = tmp_path / "training.pth"
+    torch.save({"epoch": 3, "model_state_dict": {"lin.weight": torch.zeros(2, 2)}, "optimizer_state_dict": {}}, path)
+
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["lin.weight"]
+
+
 def test_read_state_dict_lightning_checkpoint_without_model_prefix_raises(tmp_path: Path) -> None:
     path = tmp_path / "lit.ckpt"
     torch.save({"pytorch-lightning_version": "2.0", "state_dict": {"net.lin.weight": torch.zeros(2, 2)}}, path)

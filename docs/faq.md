@@ -38,10 +38,15 @@
     `TORCH_POINTCLOUD_CACHE_DIR` moves the cache. A checkpoint
     pinned to a new revision is downloaded again.
 
+??? faq "A download fails with HTTP 401 or 403"
+
+    The repository is gated (`ptv3.dales.jayakumar-pujar`): accept its terms on its Hub page, then log in with
+    `hf auth login` or set `HF_TOKEN`. The token is sent with the download.
+
 ??? faq "Can I run offline?"
 
     Yes, once the files are in the cache: load each model once on a connected machine, or copy its cache directory.
-    The weights come from `https://huggingface.co` (the `HF_ENDPOINT` constant of `torch_pointcloud.models._registry`,
+    The weights come from `https://huggingface.co` (the `HF_ENDPOINT` constant of `torch_pointcloud.utils.hub`,
     not an environment variable). A checkpoint stored somewhere else loads with
     `create_model(name, checkpoint_path="...")`.
 
