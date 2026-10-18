@@ -129,6 +129,7 @@ def download_url(
     show_progress: bool = True,
     overwrite: Union[bool, Literal["incomplete"]] = False,
     timeout: float = 30.0,
+    headers: Optional[Dict[str, str]] = None,
 ) -> str:
     """Download a file from a URL to a local path.
 
@@ -145,6 +146,8 @@ def download_url(
             the local file will not be overwritten if it already exists.
         timeout: Timeout in seconds passed to `urlopen`, covering the connection and each blocking read, so a
             stalled server raises instead of hanging forever.
+        headers: Extra request headers, such as `{"Authorization": "Bearer <token>"}` for a gated file. They are sent
+            to `url` only, not forwarded when the download is redirected, as to a content delivery network.
 
     Returns:
         The local path to the downloaded file.
@@ -170,8 +173,11 @@ def download_url(
             return file_path.as_posix()
 
     part_path = file_path.with_name(file_path.name + ".part")
-    with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout) as response:
-        with open(part_path, "wb") as fh:
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    for key, value in (headers or {}).items():
+        request.add_unredirected_header(key, value)
+    try:
+        with urlopen(request, timeout=timeout) as response, open(part_path, "wb") as fh:
             with tqdm(
                 total=response.length,
                 desc=description,
@@ -183,6 +189,9 @@ def download_url(
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
                     pbar.update(len(chunk))
+    except BaseException:
+        part_path.unlink(missing_ok=True)
+        raise
     part_path.replace(file_path)
 
     return file_path.as_posix()

@@ -13,6 +13,7 @@ RescaleMethod = Literal["centroid", "bbox", "centroid_extent", "min_sphere"]
 
 
 __all__ = [
+    "MaxAbsScale",
     "Normalize",
     "Rescale",
 ]
@@ -269,4 +270,56 @@ class Normalize(DictTransform):
         data = dict(data)
         for key in self.iter_keys(data):
             data[key] = normalize(data[key], self.mean, self.std, eps=self.eps)
+        return data
+
+
+def maxabs_scale(x: Tensor, eps: float = 1e-7) -> Tensor:
+    r"""Scale a tensor by its largest absolute value, per channel: $x' = x / \max(\max_i |x_i|, \epsilon)$.
+
+    The maximum is taken over every dimension but the last (the channel dimension), so the input is treated as
+    one point cloud: scale packed batches per sample (pre-collate), never on concatenated clouds.
+
+    Args:
+        x: Input tensor. Integer tensors are cast to `float32`.
+        eps: Lower bound on the divisor to prevent division by zero.
+
+    Returns:
+        The scaled tensor, same shape as `x`, with values in $[-1, 1]$.
+    """
+    if not torch.is_floating_point(x):
+        x = x.float()
+    if x.numel() == 0:
+        return x
+    if x.dim() <= 1:
+        return x / x.abs().max().clamp(min=eps)
+    scale = x.abs().reshape(-1, x.shape[-1]).amax(dim=0).clamp(min=eps)
+    return x / scale
+
+
+class MaxAbsScale(DictTransform):
+    r"""Scale dictionary tensor entries by their largest absolute value, per channel:
+    $x' = x / \max(\max_i |x_i|, \epsilon)$.
+
+    The statistic comes from the sample itself, so the result lies in $[-1, 1]$ whatever the input range (e.g. a
+    LiDAR return number divided by the highest return number of the scene).
+
+    Args:
+        keys: The keys to scale.
+        eps: Lower bound on the divisor to prevent division by zero. Defaults to $10^{-7}$.
+        allow_missing_keys: If `True`, missing keys are silently ignored.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        eps: float = 1e-7,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.eps = eps
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key in self.iter_keys(data):
+            data[key] = maxabs_scale(data[key], eps=self.eps)
         return data

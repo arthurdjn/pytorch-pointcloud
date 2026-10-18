@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.dales import DALES_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
@@ -484,6 +485,9 @@ class PointTransformerV3EncoderBlock(nn.Module):
 class PointTransformerV3DecoderBlock(nn.Module):
     """One decoder stage: an optional upsampling onto the skip resolution, then `depth` `PointTransformerV3Block` units
     cycling through the skip's serialization orders.
+
+    `cpe_from_skip` picks the features the first block's xCPE convolves after upsampling: the projected skip branch,
+    as serialized unpooling leaves it in the sparse tensor, or the summed output, as grid unpooling does.
     """
 
     def __init__(
@@ -507,11 +511,13 @@ class PointTransformerV3DecoderBlock(nn.Module):
         upcast_softmax: bool = False,
         cpe_indice_key: Optional[str] = None,
         upsample: Optional[SerializedUpsample] = None,
+        cpe_from_skip: bool = True,
         rope_base: float = 10.0,
         legacy: bool = False,
     ):
         super().__init__()
         self.upsample = upsample
+        self.cpe_from_skip = cpe_from_skip
         drop_path = ensure_tuple_size(drop_path, size=depth)
 
         self.blocks = nn.ModuleList()
@@ -566,9 +572,8 @@ class PointTransformerV3DecoderBlock(nn.Module):
             if inverse is None:
                 raise ValueError("`inverse` must be provided when `upsample` module is set.")
 
-            # The next block's xCPE convolves only the projected skip branch. The reference does this in
-            # every release, so it is unconditional (unlike the block write-back).
-            x, cpe_seed = self.upsample(x, x_skip, inverse, return_intermediate=True, condition=condition)
+            x, x_skip = self.upsample(x, x_skip, inverse, return_intermediate=True, condition=condition)
+            cpe_seed = x_skip if self.cpe_from_skip else x
 
         x_sparse = convert_to_spconv_tensor(cpe_seed, pos_grid_skip, batch_skip)
         layout: Optional[PatchLayout] = None
@@ -959,6 +964,9 @@ class PointTransformerV3Decoder(nn.Module):
         upcast_attn: Upcast attention to fp32.
         upcast_softmax: Upcast softmax to fp32.
         rope_base: RoPE frequency base. Only used when `attn_kind="rope"`.
+        pooling: Pooling the encoder used between stages (`"serialized"` or `"grid"`). After grid pooling the block
+            xCPE convolves the summed upsampling output, after serialized pooling the projected skip, as the reference
+            unpooling modules leave them.
 
     Inputs:
         x: Encoded features at the deepest encoder level.
@@ -993,6 +1001,7 @@ class PointTransformerV3Decoder(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         rope_base: float = 10.0,
         legacy: bool = False,
+        pooling: str = "serialized",
     ):
         super().__init__()
         self.blocks = self.configure_blocks(
@@ -1017,6 +1026,7 @@ class PointTransformerV3Decoder(nn.Module):
             norm_kwargs=norm_kwargs,
             rope_base=rope_base,
             legacy=legacy,
+            pooling=pooling,
         )
 
     @property
@@ -1047,6 +1057,7 @@ class PointTransformerV3Decoder(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
         rope_base: float = 10.0,
         legacy: bool = False,
+        pooling: str = "serialized",
     ) -> nn.ModuleList:
         """Build the `PointTransformerV3DecoderBlock` stages, giving every stage an upsampling onto its skip resolution."""
         depths = ensure_tuple(depths)
@@ -1056,6 +1067,7 @@ class PointTransformerV3Decoder(nn.Module):
         num_heads = ensure_tuple_size(num_heads, size=n)
         patch_sizes = ensure_tuple_size(patch_sizes, size=n)
         drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
+        cpe_from_skip = pooling != "grid"
 
         blocks = nn.ModuleList()
         for i in range(n):
@@ -1089,6 +1101,7 @@ class PointTransformerV3Decoder(nn.Module):
                 upcast_attn=upcast_attn,
                 upcast_softmax=upcast_softmax,
                 upsample=upsample,
+                cpe_from_skip=cpe_from_skip,
                 rope_base=rope_base,
                 legacy=legacy,
             )
@@ -1359,8 +1372,9 @@ class PointTransformerV3Classification(ClassificationModel):
         x: OptTensor,
         pos_grid: Tensor,
         batch: Tensor,
-        condition: Union[str, Sequence[str], None] = None,
         pos: OptTensor = None,
+        *,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tensor:
         r"""Forward pass of the Point Transformer V3 classification network.
 
@@ -1370,16 +1384,15 @@ class PointTransformerV3Classification(ClassificationModel):
                 these to derive the Z-order / Hilbert serialization index, so they
                 must be voxel indices, not float positions.
             batch: Batch indices for each point of shape $(N,)$.
-            condition: Optional per-batch condition selecting the PDNorm inner norms.
             pos: Real-valued metric positions of shape $(N, 3)$. Required when
                 `attn_kind="rope"`; ignored otherwise.
+            condition: Optional per-batch condition selecting the PDNorm inner norms (keyword-only).
 
         Returns:
             Classification logits of shape $(B, \text{num\_classes})$.
         """
-        x, _pos_grid, batch = self.forward_features(
-            x, pos_grid, batch, pos=pos, condition=_resolve_condition(condition, self.condition, self.pdnorm_conditions)
-        )
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
+        x, _pos_grid, batch = self.forward_features(x, pos_grid, batch, pos=pos, condition=condition)
         return self.forward_head(x, batch)
 
 
@@ -1562,6 +1575,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             act_kwargs=self.act_kwargs,
             norm_kwargs=self.norm_kwargs,
             legacy=self.legacy,
+            pooling=self.pooling,
         )
 
     @property
@@ -1640,8 +1654,9 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         x: Tensor,
         pos_grid: Tensor,
         batch: Tensor,
-        condition: Union[str, Sequence[str], None] = None,
         pos: OptTensor = None,
+        *,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tensor:
         r"""Forward pass of the Point Transformer V3 segmentation network.
 
@@ -1649,18 +1664,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             x: Per-point features of shape $(N, C)$.
             pos_grid: Integer grid coordinates of shape $(N, 3)$ used for serialization.
             batch: Batch indices for each point of shape $(N,)$.
-            condition: Optional per-batch condition selecting the PDNorm inner norms.
             pos: Real-valued metric positions of shape $(N, 3)$. Required when
                 `attn_kind="rope"`; ignored otherwise.
+            condition: Optional per-batch condition selecting the PDNorm inner norms (keyword-only).
 
         Returns:
             Per-point segmentation logits of shape $(N, \text{num\_classes})$.
         """
-        resolved = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         x, _, _, intermediates = self.forward_features(
-            x, pos_grid, batch, return_intermediates=True, pos=pos, condition=resolved
+            x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition
         )
-        x, _, _ = self.forward_decoder(x, intermediates, condition=resolved)
+        x, _, _ = self.forward_decoder(x, intermediates, condition=condition)
         return self.forward_head(x)
 
 
@@ -1699,6 +1714,46 @@ def encoder_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -
     mapping = {source: prefix + target for source, target in _ENCODER_CHECKPOINT_MAPPING.items()}
     mapping["seg_head.{param}"] = "head.{param}"
     state_dict = {key: value for key, value in state_dict.items() if key != "embedding.mask_token"}
+    return transform_state_dict(state_dict, mapping)
+
+
+_DECODER_STAGE_CHECKPOINT_MAPPING = {
+    "up.proj.0.{param}": "upsample.proj.{param}",
+    "up.proj.1.{param}": "upsample.norm.{param}",
+    "up.proj_skip.0.{param}": "upsample.proj_skip.{param}",
+    "up.proj_skip.1.{param}": "upsample.norm_skip.{param}",
+    "block{j}.cpe.0.{param}": "blocks.{j}.cpe_conv.{param}",
+    "block{j}.cpe.1.{param}": "blocks.{j}.cpe_proj.{param}",
+    "block{j}.cpe.2.{param}": "blocks.{j}.cpe_norm.{param}",
+    "block{j}.norm1.0.{param}": "blocks.{j}.norm1.{param}",
+    "block{j}.norm2.0.{param}": "blocks.{j}.norm2.{param}",
+    "block{j}.attn.{layer}.{param}": "blocks.{j}.attn.{layer}.{param}",
+    "block{j}.mlp.0.fc1.{param}": "blocks.{j}.mlp.0.{param}",
+    "block{j}.mlp.0.fc2.{param}": "blocks.{j}.mlp.3.{param}",
+}
+
+
+def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Rename the keys of a released segmentation checkpoint (a `backbone.` encoder and decoder with a `seg_head`) to
+    the `PointTransformerV3Segmentation` ones, as the `pretrained_filter_fn` of a `WeightsDict`.
+
+    The released decoder names its stages after the encoder stage they upsample to, so the deepest runs first;
+    `model` numbers them in execution order: `dec{i}` of `n` stages becomes `decoder.blocks.{n - 1 - i}`.
+
+    Args:
+        state_dict: State dict keyed as in the released checkpoint file.
+        model: `PointTransformerV3Segmentation` the state dict is loaded into.
+
+    Returns:
+        The state dict keyed as `model` expects.
+    """
+    assert isinstance(model, PointTransformerV3Segmentation)
+    mapping = {"backbone." + source: "encoder." + target for source, target in _ENCODER_CHECKPOINT_MAPPING.items()}
+    num_stages = len(model.decoder.blocks)
+    for i in range(num_stages):
+        for source, target in _DECODER_STAGE_CHECKPOINT_MAPPING.items():
+            mapping[f"backbone.dec.dec{i}.{source}"] = f"decoder.blocks.{num_stages - 1 - i}.{target}"
+    mapping["seg_head.{param}"] = "head.{param}"
     return transform_state_dict(state_dict, mapping)
 
 
@@ -1874,4 +1929,77 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
     hparams=_ptv3_seg_hparams(13, attn_kind="rpe", patch_size=128),
 )
 def ptv3_base_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+# The released weights were trained on 50 m blocks of DALES tiles: the return number divided by the highest return
+# number of the tile, a 0.15 m grid sample keeping the first point of every voxel, and positions centred on the mean.
+_PTV3_DALES_TRANSFORMS = T.Compose(
+    [
+        T.MaxAbsScale(keys=DataKeys.RETURN_NUMBER),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
+        T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="first",
+            dst_pos_grid_key=DataKeys.POS_GRID,
+            keys=[DataKeys.RETURN_NUMBER, DataKeys.NUMBER_OF_RETURNS, DataKeys.SEGMENT],
+            reduce="first",
+            size=0.15,
+            allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
+        ),
+        T.Shift(keys=DataKeys.POS, method="centroid"),
+        T.Cat(keys=[DataKeys.POS, DataKeys.RETURN_NUMBER], dst_key=DataKeys.X, dim=1),
+    ]
+)
+
+
+@register_model(
+    "ptv3.dales.jayakumar-pujar",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch", "pos"),
+    weights=WeightsDict(
+        # NOTE: the author's training checkpoint, 1.25 GB for 415 MB of weights; the rest is optimizer state.
+        url="hf://jayakumarpujar/Ptv3/resolve/efe615b5b626e5a9587a15fc6d52dce7b61f8f0d/base_model_ptv3_dales_.pth",
+        pretrained_filter_fn=segmentation_checkpoint_filter_fn,
+        dataset="dales",
+        # NOTE: the model card's 69.29 is scored on one random draw of 24 000 grid-sampled points per 50 m block;
+        # this is every voxel, predicted in random groups of at most 24 000, scored on every point.
+        metrics={"mIoU": 68.70, "OA": 96.47},
+        classes=DALES_CLASSES,
+        author="jayakumar-pujar",
+        license="MIT",
+    ),
+    transform=_PTV3_DALES_TRANSFORMS,
+    hparams=dict(
+        in_channels=4,
+        num_classes=9,
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(48, 96, 192, 384, 768),
+        encoder_num_heads=(2, 4, 8, 16, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(2, 2, 2, 2),
+        decoder_channels=(384, 192, 96, 96),
+        decoder_num_heads=(16, 8, 4, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        attn_kind="rope",
+        rope_base=10000.0,
+        use_flash_attn=True,
+        norm="layer_norm",
+        norm_kwargs={"mode": "node"},
+        act="gelu",
+        pooling="grid",
+        stem_type="linear",
+    ),
+)
+def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
     return PointTransformerV3Segmentation(**hparams)

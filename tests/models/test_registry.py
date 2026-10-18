@@ -1,8 +1,10 @@
 import subprocess
 import sys
+from email.message import Message
 from pathlib import Path
 from typing import Any, Dict, Iterator, List
 from unittest.mock import Mock
+from urllib.error import HTTPError
 
 import pytest
 import torch
@@ -19,7 +21,11 @@ from torch_pointcloud.models import (
     model_info,
     register_model,
 )
-from torch_pointcloud.models._registry import _DEPRECATED_MODELS, _REGISTERED_MODELS, cache_path
+from torch_pointcloud.models._registry import (
+    _DEPRECATED_MODELS,
+    _REGISTERED_MODELS,
+    cache_path,
+)
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 
@@ -655,11 +661,14 @@ def test_create_model_pretrained_downloads_missing_weights(tmp_path: Path, monke
         weights="hf://torch-pointcloud/dummy-download/resolve/v1.0/model.pt",
     )(_dummy_classification)
 
-    def fake_download(url: str, dst: str, progress: bool = True) -> None:
-        torch.save(DummyClassificationModel().state_dict(), dst)
+    def fake_download(url: str, file_path: Path, **kwargs: Any) -> str:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(DummyClassificationModel().state_dict(), file_path)
+        return file_path.as_posix()
 
     download = Mock(side_effect=fake_download)
-    monkeypatch.setattr("torch.hub.download_url_to_file", download)
+    monkeypatch.setattr("torch_pointcloud.models._registry.download_url", download)
+    monkeypatch.setenv("HF_TOKEN", "hf_secret")
 
     try:
         model = create_model("dummy-download.classification", task="classification", pretrained=True)
@@ -668,6 +677,7 @@ def test_create_model_pretrained_downloads_missing_weights(tmp_path: Path, monke
 
     assert isinstance(model, DummyClassificationModel)
     assert download.call_args.args[0] == "https://huggingface.co/torch-pointcloud/dummy-download/resolve/v1.0/model.pt"
+    assert download.call_args.kwargs["headers"] == {"Authorization": "Bearer hf_secret"}
     assert (tmp_path / "dummy-download" / "v1.0" / "model.pt").exists()
     assert not list(tmp_path.rglob("*.part"))
 
@@ -679,7 +689,7 @@ def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeyp
         task="classification",
         weights="hf://torch-pointcloud/dummy-offline/resolve/main/model.pt",
     )(_dummy_classification)
-    monkeypatch.setattr("torch.hub.download_url_to_file", Mock(side_effect=OSError("offline")))
+    monkeypatch.setattr("torch_pointcloud.models._registry.download_url", Mock(side_effect=OSError("offline")))
 
     try:
         with pytest.raises(FileNotFoundError, match="Could not download"):
@@ -688,6 +698,30 @@ def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeyp
         _REGISTERED_MODELS["classification"].pop("dummy-offline.classification", None)
 
     assert not (tmp_path / "dummy-offline" / "main" / "model.pt").exists()
+
+
+def test_create_model_pretrained_gated_download_names_the_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
+    register_model(
+        "dummy-gated.classification",
+        task="classification",
+        weights="hf://authors/dummy-gated/resolve/main/model.pt",
+    )(_dummy_classification)
+    url = "https://huggingface.co/authors/dummy-gated/resolve/main/model.pt"
+    error = HTTPError(url, 401, "Unauthorized", Message(), None)
+    monkeypatch.setattr("torch_pointcloud.models._registry.download_url", Mock(side_effect=error))
+
+    try:
+        with pytest.raises(
+            FileNotFoundError, match="gated: accept its terms at https://huggingface.co/authors/dummy-gated"
+        ):
+            create_model("dummy-gated.classification", task="classification", pretrained=True)
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-gated.classification", None)
+
+    assert not list(tmp_path.rglob("*.part"))
 
 
 def test_cache_path_rejects_several_urls() -> None:

@@ -78,6 +78,7 @@ from .sampling import (
     SphereCrop,
 )
 from .scaling import (
+    MaxAbsScale,
     Normalize,
     Rescale,
 )
@@ -151,6 +152,7 @@ __all__ = [
     "ShufflePoint",
     "Slice",
     "SphereCrop",
+    "MaxAbsScale",
     "Normalize",
     "Rescale",
     "Abs",

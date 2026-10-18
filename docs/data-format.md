@@ -28,6 +28,8 @@ Per-point tensors have one row per point.
 | `color`     | $(N, 3)$ | uint8 or float32 | RGB, in $[0, 255]$ or $[0, 1]$ depending on the dataset                     |
 | `normal`    | $(N, 3)$ | float32          | Normals                                                                      |
 | `intensity` | $(N, 1)$ | float32          | LiDAR intensity                                                              |
+| `return_number` | $(N, 1)$ | int64        | LiDAR return number, 1-based                                                 |
+| `number_of_returns` | $(N, 1)$ | int64    | Number of returns of the LiDAR pulse                                         |
 | `segment`   | $(N,)$   | int64            | Semantic label, see [ignore index](#ignore-index)                            |
 | `instance`  | $(N,)$   | int64            | Instance id, $-1$ when none                                                  |
 

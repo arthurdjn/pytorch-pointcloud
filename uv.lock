@@ -1143,6 +1143,19 @@ wheels = [
 ]
 
 [[package]]
+name = "laspy"
+version = "2.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9c/5d/5a540ac25dcc57fa77691363bb753363b192a3759aefef4b40e1250ddb17/laspy-2.7.0.tar.gz", hash = "sha256:f56feb5445e75d6ff12ee814aab6a35339290e75264ff277c6bf553f3025a3f5", size = 1929624, upload-time = "2026-01-14T22:18:42.856Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/fb/ae27ebca327117e35cc717a3a87afdcbbf10d5aac52e405d16ebe777357e/laspy-2.7.0-py3-none-any.whl", hash = "sha256:15f5344c62a1023461996bdf5d1ba5fdd813e96694a524fee712931134f3792f", size = 86056, upload-time = "2026-01-14T22:18:40.779Z" },
+]
+
+[[package]]
 name = "librt"
 version = "0.7.7"
 source = { registry = "https://pypi.org/simple" }
@@ -3378,6 +3391,7 @@ lightning = [
 dev = [
     { name = "ipykernel" },
     { name = "ipywidgets" },
+    { name = "laspy" },
     { name = "mkdocs" },
     { name = "mkdocs-exclude" },
     { name = "mkdocs-jupyter" },
@@ -3416,6 +3430,7 @@ provides-extras = ["lightning"]
 dev = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.8" },
+    { name = "laspy", specifier = ">=2.5.0" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-exclude", specifier = ">=1.0.2" },
     { name = "mkdocs-jupyter", specifier = ">=0.25.1" },
