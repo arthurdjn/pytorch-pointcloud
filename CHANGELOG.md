@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the `deprecated_model` decorator, stacked under `register_model`, which keeps a renamed model reachable under its former name with a `FutureWarning` until the release named by `removed_in`; it replaces `register_model(deprecated_names=...)`.
+
 ## 0.0.17 (2026-10-18)
 
 - Added the Point Transformer V3 DALES checkpoint `ptv3.dales.jayakumar-pujar` (MIT) and its benchmark on the DALES test tiles.

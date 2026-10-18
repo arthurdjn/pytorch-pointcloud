@@ -7,7 +7,9 @@ from typing import Any, Callable, Dict, List, Optional
 import pytest
 import torch
 import torch.nn as nn
+from packaging.version import Version
 
+from torch_pointcloud import __version__
 from torch_pointcloud.models import create_model, list_models, model_info
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, _is_non_commercial_license
 from torch_pointcloud.ops.octree import build_octree
@@ -813,6 +815,24 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
         assert detections["labels"].max().item() < model.num_classes
         assert detections["batch"].min().item() >= 0
         assert detections["batch"].max().item() <= 1
+
+
+@pytest.mark.parametrize(
+    "former_name,name,removed_in",
+    [
+        pytest.param("sonata-lp.scannet20.fair", "sonata-base-lp.scannet20.fair", "0.0.18"),
+        pytest.param("utonia.pretrain.pointcept", "utonia-base.pretrain.pointcept", "0.0.18"),
+        pytest.param("utonia-lp.scannet20.pointcept", "utonia-base-lp.scannet20.pointcept", "0.0.18"),
+        pytest.param("pvcnn2.s3dis-area5", "pvcnn2.s3dis-area5.mit-han-lab", "0.0.18"),
+    ],
+)
+def test_registered_former_names_resolve_until_their_removal(former_name: str, name: str, removed_in: str) -> None:
+    """A former name past its `removed_in` raises, so this fails on the version bump that drops the shim: delete its
+    `deprecated_model` decorator and this row together."""
+    assert Version(__version__) < Version(removed_in), f"{former_name!r} was removed in {removed_in}; drop its shim"
+    with pytest.warns(FutureWarning, match=f"'{former_name}' was renamed to '{name}'"):
+        assert model_info(former_name)["name"] == name
+    assert former_name not in list_models()
 
 
 def test_registered_weights_classes_match_num_classes() -> None:
