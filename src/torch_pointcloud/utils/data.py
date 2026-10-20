@@ -115,6 +115,12 @@ def _collate_value(values: List[Any]) -> Any:
     if _OCNN_AVAILABLE and isinstance(first, Octree):
         octree = ocnn.octree.merge_octrees(values)
         octree.construct_all_neigh()
+        # Since ocnn 2.3.3, all octrees share one lookup-table cache. Sending the batch from a DataLoader worker
+        # moves these tensors to shared memory and frees the old buffers while the worker still reads them, which
+        # raises IndexError in construct_neigh_by_parent. Copying them keeps the cache out of the batch.
+        octree.lut_parent = octree.lut_parent.clone()
+        octree.lut_child = octree.lut_child.clone()
+        octree.lut_kernel = {kernel: lut.clone() for kernel, lut in octree.lut_kernel.items()}
         return octree
     return list(values)
 

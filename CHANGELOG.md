@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Fixed `randlanet.{semantickitti,semantic3d,parislille3d}.open3d` to use the activation and input transforms their weights were trained with.
+- Fixed the intermittent `IndexError` in `construct_neigh_by_parent` when DataLoader workers collate ocnn octrees: the batch octree no longer shares ocnn's lookup-table cache.
 
 ## 0.0.17 (2026-10-18)
 

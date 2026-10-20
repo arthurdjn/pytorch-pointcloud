@@ -420,3 +420,41 @@ def test_offset_index_shifts_by_scene_rows() -> None:
     batch_inverse = torch.tensor([0, 0, 0, 1, 1, 1, 1])
     batch = torch.tensor([0, 0, 1, 1, 1])
     assert torch.equal(offset_index(inverse, batch_inverse, batch), torch.tensor([0, 1, 1, 2, 4, 4, 3]))
+
+
+def _octree_sample(index: int) -> Any:
+    ocnn = pytest.importorskip("ocnn")
+    generator = torch.Generator().manual_seed(index)
+    octree = ocnn.octree.Octree(depth=5, full_depth=2)
+    octree.build_octree(ocnn.octree.Points(torch.rand(500, 3, generator=generator) * 2 - 1))
+    return octree
+
+
+def test_collate_octrees_copies_the_lookup_tables() -> None:
+    """The batch octree holds copies of ocnn's class-level lookup tables, not the shared cache."""
+    ocnn = pytest.importorskip("ocnn")
+    samples = [{"octree": _octree_sample(0)}, {"octree": _octree_sample(1)}]
+    cache = ocnn.octree.Octree._lut_cache[torch.device("cpu")]
+    octree = collate(samples)["octree"]
+    assert torch.equal(octree.lut_parent, cache[0]) and octree.lut_parent.data_ptr() != cache[0].data_ptr()
+    assert torch.equal(octree.lut_child, cache[1]) and octree.lut_child.data_ptr() != cache[1].data_ptr()
+    assert all(octree.lut_kernel[key].data_ptr() != lut.data_ptr() for key, lut in cache[2].items())
+
+
+class _OctreeDataset(Dataset):
+    """Octrees that report, from the worker, whether ocnn's lookup-table cache was moved to shared memory."""
+
+    def __len__(self) -> int:
+        return 12
+
+    def __getitem__(self, index: int) -> Any:
+        octree = _octree_sample(index)
+        cache = type(octree)._lut_cache[torch.device("cpu")]
+        return {"octree": octree, "cache_shared": int(cache[0].is_shared() or cache[1].is_shared())}
+
+
+def test_collate_octrees_in_workers_keeps_the_lookup_table_cache() -> None:
+    """Sending batches from a worker never moves the cache the worker keeps reading."""
+    pytest.importorskip("ocnn")
+    loader = PointCloudDataLoader(_OctreeDataset(), batch_size=2, num_workers=1)
+    assert [batch["cache_shared"].tolist() for batch in loader] == [[0, 0]] * 6
