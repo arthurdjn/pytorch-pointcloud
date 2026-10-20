@@ -2,7 +2,7 @@ import subprocess
 import sys
 from email.message import Message
 from pathlib import Path
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator
 from unittest.mock import Mock
 from urllib.error import HTTPError
 
@@ -17,6 +17,7 @@ from torch_pointcloud.models import (
     SemanticSegmentationModel,
     WeightsDict,
     create_model,
+    deprecated_model,
     list_models,
     model_info,
     register_model,
@@ -120,11 +121,12 @@ def _register_pretrained_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 @pytest.fixture
 def _register_renamed_dummy() -> Iterator[None]:
     """Register `dummy-renamed.classification` with the former name `dummy-former.classification`, then drop both."""
-    register_model(
-        "dummy-renamed.classification",
-        task="classification",
-        deprecated_names="dummy-former.classification",
-    )(_dummy_classification)
+
+    @deprecated_model("dummy-former.classification", deprecated_in="0.0.17", removed_in="0.1.0")
+    @register_model("dummy-renamed.classification", task="classification")
+    def dummy_renamed(**kwargs: Any) -> DummyClassificationModel:
+        return DummyClassificationModel(**kwargs)
+
     yield
     _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification", None)
     _DEPRECATED_MODELS["classification"].pop("dummy-former.classification", None)
@@ -135,11 +137,12 @@ def _register_renamed_in_one_task_dummy() -> Iterator[None]:
     """Register `dummy-shared.demo` for semantic segmentation and, renamed from that name for classification only,
     `dummy-shared-v2.demo`, then drop them."""
     register_model("dummy-shared.demo", task="semantic-segmentation")(_dummy_segmentation)
-    register_model(
-        "dummy-shared-v2.demo",
-        task="classification",
-        deprecated_names="dummy-shared.demo",
-    )(_dummy_classification)
+
+    @deprecated_model("dummy-shared.demo", deprecated_in="0.0.17")
+    @register_model("dummy-shared-v2.demo", task="classification")
+    def dummy_shared_v2(**kwargs: Any) -> DummyClassificationModel:
+        return DummyClassificationModel(**kwargs)
+
     yield
     _REGISTERED_MODELS["semantic-segmentation"].pop("dummy-shared.demo", None)
     _REGISTERED_MODELS["classification"].pop("dummy-shared-v2.demo", None)
@@ -297,43 +300,166 @@ def test_list_models_skips_former_names(_register_renamed_dummy: None) -> None:
     assert list_models("dummy*", task="classification") == ["dummy-renamed.classification", "dummy.classification"]
 
 
-@pytest.mark.parametrize(
-    "deprecated_names,former_names",
-    [
-        pytest.param("dummy-former.classification", ["dummy-former.classification"], id="str"),
-        pytest.param(
-            ["dummy-former.classification", "dummy-older.classification"],
-            ["dummy-former.classification", "dummy-older.classification"],
-            id="list",
-        ),
-        pytest.param(("dummy-former.classification",), ["dummy-former.classification"], id="tuple"),
-    ],
-)
-def test_register_model_deprecated_names_takes_a_name_or_a_sequence(
-    deprecated_names: Any, former_names: List[str]
-) -> None:
-    register_model(
-        "dummy-renamed.classification",
-        task="classification",
-        deprecated_names=deprecated_names,
-    )(_dummy_classification)
+def test_deprecated_model_stacks_one_decorator_per_former_name() -> None:
+    @deprecated_model("dummy-former.classification", deprecated_in="0.0.17", removed_in="0.1.0")
+    @deprecated_model("dummy-older.classification", deprecated_in="0.0.15")
+    @register_model("dummy-renamed.classification", task="classification")
+    def dummy_renamed(**kwargs: Any) -> DummyClassificationModel:
+        return DummyClassificationModel(**kwargs)
+
     try:
-        for former in former_names:
-            with pytest.warns(FutureWarning, match=f"'{former}' was renamed to 'dummy-renamed.classification'"):
-                assert model_info(former)["name"] == "dummy-renamed.classification"
+        with pytest.warns(
+            FutureWarning,
+            match=r"'dummy-former.classification' was renamed to 'dummy-renamed.classification' in 0.0.17; the former "
+            r"name will be removed in 0.1.0\.$",
+        ):
+            assert model_info("dummy-former.classification")["name"] == "dummy-renamed.classification"
+        with pytest.warns(
+            FutureWarning,
+            match=r"'dummy-older.classification' was renamed to 'dummy-renamed.classification' in 0.0.15; the former "
+            r"name will be removed in a future release\.$",
+        ):
+            assert model_info("dummy-older.classification")["name"] == "dummy-renamed.classification"
+        assert _REGISTERED_MODELS["classification"]["dummy-renamed.classification"]["deprecated_names"] == (
+            {"name": "dummy-older.classification", "deprecated_in": "0.0.15", "removed_in": None, "message": None},
+            {"name": "dummy-former.classification", "deprecated_in": "0.0.17", "removed_in": "0.1.0", "message": None},
+        )
     finally:
         _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification", None)
-        for former in former_names:
-            _DEPRECATED_MODELS["classification"].pop(former, None)
+        _DEPRECATED_MODELS["classification"].pop("dummy-former.classification", None)
+        _DEPRECATED_MODELS["classification"].pop("dummy-older.classification", None)
 
 
-def test_register_model_deprecated_name_of_a_registered_model_raises() -> None:
-    with pytest.raises(ValueError, match="'dummy.classification' is already a registered 'classification' model name"):
-        register_model(
-            "dummy-other.classification",
-            task="classification",
-            deprecated_names=("dummy.classification",),
-        )(_dummy_classification)
+def test_deprecated_model_appends_the_message_to_the_warning() -> None:
+    @deprecated_model("dummy-former.classification", deprecated_in="0.0.17", message="The weights changed too.")
+    @register_model("dummy-renamed.classification", task="classification")
+    def dummy_renamed(**kwargs: Any) -> DummyClassificationModel:
+        return DummyClassificationModel(**kwargs)
+
+    try:
+        with pytest.warns(FutureWarning, match=r"a future release\. The weights changed too\.$"):
+            model_info("dummy-former.classification")
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification", None)
+        _DEPRECATED_MODELS["classification"].pop("dummy-former.classification", None)
+
+
+def test_deprecated_model_registers_a_class() -> None:
+    @deprecated_model("dummy-class-former.classification", deprecated_in="0.0.17")
+    @register_model("dummy-class.classification", task="classification")
+    class DummyRenamedClass(DummyClassificationModel):
+        pass
+
+    try:
+        with pytest.warns(FutureWarning, match="renamed to 'dummy-class.classification'"):
+            model = create_model("dummy-class-former.classification")
+        assert isinstance(model, DummyRenamedClass)
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-class.classification", None)
+        _DEPRECATED_MODELS["classification"].pop("dummy-class-former.classification", None)
+
+
+def test_create_model_former_name_of_a_popped_entry_is_not_found(_register_renamed_dummy: None) -> None:
+    _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification")
+    for task in (None, "classification"):
+        with pytest.raises(
+            ValueError, match="'dummy-former.classification' not found in the 'classification' registry"
+        ):
+            create_model("dummy-former.classification", task=task)
+
+    register_model("dummy-renamed.classification", task="classification")(_dummy_classification)
+    with pytest.raises(ValueError, match="'dummy-former.classification' not found in the 'classification' registry"):
+        create_model("dummy-former.classification")
+
+
+def test_model_info_lists_the_former_names(_register_renamed_dummy: None) -> None:
+    assert model_info("dummy-renamed.classification")["deprecated_names"] == (
+        {"name": "dummy-former.classification", "deprecated_in": "0.0.17", "removed_in": "0.1.0", "message": None},
+    )
+
+
+@pytest.mark.parametrize(
+    "kwargs,match",
+    [
+        pytest.param(dict(deprecated_in="soon"), "version string for `deprecated_in`", id="deprecated_in"),
+        pytest.param(
+            dict(deprecated_in="0.0.17", removed_in="later"), "version string for `removed_in`", id="removed_in"
+        ),
+        pytest.param(
+            dict(deprecated_in="0.0.17", removed_in="0.0.17"),
+            "removed in '0.0.17', which is not a later release than its deprecation in '0.0.17'",
+            id="same-release",
+        ),
+        pytest.param(
+            dict(deprecated_in="0.0.17", removed_in="0.0.16"),
+            "removed in '0.0.16', which is not a later release than its deprecation in '0.0.17'",
+            id="earlier-release",
+        ),
+    ],
+)
+def test_deprecated_model_invalid_schedule_raises(kwargs: Dict[str, str], match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        deprecated_model("dummy-former.classification", **kwargs)
+
+
+def test_deprecated_model_below_register_model_raises() -> None:
+    with pytest.raises(ValueError, match="is not registered. Place `@deprecated_model` above `@register_model`"):
+
+        @deprecated_model("dummy-former.classification", deprecated_in="0.0.17")
+        def dummy_unregistered(**kwargs: Any) -> DummyClassificationModel:
+            return DummyClassificationModel(**kwargs)
+
+
+def test_deprecated_model_registered_under_several_names_raises() -> None:
+    register_model("dummy-twice.classification", task="classification")(_dummy_classification)
+    try:
+        with pytest.raises(
+            ValueError,
+            match=r"registered as 'dummy.classification' \('classification'\), 'dummy-twice.classification' \('classification'\)",
+        ):
+            deprecated_model("dummy-former.classification", deprecated_in="0.0.17")(_dummy_classification)
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-twice.classification", None)
+
+
+def test_deprecated_model_same_former_name_twice_raises() -> None:
+    try:
+        with pytest.raises(
+            ValueError,
+            match="'dummy-former.classification' is already a deprecated name of 'dummy-renamed.classification'",
+        ):
+
+            @deprecated_model("dummy-former.classification", deprecated_in="0.0.17")
+            @deprecated_model("dummy-former.classification", deprecated_in="0.0.16")
+            @register_model("dummy-renamed.classification", task="classification")
+            def dummy_renamed(**kwargs: Any) -> DummyClassificationModel:
+                return DummyClassificationModel(**kwargs)
+
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-renamed.classification", None)
+        _DEPRECATED_MODELS["classification"].pop("dummy-former.classification", None)
+
+
+def test_register_model_overwrite_drops_the_former_names(_register_renamed_dummy: None) -> None:
+    with pytest.warns(UserWarning, match="overwriting the existing entry"):
+        register_model("dummy-renamed.classification", task="classification")(_dummy_classification)
+    with pytest.raises(ValueError, match="'dummy-former.classification' is not registered"):
+        model_info("dummy-former.classification")
+
+
+def test_deprecated_model_name_of_a_registered_model_raises() -> None:
+    try:
+        with pytest.raises(
+            ValueError, match="'dummy.classification' is already a registered 'classification' model name"
+        ):
+
+            @deprecated_model("dummy.classification", deprecated_in="0.0.17")
+            @register_model("dummy-other.classification", task="classification")
+            def dummy_other(**kwargs: Any) -> DummyClassificationModel:
+                return DummyClassificationModel(**kwargs)
+
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-other.classification", None)
 
 
 def test_register_model_under_a_deprecated_name_raises(_register_renamed_dummy: None) -> None:
@@ -368,24 +494,33 @@ def test_create_model_former_name_under_another_task_hints_the_rename(
         create_model("dummy-shared.demo", task="pretraining")
 
 
-def test_register_model_deprecated_name_equal_to_the_name_raises() -> None:
-    with pytest.raises(ValueError, match="'dummy-self.classification' is the registered name itself"):
-        register_model(
-            "dummy-self.classification",
-            task="classification",
-            deprecated_names="dummy-self.classification",
-        )(_dummy_classification)
+def test_deprecated_model_name_equal_to_the_registered_name_raises() -> None:
+    try:
+        with pytest.raises(ValueError, match="'dummy-self.classification' is the registered name itself"):
+
+            @deprecated_model("dummy-self.classification", deprecated_in="0.0.17")
+            @register_model("dummy-self.classification", task="classification")
+            def dummy_self(**kwargs: Any) -> DummyClassificationModel:
+                return DummyClassificationModel(**kwargs)
+
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-self.classification", None)
 
 
-def test_register_model_deprecated_name_of_another_model_raises(_register_renamed_dummy: None) -> None:
-    with pytest.raises(
-        ValueError, match="'dummy-former.classification' is already a deprecated name of 'dummy-renamed.classification'"
-    ):
-        register_model(
-            "dummy-other.classification",
-            task="classification",
-            deprecated_names="dummy-former.classification",
-        )(_dummy_classification)
+def test_deprecated_model_name_of_another_model_raises(_register_renamed_dummy: None) -> None:
+    try:
+        with pytest.raises(
+            ValueError,
+            match="'dummy-former.classification' is already a deprecated name of 'dummy-renamed.classification'",
+        ):
+
+            @deprecated_model("dummy-former.classification", deprecated_in="0.0.17")
+            @register_model("dummy-other.classification", task="classification")
+            def dummy_other(**kwargs: Any) -> DummyClassificationModel:
+                return DummyClassificationModel(**kwargs)
+
+    finally:
+        _REGISTERED_MODELS["classification"].pop("dummy-other.classification", None)
 
 
 @pytest.mark.filterwarnings("error::UserWarning")
