@@ -129,10 +129,10 @@ ptv3.dales.jayakumar-pujar,point_transformer_v3,semantic-segmentation,dales,true
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
 pvcnn2-c0p5.s3dis-area5.mit-han-lab,pvcnn2,semantic-segmentation,s3dis-area5,true,MIT,3.43,mIoU,58.30,59.83,mIoU 59.83 · OA 87.22 · simple/mIoU 56.87 · simple/OA 85.81
 pvcnn2.s3dis-area5.mit-han-lab,pvcnn2,semantic-segmentation,s3dis-area5,true,MIT,13.71,mIoU,59.02,59.95,mIoU 59.95 · OA 87.62 · simple/mIoU 57.27 · simple/OA 86.33
-randlanet.parislille3d.open3d,randlanet,semantic-segmentation,parislille3d,true,MIT,4.99,mIoU,70,48.10,mIoU 48.10 · OA 96.08
+randlanet.parislille3d.open3d,randlanet,semantic-segmentation,parislille3d,true,MIT,4.99,mIoU,70,83.05,mIoU 83.05 · OA 98.67
 randlanet.s3dis-area3.open3d,randlanet,semantic-segmentation,s3dis-area3,true,MIT,4.99,mIoU,70.9,70.43,mIoU 70.43 · OA 87.90
-randlanet.semantic3d.open3d,randlanet,semantic-segmentation,semantic3d,true,MIT,4.99,mIoU,76,70.97,mIoU 70.97 · OA 83.39
-randlanet.semantickitti.open3d,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.8,46.18,mIoU 46.18 · OA 83.99
+randlanet.semantic3d.open3d,randlanet,semantic-segmentation,semantic3d,true,MIT,4.99,mIoU,76,90.34,mIoU 90.34 · OA 98.56
+randlanet.semantickitti.open3d,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.8,54.76,mIoU 54.76 · OA 90.19
 randlanet.semantickitti.tsung-han-wu,randlanet,semantic-segmentation,semantickitti,true,MIT,1.24,mIoU,52.9,55.39,mIoU 55.39 · OA 90.05
 randlanet.toronto3d.open3d,randlanet,semantic-segmentation,toronto3d,true,MIT,4.99,mIoU,74,73.88,mIoU 73.88 · OA 95.85
 sonata-base-lp.scannet20.fair,sonata,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,108.49,mIoU,72.5,72.60,mIoU 72.60 · OA 89.80

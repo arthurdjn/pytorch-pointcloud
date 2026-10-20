@@ -2,7 +2,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -31,16 +31,6 @@ IGNORE_INDEX: Dict[str, int] = {
 EMA_SMOOTHING: Dict[str, float] = {
     "randlanet.semantickitti.tsung-han-wu": 0.98,
     "randlanet.semantickitti.open3d": 0.95,
-}
-# tsung-han-wu feeds the voxel coordinates as they are; Open3D-ML recentres every window on its x/y centroid.
-WINDOW_TRANSFORM: Dict[str, Optional[T.Transform]] = {
-    "randlanet.semantickitti.tsung-han-wu": None,
-    "randlanet.semantickitti.open3d": T.Compose(
-        [
-            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
-            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
-        ]
-    ),
 }
 
 
@@ -110,7 +100,6 @@ def configure_inferer(args: Namespace) -> Inferer:
         overlap=0.5,
         aggregate="ema",
         ema_smoothing=EMA_SMOOTHING[args.model],
-        transform=WINDOW_TRANSFORM[args.model],
         seed=args.seed,
     )
 
