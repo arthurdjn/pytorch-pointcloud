@@ -32,6 +32,7 @@ FORMER_NAMES = [
     ("utonia.pretrain.pointcept", "utonia-base.pretrain.pointcept", "0.0.18"),
     ("utonia-lp.scannet20.pointcept", "utonia-base-lp.scannet20.pointcept", "0.0.18"),
     ("pvcnn2.s3dis-area5", "pvcnn2.s3dis-area5.mit-han-lab", "0.0.18"),
+    ("point-transformer.s3dis-area5", "point-transformer.s3dis-area5.open3d", "0.0.18"),
 ]
 
 CLASSIFICATION_MODELS = [

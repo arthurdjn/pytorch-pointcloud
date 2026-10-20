@@ -20,7 +20,7 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.point_transformer_conv import PointTransformerConv
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
-from torch_pointcloud.models._registry import WeightsDict, register_model
+from torch_pointcloud.models._registry import WeightsDict, deprecated_model, register_model
 from torch_pointcloud.ops.cluster import fps, knn, knn_graph, knn_interpolate
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -929,6 +929,7 @@ def _point_transformer_seg_transforms(
     return T.Compose(steps)
 
 
+@deprecated_model("point-transformer.s3dis-area5", deprecated_in="0.0.17", removed_in="0.0.18")
 @register_model(
     "point-transformer.s3dis-area5.open3d",
     task="semantic-segmentation",
