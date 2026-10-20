@@ -17,7 +17,8 @@ from .augmentation import (
 )
 from .box import cut_boxes, points_in_oriented_box
 from .geometry import axis_min_offset, estimate_normals, quantize, rotate_vectors, rotation_matrix, shift
-from .masking import apply_mask, bounding_box, box_mask, cube_mask, remove_near_origin, sphere_mask
+from .lidar import lidar_hd_features, standardize_lidar_hd_features
+from .masking import apply_mask, bounding_box, box_mask, cube_mask, label_mask, remove_near_origin, sphere_mask
 from .mixing import laser_mix_masks, polar_mix_masks
 from .sampling import (
     farthest_point_sample,
@@ -48,7 +49,9 @@ __all__ = [
     "farthest_point_sample",
     "flip_boxes",
     "flip_vectors",
+    "label_mask",
     "laser_mix_masks",
+    "lidar_hd_features",
     "maxabs_scale",
     "minimal_enclosing_ball",
     "normalize",
@@ -71,6 +74,7 @@ __all__ = [
     "shift",
     "shuffle_indices",
     "sphere_mask",
+    "standardize_lidar_hd_features",
     "translate_boxes",
     "voxelize",
 ]

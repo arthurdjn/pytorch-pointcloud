@@ -2,6 +2,7 @@
 
 import re
 import warnings
+import zipfile
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Set
@@ -16,12 +17,29 @@ from .types import PathLike
 _PLACEHOLDER_RE = re.compile(r"^\s*(\w+)\s*(?:([+-])\s*(\d+))?\s*$")
 
 
+class _PickledObject:
+    """Stand-in for a pickled object that is not a tensor or a container, keeping its arguments and state without
+    importing or calling the class it was saved from."""
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "_PickledObject":
+        return super().__new__(cls)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.args = args
+        self.kwargs = kwargs
+
+    def __setstate__(self, state: Any) -> None:
+        self.state = state
+
+
 def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
     Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
-    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
-    only `model.`-prefixed keys are kept, with the prefix stripped.
+    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped
+    network: only `model.`-prefixed keys are kept, with the prefix stripped. `torch.save` files load with
+    `weights_only=True`; the other objects of a zip checkpoint (training hyperparameters, optimizer and scheduler
+    configurations) are read as inert placeholders, so their classes are neither imported nor called.
 
     Args:
         path: Checkpoint file to read.
@@ -44,7 +62,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     if path.suffix == ".safetensors":
         return dict(load_file(path.as_posix()))
 
-    data = torch.load(path, weights_only=True, map_location="cpu")
+    unsafe_globals = torch.serialization.get_unsafe_globals_in_checkpoint(path) if zipfile.is_zipfile(path) else []
+    with torch.serialization.safe_globals([(_PickledObject, name) for name in unsafe_globals]):
+        data = torch.load(path, weights_only=True, map_location="cpu")
     if not isinstance(data, dict):
         raise ValueError(
             f"Checkpoint {path.as_posix()!r} is not a state dict: expected a mapping of parameter names to "

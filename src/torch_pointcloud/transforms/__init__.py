@@ -51,10 +51,15 @@ from .geometry import (
     Shift,
     Translate,
 )
+from .lidar import (
+    LidarHDFeatures,
+    StandardizeLidarHDFeatures,
+)
 from .masking import (
     ApplyMask,
     BoxMask,
     CubeMask,
+    LabelMask,
     RemoveNearOrigin,
     SphereMask,
 )
@@ -134,9 +139,12 @@ __all__ = [
     "Quantize",
     "Shift",
     "Translate",
+    "LidarHDFeatures",
+    "StandardizeLidarHDFeatures",
     "ApplyMask",
     "BoxMask",
     "CubeMask",
+    "LabelMask",
     "RemoveNearOrigin",
     "SphereMask",
     "LaserMix",

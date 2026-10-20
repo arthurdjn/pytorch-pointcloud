@@ -189,6 +189,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area3.openpoints",
     "pointnext-xl.s3dis-area4.openpoints",
     "pointnext-xl.s3dis-area5.openpoints",
+    "randlanet.fractal.ignf",
     "randlanet.semantickitti.tsung-han-wu",
     "randlanet.semantickitti.open3d",
     "randlanet.s3dis-area3.open3d",
@@ -886,7 +887,7 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
                 assert match is not None and re.fullmatch(r"[0-9a-f]{40}", match["revision"]), (name, url)
                 if match["namespace"] == "torch-pointcloud":
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
-            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
+            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
             assert weights["author"], name
 
 

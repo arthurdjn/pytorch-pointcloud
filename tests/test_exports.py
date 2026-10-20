@@ -45,6 +45,7 @@ TRANSFORMS_MODULES = [
     "base",
     "box",
     "geometry",
+    "lidar",
     "masking",
     "mixing",
     "octree",

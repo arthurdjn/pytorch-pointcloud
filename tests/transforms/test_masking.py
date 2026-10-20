@@ -484,3 +484,33 @@ def test_box_mask_tests_box_rows_by_their_center() -> None:
     assert T.BoxMask(keys="box", bbox=(0.0, -40.0, -3.0, 20.0, 40.0, 1.0), dst_keys="m")({"box": boxes})[
         "m"
     ].tolist() == [True, False]
+
+
+def test_label_mask_selects_labels() -> None:
+    segment = torch.tensor([1, 2, 65, 5, 66])
+    result = T.LabelMask(keys="segment", labels=[65, 66], dst_keys="mask")({"segment": segment})
+    assert result["mask"].tolist() == [False, False, True, False, True]
+    assert torch.equal(result["segment"], segment)
+
+
+def test_label_mask_invert_then_apply_mask_drops_labels() -> None:
+    data = {"pos": torch.arange(15.0).reshape(5, 3), "segment": torch.tensor([1, 2, 65, 5, 66])}
+    transform = T.Compose(
+        [
+            T.LabelMask(keys="segment", labels=[65, 66], invert=True, dst_keys="mask"),
+            T.ApplyMask(keys=["pos", "segment"], mask_key="mask"),
+        ]
+    )
+    result = transform(data)
+    assert result["segment"].tolist() == [1, 2, 5]
+    assert torch.equal(result["pos"], data["pos"][[0, 1, 3]])
+
+
+def test_label_mask_missing_key_allowed() -> None:
+    transform = T.LabelMask(keys="segment", labels=[65], dst_keys="mask", allow_missing_keys=True)
+    assert "mask" not in transform({"pos": torch.zeros(2, 3)})
+
+
+def test_label_mask_functional_any_shape_and_dtype() -> None:
+    segment = torch.tensor([[1, 65], [66, 2]], dtype=torch.uint8)
+    assert F.label_mask(segment, [65, 66]).tolist() == [[False, True], [True, False]]

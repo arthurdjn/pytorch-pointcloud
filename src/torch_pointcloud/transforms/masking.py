@@ -14,6 +14,7 @@ __all__ = [
     "ApplyMask",
     "BoxMask",
     "CubeMask",
+    "LabelMask",
     "RemoveNearOrigin",
     "SphereMask",
 ]
@@ -247,6 +248,82 @@ class BoxMask(DictTransform):
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = box_mask(data[key], self.bbox, dim=self.dim, strict=self.strict)
+        return data
+
+
+def label_mask(x: Tensor, labels: Sequence[int], invert: bool = False) -> Tensor:
+    """Create a boolean mask for the entries of `x` whose value is in `labels` (`torch.isin`).
+
+    Args:
+        x: Integer labels, any shape.
+        labels: The label values to select.
+        invert: If `True`, select the entries whose value is not in `labels`.
+
+    Returns:
+        The boolean mask, same shape as `x`.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> F.label_mask(torch.tensor([1, 2, 65, 5]), labels=[65, 66], invert=True)
+        tensor([ True,  True, False,  True])
+
+        ```
+    """
+    return torch.isin(x, torch.as_tensor(labels, dtype=x.dtype, device=x.device), invert=invert)
+
+
+class LabelMask(DictTransform):
+    """Create a boolean mask for the points whose label is in `labels`.
+
+    Pair it with `ApplyMask` to drop (`invert=True`) or keep the points of some classes.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.label_mask`
+
+    Args:
+        keys: The keys holding integer labels.
+        labels: The label values to select.
+        dst_keys: The keys to store the mask in.
+        invert: If `True`, select the points whose label is not in `labels`.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Example:
+        Drop the LiDAR HD artefacts (65) and virtual points (66):
+
+        ```python
+        import torch
+
+        import torch_pointcloud.transforms as T
+
+        transform = T.Compose(
+            [
+                T.LabelMask(keys="segment", labels=[65, 66], invert=True, dst_keys="class_mask"),
+                T.ApplyMask(keys=["pos", "segment"], mask_key="class_mask"),
+            ]
+        )
+        data = transform({"pos": torch.rand(4, 3), "segment": torch.tensor([1, 2, 65, 5])})
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        labels: Sequence[int],
+        dst_keys: Optional[KeyCollection] = None,
+        invert: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.labels = tuple(labels)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, size=len(self.keys))
+        self.invert = invert
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = label_mask(data[key], self.labels, invert=self.invert)
         return data
 
 

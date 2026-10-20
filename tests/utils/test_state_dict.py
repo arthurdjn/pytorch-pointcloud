@@ -1,5 +1,7 @@
+import functools
 from collections import OrderedDict
 from pathlib import Path
+from typing import Callable, List, Tuple
 from unittest.mock import Mock, call, sentinel
 
 import pytest
@@ -252,3 +254,31 @@ def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path
     result = read_state_dict(path)
 
     assert list(result.keys()) == ["lin.weight"]
+
+
+_UNPICKLED: List[str] = []
+
+
+def _record_unpickling(label: str) -> None:
+    _UNPICKLED.append(label)
+
+
+class _RecordsUnpickling:
+    def __reduce__(self) -> Tuple[Callable[[str], None], Tuple[str]]:
+        return _record_unpickling, ("called",)
+
+
+def test_read_state_dict_reads_other_objects_as_inert_placeholders(tmp_path: Path) -> None:
+    path = tmp_path / "lit.ckpt"
+    checkpoint = {
+        "pytorch-lightning_version": "2.0",
+        "state_dict": {"model.lin.weight": torch.ones(2, 2)},
+        "hyper_parameters": {"optimizer": functools.partial(torch.optim.Adam, lr=0.01), "hook": _RecordsUnpickling()},
+    }
+    torch.save(checkpoint, path)
+
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["lin.weight"]
+    assert torch.equal(result["lin.weight"], torch.ones(2, 2))
+    assert _UNPICKLED == []

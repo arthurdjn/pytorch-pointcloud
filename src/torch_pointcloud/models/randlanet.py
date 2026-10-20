@@ -3,6 +3,7 @@
 {{ paper("1911.11236") }}
 """
 
+import warnings
 from typing import (
     Any,
     Callable,
@@ -25,6 +26,7 @@ from torch_geometric.nn.pool.decimation import decimation_indices
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.fractal import FRACTAL_CLASSES, FRACTAL_LEARNING_MAP
 from torch_pointcloud.datasets.parislille3d import PARISLILLE3D_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.semantic3d import SEMANTIC3D_CLASSES
@@ -36,10 +38,45 @@ from torch_pointcloud.layers.randlanet_blocks import RandLANetResidualBlock
 from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.conversion import batch_to_offset, ensure_list, ensure_tuple_size, offset_to_batch
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
+
+
+def random_pool(
+    x: Tensor,
+    pos: Tensor,
+    batch: Tensor,
+    factor: int,
+    num_neighbors: int,
+    reduce: Optional[str] = "max",
+) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Random sampling followed by a reduction over the neighbors of each kept point.
+
+    Args:
+        x: Packed point features, shape $(N, C)$.
+        pos: Packed point positions, shape $(N, 3)$.
+        batch: Per-point batch index, shape $(N,)$.
+        factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
+        num_neighbors: Number of neighbors gathered around each kept point.
+        reduce: Reduction over the neighbors (`"max"`, `"mean"`, `"sum"`), or `None` to keep the features of the
+            sampled points.
+
+    Returns:
+        The pooled features, positions and batch index of the kept points.
+    """
+    offset = batch_to_offset(batch)
+    decim_idx, decim_ptr = decimation_indices(torch.cat([offset.new_zeros(1), offset]), factor)
+    decim_batch = offset_to_batch(decim_ptr[1:])
+    pos_decim = pos[decim_idx]
+    if reduce is None:
+        return x[decim_idx], pos_decim, decim_batch
+
+    edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
+    pooled = scatter(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0), reduce=reduce)
+    return pooled, pos_decim, decim_batch
 
 
 def random_max_pool(
@@ -49,30 +86,18 @@ def random_max_pool(
     factor: int,
     num_neighbors: int,
 ) -> Tuple[Tensor, Tensor, Tensor]:
-    r"""Random sampling followed by a max-pool over the neighbors of each kept point.
-
-    Args:
-        x: Packed point features, shape $(N, C)$.
-        pos: Packed point positions, shape $(N, 3)$.
-        batch: Per-point batch index, shape $(N,)$.
-        factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
-        num_neighbors: Number of neighbors gathered around each kept point.
-
-    Returns:
-        The pooled features, positions and batch index of the kept points.
-    """
-    offset = batch_to_offset(batch)
-    decim_idx, decim_ptr = decimation_indices(torch.cat([offset.new_zeros(1), offset]), factor)
-    decim_batch = offset_to_batch(decim_ptr[1:])
-    pos_decim = pos[decim_idx]
-    edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
-    pooled = scatter(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0), reduce="max")
-    return pooled, pos_decim, decim_batch
+    """Deprecated alias of `random_pool` with `reduce="max"`."""
+    warnings.warn(
+        "`random_max_pool` is deprecated and will be removed in a future release; use `random_pool` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return random_pool(x, pos, batch, factor, num_neighbors)
 
 
 class RandLANetEncoder(nn.Module):
     r"""Stack of `RandLANetResidualBlock` units interleaved with random-sampling
-    K-NN max-pool decimation.
+    decimation, followed by a K-NN max-pool unless `pool=None`.
 
     Each encoder block doubles its $d_\text{out}^\text{config}$ to produce a
     $2 \cdot d_\text{out}^\text{config}$ channel feature; the per-stage decimation
@@ -91,6 +116,11 @@ class RandLANetEncoder(nn.Module):
             single `int` or a per-block sequence of length $N$.
         num_neighbors: Number of neighbors for the K-NN graph in each block. Either a
             single `int` or a per-block sequence of length $N$.
+        lse_channels: Per-block width of `mlp1` and of the first spatial encoding, a sequence of length $N$. `None`
+            means half the block's configuration width, as in the paper.
+        lse_input: Input of the second spatial encoding of every block, see `LocalFeatureAggregation`.
+        pool: Reduction over the neighbors of each point kept by the decimation (`"max"` in the paper), or `None` to
+            keep the features of the sampled points.
     """
 
     def __init__(
@@ -100,6 +130,9 @@ class RandLANetEncoder(nn.Module):
         decimation: Union[int, Sequence[int]] = 4,
         num_neighbors: Union[int, Sequence[int]] = 16,
         *,
+        lse_channels: Optional[Sequence[int]] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
+        pool: Optional[str] = "max",
         act: Union[str, Callable, None],
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -114,10 +147,19 @@ class RandLANetEncoder(nn.Module):
             decimation, num_blocks, extra_msg=extra_msg.format(param="decimation")
         )
         num_neighbors_t: Tuple[int, ...] = ensure_tuple_size(
-            num_neighbors, num_blocks, extra_msg=extra_msg.format(param="num_neighbors")
+            num_neighbors,
+            num_blocks,
+            extra_msg=extra_msg.format(param="num_neighbors"),
         )
+        lse_channels_t: Tuple[Optional[int], ...] = ensure_tuple_size(
+            lse_channels,
+            num_blocks,
+            extra_msg=extra_msg.format(param="lse_channels"),
+        )
+        self.pool = pool
 
         block_kwargs: Dict[str, Any] = dict(
+            lse_input=lse_input,
             act=act,
             act_kwargs=act_kwargs,
             act_first=act_first,
@@ -126,7 +168,7 @@ class RandLANetEncoder(nn.Module):
             bias=bias,
         )
         self.blocks = nn.ModuleList()
-        for out_channels, k in zip(encoder_channels, num_neighbors_t):
+        for out_channels, k, block_lse_channels in zip(encoder_channels, num_neighbors_t, lse_channels_t):
             if out_channels % 2 != 0:
                 raise ValueError(
                     f"Each entry of `encoder_channels` must be even (the block doubles d_out internally), "
@@ -135,7 +177,14 @@ class RandLANetEncoder(nn.Module):
 
             # encoder_channels[i] is the BLOCK OUTPUT (== 2 * d_out_config), matching the
             # upstream paper convention where each block ends with a (d_out * 2) channel feature.
-            self.blocks.append(RandLANetResidualBlock(in_channels, out_channels // 2, num_neighbors=k, **block_kwargs))
+            block = RandLANetResidualBlock(
+                in_channels,
+                out_channels // 2,
+                num_neighbors=k,
+                lse_channels=block_lse_channels,
+                **block_kwargs,
+            )
+            self.blocks.append(block)
             in_channels = out_channels
         self.out_channels = encoder_channels[-1]
 
@@ -179,12 +228,13 @@ class RandLANetEncoder(nn.Module):
                     # the decoder consumes it last to upsample back to the input resolution.
                     intermediates.append({"x": x, "pos": pos, "batch": batch})
 
-                x, pos, batch = random_max_pool(
+                x, pos, batch = random_pool(
                     x,
                     pos,
                     batch,
                     factor=self.decimation[i],
                     num_neighbors=block.num_neighbors,
+                    reduce=self.pool,
                 )
 
                 if return_intermediates and i < len(self.blocks) - 1:
@@ -279,9 +329,13 @@ class RandLANetClassification(ClassificationModel):
         in_channels: Number of input channels.
         num_classes: Number of classes.
         stem_channels: Number of channels in the stem MLP. Set to `None` to skip the stem.
+        stem_plain_last: If `True`, the stem is a bare linear layer, without normalization and activation.
         encoder_channels: Output channels of each dilated residual block (must be even).
         decimation: Decimation factor between consecutive encoder blocks.
         num_neighbors: Number of neighbors for the kNN graph in each block.
+        lse_channels: Per-block width of the first spatial encoding, see `RandLANetEncoder`.
+        lse_input: Input of the second spatial encoding: `"encoding"` (the paper) or `"pos"` (the PyG example).
+        pool: Reduction over the neighbors of each point kept by the decimation, or `None`, see `RandLANetEncoder`.
         aggr_channels: Optional channels for the aggregation MLP applied before global pooling.
         dropout: Dropout rate before the classification head.
         global_pool: Global pooling operation.
@@ -293,9 +347,13 @@ class RandLANetClassification(ClassificationModel):
         num_classes: int,
         *,
         stem_channels: Optional[int] = 8,
+        stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
         decimation: Union[int, Sequence[int]] = 4,
         num_neighbors: Union[int, Sequence[int]] = 16,
+        lse_channels: Optional[Sequence[int]] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
+        pool: Optional[str] = "max",
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -308,9 +366,13 @@ class RandLANetClassification(ClassificationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = stem_channels
+        self.stem_plain_last = stem_plain_last
         self.encoder_channels = encoder_channels
         self.decimation = decimation
         self.num_neighbors = num_neighbors
+        self.lse_channels = lse_channels
+        self.lse_input = lse_input
+        self.pool = pool
         self.aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
         self.dropout = dropout
         self.act = act
@@ -332,7 +394,7 @@ class RandLANetClassification(ClassificationModel):
             return None
         return MLP(
             channel_list=[self.in_channels, self.stem_channels],
-            plain_last=False,
+            plain_last=self.stem_plain_last,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -348,6 +410,9 @@ class RandLANetClassification(ClassificationModel):
             encoder_channels=self.encoder_channels,
             decimation=self.decimation,
             num_neighbors=self.num_neighbors,
+            lse_channels=self.lse_channels,
+            lse_input=self.lse_input,
+            pool=self.pool,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -451,11 +516,15 @@ class RandLANetSegmentation(SemanticSegmentationModel):
         in_channels: Number of input channels.
         num_classes: Number of classes.
         stem_channels: Number of channels in the stem MLP. Set to `None` to skip the stem.
+        stem_plain_last: If `True`, the stem is a bare linear layer, without normalization and activation.
         encoder_channels: Output channels of each dilated residual block (must be even).
         fp_channels: Per-stage decoder channels (one list per upsampling step).
         head_channels: Hidden channels of the segmentation head MLP.
         decimation: Decimation factor between consecutive encoder blocks.
         num_neighbors: Number of neighbors for the kNN graph in each block.
+        lse_channels: Per-block width of the first spatial encoding, see `RandLANetEncoder`.
+        lse_input: Input of the second spatial encoding: `"encoding"` (the paper) or `"pos"` (the PyG example).
+        pool: Reduction over the neighbors of each point kept by the decimation, or `None`, see `RandLANetEncoder`.
         aggr_channels: Channels for the bottleneck MLP between the encoder and the decoder
             (the upstream "decoder_0").
         dropout: Dropout rate inside the segmentation head MLP.
@@ -477,11 +546,15 @@ class RandLANetSegmentation(SemanticSegmentationModel):
         num_classes: int,
         *,
         stem_channels: Optional[int] = 8,
+        stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
         fp_channels: Sequence[int],
         head_channels: Sequence[int] = (64, 32),
         decimation: Union[int, Sequence[int]] = 4,
         num_neighbors: Union[int, Sequence[int]] = 16,
+        lse_channels: Optional[Sequence[int]] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
+        pool: Optional[str] = "max",
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "relu",
@@ -493,11 +566,15 @@ class RandLANetSegmentation(SemanticSegmentationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = stem_channels
+        self.stem_plain_last = stem_plain_last
         self.encoder_channels = encoder_channels
         self.fp_channels = fp_channels
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.decimation = decimation
         self.num_neighbors = num_neighbors
+        self.lse_channels = lse_channels
+        self.lse_input = lse_input
+        self.pool = pool
         self.aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
         self.dropout = dropout
         self.act = act
@@ -519,7 +596,7 @@ class RandLANetSegmentation(SemanticSegmentationModel):
             return None
         return MLP(
             channel_list=[self.in_channels, self.stem_channels],
-            plain_last=False,
+            plain_last=self.stem_plain_last,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -535,6 +612,9 @@ class RandLANetSegmentation(SemanticSegmentationModel):
             encoder_channels=self.encoder_channels,
             decimation=self.decimation,
             num_neighbors=self.num_neighbors,
+            lse_channels=self.lse_channels,
+            lse_input=self.lse_input,
+            pool=self.pool,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -1041,4 +1121,154 @@ def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
     ),
 )
 def randlanet_open3d_parislille3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return RandLANetSegmentation(**hparams)
+
+
+_PYG_EXAMPLE_CHECKPOINT_MAPPING = {
+    "fc0.{param}": "stem.lins.0.{param}",
+    "block{i}.{mlp}.lins.{j}.{param}": "encoder.blocks.{i-1}.{mlp}.lins.{j}.{param}",
+    "block{i}.{mlp}.norms.{j}.module.{param}": "encoder.blocks.{i-1}.{mlp}.norms.{j}.module.{param}",
+    "block{i}.lfa{s}.mlp_encoder.lins.{j}.{param}": "encoder.blocks.{i-1}.lfa.lse{s}.mlp.lins.{j}.{param}",
+    "block{i}.lfa{s}.mlp_encoder.norms.{j}.module.{param}": "encoder.blocks.{i-1}.lfa.lse{s}.mlp.norms.{j}.module.{param}",
+    "block{i}.lfa{s}.mlp_attention.lins.0.weight": "encoder.blocks.{i-1}.lfa.att_pooling_{s}.fc.weight",
+    "block{i}.lfa{s}.mlp_post_attention.lins.{j}.{param}": "encoder.blocks.{i-1}.lfa.att_pooling_{s}.mlp.lins.{j}.{param}",
+    "block{i}.lfa{s}.mlp_post_attention.norms.{j}.module.{param}": (
+        "encoder.blocks.{i-1}.lfa.att_pooling_{s}.mlp.norms.{j}.module.{param}"
+    ),
+    "mlp_summit.lins.{j}.{param}": "aggr.lins.{j}.{param}",
+    "mlp_summit.norms.{j}.module.{param}": "aggr.norms.{j}.module.{param}",
+    # The decoder runs fp4 (coarsest) to fp1.
+    **{f"fp{i}.nn.lins.{{j}}.{{param}}": f"decoder.fp_blocks.{4 - i}.mlp.lins.{{j}}.{{param}}" for i in range(1, 5)},
+    **{
+        f"fp{i}.nn.norms.{{j}}.module.{{param}}": f"decoder.fp_blocks.{4 - i}.mlp.norms.{{j}}.module.{{param}}"
+        for i in range(1, 5)
+    },
+    "mlp_classif.lins.{j}.{param}": "head.lins.{j}.{param}",
+    "mlp_classif.norms.{j}.module.{param}": "head.norms.{j}.module.{param}",
+    "fc_classif.{param}": "head.lins.2.{param}",
+}
+
+
+def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Rename the keys of a checkpoint of PyG's RandLA-Net segmentation example (`fc0`, `block{i}`, `mlp_summit`,
+    `fp{i}`, `mlp_classif`, `fc_classif`) to the `RandLANetSegmentation` ones, as the `pretrained_filter_fn` of a
+    `WeightsDict`.
+
+    The first linear layer of each spatial encoding reads the relative positions as
+    `[pos_i, pos_j, pos_j - pos_i, dist]` there and `[dist, pos_i - pos_j, pos_i, pos_j]` here, so its columns are
+    reordered.
+
+    Args:
+        state_dict: State dict keyed as in the example network.
+        model: Model the state dict is loaded into.
+
+    Returns:
+        The state dict keyed as `model` expects.
+    """
+    state_dict = transform_state_dict(state_dict, _PYG_EXAMPLE_CHECKPOINT_MAPPING)
+    for key, value in state_dict.items():
+        if key.endswith(("lse1.mlp.lins.0.weight", "lse2.mlp.lins.0.weight")):
+            state_dict[key] = torch.cat([value[:, 9:10], -value[:, 6:9], value[:, 0:3], value[:, 3:6]], dim=1)
+    return state_dict
+
+
+@register_model(
+    "randlanet.fractal.ignf",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://IGNF/FRACTAL-LidarHD_7cl_randlanet/resolve/6ef0c46e11ab7fa9d20f3d9e39986c46dbd3814e/FRACTAL-LidarHD_7cl_randlanet.ckpt",
+        pretrained_filter_fn=pyg_example_checkpoint_filter_fn,
+        dataset="fractal",
+        # NOTE: Myria3D reports 77.2 (77.5 averaged per class). It reads Lambert-93 coordinates as float32, which puts
+        # Y on a 0.5 m grid; on positions quantized that way the checkpoint scores 77.60 / 96.12, on exact ones this.
+        metrics={"mIoU": 77.00, "OA": 96.00},
+        classes=FRACTAL_CLASSES,
+        author="ignf",
+        license="etalab-2.0",
+    ),
+    transform=T.Compose(
+        [
+            # Artefacts (65) and virtual points (66) are dropped before anything else.
+            T.LabelMask(
+                keys=DataKeys.SEGMENT,
+                labels=[65, 66],
+                invert=True,
+                dst_keys="class_mask",
+                allow_missing_keys=True,
+            ),
+            T.ApplyMask(
+                keys=[
+                    DataKeys.POS,
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    DataKeys.SEGMENT,
+                ],
+                mask_key="class_mask",
+                allow_missing_keys=True,
+            ),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=FRACTAL_LEARNING_MAP, default=-1, allow_missing_keys=True),
+            T.LidarHDFeatures(
+                keys=[
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                ],
+                dst_key=DataKeys.X,
+                allow_missing_keys=True,
+            ),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.X, DataKeys.SEGMENT],
+                reduce=["mean", "first"],
+                size=0.25,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.RandomSample(
+                keys=[DataKeys.POS, DataKeys.X, DataKeys.SEGMENT],
+                num_samples=40000,
+                allow_fewer=True,
+                allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid"),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            T.Divide(keys=DataKeys.POS, divisor=25.0),
+            T.StandardizeLidarHDFeatures(keys=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=9,
+        num_classes=7,
+        stem_channels=32,
+        stem_plain_last=True,
+        encoder_channels=[32, 128, 256, 512],
+        lse_channels=[4, 16, 32, 64],
+        lse_input="pos",
+        pool=None,
+        fp_channels=[256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=512,
+        decimation=4,
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_ignf_fractal_seg(**hparams: Any) -> RandLANetSegmentation:
     return RandLANetSegmentation(**hparams)
