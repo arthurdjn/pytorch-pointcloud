@@ -13,7 +13,7 @@ from torch import Tensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SemanticSegmentationModel
-from torch_pointcloud.models._registry import WeightsDict, register_model
+from torch_pointcloud.models._registry import WeightsDict, deprecated_model, register_model
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Encoder,
     SerializedFeaturesDict,
@@ -320,10 +320,10 @@ def utonia_small(**hparams: Any) -> PointTransformerV3Encoder:
     return PointTransformerV3Encoder(**hparams)
 
 
+@deprecated_model("utonia.pretrain.pointcept", deprecated_in="0.0.17", removed_in="0.0.18")
 @register_model(
     "utonia-base.pretrain.pointcept",
     task="pretraining",
-    deprecated_names="utonia.pretrain.pointcept",
     input_keys=("x", "pos_grid", "batch", "pos"),
     weights=WeightsDict(
         url="hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia.pth",
@@ -346,10 +346,10 @@ def utonia_base(**hparams: Any) -> PointTransformerV3Encoder:
     return PointTransformerV3Encoder(**hparams)
 
 
+@deprecated_model("utonia-lp.scannet20.pointcept", deprecated_in="0.0.17", removed_in="0.0.18")
 @register_model(
     "utonia-base-lp.scannet20.pointcept",
     task="semantic-segmentation",
-    deprecated_names="utonia-lp.scannet20.pointcept",
     input_keys=("x", "pos", "pos_grid", "batch"),
     weights=WeightsDict(
         url=(

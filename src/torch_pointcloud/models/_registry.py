@@ -1,14 +1,15 @@
-"""The `create_model` factory, `register_model` decorator, and pretrained weight registry."""
+"""The `create_model` factory, `register_model` and `deprecated_model` decorators, and pretrained weight registry."""
 
 import difflib
 import fnmatch
 import warnings
 from http.client import HTTPException
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypedDict, TypeVar, Union, overload
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 
+from packaging.version import InvalidVersion, Version
 from torch import nn
 from typing_extensions import NotRequired
 
@@ -25,6 +26,7 @@ from ._base import ClassificationModel, DetectionModel, PartSegmentationModel, S
 Task = Literal["pretraining", "classification", "semantic-segmentation", "part-segmentation", "detection"]
 
 _INSTALLATION_URL = "https://pytorch-pointcloud.org/latest/installation/"
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class WeightsDict(TypedDict):
@@ -55,6 +57,22 @@ class WeightsDict(TypedDict):
     license: NotRequired[str]
 
 
+class DeprecatedModelDict(TypedDict):
+    """Former name of a registered model, declared with `deprecated_model`.
+
+    Attributes:
+        name: The former registry name.
+        deprecated_in: Release that renamed the model (e.g. `0.0.17`).
+        removed_in: Release that drops the former name, or `None` when it is not scheduled.
+        message: Sentence appended to the warning the former name raises, or `None`.
+    """
+
+    name: str
+    deprecated_in: str
+    removed_in: Optional[str]
+    message: Optional[str]
+
+
 class ModelDict(TypedDict):
     """Registry entry of a registered model: its entry point and the metadata `create_model` returns."""
 
@@ -63,6 +81,7 @@ class ModelDict(TypedDict):
     transform: Optional[Transform]
     input_keys: Tuple[str, ...]
     hparams: Dict[str, Any]
+    deprecated_names: Tuple[DeprecatedModelDict, ...]
     fn: Callable
 
 
@@ -75,6 +94,7 @@ class ModelInfoDict(TypedDict):
     transform: Optional[Transform]
     input_keys: Tuple[str, ...]
     hparams: Dict[str, Any]
+    deprecated_names: Tuple[DeprecatedModelDict, ...]
 
 
 _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
@@ -96,7 +116,6 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
-    deprecated_names: ValueCollection[str] = (),
     task: Literal["pretraining"],
 ) -> Callable[[Callable[..., nn.Module]], Callable[..., nn.Module]]: ...
 
@@ -109,7 +128,6 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
-    deprecated_names: ValueCollection[str] = (),
     task: Literal["classification"],
 ) -> Callable[[Callable[..., ClassificationModel]], Callable[..., ClassificationModel]]: ...
 
@@ -122,7 +140,6 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
-    deprecated_names: ValueCollection[str] = (),
     task: Literal["semantic-segmentation"],
 ) -> Callable[[Callable[..., SemanticSegmentationModel]], Callable[..., SemanticSegmentationModel]]: ...
 
@@ -135,7 +152,6 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
-    deprecated_names: ValueCollection[str] = (),
     task: Literal["part-segmentation"],
 ) -> Callable[[Callable[..., PartSegmentationModel]], Callable[..., PartSegmentationModel]]: ...
 
@@ -148,7 +164,6 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
-    deprecated_names: ValueCollection[str] = (),
     task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
 
@@ -161,12 +176,12 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
-    deprecated_names: ValueCollection[str] = (),
 ) -> Callable:
     """Register a model entry point under `name` for `task`.
 
     The decorated callable becomes reachable through `create_model`. A bare `weights` URL string is
-    normalized to a `WeightsDict`, so registry consumers always see the structured form.
+    normalized to a `WeightsDict`, so registry consumers always see the structured form. A `deprecated_model`
+    decorator placed above adds the former names of the entry.
 
     Args:
         name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn-hardest.openpoints`).
@@ -177,16 +192,12 @@ def register_model(
         input_keys: Batch keys `forward` takes positionally, in order; a dotted key reads an attribute (e.g.
             `octree.depth`). `utils.data.select_inputs` gathers them from a collated batch.
         weights: Pretrained checkpoint, either a URL string or a `WeightsDict` with metadata.
-        deprecated_names: Former name or names of the entry under `task`: `create_model` and `model_info` still resolve
-            them for `task`, with a `FutureWarning`, and `list_models` does not list them. A model of the same name
-            registered under another task is not affected.
 
     Returns:
         The decorator registering its target callable.
 
     Raises:
-        ValueError: If `task` is unknown, if a deprecated name is `name` itself, a registered model of `task` or the
-            deprecated name of another model of `task`, or if `name` is the deprecated name of another model of `task`.
+        ValueError: If `task` is unknown, or if `name` is the former name of another model of `task`.
 
     Registering a classification entry point with weight metadata:
 
@@ -209,7 +220,6 @@ def register_model(
     ```
     """
     hparams = hparams or {}
-    former_names: Tuple[str, ...] = ensure_tuple(deprecated_names)
     weights_dict: Optional[WeightsDict] = {"url": weights} if isinstance(weights, str) else weights
 
     if task not in _REGISTERED_MODELS.keys():
@@ -222,22 +232,14 @@ def register_model(
                 f"Model name {name!r} is a deprecated name of {_DEPRECATED_MODELS[task][name]!r} for task {task!r}."
             )
 
-        for old in former_names:
-            if old == name:
-                raise ValueError(f"Deprecated model name {old!r} is the registered name itself.")
-            if old in _REGISTERED_MODELS[task]:
-                raise ValueError(f"Deprecated model name {old!r} is already a registered {task!r} model name.")
-            if _DEPRECATED_MODELS[task].get(old, name) != name:
-                raise ValueError(
-                    f"Deprecated model name {old!r} is already a deprecated name of {_DEPRECATED_MODELS[task][old]!r} "
-                    f"for task {task!r}."
-                )
-
-        if name in _REGISTERED_MODELS[task]:
+        previous = _REGISTERED_MODELS[task].get(name)
+        if previous is not None:
             warnings.warn(
                 f"Model {name!r} is already registered for task {task!r}; overwriting the existing entry.",
                 stacklevel=2,
             )
+            for deprecation in previous["deprecated_names"]:
+                _DEPRECATED_MODELS[task].pop(deprecation["name"], None)
 
         _REGISTERED_MODELS[task][name] = {
             "name": name,
@@ -245,14 +247,107 @@ def register_model(
             "input_keys": tuple(input_keys),
             "hparams": hparams,
             "weights": weights_dict,
+            "deprecated_names": (),
             "fn": fn,
         }
-
-        for old in former_names:
-            _DEPRECATED_MODELS[task][old] = name
         return fn
 
     return decorator
+
+
+def deprecated_model(
+    name: str,
+    *,
+    deprecated_in: str,
+    removed_in: Optional[str] = None,
+    message: Optional[str] = None,
+) -> Callable[[F], F]:
+    """Keep a renamed model reachable under its former `name`, placed above its `register_model` decorator.
+
+    `create_model` and `model_info` resolve `name` to the registered name under its task with a `FutureWarning` that
+    names both releases. `list_models` never lists former names, and a model of the same name registered under
+    another task is not affected. Stack one decorator per former name, and delete it in the `removed_in` release.
+
+    Args:
+        name: Former registry name of the entry, under the task it is registered for.
+        deprecated_in: Release that renamed the model (e.g. `0.0.17`).
+        removed_in: Release that drops the former name, named in the warning; `None` leaves it unscheduled.
+        message: Sentence appended to the warning, e.g. what else changed with the rename.
+
+    Returns:
+        The decorator adding the former name to the registry entry of its target callable.
+
+    Raises:
+        ValueError: If `deprecated_in` or `removed_in` is not a version string, if `removed_in` is not a later release
+            than `deprecated_in`, if the decorated callable is not registered under exactly one name (the decorator
+            belongs above `register_model`), or if `name` is the registered name itself, a registered model of its
+            task or already a former name under its task.
+
+    Renaming a registered model while keeping its former name loadable for one release:
+
+    ```python
+    from torch_pointcloud.models import PointNetClassification, deprecated_model, register_model
+
+
+    @deprecated_model("pointnet.scanobjectnn", deprecated_in="0.0.17", removed_in="0.0.18")
+    @register_model("pointnet-base.scanobjectnn", task="classification", hparams=dict(in_channels=0, num_classes=15))
+    def pointnet_base(**hparams):
+        return PointNetClassification(**hparams)
+    ```
+    """
+    deprecated_version = _parse_version(deprecated_in, "deprecated_in")
+    if removed_in is not None and _parse_version(removed_in, "removed_in") <= deprecated_version:
+        raise ValueError(
+            f"Model {name!r} is removed in {removed_in!r}, which is not a later release than its deprecation in "
+            f"{deprecated_in!r}."
+        )
+
+    def decorator(fn: F) -> F:
+        registered = [
+            (task, entry)
+            for task, entries in _REGISTERED_MODELS.items()
+            for entry in entries.values()
+            if entry["fn"] is fn
+        ]
+        if not registered:
+            raise ValueError(
+                f"Cannot declare the former name {name!r}: the entry point is not registered. Place `@deprecated_model` "
+                "above `@register_model`."
+            )
+        if len(registered) > 1:
+            names = ", ".join(f"{entry['name']!r} ({task!r})" for task, entry in registered)
+            raise ValueError(f"Cannot declare the former name {name!r}: the entry point is registered as {names}.")
+
+        task, entry = registered[0]
+        if name == entry["name"]:
+            raise ValueError(f"Deprecated model name {name!r} is the registered name itself.")
+        if name in _REGISTERED_MODELS[task]:
+            raise ValueError(f"Deprecated model name {name!r} is already a registered {task!r} model name.")
+        if name in _DEPRECATED_MODELS[task]:
+            raise ValueError(
+                f"Deprecated model name {name!r} is already a deprecated name of {_DEPRECATED_MODELS[task][name]!r} "
+                f"for task {task!r}."
+            )
+
+        deprecation: DeprecatedModelDict = {
+            "name": name,
+            "deprecated_in": deprecated_in,
+            "removed_in": removed_in,
+            "message": message,
+        }
+        entry["deprecated_names"] = (*entry["deprecated_names"], deprecation)
+        _DEPRECATED_MODELS[task][name] = entry["name"]
+        return fn
+
+    return decorator
+
+
+def _parse_version(version: str, argument: str) -> Version:
+    """The parsed release `version` of a `deprecated_model` argument, raising a `ValueError` naming `argument`."""
+    try:
+        return Version(version)
+    except InvalidVersion as err:
+        raise ValueError(f"Expected a version string for `{argument}` (e.g. '0.0.17'), got {version!r}.") from err
 
 
 def cache_path(url: str) -> Path:
@@ -364,7 +459,7 @@ def _is_non_commercial_license(license: Optional[str]) -> bool:
 
 def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDict]:
     """The registered name, task and entry of `name`, with its task inferred when the name is registered under a single
-    one. A former name of a model renamed under that task resolves to its new name, with a `FutureWarning`."""
+    one. A former name of a model renamed under that task resolves to its new name with a `FutureWarning`."""
     if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
@@ -386,9 +481,15 @@ def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDic
         task = tasks[0]
 
     new = _DEPRECATED_MODELS[task].get(name)
-    if new is not None:
+    renamed_entry = _REGISTERED_MODELS[task].get(new) if new is not None else None
+    deprecation = (
+        next((d for d in renamed_entry["deprecated_names"] if d["name"] == name), None) if renamed_entry else None
+    )
+    if new is not None and deprecation is not None:
+        suffix = f" {deprecation['message']}" if deprecation["message"] else ""
         warnings.warn(
-            f"Model {name!r} was renamed to {new!r}; the former name will be removed in a future release.",
+            f"Model {name!r} was renamed to {new!r} in {deprecation['deprecated_in']}; the former name will be "
+            f"removed in {deprecation['removed_in'] or 'a future release'}.{suffix}",
             FutureWarning,
             stacklevel=3,
         )
@@ -415,7 +516,8 @@ def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDic
 
 
 def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
-    """The registry entry of a model without building it: its task, weights, transform, input keys and hparams.
+    """The registry entry of a model without building it: its task, weights, transform, input keys, hparams and
+    former names.
 
     Args:
         name: Registered model name (see `list_models`).
@@ -443,6 +545,7 @@ def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
         "transform": entry["transform"],
         "input_keys": entry["input_keys"],
         "hparams": dict(entry["hparams"]),
+        "deprecated_names": entry["deprecated_names"],
     }
 
 
@@ -728,6 +831,7 @@ def create_model(
             "transform": entry["transform"],
             "input_keys": entry["input_keys"],
             "hparams": hparams,
+            "deprecated_names": entry["deprecated_names"],
         }
         return model, info
     return model
