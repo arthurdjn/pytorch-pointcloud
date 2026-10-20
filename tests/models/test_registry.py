@@ -119,10 +119,8 @@ def _register_pretrained_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
 
 @pytest.fixture
-def _register_renamed_dummy(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Register `dummy-renamed.classification` with the former name `dummy-former.classification`, removed in `0.1.0`
-    with the package pinned at `0.0.17`, then drop both."""
-    monkeypatch.setattr("torch_pointcloud.models._registry.__version__", "0.0.17")
+def _register_renamed_dummy() -> Iterator[None]:
+    """Register `dummy-renamed.classification` with the former name `dummy-former.classification`, then drop both."""
 
     @deprecated_model("dummy-former.classification", deprecated_in="0.0.17", removed_in="0.1.0")
     @register_model("dummy-renamed.classification", task="classification")
@@ -346,28 +344,6 @@ def test_deprecated_model_appends_the_message_to_the_warning() -> None:
         _DEPRECATED_MODELS["classification"].pop("dummy-former.classification", None)
 
 
-def test_deprecated_model_removed_in_reached_raises(
-    _register_renamed_dummy: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr("torch_pointcloud.models._registry.__version__", "0.1.0")
-    with pytest.raises(
-        ValueError,
-        match=r"'dummy-former.classification' was renamed to 'dummy-renamed.classification' in 0.0.17 and the former "
-        r"name was removed in 0.1.0; use 'dummy-renamed.classification'\.$",
-    ):
-        model_info("dummy-former.classification")
-    with pytest.raises(ValueError, match="was removed in 0.1.0"):
-        create_model("dummy-former.classification", task="classification")
-
-
-def test_deprecated_model_removed_in_not_reached_warns(
-    _register_renamed_dummy: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr("torch_pointcloud.models._registry.__version__", "0.0.18")
-    with pytest.warns(FutureWarning, match="will be removed in 0.1.0"):
-        model_info("dummy-former.classification")
-
-
 def test_deprecated_model_registers_a_class() -> None:
     @deprecated_model("dummy-class-former.classification", deprecated_in="0.0.17")
     @register_model("dummy-class.classification", task="classification")
@@ -390,6 +366,16 @@ def test_create_model_former_name_of_a_popped_entry_is_not_found(_register_renam
             ValueError, match="'dummy-former.classification' not found in the 'classification' registry"
         ):
             create_model("dummy-former.classification", task=task)
+
+    register_model("dummy-renamed.classification", task="classification")(_dummy_classification)
+    with pytest.raises(ValueError, match="'dummy-former.classification' not found in the 'classification' registry"):
+        create_model("dummy-former.classification")
+
+
+def test_model_info_lists_the_former_names(_register_renamed_dummy: None) -> None:
+    assert model_info("dummy-renamed.classification")["deprecated_names"] == (
+        {"name": "dummy-former.classification", "deprecated_in": "0.0.17", "removed_in": "0.1.0", "message": None},
+    )
 
 
 @pytest.mark.parametrize(

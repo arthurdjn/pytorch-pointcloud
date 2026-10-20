@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Added the `deprecated_model` decorator, stacked under `register_model`, which keeps a renamed model reachable under its former name with a `FutureWarning` until the release named by `removed_in`; it replaces `register_model(deprecated_names=...)`.
+- Added the `deprecated_model` decorator, stacked above `register_model`, which keeps a renamed model reachable under its former name with a `FutureWarning` naming the release that drops it; it replaces `register_model(deprecated_names=...)`, and `model_info` lists the former names under `deprecated_names`.
 
 ## 0.0.17 (2026-10-18)
 

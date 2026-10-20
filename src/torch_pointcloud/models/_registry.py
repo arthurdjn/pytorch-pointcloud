@@ -13,7 +13,6 @@ from packaging.version import InvalidVersion, Version
 from torch import nn
 from typing_extensions import NotRequired
 
-from torch_pointcloud import __version__
 from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.datasets.utils import download_url
 from torch_pointcloud.transforms.base import Transform
@@ -95,6 +94,7 @@ class ModelInfoDict(TypedDict):
     transform: Optional[Transform]
     input_keys: Tuple[str, ...]
     hparams: Dict[str, Any]
+    deprecated_names: Tuple[DeprecatedModelDict, ...]
 
 
 _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
@@ -264,15 +264,14 @@ def deprecated_model(
 ) -> Callable[[F], F]:
     """Keep a renamed model reachable under its former `name`, placed above its `register_model` decorator.
 
-    `create_model` and `model_info` resolve `name` to the registered name under its task with a `FutureWarning`;
-    once the package reaches `removed_in` they raise a `ValueError` naming the new name instead. `list_models` never
-    lists former names, and a model of the same name registered under another task is not affected. Stack one
-    decorator per former name.
+    `create_model` and `model_info` resolve `name` to the registered name under its task with a `FutureWarning` that
+    names both releases. `list_models` never lists former names, and a model of the same name registered under
+    another task is not affected. Stack one decorator per former name, and delete it in the `removed_in` release.
 
     Args:
         name: Former registry name of the entry, under the task it is registered for.
         deprecated_in: Release that renamed the model (e.g. `0.0.17`).
-        removed_in: Release that drops the former name; `None` leaves the removal unscheduled.
+        removed_in: Release that drops the former name, named in the warning; `None` leaves it unscheduled.
         message: Sentence appended to the warning, e.g. what else changed with the rename.
 
     Returns:
@@ -460,8 +459,7 @@ def _is_non_commercial_license(license: Optional[str]) -> bool:
 
 def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDict]:
     """The registered name, task and entry of `name`, with its task inferred when the name is registered under a single
-    one. A former name of a model renamed under that task resolves to its new name with a `FutureWarning`, or raises
-    once the package reaches the release that removes it."""
+    one. A former name of a model renamed under that task resolves to its new name with a `FutureWarning`."""
     if task is not None and task not in _REGISTERED_MODELS.keys():
         expected_tasks = ", ".join(f"{t!r}" for t in _REGISTERED_MODELS.keys())
         raise ValueError(f"Invalid model task {task!r}. Expected one of: {expected_tasks}.")
@@ -484,19 +482,14 @@ def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDic
 
     new = _DEPRECATED_MODELS[task].get(name)
     renamed_entry = _REGISTERED_MODELS[task].get(new) if new is not None else None
-    if new is not None and renamed_entry is not None:
-        deprecation = next(d for d in renamed_entry["deprecated_names"] if d["name"] == name)
-        removed_in = deprecation["removed_in"]
+    deprecation = (
+        next((d for d in renamed_entry["deprecated_names"] if d["name"] == name), None) if renamed_entry else None
+    )
+    if new is not None and deprecation is not None:
         suffix = f" {deprecation['message']}" if deprecation["message"] else ""
-        if removed_in is not None and Version(__version__) >= Version(removed_in):
-            raise ValueError(
-                f"Model {name!r} was renamed to {new!r} in {deprecation['deprecated_in']} and the former name was "
-                f"removed in {removed_in}; use {new!r}.{suffix}"
-            )
-
         warnings.warn(
             f"Model {name!r} was renamed to {new!r} in {deprecation['deprecated_in']}; the former name will be "
-            f"removed in {removed_in or 'a future release'}.{suffix}",
+            f"removed in {deprecation['removed_in'] or 'a future release'}.{suffix}",
             FutureWarning,
             stacklevel=3,
         )
@@ -523,7 +516,8 @@ def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDic
 
 
 def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
-    """The registry entry of a model without building it: its task, weights, transform, input keys and hparams.
+    """The registry entry of a model without building it: its task, weights, transform, input keys, hparams and
+    former names.
 
     Args:
         name: Registered model name (see `list_models`).
@@ -551,6 +545,7 @@ def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
         "transform": entry["transform"],
         "input_keys": entry["input_keys"],
         "hparams": dict(entry["hparams"]),
+        "deprecated_names": entry["deprecated_names"],
     }
 
 
@@ -836,6 +831,7 @@ def create_model(
             "transform": entry["transform"],
             "input_keys": entry["input_keys"],
             "hparams": hparams,
+            "deprecated_names": entry["deprecated_names"],
         }
         return model, info
     return model
