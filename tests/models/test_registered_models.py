@@ -1,6 +1,8 @@
 import inspect
 import json
 import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -13,7 +15,7 @@ from torch_pointcloud.models import create_model, list_models, model_info
 from torch_pointcloud.models._registry import _REGISTERED_MODELS, _is_non_commercial_license
 from torch_pointcloud.ops.octree import build_octree
 from torch_pointcloud.utils.conversion import ensure_tuple
-from torch_pointcloud.utils.hub import HF_URL_RE
+from torch_pointcloud.utils.hub import HF_ENDPOINT, HF_URL_RE
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -891,6 +893,21 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
             assert weights["author"], name
+
+
+def test_registered_weights_urls_exist_on_the_hub() -> None:
+    """Every registered weight file answers a HEAD request at its pinned revision (401/403 means gated, not missing)."""
+    for name in list_models(pretrained=True):
+        weights = model_info(name)["weights"]
+        assert weights is not None, name
+        for url in ensure_tuple(weights["url"]):
+            file_url = HF_ENDPOINT + "/" + url[len("hf://") :]
+            request = urllib.request.Request(file_url, method="HEAD")
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    assert response.status == 200, (name, url, response.status)
+            except urllib.error.HTTPError as e:
+                assert e.code in (401, 403), (name, url, e.code)
 
 
 @pytest.mark.skipif(
