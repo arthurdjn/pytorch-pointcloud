@@ -297,7 +297,6 @@ nav = [
             { "box" = "api/transforms/box.md" },
             { "functional" = "api/transforms/functional.md" },
             { "geometry" = "api/transforms/geometry.md" },
-            { "lidar" = "api/transforms/lidar.md" },
             { "masking" = "api/transforms/masking.md" },
             { "mixing" = "api/transforms/mixing.md" },
             { "octree" = "api/transforms/octree.md" },

@@ -514,3 +514,25 @@ def test_label_mask_missing_key_allowed() -> None:
 def test_label_mask_functional_any_shape_and_dtype() -> None:
     segment = torch.tensor([[1, 65], [66, 2]], dtype=torch.uint8)
     assert F.label_mask(segment, [65, 66]).tolist() == [[False, True], [True, False]]
+
+
+def test_masked_fill_covers_every_channel_of_a_point() -> None:
+    color = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    data = {"color": color, "mask": torch.tensor([False, True])}
+    result = T.MaskedFill(keys="color", mask_key="mask", value=0.0)(data)
+    assert result["color"].tolist() == [[1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
+    assert torch.equal(data["color"], color)
+
+
+def test_masked_fill_with_label_mask_zeroes_colour_past_first_return() -> None:
+    data = {"return_number": torch.tensor([[1], [2], [1]]), "color": torch.ones(3, 3), "nir": torch.ones(3, 1)}
+    transform = T.Compose(
+        [
+            T.LabelMask(keys="return_number", labels=[1], invert=True, dst_keys="occluded"),
+            T.MaskedFill(keys=["color", "nir"], mask_key="occluded", value=0.0, dst_keys=["color_out", "nir_out"]),
+        ]
+    )
+    result = transform(data)
+    assert result["color_out"].sum(dim=1).tolist() == [3.0, 0.0, 3.0]
+    assert result["nir_out"].flatten().tolist() == [1.0, 0.0, 1.0]
+    assert torch.equal(result["color"], torch.ones(3, 3))

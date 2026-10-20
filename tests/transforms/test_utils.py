@@ -362,3 +362,18 @@ def test_relabel_empty_mapping_raises() -> None:
     labels = torch.tensor([1, 2, 3])
     with pytest.raises(ValueError, match="at least one source"):
         F.relabel(labels, mapping=[])
+
+
+def test_normalized_difference() -> None:
+    data = {"nir": torch.tensor([[0.6], [0.0], [0.0]]), "red": torch.tensor([[0.2], [0.5], [0.0]])}
+    result = T.NormalizedDifference(keys="nir", sub_keys="red", dst_keys="ndvi")(data)
+    assert torch.allclose(result["ndvi"], torch.tensor([[0.5], [-1.0], [0.0]]), atol=1e-5)
+    assert torch.equal(result["nir"], data["nir"])
+
+
+def test_log1p_casts_integers() -> None:
+    data = {"intensity": torch.tensor([[0], [1], [99]]), "other": sentinel.other}
+    result = T.Log1p(keys="intensity")(data)
+    assert result["intensity"].dtype == torch.float32
+    assert torch.allclose(result["intensity"], torch.log(torch.tensor([[1.0], [2.0], [100.0]])))
+    assert result["other"] is sentinel.other

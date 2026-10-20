@@ -51,15 +51,12 @@ from .geometry import (
     Shift,
     Translate,
 )
-from .lidar import (
-    LidarHDFeatures,
-    StandardizeLidarHDFeatures,
-)
 from .masking import (
     ApplyMask,
     BoxMask,
     CubeMask,
     LabelMask,
+    MaskedFill,
     RemoveNearOrigin,
     SphereMask,
 )
@@ -86,6 +83,7 @@ from .scaling import (
     MaxAbsScale,
     Normalize,
     Rescale,
+    Standardize,
 )
 from .utils import (
     Abs,
@@ -95,6 +93,8 @@ from .utils import (
     Divide,
     DivideItems,
     KeepItems,
+    Log1p,
+    NormalizedDifference,
     OneHot,
     OnesLike,
     Reduce,
@@ -139,12 +139,11 @@ __all__ = [
     "Quantize",
     "Shift",
     "Translate",
-    "LidarHDFeatures",
-    "StandardizeLidarHDFeatures",
     "ApplyMask",
     "BoxMask",
     "CubeMask",
     "LabelMask",
+    "MaskedFill",
     "RemoveNearOrigin",
     "SphereMask",
     "LaserMix",
@@ -163,6 +162,7 @@ __all__ = [
     "MaxAbsScale",
     "Normalize",
     "Rescale",
+    "Standardize",
     "Abs",
     "Cat",
     "Clamp",
@@ -170,6 +170,8 @@ __all__ = [
     "Divide",
     "DivideItems",
     "KeepItems",
+    "Log1p",
+    "NormalizedDifference",
     "OneHot",
     "OnesLike",
     "Reduce",

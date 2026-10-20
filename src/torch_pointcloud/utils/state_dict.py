@@ -19,7 +19,7 @@ _PLACEHOLDER_RE = re.compile(r"^\s*(\w+)\s*(?:([+-])\s*(\d+))?\s*$")
 
 class _PickledObject:
     """Stand-in for a pickled object that is not a tensor or a container, keeping its arguments and state without
-    importing or calling the class it was saved from."""
+    importing or calling the class it was saved from. Each global is read through a subclass named after it."""
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "_PickledObject":
         return super().__new__(cls)
@@ -48,8 +48,8 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         The flat parameter-name to tensor mapping.
 
     Raises:
-        ValueError: If the checkpoint is not a mapping, or if a Lightning checkpoint has no
-            `model.`-prefixed key to extract.
+        ValueError: If the checkpoint, or its `state_dict` entry, is not a mapping, or if a Lightning checkpoint
+            has no `model.`-prefixed key to extract.
 
     Example:
         ```{.python notest}
@@ -63,15 +63,20 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         return dict(load_file(path.as_posix()))
 
     unsafe_globals = torch.serialization.get_unsafe_globals_in_checkpoint(path) if zipfile.is_zipfile(path) else []
-    with torch.serialization.safe_globals([(_PickledObject, name) for name in unsafe_globals]):
+    with torch.serialization.safe_globals([(type(name, (_PickledObject,), {}), name) for name in unsafe_globals]):
         data = torch.load(path, weights_only=True, map_location="cpu")
-    if not isinstance(data, dict):
+
+    state_dict = (
+        next((data[key] for key in ("state_dict", "model_state_dict") if key in data), data)
+        if isinstance(data, dict)
+        else data
+    )
+    if not isinstance(state_dict, dict):
         raise ValueError(
             f"Checkpoint {path.as_posix()!r} is not a state dict: expected a mapping of parameter names to "
-            f"tensors, got {type(data).__name__}."
+            f"tensors, got {type(state_dict).__name__}."
         )
 
-    state_dict = next((data[key] for key in ("state_dict", "model_state_dict") if key in data), data)
     if "pytorch-lightning_version" in data:
         extracted = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
         if state_dict and not extracted:

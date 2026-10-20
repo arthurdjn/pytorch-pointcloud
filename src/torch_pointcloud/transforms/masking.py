@@ -15,6 +15,7 @@ __all__ = [
     "BoxMask",
     "CubeMask",
     "LabelMask",
+    "MaskedFill",
     "RemoveNearOrigin",
     "SphereMask",
 ]
@@ -324,6 +325,51 @@ class LabelMask(DictTransform):
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = label_mask(data[key], self.labels, invert=self.invert)
+        return data
+
+
+class MaskedFill(DictTransform):
+    """Fill the entries selected by a boolean mask with a value (a thin wrapper over `torch.Tensor.masked_fill`).
+
+    A $(N,)$ mask covers every channel of a $(N, C)$ tensor.
+
+    Args:
+        keys: The keys to fill.
+        mask_key: The key of the boolean mask, $(N,)$ or broadcastable to each tensor.
+        value: The fill value.
+        dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+
+    Example:
+        ```python
+        import torch
+
+        from torch_pointcloud.transforms import MaskedFill
+
+        data = {"x": torch.rand(3, 3), "mask": torch.tensor([False, True, False])}
+        data = MaskedFill(keys="x", mask_key="mask", value=0.0)(data)
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        mask_key: str,
+        value: float,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
+        self.value = value
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, size=len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            x, mask = data[key], data[self.mask_key]
+            mask = mask.reshape(mask.shape + (1,) * (x.dim() - mask.dim()))
+            data[dst_key] = x.masked_fill(mask, self.value)
         return data
 
 

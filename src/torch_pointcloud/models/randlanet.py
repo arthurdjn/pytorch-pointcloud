@@ -1210,17 +1210,16 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
                 allow_missing_keys=True,
             ),
             T.Relabel(keys=DataKeys.SEGMENT, labels=FRACTAL_LEARNING_MAP, default=-1, allow_missing_keys=True),
-            T.LidarHDFeatures(
-                keys=[
-                    DataKeys.INTENSITY,
-                    DataKeys.RETURN_NUMBER,
-                    DataKeys.NUMBER_OF_RETURNS,
-                    DataKeys.COLOR,
-                    DataKeys.NIR,
-                ],
-                dst_key=DataKeys.X,
-                allow_missing_keys=True,
+            # The colours come from orthoimages and only describe the first return.
+            T.LabelMask(keys=DataKeys.RETURN_NUMBER, labels=[1], invert=True, dst_keys="occluded"),
+            T.Divide(
+                keys=[DataKeys.RETURN_NUMBER, DataKeys.NUMBER_OF_RETURNS, DataKeys.COLOR, DataKeys.NIR],
+                divisor=[7.0, 7.0, 65280.0, 65280.0],
             ),
+            T.MaskedFill(keys=[DataKeys.COLOR, DataKeys.NIR], mask_key="occluded", value=0.0),
+            T.Reduce(keys=DataKeys.COLOR, op="mean", dim=1, keepdim=True, dst_keys="rgb_avg"),
+            T.Slice(keys=DataKeys.COLOR, start=0, stop=1, dim=1, dst_keys="red"),
+            T.NormalizedDifference(keys=DataKeys.NIR, sub_keys="red", dst_keys="ndvi"),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
                 dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
@@ -1229,14 +1228,33 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
-                keys=[DataKeys.X, DataKeys.SEGMENT],
-                reduce=["mean", "first"],
+                keys=[
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    "rgb_avg",
+                    "ndvi",
+                    DataKeys.SEGMENT,
+                ],
+                reduce=["mean", "mean", "mean", "mean", "mean", "mean", "mean", "first"],
                 size=0.25,
                 allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
             T.RandomSample(
-                keys=[DataKeys.POS, DataKeys.X, DataKeys.SEGMENT],
+                keys=[
+                    DataKeys.POS,
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    "rgb_avg",
+                    "ndvi",
+                    DataKeys.SEGMENT,
+                ],
                 num_samples=40000,
                 allow_fewer=True,
                 allow_missing_keys=True,
@@ -1245,7 +1263,22 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
             T.Shift(keys=DataKeys.POS, method="centroid"),
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
             T.Divide(keys=DataKeys.POS, divisor=25.0),
-            T.StandardizeLidarHDFeatures(keys=DataKeys.X),
+            T.Log1p(keys=DataKeys.INTENSITY),
+            # Myria3D bounds the standardized values at 3 standard deviations of the input channel.
+            T.Standardize(keys=[DataKeys.INTENSITY, "rgb_avg"], clamp=3.0, scale_clamp_by_std=True),
+            T.Cat(
+                keys=[
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    "rgb_avg",
+                    "ndvi",
+                ],
+                dst_key=DataKeys.X,
+                dim=1,
+            ),
         ]
     ),
     hparams=dict(
