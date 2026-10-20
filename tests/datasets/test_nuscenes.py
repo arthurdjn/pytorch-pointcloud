@@ -2,7 +2,7 @@
 import json
 import shutil
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Dict
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -13,12 +13,15 @@ from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import (
     NUSCENES_ATTRIBUTES,
     NUSCENES_DETECTION_CLASSES,
+    NUSCENES_LIDARSEG_CLASSES,
+    NUSCENES_LIDARSEG_LABEL_NAMES,
     NUSCENES_MINI_TRAIN_SCENES,
     NUSCENES_MINI_VAL_SCENES,
     NUSCENES_VAL_SCENES,
     _annotation_velocity,
     _pose_matrix,
     _remove_ego_points,
+    load_nuscenes_sweeps,
 )
 from torch_pointcloud.utils.data import DataKeys
 
@@ -274,3 +277,123 @@ def test_nuscenes_parallel_processing_matches_sequential(datasets_dir_factory: C
     for index, sample in enumerate(expected):
         for key in (DataKeys.POS, DataKeys.BOX, DataKeys.LABEL, DataKeys.VELOCITY):
             assert torch.equal(parallel[index][key], sample[key])
+
+
+def test_nuscenes_lidarseg_label_tables() -> None:
+    """The raw lidarseg id table covers ids 0..31 and the benchmark taxonomy has 16 classes."""
+    assert sorted(NUSCENES_LIDARSEG_LABEL_NAMES) == list(range(32))
+    assert len(NUSCENES_LIDARSEG_CLASSES) == len(set(NUSCENES_LIDARSEG_CLASSES)) == 16
+
+
+def test_load_nuscenes_sweeps_keeps_keyframe_ego_points(tmp_path: Path) -> None:
+    """The keyframe comes first and keeps its ego points; only the prior sweeps drop them."""
+    identity = {"translation": [0.0, 0.0, 0.0], "rotation": [1.0, 0.0, 0.0, 0.0]}
+    clouds = {
+        "keyframe": np.array([[0.5, 0.5, 0.0, 1.0, 0.0], [5.0, 5.0, 0.0, 2.0, 0.0]], dtype=np.float32),
+        "sweep": np.array([[0.5, -0.5, 0.0, 3.0, 0.0], [6.0, 6.0, 0.0, 4.0, 0.0]], dtype=np.float32),
+    }
+    sample_data: Dict[str, Dict[str, Any]] = {}
+    for token, prev, timestamp in (("keyframe", "sweep", 1_000_000), ("sweep", "", 950_000)):
+        clouds[token].tofile(tmp_path / f"{token}.bin")
+        sample_data[token] = {
+            "token": token,
+            "filename": f"{token}.bin",
+            "timestamp": timestamp,
+            "prev": prev,
+            "ego_pose_token": "pose",
+            "calibrated_sensor_token": "calib",
+        }
+
+    points = load_nuscenes_sweeps(
+        tmp_path,
+        sample_data["keyframe"],
+        {"pose": identity},
+        {"calib": identity},
+        sample_data,
+        max_sweeps=2,
+    )
+    assert np.allclose(points[:, :4], [[0.5, 0.5, 0.0, 1.0], [5.0, 5.0, 0.0, 2.0], [6.0, 6.0, 0.0, 4.0]])
+    assert np.allclose(points[:, 4], [0.0, 0.0, 0.05])
+
+
+def test_nuscenes_segment_labels_every_keyframe_point(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A keyframe-only sample is the raw scan with one raw lidarseg id per point, and no box keys."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    dataset = NuScenes(
+        root=datasets_dir,
+        split="mini_val",
+        max_sweeps=1,
+        return_boxes=False,
+        return_segment=True,
+        show_progress=False,
+    )
+    assert len(dataset) == 2
+
+    sample = dataset[0]
+    raw_dir = datasets_dir / "NuScenes" / "raw"
+    records = json.loads((raw_dir / "v1.0-mini" / "sample_data.json").read_text())
+    record = next(r for r in records if r["is_key_frame"] and r["sample_token"] == sample[DataKeys.TOKEN])
+    scan = np.fromfile(raw_dir / record["filename"], dtype=np.float32).reshape(-1, 5)
+    assert torch.equal(sample[DataKeys.POS], torch.from_numpy(scan[:, :3]))
+    assert torch.equal(sample[DataKeys.INTENSITY], torch.from_numpy(scan[:, 3:4]))
+
+    segment = sample[DataKeys.SEGMENT]
+    assert segment.shape == (scan.shape[0],)
+    assert segment.dtype == torch.int64
+    assert set(segment.unique().tolist()) <= set(NUSCENES_LIDARSEG_LABEL_NAMES)
+    # The synthetic scan hits the road and the facade, so both surfaces are labelled.
+    assert {24, 28} <= set(segment.unique().tolist())
+    assert DataKeys.BOX not in sample
+    assert DataKeys.LABEL not in sample
+
+
+def test_nuscenes_segment_with_sweeps_and_boxes(datasets_dir_factory: Callable[..., Path]) -> None:
+    """With sweeps, the keyframe points keep their labels, prior-sweep points get -1 and the boxes stay."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    keyframe = NuScenesMini(root=datasets_dir, max_sweeps=1, return_segment=True, show_progress=False)[0]
+    sample = NuScenesMini(root=datasets_dir, return_segment=True, show_progress=False)[0]
+    num_keyframe_points = keyframe[DataKeys.POS].shape[0]
+    assert sample[DataKeys.POS].shape[0] > num_keyframe_points
+    assert torch.equal(sample[DataKeys.POS][:num_keyframe_points], keyframe[DataKeys.POS])
+
+    segment = sample[DataKeys.SEGMENT]
+    assert segment.shape == (sample[DataKeys.POS].shape[0],)
+    assert torch.equal(segment[:num_keyframe_points], keyframe[DataKeys.SEGMENT])
+    assert (segment[num_keyframe_points:] == -1).all()
+    assert torch.equal(segment == -1, sample[DataKeys.TIMESTAMP][:, 0] > 0)
+    assert sample[DataKeys.BOX].shape[1] == 7
+
+
+def test_nuscenes_segment_without_lidarseg_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`return_segment` without `lidarseg.json` raises before processing."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    (datasets_dir / "NuScenes" / "raw" / "v1.0-mini" / "lidarseg.json").unlink()
+    with pytest.raises(RuntimeError, match="nuScenes-lidarseg labels not found"):
+        _ = NuScenes(root=datasets_dir, split="mini_val", return_segment=True, show_progress=False)
+    assert not (datasets_dir / "NuScenes" / "processed" / "v1.0-mini_mini_val_sweeps10" / "keyframes.json").exists()
+
+
+def test_nuscenes_missing_label_file_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A keyframe whose label file was not extracted raises before any cache is written."""
+    datasets_dir = _copy_fixture_as_nuscenes(datasets_dir_factory("NuScenesMini/**/*"))
+    label_files = sorted((datasets_dir / "NuScenes" / "raw" / "lidarseg" / "v1.0-mini").glob("*.bin"))
+    label_files[0].unlink()
+    with pytest.raises(RuntimeError, match="1 of 2 lidarseg label files are missing"):
+        _ = NuScenes(root=datasets_dir, split="mini_val", show_progress=False)
+    assert not (datasets_dir / "NuScenes" / "processed" / "v1.0-mini_mini_val_sweeps10" / "keyframes.json").exists()
+
+
+def test_nuscenes_segment_on_cache_without_labels_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache processed before the lidarseg labels were extracted asks for `force_process=True`."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    lidarseg_path = datasets_dir / "NuScenesMini" / "raw" / "v1.0-mini" / "lidarseg.json"
+    lidarseg = lidarseg_path.read_text()
+    lidarseg_path.unlink()
+    _ = NuScenesMini(root=datasets_dir, show_progress=False)
+    lidarseg_path.write_text(lidarseg)
+
+    with pytest.raises(RuntimeError, match="No lidarseg labels"):
+        _ = NuScenesMini(root=datasets_dir, return_segment=True, show_progress=False)
+
+    dataset = NuScenesMini(root=datasets_dir, return_segment=True, show_progress=False, force_process=True)
+    assert dataset[0][DataKeys.SEGMENT].shape == (dataset[0][DataKeys.POS].shape[0],)

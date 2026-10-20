@@ -12,6 +12,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.dales import DALES_CLASSES
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
@@ -1800,15 +1801,22 @@ def pretrained_encoder_hparams(
     )
 
 
-def _ptv3_seg_hparams(num_classes: int, attn_kind: AttentionKind = "default", patch_size: int = 1024) -> Dict[str, Any]:
-    """Shared PT-v3m1 segmentation hparams (ScanNet / ScanNet200 / S3DIS share the architecture).
+def _ptv3_seg_hparams(
+    num_classes: int,
+    attn_kind: AttentionKind = "default",
+    patch_size: int = 1024,
+    in_channels: int = 6,
+) -> Dict[str, Any]:
+    """Shared PT-v3m1 segmentation hparams (ScanNet / ScanNet200 / S3DIS / nuScenes share the architecture).
 
-    `legacy=True` reproduces the released v1.5.1 checkpoints. The S3DIS variant uses `attn_kind="rpe"` with
+    `legacy=True` and the stem / pooling BatchNorm settings (`eps=1e-3`) reproduce the released v1.5.1 checkpoints.
+    The S3DIS variant uses `attn_kind="rpe"` with
     `patch_size=128` (the relative-position table size is derived from the patch size). RPE attention computes
-    the explicit attention matrix, so flash attention is disabled.
+    the explicit attention matrix, so flash attention is disabled. The indoor models take color + normal
+    (`in_channels=6`), nuScenes takes coordinates + intensity (`in_channels=4`).
     """
     return dict(
-        in_channels=6,
+        in_channels=in_channels,
         num_classes=num_classes,
         serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders=True,
@@ -2002,4 +2010,72 @@ _PTV3_DALES_TRANSFORMS = T.Compose(
     ),
 )
 def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-base.nuscenes.pointcept",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-base.nuscenes.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="nuscenes",
+        metrics={"simple/mIoU": 78.32, "simple/OA": 94.25},
+        classes=NUSCENES_LIDARSEG_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            # Raw lidarseg category ids onto the 16 benchmark classes.
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels={
+                    9: 0,
+                    14: 1,
+                    15: 2,
+                    16: 2,
+                    17: 3,
+                    18: 4,
+                    21: 5,
+                    2: 6,
+                    3: 6,
+                    4: 6,
+                    6: 6,
+                    12: 7,
+                    22: 8,
+                    23: 9,
+                    24: 10,
+                    25: 11,
+                    26: 12,
+                    27: 13,
+                    28: 14,
+                    30: 15,
+                },
+                default=-1,
+            ),
+            # The released weights were trained on intensities in $[0, 1]$.
+            T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
+            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY],
+                reduce="first",
+                size=0.05,
+                method="fnv",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    ),
+    hparams=_ptv3_seg_hparams(16, in_channels=4),
+)
+def ptv3_base_nuscenes(**hparams: Any) -> PointTransformerV3Segmentation:
     return PointTransformerV3Segmentation(**hparams)

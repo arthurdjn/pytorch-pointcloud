@@ -112,6 +112,17 @@ BENCHMARKS = [
         id="ptv3/dales",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_nuscenes_benchmark.py",
+        ("--model", "ptv3-base.nuscenes.pointcept", "--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="ptv3/nuscenes",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_nuscenes_benchmark.py",
+        ("--model", "ptv3-base.nuscenes.pointcept", "--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="ptv3/nuscenes-simple",
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,

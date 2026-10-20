@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.
+- Fixed `NuScenes` dropping the ego points of the keyframe; only prior sweeps drop them now.
 - Fixed the intermittent `IndexError` in `construct_neigh_by_parent` when DataLoader workers collate ocnn octrees: the batch octree no longer shares ocnn's lookup-table cache.
 
 ## 0.0.17 (2026-10-18)
