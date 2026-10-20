@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.18 (2026-10-20)
+
 - Fixed `randlanet.{semantickitti,semantic3d,parislille3d}.open3d` to use the activation and input transforms their weights were trained with.
 - Added the `deprecated_model` decorator, stacked above `register_model`, which keeps a renamed model reachable under its former name with a `FutureWarning` naming the release that drops it; it replaces `register_model(deprecated_names=...)`, and `model_info` lists the former names under `deprecated_names`.
 - The former name `point-transformer.s3dis-area5` loads again, with a `FutureWarning`.
