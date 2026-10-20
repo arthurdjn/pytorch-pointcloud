@@ -759,7 +759,8 @@ def randlanet_tsunghanwu_semantickitti_seg(**hparams: Any) -> RandLANetSegmentat
 
 def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
     model = RandLANetSegmentation(**hparams)
-    # The activation after the residual sum has slope 0.01; every other activation of the network 0.2.
+    # The checkpoints retrained in 2022 have slope 0.01 after the residual sum and 0.2 everywhere else; the 2020 ones
+    # (SemanticKITTI, Semantic3D, Paris-Lille-3D) use 0.2 throughout.
     for block in model.encoder.blocks:
         block.act = nn.LeakyReLU(0.01)
     return model
@@ -771,8 +772,8 @@ def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/randlanet.semantickitti.open3d/resolve/103b4fc4f1563992fa090289b46909660c431b3d/model.safetensors",
         dataset="semantickitti",
-        # NOTE: Open3D-ML's 52.8 belongs to a 2020 checkpoint it no longer publishes; its own code gives this one 43.2.
-        metrics={"mIoU": 46.18, "OA": 83.99},
+        # NOTE: Open3D-ML's 52.8 is a 2020 patch-level validation; this is all of sequence 08 at full resolution.
+        metrics={"mIoU": 54.76, "OA": 90.19},
         classes=SEMANTIC_KITTI_CLASSES,
         author="open3d",
         license="MIT",
@@ -794,7 +795,6 @@ def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
                 allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
-            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
             T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
         ]
     ),
@@ -817,7 +817,7 @@ def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
     ),
 )
 def randlanet_open3d_semantickitti_seg(**hparams: Any) -> RandLANetSegmentation:
-    return _open3d_randlanet(**hparams)
+    return RandLANetSegmentation(**hparams)
 
 
 @register_model(
@@ -936,8 +936,9 @@ def randlanet_open3d_toronto3d_seg(**hparams: Any) -> RandLANetSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/randlanet.semantic3d.open3d/resolve/3a3f5f5b869e2860e2607335fb31eaa802be8cb8/model.safetensors",
         dataset="semantic3d",
-        # NOTE: Open3D-ML 76.0 performance was on ten random patches. Open3D-ML inference pipeline scores at 67.6.
-        metrics={"mIoU": 70.97, "OA": 83.39},
+        # NOTE: Open3D-ML's two validation stations; other stations of both sites are training data.
+        # Its 76.0 predates this checkpoint.
+        metrics={"mIoU": 90.34, "OA": 98.56},
         classes=SEMANTIC3D_CLASSES[1:],
         author="open3d",
         license="MIT",
@@ -983,7 +984,7 @@ def randlanet_open3d_toronto3d_seg(**hparams: Any) -> RandLANetSegmentation:
     ),
 )
 def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
-    return _open3d_randlanet(**hparams)
+    return RandLANetSegmentation(**hparams)
 
 
 @register_model(
@@ -992,9 +993,9 @@ def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/randlanet.parislille3d.open3d/resolve/58beb0036070d020696bcb69aeb331d4fe5744fb/model.safetensors",
         dataset="parislille3d",
-        # NOTE: Open3D-ML's 70.0 is the authors' hidden-test figure; on Lille2 four classes under 0.2% of the points
-        # pull the mean down (ground, building, car and vegetation score 66 to 97).
-        metrics={"mIoU": 48.10, "OA": 96.08},
+        # NOTE: held-out Lille2 tile (the training tiles score 95.7).
+        # Open3D-ML's 70.0 belongs to an earlier checkpoint trained at grid 0.06.
+        metrics={"mIoU": 83.05, "OA": 98.67},
         classes=PARISLILLE3D_CLASSES[1:],
         author="open3d",
         license="MIT",
@@ -1007,16 +1008,17 @@ def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
                 dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="mean",
                 keys=[DataKeys.INTENSITY, DataKeys.SEGMENT],
                 reduce="first",
-                size=0.06,
+                size=0.08,
                 allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
-            T.Shift(keys=DataKeys.POS, method="centroid"),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
             T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
         ]
     ),
@@ -1039,4 +1041,4 @@ def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
     ),
 )
 def randlanet_open3d_parislille3d_seg(**hparams: Any) -> RandLANetSegmentation:
-    return _open3d_randlanet(**hparams)
+    return RandLANetSegmentation(**hparams)

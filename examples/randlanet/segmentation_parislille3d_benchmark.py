@@ -24,10 +24,10 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 WINDOW_NUM_POINTS = 65536
 IGNORE_INDEX = -1
-# Every window is recentred on its centroid; the recentred coordinates are the only input feature.
+# Every window is recentred on its x/y centroid; the coordinates are the only input feature.
 WINDOW_TRANSFORM = T.Compose(
     [
-        T.Shift(keys=DataKeys.POS, method="centroid"),
+        T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
         T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
     ]
 )
