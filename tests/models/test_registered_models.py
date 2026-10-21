@@ -29,13 +29,7 @@ from torch_pointcloud.utils.imports import (
 
 SNAPSHOTS_DIR = Path(__file__).resolve().parents[1] / "data" / "models"
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
-FORMER_NAMES = [
-    ("sonata-lp.scannet20.fair", "sonata-base-lp.scannet20.fair", "0.0.18"),
-    ("utonia.pretrain.pointcept", "utonia-base.pretrain.pointcept", "0.0.18"),
-    ("utonia-lp.scannet20.pointcept", "utonia-base-lp.scannet20.pointcept", "0.0.18"),
-    ("pvcnn2.s3dis-area5", "pvcnn2.s3dis-area5.mit-han-lab", "0.0.18"),
-    ("point-transformer.s3dis-area5", "point-transformer.s3dis-area5.open3d", "0.0.18"),
-]
+FORMER_NAMES: list[tuple[str, str, str]] = []
 
 CLASSIFICATION_MODELS = [
     "dgcnn.modelnet40-1024.an-tao",

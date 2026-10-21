@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
+
 ## 0.0.18 (2026-10-20)
 
 - Fixed `randlanet.{semantickitti,semantic3d,parislille3d}.open3d` to use the activation and input transforms their weights were trained with.
