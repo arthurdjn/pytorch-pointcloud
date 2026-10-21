@@ -13,7 +13,7 @@ from torch import Tensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.models._base import SemanticSegmentationModel
-from torch_pointcloud.models._registry import WeightsDict, deprecated_model, register_model
+from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import (
     AttentionKind,
     PointTransformerV3Encoder,
@@ -276,7 +276,6 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
     return PointTransformerV3Encoder(**hparams)
 
 
-@deprecated_model("sonata-lp.scannet20.fair", deprecated_in="0.0.17", removed_in="0.0.18")
 @register_model(
     "sonata-base-lp.scannet20.fair",
     task="semantic-segmentation",

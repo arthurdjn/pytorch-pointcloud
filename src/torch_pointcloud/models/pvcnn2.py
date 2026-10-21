@@ -22,7 +22,7 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict
 
 from ._base import ClassificationModel, SemanticSegmentationModel
-from ._registry import WeightsDict, deprecated_model, register_model
+from ._registry import WeightsDict, register_model
 
 
 class PVCNN2EncoderBlock(nn.Module):
@@ -938,7 +938,6 @@ def _patch_pvcnn2_segmentation_mit_han_lab(model: PVCNN2Segmentation) -> PVCNN2S
     return model
 
 
-@deprecated_model("pvcnn2.s3dis-area5", deprecated_in="0.0.17", removed_in="0.0.18")
 @register_model(
     "pvcnn2.s3dis-area5.mit-han-lab",
     task="semantic-segmentation",
