@@ -122,6 +122,7 @@ BENCHMARKS = [
         ("--model", "ptv3-base.nuscenes.pointcept", "--split", "mini", "--limit", "1", "--simple"),
         marks=_GPU_SPCONV,
         id="ptv3/nuscenes-simple",
+    ),
     pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),

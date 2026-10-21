@@ -2020,7 +2020,7 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-base.nuscenes.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
-        metrics={"simple/mIoU": 78.32, "simple/OA": 94.25},
+        metrics={"mIoU": 80.21, "OA": 94.62, "simple/mIoU": 78.32, "simple/OA": 94.25},
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="pointcept",
         license="MIT",

@@ -602,7 +602,7 @@ class VoxelNeXtDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/voxelnext.nuscenes.openpcdet/resolve/5802ce3855465df20b72db5b26a7cc03c153e5f3/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 61.20, "NDS": 66.81},
+        metrics={"mAP": 61.41, "NDS": 66.92},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",
