@@ -109,6 +109,7 @@ def test_centerpoint_forward_and_decode() -> None:
     assert torch.isfinite(det["boxes"]).all()
 
 
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 def test_centerpoint_pillars_forward_and_decode() -> None:
     model = create_model("centerpoint-pillar02.nuscenes.mmdet3d", task="detection").to(DEVICE).eval()
     assert isinstance(model, CenterPointPillarsDetection)

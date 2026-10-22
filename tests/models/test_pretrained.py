@@ -542,7 +542,7 @@ def test_pretrained_centerpoint(
     every group (heatmap logits and the continuous regression maps, no decoded heading whose `atan2` would flip
     under float noise). TF32 is disabled: the sparse backbone's rounding differs across processes with it on.
     """
-    if model_name.startswith("centerpoint-voxel") and not _SPCONV_AVAILABLE:
+    if not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("centerpoint-voxel") and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
