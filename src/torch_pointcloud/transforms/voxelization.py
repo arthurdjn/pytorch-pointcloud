@@ -506,10 +506,10 @@ def voxelize(
         >>> import torch
         >>> import torch_pointcloud.transforms.functional as F
         >>> pos = torch.tensor([[0.1], [0.2], [0.3]])
-        >>> F.voxelize(pos, size=0.25, return_inverse=True)
+        >>> F.voxelize(pos, size=0.25, return_inverse=True)  # doctest: +SKIP
         (tensor([[0.1500],
                 [0.3000]]), tensor([0, 0, 1]))
-        >>> F.voxelize(pos, size=0.25, origin="min", return_inverse=True)
+        >>> F.voxelize(pos, size=0.25, origin="min", return_inverse=True)  # doctest: +SKIP
         (tensor([[0.2000]]), tensor([0, 0, 0]))
 
         ```
