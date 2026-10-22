@@ -46,7 +46,7 @@ class CenterPointDetection(DetectionModel):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         head_class_groups: Class-index groups, one separate head each (e.g. `[[0], [1, 2], ...]`).
         feature_map_stride: BEV feature-map stride of the head.
-        with_velocity: Predict the BEV velocity of every box (the nuScenes box code).
+        use_velocity: Predict the BEV velocity of every box (the nuScenes box code).
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
         num_filters: 2D backbone channel widths per level.
@@ -69,7 +69,7 @@ class CenterPointDetection(DetectionModel):
         point_cloud_range: Sequence[float] = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0),
         head_class_groups: Sequence[Sequence[int]],
         feature_map_stride: int = 8,
-        with_velocity: bool = False,
+        use_velocity: bool = False,
         layer_nums: Sequence[int] = (5, 5),
         layer_strides: Sequence[int] = (1, 2),
         num_filters: Sequence[int] = (128, 256),
@@ -87,7 +87,7 @@ class CenterPointDetection(DetectionModel):
         self.point_cloud_range = tuple(point_cloud_range)
         self.head_class_groups = head_class_groups
         self.feature_map_stride = feature_map_stride
-        self.with_velocity = with_velocity
+        self.use_velocity = use_velocity
         self.layer_nums = layer_nums
         self.layer_strides = layer_strides
         self.num_filters = num_filters
@@ -154,7 +154,7 @@ class CenterPointDetection(DetectionModel):
             point_cloud_range=self.point_cloud_range,
             shared_conv_channels=self.shared_conv_channels,
             num_head_layers=self.num_head_layers,
-            with_velocity=self.with_velocity,
+            use_velocity=self.use_velocity,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -212,7 +212,7 @@ class CenterPointPillarsDetection(DetectionModel):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         head_class_groups: Class-index groups, one separate head each (e.g. `[[0], [1, 2], ...]`).
         feature_map_stride: BEV feature-map stride of the head.
-        with_velocity: Predict the BEV velocity of every box (the nuScenes box code).
+        use_velocity: Predict the BEV velocity of every box (the nuScenes box code).
         feat_channels: Output channels of the pillar feature net.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
@@ -236,7 +236,7 @@ class CenterPointPillarsDetection(DetectionModel):
         point_cloud_range: Sequence[float] = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0),
         head_class_groups: Sequence[Sequence[int]],
         feature_map_stride: int = 4,
-        with_velocity: bool = False,
+        use_velocity: bool = False,
         feat_channels: Sequence[int] = (64,),
         layer_nums: Sequence[int] = (3, 5, 5),
         layer_strides: Sequence[int] = (2, 2, 2),
@@ -255,7 +255,7 @@ class CenterPointPillarsDetection(DetectionModel):
         self.point_cloud_range = tuple(point_cloud_range)
         self.head_class_groups = head_class_groups
         self.feature_map_stride = feature_map_stride
-        self.with_velocity = with_velocity
+        self.use_velocity = use_velocity
         self.feat_channels = feat_channels
         self.layer_nums = layer_nums
         self.layer_strides = layer_strides
@@ -321,7 +321,7 @@ class CenterPointPillarsDetection(DetectionModel):
             point_cloud_range=self.point_cloud_range,
             shared_conv_channels=self.shared_conv_channels,
             num_head_layers=self.num_head_layers,
-            with_velocity=self.with_velocity,
+            use_velocity=self.use_velocity,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -382,7 +382,7 @@ class CenterPointPillarsDetection(DetectionModel):
         # motorcycle, bicycle, pedestrian, traffic_cone.
         head_class_groups=[[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]],
         feature_map_stride=8,
-        with_velocity=True,
+        use_velocity=True,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
@@ -422,7 +422,7 @@ def centerpoint_voxel01_mmdet3d_nuscenes(**hparams: Any) -> CenterPointDetection
         point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
         head_class_groups=[[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]],
         feature_map_stride=8,
-        with_velocity=True,
+        use_velocity=True,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
@@ -462,7 +462,7 @@ def centerpoint_voxel0075_mmdet3d_nuscenes(**hparams: Any) -> CenterPointDetecti
         point_cloud_range=(-51.2, -51.2, -5.0, 51.2, 51.2, 3.0),
         head_class_groups=[[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]],
         feature_map_stride=4,
-        with_velocity=True,
+        use_velocity=True,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )

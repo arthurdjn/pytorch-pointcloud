@@ -574,7 +574,7 @@ class VoxelMambaDetection(DetectionModel):
             voxel_size=self.voxel_size,
             point_cloud_range=self.point_cloud_range,
             shared_conv_channels=self.shared_conv_channels,
-            with_iou=True,
+            use_iou=True,
             norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         )
 

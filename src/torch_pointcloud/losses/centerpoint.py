@@ -142,7 +142,7 @@ class CenterHeadLoss(nn.Module):
         device = output["heatmap"][0].device
         boxes_per_scene, labels_per_scene = unbatch_boxes(data, batch_size, device)
         boxes_per_scene = [_pad_box_columns(boxes, self.code_size - 8) for boxes in boxes_per_scene]
-        with_iou = self.iou_weight > 0 and "iou" in output
+        use_iou = self.iou_weight > 0 and "iou" in output
 
         total = output["heatmap"][0].new_zeros(())
         hm_total = output["heatmap"][0].new_zeros(())
@@ -194,14 +194,14 @@ class CenterHeadLoss(nn.Module):
             hm_total = hm_total + hm_loss.detach()
             box_total = box_total + box_loss.detach()
 
-            if with_iou:
+            if use_iou:
                 iou_loss = self._iou_loss(output["iou"][group_idx], pred_boxes, ind, mask, group_boxes, width)
                 iou_loss = iou_loss * self.iou_weight
                 total = total + iou_loss
                 iou_total = iou_total + iou_loss.detach()
 
         result = {"loss": total, "heatmap_loss": hm_total, "box_loss": box_total}
-        if with_iou:
+        if use_iou:
             result["iou_loss"] = iou_total
         return result
 

@@ -16,7 +16,7 @@ def _dense_data(
     groups: List[List[int]] = [[0, 1, 2]],
     batch_size: int = 2,
     size: int = 24,
-    with_velocity: bool = False,
+    use_velocity: bool = False,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     torch.manual_seed(0)
     output: Dict[str, Any] = {
@@ -27,7 +27,7 @@ def _dense_data(
         "rot": [torch.randn(batch_size, 2, size, size) for _ in groups],
         "iou": [torch.randn(batch_size, 1, size, size) for _ in groups],
     }
-    if with_velocity:
+    if use_velocity:
         output["vel"] = [torch.randn(batch_size, 2, size, size) for _ in groups]
     box = torch.tensor(
         [
@@ -211,7 +211,7 @@ def test_center_loss_class_groups_and_velocity_codes() -> None:
         feature_map_stride=1,
         code_weights=[1.0] * 8 + [0.2, 0.2],
     )
-    output, data = _dense_data(groups, with_velocity=True)
+    output, data = _dense_data(groups, use_velocity=True)
     data[DataKeys.BOX] = torch.cat([data[DataKeys.BOX], torch.tensor([[1.0, 0.5], [0.0, 0.0], [-1.0, 0.2]])], dim=1)
     for tensor in output["vel"]:
         tensor.requires_grad_(True)

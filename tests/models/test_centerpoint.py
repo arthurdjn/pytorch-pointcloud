@@ -66,7 +66,7 @@ def test_centerpoint_create_model_hparams() -> None:
     assert model.num_features == model.backbone.num_bev_features == 512
     assert len(model.head.heads) == 6
     assert model.head.class_groups == CLASS_GROUPS
-    assert model.head.with_velocity
+    assert all(head.vel is not None for head in model.head.heads)
 
     model = create_model("centerpoint-voxel0075.nuscenes.mmdet3d", task="detection")
     assert isinstance(model, CenterPointDetection)
@@ -135,7 +135,7 @@ def test_separate_head_optional_branches() -> None:
     assert isinstance(final, torch.nn.Conv2d) and final.bias is not None
     assert torch.allclose(final.bias, torch.full((2,), -2.19))
 
-    head = SeparateHead(8, 2, with_velocity=True, with_iou=True)
+    head = SeparateHead(8, 2, use_velocity=True, use_iou=True)
     out = head(torch.rand(1, 8, 4, 4))
     assert out["vel"].shape == (1, 2, 4, 4) and out["iou"].shape == (1, 1, 4, 4)
 
@@ -148,8 +148,8 @@ def test_center_head_decode_velocity_and_rectifier() -> None:
         feature_map_stride=1,
         voxel_size=(1.0, 1.0, 1.0),
         point_cloud_range=(-4.0, -4.0, -2.0, 4.0, 4.0, 2.0),
-        with_velocity=True,
-        with_iou=True,
+        use_velocity=True,
+        use_iou=True,
     ).eval()
     out = head(torch.rand(2, 8, 8, 8))
     assert len(out["heatmap"]) == 2 and out["heatmap"][1].shape == (2, 2, 8, 8)

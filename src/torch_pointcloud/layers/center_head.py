@@ -26,9 +26,9 @@ class CenterHeadOutput(TypedDict):
         center_z: Per-group absolute box height, each $(B, 1, H, W)$.
         dim: Per-group log box size, each $(B, 3, H, W)$.
         rot: Per-group $(\cos\theta, \sin\theta)$, each $(B, 2, H, W)$.
-        vel: Per-group BEV velocity, each $(B, 2, H, W)$; only from a head built `with_velocity`.
-        iou: Per-group IoU-rectification prediction in $[-1, 1]$, each $(B, 1, H, W)$; only from a head built
-            `with_iou`.
+        vel: Per-group BEV velocity, each $(B, 2, H, W)$; only when built with `use_velocity`.
+        iou: Per-group IoU-rectification prediction in $[-1, 1]$, each $(B, 1, H, W)$; only when built with
+            `use_iou`.
     """
 
     heatmap: List[Tensor]
@@ -52,8 +52,8 @@ class SeparateHead(nn.Module):
         in_channels: Input channels, also the width of the hidden convs.
         num_classes: Number of classes predicted by the heatmap branch.
         num_layers: Number of convs per branch.
-        with_velocity: Add the BEV velocity branch.
-        with_iou: Add the IoU-rectification branch.
+        use_velocity: Add the BEV velocity branch.
+        use_iou: Add the IoU-rectification branch.
         init_bias: Bias of the heatmap output conv at initialization.
         act: Activation of the hidden conv blocks.
         act_kwargs: Extra activation arguments.
@@ -72,8 +72,8 @@ class SeparateHead(nn.Module):
         num_classes: int,
         *,
         num_layers: int = 2,
-        with_velocity: bool = False,
-        with_iou: bool = False,
+        use_velocity: bool = False,
+        use_iou: bool = False,
         init_bias: float = -2.19,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -97,10 +97,10 @@ class SeparateHead(nn.Module):
         self.dim = prediction_branch(in_channels, 3, **branch_kwargs)
         self.rot = prediction_branch(in_channels, 2, **branch_kwargs)
         self.vel: Optional[nn.Sequential] = None
-        if with_velocity:
+        if use_velocity:
             self.vel = prediction_branch(in_channels, 2, **branch_kwargs)
         self.iou: Optional[nn.Sequential] = None
-        if with_iou:
+        if use_iou:
             self.iou = prediction_branch(in_channels, 1, **branch_kwargs)
         self.heatmap = prediction_branch(in_channels, num_classes, **branch_kwargs)
 
@@ -156,8 +156,8 @@ class CenterHead(nn.Module):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         shared_conv_channels: Channels of the shared conv feeding every separate head.
         num_head_layers: Number of convs per separate-head branch.
-        with_velocity: Predict the BEV velocity of every box.
-        with_iou: Predict the IoU-rectification score of every box.
+        use_velocity: Predict the BEV velocity of every box.
+        use_iou: Predict the IoU-rectification score of every box.
         init_bias: Bias of the heatmap output convs at initialization.
         act: Activation of the shared conv and the hidden head convs.
         act_kwargs: Extra activation arguments.
@@ -176,8 +176,8 @@ class CenterHead(nn.Module):
         point_cloud_range: Sequence[float],
         shared_conv_channels: int = 64,
         num_head_layers: int = 2,
-        with_velocity: bool = False,
-        with_iou: bool = False,
+        use_velocity: bool = False,
+        use_iou: bool = False,
         init_bias: float = -2.19,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -191,8 +191,6 @@ class CenterHead(nn.Module):
         self.feature_map_stride = feature_map_stride
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
-        self.with_velocity = with_velocity
-        self.with_iou = with_iou
 
         self.shared_conv = Conv2dBlock(
             in_channels,
@@ -211,8 +209,8 @@ class CenterHead(nn.Module):
                     shared_conv_channels,
                     len(group),
                     num_layers=num_head_layers,
-                    with_velocity=with_velocity,
-                    with_iou=with_iou,
+                    use_velocity=use_velocity,
+                    use_iou=use_iou,
                     init_bias=init_bias,
                     act=act,
                     act_kwargs=act_kwargs,
@@ -234,9 +232,9 @@ class CenterHead(nn.Module):
             "dim": [p["dim"] for p in preds],
             "rot": [p["rot"] for p in preds],
         }
-        if self.with_velocity:
+        if "vel" in preds[0]:
             out["vel"] = [p["vel"] for p in preds]
-        if self.with_iou:
+        if "iou" in preds[0]:
             out["iou"] = [p["iou"] for p in preds]
         return out
 
@@ -253,7 +251,7 @@ class CenterHead(nn.Module):
 
         For every class group and scene, the top-$K$ cells of the (sigmoid) heatmap over all its classes give the
         candidate centers; the box attributes are gathered at those cells and mapped to world coordinates. With
-        `iou_rectifier`, a head built `with_iou` rescores every candidate by its predicted IoU
+        `iou_rectifier`, a head built with `use_iou` rescores every candidate by its predicted IoU
         ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with the per-class exponent $r_c$). The full candidate set is
         returned; the evaluation pipeline applies score thresholding and per-class 3D NMS via the
         `torch_pointcloud.ops.box3d` utilities.
@@ -264,11 +262,11 @@ class CenterHead(nn.Module):
             score_threshold: Minimum heatmap score (before rectification) to keep a peak; the non-filtering $0$
                 default returns every peak.
             iou_rectifier: Per-class IoU-rectification exponent, one entry per global class, for a head built
-                `with_iou`.
+                with `use_iou`.
 
         Returns:
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
-            (PyG layout), plus `"velocity"` $(K, 2)$ from a head built `with_velocity`.
+            (PyG layout), plus `"velocity"` $(K, 2)$ from a head built with `use_velocity`.
         """
         if iou_rectifier is not None and len(iou_rectifier) != self.num_classes:
             raise ValueError(
@@ -320,6 +318,6 @@ class CenterHead(nn.Module):
             "labels": torch.cat(out_labels),
             "batch": torch.cat(out_batch),
         }
-        if self.with_velocity:
+        if "vel" in out:
             detections["velocity"] = torch.cat(out_velocity)
         return detections
