@@ -16,6 +16,7 @@ from torch_pointcloud.utils.imports import (
     _PYG_LIB_AVAILABLE,
     _SPCONV_AVAILABLE,
     _TORCHSPARSE_AVAILABLE,
+    _TRANSFORMERS_AVAILABLE,
 )
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
@@ -29,6 +30,7 @@ _REQUIRES_OCNN = pytest.mark.skipif(not _OCNN_AVAILABLE, reason="ocnn is not ins
 _REQUIRES_DWCONV = pytest.mark.skipif(not _DWCONV_AVAILABLE, reason="dwconv is not installed")
 _REQUIRES_MAMBA = pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba-ssm is not installed")
 _REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+_REQUIRES_TRANSFORMERS = pytest.mark.skipif(not _TRANSFORMERS_AVAILABLE, reason="transformers is not installed")
 
 _CLUSTER = (_REQUIRES_PYG_LIB,)
 _GPU_SPCONV = (_REQUIRES_SPCONV, _REQUIRES_CUDA)
@@ -46,6 +48,12 @@ BENCHMARKS = [
         ("--limit", "1"),
         marks=_GPU_SPCONV,
         id="spformer_unet/scannet",
+    ),
+    pytest.param(
+        "openscene/open_vocabulary_segmentation_scannet_benchmark.py",
+        ("--limit", "1"),
+        marks=(*_GPU_SPCONV, _REQUIRES_TRANSFORMERS),
+        id="openscene/scannet",
     ),
     pytest.param("kpconv/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
     pytest.param(

@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file. The format is b
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
+- Added the `open-vocabulary-segmentation` task and the `OpenVocabularySegmentationModel` base class.
+- Added `OpenSceneSegmentation` (Apache-2.0) with the `openscene-openseg.scannet20.songyou-peng`, `openscene-lseg.scannet20.songyou-peng` and `openscene-openseg.nuscenes.songyou-peng` pretrained weights, and the zero-shot ScanNet benchmark under `examples/openscene`.
+- Added `layers.CLIPTextEncoder`, a frozen CLIP text tower read with the optional `transformers` package.
 
 ## 0.0.18 (2026-10-20)
 

@@ -340,3 +340,81 @@ class DetectionModel(nn.Module, metaclass=ABCMeta):
         Canonical signature: `decode(output)`, returning a `Detection3D` with `boxes` $(K, 7)$, `scores`
         $(K,)$, `labels` $(K,)$ and `batch` $(K,)$. The decode is raw: no score thresholding and no NMS.
         """
+
+
+class OpenVocabularySegmentationModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for open-vocabulary point cloud segmentation models, registered under the
+    `"open-vocabulary-segmentation"` task.
+
+    These models have no class list. `forward` returns one embedding per point, $(N, \text{embed\_dim})$, in the
+    space of a pretrained text encoder, so a point is labelled by the prompt whose text embedding is nearest by
+    cosine similarity, and the vocabulary is a list of prompts chosen at inference time.
+
+    Subclasses implement `forward_features` (encoder, keeping the skip intermediates), `forward_head` (the
+    projection into the text space) and `configure_head`, and compose them in `forward`, usually through
+    `forward_decoder` (upsampling path). `forward_head(..., pre_logits=True)` returns the per-point features
+    $(N, \text{num\_features})$ entering the projection.
+
+    Args:
+        in_channels: Number of input feature channels.
+        embed_dim: Width $D$ of the text space the per-point embeddings live in.
+        text_model: Name of the pretrained text encoder the embeddings are aligned with, e.g.
+            `openai/clip-vit-large-patch14-336` (see `layers.CLIPTextEncoder`).
+    """
+
+    def __init__(self, in_channels: int, embed_dim: int, text_model: str) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        self.embed_dim = embed_dim
+        self.text_model = text_model
+
+    @property
+    @abstractmethod
+    def num_features(self) -> int:
+        r"""Width $C$ of the per-point features entering the projection.
+
+        The last dimension of `forward_head(..., pre_logits=True)`. Read-only: it is derived from the instantiated
+        submodules.
+        """
+
+    @abstractmethod
+    def configure_head(self) -> nn.Module:
+        r"""Build and return the projection of the per-point features into the text space.
+
+        Called from `__init__`, so the head is built once from `num_features` and `embed_dim`.
+        """
+
+    @abstractmethod
+    def forward(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Run the model on a packed point cloud.
+
+        Canonical signature: `forward(x, pos, batch)` with features `x` $(N, C)$ (or `None`), positions
+        `pos` $(N, 3)$ and batch index `batch` $(N,)$, returning per-point embeddings $(N, \text{embed\_dim})$
+        to compare by cosine similarity with text embeddings.
+        """
+
+    @abstractmethod
+    def forward_features(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Encode a packed point cloud, keeping what `forward_decoder` needs for the skip connections.
+
+        Canonical signature: `forward_features(x, pos, batch, return_intermediates=False)`, returning the encoder
+        output. With `return_intermediates=True`, the finer encoder stages are appended as the last element of the
+        return: a `List[FeaturesDict]` in fine-to-coarse order, each entry holding `x`, `batch` and the stage's `pos`
+        or `pos_grid`.
+        """
+
+    def forward_decoder(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Decode encoder features back to per-point resolution.
+
+        Canonical signature: `forward_decoder(x, ..., intermediates)`, consuming the output of
+        `forward_features` and returning per-point features $(N, C)$.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement `forward_decoder`.")
+
+    @abstractmethod
+    def forward_head(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Project per-point features into the text space.
+
+        Canonical signature: `forward_head(x, pre_logits=False)`, returning embeddings $(N, \text{embed\_dim})$,
+        or the per-point features $(N, \text{num\_features})$ when `pre_logits=True`.
+        """

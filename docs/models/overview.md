@@ -1,7 +1,7 @@
 # Models
 
-:pytorch-pointcloud-mini: `torch-pointcloud` ships architectures for point cloud classification, semantic and part
-segmentation, object detection and self-supervised pretraining, behind one :pytorch: timm-style factory:
+:pytorch-pointcloud-mini: `torch-pointcloud` ships architectures for point cloud classification, semantic, part and
+open-vocabulary segmentation, object detection and self-supervised pretraining, behind one :pytorch: timm-style factory:
 
 ```{.python notest}
 import torch_pointcloud as tp
@@ -37,6 +37,10 @@ and a few are restricted to non-commercial use: see
 
     Oriented boxes: decode, filter with NMS, score with mAP.
 
+-   :material-text-search: __[Open vocabulary](open-vocabulary.md)__
+
+    Per-point CLIP embeddings: label a scene with any prompt, no class list.
+
 -   :material-palette-swatch: __[Feature maps](features.md)__
 
     The representation under the head: embeddings, retrieval, PCA.
@@ -69,6 +73,13 @@ Best for **dense per-point labeling** (S3DIS, ScanNet, SemanticKITTI). Inputs ar
 Best for **object parts** (ShapeNetPart). Inputs are single objects and their category, outputs are per-point part labels.
 
 {{ architecture_table("part-segmentation") }}
+
+### Open-vocabulary segmentation
+
+Label **any word** (ScanNet, nuScenes): per-point embeddings in CLIP's text space, compared with the prompts of the
+user's choice.
+
+{{ architecture_table("open-vocabulary-segmentation") }}
 
 ### Detection
 
