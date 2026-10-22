@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.
+- Fixed `NuScenes` dropping the ego points of the keyframe; only prior sweeps drop them now.
+- Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 
 ## 0.0.18 (2026-10-20)

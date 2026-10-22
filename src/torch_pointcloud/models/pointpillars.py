@@ -516,9 +516,9 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointpillars-multihead.nuscenes.openpcdet/resolve/88e9d39251f75b29eb369826c84199d4d3dcd438/model.safetensors",
+        url="hf://torch-pointcloud/pointpillars-multihead.nuscenes.openpcdet/resolve/4de6b68e356558a9155b7452736d4641f198d7f6/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 44.34, "NDS": 57.08},
+        metrics={"mAP": 44.56, "NDS": 57.21},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

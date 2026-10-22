@@ -3,15 +3,17 @@
 The output mirrors the extracted `v1.0-mini` layout under `raw/`:
 
     raw/v1.0-mini/*.json              # ego_pose, calibrated_sensor, category, instance, attribute,
-                                      # sample, sample_annotation, sample_data, scene
+                                      # sample, sample_annotation, sample_data, scene, lidarseg
     raw/samples/LIDAR_TOP/*.pcd.bin   # float32 (N, 5) = (x, y, z, intensity, ring) keyframes
     raw/sweeps/LIDAR_TOP/*.pcd.bin    # float32 (N, 5) prior sweeps
+    raw/lidarseg/v1.0-mini/*.bin      # uint8 (N,) lidarseg category ids of each keyframe point
 
 No file of the real release is read. One scene named after a `mini_val` scene holds `--num-keyframes`
 keyframes, each preceded by its prior sweeps along one `prev` chain. The ego vehicle drives straight past a
 moving car, a standing pedestrian, a barrier (a class without attribute) and an animal (a category outside
 the detection classes). Every sweep is cast from a seeded generator (one ray per (beam, azimuth) pair of a
-spinning sensor) against a road, a facade and the annotated objects, so `num_lidar_pts` counts real hits.
+spinning sensor) against a road, a facade and the annotated objects, so `num_lidar_pts` counts real hits and
+each keyframe point is labelled with the lidarseg category of the surface its ray hit.
 
 Usage:
     uv run --no-sync python scripts/generate.py
@@ -25,6 +27,10 @@ from typing import Any, Dict, List
 import numpy as np
 
 from torch_pointcloud.datasets.nuscenes import NUSCENES_ATTRIBUTES, _pose_matrix
+
+# Lidarseg category id of each ray stop, in `stops` order: flat.driveable_surface (road), static.manmade (facade),
+# then the objects: vehicle.car, human.pedestrian.adult, movable_object.barrier, animal.
+LIDARSEG_IDS = np.array([24, 28, 17, 2, 9, 1], dtype=np.uint8)
 
 
 def generate(args: Namespace) -> None:
@@ -73,6 +79,7 @@ def generate(args: Namespace) -> None:
     sample_data: List[Dict[str, Any]] = []
     ego_poses: List[Dict[str, Any]] = []
     annotations: List[Dict[str, Any]] = []
+    lidarseg: List[Dict[str, Any]] = []
     for k in range(args.num_keyframes):
         sample = {"token": token(), "timestamp": 0, "prev": "", "next": "", "scene_token": scene["token"]}
         if samples:
@@ -136,6 +143,11 @@ def generate(args: Namespace) -> None:
             if not is_key_frame:
                 continue
             sample["timestamp"] = timestamp
+            # The real release names each label file after its keyframe's `sample_data` token.
+            label_file = f"lidarseg/{args.version}/{record['token']}_lidarseg.bin"
+            (dst_raw / label_file).parent.mkdir(parents=True, exist_ok=True)
+            LIDARSEG_IDS[hit].tofile(dst_raw / label_file)
+            lidarseg.append({"token": record["token"], "sample_data_token": record["token"], "filename": label_file})
             for i, (_, attribute, size, start, velocity) in enumerate(objects):
                 center = np.asarray(start) + np.asarray(velocity) * elapsed
                 annotation = {
@@ -168,6 +180,7 @@ def generate(args: Namespace) -> None:
         "category": categories,
         "ego_pose": ego_poses,
         "instance": instances,
+        "lidarseg": lidarseg,
         "sample": samples,
         "sample_annotation": annotations,
         "sample_data": sample_data,

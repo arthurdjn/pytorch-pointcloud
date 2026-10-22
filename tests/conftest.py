@@ -1,4 +1,5 @@
 import shutil
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -11,6 +12,7 @@ from torch_pointcloud.datasets import (
     S3DIS,
     ModelNet40,
     ModelNetNormalResampled,
+    NuScenesMini,
     S3DISHdf5,
     ScanNet20,
     ScanObjectNN,
@@ -113,8 +115,21 @@ def dales_dataset(transform: Optional[Callable] = None) -> DALES:
     return DALES(root=DATASETS_DIR, train=False, transform=transform)
 
 
+def nuscenes_lidarseg_dataset(root: Path, transform: Optional[Callable] = None) -> NuScenesMini:
+    """Keyframes of a copy of the `NuScenesMini` fixture under `root`, where the dataset writes its cache."""
+    shutil.copytree(DATASETS_DIR / "NuScenesMini" / "raw", root / "NuScenesMini" / "raw")
+    return NuScenesMini(
+        root=root,
+        max_sweeps=1,
+        return_boxes=False,
+        return_segment=True,
+        transform=transform,
+        show_progress=False,
+    )
+
+
 @pytest.fixture
-def dataset_factory() -> Callable[..., Dataset]:
+def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
     constructors: Dict[str, Callable[..., Dataset]] = {
         "modelnet40": modelnet40_dataset,
@@ -127,6 +142,7 @@ def dataset_factory() -> Callable[..., Dataset]:
         "scannet20_blocks": scannet20_blocks_dataset,
         "semantickitti": semantickitti_dataset,
         "dales": dales_dataset,
+        "nuscenes_lidarseg": partial(nuscenes_lidarseg_dataset, tmp_path),
     }
 
     def factory(name: str, transform: Optional[Callable] = None) -> Dataset:
