@@ -184,3 +184,6 @@ notebooks/**/\[WIP\]*.ipynb
 
 # Git keep
 !.gitkeep
+
+# Cache the example tests write next to the nuScenes fixture
+tests/data/datasets/NuScenesMini/processed/
