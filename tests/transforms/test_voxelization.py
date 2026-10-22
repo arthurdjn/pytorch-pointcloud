@@ -1,9 +1,12 @@
 import pytest
 import torch
 from torch import Tensor
+from torch_geometric.data import Data
+from torch_geometric.transforms import GridSampling
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.transforms.voxelization import VoxelOrigin, VoxelPosReduce
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
 
@@ -148,6 +151,8 @@ def test_voxelize_invalid_arguments_raise() -> None:
         T.Voxelize(pos_key="pos", pos_reduce="median", size=0.5)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="method"):
         T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, method="hash")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="origin"):
+        T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, origin="center")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="reduce"):
         T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys=["segment"], reduce="median")  # type: ignore[arg-type]
 
@@ -331,6 +336,83 @@ def test_voxelize_dst_pos_grid_key_written_for_every_pos_reduce() -> None:
     assert torch.equal(grid["pos_grid"], grid["pos"])
     assert torch.equal(first["pos_grid"], grid["pos"])
     assert torch.equal(first["pos"], pos[[0, 2]])
+
+
+@pytest.mark.skipif(
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
+)
+@pytest.mark.parametrize(
+    "origin, inverse",
+    [
+        pytest.param("grid", [0, 0, 1], id="grid"),
+        pytest.param("min", [0, 0, 0], id="min"),
+    ],
+)
+def test_voxelize_origin_places_the_grid(origin: VoxelOrigin, inverse: list) -> None:
+    """The `grid` origin puts a voxel boundary at 0.25, the `min` origin starts the first voxel at 0.1."""
+    pos = torch.tensor([[0.1], [0.2], [0.3]])
+    _, result = F.voxelize(pos, size=0.25, origin=origin, return_inverse=True)
+    assert result.tolist() == inverse
+
+
+@pytest.mark.skipif(
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
+)
+def test_voxelize_origin_min_matches_grid_sampling() -> None:
+    """With the grid starting at the minimum of the points, the voxel positions are those of PyG's `GridSampling`."""
+    generator = torch.Generator().manual_seed(0)
+    pos = torch.rand(2000, 3, generator=generator) * 10.0 + 0.1
+    expected = GridSampling(0.25)(Data(pos=pos.clone())).pos
+    assert torch.equal(F.voxelize(pos, size=0.25, origin="min"), expected)
+    result = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.25, origin="min")({"pos": pos})
+    assert torch.equal(result["pos"], expected)
+
+
+@pytest.mark.skipif(
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
+)
+@pytest.mark.parametrize(
+    "reduce",
+    [
+        pytest.param("mean", id="mean"),
+        pytest.param("min", id="min"),
+        pytest.param("max", id="max"),
+        pytest.param("sum", id="sum"),
+        pytest.param("first", id="first"),
+        pytest.param("grid", id="grid"),
+    ],
+)
+def test_voxelize_functional_matches_transform(reduce: VoxelPosReduce) -> None:
+    generator = torch.Generator().manual_seed(0)
+    pos = torch.rand(500, 3, generator=generator)
+    voxels, inverse = F.voxelize(pos, size=0.2, reduce=reduce, return_inverse=True)
+    result = T.Voxelize(pos_key="pos", pos_reduce=reduce, size=0.2, dst_inverse_key="inverse")({"pos": pos})
+    assert torch.equal(voxels, result["pos"])
+    assert torch.equal(inverse, result["inverse"])
+
+
+def test_voxelize_functional_empty_input() -> None:
+    voxels, inverse = F.voxelize(torch.empty(0, 3), size=0.1, return_inverse=True)
+    assert voxels.shape == (0, 3)
+    assert inverse.shape == (0,)
+    assert F.voxelize(torch.empty(0, 3), size=0.1, reduce="grid").dtype == torch.long
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        pytest.param({"size": 0.0}, "size", id="size"),
+        pytest.param({"size": 0.1, "reduce": "median"}, "reduce", id="reduce"),
+        pytest.param({"size": 0.1, "origin": "center"}, "origin", id="origin"),
+        pytest.param({"size": 0.1, "method": "hash"}, "method", id="method"),
+    ],
+)
+def test_voxelize_functional_invalid_arguments_raise(kwargs: dict, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        F.voxelize(torch.rand(10, 3), **kwargs)
 
 
 @pytest.fixture

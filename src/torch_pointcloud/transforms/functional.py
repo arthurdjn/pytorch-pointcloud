@@ -28,7 +28,7 @@ from .sampling import (
 )
 from .scaling import maxabs_scale, minimal_enclosing_ball, normalize, rescale
 from .utils import absolute, relabel
-from .voxelization import divisible_pad
+from .voxelization import divisible_pad, voxelize
 
 __all__ = [
     "absolute",
@@ -72,4 +72,5 @@ __all__ = [
     "shuffle_indices",
     "sphere_mask",
     "translate_boxes",
+    "voxelize",
 ]
