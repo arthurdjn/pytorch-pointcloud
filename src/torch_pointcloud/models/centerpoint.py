@@ -352,7 +352,7 @@ class CenterPointPillarsDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/centerpoint-voxel01.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/centerpoint-voxel01.nuscenes.mmdet3d/resolve/65fd068ea910d5da34fd29fe6200dfa6686208b6/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 56.71, "NDS": 64.60},
         classes=NUSCENES_DETECTION_CLASSES,
@@ -395,7 +395,7 @@ def centerpoint_voxel01_mmdet3d_nuscenes(**hparams: Any) -> CenterPointDetection
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/centerpoint-voxel0075.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/centerpoint-voxel0075.nuscenes.mmdet3d/resolve/9562be6b9543edf831e9a96c30ea5027d4a8918a/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 57.06, "NDS": 65.04},
         classes=NUSCENES_DETECTION_CLASSES,
@@ -435,7 +435,7 @@ def centerpoint_voxel0075_mmdet3d_nuscenes(**hparams: Any) -> CenterPointDetecti
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/centerpoint-pillar02.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/centerpoint-pillar02.nuscenes.mmdet3d/resolve/666739133fc99a231a7e8f0100823921bf2318f2/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 49.12, "NDS": 59.04},
         classes=NUSCENES_DETECTION_CLASSES,
