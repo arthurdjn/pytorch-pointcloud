@@ -24,7 +24,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
 from .pointcloud import PointCloudDataset
-from .utils import check_terms_accepted, download_url, extract_zip, is_hash_valid
+from .utils import check_cache_meta, check_terms_accepted, download_url, extract_zip, is_hash_valid, write_cache_meta
 
 # Areas available in the S3DIS dataset.
 S3DISArea = Literal["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"]
@@ -446,8 +446,12 @@ class S3DIS(PointCloudDataset):
         Returns:
             True if every packed file of the area exists, False otherwise.
         """
-        file_names = ["pos.npy", "color.npy", "segment.npy", "instance.npy", "offset.npy"]
         area_dir = Path(self.processed_dir, area)
+        if (area_dir / "meta.json").exists():
+            check_cache_meta(area_dir / "meta.json", self.cache_meta())
+            return True
+
+        file_names = ["pos.npy", "color.npy", "segment.npy", "instance.npy", "offset.npy"]
         return all((area_dir / name).exists() for name in file_names)
 
     def download(self, force: bool = False) -> None:
@@ -541,7 +545,7 @@ class S3DIS(PointCloudDataset):
         convention).  When `aligned=False`, coordinates are kept in the raw
         scan frame.
         """
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
 
         if not self.raw_files_exist():
@@ -594,13 +598,14 @@ class S3DIS(PointCloudDataset):
                 ("instance.npy", np.concatenate([r["instance"] for r in rooms], dtype=np.int16)),
                 ("offset.npy", offsets),
             ]
-            # Write through a tmp file and keep `offset.npy` last: `is_area_processed` must never
+            # Write through a tmp file and stamp `meta.json` last: `is_area_processed` must never
             # accept an area whose save was interrupted.
             for name, array in arrays:
                 tmp_path = area_dir / (name + ".tmp")
                 with open(tmp_path, "wb") as f:
                     np.save(f, array)
                 tmp_path.replace(area_dir / name)
+            write_cache_meta(area_dir / "meta.json", self.cache_meta())
 
     def load(
         self,

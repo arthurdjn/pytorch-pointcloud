@@ -5,7 +5,6 @@
 """
 
 import io
-import json
 import math
 import shutil
 import zipfile
@@ -24,7 +23,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url, is_hash_valid
+from .utils import check_cache_meta, download_url, is_hash_valid, write_cache_meta
 
 SUNRGBD_BASE_URL = "https://rgbd.cs.princeton.edu/data"
 
@@ -317,6 +316,7 @@ class SunRGBD(PointCloudDataset):
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self._split)
         if (split_dir / "meta.json").exists():
+            check_cache_meta(split_dir / "meta.json", self.cache_meta())
             return True
 
         scene_dirs = self.processed_files
@@ -418,10 +418,7 @@ class SunRGBD(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        meta_path = split_dir / "meta.json"
-        tmp_path = split_dir / "meta.json.tmp"
-        tmp_path.write_text(json.dumps({"format_version": 1}))
-        tmp_path.replace(meta_path)
+        write_cache_meta(split_dir / "meta.json", self.cache_meta())
 
     def process_scene(self, args: Tuple[str, Any, str]) -> None:
         """Unproject one scene and write its packed `pos` / `color` / `box` / `class` arrays.

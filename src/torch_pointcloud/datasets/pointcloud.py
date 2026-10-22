@@ -1,7 +1,7 @@
 """Base class for point cloud datasets cached on disk under a `raw/` + `processed/` layout."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 from torch.utils.data import Dataset
 
@@ -22,11 +22,16 @@ class PointCloudDataset(Dataset):
         The tensor values still share storage with the cache: treat them as read-only and let
         transforms return new tensors instead of writing in place.
 
+    `process` stamps the cache it writes with a `meta.json` holding `cache_meta()`, and `processed_files_exist`
+    raises when a cache carries a different stamp. Bump `format_version` whenever `process` changes the files it
+    writes or their contents, so caches from older releases are regenerated instead of served.
+
     Args:
         root: The root directory under which the dataset directory is created.
     """
 
     _repr_indent = 4
+    format_version = 1
 
     def __init__(self, root: PathLike) -> None:
         super().__init__()
@@ -57,6 +62,13 @@ class PointCloudDataset(Dataset):
 
     def processed_files_exist(self) -> bool:
         return Path(self.processed_dir).exists()
+
+    def cache_meta(self) -> Dict[str, Any]:
+        """Parameters the processed cache depends on, stamped in its `meta.json` and checked before it is served.
+
+        Subclasses extend it with the constructor arguments that change the cache content, such as a class subset.
+        """
+        return {"format_version": self.format_version}
 
     def __getitem__(self, index: int) -> Any:
         raise NotImplementedError

@@ -341,6 +341,28 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
         )
 
 
+def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
+    """Stamp a processed cache with the parameters it was built with.
+
+    The file is written through a temporary path and renamed, so it marks the cache complete only once every
+    other file is in place.
+
+    Args:
+        meta_path: Path to the cache `meta.json` file.
+        meta: The metadata of the parameters the cache was built with.
+
+    Examples:
+        ```pycon
+        >>> write_cache_meta("data/ModelNet10/processed/train.meta.json", {"format_version": 1})  # doctest: +SKIP
+
+        ```
+    """
+    meta_path = Path(meta_path)
+    tmp_path = meta_path.with_name(meta_path.name + ".tmp")
+    tmp_path.write_text(json.dumps(meta))
+    tmp_path.replace(meta_path)
+
+
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py
 def is_hash_valid(file_path: PathLike, expected_hash: Optional[str] = None, hash_type: HashType = "md5") -> bool:
     """Check if the hash of a file matches the expected hash.

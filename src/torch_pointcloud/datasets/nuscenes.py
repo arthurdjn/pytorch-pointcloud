@@ -19,7 +19,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta
+from .utils import check_cache_meta, write_cache_meta
 
 NUSCENES_DETECTION_CLASSES = (
     "car",
@@ -648,6 +648,7 @@ class NuScenes(PointCloudDataset):
         ```
     """
 
+    format_version = 3
     data_url = "https://www.nuscenes.org/nuscenes#download"
 
     def __init__(
@@ -714,16 +715,16 @@ class NuScenes(PointCloudDataset):
         version_dir = Path(self.raw_dir, self.version)
         return (version_dir / "sample_data.json").exists() and Path(self.raw_dir, "samples", "LIDAR_TOP").is_dir()
 
-    def _cache_meta(self) -> Dict[str, Any]:
-        """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 3, "classes": list(self.classes)}
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta(), "classes": list(self.classes)}
 
     @override
     def processed_files_exist(self) -> bool:
         if not Path(self.processed_dir, "keyframes.json").exists():
             return False
 
-        check_cache_meta(Path(self.processed_dir, "meta.json"), self._cache_meta())
+        check_cache_meta(Path(self.processed_dir, "meta.json"), self.cache_meta())
         return True
 
     def split_scenes(self) -> Optional[FrozenSet[str]]:
@@ -855,9 +856,7 @@ class NuScenes(PointCloudDataset):
         )
 
         processed_dir = Path(self.processed_dir)
-        meta_tmp_path = processed_dir / "meta.json.tmp"
-        meta_tmp_path.write_text(json.dumps(self._cache_meta()))
-        meta_tmp_path.replace(processed_dir / "meta.json")
+        write_cache_meta(processed_dir / "meta.json", self.cache_meta())
         tokens_tmp_path = processed_dir / "keyframes.json.tmp"
         tokens_tmp_path.write_text(json.dumps(tokens))
         tokens_tmp_path.replace(processed_dir / "keyframes.json")

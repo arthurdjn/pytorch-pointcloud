@@ -19,6 +19,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
+from .utils import check_cache_meta, write_cache_meta
 
 TransformLike = Callable[[Dict[str, Any]], Dict[str, Any]]
 ShapeNetCategory = Literal[
@@ -209,6 +210,10 @@ class ShapeNetPart(PointCloudDataset):
     @override
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
+        if (split_dir / "meta.json").exists():
+            check_cache_meta(split_dir / "meta.json", self.cache_meta())
+            return True
+
         file_names = ["pos.npy", "normal.npy", "segment.npy", "offset.npy", "category.npy"]
         return all((split_dir / name).exists() for name in file_names)
 
@@ -226,7 +231,7 @@ class ShapeNetPart(PointCloudDataset):
         )
 
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
 
         if not self.raw_files_exist():
@@ -270,6 +275,7 @@ class ShapeNetPart(PointCloudDataset):
         np.save(tmp_dir / "segment.npy", segment)
         np.save(tmp_dir / "offset.npy", offsets)
         np.save(tmp_dir / "category.npy", category)
+        write_cache_meta(tmp_dir / "meta.json", self.cache_meta())
         if split_dir.exists():
             shutil.rmtree(split_dir)
         tmp_dir.replace(split_dir)

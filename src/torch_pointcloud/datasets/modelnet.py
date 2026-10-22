@@ -3,7 +3,6 @@
 {{ paper("1406.5670") }}
 """
 
-import json
 import shutil
 import zipfile
 from functools import partial
@@ -24,7 +23,15 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, compute_hash, download_url, extract_tar, extract_zip, is_hash_valid
+from .utils import (
+    check_cache_meta,
+    compute_hash,
+    download_url,
+    extract_tar,
+    extract_zip,
+    is_hash_valid,
+    write_cache_meta,
+)
 
 MODELNET10_CLASSES = (
     "bathtub",
@@ -171,9 +178,16 @@ class _ModelNet(PointCloudDataset):
         return len(raw_files) > 0
 
     @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta(), "classes": list(self.classes)}
+
+    @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"{self._split}.pt").exists():
+        file_path = Path(self.processed_dir, f"{self._split}.pt")
+        if not file_path.exists():
             return False
+
+        check_cache_meta(file_path.with_suffix(".meta.json"), self.cache_meta())
         return True
 
     def download(self, force: bool = False) -> None:
@@ -211,9 +225,10 @@ class _ModelNet(PointCloudDataset):
         resource_path.unlink()
 
     def process(self, force: bool = False) -> None:
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
-        elif not self.raw_files_exist():
+
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
@@ -232,10 +247,7 @@ class _ModelNet(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        meta_path = dst_path.with_suffix(".meta.json")
-        meta_tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-        meta_tmp_path.write_text(json.dumps({"classes": list(self.classes)}))
-        meta_tmp_path.replace(meta_path)
+        write_cache_meta(dst_path.with_suffix(".meta.json"), self.cache_meta())
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.parent.name
@@ -246,7 +258,6 @@ class _ModelNet(PointCloudDataset):
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
         file_path = Path(self.processed_dir, f"{self._split}.pt")
-        check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)
@@ -428,9 +439,16 @@ class ModelNetNormalResampled(PointCloudDataset):
         return len(raw_files) > 0
 
     @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta(), "classes": list(self.classes)}
+
+    @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat").exists():
+        file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
+        if not file_path.exists():
             return False
+
+        check_cache_meta(file_path.with_suffix(".meta.json"), self.cache_meta())
         return True
 
     def download(self, force: bool = False) -> None:
@@ -460,9 +478,10 @@ class ModelNetNormalResampled(PointCloudDataset):
         resource_path.unlink()
 
     def process(self, force: bool = False) -> None:
-        if self.processed_files_exist() and not force:
+        if not force and self.processed_files_exist():
             return
-        elif not self.raw_files_exist():
+
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
@@ -487,10 +506,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        meta_path = dst_path.with_suffix(".meta.json")
-        meta_tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-        meta_tmp_path.write_text(json.dumps({"classes": list(self.classes)}))
-        meta_tmp_path.replace(meta_path)
+        write_cache_meta(dst_path.with_suffix(".meta.json"), self.cache_meta())
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.name
@@ -507,7 +523,6 @@ class ModelNetNormalResampled(PointCloudDataset):
                 "version of this dataset. Pass force_process=True to regenerate it."
             )
 
-        check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)

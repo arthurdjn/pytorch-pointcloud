@@ -270,13 +270,13 @@ def test_s3dis_tile_room_blocks_own_their_scene_max() -> None:
 
 
 def test_s3dis_process_writes_final_files_only(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Processing an area leaves the five final `.npy` files and no `.tmp` leftovers"""
+    """Processing an area leaves the five final `.npy` files, the `meta.json` stamp and no `.tmp` leftovers"""
     datasets_dir = datasets_dir_factory("S3DIS/raw/**/*")
 
     dataset = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
     area_dir = Path(dataset.processed_dir) / "Area_1"
     names = sorted(p.name for p in area_dir.iterdir())
-    assert names == ["color.npy", "instance.npy", "offset.npy", "pos.npy", "segment.npy"]
+    assert names == ["color.npy", "instance.npy", "meta.json", "offset.npy", "pos.npy", "segment.npy"]
 
 
 def test_s3dis_download_retries_corrupt_archive_with_overwrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

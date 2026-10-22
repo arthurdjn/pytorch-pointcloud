@@ -3,7 +3,6 @@
 {{ paper("kitti-2012") }}
 """
 
-import json
 import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
@@ -17,6 +16,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
+from .utils import check_cache_meta, write_cache_meta
 
 KITTI_CLASSES = ("Car", "Van", "Truck", "Pedestrian", "Person_sitting", "Cyclist", "Tram", "Misc")
 KITTI_CLASS_TO_INDEX = {name: i for i, name in enumerate(KITTI_CLASSES)}
@@ -377,8 +377,14 @@ class KITTI(PointCloudDataset):
         return velodyne_dir.is_dir() and any(velodyne_dir.glob("*.bin"))
 
     @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta(), "fov": self.fov}
+
+    @override
     def processed_files_exist(self) -> bool:
-        if (self.processed_split_dir / "meta.json").exists():
+        meta_path = self.processed_split_dir / "meta.json"
+        if meta_path.exists():
+            check_cache_meta(meta_path, self.cache_meta())
             return True
 
         frame_paths = self.processed_split_dir.glob(f"*/{DataKeys.POS}.npy")
@@ -458,10 +464,7 @@ class KITTI(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        meta_path = self.processed_split_dir / "meta.json"
-        tmp_path = self.processed_split_dir / "meta.json.tmp"
-        tmp_path.write_text(json.dumps({"format_version": 1, "fov": self.fov}))
-        tmp_path.replace(meta_path)
+        write_cache_meta(self.processed_split_dir / "meta.json", self.cache_meta())
 
     def process_frame(self, frame: str) -> None:
         r"""Read one raw frame (optionally FOV-filtered) and write its `.npy` cache.

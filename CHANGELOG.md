@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.
 - Fixed `NuScenes` dropping the ego points of the keyframe; only prior sweeps drop them now.
 - Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
+- Added `format_version` and `cache_meta` to `PointCloudDataset`: every processed cache is stamped with `meta.json` and a stale stamp raises.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.

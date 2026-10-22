@@ -4,7 +4,6 @@
 {{ paper("1702.04405") }}
 """
 
-import json
 import math
 import re
 import shutil
@@ -32,7 +31,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, check_terms_accepted, download_url
+from .utils import check_cache_meta, check_terms_accepted, download_url, write_cache_meta
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -962,6 +961,7 @@ class ScanNet(PointCloudDataset):
     unk_cls = "<unk>"
     unk_idx = 0
 
+    format_version = 2
     data_url = "https://kaldir.vc.in.tum.de/scannet/"
     terms_url = "https://kaldir.vc.in.tum.de/scannet/ScanNet_TOS.pdf"
     meta_url = "https://raw.githubusercontent.com/facebookresearch/votenet/master/scannet/meta_data/"
@@ -1109,14 +1109,19 @@ class ScanNet(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
-    def _cache_meta(self) -> Dict[str, Any]:
-        """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 2, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {
+            **super().cache_meta(),
+            "version": self.version,
+            "label_name": self.label_name,
+            "label_id": self.label_id,
+        }
 
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
         if (split_dir / "meta.json").exists():
-            check_cache_meta(split_dir / "meta.json", self._cache_meta())
+            check_cache_meta(split_dir / "meta.json", self.cache_meta())
             return True
 
         scene_dirs = self.processed_files
@@ -1305,11 +1310,7 @@ class ScanNet(PointCloudDataset):
         # meta.json marks the cache complete: never stamp it when scenes were skipped, so the next
         # construction runs the missing/incomplete-scene audit instead of serving a partial cache.
         if all(results):
-            meta = self._cache_meta()
-            meta_path = split_dir / "meta.json"
-            tmp_path = split_dir / "meta.json.tmp"
-            tmp_path.write_text(json.dumps(meta))
-            tmp_path.replace(meta_path)
+            write_cache_meta(split_dir / "meta.json", self.cache_meta())
 
     def load(
         self,
