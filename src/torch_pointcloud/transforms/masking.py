@@ -291,7 +291,7 @@ class LabelMask(DictTransform):
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Example:
-        Drop the LiDAR HD artefacts (65) and virtual points (66):
+        Drop the points of classes 2 and 3:
 
         ```python
         import torch
@@ -300,11 +300,11 @@ class LabelMask(DictTransform):
 
         transform = T.Compose(
             [
-                T.LabelMask(keys="segment", labels=[65, 66], invert=True, dst_keys="class_mask"),
+                T.LabelMask(keys="segment", labels=[2, 3], invert=True, dst_keys="class_mask"),
                 T.ApplyMask(keys=["pos", "segment"], mask_key="class_mask"),
             ]
         )
-        data = transform({"pos": torch.rand(4, 3), "segment": torch.tensor([1, 2, 65, 5])})
+        data = transform({"pos": torch.rand(4, 3), "segment": torch.tensor([0, 1, 2, 3])})
         ```
     """
 

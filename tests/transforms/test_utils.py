@@ -371,9 +371,17 @@ def test_normalized_difference() -> None:
     assert torch.equal(result["nir"], data["nir"])
 
 
-def test_log1p_casts_integers() -> None:
-    data = {"intensity": torch.tensor([[0], [1], [99]]), "other": sentinel.other}
-    result = T.Log1p(keys="intensity")(data)
-    assert result["intensity"].dtype == torch.float32
-    assert torch.allclose(result["intensity"], torch.log(torch.tensor([[1.0], [2.0], [100.0]])))
+def test_log_casts_integers() -> None:
+    data = {"x": torch.tensor([[1], [2], [100]]), "other": sentinel.other}
+    result = T.Log(keys="x")(data)
+    assert result["x"].dtype == torch.float32
+    assert torch.equal(result["x"], torch.log(torch.tensor([[1.0], [2.0], [100.0]])))
+    assert result["other"] is sentinel.other
+
+
+def test_add() -> None:
+    data = {"a": torch.tensor([0.0, 1.0]), "b": torch.tensor([[2]]), "other": sentinel.other}
+    result = T.Add(keys=["a", "b"], value=[1.0, -3.0])(data)
+    assert torch.equal(result["a"], torch.tensor([1.0, 2.0]))
+    assert torch.equal(result["b"], torch.tensor([[-1.0]]))
     assert result["other"] is sentinel.other

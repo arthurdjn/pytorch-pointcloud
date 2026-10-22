@@ -16,13 +16,14 @@ ReduceOp = Literal["min", "max", "mean", "sum"]
 
 __all__ = [
     "Abs",
+    "Add",
     "Cat",
     "Clamp",
     "CopyItems",
     "Divide",
     "DivideItems",
     "KeepItems",
-    "Log1p",
+    "Log",
     "NormalizedDifference",
     "OneHot",
     "OnesLike",
@@ -624,6 +625,31 @@ class KeepItems(DictTransform):
         return {key: data[key] for key in self.iter_keys(data)}
 
 
+class Add(DictTransform):
+    """Add a value to dictionary tensor entries.
+
+    Args:
+        keys: The keys to add to.
+        value: The value(s) to add, one per key or one for all.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        value: float | Sequence[float],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.value = ensure_tuple_size(value, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, value in self.iter_keys(data, self.value):
+            data[key] = data[key] + value
+        return data
+
+
 class Scale(DictTransform):
     """Multiply dictionary tensor entries by a scale factor.
 
@@ -870,8 +896,9 @@ class Abs(DictTransform):
         return d
 
 
-class Log1p(DictTransform):
-    r"""Map tensor entries to $\log(1 + x)$ (a thin wrapper over `torch.log1p`). Integer inputs give `float32`.
+class Log(DictTransform):
+    r"""Map tensor entries to their natural logarithm (a thin wrapper over `torch.log`). Integer inputs give
+    `float32`.
 
     Args:
         keys: Keys to transform.
@@ -891,7 +918,7 @@ class Log1p(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = torch.log1p(data[key])
+            data[dst_key] = torch.log(data[key])
         return data
 
 

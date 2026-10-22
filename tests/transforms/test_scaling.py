@@ -254,3 +254,11 @@ def test_standardize_single_point_is_zero() -> None:
 def test_standardize_empty_passthrough() -> None:
     x = torch.zeros(0, 3)
     assert F.standardize(x) is x
+
+
+def test_standardize_channels_keeps_the_others() -> None:
+    x = torch.tensor([[0.0, 5.0, 1.0], [2.0, 6.0, 3.0], [4.0, 7.0, 5.0]])
+    out = T.Standardize(keys="x", channels=[0, 2])({"x": x})["x"]
+    assert torch.equal(out[:, 1], x[:, 1])
+    assert torch.allclose(out[:, [0, 2]], torch.tensor([[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0]]), atol=1e-5)
+    assert torch.equal(x[:, 0], torch.tensor([0.0, 2.0, 4.0]))

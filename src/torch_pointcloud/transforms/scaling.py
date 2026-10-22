@@ -326,24 +326,40 @@ class MaxAbsScale(DictTransform):
         return data
 
 
+def _standardize_channel(
+    values: Tensor,
+    eps: float,
+    clamp: Optional[float],
+    scale_clamp_by_std: bool,
+) -> Tensor:
+    std = values.std(correction=1 if values.numel() > 1 else 0) + eps
+    standardized = (values - values.mean()) / std
+    if clamp is None:
+        return standardized
+
+    bound = clamp * std if scale_clamp_by_std else torch.full_like(std, clamp)
+    return standardized.clamp(min=-bound, max=bound)
+
+
 def standardize(
     x: Tensor,
     eps: float = 1e-6,
     clamp: Optional[float] = None,
     scale_clamp_by_std: bool = False,
+    channels: Optional[Sequence[int]] = None,
 ) -> Tensor:
     r"""Standardize each channel with its own statistics: $x' = (x - \mu) / (\sigma + \epsilon)$.
 
-    $\mu$ and $\sigma$ are the mean and the unbiased standard deviation over the first dimension, so a $(N, C)$
-    tensor is standardized per channel. With `clamp` $= k$, $x'$ is clamped to $[-k, k]$, or to
-    $[-k (\sigma + \epsilon), k (\sigma + \epsilon)]$ with `scale_clamp_by_std`. Empty inputs are returned
-    unchanged and a single point standardizes to zero.
+    $\mu$ and $\sigma$ are the mean and the unbiased standard deviation of a channel over the points. With `clamp`
+    $= k$, $x'$ is clamped to $[-k, k]$, or to $[-k (\sigma + \epsilon), k (\sigma + \epsilon)]$ with
+    `scale_clamp_by_std`. Empty inputs are returned unchanged and a single point standardizes to zero.
 
     Args:
-        x: Input tensor, shape $(N, \ldots)$.
+        x: Input tensor, shape $(N,)$ or $(N, C)$.
         eps: Added to $\sigma$, $\epsilon$.
         clamp: The clamp $k$. `None` disables it.
         scale_clamp_by_std: If `True`, scale the clamp by $\sigma + \epsilon$ of the input.
+        channels: The channels of a $(N, C)$ input to standardize, the others are kept. `None` standardizes all.
 
     Returns:
         The standardized tensor, same shape as `x`.
@@ -362,15 +378,13 @@ def standardize(
     if x.size(0) == 0:
         return x
 
-    x = x if x.is_floating_point() else x.float()
-    mean = x.mean(dim=0, keepdim=True)
-    std = x.std(dim=0, correction=1 if x.size(0) > 1 else 0, keepdim=True) + eps
-    standardized = (x - mean) / std
-    if clamp is None:
-        return standardized
+    if x.dim() == 1:
+        return _standardize_channel(x if x.is_floating_point() else x.float(), eps, clamp, scale_clamp_by_std)
 
-    bound = clamp * std if scale_clamp_by_std else torch.full_like(std, clamp)
-    return standardized.clamp(min=-bound, max=bound)
+    out = x.clone() if x.is_floating_point() else x.float()
+    for channel in range(out.size(1)) if channels is None else channels:
+        out[:, channel] = _standardize_channel(out[:, channel], eps, clamp, scale_clamp_by_std)
+    return out
 
 
 class Standardize(DictTransform):
@@ -387,6 +401,7 @@ class Standardize(DictTransform):
         eps: Added to $\sigma$, $\epsilon$.
         clamp: The clamp $k$ on the standardized values. `None` disables it.
         scale_clamp_by_std: If `True`, scale the clamp by $\sigma + \epsilon$ of the input.
+        channels: The channels of a $(N, C)$ entry to standardize, the others are kept. `None` standardizes all.
         allow_missing_keys: If `True`, missing keys are silently ignored.
     """
 
@@ -396,12 +411,14 @@ class Standardize(DictTransform):
         eps: float = 1e-6,
         clamp: Optional[float] = None,
         scale_clamp_by_std: bool = False,
+        channels: Optional[Sequence[int]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.eps = eps
         self.clamp = clamp
         self.scale_clamp_by_std = scale_clamp_by_std
+        self.channels = tuple(channels) if channels is not None else None
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
@@ -411,5 +428,6 @@ class Standardize(DictTransform):
                 eps=self.eps,
                 clamp=self.clamp,
                 scale_clamp_by_std=self.scale_clamp_by_std,
+                channels=self.channels,
             )
         return data

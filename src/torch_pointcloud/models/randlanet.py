@@ -1211,7 +1211,11 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
             ),
             T.Relabel(keys=DataKeys.SEGMENT, labels=FRACTAL_LEARNING_MAP, default=-1, allow_missing_keys=True),
             # The colours come from orthoimages and only describe the first return.
-            T.LabelMask(keys=DataKeys.RETURN_NUMBER, labels=[1], invert=True, dst_keys="occluded"),
+            T.LabelMask(
+                keys=DataKeys.RETURN_NUMBER,
+                labels=[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+                dst_keys="occluded",
+            ),
             T.Divide(
                 keys=[DataKeys.RETURN_NUMBER, DataKeys.NUMBER_OF_RETURNS, DataKeys.COLOR, DataKeys.NIR],
                 divisor=[7.0, 7.0, 65280.0, 65280.0],
@@ -1263,9 +1267,8 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
             T.Shift(keys=DataKeys.POS, method="centroid"),
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
             T.Divide(keys=DataKeys.POS, divisor=25.0),
-            T.Log1p(keys=DataKeys.INTENSITY),
-            # Myria3D bounds the standardized values at 3 standard deviations of the input channel.
-            T.Standardize(keys=[DataKeys.INTENSITY, "rgb_avg"], clamp=3.0, scale_clamp_by_std=True),
+            T.Add(keys=DataKeys.INTENSITY, value=1.0),
+            T.Log(keys=DataKeys.INTENSITY),
             T.Cat(
                 keys=[
                     DataKeys.INTENSITY,
@@ -1279,6 +1282,8 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
                 dst_key=DataKeys.X,
                 dim=1,
             ),
+            # Myria3D bounds the log intensity and mean colour at 3 standard deviations of the input channel.
+            T.Standardize(keys=DataKeys.X, channels=[0, 7], clamp=3.0, scale_clamp_by_std=True),
         ]
     ),
     hparams=dict(
