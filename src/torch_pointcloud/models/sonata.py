@@ -279,7 +279,6 @@ def sonata_base(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "sonata-base-lp.scannet20.fair",
     task="semantic-segmentation",
-    deprecated_names="sonata-lp.scannet20.fair",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
         url=(

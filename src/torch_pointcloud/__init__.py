@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
     from . import config, datasets, inferers, layers, losses, metrics, models, ops, optim, transforms, utils
-    from .models import create_model, list_models, register_model
+    from .models import create_model, deprecated_model, list_models, register_model
 
 __version__ = _version("torch_pointcloud")
 
@@ -15,6 +15,7 @@ __all__ = [
     "config",
     "create_model",
     "datasets",
+    "deprecated_model",
     "inferers",
     "layers",
     "list_models",
@@ -41,7 +42,7 @@ _SUBMODULES = {
     "transforms",
     "utils",
 }
-_MODEL_FUNCTIONS = {"create_model", "list_models", "register_model"}
+_MODEL_FUNCTIONS = {"create_model", "deprecated_model", "list_models", "register_model"}
 
 
 # Subpackages load on first access, so `import torch_pointcloud.transforms` does not import the models and their

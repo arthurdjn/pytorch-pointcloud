@@ -323,7 +323,6 @@ def utonia_small(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "utonia-base.pretrain.pointcept",
     task="pretraining",
-    deprecated_names="utonia.pretrain.pointcept",
     input_keys=("x", "pos_grid", "batch", "pos"),
     weights=WeightsDict(
         url="hf://Pointcept/Utonia/resolve/9457f025e36c7001ee962a542f0d27a5b600e1e7/utonia.pth",
@@ -349,7 +348,6 @@ def utonia_base(**hparams: Any) -> PointTransformerV3Encoder:
 @register_model(
     "utonia-base-lp.scannet20.pointcept",
     task="semantic-segmentation",
-    deprecated_names="utonia-lp.scannet20.pointcept",
     input_keys=("x", "pos", "pos_grid", "batch"),
     weights=WeightsDict(
         url=(

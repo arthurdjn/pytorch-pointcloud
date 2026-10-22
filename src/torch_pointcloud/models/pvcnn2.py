@@ -941,7 +941,6 @@ def _patch_pvcnn2_segmentation_mit_han_lab(model: PVCNN2Segmentation) -> PVCNN2S
 @register_model(
     "pvcnn2.s3dis-area5.mit-han-lab",
     task="semantic-segmentation",
-    deprecated_names="pvcnn2.s3dis-area5",
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn2.s3dis-area5.mit-han-lab/resolve/f391d0bc11d9e0436b6eac21f3471871777b73e1/model.safetensors",
         dataset="s3dis-area5",

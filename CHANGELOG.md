@@ -9,6 +9,13 @@ All notable changes to this project are documented in this file. The format is b
 - Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.
 - Fixed `NuScenes` dropping the ego points of the keyframe; only prior sweeps drop them now.
 - Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
+- Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
+
+## 0.0.18 (2026-10-20)
+
+- Fixed `randlanet.{semantickitti,semantic3d,parislille3d}.open3d` to use the activation and input transforms their weights were trained with.
+- Added the `deprecated_model` decorator, stacked above `register_model`, which keeps a renamed model reachable under its former name with a `FutureWarning` naming the release that drops it; it replaces `register_model(deprecated_names=...)`, and `model_info` lists the former names under `deprecated_names`.
+- The former name `point-transformer.s3dis-area5` loads again, with a `FutureWarning`.
 - Fixed the intermittent `IndexError` in `construct_neigh_by_parent` when DataLoader workers collate ocnn octrees: the batch octree no longer shares ocnn's lookup-table cache.
 
 ## 0.0.17 (2026-10-18)
