@@ -19,6 +19,7 @@ neither are marked as such.
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 6     | not stated upstream                                                                                                        |
+| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 3     | Copyright 2018-2019 Open-MMLab                                                                                             |
 | Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |

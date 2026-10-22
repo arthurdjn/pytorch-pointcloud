@@ -461,7 +461,7 @@ def test_seeded_voxel_mamba(
     with torch.no_grad():
         out = model(x, pos, batch)
 
-    reduced = torch.cat([out[k].reshape(-1) for k in ("center", "center_z", "dim", "rot", "iou", "heatmap")])
+    reduced = torch.cat([out[k][0].reshape(-1) for k in ("center", "center_z", "dim", "rot", "iou", "heatmap")])
     _check_output(reduced, model_name, force_regen, models_dir)
 
 
@@ -513,6 +513,65 @@ def test_pretrained_voxelnext(
     parts = [bev[order].reshape(-1).float()]
     for key in ("hm", "center", "center_z", "dim", "rot", "vel"):
         parts += [t[order].reshape(-1) for t in out[key]]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+CENTERPOINT_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
+    ("centerpoint-voxel01.nuscenes.mmdet3d", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 120000),
+    ("centerpoint-voxel0075.nuscenes.mmdet3d", (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 10, 120000),
+    ("centerpoint-pillar02.nuscenes.mmdet3d", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 40000),
+]
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name,pc_range,voxel_size,max_num_points,max_num_voxels", CENTERPOINT_MODELS)
+def test_pretrained_centerpoint(
+    model_name: str,
+    pc_range: Tuple[float, ...],
+    voxel_size: Tuple[float, ...],
+    max_num_points: int,
+    max_num_voxels: int,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CenterPoint returns dense per-group head maps, so it needs its own snapshot test.
+
+    There is no in-repo nuScenes *detection* fixture, so a fixed synthetic cloud inside the model's point-cloud
+    range is hard-voxelized exactly as the registered transform would. The snapshot concatenates the raw maps of
+    every group (heatmap logits and the continuous regression maps, no decoded heading whose `atan2` would flip
+    under float noise). TF32 is disabled: the sparse backbone's rounding differs across processes with it on.
+    """
+    if model_name.startswith("centerpoint-voxel") and not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+    if model_name.startswith("centerpoint-voxel") and not torch.cuda.is_available():
+        pytest.skip(f"{model_name} requires CUDA, none available")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n = 8000
+    pos = torch.rand(n, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n, model.in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.zeros(n, dtype=torch.long, device=DEVICE)
+
+    points = torch.cat([pos, x], dim=1)
+    voxels, voxel_indices, num_points = hard_voxelize(
+        points, batch, voxel_size, pc_range, max_num_points, max_num_voxels
+    )
+    with torch.no_grad():
+        out = model(voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
+
+    parts = [t.reshape(-1) for key in ("heatmap", "center", "center_z", "dim", "rot", "vel") for t in out[key]]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 

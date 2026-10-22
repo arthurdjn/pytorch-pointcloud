@@ -104,6 +104,11 @@
     "date": "April 2020",
     "title": "DALES: A Large-scale Aerial LiDAR Data Set for Semantic Segmentation"
   },
+  "2006.11275": {
+    "crop": 0.47,
+    "date": "June 2020",
+    "title": "Center-based 3D Object Detection and Tracking"
+  },
   "2007.16100": {
     "crop": 0.47,
     "date": "July 2020",

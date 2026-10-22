@@ -4,7 +4,7 @@
 """
 
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -13,12 +13,10 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers import SparseConvBlock, SubMConv3dResidualBlock
-from torch_pointcloud.layers.anchors import prediction_branch
 from torch_pointcloud.layers.bev_backbone import BEVResidualBackbone
-from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
+from torch_pointcloud.layers.center_head import CenterHead, CenterHeadOutput
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.vfe import DynamicMeanVFE
-from torch_pointcloud.ops.heatmap import transpose_gather
 from torch_pointcloud.ops.hilbert import encode as hilbert_encode
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _MAMBA_SSM_GITHUB_URL, _SPCONV_GITHUB_URL, optional_import
@@ -462,145 +460,6 @@ class VoxelMambaBackbone(nn.Module):
         return voxel_features, voxel_indices
 
 
-class CenterHeadOutput(TypedDict):
-    r"""Raw dense center-head maps over the BEV feature grid.
-
-    Attributes:
-        center: Sub-cell BEV center offset, shape $(B, 2, H, W)$.
-        center_z: Absolute box height, shape $(B, 1, H, W)$.
-        dim: Log box size, shape $(B, 3, H, W)$.
-        rot: $(\cos\theta, \sin\theta)$, shape $(B, 2, H, W)$.
-        iou: IoU-rectification prediction in $[-1, 1]$, shape $(B, 1, H, W)$.
-        heatmap: Per-class center logits, shape $(B, C, H, W)$.
-    """
-
-    center: Tensor
-    center_z: Tensor
-    dim: Tensor
-    rot: Tensor
-    iou: Tensor
-    heatmap: Tensor
-
-
-class SeparateHead(nn.Module):
-    r"""Per-attribute conv head of the center head.
-
-    One small stack of $3\times3$ convs per box attribute, applied to the shared BEV features:
-    `center` $(2)$, `center_z` $(1)$, `dim` $(3)$, `rot` $(2)$, `iou` $(1)$ and a class `heatmap`.
-    The branch widths are fixed by the box parametrization; only the number of classes and the conv
-    depth are configurable.
-
-    Args:
-        in_channels: Input channels.
-        num_classes: Number of classes predicted by the heatmap branch.
-        num_layers: Number of convs per branch.
-        act: Activation of the hidden conv blocks.
-        act_kwargs: Extra activation arguments.
-        norm: Normalization of the hidden conv blocks.
-        norm_kwargs: Extra normalization arguments.
-        bias: Whether the hidden convs carry a bias.
-
-    Shape:
-        - Input: $(B, C_\text{in}, H, W)$.
-        - Output: dict of $(B, C_\text{attr}, H, W)$ tensors keyed by attribute.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        num_classes: int,
-        num_layers: int = 2,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = False,
-    ) -> None:
-        super().__init__()
-        branch_kwargs: Dict[str, Any] = dict(
-            num_middle_conv=num_layers - 1,
-            num_middle_filter=in_channels,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-        self.center = prediction_branch(in_channels, 2, **branch_kwargs)
-        self.center_z = prediction_branch(in_channels, 1, **branch_kwargs)
-        self.dim = prediction_branch(in_channels, 3, **branch_kwargs)
-        self.rot = prediction_branch(in_channels, 2, **branch_kwargs)
-        self.iou = prediction_branch(in_channels, 1, **branch_kwargs)
-        self.heatmap = prediction_branch(in_channels, num_classes, **branch_kwargs)
-
-    def forward(self, x: Tensor) -> CenterHeadOutput:
-        return {
-            "center": self.center(x),
-            "center_z": self.center_z(x),
-            "dim": self.dim(x),
-            "rot": self.rot(x),
-            "iou": self.iou(x),
-            "heatmap": self.heatmap(x),
-        }
-
-
-class CenterHead(nn.Module):
-    r"""Center-based detection head producing per-pixel heatmaps and box regressions.
-
-    A shared $3\times3$ conv reduces the BEV features, then a
-    [`SeparateHead`][torch_pointcloud.models.voxel_mamba.SeparateHead] regresses the per-attribute
-    maps (one shared head over all classes here).
-
-    Reference implementation: :github:
-    [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet) (`CenterHead`).
-
-    Args:
-        in_channels: Channels of the input BEV feature map.
-        num_classes: Number of foreground classes.
-        shared_conv_channels: Channels of the shared conv before the separate heads.
-        num_head_layers: Number of convs per separate-head branch.
-        bn_eps: BatchNorm epsilon.
-        bn_momentum: BatchNorm momentum.
-        bias: Whether convs preceding a norm carry a bias.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        num_classes: int,
-        *,
-        shared_conv_channels: int = 64,
-        num_head_layers: int = 2,
-        bn_eps: float = 1e-3,
-        bn_momentum: float = 0.01,
-        bias: bool = False,
-    ) -> None:
-        super().__init__()
-        self.num_classes = num_classes
-        norm_kwargs = {"eps": bn_eps, "momentum": bn_momentum}
-        self.shared_conv = Conv2dBlock(
-            in_channels,
-            shared_conv_channels,
-            3,
-            padding=1,
-            bias=bias,
-            act="relu",
-            norm="batch_norm",
-            norm_kwargs=norm_kwargs,
-        )
-        self.prediction_head = SeparateHead(
-            shared_conv_channels,
-            num_classes,
-            num_layers=num_head_layers,
-            norm="batch_norm",
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-
-    def forward(self, spatial_features_2d: Tensor) -> CenterHeadOutput:
-        return self.prediction_head(self.shared_conv(spatial_features_2d))
-
-
 class VoxelMambaDetection(DetectionModel):
     r"""Voxel Mamba: group-free state-space 3D object detector (packed point format).
 
@@ -707,11 +566,16 @@ class VoxelMambaDetection(DetectionModel):
         return self.backbone.num_bev_features
 
     def configure_head(self) -> CenterHead:
-        """Build the center-based detection head."""
+        """Build the center-based detection head: one class group, with the IoU-rectification branch."""
         return CenterHead(
             self.backbone.num_bev_features,
-            self.num_classes,
+            [list(range(self.num_classes))],
+            feature_map_stride=self.feature_map_stride,
+            voxel_size=self.voxel_size,
+            point_cloud_range=self.point_cloud_range,
             shared_conv_channels=self.shared_conv_channels,
+            with_iou=True,
+            norm_kwargs={"eps": 1e-3, "momentum": 0.01},
         )
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -746,13 +610,11 @@ class VoxelMambaDetection(DetectionModel):
         top_k: int = 500,
         iou_rectifier: Sequence[float] = (0.68, 0.71, 0.65),
     ) -> Detection3D:
-        r"""Decode center-head predictions into raw candidate detections (no NMS).
+        r"""Decode center-head predictions into raw candidate detections rescored by the predicted IoU (no NMS).
 
-        Peaks of the (sigmoid) heatmap give candidate centers; box attributes are gathered at those
-        peaks, mapped to world coordinates, and rescored by the predicted IoU
-        ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with a per-class rectifier $r_c$, as in the reference). The
-        full candidate set is returned; the evaluation pipeline applies score thresholding and per-class
-        3D NMS via the `torch_pointcloud.ops.box3d` utilities.
+        See [`CenterHead.decode`][torch_pointcloud.layers.center_head.CenterHead.decode]. The full candidate set is
+        returned; the evaluation pipeline applies score thresholding and per-class 3D NMS via the
+        `torch_pointcloud.ops.box3d` utilities.
 
         Args:
             out: A `CenterHeadOutput` from `forward`.
@@ -766,47 +628,7 @@ class VoxelMambaDetection(DetectionModel):
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
             (PyG layout).
         """
-        if len(iou_rectifier) != self.num_classes:
-            raise ValueError(
-                f"`iou_rectifier` must have one entry per class ({self.num_classes}), got {len(iou_rectifier)}."
-            )
-
-        heatmap = out["heatmap"].sigmoid()
-        batch_size, _, h, w = heatmap.shape
-        # One global top-k over the flat heatmap equals the reference's per-class-then-global two-stage top-k.
-        scores, inds = torch.topk(heatmap.flatten(1), top_k)
-        classes = torch.div(inds, h * w, rounding_mode="floor")
-        inds = inds % (h * w)
-        xs = (inds % w).float()
-        ys = torch.div(inds, w, rounding_mode="floor").float()
-
-        center = transpose_gather(out["center"], inds)
-        center_z = transpose_gather(out["center_z"], inds)
-        dim = transpose_gather(out["dim"], inds).exp()
-        rot = transpose_gather(out["rot"], inds)
-        angle = torch.atan2(rot[..., 1], rot[..., 0])
-        iou = torch.clamp((transpose_gather(out["iou"], inds) + 1) * 0.5, min=0, max=1.0).squeeze(-1)
-
-        xs = (xs + center[..., 0]) * self.feature_map_stride * self.voxel_size[0] + self.point_cloud_range[0]
-        ys = (ys + center[..., 1]) * self.feature_map_stride * self.voxel_size[1] + self.point_cloud_range[1]
-        boxes = torch.cat([xs.unsqueeze(-1), ys.unsqueeze(-1), center_z, dim, angle.unsqueeze(-1)], dim=-1)
-
-        out_boxes, out_scores, out_labels, out_batch = [], [], [], []
-        for b in range(batch_size):
-            keep = scores[b] > score_threshold
-            scene_boxes, scene_scores, scene_labels = boxes[b][keep], scores[b][keep], classes[b][keep]
-            rectifier = scene_scores.new_tensor(iou_rectifier)[scene_labels.long()]
-            out_boxes.append(scene_boxes)
-            out_scores.append(scene_scores.pow(1 - rectifier) * iou[b][keep].pow(rectifier))
-            out_labels.append(scene_labels)
-            out_batch.append(torch.full((scene_boxes.shape[0],), b, dtype=torch.long, device=heatmap.device))
-
-        return {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
-        }
+        return self.head.decode(out, top_k=top_k, score_threshold=score_threshold, iou_rectifier=iou_rectifier)
 
 
 @register_model(

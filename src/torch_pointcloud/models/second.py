@@ -282,6 +282,7 @@ class VoxelResBackbone8x(nn.Module):
 
     Args:
         in_channels: Input voxel feature channels (e.g. $5$ for nuScenes).
+        bias: Whether the submanifold convolutions of the residual blocks carry a bias.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
@@ -292,6 +293,7 @@ class VoxelResBackbone8x(nn.Module):
         self,
         in_channels: int,
         *,
+        bias: bool = True,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -306,8 +308,8 @@ class VoxelResBackbone8x(nn.Module):
         )
         self.conv1 = nn.ModuleList(
             [
-                SparseBasicBlock(16, 16, bias=True, indice_key="res1", **block_kwargs),
-                SparseBasicBlock(16, 16, bias=True, indice_key="res1", **block_kwargs),
+                SparseBasicBlock(16, 16, bias=bias, indice_key="res1", **block_kwargs),
+                SparseBasicBlock(16, 16, bias=bias, indice_key="res1", **block_kwargs),
             ]
         )
         self.conv2 = nn.ModuleList(
@@ -315,8 +317,8 @@ class VoxelResBackbone8x(nn.Module):
                 SparseConvBlock(
                     16, 32, 3, stride=2, padding=1, indice_key="spconv2", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(32, 32, bias=True, indice_key="res2", **block_kwargs),
-                SparseBasicBlock(32, 32, bias=True, indice_key="res2", **block_kwargs),
+                SparseBasicBlock(32, 32, bias=bias, indice_key="res2", **block_kwargs),
+                SparseBasicBlock(32, 32, bias=bias, indice_key="res2", **block_kwargs),
             ]
         )
         self.conv3 = nn.ModuleList(
@@ -324,8 +326,8 @@ class VoxelResBackbone8x(nn.Module):
                 SparseConvBlock(
                     32, 64, 3, stride=2, padding=1, indice_key="spconv3", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(64, 64, bias=True, indice_key="res3", **block_kwargs),
-                SparseBasicBlock(64, 64, bias=True, indice_key="res3", **block_kwargs),
+                SparseBasicBlock(64, 64, bias=bias, indice_key="res3", **block_kwargs),
+                SparseBasicBlock(64, 64, bias=bias, indice_key="res3", **block_kwargs),
             ]
         )
         self.conv4 = nn.ModuleList(
@@ -333,8 +335,8 @@ class VoxelResBackbone8x(nn.Module):
                 SparseConvBlock(
                     64, 128, 3, stride=2, padding=(0, 1, 1), indice_key="spconv4", conv_type="spconv", **block_kwargs
                 ),
-                SparseBasicBlock(128, 128, bias=True, indice_key="res4", **block_kwargs),
-                SparseBasicBlock(128, 128, bias=True, indice_key="res4", **block_kwargs),
+                SparseBasicBlock(128, 128, bias=bias, indice_key="res4", **block_kwargs),
+                SparseBasicBlock(128, 128, bias=bias, indice_key="res4", **block_kwargs),
             ]
         )
         self.conv_out = spconv.SparseSequential(

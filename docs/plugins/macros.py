@@ -31,6 +31,7 @@ MODELS_DIR = DOCS_DIR.parent / "src" / "torch_pointcloud" / "models"
 
 # Display name of each architecture, keyed by its module in `torch_pointcloud.models`.
 MODEL_LABELS = {
+    "centerpoint": "CenterPoint",
     "concerto": "Concerto",
     "dgcnn": "DGCNN",
     "kpconv": "KPConv",
