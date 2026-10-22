@@ -2018,7 +2018,7 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/ptv3-base.nuscenes.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/ptv3-base.nuscenes.pointcept/resolve/72e2c3ccb716123c8c96e7964b538a3d72feffc4/model.safetensors",
         dataset="nuscenes",
         metrics={"mIoU": 80.21, "OA": 94.62, "simple/mIoU": 78.32, "simple/OA": 94.25},
         classes=NUSCENES_LIDARSEG_CLASSES,

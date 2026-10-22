@@ -567,7 +567,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/6a4c25305663b26a75079a835505c4fe6e9ea652/model.safetensors",
+        url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/56430268ff66a20c9ad8f8ecd239421d6dfb3742/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 50.76, "NDS": 61.85},
         classes=NUSCENES_DETECTION_CLASSES,
