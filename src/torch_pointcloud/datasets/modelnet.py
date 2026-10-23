@@ -682,3 +682,168 @@ class ModelNet40Hdf5(PointCloudDataset):
     @override
     def __len__(self) -> int:
         return len(self.labels)
+
+
+# The 32 ModelNet40 classes without a rotational symmetry, the ones the RPM-Net registration benchmark keeps.
+MODELNET40_ASYMMETRIC_LABELS = (
+    0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 38, 39
+)  # fmt: skip
+
+ModelNet40RegistrationClasses = Literal["all", "seen", "unseen"]
+
+
+def _euler_zyx_rotation(angles: np.ndarray) -> np.ndarray:
+    r"""Rotation matrix of extrinsic $z$-$y$-$x$ Euler angles in radians: a rotation about $z$, then $y$, then $x$ of
+    the fixed frame."""
+    (cz, cy, cx), (sz, sy, sx) = np.cos(angles), np.sin(angles)
+    rz = np.array([[cz, -sz, 0.0], [sz, cz, 0.0], [0.0, 0.0, 1.0]])
+    ry = np.array([[cy, 0.0, sy], [0.0, 1.0, 0.0], [-sy, 0.0, cy]])
+    rx = np.array([[1.0, 0.0, 0.0], [0.0, cx, -sx], [0.0, sx, cx]])
+    return rx @ ry @ rz
+
+
+class ModelNet40Registration(ModelNet40Hdf5):
+    r"""Synthetic registration pairs of ModelNet40 shapes, the benchmark of
+    :arxiv: [RPM-Net: Robust Point Matching using Learned Features](https://arxiv.org/abs/2003.13479)
+    by Yew and Lee, as GeoTransformer samples it.
+
+    Every sample pairs two partial views of one `ModelNet40Hdf5` shape: the shape is centered in the unit sphere,
+    a random rigid transform (Euler angles up to `rotation_magnitude` degrees about each axis, a translation up to
+    `translation_magnitude`) separates the two copies, each copy is cropped by a random plane keeping `keep_ratio`
+    of its points, randomly subsampled to `num_points`, jittered by Gaussian noise of standard deviation 0.01 clipped
+    at `noise_magnitude`, and shuffled. The 8 rotationally symmetric classes are left out when `asymmetric` is set.
+
+    The draws come from NumPy: with `deterministic` (the default on the test set) the generator of sample $i$ is
+    seeded with $i$, so a pair is the same every time it is read and matches the published evaluation protocol;
+    otherwise the seed comes from the torch generator, so training pairs follow `seed_everything` and the DataLoader
+    worker seeds.
+
+    | Key         | Shape      | Dtype   | Description                                  |
+    | ----------- | ---------- | ------- | -------------------------------------------- |
+    | `pos`       | $(N, 3)$   | float32 | Source view                                  |
+    | `ref_pos`   | $(M, 3)$   | float32 | Reference view                               |
+    | `transform` | $(4, 4)$   | float32 | Transform of the source onto the reference   |
+    | `label`     | scalar     | int64   | Class index (40 classes)                     |
+
+    Args:
+        root: Root directory where the dataset should be stored.
+        train: If `True`, pairs the training shapes, otherwise the test shapes.
+        classes: `"all"` (every class), `"seen"` (the first 20 classes) or `"unseen"` (the last 20 classes).
+        asymmetric: Whether the rotationally symmetric classes are dropped.
+        num_points: Number of points $N$ of each view.
+        rotation_magnitude: Maximum Euler angle about each axis, in degrees.
+        translation_magnitude: Maximum translation along each axis.
+        keep_ratio: Fraction of the shape points each view keeps.
+        noise_magnitude: Clipping value of the Gaussian jitter; `None` adds no noise.
+        deterministic: Whether sample $i$ is drawn from a generator seeded with $i$; defaults to `not train`.
+        transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
+        download: If `True`, downloads the dataset from the internet and puts it in `root`.
+        force_download: If `True`, forces to download the dataset from the internet, even if it is already downloaded.
+        force_process: Accepted for contract parity; the HDF5 shards are used directly, so this is a no-op.
+        show_progress: If `True`, displays a progress bar of the download and loading.
+
+    Example:
+        ```{.python notest}
+        from torch_pointcloud.datasets import ModelNet40Registration
+
+        dataset = ModelNet40Registration(root="data", train=False, download=True)
+        sample = dataset[0]
+        sample["pos"].shape, sample["ref_pos"].shape, sample["transform"].shape
+        ```
+    """
+
+    def __init__(
+        self,
+        root: PathLike,
+        *,
+        train: bool = True,
+        classes: ModelNet40RegistrationClasses = "all",
+        asymmetric: bool = True,
+        num_points: int = 717,
+        rotation_magnitude: float = 45.0,
+        translation_magnitude: float = 0.5,
+        keep_ratio: float = 0.7,
+        noise_magnitude: Optional[float] = 0.05,
+        deterministic: Optional[bool] = None,
+        transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+        download: bool = False,
+        force_download: bool = False,
+        force_process: bool = False,
+        show_progress: bool = True,
+    ) -> None:
+        if classes not in ("all", "seen", "unseen"):
+            raise ValueError(f"Unknown classes {classes!r}. Expected 'all', 'seen' or 'unseen'.")
+
+        super().__init__(
+            root,
+            train=train,
+            transform=transform,
+            download=download,
+            force_download=force_download,
+            force_process=force_process,
+            show_progress=show_progress,
+        )
+        self.classes_subset = classes
+        self.asymmetric = asymmetric
+        self.num_points = num_points
+        self.rotation_magnitude = rotation_magnitude
+        self.translation_magnitude = translation_magnitude
+        self.keep_ratio = keep_ratio
+        self.noise_magnitude = noise_magnitude
+        self.deterministic = (not train) if deterministic is None else deterministic
+
+        labels = {"all": range(40), "seen": range(20), "unseen": range(20, 40)}[classes]
+        kept = [label for label in labels if not asymmetric or label in MODELNET40_ASYMMETRIC_LABELS]
+        self.indices = np.flatnonzero(np.isin(self.labels, kept))
+
+    @property
+    def name(self) -> str:
+        """The pairs are drawn from the `ModelNet40Hdf5` shards, so the two datasets share their directory."""
+        return "ModelNet40Hdf5"
+
+    def sample_pair(self, points: np.ndarray, rng: np.random.RandomState) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r"""Two partial views of a shape and the transform of the source onto the reference."""
+        points = points - points.mean(axis=0)
+        ref_points = points / np.max(np.linalg.norm(points, axis=1))
+
+        angles = rng.rand(3) * np.pi * self.rotation_magnitude / 180.0
+        translation = rng.uniform(-self.translation_magnitude, self.translation_magnitude, 3)
+        transform = np.eye(4)
+        transform[:3, :3] = _euler_zyx_rotation(angles)
+        transform[:3, 3] = translation
+        src_points = (ref_points - translation) @ transform[:3, :3]
+
+        views = []
+        for view in (ref_points, src_points):
+            num_kept = int(np.floor(view.shape[0] * self.keep_ratio + 0.5))
+            phi, theta = rng.uniform(0.0, 2 * np.pi), rng.uniform(0.0, np.pi)
+            normal = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
+            views.append(view[np.argsort(-(view @ normal))[:num_kept]])
+        views = [view[rng.permutation(view.shape[0])[: self.num_points]] for view in views]
+        if self.noise_magnitude is not None:
+            views = [
+                view + np.clip(rng.normal(scale=0.01, size=view.shape), -self.noise_magnitude, self.noise_magnitude)
+                for view in views
+            ]
+        views = [view[rng.permutation(view.shape[0])] for view in views]
+        return views[1], views[0], transform
+
+    @override
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        shape_index = int(self.indices[index])
+        seed = index if self.deterministic else int(torch.randint(0, 2**31 - 1, (1,)).item())
+        rng = np.random.RandomState(seed)
+        src_points, ref_points, transform = self.sample_pair(self.pos[shape_index].astype(np.float64), rng)
+        data: Dict[str, Any] = {
+            DataKeys.POS: torch.from_numpy(src_points.astype(np.float32)),
+            DataKeys.REF_POS: torch.from_numpy(ref_points.astype(np.float32)),
+            DataKeys.TRANSFORM: torch.from_numpy(transform.astype(np.float32)),
+            DataKeys.LABEL: torch.tensor(int(self.labels[shape_index]), dtype=torch.long),
+        }
+        if self.transform is not None:
+            data = self.transform(data)
+        return data
+
+    @override
+    def __len__(self) -> int:
+        return len(self.indices)

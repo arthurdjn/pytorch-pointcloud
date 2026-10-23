@@ -157,3 +157,10 @@ $RUN examples/sonata/segmentation_scannet_benchmark.py --root "$ROOT" --model so
 $RUN examples/point_transformer_v3/segmentation_dales_benchmark.py --root "$ROOT" --model ptv3.dales.jayakumar-pujar --sw-batch-size 2
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2
+
+# Registration (3DMatch, 3DLoMatch)
+$RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DMatch
+$RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DLoMatch
+
+# Registration (ModelNet40 pairs)
+$RUN examples/geotransformer/registration_modelnet40_benchmark.py --root "$ROOT" --model geotransformer.modelnet40.zheng-qin

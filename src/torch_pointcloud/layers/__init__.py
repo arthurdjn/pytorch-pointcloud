@@ -31,9 +31,17 @@ from .fps import FPS
 from .geometric_affine import GeometricAffineConv, NormalizeType
 from .grid_pool import GridPool
 from .grouped_vector_attention import GroupedVectorAttention
-from .kpconv_blocks import KPConv, KPConvBlock, KPResidualBlock, create_kernel_points
+from .kpconv_blocks import (
+    KPConv,
+    KPConvBlock,
+    KPConvGroupNormBlock,
+    KPResidualBlock,
+    KPResidualGroupNormBlock,
+    LinearGroupNormBlock,
+    create_kernel_points,
+)
 from .linear_blocks import LinearBlock
-from .norms import create_norm
+from .norms import PackedGroupNorm, create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from .pdnorm import PDNorm
@@ -137,9 +145,13 @@ __all__ = [
     "GroupedVectorAttention",
     "KPConv",
     "KPConvBlock",
+    "KPConvGroupNormBlock",
     "KPResidualBlock",
+    "KPResidualGroupNormBlock",
+    "LinearGroupNormBlock",
     "create_kernel_points",
     "LinearBlock",
+    "PackedGroupNorm",
     "create_norm",
     "OctreeAttention",
     "OctreeRelativePositionEncoding",

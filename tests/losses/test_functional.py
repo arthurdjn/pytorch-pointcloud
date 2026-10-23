@@ -35,6 +35,7 @@ def test_functional_reexports_every_tensor_function() -> None:
         "poly1_focal_loss",
         "sigmoid_focal_loss",
         "tnet_orthogonality_regularizer",
+        "weighted_circle_loss",
     }
     assert set(LF.__all__) == expected
     assert all(callable(getattr(LF, name)) for name in expected)
