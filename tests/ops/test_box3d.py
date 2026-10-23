@@ -15,6 +15,7 @@ from torch_pointcloud.ops.box3d import (
     class_to_angle,
     class_to_size,
     count_points_in_boxes,
+    decode_roi_residuals,
     nms3d,
     points_in_boxes,
     projected_ignore_mask,
@@ -447,3 +448,13 @@ def test_roi_aware_pool3d_respects_scene_batch() -> None:
     boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
     out = roi_aware_pool3d(x, pos, boxes, 1, pos_batch=torch.tensor([0, 1]), box_batch=torch.tensor([0, 1]))
     assert out.view(-1).tolist() == [1.0, 2.0]
+
+
+def test_decode_roi_residuals_in_the_roi_frame() -> None:
+    rois = _boxes([[10.0, 5.0, 1.0, 4.0, 2.0, 2.0, math.pi / 2]])
+    diagonal = math.sqrt(4.0**2 + 2.0**2)
+    encodings = torch.tensor([[1.0 / diagonal, 0.0, 0.5, math.log(2.0), 0.0, 0.0, 0.1]])
+    boxes = decode_roi_residuals(encodings, rois)
+    # One length unit ahead of a quarter-turned RoI is one unit along +y; z moves by half the RoI height.
+    expected = torch.tensor([[10.0, 6.0, 2.0, 8.0, 2.0, 2.0, math.pi / 2 + 0.1]])
+    assert torch.allclose(boxes, expected, atol=1e-5)

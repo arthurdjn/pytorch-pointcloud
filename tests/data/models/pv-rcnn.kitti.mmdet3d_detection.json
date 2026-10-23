@@ -534,346 +534,346 @@
     "head.conv_dir_cls.bias": [
       12
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.lins.0.weight": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.lins.0.weight": [
       16,
       4
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.lins.1.weight": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.lins.1.weight": [
       16,
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.0.module.weight": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.0.module.weight": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.0.module.bias": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.0.module.bias": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.0.module.running_mean": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.0.module.running_mean": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.0.module.running_var": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.0.module.running_var": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.1.module.weight": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.1.module.weight": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.1.module.bias": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.1.module.bias": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.1.module.running_mean": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.1.module.running_mean": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.1.module.running_var": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.1.module.running_var": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.0.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.point_abstraction.mlps.1.lins.0.weight": [
+    "keypoint_encoder.point_abstraction.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.lins.0.weight": [
       16,
       4
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.lins.1.weight": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.lins.1.weight": [
       16,
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.0.module.weight": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.0.module.weight": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.0.module.bias": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.0.module.bias": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.0.module.running_mean": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.0.module.running_mean": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.0.module.running_var": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.0.module.running_var": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.1.module.weight": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.1.module.weight": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.1.module.bias": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.1.module.bias": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.1.module.running_mean": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.1.module.running_mean": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.1.module.running_var": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.1.module.running_var": [
       16
     ],
-    "keypoint_encoder.point_abstraction.mlps.1.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.lins.0.weight": [
-      16,
-      19
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.lins.1.weight": [
-      16,
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.0.module.weight": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.0.module.bias": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.0.module.running_mean": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.0.module.running_var": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.1.module.weight": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.1.module.bias": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.1.module.running_mean": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.1.module.running_var": [
-      16
-    ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.0.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.lins.0.weight": [
+    "keypoint_encoder.point_abstraction.convs.1.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.lins.0.weight": [
       16,
       19
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.lins.1.weight": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.lins.1.weight": [
       16,
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.0.module.weight": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.0.module.weight": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.0.module.bias": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.0.module.bias": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.0.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.0.module.running_mean": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.0.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.0.module.running_var": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.1.module.weight": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.1.module.weight": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.1.module.bias": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.1.module.bias": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.1.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.1.module.running_mean": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.1.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.1.module.running_var": [
       16
     ],
-    "keypoint_encoder.voxel_abstractions.0.mlps.1.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.lins.0.weight": [
+    "keypoint_encoder.voxel_abstractions.0.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.lins.0.weight": [
+      16,
+      19
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.lins.1.weight": [
+      16,
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.0.module.weight": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.0.module.bias": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.0.module.running_mean": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.0.module.running_var": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.1.module.weight": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.1.module.bias": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.1.module.running_mean": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.1.module.running_var": [
+      16
+    ],
+    "keypoint_encoder.voxel_abstractions.0.convs.1.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.lins.0.weight": [
       32,
       35
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.lins.1.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.lins.1.weight": [
       32,
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.0.module.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.0.module.weight": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.0.module.bias": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.0.module.bias": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.0.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.0.module.running_mean": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.0.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.0.module.running_var": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.1.module.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.1.module.weight": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.1.module.bias": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.1.module.bias": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.1.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.1.module.running_mean": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.1.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.1.module.running_var": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.0.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.lins.0.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.lins.0.weight": [
       32,
       35
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.lins.1.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.lins.1.weight": [
       32,
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.0.module.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.0.module.weight": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.0.module.bias": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.0.module.bias": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.0.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.0.module.running_mean": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.0.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.0.module.running_var": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.1.module.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.1.module.weight": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.1.module.bias": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.1.module.bias": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.1.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.1.module.running_mean": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.1.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.1.module.running_var": [
       32
     ],
-    "keypoint_encoder.voxel_abstractions.1.mlps.1.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.lins.0.weight": [
+    "keypoint_encoder.voxel_abstractions.1.convs.1.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.lins.0.weight": [
       64,
       67
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.lins.1.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.0.module.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.0.module.weight": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.0.module.bias": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.0.module.bias": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.0.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.0.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.0.module.running_var": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.1.module.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.1.module.weight": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.1.module.bias": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.1.module.bias": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.1.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.1.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.1.module.running_var": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.0.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.lins.0.weight": [
-      64,
-      67
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.lins.1.weight": [
-      64,
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.0.module.weight": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.0.module.bias": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.0.module.running_mean": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.0.module.running_var": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.1.module.weight": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.1.module.bias": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.1.module.running_mean": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.1.module.running_var": [
-      64
-    ],
-    "keypoint_encoder.voxel_abstractions.2.mlps.1.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.lins.0.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.lins.0.weight": [
       64,
       67
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.lins.1.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.0.module.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.0.module.weight": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.0.module.bias": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.0.module.bias": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.0.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.0.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.0.module.running_var": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.1.module.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.1.module.weight": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.1.module.bias": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.1.module.bias": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.1.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.1.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.1.module.running_var": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.0.norms.1.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.lins.0.weight": [
+    "keypoint_encoder.voxel_abstractions.2.convs.1.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.lins.0.weight": [
       64,
       67
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.lins.1.weight": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.0.module.weight": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.0.module.weight": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.0.module.bias": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.0.module.bias": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.0.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.0.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.0.module.running_var": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.0.module.num_batches_tracked": [],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.1.module.weight": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.1.module.weight": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.1.module.bias": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.1.module.bias": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.1.module.running_mean": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.1.module.running_var": [
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.1.module.running_var": [
       64
     ],
-    "keypoint_encoder.voxel_abstractions.3.mlps.1.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.3.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.lins.0.weight": [
+      64,
+      67
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.lins.1.weight": [
+      64,
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.0.module.weight": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.0.module.bias": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.0.module.running_mean": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.0.module.running_var": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.0.module.num_batches_tracked": [],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.1.module.weight": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.1.module.bias": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.1.module.running_mean": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.1.module.running_var": [
+      64
+    ],
+    "keypoint_encoder.voxel_abstractions.3.convs.1.local_nn.norms.1.module.num_batches_tracked": [],
     "keypoint_encoder.fusion.lins.0.weight": [
       128,
       640
@@ -932,74 +932,74 @@
       256
     ],
     "keypoint_head.norms.1.module.num_batches_tracked": [],
-    "roi_head.grid_pool.mlps.0.lins.0.weight": [
+    "roi_head.grid_pool.convs.0.local_nn.lins.0.weight": [
       64,
       131
     ],
-    "roi_head.grid_pool.mlps.0.lins.1.weight": [
+    "roi_head.grid_pool.convs.0.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.0.module.weight": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.0.module.weight": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.0.module.bias": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.0.module.bias": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.0.module.running_mean": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.0.module.running_var": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.0.module.running_var": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.0.module.num_batches_tracked": [],
-    "roi_head.grid_pool.mlps.0.norms.1.module.weight": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "roi_head.grid_pool.convs.0.local_nn.norms.1.module.weight": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.1.module.bias": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.1.module.bias": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.1.module.running_mean": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.1.module.running_var": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.1.module.running_var": [
       64
     ],
-    "roi_head.grid_pool.mlps.0.norms.1.module.num_batches_tracked": [],
-    "roi_head.grid_pool.mlps.1.lins.0.weight": [
+    "roi_head.grid_pool.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "roi_head.grid_pool.convs.1.local_nn.lins.0.weight": [
       64,
       131
     ],
-    "roi_head.grid_pool.mlps.1.lins.1.weight": [
+    "roi_head.grid_pool.convs.1.local_nn.lins.1.weight": [
       64,
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.0.module.weight": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.0.module.weight": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.0.module.bias": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.0.module.bias": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.0.module.running_mean": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.0.module.running_mean": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.0.module.running_var": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.0.module.running_var": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.0.module.num_batches_tracked": [],
-    "roi_head.grid_pool.mlps.1.norms.1.module.weight": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.0.module.num_batches_tracked": [],
+    "roi_head.grid_pool.convs.1.local_nn.norms.1.module.weight": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.1.module.bias": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.1.module.bias": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.1.module.running_mean": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.1.module.running_mean": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.1.module.running_var": [
+    "roi_head.grid_pool.convs.1.local_nn.norms.1.module.running_var": [
       64
     ],
-    "roi_head.grid_pool.mlps.1.norms.1.module.num_batches_tracked": [],
+    "roi_head.grid_pool.convs.1.local_nn.norms.1.module.num_batches_tracked": [],
     "roi_head.shared.lins.0.weight": [
       256,
       27648

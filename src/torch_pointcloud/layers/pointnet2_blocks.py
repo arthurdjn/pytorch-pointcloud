@@ -8,7 +8,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
-from torch_geometric.utils import add_self_loops, remove_self_loops, scatter
+from torch_geometric.utils import add_self_loops, remove_self_loops
 from typing_extensions import Unpack
 
 from torch_pointcloud.layers.pools import PoolLike, create_pool
@@ -224,10 +224,11 @@ class PointNet2QuerySetAbstraction(nn.Module):
 
     Unlike [`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction], the
     centroids are not sampled from the source points: every query point pools, per scale, the first
-    `num_neighbors` source points (in index order) inside its ball. Each message is the relative position
-    $p_j - p_i$ followed by the source features $x_j$; the per-scale MLP outputs are max-pooled and concatenated.
-    A ball holding no source point pools a single all-zero message, so an empty neighborhood maps to the MLP
-    response to zero rather than to the reduction identity.
+    `num_neighbors` source points (in index order) inside its ball with a
+    [`PointNet2Conv`][torch_pointcloud.layers.pointnet2_blocks.PointNet2Conv] whose messages are the relative
+    position $p_j - p_i$ followed by the source features $x_j$, and the per-scale outputs are concatenated. A ball
+    holding no source point pools a single all-zero message, so an empty neighborhood maps to the MLP response to
+    zero rather than to the reduction identity.
 
     Args:
         in_channels: Number of source feature channels.
@@ -272,34 +273,31 @@ class PointNet2QuerySetAbstraction(nn.Module):
         self.radii = tuple(radii)
         self.num_neighbors = tuple(num_neighbors)
         self.out_channels = sum(scale_channels[-1] for scale_channels in channels)
-        self.mlps = nn.ModuleList(
-            [
-                MLP(
-                    [in_channels + spatial_dim, *scale_channels],
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
-                    bias=bias,
-                    plain_last=False,
-                )
-                for scale_channels in channels
-            ]
-        )
+        self.convs = nn.ModuleList()
+        for scale_channels in channels:
+            local_nn = MLP(
+                [in_channels + spatial_dim, *scale_channels],
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                plain_last=False,
+            )
+            self.convs.append(PointNet2Conv(local_nn, add_self_loops=False, pos_first=True, aggr="max"))
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor, pos_query: Tensor, batch_query: Tensor) -> Tensor:
-        num_query = pos_query.size(0)
+        num_sources = pos.size(0)
         out = []
-        for r, k, mlp in zip(self.radii, self.num_neighbors, self.mlps):
+        for r, k, conv in zip(self.radii, self.num_neighbors, self.convs):
             row, col = radius(pos, pos_query, r, batch, batch_query, max_num_neighbors=k, sort=True)
-            msg = torch.cat([pos[col] - pos_query[row], x[col]], dim=1)
-
-            empty = (torch.bincount(row, minlength=num_query) == 0).nonzero().view(-1)
-            msg = torch.cat([msg, msg.new_zeros(empty.numel(), msg.size(1))], dim=0)
-            row = torch.cat([row, empty], dim=0)
-
-            h = mlp(msg)
-            out.append(scatter(h, row, dim=0, dim_size=num_query, reduce="max"))
+            # An empty ball gets one source on the query itself with zero features: its message is all zeros.
+            empty = (torch.bincount(row, minlength=pos_query.size(0)) == 0).nonzero().view(-1)
+            x_source = torch.cat([x, x.new_zeros(empty.numel(), x.size(1))], dim=0)
+            pos_source = torch.cat([pos, pos_query[empty]], dim=0)
+            virtual = num_sources + torch.arange(empty.numel(), device=row.device)
+            edge_index = torch.stack([torch.cat([col, virtual]), torch.cat([row, empty])], dim=0)
+            out.append(conv((x_source, None), (pos_source, pos_query), edge_index))
 
         return torch.cat(out, dim=1)
 

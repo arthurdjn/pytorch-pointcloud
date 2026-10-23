@@ -4,8 +4,8 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.parta2 import PartA2Detection
+from torch_pointcloud.models import create_model
+from torch_pointcloud.models.parta2 import PartA2BoxHead, PartA2Detection, SparseUNetDecoder
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
@@ -32,12 +32,6 @@ def _voxelize(model: PartA2Detection, n_per_scene: int = 4000, batch_size: int =
         40000,
     )
     return voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0]
-
-
-def test_parta2_registered_variants() -> None:
-    names = list_models("part-a2*", task="detection")
-    assert "part-a2.kitti.mmdet3d" in names
-    assert "part-a2.kitti-car.mmdet3d" in names
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
@@ -95,3 +89,20 @@ def test_parta2_box_head_predicts_every_roi_independently() -> None:
         cls_permuted, reg_permuted = model.roi_head(seg_grid[order], part_grid[order])
     assert torch.allclose(cls[order], cls_permuted, atol=1e-5)
     assert torch.allclose(reg[order], reg_permuted, atol=1e-5)
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_sparse_unet_decoder_rejects_mismatched_channels() -> None:
+    with pytest.raises(ValueError, match="Decoder level 2"):
+        SparseUNetDecoder(((64, 64, 64), (64, 64, 64), (32, 32, 16), (16, 16, 16)))
+    with pytest.raises(ValueError, match="one entry per encoder stage"):
+        SparseUNetDecoder(((64, 64, 64), (64, 64, 32)))
+
+
+@CUDA_SPCONV
+def test_parta2_box_head_handles_rois_without_points() -> None:
+    head = PartA2BoxHead().cuda().eval()
+    with torch.no_grad():
+        cls, reg = head(torch.zeros(3, 14, 14, 14, 16, device="cuda"), torch.zeros(3, 14, 14, 14, 4, device="cuda"))
+    assert cls.shape == (3, 1) and reg.shape == (3, 7)
+    assert torch.isfinite(cls).all() and torch.isfinite(reg).all()

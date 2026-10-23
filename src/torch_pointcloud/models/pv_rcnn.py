@@ -51,8 +51,8 @@ class PVRCNNOutput(TypedDict):
 def bilinear_interpolate(image: Tensor, x: Tensor, y: Tensor) -> Tensor:
     r"""Sample a $(H, W, C)$ map at continuous pixel coordinates by bilinear interpolation.
 
-    The four neighbor indices are clamped to the map and the weights are taken from the clamped indices, so a sample
-    in the last row or column extrapolates from the border cells.
+    The four neighbor indices are clamped to the map and the weights are taken from the clamped indices, so the
+    weights of a sample in the last row or column cancel out and it comes out as zero.
 
     Args:
         image: Feature map, shape $(H, W, C)$.
@@ -565,7 +565,8 @@ class PVRCNNDetection(DetectionModel):
             voxel_radii=self.voxel_radii,
             voxel_num_neighbors=self.voxel_num_neighbors,
             bev_channels=self.backbone_3d.out_channels * 2,
-            bev_stride=self.feature_map_stride,
+            # The keypoints sample the height-compressed sparse output, 8 times coarser than the voxel grid.
+            bev_stride=8,
             out_channels=self.keypoint_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
@@ -704,6 +705,16 @@ class PVRCNNDetection(DetectionModel):
     ) -> Tuple[Tensor, Tensor]:
         r"""Encode the keypoints, weight them by the foreground head and refine every RoI.
 
+        Args:
+            rois: RoIs, shape $(R, 7)$.
+            roi_batch: Scene index of every RoI, sorted, shape $(R,)$.
+            x: Raw point features, shape $(N, C_p)$.
+            pos: Raw point coordinates, shape $(N, 3)$.
+            batch: Sorted scene index of every raw point, shape $(N,)$.
+            stage_features: Features of every sparse stage (see `encode`).
+            stage_indices: Indices of every sparse stage (see `encode`).
+            bev: Height-compressed sparse output (see `encode`).
+
         Returns:
             `(rcnn_cls, rcnn_reg)`: the confidence logit $(R, 1)$ and the box residuals $(R, 7)$ of every RoI.
         """
@@ -768,7 +779,7 @@ class PVRCNNDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel", "x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/9fa69015a8c9c9ac7af92439570dbc1483f38b91/model.safetensors",
+        url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/772e84df456a383eb47366efebda099f7cfde296/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 72.16, "AP/Car": 83.54, "AP/Pedestrian": 59.73, "AP/Cyclist": 73.20},
         classes=("Pedestrian", "Cyclist", "Car"),
@@ -786,7 +797,7 @@ class PVRCNNDetection(DetectionModel):
                 dst_keys="range_mask",
                 strict=True,
             ),
-            T.ApplyMask(keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY], mask_key="range_mask"),
+            T.ApplyMask(keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY, "range_mask"], mask_key="range_mask"),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
                 feature_key=DataKeys.X,

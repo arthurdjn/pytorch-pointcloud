@@ -186,17 +186,19 @@ def test_pointnet2_query_set_abstraction_empty_ball_pools_the_mlp_of_zero() -> N
     x = torch.randn(3, 2)
     batch = torch.zeros(3, dtype=torch.long)
     pos_query = torch.tensor([[5.0, 5.0, 5.0]])
+    conv = sa.convs[0]
+    assert isinstance(conv, PointNet2Conv)
     with torch.no_grad():
         out = sa(x, pos, batch, pos_query, torch.zeros(1, dtype=torch.long))
-        expected = sa.mlps[0](torch.zeros(1, 5))
+        expected = conv.local_nn(torch.zeros(1, 5))
     assert torch.allclose(out, expected)
 
 
 def test_pointnet2_query_set_abstraction_keeps_the_first_neighbors_in_index_order() -> None:
     sa = PointNet2QuerySetAbstraction(1, [[1]], radii=[1.0], num_neighbors=[2], norm=None, act=None).eval()
-    mlp = sa.mlps[0]
-    assert isinstance(mlp, MLP)
-    weight = mlp.lins[0].weight
+    conv = sa.convs[0]
+    assert isinstance(conv, PointNet2Conv) and isinstance(conv.local_nn, MLP)
+    weight = conv.local_nn.lins[0].weight
     assert isinstance(weight, torch.Tensor)
     with torch.no_grad():
         weight.copy_(torch.tensor([[0.0, 0.0, 0.0, 1.0]]))

@@ -57,8 +57,13 @@ class SparseUNetDecoder(nn.Module):
     upsampled coarser features by a submanifold convolution plus a channel-summing shortcut, and upsamples the
     result with the inverse of the encoder's strided convolution (a submanifold convolution at the input level).
 
+    Every level concatenates the coarser features with the lateral output and sums channel groups of the
+    concatenation, so the features entering a level, its encoder stage and its lateral block share one width, which
+    the merge width divides twice over.
+
     Args:
         channels: Per-level `(lateral, merge, upsample)` output channels, coarsest level first.
+        encoder_channels: Channels of the encoder stages, finest first.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
@@ -68,16 +73,32 @@ class SparseUNetDecoder(nn.Module):
     def __init__(
         self,
         channels: Sequence[Sequence[int]] = ((64, 64, 64), (64, 64, 32), (32, 32, 16), (16, 16, 16)),
+        encoder_channels: Sequence[int] = (16, 32, 64, 64),
         *,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if len(channels) != len(encoder_channels):
+            raise ValueError(
+                f"`channels` needs one entry per encoder stage, got {len(channels)} for {len(encoder_channels)}."
+            )
+        width = encoder_channels[-1]
+        for i, (lateral, merge, upsample) in enumerate(channels):
+            stage = encoder_channels[len(channels) - 1 - i]
+            if not width == stage == lateral or (2 * width) % merge:
+                raise ValueError(
+                    f"Decoder level {len(channels) - i} gets {width} channels on a {stage}-channel stage with a "
+                    f"{lateral}-channel lateral block and a {merge}-channel merge; the first three must match and "
+                    f"the merge must divide {2 * width}."
+                )
+            width = upsample
+
         super().__init__()
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
         num_levels = len(channels)
-        in_channels = 64
+        in_channels = encoder_channels[-1]
         self.laterals = nn.ModuleList()
         self.merges = nn.ModuleList()
         self.upsamples = nn.ModuleList()
@@ -117,10 +138,10 @@ class SparseUNetDecoder(nn.Module):
 class PartA2BoxHead(nn.Module):
     r"""Part-A2 part-aggregation head: sparse convolutions over the RoI-pooled grids, then two branches.
 
-    The pooled point features and part features of every RoI are sparse grids (a cell is active when it pooled any
-    point). Two submanifold branches encode them, a merge stack and a $2\times$ sparse max pooling aggregate the
-    concatenation, and the densified grid goes through shared fully connected layers to a confidence and a
-    box-residual branch.
+    The pooled point features and part features of every RoI are sparse grids, a cell being active when its pooled
+    part features are not all zero. Two submanifold branches encode them, a merge stack and a $2\times$ sparse max
+    pooling aggregate the concatenation, and the densified grid goes through shared fully connected layers to a
+    confidence and a box-residual branch. When no cell of any RoI is active, the densified grid is all zeros.
 
     Args:
         seg_channels: Channels of the pooled point features.
@@ -188,26 +209,25 @@ class PartA2BoxHead(nn.Module):
                 for c_in, c_out in zip([merge_channels[-1], *down_channels], down_channels)
             ]
         )
-        fc_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
-        grid_channels = down_channels[-1] * (grid_size // 2) ** 3
+        self.grid_channels = down_channels[-1] * (grid_size // 2) ** 3
         self.shared = MLP(
-            [grid_channels, *shared_channels],
+            [self.grid_channels, *shared_channels],
             bias=False,
             dropout=[dropout] * (len(shared_channels) - 1) + [0.0],
             plain_last=False,
-            **fc_kwargs,
+            **block_kwargs,
         )
         self.cls = MLP(
             [shared_channels[-1], *cls_channels, 1],
             bias=[False] * len(cls_channels) + [True],
             dropout=[dropout] + [0.0] * len(cls_channels),
-            **fc_kwargs,
+            **block_kwargs,
         )
         self.reg = MLP(
             [shared_channels[-1], *reg_channels, 7],
             bias=[False] * len(reg_channels) + [True],
             dropout=[dropout] + [0.0] * len(reg_channels),
-            **fc_kwargs,
+            **block_kwargs,
         )
 
     def forward(self, seg_grid: Tensor, part_grid: Tensor) -> Tuple[Tensor, Tensor]:
@@ -224,12 +244,18 @@ class PartA2BoxHead(nn.Module):
         # `nonzero` returns column-major indices on CUDA; spconv reads them as row-major, so make them contiguous.
         coords = indices.int().contiguous()
 
-        seg = self.seg_conv(spconv.SparseConvTensor(seg_grid[cells], coords, shape, num_rois))
-        part = self.part_conv(spconv.SparseConvTensor(part_grid[cells], coords, shape, num_rois))
-        merged = spconv.SparseConvTensor(torch.cat([seg.features, part.features], dim=1), coords, shape, num_rois)
-        x = self.down_conv(self.pool(self.merge_conv(merged)))
+        if indices.shape[0] == 0:
+            dense = part_grid.new_zeros(num_rois, self.grid_channels)
+        else:
+            seg = self.seg_conv(spconv.SparseConvTensor(seg_grid[cells], coords, shape, num_rois))
+            part = self.part_conv(spconv.SparseConvTensor(part_grid[cells], coords, shape, num_rois))
+            merged = spconv.SparseConvTensor(torch.cat([seg.features, part.features], dim=1), coords, shape, num_rois)
+            merged = self.merge_conv(merged)
+            pooled = self.pool(merged)
+            x = self.down_conv(pooled)
+            dense = x.dense().reshape(num_rois, -1)
 
-        shared = self.shared(x.dense().reshape(num_rois, -1))
+        shared = self.shared(dense)
         return self.cls(shared), self.reg(shared)
 
 

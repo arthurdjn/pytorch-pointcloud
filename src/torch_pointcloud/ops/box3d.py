@@ -901,7 +901,7 @@ def roi_aware_pool3d(
         box_batch = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
 
     num_cells = out_size**3
-    out = x.new_zeros(boxes.shape[0] * num_cells, x.shape[1])
+    out = x.new_zeros(boxes.shape[0], num_cells, x.shape[1])
     for scene in box_batch.unique().tolist():
         scene_points = (pos_batch == scene).nonzero(as_tuple=False).squeeze(-1)
         scene_boxes = (box_batch == scene).nonzero(as_tuple=False).squeeze(-1)
@@ -926,7 +926,7 @@ def roi_aware_pool3d(
             cell = size[slot] / out_size
             local = torch.stack([local_x[point, slot], local_y[point, slot], offset[point, slot, 2]], dim=1)
             ijk = ((local + size[slot] / 2) / cell).long().clamp(0, out_size - 1)
-            key = index[slot] * num_cells + (ijk[:, 0] * out_size + ijk[:, 1]) * out_size + ijk[:, 2]
+            key = slot * num_cells + (ijk[:, 0] * out_size + ijk[:, 1]) * out_size + ijk[:, 2]
 
             # Pairs come point-major, so a stable sort by cell keeps every cell's points in index order.
             key, order = key.sort(stable=True)
@@ -935,9 +935,8 @@ def roi_aware_pool3d(
             keep = torch.arange(key.numel(), device=key.device) - first < max_points_per_cell
             key, point = key[keep], point[keep]
 
-            pooled = scatter(x[scene_points[point]], key, dim=0, dim_size=out.shape[0], reduce=reduce)
-            touched = key.unique()
-            out[touched] = pooled[touched]
+            pooled = scatter(x[scene_points[point]], key, dim=0, dim_size=index.numel() * num_cells, reduce=reduce)
+            out[index] = pooled.view(index.numel(), num_cells, x.shape[1])
 
     return out.view(boxes.shape[0], out_size, out_size, out_size, x.shape[1])
 

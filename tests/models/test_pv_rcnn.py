@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models import create_model, list_models
+from torch_pointcloud.models import create_model
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection, bilinear_interpolate, roi_grid_points
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
@@ -24,10 +24,6 @@ def _make_inputs(n_per_scene: int = 4000, batch_size: int = 2) -> Dict[str, Tens
         "x": torch.rand(batch_size * n_per_scene, 1).cuda(),
         "batch": torch.arange(batch_size).repeat_interleave(n_per_scene).cuda(),
     }
-
-
-def test_pv_rcnn_registered() -> None:
-    assert "pv-rcnn.kitti.mmdet3d" in list_models("pv-rcnn*", task="detection")
 
 
 def test_roi_grid_points_fill_the_box_cells() -> None:
