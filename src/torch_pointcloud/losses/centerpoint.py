@@ -5,7 +5,8 @@ gathered regression codes with a masked, code-weighted $L_1$; the dense targets 
 [`draw_heatmap_targets`][torch_pointcloud.ops.heatmap.draw_heatmap_targets].
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
+import warnings
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -15,6 +16,7 @@ from torch_pointcloud.losses._utils import unbatch_boxes
 from torch_pointcloud.losses.focal import gaussian_focal_loss
 from torch_pointcloud.ops.box3d import boxes_iou3d
 from torch_pointcloud.ops.heatmap import draw_heatmap_targets, gaussian_radius, transpose_gather
+from torch_pointcloud.utils.data import DataKeys
 
 if TYPE_CHECKING:
     from torch_pointcloud.layers.center_head import CenterHeadOutput
@@ -77,7 +79,8 @@ class CenterHeadLoss(nn.Module):
     regresses it toward the 3D IoU (rescaled to $[-1, 1]$) between the decoded prediction and its matched box.
 
     Args:
-        class_groups: Zero-based global class-index groups, one per head (e.g. `[[0], [1, 2], ...]`).
+        class_groups: Zero-based global class-index groups, one per head (e.g. `[[0], [1, 2], ...]`). A class
+            count is accepted until 0.0.20 for one group of every class, with a `FutureWarning`.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
         feature_map_stride: Stride from the voxel grid to the BEV feature map.
@@ -94,7 +97,7 @@ class CenterHeadLoss(nn.Module):
 
     def __init__(
         self,
-        class_groups: Sequence[Sequence[int]],
+        class_groups: Union[Sequence[Sequence[int]], int],
         *,
         point_cloud_range: Sequence[float],
         voxel_size: Sequence[float],
@@ -107,10 +110,18 @@ class CenterHeadLoss(nn.Module):
         min_radius: int = 2,
         num_max_objs: int = 500,
     ) -> None:
-        super().__init__()
         if len(code_weights) < 8:
             raise ValueError(f"`code_weights` must have at least 8 entries, got {len(code_weights)}.")
 
+        super().__init__()
+        if isinstance(class_groups, int):
+            warnings.warn(
+                "Passing the class count to `CenterHeadLoss` was replaced by `class_groups` in 0.0.19 and will be "
+                f"removed in 0.0.20; pass `[list(range({class_groups}))]` for one group of every class.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            class_groups = [list(range(class_groups))]
         self.class_groups = [list(group) for group in class_groups]
         self.point_cloud_range = tuple(point_cloud_range)
         self.voxel_size = tuple(voxel_size)
@@ -138,6 +149,15 @@ class CenterHeadLoss(nn.Module):
         Returns:
             A dict with the scalar `loss` and detached `heatmap_loss`, `box_loss` (and `iou_loss` when enabled).
         """
+        num_codes = 8 + (output["vel"][0].shape[1] if "vel" in output else 0)
+        if num_codes != self.code_size:
+            raise ValueError(f"The head regresses {num_codes} box codes but `code_weights` has {self.code_size}.")
+        num_columns = data[DataKeys.BOX].shape[1]
+        if num_columns < self.code_size - 1:
+            raise ValueError(
+                f"{self.code_size} code weights need boxes with {self.code_size - 1} columns, got {num_columns}."
+            )
+
         batch_size, _, height, width = output["heatmap"][0].shape
         device = output["heatmap"][0].device
         boxes_per_scene, labels_per_scene = unbatch_boxes(data, batch_size, device)
@@ -216,7 +236,8 @@ class CenterHeadLoss(nn.Module):
     ) -> Tensor:
         r"""IoU-branch $L_1$: regress the `iou` map toward $2 \cdot \text{IoU}_{3D} - 1$ at each peak cell."""
         gathered_iou = transpose_gather(iou_pred, ind)
-        gathered_box = transpose_gather(pred_boxes, ind)
+        # The IoU target is a label: the boxes it is measured on do not receive its gradient.
+        gathered_box = transpose_gather(pred_boxes, ind).detach()
         vx, vy, _ = self.voxel_size
         pxs = ind % width
         pys = torch.div(ind, width, rounding_mode="floor")

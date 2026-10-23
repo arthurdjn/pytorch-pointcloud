@@ -12,8 +12,11 @@ All notable changes to this project are documented in this file. The format is b
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
-- Added CenterPoint (`CenterPointDetection` on the residual sparse voxel backbone, `CenterPointPillarsDetection` on the pillar trunk) with the nuScenes checkpoints `centerpoint-voxel01.nuscenes.mmdet3d`, `centerpoint-voxel0075.nuscenes.mmdet3d` and `centerpoint-pillar02.nuscenes.mmdet3d`, their benchmark and training scripts.
-- The dense `CenterHead`, `SeparateHead` and `CenterHeadOutput` moved to `layers.center_head`; `CenterHead` takes `class_groups` (one `SeparateHead` per group, lists in its output like `VoxelNeXtHead`), optional `vel` / `iou` branches and its decode (`CenterHead.decode`); `CenterHeadLoss` takes `class_groups` and supervises the velocity codes of 9-column boxes. Voxel Mamba builds its head through it, so its `heatmap`, `center`, ... outputs are one-element lists.
+- Added CenterPoint (`CenterPointDetection`, `CenterPointPillarsDetection`) with the nuScenes checkpoints `centerpoint-voxel01.nuscenes.mmdet3d`, `centerpoint-voxel0075.nuscenes.mmdet3d` and `centerpoint-pillar02.nuscenes.mmdet3d`, and their benchmark and training scripts.
+- Moved `CenterHead`, `SeparateHead` and `CenterHeadOutput` from `models.voxel_mamba` to `layers.center_head`; `CenterHead` takes `class_groups` and optional velocity and IoU branches.
+- `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works until 0.0.20, with a `FutureWarning`.
+- Voxel Mamba's head outputs are one-element lists, its head parameters are `head.heads.0.*` instead of `head.prediction_head.*`, and its head starts from the `CenterHead` initialization.
+- Fixed the IoU term of `CenterHeadLoss` sending gradients into the box maps.
 
 ## 0.0.18 (2026-10-20)
 

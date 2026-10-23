@@ -272,6 +272,8 @@ class CenterHead(nn.Module):
             raise ValueError(
                 f"`iou_rectifier` must have one entry per class ({self.num_classes}), got {len(iou_rectifier)}."
             )
+        if iou_rectifier is not None and "iou" not in out:
+            raise ValueError("`iou_rectifier` needs the `iou` maps of a head built with `use_iou`.")
 
         vx, vy, _ = self.voxel_size
         out_boxes, out_scores, out_labels, out_batch, out_velocity = [], [], [], [], []
@@ -297,7 +299,7 @@ class CenterHead(nn.Module):
             labels = torch.as_tensor(group, dtype=torch.long, device=heatmap.device)[classes]
 
             rescored = scores
-            if iou_rectifier is not None and "iou" in out:
+            if iou_rectifier is not None:
                 iou = torch.clamp((transpose_gather(out["iou"][group_idx], inds) + 1) * 0.5, min=0, max=1).squeeze(-1)
                 rectifier = scores.new_tensor(iou_rectifier)[labels]
                 rescored = scores.pow(1 - rectifier) * iou.pow(rectifier)

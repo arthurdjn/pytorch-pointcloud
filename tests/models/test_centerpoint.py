@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.layers.center_head import CenterHead, SeparateHead
+from torch_pointcloud.layers.center_head import CenterHead, CenterHeadOutput, SeparateHead
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
@@ -174,3 +174,50 @@ def test_center_head_decode_velocity_and_rectifier() -> None:
 
     filtered = head.decode(out, top_k=5, score_threshold=1.0)
     assert filtered["boxes"].shape == (0, 7) and filtered["velocity"].shape == (0, 2)
+
+
+def test_center_head_decode_places_a_peak_on_a_non_square_map() -> None:
+    head = CenterHead(
+        8,
+        [[0]],
+        feature_map_stride=2,
+        voxel_size=(0.5, 0.5, 1.0),
+        point_cloud_range=(-10.0, -20.0, -3.0, 10.0, 20.0, 1.0),
+        use_velocity=True,
+    )
+    height, width = 6, 4
+    heatmap = torch.full((1, 1, height, width), -10.0)
+    heatmap[0, 0, 4, 1] = 10.0
+    out: CenterHeadOutput = {
+        "heatmap": [heatmap],
+        "center": [torch.tensor([0.25, 0.75]).view(1, 2, 1, 1).expand(1, 2, height, width)],
+        "center_z": [torch.full((1, 1, height, width), 0.5)],
+        "dim": [torch.log(torch.tensor([2.0, 1.0, 1.5])).view(1, 3, 1, 1).expand(1, 3, height, width)],
+        "rot": [torch.tensor([0.0, 1.0]).view(1, 2, 1, 1).expand(1, 2, height, width)],
+        "vel": [torch.tensor([1.0, -2.0]).view(1, 2, 1, 1).expand(1, 2, height, width)],
+    }
+    det = head.decode(out, top_k=1)
+    # Column 1 and row 4 of a map of 2 x 0.5 m cells, shifted by the sub-cell center, from the range corner.
+    expected = torch.tensor([[-10.0 + 1.25, -20.0 + 4.75, 0.5, 2.0, 1.0, 1.5, torch.pi / 2]])
+    assert torch.allclose(det["boxes"], expected, atol=1e-5)
+    assert torch.allclose(det["velocity"], torch.tensor([[1.0, -2.0]]))
+
+
+def test_center_head_decode_rejects_a_rectifier_without_iou_maps() -> None:
+    head = CenterHead(
+        8,
+        [[0]],
+        feature_map_stride=1,
+        voxel_size=(1.0, 1.0, 1.0),
+        point_cloud_range=(-4.0, -4.0, -2.0, 4.0, 4.0, 2.0),
+    ).eval()
+    out = head(torch.rand(1, 8, 8, 8))
+    with pytest.raises(ValueError, match="use_iou"):
+        head.decode(out, iou_rectifier=(0.5,))
+
+
+def test_centerpoint_rejects_class_groups_that_miss_a_class() -> None:
+    with pytest.raises(ValueError, match="every class index below 3"):
+        CenterPointDetection(num_classes=3, head_class_groups=[[0], [1]])
+    with pytest.raises(ValueError, match="every class index below 3"):
+        CenterPointPillarsDetection(num_classes=3, head_class_groups=[[0, 1], [1, 2]])

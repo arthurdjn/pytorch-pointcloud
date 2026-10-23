@@ -82,6 +82,12 @@ class CenterPointDetection(DetectionModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        covered = sorted(index for group in head_class_groups for index in group)
+        if covered != list(range(num_classes)):
+            raise ValueError(
+                f"`head_class_groups` must hold every class index below {num_classes} exactly once, got {covered}."
+            )
+
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
@@ -250,6 +256,12 @@ class CenterPointPillarsDetection(DetectionModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        covered = sorted(index for group in head_class_groups for index in group)
+        if covered != list(range(num_classes)):
+            raise ValueError(
+                f"`head_class_groups` must hold every class index below {num_classes} exactly once, got {covered}."
+            )
+
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)

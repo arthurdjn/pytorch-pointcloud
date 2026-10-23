@@ -18,6 +18,7 @@ import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini, RepeatSampler
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, NuScenesSplit, velocity_attributes
+from torch_pointcloud.layers.center_head import CenterHeadOutput
 from torch_pointcloud.losses import CenterHeadLoss
 from torch_pointcloud.metrics import nuscenes_detection_metrics
 from torch_pointcloud.models import DetectionModel, create_model, model_info
@@ -297,7 +298,7 @@ def keyframe_labels(dataset: Dataset, index: int) -> Tensor:
     return torch.from_numpy(np.load(Path(dataset.processed_dir, dataset.tokens[index], "label.npy")))
 
 
-def forward(model: DetectionModel, data: dict[str, Tensor]) -> dict[str, Tensor]:
+def forward(model: DetectionModel, data: dict[str, Tensor]) -> CenterHeadOutput:
     return model(
         data[DataKeys.VOXEL],
         data[DataKeys.POS_VOXEL],
