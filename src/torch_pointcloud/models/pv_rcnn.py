@@ -599,7 +599,7 @@ class PVRCNNDetection(DetectionModel):
             norm=self.norm,
         )
 
-    def forward_features(
+    def encode(
         self,
         voxels: Tensor,
         pos_voxel: Tensor,
@@ -646,6 +646,16 @@ class PVRCNNDetection(DetectionModel):
         bev = dense.view(b, c * d, h, w)
         features = self.backbone(bev)
         return features, bev, stage_features, stage_indices
+
+    def forward_features(
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch_voxel: Tensor,
+    ) -> Tensor:
+        features, _, _, _ = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
+        return features
 
     def forward_head(self, features: Tensor) -> AnchorHeadOutput:
         return self.head(features)
@@ -718,7 +728,7 @@ class PVRCNNDetection(DetectionModel):
         pos: Tensor,
         batch: Tensor,
     ) -> PVRCNNOutput:
-        features, bev, stage_features, stage_indices = self.forward_features(
+        features, bev, stage_features, stage_indices = self.encode(
             voxels,
             pos_voxel,
             voxel_num_points,

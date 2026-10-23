@@ -55,9 +55,11 @@ def test_parta2_decoder_restores_the_input_voxels() -> None:
     assert isinstance(model, PartA2Detection)
     voxels, pos_voxel, num_points, batch = _voxelize(model)
     with torch.no_grad():
-        features, voxel_features = model.forward_features(voxels, pos_voxel, num_points, batch)
+        features, stages = model.encode(voxels, pos_voxel, num_points, batch)
+        voxel_features = model.decoder(stages)
+        bev_features = model.forward_features(voxels, pos_voxel, num_points, batch)
     assert voxel_features.shape == (voxels.shape[0], 16)
-    assert features.shape == (2, model.num_features, 200, 176)
+    assert features.shape == bev_features.shape == (2, model.num_features, 200, 176)
 
 
 @CUDA_SPCONV

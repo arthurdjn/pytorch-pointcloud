@@ -417,21 +417,21 @@ class PartA2Detection(DetectionModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def forward_features(
+    def encode(
         self,
         voxels: Tensor,
         pos_voxel: Tensor,
         voxel_num_points: Tensor,
-        batch_voxel: Tensor,
-    ) -> Tuple[Tensor, Tensor]:
-        r"""Run the sparse encoder-decoder and the BEV backbone.
+        batch: Tensor,
+    ) -> Tuple[Tensor, List["spconv.SparseConvTensor"]]:
+        r"""Run the sparse encoder and the BEV backbone.
 
         Returns:
-            `(features, voxel_features)`: the BEV features entering the anchor head and the decoded features of
-            the input voxels.
+            `(features, stages)`: the BEV features entering the anchor head and the four sparse stages the
+            decoder upsamples.
         """
-        voxel_indices = torch.cat([batch_voxel.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
-        batch_size = int(batch_voxel.max().item()) + 1
+        voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
+        batch_size = int(batch.max().item()) + 1
 
         # Average the points (xyz + features) inside each voxel.
         normalizer = torch.clamp_min(voxel_num_points.view(-1, 1), min=1.0).type_as(voxels)
@@ -453,7 +453,11 @@ class PartA2Detection(DetectionModel):
         dense = encoded.dense()
         b, c, d, h, w = dense.shape
         features = self.backbone(dense.view(b, c * d, h, w))
-        return features, self.decoder(stages)
+        return features, stages
+
+    def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
+        features, _ = self.encode(voxels, pos_voxel, voxel_num_points, batch)
+        return features
 
     def forward_head(self, features: Tensor) -> AnchorHeadOutput:
         return self.head(features)
@@ -493,7 +497,7 @@ class PartA2Detection(DetectionModel):
         roi_batch: Tensor,
         voxel_features: Tensor,
         pos_voxel: Tensor,
-        batch_voxel: Tensor,
+        batch: Tensor,
     ) -> Tuple[Tensor, Tensor]:
         r"""Predict the voxel parts, pool them inside every RoI and refine it.
 
@@ -508,7 +512,7 @@ class PartA2Detection(DetectionModel):
         low = pos_voxel.new_tensor(self.point_cloud_range[:3], dtype=torch.float)
         centers = (pos_voxel[:, [2, 1, 0]].float() + 0.5) * size + low
         pool_kwargs: Dict[str, Any] = dict(
-            pos_batch=batch_voxel,
+            pos_batch=batch,
             box_batch=roi_batch,
             max_points_per_cell=self.max_points_per_cell,
         )
@@ -521,12 +525,13 @@ class PartA2Detection(DetectionModel):
         voxels: Tensor,
         pos_voxel: Tensor,
         voxel_num_points: Tensor,
-        batch_voxel: Tensor,
+        batch: Tensor,
     ) -> PartA2Output:
-        features, voxel_features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch_voxel)
+        features, stages = self.encode(voxels, pos_voxel, voxel_num_points, batch)
+        voxel_features = self.decoder(stages)
         out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_class_scores, roi_batch = self.proposals(out)
-        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, voxel_features, pos_voxel, batch_voxel)
+        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, voxel_features, pos_voxel, batch)
 
         return {
             "rcnn_cls": rcnn_cls,

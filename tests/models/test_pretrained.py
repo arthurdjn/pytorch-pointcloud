@@ -696,7 +696,7 @@ def test_pretrained_pv_rcnn(
         model.in_channels
     )
     with torch.no_grad():
-        features, bev, stage_features, stage_indices = model.forward_features(
+        features, bev, stage_features, stage_indices = model.encode(
             voxels,
             pos_voxel,
             num_points,
@@ -734,7 +734,8 @@ def test_pretrained_parta2(
 
     voxels, pos_voxel, num_points, batch_voxel, _, _, _, rois, roi_batch = _kitti_two_stage_inputs(model.in_channels)
     with torch.no_grad():
-        features, voxel_features = model.forward_features(voxels, pos_voxel, num_points, batch_voxel)
+        features, stages = model.encode(voxels, pos_voxel, num_points, batch_voxel)
+        voxel_features = model.decoder(stages)
         out = model.forward_head(features)
         rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, voxel_features, pos_voxel, batch_voxel)
 
