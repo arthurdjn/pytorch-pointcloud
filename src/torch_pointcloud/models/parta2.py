@@ -564,7 +564,7 @@ class PartA2Detection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/part-a2.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/part-a2.kitti.mmdet3d/resolve/09585010f125f99945f7ac0c0ac31cebda2ae1ad/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 68.34, "AP/Car": 79.03, "AP/Pedestrian": 55.28, "AP/Cyclist": 70.70},
         classes=("Pedestrian", "Cyclist", "Car"),
@@ -604,7 +604,7 @@ def part_a2_mmdet3d_kitti(**hparams: Any) -> PartA2Detection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/part-a2.kitti-car.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/part-a2.kitti-car.mmdet3d/resolve/7b43e8570365c5978be01e4c13f583cb76e59869/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 79.08, "AP/Car": 79.08},
         classes=("Car",),
