@@ -8,7 +8,7 @@ from torch import Tensor
 from torch_geometric.nn import MLP, MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.typing import Adj, OptTensor, PairOptTensor, PairTensor, SparseTensor, torch_sparse
-from torch_geometric.utils import add_self_loops, remove_self_loops
+from torch_geometric.utils import add_self_loops, remove_self_loops, scatter
 from typing_extensions import Unpack
 
 from torch_pointcloud.layers.pools import PoolLike, create_pool
@@ -217,6 +217,91 @@ class PointNet2SetAbstraction(nn.Module):
             out.append(conv((x, None), (pos, pos_dst), edge_index))
 
         return torch.cat(out, dim=1), pos_dst, batch_dst
+
+
+class PointNet2QuerySetAbstraction(nn.Module):
+    r"""Multi-scale set abstraction at given query points.
+
+    Unlike [`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction], the
+    centroids are not sampled from the source points: every query point pools, per scale, the first
+    `num_neighbors` source points (in index order) inside its ball. Each message is the relative position
+    $p_j - p_i$ followed by the source features $x_j$; the per-scale MLP outputs are max-pooled and concatenated.
+    A ball holding no source point pools a single all-zero message, so an empty neighborhood maps to the MLP
+    response to zero rather than to the reduction identity.
+
+    Args:
+        in_channels: Number of source feature channels.
+        channels: Per-scale MLP channel sizes, one sequence per scale.
+        radii: Ball radius per scale.
+        num_neighbors: Maximum number of neighbors per scale.
+        spatial_dim: Dimension of point coordinates.
+        act: Activation of the MLP layers.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization of the MLP layers.
+        norm_kwargs: Extra normalization arguments.
+        bias: Whether the MLP linear layers use a bias.
+
+    Shape:
+        - x: $(N, C_\text{in})$
+        - pos, pos_query: $(N, D)$, $(M, D)$
+        - batch, batch_query: $(N,)$, $(M,)$, both sorted
+        - output: $(M, \sum_s C_s)$
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        channels: Sequence[Sequence[int]],
+        *,
+        radii: Sequence[float],
+        num_neighbors: Sequence[int],
+        spatial_dim: int = 3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
+    ) -> None:
+        if not len(channels) == len(radii) == len(num_neighbors):
+            raise ValueError(
+                f"`channels`, `radii` and `num_neighbors` need one entry per scale, got {len(channels)}, "
+                f"{len(radii)} and {len(num_neighbors)}."
+            )
+
+        super().__init__()
+        self.radii = tuple(radii)
+        self.num_neighbors = tuple(num_neighbors)
+        self.out_channels = sum(scale_channels[-1] for scale_channels in channels)
+        self.mlps = nn.ModuleList(
+            [
+                MLP(
+                    [in_channels + spatial_dim, *scale_channels],
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                    bias=bias,
+                    plain_last=False,
+                )
+                for scale_channels in channels
+            ]
+        )
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor, pos_query: Tensor, batch_query: Tensor) -> Tensor:
+        num_query = pos_query.size(0)
+        out = []
+        for r, k, mlp in zip(self.radii, self.num_neighbors, self.mlps):
+            row, col = radius(pos, pos_query, r, batch, batch_query, max_num_neighbors=k, sort=True)
+            msg = torch.cat([pos[col] - pos_query[row], x[col]], dim=1)
+
+            empty = (torch.bincount(row, minlength=num_query) == 0).nonzero().view(-1)
+            msg = torch.cat([msg, msg.new_zeros(empty.numel(), msg.size(1))], dim=0)
+            row = torch.cat([row, empty], dim=0)
+
+            h = mlp(msg)
+            out.append(scatter(h, row, dim=0, dim_size=num_query, reduce="max"))
+
+        return torch.cat(out, dim=1)
 
 
 class PointNet2GlobalSetAbstraction(nn.Module):

@@ -24,6 +24,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `LabelMask`, `MaskedFill`, `NormalizedDifference`, `Add`, `Log` and `Standardize` transforms, and the `nir` data key.
 - Added the `lse_channels`, `lse_input`, `pool` and `stem_plain_last` options of RandLA-Net, and renamed `random_max_pool` to `random_pool`; the former name still works, with a `FutureWarning`.
 - `read_state_dict` reads the objects of a checkpoint other than tensors (training hyperparameters, optimizer configurations) as inert placeholders, so Lightning checkpoints that pickle them load with `weights_only=True`.
+- Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
+- Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
+- Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 
 ## 0.0.18 (2026-10-20)
 

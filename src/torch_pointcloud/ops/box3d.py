@@ -8,10 +8,11 @@ in any right-handed frame.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import torch
 from torch import Tensor
+from torch_geometric.utils import scatter
 
 from torch_pointcloud.utils.types import OptTensor
 
@@ -93,6 +94,39 @@ def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos:
         rg = rt + ra
     cgs = [t + a for t, a in zip(cts, cas)]
     return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
+
+
+def decode_roi_residuals(encodings: Tensor, rois: Tensor) -> Tensor:
+    r"""Decode box residuals predicted in the frame of their RoI.
+
+    The residuals are decoded by [`decode_box_residuals`][torch_pointcloud.ops.box3d.decode_box_residuals] against
+    each RoI moved to the origin (heading and extents kept); the decoded center is then rotated by the RoI heading
+    and moved back to the RoI center.
+
+    Args:
+        encodings: Residuals $(x_t, y_t, z_t, d_{x,t}, d_{y,t}, d_{z,t}, \theta_t)$, shape $(R, 7)$.
+        rois: RoIs $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
+
+    Returns:
+        The decoded boxes, shape $(R, 7)$.
+
+    Example:
+        ```pycon
+        >>> rois = torch.tensor([[10.0, 5.0, 0.0, 4.0, 2.0, 1.5, math.pi / 2]])
+        >>> encodings = torch.tensor([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+        >>> decode_roi_residuals(encodings, rois)[0, :2]
+        tensor([10.0000,  5.4472])
+
+        ```
+    """
+    local = rois.clone()
+    local[:, 0:3] = 0
+    boxes = decode_box_residuals(encodings, local)
+    cos, sin = torch.cos(rois[:, 6]), torch.sin(rois[:, 6])
+    x = boxes[:, 0] * cos - boxes[:, 1] * sin
+    y = boxes[:, 0] * sin + boxes[:, 1] * cos
+    center = torch.stack([x, y, boxes[:, 2]], dim=1) + rois[:, 0:3]
+    return torch.cat([center, boxes[:, 3:]], dim=1)
 
 
 def encode_box_residuals(boxes: Tensor, anchors: Tensor, *, angle_by_sincos: bool = False) -> Tensor:
@@ -808,6 +842,104 @@ def count_points_in_boxes(
         for index in scene_boxes.split(chunk_size):
             counts[index] = points_in_boxes(scene_pos, boxes[index]).sum(dim=0)
     return counts
+
+
+def roi_aware_pool3d(
+    x: Tensor,
+    pos: Tensor,
+    boxes: Tensor,
+    out_size: int,
+    *,
+    pos_batch: OptTensor = None,
+    box_batch: OptTensor = None,
+    max_points_per_cell: int = 127,
+    reduce: Literal["max", "mean"] = "max",
+) -> Tensor:
+    r"""Pool point features into a regular grid of cells inside every oriented box.
+
+    Every box is split into $S \times S \times S$ cells along its own axes. A point lies in a box when its height is
+    within half the box height of the center and its offset, rotated into the box frame by $-\theta$, is strictly
+    within half the box length and width; it falls into the cell its offset from the box's lower corner lands in,
+    clamped to the grid. Every cell keeps its first `max_points_per_cell` points in index order and reduces their
+    features with `reduce`; an empty cell is zero. Boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full
+    extents.
+
+    Args:
+        x: Point features, shape $(N, C)$.
+        pos: Point coordinates, shape $(N, 3)$.
+        boxes: Boxes, shape $(K, 7)$.
+        out_size: Cells per box side $S$.
+        pos_batch: Optional per-point scene index, shape $(N,)$.
+        box_batch: Optional per-box scene index, shape $(K,)$.
+        max_points_per_cell: Points kept per cell.
+        reduce: Reduction over the points of a cell, `"max"` or `"mean"`.
+
+    Returns:
+        The pooled features, shape $(K, S, S, S, C)$, cells indexed $(x, y, z)$ along the box axes.
+
+    Shape:
+        - x: $(N, C)$
+        - pos: $(N, 3)$
+        - boxes: $(K, 7)$
+        - output: $(K, S, S, S, C)$
+
+    Example:
+        ```pycon
+        >>> x = torch.tensor([[1.0], [3.0], [5.0]])
+        >>> pos = torch.tensor([[-0.5, 0.0, 0.0], [-0.4, 0.0, 0.0], [0.5, 0.0, 0.0]])
+        >>> boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+        >>> roi_aware_pool3d(x, pos, boxes, 2, reduce="mean")[0, :, 1, 1, 0].tolist()
+        [2.0, 5.0]
+
+        ```
+    """
+    if (pos_batch is None) != (box_batch is None):
+        raise ValueError("`pos_batch` and `box_batch` must be given together; got exactly one of them.")
+
+    if pos_batch is None or box_batch is None:
+        pos_batch = pos.new_zeros(pos.shape[0], dtype=torch.long)
+        box_batch = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
+
+    num_cells = out_size**3
+    out = x.new_zeros(boxes.shape[0] * num_cells, x.shape[1])
+    for scene in box_batch.unique().tolist():
+        scene_points = (pos_batch == scene).nonzero(as_tuple=False).squeeze(-1)
+        scene_boxes = (box_batch == scene).nonzero(as_tuple=False).squeeze(-1)
+        # Boxes go through in chunks so the (N, K) point-in-box test stays within 2^24 pairs.
+        chunk_size = max(1, (1 << 24) // max(scene_points.shape[0], 1))
+        for index in scene_boxes.split(chunk_size):
+            box = boxes[index]
+            offset = pos[scene_points, None, :] - box[None, :, 0:3]
+            cos, sin = torch.cos(box[:, 6]), torch.sin(box[:, 6])
+            local_x = offset[..., 0] * cos + offset[..., 1] * sin
+            local_y = offset[..., 1] * cos - offset[..., 0] * sin
+            size = box[:, 3:6]
+            inside = (
+                (offset[..., 2].abs() <= size[:, 2] / 2)
+                & (local_x > -size[:, 0] / 2)
+                & (local_x < size[:, 0] / 2)
+                & (local_y > -size[:, 1] / 2)
+                & (local_y < size[:, 1] / 2)
+            )
+            point, slot = inside.nonzero(as_tuple=True)
+
+            cell = size[slot] / out_size
+            local = torch.stack([local_x[point, slot], local_y[point, slot], offset[point, slot, 2]], dim=1)
+            ijk = ((local + size[slot] / 2) / cell).long().clamp(0, out_size - 1)
+            key = index[slot] * num_cells + (ijk[:, 0] * out_size + ijk[:, 1]) * out_size + ijk[:, 2]
+
+            # Pairs come point-major, so a stable sort by cell keeps every cell's points in index order.
+            key, order = key.sort(stable=True)
+            point = point[order]
+            first = torch.searchsorted(key, key, side="left")
+            keep = torch.arange(key.numel(), device=key.device) - first < max_points_per_cell
+            key, point = key[keep], point[keep]
+
+            pooled = scatter(x[scene_points[point]], key, dim=0, dim_size=out.shape[0], reduce=reduce)
+            touched = key.unique()
+            out[touched] = pooled[touched]
+
+    return out.view(boxes.shape[0], out_size, out_size, out_size, x.shape[1])
 
 
 def projected_ignore_mask(

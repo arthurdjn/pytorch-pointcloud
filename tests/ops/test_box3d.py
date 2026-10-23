@@ -18,6 +18,7 @@ from torch_pointcloud.ops.box3d import (
     nms3d,
     points_in_boxes,
     projected_ignore_mask,
+    roi_aware_pool3d,
 )
 
 
@@ -398,3 +399,51 @@ def test_boxes_iou_nearest_bev_snaps_each_box_to_its_nearest_axis() -> None:
     assert torch.allclose(boxes_iou_nearest_bev(box, slightly_rotated), torch.ones(1, 1))
     assert torch.allclose(boxes_iou_nearest_bev(box, box), boxes_iou_bev(box, box))
     assert boxes_iou_bev(box, slightly_rotated).item() < 1.0
+
+
+def test_roi_aware_pool3d_reduces_every_cell() -> None:
+    x = torch.tensor([[1.0], [3.0], [5.0]])
+    pos = torch.tensor([[-0.5, 0.0, 0.0], [-0.4, 0.0, 0.0], [0.5, 0.0, 0.0]])
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+    out_max = roi_aware_pool3d(x, pos, boxes, 2, reduce="max")
+    out_mean = roi_aware_pool3d(x, pos, boxes, 2, reduce="mean")
+    assert out_max.shape == (1, 2, 2, 2, 1)
+    assert out_max[0, :, 1, 1, 0].tolist() == [3.0, 5.0]
+    assert out_mean[0, :, 1, 1, 0].tolist() == [2.0, 5.0]
+    assert out_max.sum().item() == 8.0
+
+
+def test_roi_aware_pool3d_cells_follow_the_box_heading() -> None:
+    # A quarter turn maps the box's +x axis onto the scene's +y axis.
+    x = torch.tensor([[7.0]])
+    pos = torch.tensor([[0.0, 0.5, 0.0]])
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, math.pi / 2]])
+    out = roi_aware_pool3d(x, pos, boxes, 2)
+    assert out[0, 1, 1, 1, 0].item() == 7.0
+    assert out.sum().item() == 7.0
+
+
+def test_roi_aware_pool3d_keeps_the_first_points_of_a_cell() -> None:
+    x = torch.tensor([[1.0], [3.0], [100.0]])
+    pos = torch.full((3, 3), 0.5)
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+    out = roi_aware_pool3d(x, pos, boxes, 2, max_points_per_cell=2, reduce="mean")
+    assert out[0, 1, 1, 1, 0].item() == 2.0
+
+
+def test_roi_aware_pool3d_excludes_points_on_the_side_faces() -> None:
+    x = torch.ones(2, 1)
+    pos = torch.tensor([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+    out = roi_aware_pool3d(x, pos, boxes, 2)
+    # The x face is open, the top face is closed and clamps into the last cell.
+    assert out.sum().item() == 1.0
+    assert out[0, 1, 1, 1, 0].item() == 1.0
+
+
+def test_roi_aware_pool3d_respects_scene_batch() -> None:
+    x = torch.tensor([[1.0], [2.0]])
+    pos = torch.zeros(2, 3)
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+    out = roi_aware_pool3d(x, pos, boxes, 1, pos_batch=torch.tensor([0, 1]), box_batch=torch.tensor([0, 1]))
+    assert out.view(-1).tolist() == [1.0, 2.0]
