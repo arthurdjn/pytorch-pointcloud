@@ -827,3 +827,42 @@ def test_modelnet40_hdf5_force_download_implies_download(
 
     _ = ModelNet40Hdf5(root=datasets_dir, force_download=True, show_progress=False)
     mock.assert_called_once_with(force=True)
+
+
+def test_modelnet40_registration_pairs(datasets_dir_factory: Callable[..., Path]) -> None:
+    from torch_pointcloud.datasets import ModelNet40Registration
+    from torch_pointcloud.ops.geometry import transform_points
+
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    dataset = ModelNet40Registration(root=datasets_dir, train=False, num_points=300, show_progress=False)
+    assert dataset.data_dir.endswith("ModelNet40Hdf5")
+    assert len(dataset) == 4
+
+    sample = dataset[0]
+    assert sample["pos"].shape == (300, 3)
+    assert sample["ref_pos"].shape == (300, 3)
+    assert sample["transform"].shape == (4, 4)
+    assert sample["label"].dtype == torch.long
+    # The two views are crops of one unit-sphere shape: moved by the transform, the source lies on the reference.
+    aligned = transform_points(sample["pos"], sample["transform"])
+    nearest = torch.cdist(aligned, sample["ref_pos"]).min(dim=1).values
+    assert nearest.median().item() < 0.1
+    # Deterministic pairs are the same at every read; a training set draws new ones.
+    again = dataset[0]
+    assert torch.equal(again["pos"], sample["pos"]) and torch.equal(again["transform"], sample["transform"])
+    random_pairs = ModelNet40Registration(root=datasets_dir, train=False, deterministic=False, show_progress=False)
+    assert not torch.equal(random_pairs[0]["transform"], random_pairs[0]["transform"])
+
+
+def test_modelnet40_registration_class_subsets(datasets_dir_factory: Callable[..., Path]) -> None:
+    from torch_pointcloud.datasets import ModelNet40Registration
+    from torch_pointcloud.datasets.modelnet import MODELNET40_ASYMMETRIC_LABELS
+
+    datasets_dir = datasets_dir_factory("ModelNet40Hdf5/**/*")
+    # The fixture test shapes are labels 21, 3, 29 and 25, all asymmetric.
+    seen = ModelNet40Registration(root=datasets_dir, train=False, classes="seen", show_progress=False)
+    unseen = ModelNet40Registration(root=datasets_dir, train=False, classes="unseen", show_progress=False)
+    assert len(seen) == 1 and len(unseen) == 3
+    assert all(label in MODELNET40_ASYMMETRIC_LABELS for label in (21, 3, 29, 25))
+    with pytest.raises(ValueError, match="classes"):
+        ModelNet40Registration(root=datasets_dir, train=False, classes="other", show_progress=False)

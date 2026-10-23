@@ -33,6 +33,7 @@ MODELS_DIR = DOCS_DIR.parent / "src" / "torch_pointcloud" / "models"
 MODEL_LABELS = {
     "concerto": "Concerto",
     "dgcnn": "DGCNN",
+    "geotransformer": "GeoTransformer",
     "kpconv": "KPConv",
     "lion": "LION",
     "octformer": "OctFormer",
@@ -74,6 +75,7 @@ TASKS: Dict[str, Tuple[str, str, str]] = {
     "part-segmentation": ("Part segmentation", "models/part-segmentation.md", "M-4,-4h8v8h-8Z"),
     "semantic-segmentation": ("Semantic segmentation", "models/segmentation.md", "M0,-5.5L5.2,3.5H-5.2Z"),
     "detection": ("Detection", "models/detection.md", "M0,-5.5L5.5,0L0,5.5L-5.5,0Z"),
+    "registration": ("Registration", "models/registration.md", "M-5,-5h4v4h-4ZM1,1h4v4h-4ZM-2.2,-2.2L2.2,2.2"),
     "pretraining": ("Pretraining", "models/features.md", ""),
 }
 
@@ -91,6 +93,7 @@ DATASET_LABELS = {
     "scannet": "ScanNet",
     "sunrgbd": "SUN RGB-D",
     "shapenet55": "ShapeNet55",
+    "3dmatch": "3DMatch",
     "pretrain": "Multi-dataset",
 }
 LICENSE_LABELS = {"Apache-2.0": "Apache 2.0", "CC-BY-NC-4.0": "CC BY-NC 4.0"}
@@ -234,7 +237,13 @@ def dataset_label(dataset: str) -> str:
 def metric_label(task: str, dataset: str) -> str:
     if task == "detection":
         return {"kitti": "mAP (R11)", "nuscenes": "mAP"}.get(dataset, "mAP@0.25")
-    return {"classification": "OA", "part-segmentation": "Instance mIoU", "semantic-segmentation": "mIoU"}.get(task, "")
+    labels = {
+        "classification": "OA",
+        "part-segmentation": "Instance mIoU",
+        "semantic-segmentation": "mIoU",
+        "registration": "RR",
+    }
+    return labels.get(task, "")
 
 
 def aligned(value: str, places: int = 2) -> str:

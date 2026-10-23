@@ -9,8 +9,11 @@ PyG's resolver otherwise.
 
 from typing import Any, Callable, Dict, Optional, Sequence, Type, Union
 
+import torch
 import torch.nn as nn
+from torch import Tensor
 from torch_geometric.nn.resolver import normalization_resolver
+from torch_geometric.utils import scatter
 
 _BATCH_NORM_NDS: Dict[int, Type[nn.Module]] = {
     1: nn.BatchNorm1d,
@@ -88,3 +91,62 @@ def create_norm(
         )
 
     return norm(channels, **norm_kwargs)
+
+
+class PackedGroupNorm(nn.Module):
+    r"""Group normalization over a packed point cloud, with statistics per batch element.
+
+    The channels are split into `num_groups` groups and every group is normalized by the mean and variance of its
+    channels over all the points of one batch element, then scaled and shifted per channel. Called without `batch`,
+    the whole packed cloud forms one element; a $(1, C, N)$ view through `torch.nn.GroupNorm` is the same operation
+    on one cloud.
+
+    Args:
+        num_groups: Number of channel groups $G$; `num_channels` must be a multiple of it.
+        num_channels: Number of channels $C$.
+        eps: Added to the variance for numerical stability.
+
+    Shape:
+        - Input: $(N, C)$ features and an optional $(N,)$ batch index.
+        - Output: $(N, C)$.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.layers.norms import PackedGroupNorm
+        >>> norm = PackedGroupNorm(num_groups=4, num_channels=8)
+        >>> x = torch.randn(10, 8)
+        >>> norm(x, torch.tensor([0] * 6 + [1] * 4)).shape
+        torch.Size([10, 8])
+
+        ```
+    """
+
+    def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5) -> None:
+        super().__init__()
+        if num_channels % num_groups != 0:
+            raise ValueError(f"`num_channels` ({num_channels}) must be a multiple of `num_groups` ({num_groups}).")
+
+        self.num_groups = num_groups
+        self.num_channels = num_channels
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(num_channels))
+        self.bias = nn.Parameter(torch.zeros(num_channels))
+
+    def forward(self, x: Tensor, batch: Optional[Tensor] = None) -> Tensor:
+        grouped = x.view(x.size(0), self.num_groups, self.num_channels // self.num_groups)
+        if batch is None:
+            mean = grouped.mean(dim=(0, 2), keepdim=True)
+            var = grouped.var(dim=(0, 2), unbiased=False, keepdim=True)
+        else:
+            batch_size = int(batch.max()) + 1 if batch.numel() else 0
+            group_mean = grouped.mean(dim=2)  # (N, G)
+            mean = scatter(group_mean, batch, dim=0, dim_size=batch_size, reduce="mean")[batch].unsqueeze(2)
+            group_var = (grouped - mean).pow(2).mean(dim=2)  # (N, G)
+            var = scatter(group_var, batch, dim=0, dim_size=batch_size, reduce="mean")[batch].unsqueeze(2)
+
+        x = ((grouped - mean) / torch.sqrt(var + self.eps)).view_as(x)
+        return x * self.weight + self.bias
+
+    def extra_repr(self) -> str:
+        return f"num_groups={self.num_groups}, num_channels={self.num_channels}, eps={self.eps}"

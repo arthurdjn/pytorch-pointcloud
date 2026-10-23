@@ -12,6 +12,7 @@ from .augmentation import (
     random_elastic_distortion,
     random_jitter,
     rotate_boxes,
+    rotate_pair,
     scale_boxes,
     translate_boxes,
 )
@@ -65,6 +66,7 @@ __all__ = [
     "remove_near_origin",
     "rescale",
     "rotate_boxes",
+    "rotate_pair",
     "rotate_vectors",
     "rotation_matrix",
     "scale_boxes",

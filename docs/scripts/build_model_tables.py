@@ -41,7 +41,8 @@ TASK_ORDER: Dict[Task, int] = {
     "semantic-segmentation": 1,
     "part-segmentation": 2,
     "detection": 3,
-    "pretraining": 4,
+    "registration": 4,
+    "pretraining": 5,
 }
 
 
@@ -50,6 +51,7 @@ DEFAULT_METRIC: Dict[Task, str] = {
     "semantic-segmentation": "mIoU",
     "part-segmentation": "mIoU",
     "detection": "mAP",
+    "registration": "RR",
     "pretraining": "",
 }
 

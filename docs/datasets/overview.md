@@ -38,6 +38,10 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 
     SUN RGB-D, KITTI, nuScenes, and batching ragged boxes.
 
+-   :material-vector-combine: __[Registration](registration.md)__
+
+    3DMatch and 3DLoMatch fragment pairs with their ground-truth transforms.
+
 </div>
 
 ### Object classification
@@ -84,6 +88,16 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 | Dataset | Samples | Classes |
 | --- | ---: | ---: |
 | [ShapeNetPart](../api/datasets/shapenetpart.md)<br><span class="tp-index__detail">[A Scalable Active Framework for Region Annotation in 3D Shape Collections](https://dl.acm.org/doi/10.1145/2980179.2980238)</span> | ~16k | 16 categories / 50 parts |
+
+</div>
+
+### Registration
+
+<div class="tp-index" markdown>
+
+| Dataset | Pairs | Benchmarks |
+| --- | ---: | ---: |
+| [ThreeDMatch](../api/datasets/threedmatch.md)<br><span class="tp-index__detail">:arxiv: [3DMatch: Learning Local Geometric Descriptors from RGB-D Reconstructions](https://arxiv.org/abs/1603.08182)</span> | 20.6k train / 1.6k + 1.8k test | 3DMatch, 3DLoMatch |
 
 </div>
 

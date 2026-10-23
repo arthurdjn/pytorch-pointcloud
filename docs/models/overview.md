@@ -1,7 +1,8 @@
 # Models
 
 :pytorch-pointcloud-mini: `torch-pointcloud` ships architectures for point cloud classification, semantic and part
-segmentation, object detection and self-supervised pretraining, behind one :pytorch: timm-style factory:
+segmentation, object detection, pairwise registration and self-supervised pretraining, behind one :pytorch: timm-style
+factory:
 
 ```{.python notest}
 import torch_pointcloud as tp
@@ -36,6 +37,10 @@ and a few are restricted to non-commercial use: see
 -   :material-cube-scan: __[Object detection](detection.md)__
 
     Oriented boxes: decode, filter with NMS, score with mAP.
+
+-   :material-vector-combine: __[Registration](registration.md)__
+
+    Align two scans: correspondences, a rigid transform, registration recall.
 
 -   :material-palette-swatch: __[Feature maps](features.md)__
 
@@ -75,6 +80,12 @@ Best for **object parts** (ShapeNetPart). Inputs are single objects and their ca
 Predict **3D bounding boxes** for indoor scenes (ScanNet, SUN RGB-D) or driving scenes (KITTI, nuScenes, Waymo).
 
 {{ architecture_table("detection") }}
+
+### Registration
+
+Estimate the **rigid transform between two scans** (3DMatch, 3DLoMatch, KITTI odometry, ModelNet40 pairs). Inputs are a source and a reference cloud, outputs are point correspondences and a $4 \times 4$ transform.
+
+{{ architecture_table("registration") }}
 
 ### Self-supervised pretraining
 

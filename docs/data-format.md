@@ -45,6 +45,16 @@ Detection samples carry $K$ boxes per scene:
 | `velocity`  | $(K, 2)$ | float32 | $(v_x, v_y)$, nuScenes only                                       |
 | `batch_box` | $(K,)$   | int64   | Scene index of each box, written by `collate`                     |
 
+Registration samples hold a pair of clouds and the rigid transform between them:
+
+| Key           | Shape    | Dtype   | Meaning                                                              |
+| ------------- | -------- | ------- | -------------------------------------------------------------------- |
+| `pos`         | $(N, 3)$ | float32 | Source cloud, the one the transform moves                            |
+| `ref_pos`     | $(M, 3)$ | float32 | Reference cloud; collate it as a `cat_keys` entry for `batch_ref_pos` |
+| `transform`   | $(4, 4)$ | float32 | Source-to-reference transform $q = R p + t$, a `stack_keys` entry    |
+| `information` | $(6, 6)$ | float32 | Information matrix of the 3DMatch ground truth, for `registration_rmse` |
+| `overlap`     | scalar   | float32 | Overlap ratio of the pair                                            |
+
 Some models read other keys: a voxel grid (`voxel`, `pos_voxel`, `voxel_num_points` from `HardVoxelize`), integer
 coordinates (`pos_grid` from `Voxelize`) or an `octree`. `info["input_keys"]` lists what a checkpoint needs and
 `select_inputs` picks them from the batch:

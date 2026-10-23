@@ -41,14 +41,17 @@ def transform_points(points: Tensor, transform: Tensor) -> Tensor:
     \end{bmatrix}
     $$
 
-    Where $R$ is a $3 \times 3$ rotation matrix and $t$ is a $3 \times 1$ translation vector.
+    Where $R$ is a $3 \times 3$ rotation matrix and $t$ is a $3 \times 1$ translation vector. Leading dimensions
+    broadcast, so one transform applies to a set of patches $(M, K, 3)$ and a batch of transforms $(B, 4, 4)$ to a
+    batch of point sets $(B, N, 3)$.
 
     Args:
-        points: Points of shape $(N, 3)$, in XYZ order.
-        transform: A $4 \times 4$ transformation matrix.
+        points: Points of shape $(\ldots, N, 3)$, in XYZ order.
+        transform: Transformation matrices of shape $(\ldots, 4, 4)$, broadcastable to the leading dimensions of
+            `points`.
 
     Returns:
-        The transformed points of shape $(N, 3)$.
+        The transformed points of shape $(\ldots, N, 3)$.
 
     Examples:
         ```pycon
@@ -60,16 +63,9 @@ def transform_points(points: Tensor, transform: Tensor) -> Tensor:
 
         ```
     """
-    N, _ = points.shape
-
-    # Convert to homogeneous coordinates (N, 4)
-    homogeneous = torch.cat([points, torch.ones(N, 1, device=points.device, dtype=points.dtype)], dim=1)
-
-    # Apply transformation (N, 4)
-    transformed = torch.matmul(homogeneous, transform.T)
-
-    # Return to 3D coordinates (N, 3)
-    return transformed[:, :3]
+    rotation = transform[..., :3, :3]
+    translation = transform[..., :3, 3]
+    return torch.matmul(points, rotation.transpose(-1, -2)) + translation.unsqueeze(-2)
 
 
 def rotate(x: Tensor, R: Tensor) -> Tensor:

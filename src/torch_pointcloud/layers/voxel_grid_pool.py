@@ -16,6 +16,7 @@ class VoxelGridPool(nn.Module):
     Positions are averaged within a cell and features are reduced with `reduce`. The grid origin is either aligned
     to multiples of `grid_size` (`origin="grid"`, so cell boundaries do not depend on the cloud's extent) or placed
     at each cloud's minimum corner (`origin="min"`). Passing `return_inverse=True` also returns the point-to-cell map.
+    Both origins are computed per cloud, so a cloud is pooled the same whether it is alone or in a batch.
 
     Args:
         grid_size: Cell edge length.
@@ -77,13 +78,11 @@ class VoxelGridPool(nn.Module):
         batch: Tensor,
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
+        ptr = torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)])
+        start = segment(pos, ptr, reduce="min")
         if self.origin == "grid":
-            start = torch.floor(pos.min(dim=0).values / self.grid_size) * self.grid_size
-            cluster = voxel_grid(pos, size=self.grid_size, batch=batch, start=start)
-        else:
-            ptr = torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)])
-            start = segment(pos, ptr, reduce="min")
-            cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)
+            start = torch.floor(start / self.grid_size) * self.grid_size
+        cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)
 
         # Scatter straight from the input order: sorting the points into cells first would materialize a copy of
         # the features and cost several times the peak memory for no numerical gain.

@@ -4,7 +4,7 @@ from .concat import ConcatDataset, SingleDatasetBatchSampler
 from .dales import DALES
 from .kitti import KITTI
 from .mix import MixDataset
-from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResampled
+from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNet40Registration, ModelNetNormalResampled
 from .nuscenes import NuScenes, NuScenesMini
 from .parislille3d import ParisLille3D
 from .pointcloud import PointCloudDataset
@@ -16,6 +16,7 @@ from .semantic3d import Semantic3D
 from .semantickitti import SemanticKITTI
 from .shapenetpart import ShapeNetPart
 from .sunrgbd import SunRGBD
+from .threedmatch import ThreeDMatch
 from .toronto3d import Toronto3D
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "ModelNet10",
     "ModelNet40",
     "ModelNet40Hdf5",
+    "ModelNet40Registration",
     "ModelNetNormalResampled",
     "NuScenes",
     "NuScenesMini",
@@ -44,5 +46,6 @@ __all__ = [
     "SemanticKITTI",
     "ShapeNetPart",
     "SunRGBD",
+    "ThreeDMatch",
     "Toronto3D",
 ]

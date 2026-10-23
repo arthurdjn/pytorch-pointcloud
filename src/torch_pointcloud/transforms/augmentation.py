@@ -1,7 +1,7 @@
 """Random geometric and color augmentations."""
 
 import math
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -22,6 +22,7 @@ __all__ = [
     "RandomElasticDistortion",
     "RandomFlip",
     "RandomJitter",
+    "RandomPairRotate",
     "RandomRotate",
     "RandomRotateChoice",
     "RandomScale",
@@ -444,27 +445,35 @@ def random_jitter(
     x: Tensor,
     sigma: float = 0.01,
     clip: Optional[float] = 0.05,
+    distribution: Literal["normal", "uniform"] = "normal",
     generator: Optional[torch.Generator] = None,
 ) -> Tensor:
-    """Add Gaussian noise to `x`, optionally clipped.
+    """Add random noise to `x`, optionally clipped.
 
     Args:
         x: Input tensor.
-        sigma: Standard deviation of the Gaussian noise.
+        sigma: Standard deviation of the normal noise, or half-width of the uniform noise.
         clip: If not `None`, clip the noise to `[-clip, clip]`.
+        distribution: `normal` draws Gaussian noise, `uniform` draws noise uniformly in `[-sigma, sigma]`.
         generator: Random generator for reproducibility.
 
     Returns:
         Jittered tensor with the same shape as `x`.
     """
-    noise = torch.empty_like(x).normal_(mean=0.0, std=sigma, generator=generator)
+    if distribution not in ("normal", "uniform"):
+        raise ValueError(f"Invalid distribution: {distribution!r}. Expected 'normal' or 'uniform'.")
+
+    if distribution == "normal":
+        noise = torch.empty_like(x).normal_(mean=0.0, std=sigma, generator=generator)
+    else:
+        noise = torch.empty_like(x).uniform_(-sigma, sigma, generator=generator)
     if clip is not None:
         noise = noise.clamp(min=-clip, max=clip)
     return x + noise
 
 
 class RandomJitter(DictTransform, Randomizable):
-    """Add Gaussian noise to listed keys, optionally clipped.
+    """Add random noise to listed keys, optionally clipped.
 
     Each key gets its own independent noise tensor (because the noise shape
     matches the key shape). Pair-rotation-style consistency does not apply here.
@@ -482,8 +491,9 @@ class RandomJitter(DictTransform, Randomizable):
 
     Args:
         keys: Keys to jitter.
-        sigma: Standard deviation of the Gaussian noise.
+        sigma: Standard deviation of the normal noise, or half-width of the uniform noise.
         clip: If not `None`, clip the noise to `[-clip, clip]`.
+        distribution: `normal` draws Gaussian noise, `uniform` draws noise uniformly in `[-sigma, sigma]`.
         p: Probability of applying the transform.
         dst_keys: Where to store the jittered tensors.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
@@ -495,17 +505,21 @@ class RandomJitter(DictTransform, Randomizable):
         keys: KeyCollection,
         sigma: float = 0.01,
         clip: Optional[float] = 0.05,
+        distribution: Literal["normal", "uniform"] = "normal",
         p: float = 1.0,
         dst_keys: Optional[KeyCollection] = None,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
     ) -> None:
+        if distribution not in ("normal", "uniform"):
+            raise ValueError(f"Invalid distribution: {distribution!r}. Expected 'normal' or 'uniform'.")
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
         super().__init__(keys, allow_missing_keys)
         self.sigma = sigma
         self.clip = clip
+        self.distribution = distribution
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
         self.set_random_state(seed)
@@ -516,7 +530,7 @@ class RandomJitter(DictTransform, Randomizable):
             return data
 
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = random_jitter(data[key], self.sigma, self.clip, generator=self.R)
+            data[dst_key] = random_jitter(data[key], self.sigma, self.clip, self.distribution, generator=self.R)
         return data
 
 
@@ -1302,3 +1316,107 @@ class RandomElasticDistortion(DictTransform, Randomizable):
             x = data[key]
             data[dst_key] = x + displacement.to(x.dtype).to(x.device)
         return data
+
+
+def rotate_pair(
+    pos: Tensor,
+    ref_pos: Tensor,
+    transform: Tensor,
+    rotation: Tensor,
+    rotate_ref: bool = False,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Rotate one cloud of a registration pair and update the transform of the source onto the reference.
+
+    Rotating the source by $R$ gives $p' = R p$, so the transform becomes $T R^\top$; rotating the reference gives
+    $q' = R q$ and the transform becomes $R T$.
+
+    Args:
+        pos: Source points, shape $(N, 3)$.
+        ref_pos: Reference points, shape $(M, 3)$.
+        transform: Transform of the source onto the reference, shape $(4, 4)$.
+        rotation: Rotation matrix, shape $(3, 3)$.
+        rotate_ref: Whether the reference is rotated instead of the source.
+
+    Returns:
+        The source points, the reference points and the transform after the rotation.
+
+    Example:
+        ```pycon
+        >>> import math
+        >>> import torch
+        >>> from torch_pointcloud.transforms.functional import rotate_pair, rotation_matrix
+        >>> pos, ref_pos = torch.rand(10, 3), torch.rand(10, 3)
+        >>> pos, ref_pos, transform = rotate_pair(pos, ref_pos, torch.eye(4), rotation_matrix(math.pi / 2, axis=2))
+        >>> transform.shape
+        torch.Size([4, 4])
+
+        ```
+    """
+    rotation4 = torch.eye(4, dtype=transform.dtype, device=transform.device)
+    rotation4[:3, :3] = rotation.to(transform.dtype)
+    if rotate_ref:
+        return pos, rotate_vectors(ref_pos, rotation), rotation4 @ transform
+    return rotate_vectors(pos, rotation), ref_pos, transform @ rotation4.T
+
+
+class RandomPairRotate(DictTransform, Randomizable):
+    r"""Rotate the source or the reference cloud of a registration pair by a random rotation, keeping the ground-truth
+    transform consistent.
+
+    The rotation composes a uniformly random angle in `angle_range` about each axis; the source or the reference is
+    picked with equal probability. The training augmentation of GeoTransformer and PREDATOR.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.rotate_pair`
+
+    Args:
+        keys: The source and the reference position keys, in that order.
+        transform_key: Key of the $(4, 4)$ transform of the source onto the reference.
+        angle_range: Min and max rotation angle about each axis, in **degrees**.
+        p: Probability of applying the transform.
+        seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
+        allow_missing_keys: If `True`, silently skip the sample when a key is absent.
+    """
+
+    def __init__(
+        self,
+        keys: Sequence[str] = ("pos", "ref_pos"),
+        transform_key: str = "transform",
+        angle_range: Tuple[float, float] = (0.0, 360.0),
+        p: float = 1.0,
+        seed: Optional[int] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        if len(keys) != 2:
+            raise ValueError(f"Expected the source and the reference position keys, got {len(keys)} keys.")
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
+
+        super().__init__(keys, allow_missing_keys)
+        self.transform_key = transform_key
+        self.angle_range = angle_range
+        self.p = p
+        self.set_random_state(seed=seed)
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        keys = list(self.iter_keys(d, extra_msg=f"with transform_key={self.transform_key!r}"))
+        if self.transform_key not in d:
+            if self.allow_missing_keys:
+                return d
+            raise KeyError(f"Key {self.transform_key!r} not found in data.")
+        if len(keys) != 2 or torch.rand(1, generator=self.R).item() >= self.p:
+            return d
+
+        low, high = self.angle_range
+        angles = (torch.rand(3, generator=self.R) * (high - low) + low).tolist()
+        rx, ry, rz = (math.radians(angle) for angle in angles)
+        rotation = (
+            rotation_matrix(rx, axis=0) @ rotation_matrix(ry, axis=1) @ rotation_matrix(rz, axis=2)
+        )  # extrinsic z-y-x
+        rotate_ref = bool(torch.rand(1, generator=self.R).item() < 0.5)
+        src_key, ref_key = keys
+        d[src_key], d[ref_key], d[self.transform_key] = rotate_pair(
+            d[src_key], d[ref_key], d[self.transform_key], rotation, rotate_ref=rotate_ref
+        )
+        return d

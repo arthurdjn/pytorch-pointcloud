@@ -21,6 +21,7 @@ from .focal import (
     poly1_focal_loss,
     sigmoid_focal_loss,
 )
+from .geotransformer import GeoTransformerLoss, weighted_circle_loss
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched
@@ -37,6 +38,7 @@ __all__ = [
     "ChamferDistance",
     "CornerLoss",
     "GaussianFocalLoss",
+    "GeoTransformerLoss",
     "Poly1FocalLoss",
     "KPConvDeformRegularizer",
     "LovaszLoss",
@@ -61,4 +63,5 @@ __all__ = [
     "poly1_focal_loss",
     "sigmoid_focal_loss",
     "tnet_orthogonality_regularizer",
+    "weighted_circle_loss",
 ]
