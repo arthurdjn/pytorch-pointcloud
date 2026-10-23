@@ -106,6 +106,43 @@ def model_seg() -> PointTransformerV3Segmentation:
 
 
 @pytest.fixture
+def model_seg_layer_norm() -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(
+        in_channels=6,
+        num_classes=10,
+        serialization_orders=("hilbert", "hilbert-trans"),
+        strides=(2, 2),
+        encoder_depths=(1, 1, 1),
+        encoder_channels=(16, 32, 64),
+        encoder_num_heads=(2, 4, 8),
+        encoder_patch_size=(16, 16, 16),
+        decoder_depths=(1, 1),
+        decoder_channels=(32, 16),
+        decoder_num_heads=(4, 2),
+        decoder_patch_size=(16, 16),
+        norm="layer_norm",
+        act="gelu",
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        shuffle_serialization_orders=True,
+        attn_kind="default",
+        rope_base=10.0,
+        use_flash_attn=False,
+        upcast_attn=False,
+        upcast_softmax=False,
+        dropout=0.0,
+        pooling="serialized",
+        stem_type="linear",
+        act_kwargs=None,
+        norm_kwargs=None,
+    ).cuda()
+
+
+@pytest.fixture
 def model_seg_pdnorm() -> PointTransformerV3Segmentation:
     return PointTransformerV3Segmentation(
         in_channels=6,
@@ -278,20 +315,31 @@ def test_encoder_checkpoint_filter_fn_prefixes_a_wrapped_encoder() -> None:
 
 
 _RELEASED_SEGMENTATION_KEYS = {
-    "backbone.embedding.stem.linear.weight": torch.ones(4, 2),
+    "backbone.embedding.stem.linear.weight": torch.ones(4, 6),
     "backbone.enc.enc1.down.norm.0.weight": torch.ones(4),
     "backbone.dec.dec1.up.proj_skip.1.bias": torch.ones(4),
     "backbone.dec.dec0.block0.cpe.0.weight": torch.ones(4, 3, 3, 3, 4),
     "backbone.dec.dec0.block0.attn.qkv.weight": torch.ones(12, 4),
     "seg_head.weight": torch.ones(3, 4),
 }
+_TRAINING_SEGMENTATION_KEYS = {
+    "module.backbone.embedding.stem.conv.weight": torch.ones(4, 3, 3, 3, 6),
+    "module.backbone.embedding.stem.norm.running_mean": torch.ones(4),
+    "module.backbone.enc.enc1.down.norm.0.weight": torch.ones(4),
+    "module.backbone.dec.dec1.up.proj_skip.1.bias": torch.ones(4),
+    "module.backbone.dec.dec0.block0.cpe.0.weight": torch.ones(4, 3, 3, 3, 4),
+    "module.backbone.dec.dec0.block0.attn.qkv.weight": torch.ones(12, 4),
+    "module.seg_head.weight": torch.ones(3, 4),
+}
 
 
 def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_order(
-    model_seg: PointTransformerV3Segmentation,
+    model_seg_layer_norm: PointTransformerV3Segmentation,
 ) -> None:
-    assert len(model_seg.decoder.blocks) == 2
-    filtered = segmentation_checkpoint_filter_fn(dict(_RELEASED_SEGMENTATION_KEYS), model_seg)
+    """A released checkpoint of a linear stem, layer-norm model: the decoder stages are reversed and the norms keep
+    their names."""
+    assert len(model_seg_layer_norm.decoder.blocks) == 2
+    filtered = segmentation_checkpoint_filter_fn(dict(_RELEASED_SEGMENTATION_KEYS), model_seg_layer_norm)
     assert sorted(filtered) == [
         "decoder.blocks.0.upsample.norm_skip.bias",
         "decoder.blocks.1.blocks.0.attn.qkv.weight",
@@ -300,3 +348,23 @@ def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_orde
         "encoder.stem.stem.weight",
         "head.weight",
     ]
+    assert all(key in model_seg_layer_norm.state_dict() for key in filtered)
+
+
+def test_segmentation_checkpoint_filter_fn_wraps_the_batch_norms_of_a_training_checkpoint(
+    model_seg: PointTransformerV3Segmentation,
+) -> None:
+    """A distributed training checkpoint of a sparse-conv stem, batch-norm model: the `module.` prefix goes, the
+    decoder stages are reversed and the stem, pooling and unpooling norms land under their `module`."""
+    assert len(model_seg.decoder.blocks) == 2
+    filtered = segmentation_checkpoint_filter_fn(dict(_TRAINING_SEGMENTATION_KEYS), model_seg)
+    assert sorted(filtered) == [
+        "decoder.blocks.0.upsample.norm_skip.module.bias",
+        "decoder.blocks.1.blocks.0.attn.qkv.weight",
+        "decoder.blocks.1.blocks.0.cpe_conv.weight",
+        "encoder.blocks.1.downsample.norm.module.weight",
+        "encoder.stem.norm.module.running_mean",
+        "encoder.stem.stem.weight",
+        "head.weight",
+    ]
+    assert all(key in model_seg.state_dict() for key in filtered)
