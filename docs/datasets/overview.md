@@ -74,6 +74,7 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 | [Toronto3D](../api/datasets/toronto3d.md)<br><span class="tp-index__detail">:arxiv: [Toronto-3D: A Large-scale Mobile LiDAR Dataset for Semantic Segmentation of Urban Roadways](https://arxiv.org/abs/2003.08284)</span> | 4 areas | 8 |
 | [ParisLille3D](../api/datasets/parislille3d.md)<br><span class="tp-index__detail">:arxiv: [Paris-Lille-3D: a large and high-quality ground truth urban point cloud dataset for automatic segmentation and classification](https://arxiv.org/abs/1712.00032)</span> | 3 scenes | 9 |
 | [DALES](../api/datasets/dales.md)<br><span class="tp-index__detail">:arxiv: [DALES: A Large-scale Aerial LiDAR Data Set for Semantic Segmentation](https://arxiv.org/abs/2004.11985)</span> | 40 tiles | 8 |
+| [GridNetHD](../api/datasets/gridnethd.md)<br><span class="tp-index__detail">:arxiv: [GridNet-HD: A High-Resolution Multi-Modal Dataset for LiDAR-Image Fusion on Power Line Infrastructure](https://arxiv.org/abs/2601.13052)</span> | 36 zones | 11 |
 
 </div>
 

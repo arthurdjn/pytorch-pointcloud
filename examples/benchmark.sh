@@ -155,5 +155,6 @@ $RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT
 $RUN examples/point_transformer_v3/segmentation_nuscenes_benchmark.py --root "$ROOT" --model ptv3-base.nuscenes.pointcept --sw-batch-size 8
 $RUN examples/sonata/segmentation_scannet_benchmark.py --root "$ROOT" --model sonata-base-lp.scannet20.fair --sw-batch-size 4
 $RUN examples/point_transformer_v3/segmentation_dales_benchmark.py --root "$ROOT" --model ptv3.dales.jayakumar-pujar --sw-batch-size 2
+$RUN examples/point_transformer_v3/segmentation_gridnethd_benchmark.py --root "$ROOT" --model ptv3.gridnet-hd.heig-vd-geo --sw-batch-size 1
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2

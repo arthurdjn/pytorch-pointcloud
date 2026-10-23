@@ -61,6 +61,7 @@ DISPLAY_TITLES = {
     "concerto": "Concerto",
     "utonia": "Utonia",
     "dales": "DALES",
+    "gridnethd": "GridNet-HD",
     "modelnet": "ModelNet",
     "scannet": "ScanNet",
     "s3dis": "S3DIS",
