@@ -3,9 +3,11 @@
 import re
 import warnings
 from collections import OrderedDict
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Set
 
+import numpy as np
 import torch
 from safetensors.torch import load_file
 from torch import Tensor, nn
@@ -20,7 +22,8 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
     Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
-    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
+    present. A `torch.save` file is read with `weights_only=True`, allowing numpy scalars besides tensors. Lightning
+    checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
     only `model.`-prefixed keys are kept, with the prefix stripped.
 
     Args:
@@ -44,7 +47,12 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     if path.suffix == ".safetensors":
         return dict(load_file(path.as_posix()))
 
-    data = torch.load(path, weights_only=True, map_location="cpu")
+    # Training checkpoints record their best metric as a numpy scalar, which the restricted unpickler refuses; a file
+    # written under numpy 1 names the scalar in `numpy.core`.
+    numpy_scalar = import_module("numpy._core.multiarray").scalar
+    numpy_globals = [numpy_scalar, (numpy_scalar, "numpy.core.multiarray.scalar"), np.dtype, np.dtypes.Float64DType]
+    with torch.serialization.safe_globals(numpy_globals):
+        data = torch.load(path, weights_only=True, map_location="cpu")
     if not isinstance(data, dict):
         raise ValueError(
             f"Checkpoint {path.as_posix()!r} is not a state dict: expected a mapping of parameter names to "
