@@ -18,6 +18,7 @@ from .anchors import (
     prediction_branch,
 )
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
+from .clip_text_encoder import CLIPTextEncoder
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
@@ -123,6 +124,7 @@ __all__ = [
     "BEVBackbone",
     "BEVResidualBackbone",
     "ResidualBlock2d",
+    "CLIPTextEncoder",
     "Conv2dBlock",
     "Conv3dBlock",
     "DropoutLike",

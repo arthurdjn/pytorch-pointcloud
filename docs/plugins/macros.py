@@ -36,6 +36,7 @@ MODEL_LABELS = {
     "kpconv": "KPConv",
     "lion": "LION",
     "octformer": "OctFormer",
+    "openscene": "OpenScene",
     "point_bert": "Point-BERT",
     "point_m2ae": "Point-M2AE",
     "point_mae": "Point-MAE",
@@ -73,6 +74,11 @@ TASKS: Dict[str, Tuple[str, str, str]] = {
     "classification": ("Classification", "models/classification.md", "M-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0Z"),
     "part-segmentation": ("Part segmentation", "models/part-segmentation.md", "M-4,-4h8v8h-8Z"),
     "semantic-segmentation": ("Semantic segmentation", "models/segmentation.md", "M0,-5.5L5.2,3.5H-5.2Z"),
+    "open-vocabulary-segmentation": (
+        "Open-vocabulary segmentation",
+        "models/open-vocabulary.md",
+        "M-1.5,-5.5h3v4h4v3h-4v4h-3v-4h-4v-3h4Z",
+    ),
     "detection": ("Detection", "models/detection.md", "M0,-5.5L5.5,0L0,5.5L-5.5,0Z"),
     "pretraining": ("Pretraining", "models/features.md", ""),
 }
@@ -234,7 +240,12 @@ def dataset_label(dataset: str) -> str:
 def metric_label(task: str, dataset: str) -> str:
     if task == "detection":
         return {"kitti": "mAP (R11)", "nuscenes": "mAP"}.get(dataset, "mAP@0.25")
-    return {"classification": "OA", "part-segmentation": "Instance mIoU", "semantic-segmentation": "mIoU"}.get(task, "")
+    return {
+        "classification": "OA",
+        "part-segmentation": "Instance mIoU",
+        "semantic-segmentation": "mIoU",
+        "open-vocabulary-segmentation": "mIoU",
+    }.get(task, "")
 
 
 def aligned(value: str, places: int = 2) -> str:

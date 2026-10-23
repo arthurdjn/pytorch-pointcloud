@@ -121,6 +121,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("octformer-base.scannet200.octree-nn", "semantic-segmentation", "scannet20"),
     ("dgcnn.scannet20.an-tao", "semantic-segmentation", "scannet20_blocks"),
     ("spunet-v1m1.scannet20.pointcept", "semantic-segmentation", "scannet20"),
+    ("openscene-openseg.scannet20.songyou-peng", "open-vocabulary-segmentation", "scannet20"),
+    ("openscene-lseg.scannet20.songyou-peng", "open-vocabulary-segmentation", "scannet20"),
     # Self-supervised pretraining
     ("point-mae-base.pretrain.yatian-pang", "pretraining", "modelnet_resampled"),
     ("point-m2ae-base.pretrain.renrui-zhang", "pretraining", "modelnet_resampled"),
@@ -164,11 +166,11 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "openscene")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
+    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "openscene")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 
@@ -380,6 +382,35 @@ def test_pretrained_pointrcnn(
 
     reduced = torch.cat([out["rcnn_cls"].reshape(-1), out["boxes"][:, :6].reshape(-1)])
     _check_output(reduced, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["openscene-openseg.nuscenes.songyou-peng"])
+def test_pretrained_openscene_nuscenes(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """The nuScenes OpenScene weights have no in-repo lidarseg fixture, so a fixed synthetic sweep goes through the
+    registered transform; the 768-d embeddings of a few hundred voxels keep the snapshot small."""
+    _skip_if_deps_missing(model_name)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, info = create_model(model_name, task="open-vocabulary-segmentation", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    transform = info["transform"]
+    assert transform is not None
+    samples = [transform({"pos": (torch.rand(600, 3) - 0.5) * torch.tensor([100.0, 100.0, 6.0])}) for _ in range(2)]
+    data = collate(samples)
+    data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
+
+    with torch.no_grad():
+        output = model(*select_inputs(data, info["input_keys"]))
+
+    _check_output(output, model_name, force_regen, models_dir)
 
 
 @pytest.mark.pretrained

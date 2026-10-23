@@ -153,6 +153,9 @@ point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart
 pointnext-sm-c160.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,22.52,mIoU,87.1,87.11,ins_mIoU 87.11 · cls_mIoU 85.25
 pointnext-sm-c64.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,3.73,mIoU,86.9,86.93,ins_mIoU 86.93 · cls_mIoU 85.24
 pointnext-sm.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,0.98,mIoU,86.7,86.88,ins_mIoU 86.88 · cls_mIoU 84.48
+openscene-lseg.scannet20.songyou-peng,openscene,open-vocabulary-segmentation,scannet20,true,Apache-2.0,15.54,mIoU,52.9,52.04,mIoU 52.04 · mAcc 62.83 · OA 80.09
+openscene-openseg.nuscenes.songyou-peng,openscene,open-vocabulary-segmentation,nuscenes,true,Apache-2.0,15.56,mIoU,,,
+openscene-openseg.scannet20.songyou-peng,openscene,open-vocabulary-segmentation,scannet20,true,Apache-2.0,15.56,mIoU,46.0,45.33,mIoU 45.33 · mAcc 66.07 · OA 69.09
 3detr-m.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.44,mAP,65.0,65.46,mAP@0.25 65.46 · mAP@0.5 47.26
 3detr.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.31,mAP,62.1,61.37,mAP@0.25 61.37 · mAP@0.5 38.43
 3detr.sunrgbd.fair,threedetr,detection,sunrgbd,true,Apache-2.0,7.31,mAP,58.0,58.08,mAP@0.25 58.08 · mAP@0.5 29.64

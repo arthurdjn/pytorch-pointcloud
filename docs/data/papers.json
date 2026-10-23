@@ -149,6 +149,11 @@
     "date": "October 2022",
     "title": "Point Transformer V2: Grouped Vector Attention and Partition-based Pooling"
   },
+  "2211.15654": {
+    "crop": 0.47,
+    "date": "November 2022",
+    "title": "OpenScene: 3D Scene Understanding with Open Vocabularies"
+  },
   "2211.15766": {
     "crop": 0.47,
     "date": "November 2022",
