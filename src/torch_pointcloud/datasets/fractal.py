@@ -53,12 +53,11 @@ FractalSplit = Literal["train", "val", "test"]
 def load_fractal_data(source: Union[PathLike, bytes]) -> Dict[str, Tensor]:
     r"""Read a FRACTAL (or any colourised LiDAR HD) LAS / LAZ file.
 
-    Positions are returned relative to the minimum corner of the cloud, subtracted in float64, so that the
-    Lambert-93 coordinates (around $6.5 \cdot 10^6$ m, where float32 resolves 0.5 m) keep their millimetre precision.
+    Positions are the Lambert-93 coordinates in float64: around $6.5 \cdot 10^6$ m, float32 only resolves 0.5 m.
 
     | Key                 | Shape    | Dtype   |
     | ------------------- | -------- | ------- |
-    | `pos`               | $(N, 3)$ | float32 |
+    | `pos`               | $(N, 3)$ | float64 |
     | `intensity`         | $(N, 1)$ | float32 |
     | `return_number`     | $(N, 1)$ | int64   |
     | `number_of_returns` | $(N, 1)$ | int64   |
@@ -73,8 +72,7 @@ def load_fractal_data(source: Union[PathLike, bytes]) -> Dict[str, Tensor]:
         The point attributes, keyed by `DataKeys`. `segment` holds the raw LiDAR HD classification codes.
     """
     las = laspy.read(io.BytesIO(source) if isinstance(source, bytes) else source)
-    xyz = np.stack([las.x, las.y, las.z], axis=1)
-    pos = (xyz - las.header.mins).astype(np.float32)
+    pos = np.stack([las.x, las.y, las.z], axis=1)
     color = np.stack([las.red, las.green, las.blue], axis=1).astype(np.int32)
     return {
         DataKeys.POS: torch.from_numpy(pos),
@@ -94,7 +92,7 @@ class FRACTAL(PointCloudDataset):
 
     | Key                 | Shape    | Dtype   | Meaning                                                  |
     | ------------------- | -------- | ------- | -------------------------------------------------------- |
-    | `pos`               | $(N, 3)$ | float32 | Lambert-93 (EPSG:2154) metres, minus the patch's corner  |
+    | `pos`               | $(N, 3)$ | float64 | Lambert-93 (EPSG:2154) metres                            |
     | `intensity`         | $(N, 1)$ | float32 | LiDAR intensity                                          |
     | `return_number`     | $(N, 1)$ | int64   | Return number, 1-based                                   |
     | `number_of_returns` | $(N, 1)$ | int64   | Number of returns of the pulse                           |

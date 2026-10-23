@@ -1179,15 +1179,16 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
         url="hf://IGNF/FRACTAL-LidarHD_7cl_randlanet/resolve/6ef0c46e11ab7fa9d20f3d9e39986c46dbd3814e/FRACTAL-LidarHD_7cl_randlanet.ckpt",
         pretrained_filter_fn=pyg_example_checkpoint_filter_fn,
         dataset="fractal",
-        # NOTE: Myria3D reports 77.2 (77.5 averaged per class). It reads Lambert-93 coordinates as float32, which puts
-        # Y on a 0.5 m grid; on positions quantized that way the checkpoint scores 77.60 / 96.12, on exact ones this.
-        metrics={"mIoU": 77.00, "OA": 96.00},
+        # NOTE: Myria3D reports 77.2 (77.5 averaged per class).
+        metrics={"mIoU": 77.35, "OA": 96.06},
         classes=FRACTAL_CLASSES,
         author="ignf",
         license="etalab-2.0",
     ),
     transform=T.Compose(
         [
+            # Myria3D reads the Lambert-93 coordinates as float32.
+            T.ToFloat(keys=DataKeys.POS),
             # Artefacts (65) and virtual points (66) are dropped before anything else.
             T.LabelMask(
                 keys=DataKeys.SEGMENT,
@@ -1244,6 +1245,7 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
                 ],
                 reduce=["mean", "mean", "mean", "mean", "mean", "mean", "mean", "first"],
                 size=0.25,
+                origin="min",
                 allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
@@ -1266,7 +1268,8 @@ def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modul
             ),
             T.Shift(keys=DataKeys.POS, method="centroid"),
             T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-            T.Divide(keys=DataKeys.POS, divisor=25.0),
+            # Myria3D multiplies by 1 / 25; dividing by 25 rounds differently in float32.
+            T.Scale(keys=DataKeys.POS, scale=0.04),
             T.Add(keys=DataKeys.INTENSITY, value=1.0),
             T.Log(keys=DataKeys.INTENSITY),
             T.Cat(

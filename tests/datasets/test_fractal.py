@@ -25,7 +25,7 @@ def test_load_fractal_data_shapes(datasets_dir: Path) -> None:
     data = load_fractal_data(content)
 
     expected = {
-        DataKeys.POS: ((NUM_POINTS_PER_PATCH, 3), torch.float32),
+        DataKeys.POS: ((NUM_POINTS_PER_PATCH, 3), torch.float64),
         DataKeys.INTENSITY: ((NUM_POINTS_PER_PATCH, 1), torch.float32),
         DataKeys.RETURN_NUMBER: ((NUM_POINTS_PER_PATCH, 1), torch.int64),
         DataKeys.NUMBER_OF_RETURNS: ((NUM_POINTS_PER_PATCH, 1), torch.int64),
@@ -39,14 +39,16 @@ def test_load_fractal_data_shapes(datasets_dir: Path) -> None:
         assert data[key].dtype == dtype, key
 
 
-def test_load_fractal_data_positions_relative_to_corner(datasets_dir: Path) -> None:
-    """Positions start at the minimum corner of the patch, so Lambert-93 coordinates keep their precision."""
+def test_load_fractal_data_positions_are_lambert93(datasets_dir: Path) -> None:
+    """Positions are the Lambert-93 coordinates of the patch, finer than the 0.5 m that float32 resolves there."""
     with zipfile.ZipFile(datasets_dir / "FRACTAL" / "raw" / "test-00.zip") as archive:
         content = archive.read(archive.namelist()[0])
     pos = load_fractal_data(content)[DataKeys.POS]
 
-    assert torch.allclose(pos.min(dim=0).values, torch.zeros(3))
-    assert (pos[:, :2].max(dim=0).values <= 50.0).all()
+    corner = torch.tensor([743050.0, 6246650.0], dtype=torch.float64)
+    assert (pos[:, :2] >= corner).all()
+    assert (pos[:, :2] <= corner + 50.0).all()
+    assert (pos[:, 1] % 0.5 != 0).any()
 
 
 def test_load_fractal_data_reads_a_path(datasets_dir: Path, tmp_path: Path) -> None:
