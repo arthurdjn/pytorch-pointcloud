@@ -145,7 +145,8 @@ class FRACTAL(PointCloudDataset):
         if not self.raw_files_exist():
             raise FileNotFoundError(
                 f"Dataset not found: expected {self.num_archives[split]} archives {split}-NN.zip under "
-                f"{self.raw_dir!r}; pass `download=True` or fetch them from {self.data_url}/data/{split}."
+                f"{self.raw_dir!r}; pass `download=True` or fetch `data/{split}` from "
+                "https://huggingface.co/datasets/IGNF/FRACTAL."
             )
 
         self.members: List[Tuple[Path, str]] = []

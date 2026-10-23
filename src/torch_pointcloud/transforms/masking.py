@@ -331,11 +331,12 @@ class LabelMask(DictTransform):
 class MaskedFill(DictTransform):
     """Fill the entries selected by a boolean mask with a value (a thin wrapper over `torch.Tensor.masked_fill`).
 
-    A $(N,)$ mask covers every channel of a $(N, C)$ tensor.
+    The mask broadcasts to each tensor as in `torch.Tensor.masked_fill`, e.g. a $(N, 1)$ mask fills every channel of
+    the selected points of a $(N, C)$ tensor.
 
     Args:
         keys: The keys to fill.
-        mask_key: The key of the boolean mask, $(N,)$ or broadcastable to each tensor.
+        mask_key: The key of the boolean mask.
         value: The fill value.
         dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
         allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
@@ -346,7 +347,7 @@ class MaskedFill(DictTransform):
 
         from torch_pointcloud.transforms import MaskedFill
 
-        data = {"x": torch.rand(3, 3), "mask": torch.tensor([False, True, False])}
+        data = {"x": torch.rand(3, 3), "mask": torch.tensor([[False], [True], [False]])}
         data = MaskedFill(keys="x", mask_key="mask", value=0.0)(data)
         ```
     """
@@ -367,9 +368,7 @@ class MaskedFill(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            x, mask = data[key], data[self.mask_key]
-            mask = mask.reshape(mask.shape + (1,) * (x.dim() - mask.dim()))
-            data[dst_key] = x.masked_fill(mask, self.value)
+            data[dst_key] = data[key].masked_fill(data[self.mask_key], self.value)
         return data
 
 

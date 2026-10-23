@@ -88,7 +88,7 @@ def random_max_pool(
 ) -> Tuple[Tensor, Tensor, Tensor]:
     """Deprecated alias of `random_pool` with `reduce="max"`."""
     warnings.warn(
-        "`random_max_pool` is deprecated and will be removed in a future release; use `random_pool` instead.",
+        "`random_max_pool` is deprecated since 0.0.19 and will be removed in 0.0.20; use `random_pool` instead.",
         FutureWarning,
         stacklevel=2,
     )
@@ -97,7 +97,7 @@ def random_max_pool(
 
 class RandLANetEncoder(nn.Module):
     r"""Stack of `RandLANetResidualBlock` units interleaved with random-sampling
-    decimation, followed by a K-NN max-pool unless `pool=None`.
+    decimation, followed by a reduction over the K nearest neighbors unless `pool=None`.
 
     Each encoder block doubles its $d_\text{out}^\text{config}$ to produce a
     $2 \cdot d_\text{out}^\text{config}$ channel feature; the per-stage decimation
@@ -132,7 +132,7 @@ class RandLANetEncoder(nn.Module):
         *,
         lse_channels: Optional[Sequence[int]] = None,
         lse_input: Literal["encoding", "pos"] = "encoding",
-        pool: Optional[str] = "max",
+        pool: Optional[Literal["max", "mean", "sum"]] = "max",
         act: Union[str, Callable, None],
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -141,6 +141,9 @@ class RandLANetEncoder(nn.Module):
         bias: bool = False,
     ) -> None:
         super().__init__()
+        if pool not in ("max", "mean", "sum", None):
+            raise ValueError(f"`pool` must be 'max', 'mean', 'sum' or None, got {pool!r}.")
+
         num_blocks = len(encoder_channels)
         extra_msg = f"`{{param}}` must be a sequence of the same length as the number of blocks {num_blocks}."
         self.decimation: Tuple[int, ...] = ensure_tuple_size(
@@ -353,7 +356,7 @@ class RandLANetClassification(ClassificationModel):
         num_neighbors: Union[int, Sequence[int]] = 16,
         lse_channels: Optional[Sequence[int]] = None,
         lse_input: Literal["encoding", "pos"] = "encoding",
-        pool: Optional[str] = "max",
+        pool: Optional[Literal["max", "mean", "sum"]] = "max",
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -554,7 +557,7 @@ class RandLANetSegmentation(SemanticSegmentationModel):
         num_neighbors: Union[int, Sequence[int]] = 16,
         lse_channels: Optional[Sequence[int]] = None,
         lse_input: Literal["encoding", "pos"] = "encoding",
-        pool: Optional[str] = "max",
+        pool: Optional[Literal["max", "mean", "sum"]] = "max",
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "relu",

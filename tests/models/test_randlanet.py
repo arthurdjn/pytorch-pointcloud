@@ -181,6 +181,11 @@ def test_randlanet_encoder_bad_lse_channels_length_raises(mlp_kwargs: Dict[str, 
         RandLANetEncoder(in_channels=6, encoder_channels=[16, 32, 64], lse_channels=[2, 4], **mlp_kwargs)
 
 
+def test_randlanet_encoder_unknown_pool_raises(mlp_kwargs: Dict[str, Any]) -> None:
+    with pytest.raises(ValueError, match="`pool`"):
+        RandLANetEncoder(in_channels=6, encoder_channels=[16, 32, 64], pool="avg", **mlp_kwargs)  # type: ignore[arg-type]
+
+
 def test_randlanet_encoder_odd_channels_raises(mlp_kwargs: Dict[str, Any]) -> None:
     with pytest.raises(ValueError, match="must be even"):
         RandLANetEncoder(in_channels=6, encoder_channels=[16, 33], **mlp_kwargs)

@@ -249,6 +249,13 @@ class _RestoredByCallingAnObject:
             id="pickled-module-under-state-dict",
         ),
         pytest.param(
+            {"model": nn.Linear(2, 2), "epoch": 3},
+            True,
+            ValueError,
+            r"'model' \(torch.nn.modules.linear.Linear\)",
+            id="pickled-module-among-parameters",
+        ),
+        pytest.param(
             {"lin.weight": torch.ones(2, 2), "optimizer": functools.partial(torch.optim.Adam, lr=0.01)},
             False,
             pickle.UnpicklingError,

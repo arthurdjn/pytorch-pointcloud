@@ -38,8 +38,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
     present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped
     network: only `model.`-prefixed keys are kept, with the prefix stripped. `torch.save` files load with
-    `weights_only=True`; the other objects of a zip checkpoint (training hyperparameters, optimizer and scheduler
-    configurations) are read as inert placeholders, so their classes are neither imported nor called.
+    `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
+    optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported
+    nor called.
 
     Args:
         path: Checkpoint file to read.
@@ -48,8 +49,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         The flat parameter-name to tensor mapping.
 
     Raises:
-        ValueError: If the checkpoint, or its `state_dict` entry, is not a mapping, or if a Lightning checkpoint
-            has no `model.`-prefixed key to extract.
+        ValueError: If the checkpoint, or its `state_dict` entry, is not a mapping, if it holds such an object among
+            the parameters (e.g. a whole module), or if a Lightning checkpoint has no `model.`-prefixed key to
+            extract.
 
     Example:
         ```{.python notest}
@@ -87,6 +89,15 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
             )
 
         state_dict = extracted
+
+    pickled = [
+        f"{key!r} ({type(value).__name__})" for key, value in state_dict.items() if isinstance(value, _PickledObject)
+    ]
+    if pickled:
+        raise ValueError(
+            f"Checkpoint {path.as_posix()!r} holds objects other than tensors among its parameters: "
+            f"{', '.join(pickled[:5])}; save the `state_dict()` of the module instead."
+        )
 
     return state_dict
 

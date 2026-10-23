@@ -105,12 +105,14 @@ def evaluate(
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
+        # The predicted points are the sampled voxels, at the mean position of their source points. The mean is taken
+        # on the CPU, as `Voxelize` does: a float32 sum of Lambert-93 coordinates depends on the summation order.
+        voxel_pos = scatter(data[DataKeys.ORIGIN_POS], data[DataKeys.INVERSE], dim=0, reduce="mean")
+        sampled_pos = voxel_pos[data[DataKeys.INDEX]].to(device)
+
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
         scores = inferer(data, predictor=lambda d: model(d[DataKeys.X], d[DataKeys.POS], d[DataKeys.BATCH]))
-
-        # The predicted points are the sampled voxels, at the mean position of their source points.
-        voxel_pos = scatter(data[DataKeys.ORIGIN_POS], data[DataKeys.INVERSE], dim=0, reduce="mean")
-        scores = knn_interpolate(scores, voxel_pos[data[DataKeys.INDEX]], data[DataKeys.ORIGIN_POS], k=INTERPOLATION_K)
+        scores = knn_interpolate(scores, sampled_pos, data[DataKeys.ORIGIN_POS], k=INTERPOLATION_K)
         preds = scores.argmax(dim=1)
         cm += confusion_matrix(preds.cpu(), data[DataKeys.ORIGIN_SEGMENT].cpu(), num_classes, ignore_index=IGNORE_INDEX)
         pbar.set_postfix({"oa": f"{accuracy(cm):.4f}"})
