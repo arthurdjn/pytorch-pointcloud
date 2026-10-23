@@ -1060,7 +1060,7 @@ def test_open_vocabulary_model_forward(model_name: str, data_factory: Callable) 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = create_model(model_name, task="open-vocabulary-segmentation", in_channels=3).to(device).eval()
     data = data_factory(in_channels=model.in_channels)
-    pos_grid = torch.floor((data["pos"] - data["pos"].min(dim=0).values) / 0.02).long()
+    pos_grid = data["pos_grid"]
     with torch.no_grad():
         embeddings = model(None, pos_grid.to(device), data["batch"].to(device))
     _check_output_tensor(
@@ -1080,7 +1080,7 @@ def test_open_vocabulary_model_pre_logits(model_name: str, data_factory: Callabl
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = create_model(model_name, task="open-vocabulary-segmentation", in_channels=3).to(device).eval()
     data = data_factory(in_channels=model.in_channels)
-    pos_grid = torch.floor((data["pos"] - data["pos"].min(dim=0).values) / 0.02).long().to(device)
+    pos_grid = data["pos_grid"].to(device)
     batch = data["batch"].to(device)
     with torch.no_grad():
         sparse_x, skips = model.forward_features(None, pos_grid, batch, return_intermediates=True)

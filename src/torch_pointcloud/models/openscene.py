@@ -15,6 +15,7 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import OpenVocabularySegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
+from torch_pointcloud.models.spunet import SparseUNetDecoder
 from torch_pointcloud.utils.conversion import convert_from_spconv_tensor, convert_to_spconv_tensor
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
@@ -50,8 +51,7 @@ class OpenSceneEncoder(nn.Module):
     """Sparse convolutional stem followed by stages that halve the resolution and run `SparseBasicBlock` blocks.
 
     The stride-2 convolution of a stage keeps the width of the stage before it and the first residual block changes
-    it, as MinkowskiEngine's `MinkUNet` does. The stem output and every stage output but the last are returned as
-    decoder skips.
+    it. The stem output and every stage output but the last are returned as decoder skips.
     """
 
     def __init__(
@@ -177,89 +177,6 @@ class OpenSceneEncoder(nn.Module):
         return sparse_x
 
 
-class OpenSceneDecoder(nn.Module):
-    """Mirror of `OpenSceneEncoder`: each stage inverse-convolves, concatenates its skip, and runs residual blocks.
-
-    Stages are built and run deepest-first, so `skip_channels` and `channels` are read in that order.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        skip_channels: Sequence[int],
-        channels: Sequence[int],
-        depths: Sequence[int],
-        kernel_size: int = 3,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        if len(depths) != len(channels):
-            raise ValueError(
-                f"`depths` and `channels` must have the same length, got {len(depths)} and {len(channels)}."
-            )
-
-        if len(skip_channels) != len(channels):
-            raise ValueError(
-                f"`skip_channels` and `channels` must have the same length, "
-                f"got {len(skip_channels)} and {len(channels)}."
-            )
-
-        self.in_channels = in_channels
-        self.skip_channels = tuple(skip_channels)
-        self.channels = tuple(channels)
-        self.depths = tuple(depths)
-        self.num_stages = len(self.depths)
-
-        norm_kwargs = norm_kwargs or {}
-        act_kwargs = act_kwargs or {}
-
-        self.up = nn.ModuleList()
-        self.dec = nn.ModuleList()
-
-        width = in_channels
-        for s in range(self.num_stages):
-            self.up.append(
-                spconv.SparseSequential(
-                    spconv.SparseInverseConv3d(
-                        width,
-                        self.channels[s],
-                        kernel_size=2,
-                        bias=False,
-                        indice_key=f"spconv{self.num_stages - s}",
-                    ),
-                    create_norm(norm, self.channels[s], **norm_kwargs) or nn.Identity(),
-                    create_act(act, **act_kwargs) or nn.Identity(),
-                )
-            )
-            blocks = [
-                SparseBasicBlock(
-                    self.channels[s] + self.skip_channels[s] if i == 0 else self.channels[s],
-                    self.channels[s],
-                    kernel_size=kernel_size,
-                    indice_key=f"subm{self.num_stages - 1 - s}",
-                    act=act,
-                    act_kwargs=act_kwargs,
-                    norm=norm,
-                    norm_kwargs=norm_kwargs,
-                )
-                for i in range(self.depths[s])
-            ]
-            self.dec.append(spconv.SparseSequential(*blocks))
-            width = self.channels[s]
-
-        self.apply(_init_openscene_weights)
-
-    def forward(self, x: "SparseConvTensor", skips: List[FeaturesDict]) -> "SparseConvTensor":
-        for s in range(self.num_stages):
-            x = self.up[s](x)
-            x = x.replace_feature(torch.cat([x.features, skips[self.num_stages - 1 - s]["x"]], dim=1))
-            x = self.dec[s](x)
-        return x
-
-
 class OpenSceneSegmentation(OpenVocabularySegmentationModel):
     r"""OpenScene open-vocabulary segmentation model, a sparse residual U-Net distilled into the text space of CLIP, from
     :arxiv: [OpenScene: 3D Scene Understanding with Open Vocabularies](https://arxiv.org/abs/2211.15654)
@@ -363,11 +280,11 @@ class OpenSceneSegmentation(OpenVocabularySegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_decoder(self) -> OpenSceneDecoder:
+    def configure_decoder(self) -> SparseUNetDecoder:
         """Build the sparse decoder upsampling the bottleneck back to full resolution."""
-        # Skips deepest first; the bottleneck (last encoder stage) is consumed as `in_channels`, not a skip.
-        skip_channels = [*self.encoder_channels[-2::-1], self.stem_channels]
-        return OpenSceneDecoder(
+        # The decoder reads its stages deepest first; the bottleneck (last encoder stage) is its input, not a skip.
+        skip_channels = [self.stem_channels, *self.encoder_channels[:-1]]
+        return SparseUNetDecoder(
             in_channels=self.encoder_channels[-1],
             skip_channels=skip_channels,
             channels=self.decoder_channels,
@@ -540,6 +457,32 @@ def openscene_lseg_scannet20(**hparams: Any) -> OpenSceneSegmentation:
     ),
     transform=T.Compose(
         [
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels={
+                    9: 0,
+                    14: 1,
+                    15: 2,
+                    16: 2,
+                    17: 3,
+                    18: 4,
+                    21: 5,
+                    2: 6,
+                    3: 6,
+                    4: 6,
+                    6: 6,
+                    12: 7,
+                    22: 8,
+                    23: 9,
+                    24: 10,
+                    25: 11,
+                    26: 12,
+                    27: 13,
+                    28: 14,
+                    30: 15,
+                },
+                default=-1,
+            ),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
                 dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],

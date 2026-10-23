@@ -22,7 +22,8 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
-# The benchmark classes as OpenScene prompts them: "a {class} in a scene", and the bare "other" for otherfurniture.
+# The ScanNet20 classes as OpenScene prompts them: "shower curtain" with a space and the bare "other" for
+# otherfurniture, so `SCANNET20_CLASSES` is not reused.
 CLASSES = (
     "wall",
     "floor",

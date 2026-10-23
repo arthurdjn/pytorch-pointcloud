@@ -1,4 +1,5 @@
-"""Abstract base classes for classification, semantic and part segmentation, detection and pretraining models."""
+"""Abstract base classes for classification, semantic, part and open-vocabulary segmentation, detection and
+pretraining models."""
 
 from abc import ABCMeta, abstractmethod
 from typing import Any
@@ -14,7 +15,7 @@ class PretrainingModel(nn.Module, metaclass=ABCMeta):
     stores `in_channels`; each subclass defines its own `forward` signature.
 
     Models with a task head inherit from one of the task ABCs instead: `ClassificationModel`,
-    `SemanticSegmentationModel`, `PartSegmentationModel` or `DetectionModel`. The classification and segmentation
+    `SemanticSegmentationModel`, `PartSegmentationModel`, `OpenVocabularySegmentationModel` or `DetectionModel`. The classification and segmentation
     ABCs require the
     split into `forward_features` (encoder), `forward_decoder` (segmentation only, optional) and
     `forward_head` (logits), plus `configure_head` / `reset_classifier` for building the head and

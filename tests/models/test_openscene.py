@@ -19,7 +19,8 @@ spconv = pytest.importorskip("spconv.pytorch")
 def data() -> Dict[str, Tensor]:
     torch.manual_seed(42)
     lengths = torch.tensor([256, 512])
-    pos_grid = torch.randint(0, 64, (int(lengths.sum()), 3))
+    flat = torch.randperm(64**3)[: int(lengths.sum())]  # unique voxels, so submanifold convs are well defined
+    pos_grid = torch.stack([flat // 64**2, (flat // 64) % 64, flat % 64], dim=1)
     x = torch.randn(int(lengths.sum()), 3)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
     return dict(

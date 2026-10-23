@@ -62,7 +62,7 @@ class CLIPTextEncoder(nn.Module):
         return self._embed_dim
 
     def forward(self, texts: Sequence[str]) -> Tensor:
-        r"""Embed `texts` into unit vectors of shape $(K, D)$."""
-        tokens = self.tokenizer(list(texts), padding=True, return_tensors="pt").to(self.model.device)
+        r"""Embed `texts` into unit vectors of shape $(K, D)$, truncating prompts longer than the context of CLIP."""
+        tokens = self.tokenizer(list(texts), padding=True, truncation=True, return_tensors="pt").to(self.model.device)
         embeddings = self.model(**tokens).text_embeds
         return F.normalize(embeddings, dim=-1)
