@@ -4,7 +4,13 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import CenterHeadLoss, CenterNetLoss, VoxelNeXtHeadLoss, center_regression_loss
+from torch_pointcloud.losses import (
+    CenterHeadLoss,
+    VoxelNeXtHeadLoss,
+    center_regression_loss,
+    gaussian_focal_loss,
+    iou_prediction_loss,
+)
 from torch_pointcloud.ops.heatmap import draw_heatmap_targets, transpose_gather
 from torch_pointcloud.utils.data import DataKeys
 
@@ -309,8 +315,8 @@ def test_center_regression_loss_averages_the_masked_objects_with_code_weights() 
     assert torch.equal(center_regression_loss(pred[:, :2], target[:, :2]), center_regression_loss(pred, target, mask))
 
 
-def test_center_net_loss_on_drawn_targets_equals_the_head_loss() -> None:
-    """The tensor objective on targets drawn outside the head loss reproduces `CenterHeadLoss` for one group."""
+def test_center_head_loss_is_the_two_terms_on_drawn_targets() -> None:
+    """`CenterHeadLoss` on one group equals the focal and regression terms on targets drawn outside it."""
     output, data = _dense_data()
     head_loss = CenterHeadLoss(
         [[0, 1, 2]],
@@ -336,18 +342,12 @@ def test_center_net_loss_on_drawn_targets_equals_the_head_loss() -> None:
     heatmap_target, code_target, inds, mask = (torch.stack(target) for target in zip(*targets))
     box_maps = torch.cat([output[key][0] for key in ("center", "center_z", "dim", "rot")], dim=1)
 
-    criterion = CenterNetLoss([1.0] * 8, loc_weight=0.25)
-    losses = criterion(output["heatmap"][0], heatmap_target, transpose_gather(box_maps, inds), code_target, mask)
+    heatmap_loss = gaussian_focal_loss(output["heatmap"][0].sigmoid(), heatmap_target)
+    box_loss = center_regression_loss(transpose_gather(box_maps, inds), code_target, mask) * 0.25
     expected = head_loss(output, data)
-    for key in ("loss", "heatmap_loss", "box_loss"):
-        assert torch.allclose(losses[key], expected[key]), key
-
-
-def test_center_net_loss_rejects_mismatched_code_weights() -> None:
-    heatmap = torch.zeros(1, 1, 4, 4)
-    codes = torch.zeros(1, 2, 8)
-    with pytest.raises(ValueError, match="8 channels"):
-        CenterNetLoss([1.0] * 10)(heatmap, heatmap, codes, codes)
+    assert torch.allclose(heatmap_loss, expected["heatmap_loss"])
+    assert torch.allclose(box_loss, expected["box_loss"])
+    assert torch.allclose(heatmap_loss + box_loss, expected["loss"])
 
 
 def test_center_loss_zero_height_box_is_finite() -> None:
@@ -485,3 +485,25 @@ def test_center_loss_rejects_mismatched_codes_and_boxes() -> None:
         CenterHeadLoss([[0, 1, 2]], code_weights=[1.0] * 8, **kwargs)(output, data)
     with pytest.raises(ValueError, match="boxes with 9 columns"):
         CenterHeadLoss([[0, 1, 2]], code_weights=[1.0] * 10, **kwargs)(output, data)
+
+
+def test_iou_prediction_loss_trains_the_prediction_only() -> None:
+    """The IoU target is a label: a perfect prediction costs nothing and the boxes get no gradient."""
+    boxes = torch.tensor([[[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.3], [0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]]])
+    shifted = boxes.clone()
+    shifted[0, 1, 0] = 1.0  # half overlap along x: IoU 1/3, target -1/3
+    pred_boxes = shifted.clone().requires_grad_(True)
+    pred = torch.tensor([[1.0, -1.0 / 3.0]], requires_grad=True)
+    loss = iou_prediction_loss(pred, pred_boxes, boxes)
+    assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6)
+
+    pred = torch.tensor([[0.0, 0.0]], requires_grad=True)
+    loss = iou_prediction_loss(pred, pred_boxes, boxes)
+    loss.backward()
+    assert torch.allclose(loss, torch.tensor((1.0 + 1.0 / 3.0) / 2), atol=1e-6)
+    assert pred.grad is not None and pred.grad.abs().sum() > 0
+    assert pred_boxes.grad is None
+
+    masked = iou_prediction_loss(torch.tensor([[0.0, 0.0]]), pred_boxes, boxes, mask=torch.tensor([[1, 0]]))
+    assert torch.allclose(masked, torch.tensor(1.0), atol=1e-6)
+    assert iou_prediction_loss(torch.tensor([[0.0, 0.0]]), pred_boxes, boxes, mask=torch.tensor([[0, 0]])) == 0

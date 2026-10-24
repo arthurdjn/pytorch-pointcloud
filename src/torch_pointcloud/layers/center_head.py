@@ -13,7 +13,7 @@ from typing_extensions import NotRequired
 
 from torch_pointcloud.layers.anchors import prediction_branch
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
-from torch_pointcloud.ops.heatmap import transpose_gather
+from torch_pointcloud.ops.heatmap import decode_center_codes, transpose_gather
 from torch_pointcloud.utils.types import Detection3D
 
 
@@ -275,7 +275,6 @@ class CenterHead(nn.Module):
         if iou_rectifier is not None and "iou" not in out:
             raise ValueError("`iou_rectifier` needs the `iou` maps of a head built with `use_iou`.")
 
-        vx, vy, _ = self.voxel_size
         out_boxes, out_scores, out_labels, out_batch, out_velocity = [], [], [], [], []
         for group_idx, group in enumerate(self.class_groups):
             heatmap = out["heatmap"][group_idx].sigmoid()
@@ -287,15 +286,12 @@ class CenterHead(nn.Module):
             xs = (inds % width).float()
             ys = torch.div(inds, width, rounding_mode="floor").float()
 
-            center = transpose_gather(out["center"][group_idx], inds)
-            center_z = transpose_gather(out["center_z"][group_idx], inds)
-            dim = transpose_gather(out["dim"][group_idx], inds).exp()
-            rot = transpose_gather(out["rot"][group_idx], inds)
-            angle = torch.atan2(rot[..., 1], rot[..., 0])
-
-            xs = (xs + center[..., 0]) * self.feature_map_stride * vx + self.point_cloud_range[0]
-            ys = (ys + center[..., 1]) * self.feature_map_stride * vy + self.point_cloud_range[1]
-            boxes = torch.cat([xs.unsqueeze(-1), ys.unsqueeze(-1), center_z, dim, angle.unsqueeze(-1)], dim=-1)
+            maps = [out["center"][group_idx], out["center_z"][group_idx], out["dim"][group_idx], out["rot"][group_idx]]
+            codes = transpose_gather(torch.cat(maps, dim=1), inds)
+            cell_xy = torch.stack([xs, ys], dim=-1)
+            boxes = decode_center_codes(
+                codes, cell_xy, self.voxel_size, self.point_cloud_range, self.feature_map_stride
+            )
             labels = torch.as_tensor(group, dtype=torch.long, device=heatmap.device)[classes]
 
             rescored = scores

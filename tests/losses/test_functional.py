@@ -30,6 +30,7 @@ def test_functional_reexports_every_tensor_function() -> None:
         "gaussian_focal_loss",
         "hungarian_match",
         "hungarian_match_batched",
+        "iou_prediction_loss",
         "kpconv_deform_regularizer",
         "lovasz_softmax",
         "one_hot_foreground",

@@ -17,8 +17,9 @@ All notable changes to this project are documented in this file. The format is b
 - `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works until 0.0.20, with a `FutureWarning`.
 - Voxel Mamba's head outputs are one-element lists, its head parameters are `head.heads.0.*` instead of `head.prediction_head.*`, and its head starts from the `CenterHead` initialization.
 - Fixed the IoU term of `CenterHeadLoss` sending gradients into the box maps.
-- Added `CenterNetLoss` and `center_regression_loss`, the center-head objective on plain tensors; `CenterHeadLoss` and `VoxelNeXtHeadLoss` build on it.
+- Added `center_regression_loss`, the box-code term of `CenterHeadLoss` and `VoxelNeXtHeadLoss`.
 - Added `ops.heatmap.draw_sparse_heatmap_targets`, the sparse target assignment of `VoxelNeXtHeadLoss`.
+- Added `ops.heatmap.decode_center_codes`, the box decode of the center heads, and `iou_prediction_loss`, the IoU term of `CenterHeadLoss`.
 - Added the Myria3D FRACTAL checkpoint `randlanet.fractal.ignf` (Etalab-2.0), loaded from IGN's Hugging Face repository, and its benchmark on the FRACTAL test set.
 - Added the `FRACTAL` dataset, read in place from its zip archives with the optional `laspy` package.
 - Added the `LabelMask`, `MaskedFill`, `NormalizedDifference`, `Add`, `Log` and `Standardize` transforms, and the `nir` data key.
