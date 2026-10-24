@@ -4,12 +4,13 @@ Generic losses are plain `(input, target)` modules, each next to its tensor func
 [`functional`][torch_pointcloud.losses.functional] re-exports. The detection losses are named after the head (or
 model) whose output they read and assign their targets from the packed `box` / `label` / `batch_box` ground truth;
 their `forward(output, data)` returns a dict with the scalar `loss` to optimize plus its detached named terms
-(`<term>_loss`). The generic losses return a tensor; a training loop accepts either.
+(`<term>_loss`). `CenterNetLoss`, the objective the center head losses share, takes plain tensors and returns the
+same dict. The generic losses return a tensor; a training loop accepts either.
 """
 
 from . import functional
 from .anchor import AnchorHeadLoss, MultiGroupAnchorHeadLoss
-from .centerpoint import CenterHeadLoss, VoxelNeXtHeadLoss
+from .centerpoint import CenterHeadLoss, CenterNetLoss, VoxelNeXtHeadLoss, center_regression_loss
 from .chamfer import ChamferDistance, chamfer_distance
 from .corner import CornerLoss, corner_loss
 from .focal import (
@@ -34,6 +35,7 @@ from .votenet import VoteNetLoss
 __all__ = [
     "AnchorHeadLoss",
     "CenterHeadLoss",
+    "CenterNetLoss",
     "ChamferDistance",
     "CornerLoss",
     "GaussianFocalLoss",
@@ -49,6 +51,7 @@ __all__ = [
     "TransFusionHeadLoss",
     "VoteNetLoss",
     "VoxelNeXtHeadLoss",
+    "center_regression_loss",
     "chamfer_distance",
     "corner_loss",
     "functional",

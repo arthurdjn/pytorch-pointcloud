@@ -4,8 +4,8 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import CenterHeadLoss, VoxelNeXtHeadLoss
-from torch_pointcloud.losses.centerpoint import _reg_l1_loss
+from torch_pointcloud.losses import CenterHeadLoss, CenterNetLoss, VoxelNeXtHeadLoss, center_regression_loss
+from torch_pointcloud.ops.heatmap import draw_heatmap_targets, transpose_gather
 from torch_pointcloud.utils.data import DataKeys
 
 _POINT_CLOUD_RANGE = (-12.0, -12.0, -2.0, 12.0, 12.0, 4.0)
@@ -284,20 +284,70 @@ def test_sparse_center_loss_backward() -> None:
     assert output["center"][0].grad is not None
 
 
-def test_reg_l1_loss_non_finite_target_codes_are_neutralized() -> None:
+def test_center_regression_loss_non_finite_target_codes_are_neutralized() -> None:
     torch.manual_seed(0)
     pred = torch.randn(1, 2, 8)
     target = torch.randn(1, 2, 8)
     target[0, 0, 3] = float("nan")
     target[0, 1, 5] = float("inf")
-    mask = torch.ones(1, 2, dtype=torch.long)
-    loss = _reg_l1_loss(pred, target, mask)
-    assert torch.isfinite(loss).all()
+    loss = center_regression_loss(pred, target)
+    assert torch.isfinite(loss)
     # A non-finite code contributes exactly zero, as if the target matched the prediction there.
     neutral = target.clone()
     neutral[0, 0, 3] = pred[0, 0, 3]
     neutral[0, 1, 5] = pred[0, 1, 5]
-    assert torch.allclose(loss, _reg_l1_loss(pred, neutral, mask))
+    assert torch.allclose(loss, center_regression_loss(pred, neutral))
+
+
+def test_center_regression_loss_averages_the_masked_objects_with_code_weights() -> None:
+    pred = torch.zeros(1, 3, 2)
+    target = torch.tensor([[[1.0, 2.0], [3.0, 4.0], [100.0, 100.0]]])
+    mask = torch.tensor([[1, 1, 0]])
+    # The third object is masked out and the two others average (1 + 0.5 * 2 + 3 + 0.5 * 4) / 2.
+    loss = center_regression_loss(pred, target, mask, weight=torch.tensor([1.0, 0.5]))
+    assert torch.allclose(loss, torch.tensor(3.5))
+    assert torch.equal(center_regression_loss(pred[:, :2], target[:, :2]), center_regression_loss(pred, target, mask))
+
+
+def test_center_net_loss_on_drawn_targets_equals_the_head_loss() -> None:
+    """The tensor objective on targets drawn outside the head loss reproduces `CenterHeadLoss` for one group."""
+    output, data = _dense_data()
+    head_loss = CenterHeadLoss(
+        [[0, 1, 2]],
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+        loc_weight=0.25,
+    )
+    batch = data[DataKeys.BATCH_BOX]
+    targets = [
+        draw_heatmap_targets(
+            data[DataKeys.BOX][batch == b],
+            data[DataKeys.LABEL][batch == b],
+            num_classes=3,
+            feature_map_size=(24, 24),
+            voxel_size=_VOXEL_SIZE,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            feature_map_stride=1,
+        )
+        for b in range(2)
+    ]
+    heatmap_target, code_target, inds, mask = (torch.stack(target) for target in zip(*targets))
+    box_maps = torch.cat([output[key][0] for key in ("center", "center_z", "dim", "rot")], dim=1)
+
+    criterion = CenterNetLoss([1.0] * 8, loc_weight=0.25)
+    losses = criterion(output["heatmap"][0], heatmap_target, transpose_gather(box_maps, inds), code_target, mask)
+    expected = head_loss(output, data)
+    for key in ("loss", "heatmap_loss", "box_loss"):
+        assert torch.allclose(losses[key], expected[key]), key
+
+
+def test_center_net_loss_rejects_mismatched_code_weights() -> None:
+    heatmap = torch.zeros(1, 1, 4, 4)
+    codes = torch.zeros(1, 2, 8)
+    with pytest.raises(ValueError, match="8 channels"):
+        CenterNetLoss([1.0] * 10)(heatmap, heatmap, codes, codes)
 
 
 def test_center_loss_zero_height_box_is_finite() -> None:
@@ -342,92 +392,6 @@ def test_sparse_center_loss_empty_mid_batch_scene_is_finite() -> None:
     output["voxel_indices"][:, 0] = output["voxel_indices"][:, 0] * 2  # {0, 1} -> {0, 2}, leaving scene 1 empty
     data[DataKeys.LABEL] = torch.tensor([0, 1, 0])
     assert torch.isfinite(loss_fn(output, data)["loss"])
-
-
-def _assign_sparse_scene_loop(boxes: Tensor, labels: Tensor, **kwargs: Any) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    """The per-object loop the vectorized `_assign_sparse_scene` replaced, kept as the reference."""
-    from torch_pointcloud.ops.heatmap import gaussian_radius
-
-    num_classes, spatial_xy, feature_map_size = kwargs["num_classes"], kwargs["spatial_xy"], kwargs["feature_map_size"]
-    voxel_size, point_cloud_range = kwargs["voxel_size"], kwargs["point_cloud_range"]
-    feature_map_stride, num_max_objs = kwargs["feature_map_stride"], kwargs["num_max_objs"]
-    gaussian_overlap, min_radius = kwargs["gaussian_overlap"], kwargs["min_radius"]
-
-    width, height = feature_map_size
-    num_voxels = spatial_xy.shape[0]
-    heatmap = boxes.new_zeros(num_classes, num_voxels)
-    reg_targets = boxes.new_zeros(num_max_objs, boxes.shape[-1] + 1)
-    inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
-    mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
-    if boxes.shape[0] == 0 or num_voxels == 0:
-        return heatmap, reg_targets, inds, mask
-
-    x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
-    pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
-    pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
-    center = torch.stack([pos_x, pos_y], dim=-1)
-    dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
-    dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
-    radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
-    for k in range(min(num_max_objs, boxes.shape[0])):
-        if dx[k] <= 0 or dy[k] <= 0:
-            continue
-
-        dist_center = ((spatial_xy - center[k]) ** 2).sum(dim=-1)
-        nearest = int(dist_center.argmin())
-        inds[k] = nearest
-        mask[k] = 1
-        cls = int(labels[k])
-        r = int(radius[k].item())
-        for distances in (dist_center, ((spatial_xy - spatial_xy[nearest]) ** 2).sum(dim=-1)):
-            sigma = (2 * r + 1) / 6
-            torch.max(heatmap[cls], torch.exp(-distances / (2 * sigma * sigma)), out=heatmap[cls])
-        reg_targets[k, 0:2] = center[k] - spatial_xy[nearest]
-        reg_targets[k, 2] = z[k]
-        reg_targets[k, 3:6] = boxes[k, 3:6].clamp_min(1e-5).log()
-        reg_targets[k, 6] = torch.cos(boxes[k, 6])
-        reg_targets[k, 7] = torch.sin(boxes[k, 6])
-        if boxes.shape[1] > 7:
-            reg_targets[k, 8:] = boxes[k, 7:]
-    return heatmap, reg_targets, inds, mask
-
-
-@pytest.mark.parametrize("seed", [0, 1, 2])
-def test_assign_sparse_scene_matches_per_object_loop(seed: int) -> None:
-    """The vectorized sparse assignment equals the per-object reference loop (degenerate boxes, a capped count)."""
-    from torch_pointcloud.losses.centerpoint import _assign_sparse_scene
-
-    torch.manual_seed(seed)
-    num = 40
-    boxes = torch.cat(
-        [
-            torch.rand(num, 2) * 24 - 12,
-            torch.rand(num, 1),
-            torch.rand(num, 3) * 6 + 0.2,
-            torch.randn(num, 1),
-            torch.randn(num, 2),
-        ],
-        dim=1,
-    )
-    boxes[:2, 4] = 0.0
-    labels = torch.randint(0, 3, (num,))
-    spatial_xy = torch.randint(0, 24, (300, 2)).float()
-    kwargs: Dict[str, Any] = dict(
-        num_classes=3,
-        spatial_xy=spatial_xy,
-        feature_map_size=(24, 24),
-        voxel_size=(1.0, 1.0, 6.0),
-        point_cloud_range=(-12.0, -12.0, -2.0, 12.0, 12.0, 4.0),
-        feature_map_stride=1,
-        num_max_objs=32,
-        gaussian_overlap=0.1,
-        min_radius=2,
-    )
-    expected = _assign_sparse_scene_loop(boxes, labels, **kwargs)
-    result = _assign_sparse_scene(boxes, labels, **kwargs)
-    for got, ref in zip(result, expected):
-        assert torch.allclose(got.float(), ref.float(), atol=1e-6, rtol=1e-6), (got - ref).abs().max()
-    assert torch.equal(result[2], expected[2]) and torch.equal(result[3], expected[3])
 
 
 def _single_box_data(box: Tensor, label: int = 0) -> Dict[str, Any]:
