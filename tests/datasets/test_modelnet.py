@@ -2,13 +2,14 @@
 import functools
 import hashlib
 import io
+import json
 import os
 import pickle
 import tarfile
 import zipfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator, Tuple, Type, Union
+from typing import Any, Callable, Iterator, Optional, Tuple, Type, Union
 from unittest.mock import Mock, patch
 
 import h5py
@@ -827,3 +828,193 @@ def test_modelnet40_hdf5_force_download_implies_download(
 
     _ = ModelNet40Hdf5(root=datasets_dir, force_download=True, show_progress=False)
     mock.assert_called_once_with(force=True)
+
+
+def test_modelnet10_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
+    datasets_dir = datasets_dir_factory("ModelNet10/**/*")
+    dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    meta = json.loads(Path(dataset.processed_dir, "train.meta.json").read_text())
+    assert meta == dataset.cache_meta
+    assert meta["format_version"] == ModelNet10.format_version
+
+
+def test_modelnet10_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
+    datasets_dir = datasets_dir_factory("ModelNet10/**/*")
+    dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "train.meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=False)
+
+    rebuilt = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
+
+
+def test_modelnet10_cache_without_meta_is_served(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache from before the stamp existed is served as is and left unstamped."""
+    datasets_dir = datasets_dir_factory("ModelNet10/**/*")
+    dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "train.meta.json")
+    meta_path.unlink()
+
+    legacy = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=False)
+    assert len(legacy) == len(dataset)
+    assert not meta_path.exists()
+
+
+def test_modelnet10_stamp_without_format_version_is_version_one(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A stamp written before `format_version` existed counts as version 1 and is served."""
+    datasets_dir = datasets_dir_factory("ModelNet10/**/*")
+    dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "train.meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    legacy = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=False)
+    assert len(legacy) == len(dataset)
+
+
+def test_modelnet10_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory("ModelNet10/**/*")
+    dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "train.meta.json")
+
+    def interrupted(self: ModelNet10, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(ModelNet10, "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    assert not meta_path.exists()
+
+
+def test_modelnet10_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory("ModelNet10/**/*")
+    dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "train.meta.json")
+
+    def incomplete(self: ModelNet10, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        return False
+
+    monkeypatch.setattr(ModelNet10, "write_processed_files", incomplete)
+    ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
+    assert not meta_path.exists()
+
+
+def test_modelnet_normal_resampled_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
+    dataset = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    meta = json.loads(Path(dataset.processed_dir, "modelnet10_train.meta.json").read_text())
+    assert meta == dataset.cache_meta
+    assert meta["format_version"] == ModelNetNormalResampled.format_version
+
+
+def test_modelnet_normal_resampled_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
+    dataset = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "modelnet10_train.meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        ModelNetNormalResampled(root=datasets_dir, variant="10", train=True, show_progress=False, force_process=False)
+
+    rebuilt = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
+
+
+def test_modelnet_normal_resampled_cache_without_meta_is_served(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache from before the stamp existed is served as is and left unstamped."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
+    dataset = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "modelnet10_train.meta.json")
+    meta_path.unlink()
+
+    legacy = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=False
+    )
+    assert len(legacy) == len(dataset)
+    assert not meta_path.exists()
+
+
+def test_modelnet_normal_resampled_stamp_without_format_version_is_version_one(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """A stamp written before `format_version` existed counts as version 1 and is served."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
+    dataset = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "modelnet10_train.meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    legacy = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=False
+    )
+    assert len(legacy) == len(dataset)
+
+
+def test_modelnet_normal_resampled_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
+    dataset = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "modelnet10_train.meta.json")
+
+    def interrupted(
+        self: ModelNetNormalResampled, num_workers: Optional[int] = None, show_progress: bool = True
+    ) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(ModelNetNormalResampled, "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        ModelNetNormalResampled(root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True)
+    assert not meta_path.exists()
+
+
+def test_modelnet_normal_resampled_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
+    dataset = ModelNetNormalResampled(
+        root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "modelnet10_train.meta.json")
+
+    def incomplete(
+        self: ModelNetNormalResampled, num_workers: Optional[int] = None, show_progress: bool = True
+    ) -> bool:
+        return False
+
+    monkeypatch.setattr(ModelNetNormalResampled, "write_processed_files", incomplete)
+    ModelNetNormalResampled(root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True)
+    assert not meta_path.exists()
