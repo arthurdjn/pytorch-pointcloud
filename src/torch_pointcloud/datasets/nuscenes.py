@@ -714,9 +714,10 @@ class NuScenes(PointCloudDataset):
         version_dir = Path(self.raw_dir, self.version)
         return (version_dir / "sample_data.json").exists() and Path(self.raw_dir, "samples", "LIDAR_TOP").is_dir()
 
+    @property
     @override
     def cache_meta(self) -> Dict[str, Any]:
-        return {**super().cache_meta(), "classes": list(self.classes)}
+        return {**super().cache_meta, "classes": list(self.classes)}
 
     @override
     def processed_files_exist(self) -> bool:

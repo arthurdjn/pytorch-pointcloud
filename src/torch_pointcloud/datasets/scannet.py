@@ -1110,10 +1110,11 @@ class ScanNet(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
+    @property
     @override
     def cache_meta(self) -> Dict[str, Any]:
         return {
-            **super().cache_meta(),
+            **super().cache_meta,
             "version": self.version,
             "label_name": self.label_name,
             "label_id": self.label_id,
@@ -1637,7 +1638,7 @@ class ScanNet200(ScanNet):
     def relabel(self) -> T.Relabel:
         """Transform remapping the raw segment ids to the 200 benchmark ids."""
         # Caches without `meta.json` predate the positional segment ids and store raw TSV ids.
-        if not Path(self.processed_dir, self.split, "meta.json").exists():
+        if not all(Path(meta_path).exists() for meta_path in self.cache_meta_paths):
             return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
 
         name_to_idx = {name: idx for idx, name in enumerate(self._column_classes)}

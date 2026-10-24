@@ -175,9 +175,10 @@ class _ModelNet(PointCloudDataset):
         raw_files = list(Path(self.raw_dir).rglob("*.off"))
         return len(raw_files) > 0
 
+    @property
     @override
     def cache_meta(self) -> Dict[str, Any]:
-        return {**super().cache_meta(), "classes": list(self.classes)}
+        return {**super().cache_meta, "classes": list(self.classes)}
 
     @property
     @override
@@ -433,9 +434,10 @@ class ModelNetNormalResampled(PointCloudDataset):
         raw_files = list(Path(self.raw_dir).rglob("*.txt"))
         return len(raw_files) > 0
 
+    @property
     @override
     def cache_meta(self) -> Dict[str, Any]:
-        return {**super().cache_meta(), "classes": list(self.classes)}
+        return {**super().cache_meta, "classes": list(self.classes)}
 
     @property
     @override

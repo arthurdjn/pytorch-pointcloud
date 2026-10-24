@@ -25,7 +25,7 @@ class PointCloudDataset(Dataset):
         transforms return new tensors instead of writing in place.
 
     Subclasses that keep a processed cache implement `write_processed_files` and `processed_files_exist`.
-    `process` calls them: it stamps every path in `cache_meta_paths` with a `meta.json` holding `cache_meta()`
+    `process` calls them: it stamps every path in `cache_meta_paths` with a `meta.json` holding `cache_meta`
     and raises when an existing stamp differs. Bump `format_version` whenever `write_processed_files` changes
     the files it writes or their contents, so caches from older releases are refused instead of served.
 
@@ -71,6 +71,7 @@ class PointCloudDataset(Dataset):
         """Paths of the `meta.json` stamps, one per cache that `write_processed_files` builds as a whole."""
         return [Path(self.processed_dir, "meta.json").as_posix()]
 
+    @property
     def cache_meta(self) -> Dict[str, Any]:
         """Parameters the processed cache depends on, stamped in its `meta.json` and checked before it is served.
 
@@ -79,7 +80,7 @@ class PointCloudDataset(Dataset):
         return {"format_version": self.format_version}
 
     def process(self, force: bool = False) -> None:
-        """Build the processed cache unless a complete one stamped with `cache_meta()` already exists.
+        """Build the processed cache unless a complete one stamped with `cache_meta` already exists.
 
         A cache without a stamp is served as is when `processed_files_exist` accepts it. The stamps are removed
         before `write_processed_files` runs and written back once it reports the cache complete, so an
@@ -89,12 +90,12 @@ class PointCloudDataset(Dataset):
             force: Rebuild the cache even when a matching one exists.
 
         Raises:
-            RuntimeError: If a stamp differs from `cache_meta()` and `force` is False.
+            RuntimeError: If a stamp differs from `cache_meta` and `force` is False.
         """
         meta_paths = [Path(meta_path) for meta_path in self.cache_meta_paths]
         if not force:
             for meta_path in meta_paths:
-                check_cache_meta(meta_path, self.cache_meta())
+                check_cache_meta(meta_path, self.cache_meta)
             if all(meta_path.exists() for meta_path in meta_paths) or self.processed_files_exist():
                 return
 
@@ -104,7 +105,7 @@ class PointCloudDataset(Dataset):
         complete = self.write_processed_files()
         if complete:
             for meta_path in meta_paths:
-                write_cache_meta(meta_path, self.cache_meta())
+                write_cache_meta(meta_path, self.cache_meta)
 
     def write_processed_files(self) -> bool:
         """Write the processed cache from the raw files and return whether it is complete.

@@ -375,9 +375,10 @@ class KITTI(PointCloudDataset):
         velodyne_dir = self.raw_split_dir / "velodyne"
         return velodyne_dir.is_dir() and any(velodyne_dir.glob("*.bin"))
 
+    @property
     @override
     def cache_meta(self) -> Dict[str, Any]:
-        return {**super().cache_meta(), "fov": self.fov}
+        return {**super().cache_meta, "fov": self.fov}
 
     @property
     @override

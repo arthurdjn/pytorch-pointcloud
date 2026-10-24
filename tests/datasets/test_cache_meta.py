@@ -1,4 +1,4 @@
-"""`PointCloudDataset.process` stamps every processed cache with `cache_meta()` and refuses a cache whose stamp differs."""
+"""`PointCloudDataset.process` stamps every processed cache with `cache_meta` and refuses a cache whose stamp differs."""
 
 import json
 from pathlib import Path
@@ -89,11 +89,11 @@ DATASETS = [
 def test_process_stamps_cache_meta(
     datasets_dir_factory: Callable[..., Path], name: str, build: Builder, meta_name: str
 ) -> None:
-    """Processing writes `cache_meta()` next to the cache, with the class's `format_version`."""
+    """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
     datasets_dir = datasets_dir_factory(f"{name}/**/*")
     dataset = build(datasets_dir, True)
     meta = json.loads(Path(dataset.processed_dir, meta_name).read_text())
-    assert meta == dataset.cache_meta()
+    assert meta == dataset.cache_meta
     assert meta["format_version"] == type(dataset).format_version
 
 
@@ -113,7 +113,7 @@ def test_stale_format_version_raises(
         build(datasets_dir, False)
 
     rebuilt = build(datasets_dir, True)
-    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta()
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
 
 
 @pytest.mark.parametrize(("name", "build", "meta_name"), DATASETS)
