@@ -294,6 +294,18 @@ BENCHMARKS = [
         id="voxelnext/nuscenes",
     ),
     pytest.param(
+        "centerpoint/detection_nuscenes_benchmark.py",
+        ("--model", "centerpoint-voxel01.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint/nuscenes",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_benchmark.py",
+        ("--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint-pillars/nuscenes",
+    ),
+    pytest.param(
         "lion/detection_nuscenes_benchmark.py",
         ("--split", "mini", "--limit", "2"),
         marks=_GPU_MAMBA,
@@ -671,6 +683,18 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
         marks=_GPU_SPCONV,
         id="voxelnext/nuscenes-train",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--model", "centerpoint-voxel01.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint/nuscenes-train",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint-pillars/nuscenes-train",
     ),
     pytest.param(
         "lion/detection_nuscenes_train.py",

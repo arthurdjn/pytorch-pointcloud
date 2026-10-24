@@ -19,6 +19,7 @@ from ._registry import (
     model_info,
     register_model,
 )
+from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
@@ -71,6 +72,8 @@ __all__ = [
     "list_models",
     "model_info",
     "register_model",
+    "CenterPointDetection",
+    "CenterPointPillarsDetection",
     "ConcertoSegmentation",
     "DGCNNClassification",
     "DGCNNPartSegmentation",

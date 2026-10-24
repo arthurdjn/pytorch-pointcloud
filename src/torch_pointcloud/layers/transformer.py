@@ -1,9 +1,4 @@
-r"""Transformer building blocks for point-cloud backbones and detectors.
-
-`Attention` and `TransformerBlock` are the plain ViT-style multi-head self-attention and pre-norm residual block
-over dense token sequences of shape $(B, N, C)$. `TransformerEncoderLayer` and `TransformerDecoderLayer` are the
-DETR-style layers with positional embeddings added to the attention inputs, over sequence-first $(S, B, C)$ tokens.
-"""
+r"""Transformer building blocks for point-cloud backbones and detectors."""
 
 from typing import Any, Callable, Dict, Optional, Union
 

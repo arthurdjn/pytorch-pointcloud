@@ -80,6 +80,9 @@ $RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.
 $RUN examples/second/detection_nuscenes_benchmark.py --root "$ROOT" --model second-multihead.nuscenes.openpcdet
 $RUN examples/pointrcnn/detection_kitti_benchmark.py --root "$ROOT" --model pointrcnn.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model voxelnext.nuscenes.openpcdet
+$RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel01.nuscenes.mmdet3d
+$RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel0075.nuscenes.mmdet3d
+$RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-pillar02.nuscenes.mmdet3d
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu
 
 # Segmentation (S3DIS, ScanNet, SemanticKITTI, Toronto-3D, Paris-Lille-3D, FRACTAL)
