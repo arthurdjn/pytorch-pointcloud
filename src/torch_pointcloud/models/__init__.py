@@ -25,6 +25,7 @@ from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
+from .parta2 import PartA2Detection
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
 from .point_m2ae import PointM2AEClassification, PointM2AEPartSegmentation, PointM2AEPretraining
 from .point_mae import PointMAEClassification, PointMAEPartSegmentation, PointMAEPretraining
@@ -41,6 +42,7 @@ from .pointnet2 import PointNet2Classification, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtPartSegmentation, PointNeXtSegmentation
 from .pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
 from .pointrcnn import PointRCNNDetection
+from .pv_rcnn import PVRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
@@ -59,6 +61,7 @@ from .voxelnext import VoxelNeXtDetection
 __all__ = [
     "ClassificationModel",
     "DetectionModel",
+    "PartA2Detection",
     "PartSegmentationModel",
     "PretrainingModel",
     "SemanticSegmentationModel",
@@ -117,6 +120,7 @@ __all__ = [
     "PointPillarsDetection",
     "PointPillarsMultiHeadDetection",
     "PointRCNNDetection",
+    "PVRCNNDetection",
     "PVCNNClassification",
     "PVCNNSegmentation",
     "PVCNN2Classification",

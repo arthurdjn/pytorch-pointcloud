@@ -79,6 +79,9 @@ $RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --mode
 $RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/second/detection_nuscenes_benchmark.py --root "$ROOT" --model second-multihead.nuscenes.openpcdet
 $RUN examples/pointrcnn/detection_kitti_benchmark.py --root "$ROOT" --model pointrcnn.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/parta2/detection_kitti_benchmark.py --root "$ROOT" --model part-a2.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/parta2/detection_kitti_benchmark.py --root "$ROOT" --model part-a2.kitti-car.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/pv_rcnn/detection_kitti_benchmark.py --root "$ROOT" --model pv-rcnn.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model voxelnext.nuscenes.openpcdet
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel01.nuscenes.mmdet3d
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel0075.nuscenes.mmdet3d

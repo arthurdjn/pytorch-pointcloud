@@ -222,9 +222,12 @@ DETECTION_MODELS = [
     "centerpoint-voxel0075.nuscenes.mmdet3d",
     "centerpoint-voxel01.nuscenes.mmdet3d",
     "lion-mamba.nuscenes.zhe-liu",
+    "part-a2.kitti-car.mmdet3d",
+    "part-a2.kitti.mmdet3d",
     "pointpillars-multihead.nuscenes.openpcdet",
     "pointpillars.kitti.openpcdet",
     "pointrcnn.kitti.openpcdet",
+    "pv-rcnn.kitti.mmdet3d",
     "second-multihead.nuscenes.openpcdet",
     "second.kitti.openpcdet",
     "votenet.scannet.fair",
@@ -264,11 +267,14 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("torchsparse is not installed")
     if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
-    if model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel")) and not _SPCONV_AVAILABLE:
+    if (
+        model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn"))
+        and not _SPCONV_AVAILABLE
+    ):
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")

@@ -288,6 +288,24 @@ BENCHMARKS = [
     ),
     pytest.param("pointrcnn/detection_kitti_benchmark.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
     pytest.param(
+        "parta2/detection_kitti_benchmark.py",
+        ("--model", "part-a2.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="parta2/kitti",
+    ),
+    pytest.param(
+        "parta2/detection_kitti_benchmark.py",
+        ("--model", "part-a2.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="parta2/kitti-car",
+    ),
+    pytest.param(
+        "pv_rcnn/detection_kitti_benchmark.py",
+        ("--model", "pv-rcnn.kitti.mmdet3d", "--limit", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="pv_rcnn/kitti",
+    ),
+    pytest.param(
         "voxelnext/detection_nuscenes_benchmark.py",
         ("--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
