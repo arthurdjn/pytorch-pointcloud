@@ -4,7 +4,6 @@
 {{ paper("1702.04405") }}
 """
 
-import json
 import math
 import re
 import shutil
@@ -32,7 +31,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, check_terms_accepted, download_url
+from .utils import check_terms_accepted, download_url
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -962,6 +961,7 @@ class ScanNet(PointCloudDataset):
     unk_cls = "<unk>"
     unk_idx = 0
 
+    format_version = 2
     data_url = "https://kaldir.vc.in.tum.de/scannet/"
     terms_url = "https://kaldir.vc.in.tum.de/scannet/ScanNet_TOS.pdf"
     meta_url = "https://raw.githubusercontent.com/facebookresearch/votenet/master/scannet/meta_data/"
@@ -1109,16 +1109,23 @@ class ScanNet(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
-    def _cache_meta(self) -> Dict[str, Any]:
-        """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 2, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {
+            **super().cache_meta,
+            "version": self.version,
+            "label_name": self.label_name,
+            "label_id": self.label_id,
+        }
+
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self.split, "meta.json").as_posix()]
 
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
-        if (split_dir / "meta.json").exists():
-            check_cache_meta(split_dir / "meta.json", self._cache_meta())
-            return True
-
         scene_dirs = self.processed_files
         if not scene_dirs:
             return False
@@ -1207,10 +1214,7 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
@@ -1240,7 +1244,6 @@ class ScanNet(PointCloudDataset):
 
         split_dir = Path(self.processed_dir, self.split)
         split_dir.mkdir(parents=True, exist_ok=True)
-        (split_dir / "meta.json").unlink(missing_ok=True)
         for stale in split_dir.glob("*.tmp"):
             if stale.is_dir():
                 shutil.rmtree(stale)
@@ -1302,14 +1305,7 @@ class ScanNet(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        # meta.json marks the cache complete: never stamp it when scenes were skipped, so the next
-        # construction runs the missing/incomplete-scene audit instead of serving a partial cache.
-        if all(results):
-            meta = self._cache_meta()
-            meta_path = split_dir / "meta.json"
-            tmp_path = split_dir / "meta.json.tmp"
-            tmp_path.write_text(json.dumps(meta))
-            tmp_path.replace(meta_path)
+        return all(results)
 
     def load(
         self,
@@ -1641,7 +1637,7 @@ class ScanNet200(ScanNet):
     def relabel(self) -> T.Relabel:
         """Transform remapping the raw segment ids to the 200 benchmark ids."""
         # Caches without `meta.json` predate the positional segment ids and store raw TSV ids.
-        if not Path(self.processed_dir, self.split, "meta.json").exists():
+        if not all(Path(meta_path).exists() for meta_path in self.cache_meta_paths):
             return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
 
         name_to_idx = {name: idx for idx, name in enumerate(self._column_classes)}

@@ -3,7 +3,6 @@
 {{ paper("1406.5670") }}
 """
 
-import json
 import shutil
 import zipfile
 from functools import partial
@@ -24,7 +23,13 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, compute_hash, download_url, extract_tar, extract_zip, is_hash_valid
+from .utils import (
+    compute_hash,
+    download_url,
+    extract_tar,
+    extract_zip,
+    is_hash_valid,
+)
 
 MODELNET10_CLASSES = (
     "bathtub",
@@ -148,12 +153,11 @@ class _ModelNet(PointCloudDataset):
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
 
         self.data = self._load_processed_data()
 
@@ -170,11 +174,19 @@ class _ModelNet(PointCloudDataset):
         raw_files = list(Path(self.raw_dir).rglob("*.off"))
         return len(raw_files) > 0
 
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta, "classes": list(self.classes)}
+
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, f"{self._split}.meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"{self._split}.pt").exists():
-            return False
-        return True
+        return Path(self.processed_dir, f"{self._split}.pt").exists()
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -210,10 +222,8 @@ class _ModelNet(PointCloudDataset):
         # Remove the downloaded resource
         resource_path.unlink()
 
-    def process(self, force: bool = False) -> None:
-        if self.processed_files_exist() and not force:
-            return
-        elif not self.raw_files_exist():
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
@@ -222,9 +232,9 @@ class _ModelNet(PointCloudDataset):
 
         file_paths = sorted(list(Path(self.raw_dir).rglob(f"**/{self._split}/*.off")))
 
-        pbar = tqdm(file_paths, desc="Processing", disable=not self.show_progress)
+        pbar = tqdm(file_paths, desc="Processing", disable=not show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
-        data_list = parallel_map(func, pbar, num_workers=self.num_workers)
+        data_list = parallel_map(func, pbar, num_workers=num_workers)
         data_list = [data for data in data_list if data is not None]
 
         dst_path = Path(self.processed_dir, f"{self._split}.pt")
@@ -232,10 +242,7 @@ class _ModelNet(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        meta_path = dst_path.with_suffix(".meta.json")
-        meta_tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-        meta_tmp_path.write_text(json.dumps({"classes": list(self.classes)}))
-        meta_tmp_path.replace(meta_path)
+        return True
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.parent.name
@@ -246,7 +253,6 @@ class _ModelNet(PointCloudDataset):
 
     def _load_processed_data(self) -> List[Dict[str, Tensor]]:
         file_path = Path(self.processed_dir, f"{self._split}.pt")
-        check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)
@@ -399,12 +405,11 @@ class ModelNetNormalResampled(PointCloudDataset):
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
 
         self.data = self._load_processed_data()
 
@@ -427,11 +432,19 @@ class ModelNetNormalResampled(PointCloudDataset):
         raw_files = list(Path(self.raw_dir).rglob("*.txt"))
         return len(raw_files) > 0
 
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta, "classes": list(self.classes)}
+
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat").exists():
-            return False
-        return True
+        return Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat").exists()
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -459,10 +472,8 @@ class ModelNetNormalResampled(PointCloudDataset):
         # Remove the downloaded resource
         resource_path.unlink()
 
-    def process(self, force: bool = False) -> None:
-        if self.processed_files_exist() and not force:
-            return
-        elif not self.raw_files_exist():
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
                 f"You can download the raw dataset from {self.data_url!r}, "
@@ -476,9 +487,9 @@ class ModelNetNormalResampled(PointCloudDataset):
             for file_id in file_ids
         ]
 
-        pbar = tqdm(file_paths, desc="Processing", disable=not self.show_progress)
+        pbar = tqdm(file_paths, desc="Processing", disable=not show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
-        data_list = parallel_map(func, pbar, num_workers=self.num_workers)
+        data_list = parallel_map(func, pbar, num_workers=num_workers)
         # Ignore None data (samples whose class is outside the selected `classes` subset)
         data_list = [data for data in data_list if data is not None]
 
@@ -487,10 +498,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        meta_path = dst_path.with_suffix(".meta.json")
-        meta_tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-        meta_tmp_path.write_text(json.dumps({"classes": list(self.classes)}))
-        meta_tmp_path.replace(meta_path)
+        return True
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.name
@@ -507,7 +515,6 @@ class ModelNetNormalResampled(PointCloudDataset):
                 "version of this dataset. Pass force_process=True to regenerate it."
             )
 
-        check_cache_meta(file_path.with_suffix(".meta.json"), {"classes": list(self.classes)})
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.
         with torch.serialization.safe_globals([DataKeys]):
             return torch.load(file_path, weights_only=True)

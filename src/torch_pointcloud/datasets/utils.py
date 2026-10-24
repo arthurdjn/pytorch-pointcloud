@@ -333,12 +333,34 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
     if not meta_path.exists():
         return
 
-    cached_meta = json.loads(meta_path.read_text())
+    cached_meta = {"format_version": 1, **json.loads(meta_path.read_text())}
     if cached_meta != meta:
         raise RuntimeError(
             f"Processed cache at {meta_path.parent.as_posix()!r} was created with different parameters "
             f"(cached: {cached_meta}, requested: {meta}). Pass force_process=True to regenerate it."
         )
+
+
+def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
+    """Stamp a processed cache with the parameters it was built with.
+
+    The file is written through a temporary path and renamed, so it marks the cache complete only once every
+    other file is in place.
+
+    Args:
+        meta_path: Path to the cache `meta.json` file.
+        meta: The metadata of the parameters the cache was built with.
+
+    Examples:
+        ```pycon
+        >>> write_cache_meta("data/ModelNet10/processed/train.meta.json", {"format_version": 1})  # doctest: +SKIP
+
+        ```
+    """
+    meta_path = Path(meta_path)
+    tmp_path = meta_path.with_name(meta_path.name + ".tmp")
+    tmp_path.write_text(json.dumps(meta))
+    tmp_path.replace(meta_path)
 
 
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py

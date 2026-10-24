@@ -5,7 +5,6 @@
 """
 
 import io
-import json
 import math
 import shutil
 import zipfile
@@ -313,12 +312,14 @@ class SunRGBD(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self._split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self._split, "meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self._split)
-        if (split_dir / "meta.json").exists():
-            return True
-
         scene_dirs = self.processed_files
         if not scene_dirs:
             return False
@@ -386,10 +387,7 @@ class SunRGBD(PointCloudDataset):
             meta = sio.loadmat(io.BytesIO(z.read(TOOLBOX_META_MEMBER)), struct_as_record=False, squeeze_me=True)
         return {rebase_sequence(str(e.sequenceName)): e for e in meta["SUNRGBDMeta"]}
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -418,10 +416,7 @@ class SunRGBD(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        meta_path = split_dir / "meta.json"
-        tmp_path = split_dir / "meta.json.tmp"
-        tmp_path.write_text(json.dumps({"format_version": 1}))
-        tmp_path.replace(meta_path)
+        return True
 
     def process_scene(self, args: Tuple[str, Any, str]) -> None:
         """Unproject one scene and write its packed `pos` / `color` / `box` / `class` arrays.
