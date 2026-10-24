@@ -12,6 +12,11 @@ All notable changes to this project are documented in this file. The format is b
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
+- Added the Myria3D FRACTAL checkpoint `randlanet.fractal.ignf` (Etalab-2.0), loaded from IGN's Hugging Face repository, and its benchmark on the FRACTAL test set.
+- Added the `FRACTAL` dataset, read in place from its zip archives with the optional `laspy` package.
+- Added the `LabelMask`, `MaskedFill`, `NormalizedDifference`, `Add`, `Log` and `Standardize` transforms, and the `nir` data key.
+- Added the `lse_channels`, `lse_input`, `pool` and `stem_plain_last` options of RandLA-Net, and renamed `random_max_pool` to `random_pool`; the former name still works, with a `FutureWarning`.
+- `read_state_dict` reads the objects of a checkpoint other than tensors (training hyperparameters, optimizer configurations) as inert placeholders, so Lightning checkpoints that pickle them load with `weights_only=True`.
 
 ## 0.0.18 (2026-10-20)
 

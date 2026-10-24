@@ -86,6 +86,7 @@ DATASET_LABELS = {
     "scannet20": "ScanNet20",
     "scannet200": "ScanNet200",
     "semantickitti": "SemanticKITTI",
+    "fractal": "FRACTAL",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
     "scannet": "ScanNet",
@@ -93,7 +94,7 @@ DATASET_LABELS = {
     "shapenet55": "ShapeNet55",
     "pretrain": "Multi-dataset",
 }
-LICENSE_LABELS = {"Apache-2.0": "Apache 2.0", "CC-BY-NC-4.0": "CC BY-NC 4.0"}
+LICENSE_LABELS = {"Apache-2.0": "Apache 2.0", "CC-BY-NC-4.0": "CC BY-NC 4.0", "etalab-2.0": "Etalab 2.0"}
 DASH = "\u2013"
 MINUS = "\u2212"
 DELTA = "\u0394"

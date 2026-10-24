@@ -130,6 +130,7 @@ nav = [
             { "Overview" = "api/datasets/index.md" },
             { "concat" = "api/datasets/concat.md" },
             { "dales" = "api/datasets/dales.md" },
+            { "fractal" = "api/datasets/fractal.md" },
             { "kitti" = "api/datasets/kitti.md" },
             { "mix" = "api/datasets/mix.md" },
             { "modelnet" = "api/datasets/modelnet.md" },

@@ -71,7 +71,7 @@
     model_info("sonata-base.pretrain.fair")["weights"]["license"]  # 'CC-BY-NC-4.0'
     ```
 
-    Sonata, Concerto and Utonia are CC-BY-NC-4.0, so no commercial use. The others are MIT or Apache-2.0.
+    Sonata, Concerto and Utonia are CC-BY-NC-4.0, so no commercial use. The others are MIT, Apache-2.0 or Etalab-2.0.
     [`THIRD_PARTY_NOTICES.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md) lists
     every source.
 
