@@ -437,3 +437,53 @@ def transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
     b, c = feat.shape[0], feat.shape[1]
     feat = feat.permute(0, 2, 3, 1).reshape(b, -1, c)
     return feat.gather(1, ind.unsqueeze(2).expand(-1, -1, c))
+
+
+def decode_center_codes(
+    codes: Tensor,
+    cell_xy: Tensor,
+    voxel_size: Sequence[float],
+    point_cloud_range: Sequence[float],
+    feature_map_stride: int,
+) -> Tensor:
+    r"""Boxes from the regression codes read at feature-map cells, the inverse of the `draw_heatmap_targets` encoding.
+
+    The cell position plus the sub-cell offset is scaled back to metric units from the range corner, the
+    log extents are exponentiated and the heading is recovered from its $(\cos\theta, \sin\theta)$ pair.
+
+    Args:
+        codes: Codes $(\Delta x, \Delta y, c_z, \log d_x, \log d_y, \log d_z, \cos\theta, \sin\theta, \ldots)$,
+            shape $(\ldots, K)$ with $K \ge 8$; trailing codes (e.g. velocity) are ignored.
+        cell_xy: Position $(x, y)$ of the cell each code was read at, shape $(\ldots, 2)$: the peak cell of a
+            dense map or the occupied voxel of a sparse one.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$ in metric units.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        feature_map_stride: Stride from voxel grid to feature map.
+
+    Returns:
+        Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(\ldots, 7)$.
+
+    Shape:
+        - codes: $(\ldots, K)$
+        - cell_xy: $(\ldots, 2)$
+        - output: $(\ldots, 7)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> boxes = torch.tensor([[0.3, -1.2, -1.0, 4.0, 2.0, 1.5, 0.3]])
+        >>> grid = dict(voxel_size=[0.5, 0.5, 0.5], point_cloud_range=[-4.0, -4.0, -2.0, 4.0, 4.0, 2.0], feature_map_stride=1)
+        >>> _, codes, inds, mask = draw_heatmap_targets(boxes, torch.tensor([0]), 1, (16, 16), **grid)
+        >>> cell_xy = torch.stack([inds % 16, inds // 16], dim=-1).float()
+        >>> torch.allclose(decode_center_codes(codes, cell_xy, **grid)[mask.bool()], boxes, atol=1e-6)
+        True
+
+        ```
+    """
+    vx, vy = voxel_size[0], voxel_size[1]
+    xs = (cell_xy[..., 0] + codes[..., 0]) * feature_map_stride * vx + point_cloud_range[0]
+    ys = (cell_xy[..., 1] + codes[..., 1]) * feature_map_stride * vy + point_cloud_range[1]
+    angle = torch.atan2(codes[..., 7], codes[..., 6])
+    return torch.cat(
+        [xs.unsqueeze(-1), ys.unsqueeze(-1), codes[..., 2:3], codes[..., 3:6].exp(), angle.unsqueeze(-1)], dim=-1
+    )
