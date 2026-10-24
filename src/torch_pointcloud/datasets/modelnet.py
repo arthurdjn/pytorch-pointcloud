@@ -24,13 +24,11 @@ from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
 from .utils import (
-    check_cache_meta,
     compute_hash,
     download_url,
     extract_tar,
     extract_zip,
     is_hash_valid,
-    write_cache_meta,
 )
 
 MODELNET10_CLASSES = (
@@ -181,14 +179,14 @@ class _ModelNet(PointCloudDataset):
     def cache_meta(self) -> Dict[str, Any]:
         return {**super().cache_meta(), "classes": list(self.classes)}
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, f"{self._split}.meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
-        file_path = Path(self.processed_dir, f"{self._split}.pt")
-        if not file_path.exists():
-            return False
-
-        check_cache_meta(file_path.with_suffix(".meta.json"), self.cache_meta())
-        return True
+        return Path(self.processed_dir, f"{self._split}.pt").exists()
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -224,10 +222,7 @@ class _ModelNet(PointCloudDataset):
         # Remove the downloaded resource
         resource_path.unlink()
 
-    def process(self, force: bool = False) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -247,7 +242,7 @@ class _ModelNet(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        write_cache_meta(dst_path.with_suffix(".meta.json"), self.cache_meta())
+        return True
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.parent.name
@@ -442,14 +437,14 @@ class ModelNetNormalResampled(PointCloudDataset):
     def cache_meta(self) -> Dict[str, Any]:
         return {**super().cache_meta(), "classes": list(self.classes)}
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
-        file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
-        if not file_path.exists():
-            return False
-
-        check_cache_meta(file_path.with_suffix(".meta.json"), self.cache_meta())
-        return True
+        return Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat").exists()
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -477,10 +472,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         # Remove the downloaded resource
         resource_path.unlink()
 
-    def process(self, force: bool = False) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -506,7 +498,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         tmp_path = dst_path.with_name(dst_path.name + ".tmp")
         torch.save(data_list, tmp_path)
         tmp_path.replace(dst_path)
-        write_cache_meta(dst_path.with_suffix(".meta.json"), self.cache_meta())
+        return True
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
         label = Path(file_path).parent.name

@@ -24,7 +24,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, check_terms_accepted, download_url, extract_zip, is_hash_valid, write_cache_meta
+from .utils import check_terms_accepted, download_url, extract_zip, is_hash_valid
 
 # Areas available in the S3DIS dataset.
 S3DISArea = Literal["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"]
@@ -392,7 +392,7 @@ class S3DIS(PointCloudDataset):
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.process(force=force_process)
         self.load(
             show_progress=show_progress,
             block_size=block_size,
@@ -433,6 +433,11 @@ class S3DIS(PointCloudDataset):
 
         return True
 
+    @property
+    @override
+    def cache_meta_paths(self) -> list[str]:
+        return [Path(self.processed_dir, area, "meta.json").as_posix() for area in self.areas]
+
     @override
     def processed_files_exist(self) -> bool:
         return all(self.is_area_processed(area) for area in self.areas)
@@ -447,10 +452,6 @@ class S3DIS(PointCloudDataset):
             True if every packed file of the area exists, False otherwise.
         """
         area_dir = Path(self.processed_dir, area)
-        if (area_dir / "meta.json").exists():
-            check_cache_meta(area_dir / "meta.json", self.cache_meta())
-            return True
-
         file_names = ["pos.npy", "color.npy", "segment.npy", "instance.npy", "offset.npy"]
         return all((area_dir / name).exists() for name in file_names)
 
@@ -532,12 +533,7 @@ class S3DIS(PointCloudDataset):
 
         Path(self.raw_dir, ".extraction_complete").touch()
 
-    def process(
-        self,
-        force: bool = False,
-        num_workers: Optional[int] = None,
-        show_progress: bool = True,
-    ) -> None:
+    def write_processed_files(self) -> bool:
         """Process the raw dataset for easier loading.
 
         When `aligned=True`, applies the per-room alignment rotation so that
@@ -545,9 +541,6 @@ class S3DIS(PointCloudDataset):
         convention).  When `aligned=False`, coordinates are kept in the raw
         scan frame.
         """
-        if not force and self.processed_files_exist():
-            return
-
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -556,9 +549,6 @@ class S3DIS(PointCloudDataset):
             )
 
         for area in self.areas:
-            if not force and self.is_area_processed(area):
-                continue
-
             area_dir = Path(self.raw_dir, area)
 
             angles: dict[str, float] = {}
@@ -577,10 +567,10 @@ class S3DIS(PointCloudDataset):
             rooms = parallel_map(
                 lambda job: load_s3dis_room(*job),
                 jobs,
-                num_workers=num_workers,
+                num_workers=self.num_workers,
                 total=len(jobs),
                 desc=f"Processing {area}",
-                show_progress=show_progress,
+                show_progress=self.show_progress,
             )
             if not rooms:
                 raise RuntimeError(f"Found no valid rooms in {area!r}.")
@@ -598,14 +588,13 @@ class S3DIS(PointCloudDataset):
                 ("instance.npy", np.concatenate([r["instance"] for r in rooms], dtype=np.int16)),
                 ("offset.npy", offsets),
             ]
-            # Write through a tmp file and stamp `meta.json` last: `is_area_processed` must never
-            # accept an area whose save was interrupted.
             for name, array in arrays:
                 tmp_path = area_dir / (name + ".tmp")
                 with open(tmp_path, "wb") as f:
                     np.save(f, array)
                 tmp_path.replace(area_dir / name)
-            write_cache_meta(area_dir / "meta.json", self.cache_meta())
+
+        return True
 
     def load(
         self,

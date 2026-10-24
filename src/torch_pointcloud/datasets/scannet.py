@@ -31,7 +31,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, check_terms_accepted, download_url, write_cache_meta
+from .utils import check_terms_accepted, download_url
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -1033,12 +1033,13 @@ class ScanNet(PointCloudDataset):
         self.return_superpoint = return_superpoint
         self.transform = transform
         self.show_progress = show_progress
+        self.num_workers = num_workers
         self.accept_terms = accept_terms
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.process(force=force_process)
         self.load(
             show_progress=show_progress,
             block_size=block_size,
@@ -1118,12 +1119,13 @@ class ScanNet(PointCloudDataset):
             "label_id": self.label_id,
         }
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self.split, "meta.json").as_posix()]
+
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
-        if (split_dir / "meta.json").exists():
-            check_cache_meta(split_dir / "meta.json", self.cache_meta())
-            return True
-
         scene_dirs = self.processed_files
         if not scene_dirs:
             return False
@@ -1212,10 +1214,7 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
@@ -1245,7 +1244,6 @@ class ScanNet(PointCloudDataset):
 
         split_dir = Path(self.processed_dir, self.split)
         split_dir.mkdir(parents=True, exist_ok=True)
-        (split_dir / "meta.json").unlink(missing_ok=True)
         for stale in split_dir.glob("*.tmp"):
             if stale.is_dir():
                 shutil.rmtree(stale)
@@ -1301,16 +1299,13 @@ class ScanNet(PointCloudDataset):
         results = parallel_map(
             process_scene,
             scene_ids,
-            num_workers=num_workers,
+            num_workers=self.num_workers,
             total=len(scene_ids),
             desc="Processing",
-            show_progress=show_progress,
+            show_progress=self.show_progress,
         )
 
-        # meta.json marks the cache complete: never stamp it when scenes were skipped, so the next
-        # construction runs the missing/incomplete-scene audit instead of serving a partial cache.
-        if all(results):
-            write_cache_meta(split_dir / "meta.json", self.cache_meta())
+        return all(results)
 
     def load(
         self,

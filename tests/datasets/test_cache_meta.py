@@ -1,4 +1,4 @@
-"""Every processed cache is stamped with its `cache_meta()` and refused once the stamp no longer matches."""
+"""`PointCloudDataset.process` stamps every processed cache with `cache_meta()` and refuses a cache whose stamp differs."""
 
 import json
 from pathlib import Path
@@ -128,4 +128,63 @@ def test_cache_without_meta_is_served(
 
     legacy = build(datasets_dir, False)
     assert len(legacy) == len(dataset)
+    assert not meta_path.exists()
+
+
+@pytest.mark.parametrize(("name", "build", "meta_name"), DATASETS)
+def test_stamp_without_format_version_is_version_one(
+    datasets_dir_factory: Callable[..., Path], name: str, build: Builder, meta_name: str
+) -> None:
+    """A stamp written before `format_version` existed counts as version 1."""
+    datasets_dir = datasets_dir_factory(f"{name}/**/*")
+    dataset = build(datasets_dir, True)
+    meta_path = Path(dataset.processed_dir, meta_name)
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    if type(dataset).format_version == 1:
+        assert len(build(datasets_dir, False)) == len(dataset)
+    else:
+        with pytest.raises(RuntimeError, match="force_process=True"):
+            build(datasets_dir, False)
+
+
+@pytest.mark.parametrize(("name", "build", "meta_name"), DATASETS)
+def test_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    build: Builder,
+    meta_name: str,
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory(f"{name}/**/*")
+    dataset = build(datasets_dir, True)
+    meta_path = Path(dataset.processed_dir, meta_name)
+
+    def interrupted(self: PointCloudDataset) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(type(dataset), "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        build(datasets_dir, True)
+    assert not meta_path.exists()
+
+
+@pytest.mark.parametrize(("name", "build", "meta_name"), DATASETS)
+def test_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    build: Builder,
+    meta_name: str,
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory(f"{name}/**/*")
+    dataset = build(datasets_dir, True)
+    meta_path = Path(dataset.processed_dir, meta_name)
+
+    monkeypatch.setattr(type(dataset), "write_processed_files", lambda self: False)
+    build(datasets_dir, True)
     assert not meta_path.exists()

@@ -19,7 +19,6 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, write_cache_meta
 
 TransformLike = Callable[[Dict[str, Any]], Dict[str, Any]]
 ShapeNetCategory = Literal[
@@ -161,7 +160,7 @@ class ShapeNetPart(PointCloudDataset):
             if category not in self.category_ids:
                 raise KeyError(f"Unknown {self.__class__.__name__} category: {category!r}")
 
-        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.process(force=force_process)
         self.load(show_progress=show_progress)
 
     @override
@@ -207,13 +206,14 @@ class ShapeNetPart(PointCloudDataset):
 
         return True
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self.split, "meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
-        if (split_dir / "meta.json").exists():
-            check_cache_meta(split_dir / "meta.json", self.cache_meta())
-            return True
-
         file_names = ["pos.npy", "normal.npy", "segment.npy", "offset.npy", "category.npy"]
         return all((split_dir / name).exists() for name in file_names)
 
@@ -230,10 +230,7 @@ class ShapeNetPart(PointCloudDataset):
             f"benchmark data from {self.data_url!r} and extract it under {self.raw_dir!r}."
         )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -248,10 +245,10 @@ class ShapeNetPart(PointCloudDataset):
         samples = parallel_map(
             self._load_raw_file,
             split_files,
-            num_workers=num_workers,
+            num_workers=self.num_workers,
             total=len(split_files),
             desc="Reading",
-            show_progress=show_progress,
+            show_progress=self.show_progress,
         )
         samples = [s for s in samples if s is not None]
         if not samples:
@@ -275,10 +272,10 @@ class ShapeNetPart(PointCloudDataset):
         np.save(tmp_dir / "segment.npy", segment)
         np.save(tmp_dir / "offset.npy", offsets)
         np.save(tmp_dir / "category.npy", category)
-        write_cache_meta(tmp_dir / "meta.json", self.cache_meta())
         if split_dir.exists():
             shutil.rmtree(split_dir)
         tmp_dir.replace(split_dir)
+        return True
 
     def _load_raw_file(self, file_name: str) -> Optional[Dict[str, Any]]:
         file_path = Path(self.raw_dir, file_name.removeprefix("shape_data/")).with_suffix(".txt")

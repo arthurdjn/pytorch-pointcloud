@@ -23,7 +23,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, download_url, is_hash_valid, write_cache_meta
+from .utils import download_url, is_hash_valid
 
 SUNRGBD_BASE_URL = "https://rgbd.cs.princeton.edu/data"
 
@@ -280,11 +280,12 @@ class SunRGBD(PointCloudDataset):
         self._split = "train" if train else "val"
         self.transform = transform
         self.show_progress = show_progress
+        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
+        self.process(force=force_process)
         self.load()
 
     @property
@@ -312,13 +313,14 @@ class SunRGBD(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self._split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self._split, "meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self._split)
-        if (split_dir / "meta.json").exists():
-            check_cache_meta(split_dir / "meta.json", self.cache_meta())
-            return True
-
         scene_dirs = self.processed_files
         if not scene_dirs:
             return False
@@ -386,10 +388,7 @@ class SunRGBD(PointCloudDataset):
             meta = sio.loadmat(io.BytesIO(z.read(TOOLBOX_META_MEMBER)), struct_as_record=False, squeeze_me=True)
         return {rebase_sequence(str(e.sequenceName)): e for e in meta["SUNRGBDMeta"]}
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -412,13 +411,13 @@ class SunRGBD(PointCloudDataset):
         parallel_map(
             self.process_scene,
             records,
-            num_workers=num_workers,
+            num_workers=self.num_workers,
             total=len(records),
             desc=f"Processing {self._split}",
-            show_progress=show_progress,
+            show_progress=self.show_progress,
         )
 
-        write_cache_meta(split_dir / "meta.json", self.cache_meta())
+        return True
 
     def process_scene(self, args: Tuple[str, Any, str]) -> None:
         """Unproject one scene and write its packed `pos` / `color` / `box` / `class` arrays.

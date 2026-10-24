@@ -1,11 +1,13 @@
 """Base class for point cloud datasets cached on disk under a `raw/` + `processed/` layout."""
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from torch.utils.data import Dataset
 
 from torch_pointcloud.utils.types import PathLike
+
+from .utils import check_cache_meta, write_cache_meta
 
 
 class PointCloudDataset(Dataset):
@@ -22,9 +24,10 @@ class PointCloudDataset(Dataset):
         The tensor values still share storage with the cache: treat them as read-only and let
         transforms return new tensors instead of writing in place.
 
-    `process` stamps the cache it writes with a `meta.json` holding `cache_meta()`, and `processed_files_exist`
-    raises when a cache carries a different stamp. Bump `format_version` whenever `process` changes the files it
-    writes or their contents, so caches from older releases are regenerated instead of served.
+    Subclasses that keep a processed cache implement `write_processed_files` and `processed_files_exist`.
+    `process` calls them: it stamps every path in `cache_meta_paths` with a `meta.json` holding `cache_meta()`
+    and raises when an existing stamp differs. Bump `format_version` whenever `write_processed_files` changes
+    the files it writes or their contents, so caches from older releases are refused instead of served.
 
     Args:
         root: The root directory under which the dataset directory is created.
@@ -63,12 +66,52 @@ class PointCloudDataset(Dataset):
     def processed_files_exist(self) -> bool:
         return Path(self.processed_dir).exists()
 
+    @property
+    def cache_meta_paths(self) -> List[str]:
+        """Paths of the `meta.json` stamps, one per cache that `write_processed_files` builds as a whole."""
+        return [Path(self.processed_dir, "meta.json").as_posix()]
+
     def cache_meta(self) -> Dict[str, Any]:
         """Parameters the processed cache depends on, stamped in its `meta.json` and checked before it is served.
 
         Subclasses extend it with the constructor arguments that change the cache content, such as a class subset.
         """
         return {"format_version": self.format_version}
+
+    def process(self, force: bool = False) -> None:
+        """Build the processed cache unless a complete one stamped with `cache_meta()` already exists.
+
+        A cache without a stamp is served as is when `processed_files_exist` accepts it. The stamps are removed
+        before `write_processed_files` runs and written back once it reports the cache complete, so an
+        interrupted or partial build is never served as complete.
+
+        Args:
+            force: Rebuild the cache even when a matching one exists.
+
+        Raises:
+            RuntimeError: If a stamp differs from `cache_meta()` and `force` is False.
+        """
+        meta_paths = [Path(meta_path) for meta_path in self.cache_meta_paths]
+        if not force:
+            for meta_path in meta_paths:
+                check_cache_meta(meta_path, self.cache_meta())
+            if all(meta_path.exists() for meta_path in meta_paths) or self.processed_files_exist():
+                return
+
+        for meta_path in meta_paths:
+            meta_path.unlink(missing_ok=True)
+
+        complete = self.write_processed_files()
+        if complete:
+            for meta_path in meta_paths:
+                write_cache_meta(meta_path, self.cache_meta())
+
+    def write_processed_files(self) -> bool:
+        """Write the processed cache from the raw files and return whether it is complete.
+
+        Returning False leaves the cache unstamped, so the next construction audits it instead of serving it.
+        """
+        raise NotImplementedError
 
     def __getitem__(self, index: int) -> Any:
         raise NotImplementedError

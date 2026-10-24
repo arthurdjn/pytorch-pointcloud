@@ -333,7 +333,7 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
     if not meta_path.exists():
         return
 
-    cached_meta = json.loads(meta_path.read_text())
+    cached_meta = {"format_version": 1, **json.loads(meta_path.read_text())}
     if cached_meta != meta:
         raise RuntimeError(
             f"Processed cache at {meta_path.parent.as_posix()!r} was created with different parameters "

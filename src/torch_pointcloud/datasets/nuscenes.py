@@ -19,7 +19,6 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, write_cache_meta
 
 NUSCENES_DETECTION_CLASSES = (
     "car",
@@ -721,11 +720,7 @@ class NuScenes(PointCloudDataset):
 
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, "keyframes.json").exists():
-            return False
-
-        check_cache_meta(Path(self.processed_dir, "meta.json"), self.cache_meta())
-        return True
+        return Path(self.processed_dir, "keyframes.json").exists()
 
     def split_scenes(self) -> Optional[FrozenSet[str]]:
         """Scene names of `split`, or `None` when every scene of `version` belongs to it."""
@@ -768,10 +763,7 @@ class NuScenes(PointCloudDataset):
             annotations.setdefault(ann["sample_token"], []).append(ann)
         return annotations
 
-    def process(self, force: bool = False) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -856,10 +848,10 @@ class NuScenes(PointCloudDataset):
         )
 
         processed_dir = Path(self.processed_dir)
-        write_cache_meta(processed_dir / "meta.json", self.cache_meta())
         tokens_tmp_path = processed_dir / "keyframes.json.tmp"
         tokens_tmp_path.write_text(json.dumps(tokens))
         tokens_tmp_path.replace(processed_dir / "keyframes.json")
+        return True
 
     def load(self) -> None:
         if not self.processed_files_exist():
