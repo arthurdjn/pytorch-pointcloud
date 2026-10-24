@@ -284,6 +284,127 @@ def _splat_gaussians(heatmap: Tensor, labels: Tensor, center_int: Tensor, radius
     heatmap.view(-1).scatter_reduce_(0, flat[inside], gaussian[inside].to(heatmap.dtype), reduce="amax")
 
 
+def draw_sparse_heatmap_targets(
+    boxes: Tensor,
+    labels: Tensor,
+    num_classes: int,
+    voxel_xy: Tensor,
+    feature_map_size: Tuple[int, int],
+    voxel_size: Sequence[float],
+    point_cloud_range: Sequence[float],
+    feature_map_stride: int,
+    *,
+    num_max_objs: int = 500,
+    gaussian_overlap: float = 0.1,
+    min_radius: int = 2,
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    r"""Assign center-heatmap and per-object regression targets over the occupied BEV voxels of one scene.
+
+    The sparse counterpart of [`draw_heatmap_targets`][torch_pointcloud.ops.heatmap.draw_heatmap_targets]:
+    the per-class Gaussian is a function of the squared voxel distance and lands only on the occupied voxels,
+    around both the box center and its nearest occupied voxel. The regression code is anchored to that
+    nearest voxel: the center offset is measured against its real (non-integer) index rather than a dense-grid
+    floor. Extents are clamped to $10^{-5}$ before the log so a degenerate box does not produce a non-finite
+    target.
+
+    Args:
+        boxes: Ground truth boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta, \ldots)$, shape $(M, D)$, $D \ge 7$.
+        labels: Zero-based class ids, shape $(M,)$.
+        num_classes: Number of heatmap channels.
+        voxel_xy: BEV indices $(x, y)$ of the occupied voxels, as floats, shape $(V, 2)$.
+        feature_map_size: BEV feature-map size as $(W, H)$ (x then y).
+        voxel_size: Voxel size $(v_x, v_y, v_z)$ in metric units.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        feature_map_stride: Stride from voxel grid to feature map.
+        num_max_objs: Capacity of the per-object target buffers.
+        gaussian_overlap: Min-overlap passed to `gaussian_radius`.
+        min_radius: Lower clamp on the integer splat radius.
+
+    Returns:
+        Tuple `(heatmap, reg_targets, inds, mask)`:
+
+        - `heatmap`: per-class Gaussian over the voxels, shape $(\text{num\_classes}, V)$.
+        - `reg_targets`: regression targets, shape $(\text{num\_max\_objs}, 8 + (D - 7))$.
+        - `inds`: row of the nearest occupied voxel per object, shape $(\text{num\_max\_objs},)$ (long).
+        - `mask`: $1$ for assigned objects, shape $(\text{num\_max\_objs},)$ (long).
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> boxes = torch.tensor([[0.0, 0.0, -1.0, 4.0, 2.0, 1.5, 0.3]])
+        >>> voxel_xy = torch.tensor([[2.0, 3.0], [8.0, 8.0], [9.0, 8.0]])
+        >>> hm, reg, inds, mask = draw_sparse_heatmap_targets(
+        ...     boxes, torch.tensor([0]), num_classes=1, voxel_xy=voxel_xy, feature_map_size=(16, 16),
+        ...     voxel_size=[0.5, 0.5, 0.5], point_cloud_range=[-4.0, -4.0, -2.0, 4.0, 4.0, 2.0],
+        ...     feature_map_stride=1,
+        ... )
+        >>> hm.shape, int(inds[0]), int(mask.sum())
+        (torch.Size([1, 3]), 1, 1)
+
+        ```
+    """
+    width, height = feature_map_size
+    num_voxels = voxel_xy.shape[0]
+    code_size = boxes.shape[-1] + 1
+    heatmap = boxes.new_zeros(num_classes, num_voxels)
+    reg_targets = boxes.new_zeros(num_max_objs, code_size)
+    inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
+    mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
+
+    boxes, labels = boxes[:num_max_objs], labels[:num_max_objs]
+    num_objs = boxes.shape[0]
+    if num_objs == 0 or num_voxels == 0:
+        return heatmap, reg_targets, inds, mask
+
+    # Project the centers to the feature map and solve the splat radius of every box at once.
+    x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
+    pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
+    pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
+    center = torch.stack([pos_x, pos_y], dim=-1)
+
+    dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
+    dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
+    radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
+    valid = (dx > 0) & (dy > 0)
+
+    # Every object's nearest occupied voxel, from the squared distances of all (object, voxel) pairs.
+    dist_center = ((voxel_xy[None, :, :] - center[:, None, :]) ** 2).sum(dim=-1)  # (M, V)
+    nearest = dist_center.argmin(dim=1)
+    nearest_xy = voxel_xy[nearest]
+    mask[:num_objs] = valid.long()
+    inds[:num_objs] = torch.where(valid, nearest, inds[:num_objs])
+
+    # The two splats of each object (around its center and around its nearest voxel), max-combined per class.
+    dist_nearest = ((voxel_xy[None, :, :] - nearest_xy[:, None, :]) ** 2).sum(dim=-1)
+    rows = labels[valid, None].expand(-1, num_voxels)
+    heatmap.scatter_reduce_(0, rows, _voxel_gaussians(dist_center[valid], radius[valid]), reduce="amax")
+    heatmap.scatter_reduce_(0, rows, _voxel_gaussians(dist_nearest[valid], radius[valid]), reduce="amax")
+
+    # The regression code, anchored to the nearest occupied voxel.
+    code = torch.cat(
+        [
+            center - nearest_xy,
+            z[:, None],
+            boxes[:, 3:6].clamp_min(1e-5).log(),
+            torch.cos(boxes[:, 6:7]),
+            torch.sin(boxes[:, 6:7]),
+            boxes[:, 7:],
+        ],
+        dim=1,
+    )
+    reg_targets[:num_objs] = torch.where(valid[:, None], code, reg_targets[:num_objs])
+
+    return heatmap, reg_targets, inds, mask
+
+
+def _voxel_gaussians(distances: Tensor, radius: Tensor) -> Tensor:
+    r"""Gaussian in squared voxel distance, one row per object: $\exp(-d^2 / 2\sigma^2)$ with $\sigma = (2r + 1) / 6$."""
+    diameter = 2 * radius.to(torch.float64) + 1
+    sigma = diameter / 6
+    denominator = (2 * sigma * sigma).to(distances.dtype)
+    return torch.exp(-distances / denominator[:, None])
+
+
 def transpose_gather(feat: Tensor, ind: Tensor) -> Tensor:
     r"""Gather per-object channel vectors from a dense map at flat cell indices.
 

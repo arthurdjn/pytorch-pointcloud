@@ -6,6 +6,7 @@ import torch
 from torch_pointcloud.ops.heatmap import (
     draw_gaussian_to_heatmap,
     draw_heatmap_targets,
+    draw_sparse_heatmap_targets,
     gaussian_radius,
     transpose_gather,
 )
@@ -253,3 +254,89 @@ def test_draw_heatmap_targets_matches_per_object_loop(seed: int) -> None:
     result = draw_heatmap_targets(boxes, labels, **kwargs)
     for got, ref in zip(result, expected):
         assert torch.equal(got, ref)
+
+
+def _draw_sparse_heatmap_targets_loop(
+    boxes: torch.Tensor,
+    labels: torch.Tensor,
+    **kwargs: Any,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The per-object loop the vectorized `draw_sparse_heatmap_targets` replaced, kept as the reference."""
+    num_classes, voxel_xy, feature_map_size = kwargs["num_classes"], kwargs["voxel_xy"], kwargs["feature_map_size"]
+    voxel_size, point_cloud_range = kwargs["voxel_size"], kwargs["point_cloud_range"]
+    feature_map_stride, num_max_objs = kwargs["feature_map_stride"], kwargs["num_max_objs"]
+    gaussian_overlap, min_radius = kwargs["gaussian_overlap"], kwargs["min_radius"]
+
+    width, height = feature_map_size
+    num_voxels = voxel_xy.shape[0]
+    heatmap = boxes.new_zeros(num_classes, num_voxels)
+    reg_targets = boxes.new_zeros(num_max_objs, boxes.shape[-1] + 1)
+    inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
+    mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
+    if boxes.shape[0] == 0 or num_voxels == 0:
+        return heatmap, reg_targets, inds, mask
+
+    x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
+    pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
+    pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
+    center = torch.stack([pos_x, pos_y], dim=-1)
+    dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
+    dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
+    radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
+    for k in range(min(num_max_objs, boxes.shape[0])):
+        if dx[k] <= 0 or dy[k] <= 0:
+            continue
+
+        dist_center = ((voxel_xy - center[k]) ** 2).sum(dim=-1)
+        nearest = int(dist_center.argmin())
+        inds[k] = nearest
+        mask[k] = 1
+        cls = int(labels[k])
+        r = int(radius[k].item())
+        for distances in (dist_center, ((voxel_xy - voxel_xy[nearest]) ** 2).sum(dim=-1)):
+            sigma = (2 * r + 1) / 6
+            torch.max(heatmap[cls], torch.exp(-distances / (2 * sigma * sigma)), out=heatmap[cls])
+        reg_targets[k, 0:2] = center[k] - voxel_xy[nearest]
+        reg_targets[k, 2] = z[k]
+        reg_targets[k, 3:6] = boxes[k, 3:6].clamp_min(1e-5).log()
+        reg_targets[k, 6] = torch.cos(boxes[k, 6])
+        reg_targets[k, 7] = torch.sin(boxes[k, 6])
+        if boxes.shape[1] > 7:
+            reg_targets[k, 8:] = boxes[k, 7:]
+    return heatmap, reg_targets, inds, mask
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_draw_sparse_heatmap_targets_matches_per_object_loop(seed: int) -> None:
+    """The vectorized sparse assignment equals the per-object reference loop (degenerate boxes, a capped count)."""
+    torch.manual_seed(seed)
+    num = 40
+    boxes = torch.cat(
+        [
+            torch.rand(num, 2) * 24 - 12,
+            torch.rand(num, 1),
+            torch.rand(num, 3) * 6 + 0.2,
+            torch.randn(num, 1),
+            torch.randn(num, 2),
+        ],
+        dim=1,
+    )
+    boxes[:2, 4] = 0.0
+    labels = torch.randint(0, 3, (num,))
+    voxel_xy = torch.randint(0, 24, (300, 2)).float()
+    kwargs: Dict[str, Any] = dict(
+        num_classes=3,
+        voxel_xy=voxel_xy,
+        feature_map_size=(24, 24),
+        voxel_size=(1.0, 1.0, 6.0),
+        point_cloud_range=(-12.0, -12.0, -2.0, 12.0, 12.0, 4.0),
+        feature_map_stride=1,
+        num_max_objs=32,
+        gaussian_overlap=0.1,
+        min_radius=2,
+    )
+    expected = _draw_sparse_heatmap_targets_loop(boxes, labels, **kwargs)
+    result = draw_sparse_heatmap_targets(boxes, labels, **kwargs)
+    for got, ref in zip(result, expected):
+        assert torch.allclose(got.float(), ref.float(), atol=1e-6, rtol=1e-6), (got - ref).abs().max()
+    assert torch.equal(result[2], expected[2]) and torch.equal(result[3], expected[3])
