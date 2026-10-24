@@ -184,6 +184,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/bev_backbone/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/center_head/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/conv2d_blocks/</loc>
       </url>
       <url>
@@ -365,6 +368,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/centerpoint/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/concerto/</loc>

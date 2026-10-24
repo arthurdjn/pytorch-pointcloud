@@ -50,6 +50,7 @@ DISPLAY_TITLES = {
     "pointpillars": "PointPillars",
     "second": "SECOND",
     "pointrcnn": "PointRCNN",
+    "centerpoint": "CenterPoint",
     "voxelnext": "VoxelNeXt",
     "voxel_mamba": "Voxel-Mamba",
     "lion": "LION",
