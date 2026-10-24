@@ -124,7 +124,7 @@ class ScanObjectNN(PointCloudDataset):
         if download or force_download:
             self.download(force=force_download, show_progress=show_progress)
 
-        self.process(force=force_process)
+        self.process(force=force_process, show_progress=show_progress)
         self.load(show_progress=show_progress)
 
     @property
@@ -196,7 +196,7 @@ class ScanObjectNN(PointCloudDataset):
         # Cleanup the downloaded zipped file
         resource_path.unlink()
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "

@@ -685,13 +685,11 @@ class NuScenes(PointCloudDataset):
         self.return_boxes = return_boxes
         self.return_segment = return_segment
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load()
 
     @property
@@ -764,7 +762,7 @@ class NuScenes(PointCloudDataset):
             annotations.setdefault(ann["sample_token"], []).append(ann)
         return annotations
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -843,9 +841,9 @@ class NuScenes(PointCloudDataset):
                 class_to_idx=self._class_to_idx,
             ),
             items,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             desc=f"Processing {self.split or self.version}",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
 
         processed_dir = Path(self.processed_dir)

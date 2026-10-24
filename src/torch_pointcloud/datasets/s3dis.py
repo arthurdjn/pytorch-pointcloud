@@ -383,7 +383,6 @@ class S3DIS(PointCloudDataset):
         self.aligned = aligned
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
         self.accept_terms = accept_terms
 
         _check_areas(self.areas)
@@ -392,7 +391,7 @@ class S3DIS(PointCloudDataset):
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load(
             show_progress=show_progress,
             block_size=block_size,
@@ -533,7 +532,7 @@ class S3DIS(PointCloudDataset):
 
         Path(self.raw_dir, ".extraction_complete").touch()
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         """Process the raw dataset for easier loading.
 
         When `aligned=True`, applies the per-room alignment rotation so that
@@ -567,10 +566,10 @@ class S3DIS(PointCloudDataset):
             rooms = parallel_map(
                 lambda job: load_s3dis_room(*job),
                 jobs,
-                num_workers=self.num_workers,
+                num_workers=num_workers,
                 total=len(jobs),
                 desc=f"Processing {area}",
-                show_progress=self.show_progress,
+                show_progress=show_progress,
             )
             if not rooms:
                 raise RuntimeError(f"Found no valid rooms in {area!r}.")

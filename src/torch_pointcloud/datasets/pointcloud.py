@@ -1,7 +1,7 @@
 """Base class for point cloud datasets cached on disk under a `raw/` + `processed/` layout."""
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from torch.utils.data import Dataset
 
@@ -79,7 +79,7 @@ class PointCloudDataset(Dataset):
         """
         return {"format_version": self.format_version}
 
-    def process(self, force: bool = False) -> None:
+    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         """Build the processed cache unless a complete one stamped with `cache_meta` already exists.
 
         A cache without a stamp is served as is when `processed_files_exist` accepts it. The stamps are removed
@@ -88,6 +88,8 @@ class PointCloudDataset(Dataset):
 
         Args:
             force: Rebuild the cache even when a matching one exists.
+            num_workers: Worker processes for `write_processed_files`, or `None` for sequential processing.
+            show_progress: Show a progress bar while processing.
 
         Raises:
             RuntimeError: If a stamp differs from `cache_meta` and `force` is False.
@@ -102,15 +104,19 @@ class PointCloudDataset(Dataset):
         for meta_path in meta_paths:
             meta_path.unlink(missing_ok=True)
 
-        complete = self.write_processed_files()
+        complete = self.write_processed_files(num_workers=num_workers, show_progress=show_progress)
         if complete:
             for meta_path in meta_paths:
                 write_cache_meta(meta_path, self.cache_meta)
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         """Write the processed cache from the raw files and return whether it is complete.
 
         Returning False leaves the cache unstamped, so the next construction audits it instead of serving it.
+
+        Args:
+            num_workers: Worker processes, or `None` for sequential processing.
+            show_progress: Show a progress bar while processing.
         """
         raise NotImplementedError
 

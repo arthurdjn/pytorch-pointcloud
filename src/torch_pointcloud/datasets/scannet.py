@@ -1033,13 +1033,12 @@ class ScanNet(PointCloudDataset):
         self.return_superpoint = return_superpoint
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
         self.accept_terms = accept_terms
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load(
             show_progress=show_progress,
             block_size=block_size,
@@ -1215,7 +1214,7 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
@@ -1300,10 +1299,10 @@ class ScanNet(PointCloudDataset):
         results = parallel_map(
             process_scene,
             scene_ids,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             total=len(scene_ids),
             desc="Processing",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
 
         return all(results)

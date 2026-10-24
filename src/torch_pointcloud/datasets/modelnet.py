@@ -153,12 +153,11 @@ class _ModelNet(PointCloudDataset):
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
 
         self.data = self._load_processed_data()
 
@@ -223,7 +222,7 @@ class _ModelNet(PointCloudDataset):
         # Remove the downloaded resource
         resource_path.unlink()
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -233,9 +232,9 @@ class _ModelNet(PointCloudDataset):
 
         file_paths = sorted(list(Path(self.raw_dir).rglob(f"**/{self._split}/*.off")))
 
-        pbar = tqdm(file_paths, desc="Processing", disable=not self.show_progress)
+        pbar = tqdm(file_paths, desc="Processing", disable=not show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
-        data_list = parallel_map(func, pbar, num_workers=self.num_workers)
+        data_list = parallel_map(func, pbar, num_workers=num_workers)
         data_list = [data for data in data_list if data is not None]
 
         dst_path = Path(self.processed_dir, f"{self._split}.pt")
@@ -406,12 +405,11 @@ class ModelNetNormalResampled(PointCloudDataset):
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
 
         self.data = self._load_processed_data()
 
@@ -474,7 +472,7 @@ class ModelNetNormalResampled(PointCloudDataset):
         # Remove the downloaded resource
         resource_path.unlink()
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -489,9 +487,9 @@ class ModelNetNormalResampled(PointCloudDataset):
             for file_id in file_ids
         ]
 
-        pbar = tqdm(file_paths, desc="Processing", disable=not self.show_progress)
+        pbar = tqdm(file_paths, desc="Processing", disable=not show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
-        data_list = parallel_map(func, pbar, num_workers=self.num_workers)
+        data_list = parallel_map(func, pbar, num_workers=num_workers)
         # Ignore None data (samples whose class is outside the selected `classes` subset)
         data_list = [data for data in data_list if data is not None]
 

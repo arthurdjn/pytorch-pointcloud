@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import pytest
 
@@ -163,7 +163,7 @@ def test_interrupted_rebuild_leaves_no_stamp(
     dataset = build(datasets_dir, True)
     meta_path = Path(dataset.processed_dir, meta_name)
 
-    def interrupted(self: PointCloudDataset) -> bool:
+    def interrupted(self: PointCloudDataset, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         raise KeyboardInterrupt
 
     monkeypatch.setattr(type(dataset), "write_processed_files", interrupted)
@@ -185,6 +185,8 @@ def test_incomplete_cache_is_not_stamped(
     dataset = build(datasets_dir, True)
     meta_path = Path(dataset.processed_dir, meta_name)
 
-    monkeypatch.setattr(type(dataset), "write_processed_files", lambda self: False)
+    monkeypatch.setattr(
+        type(dataset), "write_processed_files", lambda self, num_workers=None, show_progress=True: False
+    )
     build(datasets_dir, True)
     assert not meta_path.exists()

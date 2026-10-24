@@ -339,13 +339,11 @@ class KITTI(PointCloudDataset):
         self.fov = fov
         self.return_calib = return_calib
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load()
 
     @property
@@ -430,7 +428,7 @@ class KITTI(PointCloudDataset):
             f"optionally image_2) folders under {self.raw_dir!r}."
         )
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         r"""Convert every raw frame in the split into its `.npy` cache directory."""
         if not self.raw_files_exist():
             raise RuntimeError(
@@ -449,10 +447,10 @@ class KITTI(PointCloudDataset):
         parallel_map(
             self.process_frame,
             frames,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             total=len(frames),
             desc=f"Processing {self._split}",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
 
         return True

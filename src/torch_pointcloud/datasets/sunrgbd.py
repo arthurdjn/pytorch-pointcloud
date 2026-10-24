@@ -280,12 +280,11 @@ class SunRGBD(PointCloudDataset):
         self._split = "train" if train else "val"
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load()
 
     @property
@@ -388,7 +387,7 @@ class SunRGBD(PointCloudDataset):
             meta = sio.loadmat(io.BytesIO(z.read(TOOLBOX_META_MEMBER)), struct_as_record=False, squeeze_me=True)
         return {rebase_sequence(str(e.sequenceName)): e for e in meta["SUNRGBDMeta"]}
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -411,10 +410,10 @@ class SunRGBD(PointCloudDataset):
         parallel_map(
             self.process_scene,
             records,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             total=len(records),
             desc=f"Processing {self._split}",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
 
         return True

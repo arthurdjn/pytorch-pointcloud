@@ -153,14 +153,12 @@ class ShapeNetPart(PointCloudDataset):
         self.split = split
         self.categories = ensure_tuple(categories or self.category_ids.keys())
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         for category in self.categories:
             if category not in self.category_ids:
                 raise KeyError(f"Unknown {self.__class__.__name__} category: {category!r}")
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load(show_progress=show_progress)
 
     @override
@@ -230,7 +228,7 @@ class ShapeNetPart(PointCloudDataset):
             f"benchmark data from {self.data_url!r} and extract it under {self.raw_dir!r}."
         )
 
-    def write_processed_files(self) -> bool:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -245,10 +243,10 @@ class ShapeNetPart(PointCloudDataset):
         samples = parallel_map(
             self._load_raw_file,
             split_files,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             total=len(split_files),
             desc="Reading",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
         samples = [s for s in samples if s is not None]
         if not samples:
