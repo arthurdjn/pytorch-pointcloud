@@ -79,6 +79,11 @@
     "date": "April 2019",
     "title": "Deep Hough Voting for 3D Object Detection in Point Clouds"
   },
+  "1907.03670": {
+    "crop": 0.47,
+    "date": "July 2019",
+    "title": "From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network"
+  },
   "1907.03739": {
     "crop": 0.47,
     "date": "July 2019",
@@ -93,6 +98,11 @@
     "crop": 0.47,
     "date": "November 2019",
     "title": "RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds"
+  },
+  "1912.13192": {
+    "crop": 0.47,
+    "date": "December 2019",
+    "title": "PV-RCNN: Point-Voxel Feature Set Abstraction for 3D Object Detection"
   },
   "2003.08284": {
     "crop": 0.47,
