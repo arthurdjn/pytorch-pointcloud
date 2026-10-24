@@ -189,6 +189,11 @@
     "date": "February 2024",
     "title": "PointMamba: A Simple State Space Model for Point Cloud Analysis"
   },
+  "2405.04634": {
+    "crop": 0.47,
+    "date": "May 2024",
+    "title": "FRACTAL: An Ultra-Large-Scale Aerial Lidar Dataset for 3D Semantic Segmentation of Diverse Landscapes"
+  },
   "2406.10700": {
     "crop": 0.47,
     "date": "June 2024",

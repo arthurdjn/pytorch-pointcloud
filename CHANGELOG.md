@@ -17,6 +17,11 @@ All notable changes to this project are documented in this file. The format is b
 - `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works until 0.0.20, with a `FutureWarning`.
 - Voxel Mamba's head outputs are one-element lists, its head parameters are `head.heads.0.*` instead of `head.prediction_head.*`, and its head starts from the `CenterHead` initialization.
 - Fixed the IoU term of `CenterHeadLoss` sending gradients into the box maps.
+- Added the Myria3D FRACTAL checkpoint `randlanet.fractal.ignf` (Etalab-2.0), loaded from IGN's Hugging Face repository, and its benchmark on the FRACTAL test set.
+- Added the `FRACTAL` dataset, read in place from its zip archives with the optional `laspy` package.
+- Added the `LabelMask`, `MaskedFill`, `NormalizedDifference`, `Add`, `Log` and `Standardize` transforms, and the `nir` data key.
+- Added the `lse_channels`, `lse_input`, `pool` and `stem_plain_last` options of RandLA-Net, and renamed `random_max_pool` to `random_pool`; the former name still works, with a `FutureWarning`.
+- `read_state_dict` reads the objects of a checkpoint other than tensors (training hyperparameters, optimizer configurations) as inert placeholders, so Lightning checkpoints that pickle them load with `weights_only=True`.
 
 ## 0.0.18 (2026-10-20)
 

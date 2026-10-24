@@ -362,3 +362,26 @@ def test_relabel_empty_mapping_raises() -> None:
     labels = torch.tensor([1, 2, 3])
     with pytest.raises(ValueError, match="at least one source"):
         F.relabel(labels, mapping=[])
+
+
+def test_normalized_difference() -> None:
+    data = {"nir": torch.tensor([[0.6], [0.0], [0.0]]), "red": torch.tensor([[0.2], [0.5], [0.0]])}
+    result = T.NormalizedDifference(keys="nir", sub_keys="red", dst_keys="ndvi")(data)
+    assert torch.allclose(result["ndvi"], torch.tensor([[0.5], [-1.0], [0.0]]), atol=1e-5)
+    assert torch.equal(result["nir"], data["nir"])
+
+
+def test_log_casts_integers() -> None:
+    data = {"x": torch.tensor([[1], [2], [100]]), "other": sentinel.other}
+    result = T.Log(keys="x")(data)
+    assert result["x"].dtype == torch.float32
+    assert torch.equal(result["x"], torch.log(torch.tensor([[1.0], [2.0], [100.0]])))
+    assert result["other"] is sentinel.other
+
+
+def test_add() -> None:
+    data = {"a": torch.tensor([0.0, 1.0]), "b": torch.tensor([[2]]), "other": sentinel.other}
+    result = T.Add(keys=["a", "b"], value=[1.0, -3.0])(data)
+    assert torch.equal(result["a"], torch.tensor([1.0, 2.0]))
+    assert torch.equal(result["b"], torch.tensor([[-1.0]]))
+    assert result["other"] is sentinel.other

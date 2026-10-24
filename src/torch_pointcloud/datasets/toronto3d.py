@@ -134,7 +134,7 @@ class Toronto3D(PointCloudDataset):
 
     data_url: str = "https://github.com/WeikaiTan/Toronto-3D"
 
-    #: Default file groupings: `L002.ply` is the canonical held-out test/val tile.
+    # Default file groupings: `L002.ply` is the canonical held-out test/val tile.
     files_per_split: Dict[str, Tuple[str, ...]] = {
         "train": ("L001.ply", "L003.ply", "L004.ply"),
         "val": ("L002.ply",),

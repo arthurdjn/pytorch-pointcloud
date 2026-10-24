@@ -51,6 +51,21 @@ def test_randlanet_local_feature_aggregation(data: Dict[str, Tensor], mlp_kwargs
     assert out.shape == (data["features"].shape[0], 8)
 
 
+def test_randlanet_local_feature_aggregation_pyg_example(data: Dict[str, Tensor], mlp_kwargs: Dict[str, Any]) -> None:
+    lfa = LocalFeatureAggregation(d_out=8, lse_channels=2, lse_input="pos", **mlp_kwargs)
+    assert lfa.lse1.out_channels == 2
+    assert lfa.att_pooling_1.in_channels == 4
+    assert lfa.lse2.in_channels == 10
+    edge_index = knn_graph(data["pos"], 8, batch=data["batch"], loop=True)
+    out = lfa(data["features"][:, :2], data["pos"], edge_index)
+    assert out.shape == (data["features"].shape[0], 8)
+
+
+def test_randlanet_local_feature_aggregation_bad_lse_input_raises(mlp_kwargs: Dict[str, Any]) -> None:
+    with pytest.raises(ValueError, match="lse_input"):
+        LocalFeatureAggregation(d_out=8, lse_input="xyz", **mlp_kwargs)  # type: ignore[arg-type]
+
+
 def test_randlanet_residual_block(data: Dict[str, Tensor], mlp_kwargs: Dict[str, Any]) -> None:
     block = RandLANetResidualBlock(d_in=6, d_out=8, num_neighbors=8, **mlp_kwargs)
     x, pos, batch = block(data["features"], data["pos"], data["batch"])

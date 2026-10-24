@@ -130,6 +130,7 @@ pvcnn-c0p25.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
 pvcnn2-c0p5.s3dis-area5.mit-han-lab,pvcnn2,semantic-segmentation,s3dis-area5,true,MIT,3.43,mIoU,58.30,59.83,mIoU 59.83 · OA 87.22 · simple/mIoU 56.87 · simple/OA 85.81
 pvcnn2.s3dis-area5.mit-han-lab,pvcnn2,semantic-segmentation,s3dis-area5,true,MIT,13.71,mIoU,59.02,59.95,mIoU 59.95 · OA 87.62 · simple/mIoU 57.27 · simple/OA 86.33
+randlanet.fractal.ignf,randlanet,semantic-segmentation,fractal,true,etalab-2.0,1.11,mIoU,77.2,77.35,mIoU 77.35 · OA 96.06
 randlanet.parislille3d.open3d,randlanet,semantic-segmentation,parislille3d,true,MIT,4.99,mIoU,70,83.05,mIoU 83.05 · OA 98.67
 randlanet.s3dis-area3.open3d,randlanet,semantic-segmentation,s3dis-area3,true,MIT,4.99,mIoU,70.9,70.43,mIoU 70.43 · OA 87.90
 randlanet.semantic3d.open3d,randlanet,semantic-segmentation,semantic3d,true,MIT,4.99,mIoU,76,90.34,mIoU 90.34 · OA 98.56

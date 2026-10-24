@@ -35,6 +35,7 @@ neither are marked as such.
 | facebookresearch/votenet                        | `fair`           | MIT          | 2     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
 | DylanWusee/pointconv_pytorch                    | `wenxuan-wu`     | MIT          | 1     | Copyright (c) 2019 Wenxuan Wu                                                                                              |
 | tsunghan-wu/RandLA-Net-pytorch                  | `tsung-han-wu`   | MIT          | 1     | Copyright (c) 2020 Tsunghan Wu                                                                                             |
+| IGNF/myria3d                                    | `ignf`           | Etalab-2.0   | 1     | Copyright (c) 2021, Institut National de l'Information Géographique et Forestière                                          |
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
 
@@ -54,6 +55,7 @@ Licenses of the datasets the checkpoints were trained on.
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
+| FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 
 ## Source code
@@ -112,3 +114,4 @@ Installed separately, only for the architectures that need them.
 | `sptr` (JIA-Lab-research/SparseTransformer, installed from the arthurdjn/SparseTransformer fork) | Apache-2.0                  |
 | `lightning`, `torchmetrics`                                                                      | Apache-2.0                  |
 | `laspy`                                                                                          | BSD-2-Clause                |
+| `lazrs`                                                                                          | MIT                         |

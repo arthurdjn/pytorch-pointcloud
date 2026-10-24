@@ -85,7 +85,7 @@ $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-pillar02.nuscenes.mmdet3d
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu
 
-# Segmentation (S3DIS, ScanNet, SemanticKITTI, Toronto-3D, Paris-Lille-3D)
+# Segmentation (S3DIS, ScanNet, SemanticKITTI, Toronto-3D, Paris-Lille-3D, FRACTAL)
 $RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --model dgcnn.scannet20.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area1.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area2.an-tao
@@ -114,6 +114,7 @@ $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model p
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 4
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area6.openpoints --areas Area_6 --sw-batch-size 4
 $RUN examples/randlanet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model randlanet.semantickitti.tsung-han-wu
+$RUN examples/randlanet/segmentation_fractal_benchmark.py --root "$ROOT" --model randlanet.fractal.ignf
 $RUN examples/randlanet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model randlanet.semantickitti.open3d
 $RUN examples/randlanet/segmentation_s3dis_benchmark.py --root "$ROOT" --model randlanet.s3dis-area3.open3d
 $RUN examples/randlanet/segmentation_toronto3d_benchmark.py --root "$ROOT" --model randlanet.toronto3d.open3d
