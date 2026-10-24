@@ -400,11 +400,11 @@ class PVRCNNDetection(DetectionModel):
 
     def __init__(
         self,
-        in_channels: int = 4,
-        num_classes: int = 3,
+        in_channels: int,
+        num_classes: int,
         *,
-        voxel_size: Sequence[float] = (0.05, 0.05, 0.1),
-        point_cloud_range: Sequence[float] = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
         anchor_sizes: Sequence[Sequence[float]],
         anchor_bottom_heights: Sequence[float],
         anchor_rotations: Sequence[float] = (0.0, 1.57),
@@ -811,6 +811,8 @@ class PVRCNNDetection(DetectionModel):
     hparams=dict(
         in_channels=4,
         num_classes=3,
+        voxel_size=(0.05, 0.05, 0.1),
+        point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
         # Pedestrian, Cyclist, Car.
         anchor_sizes=[[0.8, 0.6, 1.73], [1.76, 0.6, 1.73], [3.9, 1.6, 1.56]],
         anchor_bottom_heights=[-0.6, -0.6, -1.78],
