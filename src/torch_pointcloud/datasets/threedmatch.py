@@ -7,7 +7,7 @@ import json
 import pickle
 import shutil
 from pathlib import Path
-from typing import Any, BinaryIO, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -74,13 +74,6 @@ def load_threedmatch_fragment(path: PathLike) -> np.ndarray:
     if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 3:
         raise ValueError(f"Expected an (N, 3) array in {Path(path).as_posix()!r}, got {type(points).__name__}.")
     return np.ascontiguousarray(points, dtype=np.float32)
-
-
-def _read_pairs_pickle(f: BinaryIO) -> List[Dict[str, Any]]:
-    pairs = _ArrayUnpickler(f).load()
-    if not isinstance(pairs, list):
-        raise ValueError(f"Expected a list of pair records, got {type(pairs).__name__}.")
-    return pairs
 
 
 def _read_log_matrices(path: Path, rows: int) -> Dict[Tuple[int, int], np.ndarray]:
@@ -276,7 +269,7 @@ class ThreeDMatch(PointCloudDataset):
     def read_pairs_pickle(self) -> List[Dict[str, Any]]:
         """The train or val pairs of the PREDATOR split, read from the GeoTransformer pair list."""
         with open(Path(self.metadata_dir, f"{self.split}.pkl"), "rb") as f:
-            records = _read_pairs_pickle(f)
+            records = _ArrayUnpickler(f).load()
 
         pairs = []
         for record in records:
@@ -317,10 +310,7 @@ class ThreeDMatch(PointCloudDataset):
         return pairs
 
     def load_pairs(self) -> List[Dict[str, Any]]:
-        pairs = json.loads(Path(self.processed_dir, "pairs", f"{self.pairs_name}.json").read_text())
-        if not isinstance(pairs, list):
-            raise RuntimeError(f"Corrupted pair list for {self.pairs_name!r}; pass `force_process=True`.")
-        return pairs
+        return json.loads(Path(self.processed_dir, "pairs", f"{self.pairs_name}.json").read_text())
 
     def fragment_path(self, scene: str, frame: int) -> Path:
         """Path of the processed fragment `frame` of `scene`."""

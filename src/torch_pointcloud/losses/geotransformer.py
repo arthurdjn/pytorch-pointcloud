@@ -60,12 +60,12 @@ def weighted_circle_loss(
     """
     pos_weights = feat_dists - 1e5 * (~pos_masks).float()  # mask the non-positives
     pos_weights = pos_weights - positive_optimal
-    pos_weights = torch.maximum(torch.zeros_like(pos_weights), pos_weights)
+    pos_weights = pos_weights.clamp(min=0.0)
     pos_weights = pos_scales * pos_weights.detach()
 
     neg_weights = feat_dists + 1e5 * (~neg_masks).float()  # mask the non-negatives
     neg_weights = negative_optimal - neg_weights
-    neg_weights = torch.maximum(torch.zeros_like(neg_weights), neg_weights).detach()
+    neg_weights = neg_weights.clamp(min=0.0).detach()
 
     loss_pos_row = torch.logsumexp(log_scale * (feat_dists - positive_margin) * pos_weights, dim=-1)
     loss_pos_col = torch.logsumexp(log_scale * (feat_dists - positive_margin) * pos_weights, dim=-2)

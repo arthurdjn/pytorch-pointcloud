@@ -3,7 +3,7 @@
 import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch import Tensor, nn
@@ -16,7 +16,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ThreeDMatch
 from torch_pointcloud.losses import GeoTransformerLoss
-from torch_pointcloud.metrics import inlier_ratio, rotation_error, translation_error
+from torch_pointcloud.metrics import feature_matching_recall, inlier_ratio, rotation_error, translation_error
 from torch_pointcloud.models import GeoTransformerRegistration, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -179,7 +179,9 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: GeoTransformerRegistration, loader: DataLoader, device: str) -> Dict[str, float]:
     model.eval()
-    inlier_ratios, rotation_errors, translation_errors = [], [], []
+    inlier_ratios: List[Tensor] = []
+    rotation_errors: List[Tensor] = []
+    translation_errors: List[Tensor] = []
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         output = model(
@@ -193,16 +195,22 @@ def evaluate(model: GeoTransformerRegistration, loader: DataLoader, device: str)
         registration = model.decode(output)
         target = data[DataKeys.TRANSFORM]
         inlier_ratios.append(
-            inlier_ratio(registration["src_points"], registration["ref_points"], target, INLIER_RADIUS).item()
+            inlier_ratio(
+                registration["src_points"],
+                registration["ref_points"],
+                target,
+                INLIER_RADIUS,
+                registration["batch"],
+            )
         )
-        rotation_errors.append(rotation_error(registration["transform"], target).item())
-        translation_errors.append(translation_error(registration["transform"], target).item())
+        rotation_errors.append(rotation_error(registration["transform"], target))
+        translation_errors.append(translation_error(registration["transform"], target))
 
     return {
-        "IR": 100 * sum(inlier_ratios) / len(inlier_ratios),
-        "FMR": 100 * sum(ratio >= INLIER_RATIO_THRESHOLD for ratio in inlier_ratios) / len(inlier_ratios),
-        "RRE": sum(rotation_errors) / len(rotation_errors),
-        "RTE": 100 * sum(translation_errors) / len(translation_errors),
+        "IR": 100 * torch.cat(inlier_ratios).mean().item(),
+        "FMR": 100 * feature_matching_recall(torch.cat(inlier_ratios), INLIER_RATIO_THRESHOLD).item(),
+        "RRE": torch.cat(rotation_errors).mean().item(),
+        "RTE": 100 * torch.cat(translation_errors).mean().item(),
     }
 
 

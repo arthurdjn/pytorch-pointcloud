@@ -93,13 +93,13 @@ def create_norm(
     return norm(channels, **norm_kwargs)
 
 
-class PackedGroupNorm(nn.Module):
-    r"""Group normalization over a packed point cloud, with statistics per batch element.
+class GroupNorm(nn.Module):
+    r"""Group normalization of packed point features, with statistics per batch element.
 
     The channels are split into `num_groups` groups and every group is normalized by the mean and variance of its
-    channels over all the points of one batch element, then scaled and shifted per channel. Called without `batch`,
-    the whole packed cloud forms one element; a $(1, C, N)$ view through `torch.nn.GroupNorm` is the same operation
-    on one cloud.
+    channels over the points of one batch element, then scaled and shifted per channel. `torch.nn.GroupNorm` has no
+    batch index and would pool the statistics over every cloud of the batch; called without `batch`, this layer
+    does the same.
 
     Args:
         num_groups: Number of channel groups $G$; `num_channels` must be a multiple of it.
@@ -113,8 +113,8 @@ class PackedGroupNorm(nn.Module):
     Example:
         ```pycon
         >>> import torch
-        >>> from torch_pointcloud.layers.norms import PackedGroupNorm
-        >>> norm = PackedGroupNorm(num_groups=4, num_channels=8)
+        >>> from torch_pointcloud.layers.norms import GroupNorm
+        >>> norm = GroupNorm(num_groups=4, num_channels=8)
         >>> x = torch.randn(10, 8)
         >>> norm(x, torch.tensor([0] * 6 + [1] * 4)).shape
         torch.Size([10, 8])

@@ -12,10 +12,10 @@ All notable changes to this project are documented in this file. The format is b
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
-- Added the `registration` task: `RegistrationModel`, the `Registration3D` result type, the `ref_x`, `ref_pos`, `transform`, `information` and `overlap` data keys, and the `rotation_error`, `translation_error`, `registration_rmse` and `inlier_ratio` metrics.
+- Added the `registration` task: `RegistrationModel`, the `Registration3D` result type, the `ref_x`, `ref_pos`, `transform`, `information` and `overlap` data keys, and the `rotation_error`, `translation_error`, `registration_rmse`, `inlier_ratio`, `feature_matching_recall` and `registration_recall` metrics.
 - Added GeoTransformer (`GeoTransformerRegistration`, MIT) with the authors' 3DMatch, KITTI and ModelNet40 weights (`geotransformer.{3dmatch,kitti,modelnet40}.zheng-qin`), its `GeoTransformerLoss`, and the 3DMatch / 3DLoMatch benchmark and training scripts under `examples/geotransformer`.
 - Added the `ThreeDMatch` dataset (3DMatch and 3DLoMatch pairs of the PREDATOR release) and `ModelNet40Registration`, the synthetic RPM-Net pairs of the ModelNet40 shapes, with the ModelNet40 benchmark script and the `alignment_error` metric.
-- Added `ops.registration` (`weighted_procrustes`, `point_to_node_partition`, `node_correspondences`, `pairwise_squared_distance`, `rotation_angle`), the `PackedGroupNorm` layer, the `KPConvGroupNormBlock`, `KPResidualGroupNormBlock` and `LinearGroupNormBlock` blocks, `KPConv(normalize=True)` and the `RandomPairRotate` transform.
+- Added `ops.registration` (`weighted_procrustes`, `point_to_node_partition`, `node_correspondences`, `pairwise_squared_distance`, `rotation_angle`), the `GroupNorm` layer, the `KPConvGroupNormBlock`, `KPResidualGroupNormBlock` and `LinearGroupNormBlock` blocks, `KPConv(normalize=True)` and the `RandomPairRotate` transform.
 - `transform_points` broadcasts batched transforms over batched point sets.
 - `RandomJitter(distribution="uniform")` draws the noise uniformly in `[-sigma, sigma]`.
 - `VoxelGridPool(origin="grid")` snaps the grid to each cloud's minimum corner, so a cloud is pooled the same alone or in a batch.

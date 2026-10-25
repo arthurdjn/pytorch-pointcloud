@@ -5,7 +5,15 @@ from .detection import box_average_precision, box_matches
 from .instance_segmentation import instance_average_precision, instance_matches
 from .kitti import kitti_average_precision
 from .nuscenes import nuscenes_detection_metrics
-from .registration import alignment_error, inlier_ratio, registration_rmse, rotation_error, translation_error
+from .registration import (
+    alignment_error,
+    feature_matching_recall,
+    inlier_ratio,
+    registration_recall,
+    registration_rmse,
+    rotation_error,
+    translation_error,
+)
 from .segmentation import intersection_over_union, part_intersection_over_union, part_mean_intersection_over_union
 
 __all__ = [
@@ -14,6 +22,7 @@ __all__ = [
     "box_average_precision",
     "box_matches",
     "confusion_matrix",
+    "feature_matching_recall",
     "inlier_ratio",
     "instance_average_precision",
     "instance_matches",
@@ -22,6 +31,7 @@ __all__ = [
     "nuscenes_detection_metrics",
     "part_intersection_over_union",
     "part_mean_intersection_over_union",
+    "registration_recall",
     "registration_rmse",
     "rotation_error",
     "translation_error",

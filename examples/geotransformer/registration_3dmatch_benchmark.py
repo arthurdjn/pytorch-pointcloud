@@ -3,15 +3,24 @@
 import os
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from typing import Dict, List
+from functools import partial
+from typing import Callable, Dict, List
 
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ThreeDMatch
-from torch_pointcloud.metrics import inlier_ratio, registration_rmse, rotation_error, translation_error
+from torch_pointcloud.metrics import (
+    feature_matching_recall,
+    inlier_ratio,
+    registration_recall,
+    registration_rmse,
+    rotation_error,
+    translation_error,
+)
 from torch_pointcloud.models import GeoTransformerRegistration, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -100,11 +109,10 @@ def evaluate(model: GeoTransformerRegistration, dataloader: DataLoader, device: 
     non-consecutive fragment pairs of the benchmark log files, as the 3DMatch evaluation does.
     """
     model.to(device).eval()
-    scene_inlier_ratios: Dict[str, List[float]] = defaultdict(list)
-    scene_matching: Dict[str, List[float]] = defaultdict(list)
-    scene_registered: Dict[str, List[float]] = defaultdict(list)
-    scene_rre: Dict[str, List[float]] = defaultdict(list)
-    scene_rte: Dict[str, List[float]] = defaultdict(list)
+    scene_inlier_ratios: Dict[str, List[Tensor]] = defaultdict(list)
+    scene_rmse: Dict[str, List[Tensor]] = defaultdict(list)
+    scene_rre: Dict[str, List[Tensor]] = defaultdict(list)
+    scene_rte: Dict[str, List[Tensor]] = defaultdict(list)
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
@@ -120,28 +128,35 @@ def evaluate(model: GeoTransformerRegistration, dataloader: DataLoader, device: 
         transform, target = registration["transform"], data[DataKeys.TRANSFORM]
         scene = data[DataKeys.SCENE][0]
 
-        ratio = inlier_ratio(registration["src_points"], registration["ref_points"], target, INLIER_RADIUS).item()
-        scene_inlier_ratios[scene].append(ratio)
-        scene_matching[scene].append(float(ratio >= INLIER_RATIO_THRESHOLD))
+        scene_inlier_ratios[scene].append(
+            inlier_ratio(
+                registration["src_points"],
+                registration["ref_points"],
+                target,
+                INLIER_RADIUS,
+                registration["batch"],
+            )
+        )
 
         ref_frame, src_frame = data[DataKeys.FRAME][0].tolist()
         if src_frame > ref_frame + 1:
-            rmse = registration_rmse(transform, target, data[DataKeys.INFORMATION]).item()
-            registered = rmse < RMSE_THRESHOLD
-            scene_registered[scene].append(float(registered))
-            if registered:
-                scene_rre[scene].append(rotation_error(transform, target).item())
-                scene_rte[scene].append(translation_error(transform, target).item())
+            rmse = registration_rmse(transform, target, data[DataKeys.INFORMATION])
+            scene_rmse[scene].append(rmse)
+            if rmse.item() < RMSE_THRESHOLD:
+                scene_rre[scene].append(rotation_error(transform, target))
+                scene_rte[scene].append(translation_error(transform, target))
 
-    def scene_mean(values: Dict[str, List[float]]) -> float:
-        return sum(sum(v) / len(v) for v in values.values() if v) / max(len(values), 1)
+    def scene_mean(values: Dict[str, List[Tensor]], reduce: Callable[[Tensor], Tensor]) -> float:
+        return sum(reduce(torch.cat(v)).item() for v in values.values() if v) / max(len(values), 1)
 
+    matching_recall = partial(feature_matching_recall, threshold=INLIER_RATIO_THRESHOLD)
+    recall = partial(registration_recall, threshold=RMSE_THRESHOLD)
     return {
-        "RR": 100 * scene_mean(scene_registered),
-        "FMR": 100 * scene_mean(scene_matching),
-        "IR": 100 * scene_mean(scene_inlier_ratios),
-        "RRE": scene_mean(scene_rre),
-        "RTE": 100 * scene_mean(scene_rte),
+        "RR": 100 * scene_mean(scene_rmse, recall),
+        "FMR": 100 * scene_mean(scene_inlier_ratios, matching_recall),
+        "IR": 100 * scene_mean(scene_inlier_ratios, torch.mean),
+        "RRE": scene_mean(scene_rre, torch.mean),
+        "RTE": 100 * scene_mean(scene_rte, torch.mean),
     }
 
 

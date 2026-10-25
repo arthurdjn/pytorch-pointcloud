@@ -34,7 +34,7 @@ def _create_model(**overrides: Any) -> GeoTransformerRegistration:
         embed_dim=32,
         coarse_channels=32,
         num_heads=4,
-        blocks=["self", "cross"],
+        depth=1,
         sigma_d=0.2,
         num_points_in_patch=16,
         matching_radius=0.05,
@@ -86,7 +86,7 @@ def test_geometric_structure_embedding_is_rigid_invariant() -> None:
 
 
 def test_geometric_transformer_shapes() -> None:
-    transformer = GeometricTransformer(24, 32, 16, 4, ["self", "cross"], 0.2, 15.0, 3)
+    transformer = GeometricTransformer(24, 32, 16, 4, 1, 0.2, 15.0, 3)
     ref, src = torch.rand(1, 10, 3), torch.rand(1, 12, 3)
     ref_feats, src_feats = transformer(ref, src, torch.randn(1, 10, 24), torch.randn(1, 12, 24))
     assert ref_feats.shape == (1, 10, 16)

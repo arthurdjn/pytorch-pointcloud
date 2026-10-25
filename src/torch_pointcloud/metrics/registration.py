@@ -1,12 +1,9 @@
-r"""Rigid registration metrics: rotation and translation errors, the 3DMatch RMSE and the correspondence inlier ratio.
+r"""Rigid registration metrics: rotation and translation errors, the 3DMatch RMSE, the correspondence inlier ratio
+and the feature matching and registration recalls built on them.
 
-Every function scores a batch of pairs at once and returns one value per pair, so a split accumulates as a list of
-small tensors: the recall of a benchmark is the fraction of pairs under its thresholds, e.g.
-`(registration_rmse(...) < 0.2).float().mean()` on 3DMatch or
-`((rotation_error(...) < 5) & (translation_error(...) < 2)).float().mean()` on KITTI.
+The per-pair functions score a batch of pairs at once and return one value per pair, so a split accumulates as a
+list of small tensors that the recalls reduce.
 """
-
-from typing import Optional
 
 import torch
 from torch import Tensor
@@ -14,7 +11,6 @@ from torch_geometric.utils import scatter
 
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.ops.registration import rotation_angle
-from torch_pointcloud.utils.types import OptTensor
 
 
 def rotation_error(transform: Tensor, target: Tensor) -> Tensor:
@@ -119,21 +115,16 @@ def inlier_ratio(
     ref_points: Tensor,
     target: Tensor,
     radius: float,
-    batch: OptTensor = None,
-    batch_size: Optional[int] = None,
+    batch: Tensor,
 ) -> Tensor:
     r"""Fraction of correspondences whose points lie within `radius` once the source is moved by the ground truth.
-
-    The feature matching recall (FMR) of a benchmark is the fraction of pairs whose inlier ratio exceeds a
-    threshold ($0.05$ on 3DMatch).
 
     Args:
         src_points: Source point of each correspondence, shape $(K, 3)$.
         ref_points: Reference point of each correspondence, shape $(K, 3)$.
-        target: Ground-truth transform of each pair, shape $(4, 4)$ or $(B, 4, 4)$.
+        target: Ground-truth transform of each pair, shape $(B, 4, 4)$.
         radius: Distance under which a correspondence is an inlier.
-        batch: Per-correspondence pair index, shape $(K,)$; `None` scores a single pair.
-        batch_size: Number of pairs $B$; `None` takes it from a batched `target`, else from `batch`.
+        batch: Per-correspondence pair index, shape $(K,)$.
 
     Returns:
         The inlier ratio of each pair, shape $(B,)$, `nan` for a pair without correspondences.
@@ -144,31 +135,23 @@ def inlier_ratio(
         >>> from torch_pointcloud.metrics import inlier_ratio
         >>> src = torch.tensor([[0.0, 0, 0], [1.0, 0, 0]])
         >>> ref = torch.tensor([[0.0, 0, 0], [1.5, 0, 0]])
-        >>> inlier_ratio(src, ref, torch.eye(4), radius=0.1).tolist()
+        >>> inlier_ratio(src, ref, torch.eye(4).unsqueeze(0), radius=0.1, batch=torch.tensor([0, 0])).tolist()
         [0.5]
 
         ```
     """
-    if batch is None:
-        batch = torch.zeros(src_points.size(0), dtype=torch.long, device=src_points.device)
-    if batch_size is None:
-        batch_size = target.size(0) if target.ndim == 3 else (int(batch.max()) + 1 if batch.numel() else 1)
-    if target.ndim == 2:
-        target = target.unsqueeze(0).expand(batch_size, 4, 4)
-
+    batch_size = target.size(0)
     aligned = transform_points(src_points.unsqueeze(1), target[batch]).squeeze(1)
     inliers = (torch.linalg.norm(ref_points - aligned, dim=-1) < radius).float()
     counts = torch.bincount(batch, minlength=batch_size).float()
-    ratios = scatter(inliers, batch, dim=0, dim_size=batch_size, reduce="sum") / counts
-    return ratios
+    return scatter(inliers, batch, dim=0, dim_size=batch_size, reduce="sum") / counts
 
 
 def alignment_error(
     src_points: Tensor,
     transform: Tensor,
     target: Tensor,
-    batch: OptTensor = None,
-    batch_size: Optional[int] = None,
+    batch: Tensor,
 ) -> Tensor:
     r"""Mean distance between the source points moved by the estimated transform and by the ground truth.
 
@@ -176,10 +159,9 @@ def alignment_error(
 
     Args:
         src_points: Source points, shape $(N, 3)$.
-        transform: Estimated transform of each pair, shape $(4, 4)$ or $(B, 4, 4)$.
-        target: Ground-truth transform of each pair, same shape.
-        batch: Per-point pair index, shape $(N,)$; `None` scores a single pair.
-        batch_size: Number of pairs $B$; `None` takes it from a batched `target`, else from `batch`.
+        transform: Estimated transform of each pair, shape $(B, 4, 4)$.
+        target: Ground-truth transform of each pair, shape $(B, 4, 4)$.
+        batch: Per-point pair index, shape $(N,)$.
 
     Returns:
         The mean displacement of each pair, shape $(B,)$.
@@ -190,21 +172,57 @@ def alignment_error(
         >>> from torch_pointcloud.metrics import alignment_error
         >>> estimate = torch.eye(4)
         >>> estimate[0, 3] = 0.2
-        >>> round(alignment_error(torch.rand(10, 3), estimate, torch.eye(4)).item(), 4)
+        >>> batch = torch.zeros(10, dtype=torch.long)
+        >>> round(alignment_error(torch.rand(10, 3), estimate.unsqueeze(0), torch.eye(4).unsqueeze(0), batch).item(), 4)
         0.2
 
         ```
     """
-    if batch is None:
-        batch = torch.zeros(src_points.size(0), dtype=torch.long, device=src_points.device)
-    if batch_size is None:
-        batch_size = target.size(0) if target.ndim == 3 else (int(batch.max()) + 1 if batch.numel() else 1)
-    if transform.ndim == 2:
-        transform = transform.unsqueeze(0).expand(batch_size, 4, 4)
-    if target.ndim == 2:
-        target = target.unsqueeze(0).expand(batch_size, 4, 4)
-
     estimated = transform_points(src_points.unsqueeze(1), transform[batch]).squeeze(1)
     expected = transform_points(src_points.unsqueeze(1), target[batch]).squeeze(1)
     distances = torch.linalg.norm(estimated - expected, dim=-1)
-    return scatter(distances, batch, dim=0, dim_size=batch_size, reduce="mean")
+    return scatter(distances, batch, dim=0, dim_size=target.size(0), reduce="mean")
+
+
+def feature_matching_recall(inlier_ratios: Tensor, threshold: float = 0.05) -> Tensor:
+    r"""Fraction of pairs whose inlier ratio reaches `threshold`.
+
+    Args:
+        inlier_ratios: Inlier ratio of each pair, shape $(P,)$.
+        threshold: Minimum inlier ratio of a matched pair, $0.05$ on 3DMatch.
+
+    Returns:
+        The feature matching recall (FMR), a scalar in $[0, 1]$.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.metrics import feature_matching_recall
+        >>> feature_matching_recall(torch.tensor([0.0, 0.04, 0.05, 0.7])).item()
+        0.5
+
+        ```
+    """
+    return (inlier_ratios >= threshold).float().mean()
+
+
+def registration_recall(errors: Tensor, threshold: float = 0.2) -> Tensor:
+    r"""Fraction of pairs whose alignment error is under `threshold`.
+
+    Args:
+        errors: Error of each pair, shape $(P,)$: the `registration_rmse` on 3DMatch.
+        threshold: Error under which a pair is registered, $0.2$ m on 3DMatch.
+
+    Returns:
+        The registration recall (RR), a scalar in $[0, 1]$.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.metrics import registration_recall
+        >>> registration_recall(torch.tensor([0.01, 0.1, 0.2, 0.5])).item()
+        0.5
+
+        ```
+    """
+    return (errors < threshold).float().mean()

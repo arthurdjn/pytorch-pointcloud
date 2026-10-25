@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch import Tensor
+from torch_geometric.utils import index_to_mask
 
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.utils.types import OptTensor
@@ -152,8 +153,7 @@ def point_to_node_partition(
     """
     sq_dist_mat = pairwise_squared_distance(nodes, points)  # (M, N)
     point_to_node = sq_dist_mat.min(dim=0)[1]  # (N,)
-    node_masks = torch.zeros(nodes.size(0), dtype=torch.bool, device=nodes.device)
-    node_masks.index_fill_(0, point_to_node, True)
+    node_masks = index_to_mask(point_to_node, size=nodes.size(0))
 
     matching_masks = torch.zeros_like(sq_dist_mat, dtype=torch.bool)
     point_indices = torch.arange(points.size(0), device=points.device)
@@ -220,7 +220,7 @@ def node_correspondences(
         ```
     """
     src_nodes = transform_points(src_nodes, transform)
-    src_knn_points = transform_points(src_knn_points.reshape(-1, 3), transform).view_as(src_knn_points)
+    src_knn_points = transform_points(src_knn_points, transform)
 
     if ref_masks is None:
         ref_masks = torch.ones(ref_nodes.size(0), dtype=torch.bool, device=ref_nodes.device)

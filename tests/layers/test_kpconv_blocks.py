@@ -205,7 +205,7 @@ def test_group_norm_blocks_shapes(data: Dict[str, Tensor]) -> None:
     assert isinstance(residual.unary1, LinearGroupNormBlock) and isinstance(residual.shortcut, LinearGroupNormBlock)
 
     same = KPResidualGroupNormBlock(64, 64, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, num_groups=8)
-    assert isinstance(same.shortcut, torch.nn.Identity)
+    assert same.shortcut is None
     assert same(out, data["pos"], data["edge_index"], data["batch"]).shape == (len(data["pos"]), 64)
 
 

@@ -14,7 +14,7 @@ from torch_geometric.utils import scatter
 
 from torch_pointcloud.config import CACHE_DIR
 from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import PackedGroupNorm, create_norm
+from torch_pointcloud.layers.norms import GroupNorm, create_norm
 from torch_pointcloud.ops.cluster import dense_neighbors, gather_neighbors
 from torch_pointcloud.ops.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.types import OptTensor, PairOptTensor
@@ -487,7 +487,7 @@ class KPResidualBlock(nn.Module):
 
 
 class LinearGroupNormBlock(nn.Module):
-    r"""Linear layer followed by a `PackedGroupNorm` and an optional LeakyReLU, the unary block of the KPConv-FPN
+    r"""Linear layer followed by a `GroupNorm` and an optional LeakyReLU, the unary block of the KPConv-FPN
     registration backbones.
 
     Args:
@@ -495,8 +495,6 @@ class LinearGroupNormBlock(nn.Module):
         out_channels: Number of output channels.
         num_groups: Number of channel groups of the normalization.
         act: Whether to apply the LeakyReLU after the normalization.
-        negative_slope: Negative slope of the LeakyReLU.
-        bias: Whether the linear layer has a bias.
 
     Shape:
         - Input: $(N, C_\text{in})$ features and an optional $(N,)$ batch index of the normalization.
@@ -509,13 +507,11 @@ class LinearGroupNormBlock(nn.Module):
         out_channels: int,
         num_groups: int = 32,
         act: bool = True,
-        negative_slope: float = 0.1,
-        bias: bool = True,
     ) -> None:
         super().__init__()
-        self.linear = nn.Linear(in_channels, out_channels, bias=bias)
-        self.norm = PackedGroupNorm(num_groups, out_channels)
-        self.act = nn.LeakyReLU(negative_slope) if act else nn.Identity()
+        self.linear = nn.Linear(in_channels, out_channels)
+        self.norm = GroupNorm(num_groups, out_channels)
+        self.act = nn.LeakyReLU(0.1) if act else nn.Identity()
 
     def forward(self, x: Tensor, batch: Optional[Tensor] = None) -> Tensor:
         x = self.linear(x)
@@ -524,7 +520,7 @@ class LinearGroupNormBlock(nn.Module):
 
 
 class KPConvGroupNormBlock(nn.Module):
-    r"""Kernel point convolution followed by a `PackedGroupNorm` and a LeakyReLU, the stem of the KPConv-FPN
+    r"""Kernel point convolution followed by a `GroupNorm` and a LeakyReLU, the stem of the KPConv-FPN
     registration backbones.
 
     The convolution normalizes its output by the number of neighbors (`KPConv(normalize=True)`).
@@ -536,8 +532,6 @@ class KPConvGroupNormBlock(nn.Module):
         kp_radius: Radius of the sphere the kernel points are placed on.
         kp_sigma: Kernel extent, the distance over which a kernel point still influences a neighbor.
         num_groups: Number of channel groups of the normalization.
-        negative_slope: Negative slope of the LeakyReLU.
-        bias: Whether the convolution has a bias.
 
     Shape:
         - Input: $(N_s, C_\text{in})$ features, $(N, 3)$ positions or a $((N_s, 3), (N_t, 3))$ pair, a $(2, E)$
@@ -553,8 +547,6 @@ class KPConvGroupNormBlock(nn.Module):
         kp_radius: float,
         kp_sigma: float,
         num_groups: int = 32,
-        negative_slope: float = 0.1,
-        bias: bool = True,
     ) -> None:
         super().__init__()
         self.conv = KPConv(
@@ -564,11 +556,11 @@ class KPConvGroupNormBlock(nn.Module):
             kernel_size=kernel_size,
             kp_radius=kp_radius,
             kp_sigma=kp_sigma,
-            bias=bias,
+            bias=True,
             normalize=True,
         )
-        self.norm = PackedGroupNorm(num_groups, out_channels)
-        self.act = nn.LeakyReLU(negative_slope)
+        self.norm = GroupNorm(num_groups, out_channels)
+        self.act = nn.LeakyReLU(0.1)
 
     def forward(
         self,
@@ -600,8 +592,6 @@ class KPResidualGroupNormBlock(nn.Module):
         strided: Whether the block pools a support cloud onto a coarser query cloud.
         max_num_neighbors: Width of the neighbor table of a strided block, the cap of the search that produced the
             edges.
-        negative_slope: Negative slope of the LeakyReLUs.
-        bias: Whether the convolution and the linear layers have a bias.
 
     Shape:
         - Input: $(N_s, C_\text{in})$ features, $(N, 3)$ positions or a $((N_s, 3), (N_t, 3))$ pair, a $(2, E)$
@@ -620,8 +610,6 @@ class KPResidualGroupNormBlock(nn.Module):
         num_groups: int = 32,
         strided: bool = False,
         max_num_neighbors: Optional[int] = None,
-        negative_slope: float = 0.1,
-        bias: bool = True,
     ) -> None:
         super().__init__()
         if strided and max_num_neighbors is None:
@@ -633,30 +621,15 @@ class KPResidualGroupNormBlock(nn.Module):
         self.strided = strided
         self.max_num_neighbors = max_num_neighbors
 
-        self.unary1: nn.Module
+        self.unary1: Optional[LinearGroupNormBlock] = None
         if in_channels != mid_channels:
-            self.unary1 = LinearGroupNormBlock(
-                in_channels, mid_channels, num_groups, negative_slope=negative_slope, bias=bias
-            )
-        else:
-            self.unary1 = nn.Identity()
-        self.conv = KPConvGroupNormBlock(
-            mid_channels,
-            mid_channels,
-            kernel_size,
-            kp_radius,
-            kp_sigma,
-            num_groups=num_groups,
-            negative_slope=negative_slope,
-            bias=bias,
-        )
-        self.unary2 = LinearGroupNormBlock(mid_channels, out_channels, num_groups, act=False, bias=bias)
-        self.shortcut: nn.Module
+            self.unary1 = LinearGroupNormBlock(in_channels, mid_channels, num_groups)
+        self.conv = KPConvGroupNormBlock(mid_channels, mid_channels, kernel_size, kp_radius, kp_sigma, num_groups)
+        self.unary2 = LinearGroupNormBlock(mid_channels, out_channels, num_groups, act=False)
+        self.shortcut: Optional[LinearGroupNormBlock] = None
         if in_channels != out_channels:
-            self.shortcut = LinearGroupNormBlock(in_channels, out_channels, num_groups, act=False, bias=bias)
-        else:
-            self.shortcut = nn.Identity()
-        self.act = nn.LeakyReLU(negative_slope)
+            self.shortcut = LinearGroupNormBlock(in_channels, out_channels, num_groups, act=False)
+        self.act = nn.LeakyReLU(0.1)
 
     def forward(
         self,
@@ -671,10 +644,10 @@ class KPResidualGroupNormBlock(nn.Module):
             num_targets = pos[1].size(0) if isinstance(pos, tuple) else pos.size(0)
             table, _ = dense_neighbors(edge_index, x.size(0), num_targets, max_num_neighbors=self.max_num_neighbors)
             shortcut = gather_neighbors(x, table).max(dim=1).values
-        if isinstance(self.shortcut, LinearGroupNormBlock):
+        if self.shortcut is not None:
             shortcut = self.shortcut(shortcut, batch_target)
 
-        if isinstance(self.unary1, LinearGroupNormBlock):
+        if self.unary1 is not None:
             x = self.unary1(x, batch_source)
         x = self.conv(x, pos, edge_index, batch_target)
         x = self.unary2(x, batch_target)

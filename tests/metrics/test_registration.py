@@ -3,7 +3,15 @@ import math
 import pytest
 import torch
 
-from torch_pointcloud.metrics import inlier_ratio, registration_rmse, rotation_error, translation_error
+from torch_pointcloud.metrics import (
+    alignment_error,
+    feature_matching_recall,
+    inlier_ratio,
+    registration_recall,
+    registration_rmse,
+    rotation_error,
+    translation_error,
+)
 
 
 def _transform(degrees: float, translation: list[float]) -> torch.Tensor:
@@ -65,14 +73,14 @@ def test_inlier_ratio_per_pair() -> None:
 
 def test_inlier_ratio_empty_pair_is_nan() -> None:
     src = torch.zeros(2, 3)
-    ratios = inlier_ratio(src, src, torch.eye(4), radius=0.1, batch=torch.tensor([0, 0]), batch_size=2)
+    target = torch.eye(4).repeat(3, 1, 1)
+    ratios = inlier_ratio(src, src, target, radius=0.1, batch=torch.tensor([0, 0]))
+    assert ratios.shape == (3,)
     assert ratios[0].item() == 1.0
-    assert torch.isnan(ratios[1])
+    assert torch.isnan(ratios[1]) and torch.isnan(ratios[2])
 
 
 def test_alignment_error_per_pair() -> None:
-    from torch_pointcloud.metrics import alignment_error
-
     points = torch.rand(20, 3)
     batch = torch.tensor([0] * 12 + [1] * 8)
     transform = torch.stack([_transform(0.0, [0.3, 0.0, 0.0]), _transform(0.0, [0.0, 0.0, 0.0])])
@@ -81,10 +89,13 @@ def test_alignment_error_per_pair() -> None:
     assert torch.allclose(errors, torch.tensor([0.3, 0.4]), atol=1e-6)
 
 
-def test_inlier_ratio_batch_size_follows_batched_target() -> None:
-    src = torch.zeros(2, 3)
-    target = torch.eye(4).repeat(3, 1, 1)
-    ratios = inlier_ratio(src, src, target, radius=0.1, batch=torch.tensor([0, 0]))
-    assert ratios.shape == (3,)
-    assert ratios[0].item() == 1.0
-    assert torch.isnan(ratios[1]) and torch.isnan(ratios[2])
+def test_feature_matching_recall_counts_ratios_at_threshold() -> None:
+    ratios = torch.tensor([0.0, 0.04, 0.05, 0.7])
+    assert feature_matching_recall(ratios).item() == pytest.approx(0.5)
+    assert feature_matching_recall(ratios, threshold=0.5).item() == pytest.approx(0.25)
+
+
+def test_registration_recall_counts_errors_under_threshold() -> None:
+    errors = torch.tensor([0.01, 0.1, 0.2, 0.5])
+    assert registration_recall(errors).item() == pytest.approx(0.5)
+    assert registration_recall(errors, threshold=1.0).item() == pytest.approx(1.0)

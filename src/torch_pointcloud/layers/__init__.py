@@ -41,7 +41,7 @@ from .kpconv_blocks import (
     create_kernel_points,
 )
 from .linear_blocks import LinearBlock
-from .norms import PackedGroupNorm, create_norm
+from .norms import GroupNorm, create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from .pdnorm import PDNorm
@@ -151,7 +151,7 @@ __all__ = [
     "LinearGroupNormBlock",
     "create_kernel_points",
     "LinearBlock",
-    "PackedGroupNorm",
+    "GroupNorm",
     "create_norm",
     "OctreeAttention",
     "OctreeRelativePositionEncoding",

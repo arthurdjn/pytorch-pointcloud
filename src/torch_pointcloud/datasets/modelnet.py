@@ -783,8 +783,6 @@ class ModelNet40Registration(ModelNet40Hdf5):
             force_process=force_process,
             show_progress=show_progress,
         )
-        self.classes_subset = classes
-        self.asymmetric = asymmetric
         self.num_points = num_points
         self.rotation_magnitude = rotation_magnitude
         self.translation_magnitude = translation_magnitude
@@ -799,7 +797,7 @@ class ModelNet40Registration(ModelNet40Hdf5):
     @property
     def name(self) -> str:
         """The pairs are drawn from the `ModelNet40Hdf5` shards, so the two datasets share their directory."""
-        return "ModelNet40Hdf5"
+        return ModelNet40Hdf5.__name__
 
     def sample_pair(self, points: np.ndarray, rng: np.random.RandomState) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""Two partial views of a shape and the transform of the source onto the reference."""
