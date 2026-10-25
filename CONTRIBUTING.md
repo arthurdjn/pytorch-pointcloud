@@ -64,6 +64,9 @@ or test individual files via, *e.g.*, `uv run --no-sync pytest tests/transforms/
 Tests that need an optional dependency or a GPU are skipped when it is missing.
 The code blocks of the docstrings and the docs pages run as tests with `make doctest-docs` (`pytest --run-docs`); a
 block that cannot run is tagged `{.python notest}`.
+`make test-hub` (`pytest tests/models/test_hub_sync.py --run-hub`) compares the Hugging Face Hub repositories with the
+registry: card metrics, `config.json` and pinned weights. CI runs it nightly and after a push to `main` that touches
+the models, not on pull requests, since the cards are pushed after a change is merged.
 
 ## Continuous Integration
 
