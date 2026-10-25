@@ -130,14 +130,12 @@ def _assign_point_blocks(
     block_idx = torch.stack([(unique_flat // strides[j]) % n_per_dim[j] for j in range(n_tiled)], dim=1)
     block_lo_tiled = lo + block_idx.to(pos.dtype) * step
     block_hi_tiled = block_lo_tiled + block_size
-    bbox_groups: List[Tensor] = []
-    for row_lo, row_hi in zip(block_lo_tiled, block_hi_tiled):
-        b_lo = lo_full.clone()
-        b_hi = hi_full.clone()
-        for j, ax in enumerate(tile_axes):
-            b_lo[ax] = row_lo[j]
-            b_hi[ax] = row_hi[j]
-        bbox_groups.append(torch.cat([b_lo, b_hi]))
+    num_blocks = block_idx.size(0)
+    bbox_lo = lo_full.expand(num_blocks, -1).clone()
+    bbox_hi = hi_full.expand(num_blocks, -1).clone()
+    bbox_lo[:, tile_axes] = block_lo_tiled.to(bbox_lo.dtype)
+    bbox_hi[:, tile_axes] = block_hi_tiled.to(bbox_hi.dtype)
+    bbox_groups = list(torch.cat([bbox_lo, bbox_hi], dim=1))
 
     point_groups = list(point_ids.split(sizes))
     weight_groups = list(weights.split(sizes))

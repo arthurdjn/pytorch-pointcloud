@@ -128,7 +128,7 @@ BENCHMARKS = [
     pytest.param(
         "point_transformer_v3/segmentation_gridnethd_benchmark.py",
         ("--model", "ptv3.gridnet-hd.heig-vd-geo", "--limit", "1"),
-        marks=_GPU_SPCONV,
+        marks=(*_GPU_SPCONV, _REQUIRES_LASPY),
         id="ptv3/gridnethd",
     ),
     pytest.param(

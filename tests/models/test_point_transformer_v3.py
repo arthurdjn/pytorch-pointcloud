@@ -7,6 +7,7 @@ from torch import Tensor, nn
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Segmentation,
+    batch_norm_segmentation_checkpoint_filter_fn,
     encoder_checkpoint_filter_fn,
     segmentation_checkpoint_filter_fn,
     serialize,
@@ -351,13 +352,13 @@ def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_orde
     assert all(key in model_seg_layer_norm.state_dict() for key in filtered)
 
 
-def test_segmentation_checkpoint_filter_fn_wraps_the_batch_norms_of_a_training_checkpoint(
+def test_batch_norm_segmentation_checkpoint_filter_fn_wraps_the_norms_of_a_training_checkpoint(
     model_seg: PointTransformerV3Segmentation,
 ) -> None:
     """A distributed training checkpoint of a sparse-conv stem, batch-norm model: the `module.` prefix goes, the
     decoder stages are reversed and the stem, pooling and unpooling norms land under their `module`."""
     assert len(model_seg.decoder.blocks) == 2
-    filtered = segmentation_checkpoint_filter_fn(dict(_TRAINING_SEGMENTATION_KEYS), model_seg)
+    filtered = batch_norm_segmentation_checkpoint_filter_fn(dict(_TRAINING_SEGMENTATION_KEYS), model_seg)
     assert sorted(filtered) == [
         "decoder.blocks.0.upsample.norm_skip.module.bias",
         "decoder.blocks.1.blocks.0.attn.qkv.weight",

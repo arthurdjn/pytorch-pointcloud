@@ -12,7 +12,7 @@ leaderboard. The Hub release ships one `.las` file per zone.
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Tuple, get_args
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Tuple, Union, get_args
 
 import numpy as np
 import torch
@@ -100,10 +100,12 @@ def load_gridnethd_data(path: PathLike, /) -> Dict[str, Tensor]:
     for axis, coordinates in enumerate((las.x, las.y, las.z)):
         coordinates = np.asarray(coordinates)
         pos[:, axis] = coordinates - coordinates.min()
-    rgb = np.stack([las.red, las.green, las.blue], axis=1)
+    color = np.empty((las.header.point_count, 3), dtype=np.uint8)
+    for channel, values in enumerate((las.red, las.green, las.blue)):
+        color[:, channel] = np.asarray(values) >> 8
     data: Dict[str, Tensor] = {
         DataKeys.POS: torch.from_numpy(pos),
-        DataKeys.COLOR: torch.from_numpy((rgb >> 8).astype(np.uint8)),
+        DataKeys.COLOR: torch.from_numpy(color),
         DataKeys.INTENSITY: torch.from_numpy(np.asarray(las.intensity, dtype=np.float32)).unsqueeze(1),
         DataKeys.RETURN_NUMBER: torch.from_numpy(np.asarray(las.return_number, dtype=np.int64)).unsqueeze(1),
         DataKeys.NUMBER_OF_RETURNS: torch.from_numpy(np.asarray(las.number_of_returns, dtype=np.int64)).unsqueeze(1),
@@ -220,9 +222,10 @@ class GridNetHD(PointCloudDataset):
             force: Whether to download the files again when they exist.
         """
         base_url = f"{self.data_url}/resolve/{self.revision}"
-        download_url(f"{base_url}/split.json", self.split_path, overwrite=force)
+        overwrite: Union[bool, Literal["incomplete"]] = True if force else "incomplete"
+        download_url(f"{base_url}/split.json", self.split_path, overwrite=overwrite)
         for zone in self.read_split()[self.split]:
-            download_url(f"{base_url}/{zone}/lidar/{zone}.las", self.zone_path(zone), overwrite=force)
+            download_url(f"{base_url}/{zone}/lidar/{zone}.las", self.zone_path(zone), overwrite=overwrite)
 
     def __len__(self) -> int:
         return len(self.paths)

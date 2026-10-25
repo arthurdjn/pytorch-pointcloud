@@ -1736,6 +1736,22 @@ _DECODER_STAGE_CHECKPOINT_MAPPING = {
 }
 
 
+def _segmentation_checkpoint_mapping(model: PointTransformerV3Segmentation) -> Dict[str, str]:
+    """The key mapping of a released segmentation checkpoint (a `backbone.` encoder and decoder with a `seg_head`)
+    to the `PointTransformerV3Segmentation` ones.
+
+    The released decoder names its stages after the encoder stage they upsample to, so the deepest runs first;
+    `model` numbers them in execution order: `dec{i}` of `n` stages becomes `decoder.blocks.{n - 1 - i}`.
+    """
+    mapping = {"backbone." + source: "encoder." + target for source, target in _ENCODER_CHECKPOINT_MAPPING.items()}
+    num_stages = len(model.decoder.blocks)
+    for i in range(num_stages):
+        for source, target in _DECODER_STAGE_CHECKPOINT_MAPPING.items():
+            mapping[f"backbone.dec.dec{i}.{source}"] = f"decoder.blocks.{num_stages - 1 - i}.{target}"
+    mapping["seg_head.{param}"] = "head.{param}"
+    return mapping
+
+
 def _wrap_batch_norm(target: str) -> str:
     """The stem, pooling and unpooling norms of a `norm="batch_norm"` model hold their `BatchNorm1d` under `module`."""
     return target.replace(".norm.{param}", ".norm.module.{param}").replace(
@@ -1744,12 +1760,8 @@ def _wrap_batch_norm(target: str) -> str:
 
 
 def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
-    """Rename the keys of a released segmentation checkpoint (a `backbone.` encoder and decoder with a `seg_head`,
-    with or without the `module.` prefix of a distributed training) to the `PointTransformerV3Segmentation` ones, as
-    the `pretrained_filter_fn` of a `WeightsDict`.
-
-    The released decoder names its stages after the encoder stage they upsample to, so the deepest runs first;
-    `model` numbers them in execution order: `dec{i}` of `n` stages becomes `decoder.blocks.{n - 1 - i}`.
+    """Rename the keys of a released segmentation checkpoint (a `backbone.` encoder and decoder with a `seg_head`) to
+    the `PointTransformerV3Segmentation` ones, as the `pretrained_filter_fn` of a `WeightsDict`.
 
     Args:
         state_dict: State dict keyed as in the released checkpoint file.
@@ -1759,15 +1771,24 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
         The state dict keyed as `model` expects.
     """
     assert isinstance(model, PointTransformerV3Segmentation)
+    return transform_state_dict(state_dict, _segmentation_checkpoint_mapping(model))
+
+
+def batch_norm_segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Rename the keys of a distributed training checkpoint of a `norm="batch_norm"` segmentation model (`module.`
+    before every key; the stem, pooling and unpooling norms held under `module` by the model) to the
+    `PointTransformerV3Segmentation` ones, as the `pretrained_filter_fn` of a `WeightsDict`.
+
+    Args:
+        state_dict: State dict keyed as in the training checkpoint file.
+        model: `PointTransformerV3Segmentation` the state dict is loaded into.
+
+    Returns:
+        The state dict keyed as `model` expects.
+    """
+    assert isinstance(model, PointTransformerV3Segmentation)
     state_dict = {key.removeprefix("module."): value for key, value in state_dict.items()}
-    mapping = {"backbone." + source: "encoder." + target for source, target in _ENCODER_CHECKPOINT_MAPPING.items()}
-    num_stages = len(model.decoder.blocks)
-    for i in range(num_stages):
-        for source, target in _DECODER_STAGE_CHECKPOINT_MAPPING.items():
-            mapping[f"backbone.dec.dec{i}.{source}"] = f"decoder.blocks.{num_stages - 1 - i}.{target}"
-    mapping["seg_head.{param}"] = "head.{param}"
-    if "encoder.stem.norm.module.weight" in model.state_dict():
-        mapping = {source: _wrap_batch_norm(target) for source, target in mapping.items()}
+    mapping = {source: _wrap_batch_norm(target) for source, target in _segmentation_checkpoint_mapping(model).items()}
     return transform_state_dict(state_dict, mapping)
 
 
@@ -2109,7 +2130,14 @@ _PTV3_GRIDNETHD_TRANSFORMS = T.Compose(
             pos_key=DataKeys.POS,
             pos_reduce="first",
             dst_pos_grid_key=DataKeys.POS_GRID,
-            keys=[DataKeys.X, DataKeys.COLOR, DataKeys.SEGMENT],
+            keys=[
+                DataKeys.X,
+                DataKeys.COLOR,
+                DataKeys.INTENSITY,
+                DataKeys.RETURN_NUMBER,
+                DataKeys.NUMBER_OF_RETURNS,
+                DataKeys.SEGMENT,
+            ],
             reduce="first",
             size=0.05,
             method="fnv",
@@ -2127,7 +2155,7 @@ _PTV3_GRIDNETHD_TRANSFORMS = T.Compose(
     weights=WeightsDict(
         # NOTE: the authors' training checkpoint, 554 MB for 185 MB of weights; the rest is optimizer state.
         url="hf://heig-vd-geo/PTv3_GridNet-HD_baseline/resolve/7bc24896b9b8cddd86335e90422e8834b69202a5/model_best_PTv3.pth",
-        pretrained_filter_fn=segmentation_checkpoint_filter_fn,
+        pretrained_filter_fn=batch_norm_segmentation_checkpoint_filter_fn,
         dataset="gridnet-hd",
         # NOTE: the paper scores the test zones, whose labels are hidden: 69.32 over ten views, 66.86 in one; this is
         # the six validation zones through the same chunked pipeline in one view.

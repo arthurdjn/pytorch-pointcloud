@@ -1,12 +1,5 @@
-"""Benchmark Point Transformer V3 semantic segmentation on GridNet-HD, 20 m chunks of the zones scored at full
-resolution.
-
-NOTE: the paper's 69.32 mIoU is scored on the test zones, whose labels the leaderboard keeps, over ten views (66.86 in
-one view); this script scores the six validation zones in one view: each zone is sampled to one point per 2 cm voxel,
-cut into 20 m chunks every 10 m, each chunk sampled to one point per 2.5 cm voxel and predicted by 5 cm
-voxel-partition fragments, and every original point takes the prediction of its 2 cm voxel, averaged over the chunks
-that cover it.
-"""
+"""Benchmark Point Transformer V3 semantic segmentation on the GridNet-HD validation zones (the test labels are hidden),
+20 m chunks in one view scored at full resolution."""
 
 from argparse import ArgumentParser, Namespace
 from typing import Any, Dict
