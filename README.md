@@ -11,8 +11,11 @@
     <a href="https://pypi.org/project/torch-pointcloud/"><img src="https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white" alt="PyPI"></a>
     <a href="https://pypi.org/project/torch-pointcloud/"><img src="https://img.shields.io/pypi/pyversions/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white" alt="Python"></a>
     <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/pytorch-2.8+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white" alt="PyTorch"></a>
-    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white" alt="Tests"></a>
     <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C" alt="License"></a>
+  </p>
+  <p>
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white" alt="Tests"></a>
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/hub-sync.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/hub-sync.yml?branch=main&label=hub%20sync&labelColor=11001C&logo=huggingface&logoColor=white" alt="Hub sync"></a>
   </p>
   <p>
     <a href="https://pytorch-pointcloud.org/">Documentation</a>
