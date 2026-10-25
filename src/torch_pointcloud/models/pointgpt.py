@@ -1,9 +1,9 @@
-"""PointGPT classification and generative pretraining models.
+"""PointGPT classification, part-segmentation and generative pretraining models.
 
 {{ paper("2305.11487") }}
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn.functional as F
@@ -13,12 +13,12 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import AdaptivePoolLike, PointPatchEmbed, create_adaptive_pool
+from torch_pointcloud.layers import AdaptivePoolLike, PointNet2FeaturePropagation, PointPatchEmbed, create_adaptive_pool
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
-from ._base import ClassificationModel, PretrainingModel
+from ._base import ClassificationModel, PartSegmentationModel, PretrainingModel
 from ._registry import WeightsDict, register_model
 
 
@@ -198,7 +198,8 @@ class PointGPTExtractor(nn.Module):
     :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT). A start-of-sequence
     token is prepended to the patch-token sequence, a stack of causally-masked `PointGPTBlock` layers
     consumes the tokens plus their positional embedding, and a final layer normalization produces the
-    encoded points. This is the backbone reused for downstream classification.
+    encoded points. This is the backbone reused for downstream classification and part segmentation;
+    `fetch_idx` returns the hidden states after the given blocks instead, before the final normalization.
 
     Args:
         embed_dim: The token dimension $C$.
@@ -209,7 +210,7 @@ class PointGPTExtractor(nn.Module):
 
     Shape:
         - Input: $(B, L, C)$ tokens, $(B, L + 1, C)$ positions, and an $(L + 1, L + 1)$ mask.
-        - Output: $(B, L + 1, C)$ encoded points.
+        - Output: $(B, L + 1, C)$ encoded points, or one $(B, L + 1, C)$ hidden state per index of `fetch_idx`.
 
     Example:
         ```python
@@ -245,7 +246,25 @@ class PointGPTExtractor(nn.Module):
     def reset_parameters(self) -> None:
         nn.init.normal_(self.sos)
 
-    def forward(self, x: Tensor, pos: Tensor, attn_mask: Tensor, shift: bool = False) -> Tensor:
+    @overload
+    def forward(
+        self, x: Tensor, pos: Tensor, attn_mask: Tensor, shift: bool = ..., *, fetch_idx: Sequence[int]
+    ) -> List[Tensor]: ...
+
+    @overload
+    def forward(
+        self, x: Tensor, pos: Tensor, attn_mask: Tensor, shift: bool = ..., *, fetch_idx: None = None
+    ) -> Tensor: ...
+
+    def forward(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        attn_mask: Tensor,
+        shift: bool = False,
+        *,
+        fetch_idx: Optional[Sequence[int]] = None,
+    ) -> Any:
         batch = x.size(0)
         x = x.transpose(0, 1)
         pos = pos.transpose(0, 1)
@@ -256,8 +275,13 @@ class PointGPTExtractor(nn.Module):
         else:
             x = torch.cat([sos, x], dim=0)
 
-        for layer in self.layers:
+        features: List[Tensor] = []
+        for i, layer in enumerate(self.layers):
             x = layer(x + pos, attn_mask)
+            if fetch_idx is not None and i in fetch_idx:
+                features.append(x.transpose(0, 1))
+        if fetch_idx is not None:
+            return features
         x = self.ln_f(x)
         return x.transpose(0, 1)
 
@@ -536,6 +560,276 @@ class PointGPTClassification(ClassificationModel):
         return self.forward_head(x)
 
 
+class PointGPTPartSegmentation(PartSegmentationModel):
+    r"""PointGPT part-segmentation model.
+
+    Implements the segmentation model (`segmentation/models/pt.py`) of :arxiv: [PointGPT: Auto-regressively
+    Generative Pre-training from Point Clouds](https://arxiv.org/abs/2305.11487), adapted from
+    :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT). Patches are tokenized
+    with a mini-PointNet, ordered by a greedy nearest-neighbor ("simplified Morton") traversal of the
+    centers, and consumed by the causally-masked GPT extractor with a start-of-sequence and a class token.
+    The normalized hidden states of three extractor blocks are concatenated per patch and propagated back to
+    every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`); a
+    category-conditioned global branch (max- and mean-pooled patch features plus the embedded category
+    one-hot) is fused before the per-point classifier. Every sample in the packed batch must contain the
+    same number of points; a ragged batch raises `ValueError`.
+
+    Args:
+        in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for
+            coordinates only).
+        num_classes: The number of output part classes (across all categories).
+        num_categories: The number of object categories for the category one-hot branch.
+        embed_dim: The transformer / token-embedding dimension.
+        depth: The number of extractor blocks.
+        num_heads: The number of attention heads.
+        num_groups: The number of patches $G$.
+        group_size: The number of points $M$ per patch.
+        decoder_depth: The number of generator blocks (kept for weight compatibility).
+        encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
+        encoder_global_channels: Hidden widths of the patch embedder's per-patch MLP.
+        propagation_channels: Widths of the feature-propagation MLP, the last one being its output width.
+        head_channels: Hidden widths of the per-point classifier.
+        dropout: The dropout rate after the first layer of the per-point classifier.
+        act: The activation of the transformer MLPs.
+        act_kwargs: Keyword arguments for the activation.
+        spatial_dim: The spatial dimension of the input point cloud.
+
+    Shape:
+        - Input: $(N, 3)$, $(N,)$, and a category one-hot $(B, \text{num\_categories})$.
+        - Output: $(N, \text{num\_classes})$.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models.pointgpt import PointGPTPartSegmentation
+
+        model = PointGPTPartSegmentation(in_channels=0, num_classes=50, num_categories=16)
+        pos = torch.randn(4096, 3)
+        batch = torch.cat([torch.zeros(2048), torch.ones(2048)]).long()
+        category = torch.nn.functional.one_hot(torch.tensor([3, 7]), 16).float()
+        logits = model(None, pos, batch, category)
+        print(logits.shape)
+        ```
+    """
+
+    fetch_idx: Tuple[int, int, int] = (3, 7, 11)
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        num_categories: int = 16,
+        embed_dim: int = 384,
+        depth: int = 12,
+        num_heads: int = 6,
+        num_groups: int = 128,
+        group_size: int = 32,
+        decoder_depth: int = 4,
+        encoder_local_channels: Sequence[int] = (128, 256),
+        encoder_global_channels: Sequence[int] = (512,),
+        propagation_channels: Sequence[int] = (1536, 1024),
+        head_channels: Sequence[int] = (512, 256),
+        dropout: float = 0.5,
+        act: Union[str, Callable, None] = "gelu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        spatial_dim: int = 3,
+    ) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
+        if max(self.fetch_idx) >= depth:
+            raise ValueError(
+                f"`fetch_idx` {self.fetch_idx} requires at least {max(self.fetch_idx) + 1} blocks; got depth={depth}."
+            )
+
+        self.embed_dim = embed_dim
+        self.depth = depth
+        self.num_heads = num_heads
+        self.num_groups = num_groups
+        self.group_size = group_size
+        self.decoder_depth = decoder_depth
+        self.encoder_local_channels = encoder_local_channels
+        self.encoder_global_channels = encoder_global_channels
+        self.propagation_channels = propagation_channels
+        self.head_channels = head_channels
+        self.dropout = dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.spatial_dim = spatial_dim
+
+        self.encoder = self.configure_encoder()
+        self.pos_embed = self.configure_pos_embed()
+
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.cls_pos = nn.Parameter(torch.randn(1, 1, embed_dim))
+        self.sos_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
+
+        self.blocks = self.configure_blocks()
+        self.generator_blocks = self.configure_generator_blocks()
+        self.norm = nn.LayerNorm(embed_dim)
+
+        self.label_conv = self.configure_label_conv()
+        self.propagation_0 = self.configure_propagation_0()
+        self.head = self.configure_head()
+        self.reset_parameters()
+
+    def configure_encoder(self) -> PointPatchEmbed:
+        """Build the mini-PointNet patch embedder tokenizing each patch."""
+        return PointPatchEmbed(
+            embed_dim=self.embed_dim,
+            in_channels=self.spatial_dim + self.in_channels,
+            local_channels=self.encoder_local_channels,
+            global_channels=self.encoder_global_channels,
+        )
+
+    def configure_pos_embed(self) -> PositionEmbeddingSine:
+        """Build the sinusoidal positional embedding of the patch centers."""
+        return PositionEmbeddingSine(self.spatial_dim, self.embed_dim, temperature=1.0)
+
+    def configure_blocks(self) -> PointGPTExtractor:
+        """Build the causally-masked GPT extractor."""
+        return PointGPTExtractor(self.embed_dim, self.num_heads, self.depth, act=self.act, act_kwargs=self.act_kwargs)
+
+    def configure_generator_blocks(self) -> PointGPTGenerator:
+        """Build the GPT generator predicting the next patch (unused at finetuning, kept for weight compatibility)."""
+        return PointGPTGenerator(
+            self.embed_dim,
+            self.num_heads,
+            self.decoder_depth,
+            self.group_size,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+        )
+
+    def configure_label_conv(self) -> MLP:
+        """Build the MLP embedding the category one-hot for the global branch."""
+        return MLP(
+            [self.num_categories, 64],
+            act="leaky_relu",
+            act_kwargs=dict(negative_slope=0.2),
+            norm="batch_norm",
+            bias=False,
+            plain_last=False,
+        )
+
+    def configure_propagation_0(self) -> PointNet2FeaturePropagation:
+        """Build the feature-propagation module interpolating patch features back to every point."""
+        return PointNet2FeaturePropagation(
+            channels=[3 * self.embed_dim + self.spatial_dim, *self.propagation_channels],
+            k=3,
+            act="relu",
+            norm="batch_norm",
+            bias=True,
+            plain_last=False,
+            weighting="squared",
+            eps=1e-8,
+        )
+
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the per-point features entering the head."""
+        return self.propagation_channels[-1] + 3 * self.embed_dim * 2 + 64
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+        return MLP(
+            [self.num_features, *self.head_channels, self.num_classes],
+            act="relu",
+            norm="batch_norm",
+            dropout=[self.dropout, *(0.0 for _ in self.head_channels)],
+            bias=True,
+            plain_last=True,
+        )
+
+    def reset_parameters(self) -> None:
+        nn.init.trunc_normal_(self.cls_token, std=0.02)
+        nn.init.trunc_normal_(self.cls_pos, std=0.02)
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
+
+    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        if x is None:
+            neighborhood, center = group(
+                pos,
+                batch,
+                num_groups=self.num_groups,
+                group_size=self.group_size,
+                random_start=self.training,
+            )
+        else:
+            neighborhood, center, neighbor_idx = group(
+                pos,
+                batch,
+                num_groups=self.num_groups,
+                group_size=self.group_size,
+                random_start=self.training,
+                return_indices=True,
+            )
+            neighborhood = torch.cat([neighborhood, x[neighbor_idx].reshape(*neighborhood.shape[:3], -1)], dim=-1)
+
+        order = morton_sort(center)
+        center = torch.gather(center, 1, order.unsqueeze(-1).expand(-1, -1, center.size(-1)))
+        neighborhood = torch.gather(
+            neighborhood,
+            1,
+            order.view(*order.shape, 1, 1).expand(-1, -1, neighborhood.size(2), neighborhood.size(3)),
+        )
+
+        tokens = self.encoder(neighborhood)
+        B, L, _ = tokens.shape
+
+        cls_tokens = self.cls_token.expand(B, -1, -1)
+        cls_pos = self.cls_pos.expand(B, -1, -1)
+        sos_pos = self.sos_pos.expand(B, -1, -1)
+        pos_seq = torch.cat([sos_pos, self.pos_embed(center)], dim=1)
+
+        x_seq = torch.cat([cls_tokens, tokens], dim=1)
+        pos_seq = torch.cat([cls_pos, pos_seq], dim=1)
+
+        attn_mask = torch.triu(torch.ones(L + 2, L + 2, dtype=torch.bool, device=tokens.device), diagonal=1)
+        feature_list = self.blocks(x_seq, pos_seq, attn_mask, fetch_idx=self.fetch_idx)
+        feature_list = [self.norm(feat[:, 2:]).transpose(-1, -2).contiguous() for feat in feature_list]
+        x_feat = torch.cat([feature_list[0], feature_list[1], feature_list[2]], dim=1)
+        return x_feat, center, batch
+
+    def forward_decoder(self, x_feat: Tensor, pos: Tensor, batch: Tensor, center: Tensor, category: Tensor) -> Tensor:
+        B = x_feat.size(0)
+        counts = batch.bincount()
+        if bool((counts != counts[0]).any()):
+            raise ValueError(
+                f"{self.__class__.__name__} requires the same number of points per sample, got per-sample "
+                f"counts from {int(counts.min())} to {int(counts.max())}."
+            )
+
+        N = pos.size(0) // B
+
+        x_max = torch.max(x_feat, 2)[0]
+        x_avg = torch.mean(x_feat, 2)
+        x_max_feature = x_max.view(B, -1).unsqueeze(-1).repeat(1, 1, N)
+        x_avg_feature = x_avg.view(B, -1).unsqueeze(-1).repeat(1, 1, N)
+        cls_label_feature = self.label_conv(category).unsqueeze(-1).repeat(1, 1, N)
+        x_global_feature = torch.cat([x_max_feature, x_avg_feature, cls_label_feature], 1)
+
+        group_batch = torch.arange(B, device=pos.device).repeat_interleave(self.num_groups)
+        x_groups = x_feat.transpose(1, 2).reshape(B * self.num_groups, -1)
+        center_pos = center.reshape(B * self.num_groups, self.spatial_dim)
+        f_level_0, _, _ = self.propagation_0(x_groups, center_pos, group_batch, pos, pos, batch)
+        f_level_0 = f_level_0.reshape(B, N, -1).transpose(1, 2)
+        return torch.cat([f_level_0, x_global_feature], 1)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        B, _, N = x.shape
+        x = x.transpose(1, 2).reshape(B * N, -1)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        x_feat, center, batch = self.forward_features(x, pos, batch)
+        x = self.forward_decoder(x_feat, pos, batch, center, category)
+        return self.forward_head(x)
+
+
 class PointGPTPretraining(PretrainingModel):
     r"""PointGPT auto-regressive generative pretraining model.
 
@@ -742,6 +1036,23 @@ def _scanobjectnn_transforms() -> T.Compose:
     )
 
 
+def _shapenetpart_transforms() -> T.Compose:
+    return T.Compose(
+        [
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
+                num_samples=2048,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
+            T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
+        ]
+    )
+
+
 _SIZE_HPARAMS: Dict[str, Dict[str, Any]] = {
     "s": dict(
         embed_dim=384,
@@ -911,3 +1222,165 @@ for _size in ("s", "b", "l"):
     )
     def _pointgpt_pretrain(_size: str = _size, **kwargs: Any) -> PointGPTPretraining:
         return PointGPTPretraining(**kwargs)
+
+
+@register_model(
+    "pointgpt-s.shapenetpart.guangyan-chen",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointgpt-s.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="shapenetpart",
+        author="guangyan-chen",
+        license="MIT",
+    ),
+    transform=_shapenetpart_transforms(),
+    hparams=dict(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        num_groups=128,
+        group_size=32,
+        decoder_depth=4,
+        encoder_local_channels=(128, 256),
+        encoder_global_channels=(512,),
+        propagation_channels=(1536, 1024),
+        head_channels=(512, 256),
+        dropout=0.5,
+        act="gelu",
+        spatial_dim=3,
+    ),
+)
+def pointgpt_s_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
+    return PointGPTPartSegmentation(**kwargs)
+
+
+@register_model(
+    "pointgpt-b.shapenetpart.guangyan-chen",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointgpt-b.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="shapenetpart",
+        author="guangyan-chen",
+        license="MIT",
+    ),
+    transform=_shapenetpart_transforms(),
+    hparams=dict(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        num_groups=128,
+        group_size=32,
+        decoder_depth=4,
+        encoder_local_channels=(256, 512, 1024),
+        encoder_global_channels=(2048,),
+        propagation_channels=(3072, 2048),
+        head_channels=(1024, 512),
+        dropout=0.5,
+        act="gelu",
+        spatial_dim=3,
+    ),
+)
+def pointgpt_b_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
+    return PointGPTPartSegmentation(**kwargs)
+
+
+@register_model(
+    "pointgpt-l.shapenetpart.guangyan-chen",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointgpt-l.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="shapenetpart",
+        author="guangyan-chen",
+        license="MIT",
+    ),
+    transform=_shapenetpart_transforms(),
+    hparams=dict(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        embed_dim=1024,
+        depth=24,
+        num_heads=16,
+        num_groups=128,
+        group_size=32,
+        decoder_depth=4,
+        encoder_local_channels=(256, 512, 1024),
+        encoder_global_channels=(2048,),
+        propagation_channels=(4096, 2048),
+        head_channels=(1024, 512),
+        dropout=0.5,
+        act="gelu",
+        spatial_dim=3,
+    ),
+)
+def pointgpt_l_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
+    return PointGPTPartSegmentation(**kwargs)
+
+
+@register_model(
+    "pointgpt-b.post-pretrain.guangyan-chen",
+    task="classification",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointgpt-b.post-pretrain.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="labeled-hybrid",
+        author="guangyan-chen",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=0,
+        num_classes=87,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        num_groups=64,
+        group_size=32,
+        decoder_depth=4,
+        encoder_local_channels=(256, 512, 1024),
+        encoder_global_channels=(2048,),
+        dropout=0.5,
+        act="gelu",
+        head_act="relu",
+        spatial_dim=3,
+    ),
+)
+def pointgpt_b_post_pretrain(**kwargs: Any) -> PointGPTClassification:
+    return PointGPTClassification(**kwargs)
+
+
+@register_model(
+    "pointgpt-l.post-pretrain.guangyan-chen",
+    task="classification",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointgpt-l.post-pretrain.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="labeled-hybrid",
+        author="guangyan-chen",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=0,
+        num_classes=87,
+        embed_dim=1024,
+        depth=24,
+        num_heads=16,
+        num_groups=64,
+        group_size=32,
+        decoder_depth=4,
+        encoder_local_channels=(256, 512, 1024),
+        encoder_global_channels=(2048,),
+        dropout=0.5,
+        act="gelu",
+        head_act="relu",
+        spatial_dim=3,
+    ),
+)
+def pointgpt_l_post_pretrain(**kwargs: Any) -> PointGPTClassification:
+    return PointGPTClassification(**kwargs)

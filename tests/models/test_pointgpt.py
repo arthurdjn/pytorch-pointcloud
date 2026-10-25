@@ -5,6 +5,7 @@ from torch_geometric.nn import MLP
 from torch_pointcloud.models.pointgpt import (
     PointGPTClassification,
     PointGPTExtractor,
+    PointGPTPartSegmentation,
     PointGPTPretraining,
     morton_sort,
 )
@@ -192,3 +193,116 @@ def test_pointgpt_classification_accepts_features() -> None:
     out_b = model(x_b, pos, batch)
     assert out_a.shape == (2, 40)
     assert not torch.allclose(out_a, out_b)
+
+
+def _uniform_batch(num_points: int = 2048) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    pos = torch.randn(2 * num_points, 3)
+    batch = torch.cat([torch.zeros(num_points), torch.ones(num_points)]).long()
+    category = torch.nn.functional.one_hot(torch.tensor([3, 7]), 16).float()
+    return pos, batch, category
+
+
+@pytest.mark.parametrize(
+    ("embed_dim", "num_heads", "depth", "propagation_channels", "head_channels"),
+    [
+        pytest.param(384, 6, 12, (1536, 1024), (512, 256), id="s"),
+        pytest.param(768, 12, 12, (3072, 2048), (1024, 512), id="b"),
+        pytest.param(1024, 16, 24, (4096, 2048), (1024, 512), id="l"),
+    ],
+)
+def test_pointgpt_part_segmentation_basic(
+    embed_dim: int, num_heads: int, depth: int, propagation_channels: tuple, head_channels: tuple
+) -> None:
+    model = PointGPTPartSegmentation(
+        in_channels=0,
+        num_classes=50,
+        num_categories=16,
+        embed_dim=embed_dim,
+        depth=depth,
+        num_heads=num_heads,
+        num_groups=128,
+        group_size=32,
+        propagation_channels=propagation_channels,
+        head_channels=head_channels,
+    )
+    model.eval()
+    pos, batch, category = _uniform_batch()
+    out = model(None, pos, batch, category)
+    assert out.shape == (4096, 50)
+    assert model.num_features == propagation_channels[-1] + 6 * embed_dim + 64
+    assert model.head.channel_list == [model.num_features, *head_channels, 50]
+
+
+def test_pointgpt_part_segmentation_num_classes_zero_returns_features() -> None:
+    model = PointGPTPartSegmentation(
+        in_channels=0,
+        num_classes=0,
+        embed_dim=96,
+        depth=12,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+        propagation_channels=(64, 32),
+    )
+    model.eval()
+    assert isinstance(model.head, torch.nn.Identity)
+    pos, batch, category = _uniform_batch(128)
+    out = model(None, pos, batch, category)
+    assert out.shape == (256, model.num_features)
+
+
+def test_pointgpt_part_segmentation_ragged_batch_raises() -> None:
+    model = PointGPTPartSegmentation(
+        in_channels=0,
+        num_classes=5,
+        embed_dim=96,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+        propagation_channels=(64, 32),
+    )
+    model.eval()
+    pos = torch.randn(128, 3)
+    batch = torch.cat([torch.zeros(96), torch.ones(32)]).long()
+    category = torch.nn.functional.one_hot(torch.tensor([3, 7]), 16).float()
+    with pytest.raises(ValueError, match="same number of points per sample"):
+        model(None, pos, batch, category)
+
+
+def test_pointgpt_part_segmentation_validates_fetch_idx_against_depth() -> None:
+    with pytest.raises(ValueError, match="fetch_idx"):
+        PointGPTPartSegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)
+
+
+def test_pointgpt_part_segmentation_accepts_features() -> None:
+    in_channels = 3
+    model = PointGPTPartSegmentation(
+        in_channels=in_channels,
+        num_classes=50,
+        embed_dim=96,
+        depth=12,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+        propagation_channels=(64, 32),
+    )
+    model.eval()
+    assert model.encoder.local_mlp.channel_list[0] == 3 + in_channels
+    pos, batch, category = _uniform_batch(128)
+    x_a = torch.randn(pos.size(0), in_channels)
+    x_b = torch.randn(pos.size(0), in_channels)
+    out_a = model(x_a, pos, batch, category)
+    out_b = model(x_b, pos, batch, category)
+    assert out_a.shape == (256, 50)
+    assert not torch.allclose(out_a, out_b)
+
+
+def test_pointgpt_extractor_fetch_idx_returns_hidden_states() -> None:
+    extractor = PointGPTExtractor(embed_dim=32, num_heads=2, depth=4)
+    extractor.eval()
+    tokens = torch.randn(2, 5, 32)
+    pos = torch.randn(2, 6, 32)
+    mask = torch.triu(torch.ones(6, 6, dtype=torch.bool), diagonal=1)
+    features = extractor(tokens, pos, mask, fetch_idx=(1, 3))
+    assert [tuple(feat.shape) for feat in features] == [(2, 6, 32), (2, 6, 32)]
+    assert torch.allclose(extractor.ln_f(features[-1]), extractor(tokens, pos, mask))
