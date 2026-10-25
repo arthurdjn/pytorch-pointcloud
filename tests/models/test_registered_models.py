@@ -1,6 +1,9 @@
 import inspect
 import json
 import re
+import shutil
+import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -28,6 +31,7 @@ from torch_pointcloud.utils.imports import (
 )
 
 SNAPSHOTS_DIR = Path(__file__).resolve().parents[1] / "data" / "models"
+REPO_DIR = Path(__file__).resolve().parents[2]
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 FORMER_NAMES: list[tuple[str, str, str]] = []
 
@@ -898,6 +902,19 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
             assert weights["author"], name
+
+
+def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
+    """`docs/data/models.csv` is what `docs/scripts/build_model_tables.py` renders from the registry today: rebuilding it
+    on a copy (which keeps the measured columns) changes nothing."""
+    committed = REPO_DIR / "docs" / "data" / "models.csv"
+    rebuilt = shutil.copy(committed, tmp_path / "models.csv")
+    subprocess.run(
+        [sys.executable, (REPO_DIR / "docs" / "scripts" / "build_model_tables.py").as_posix(), "--csv", rebuilt],
+        check=True,
+        capture_output=True,
+    )
+    assert Path(rebuilt).read_text() == committed.read_text(), "run docs/scripts/build_model_tables.py"
 
 
 def test_registered_weights_urls_exist_on_the_hub() -> None:
