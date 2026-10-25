@@ -9,7 +9,7 @@ their `forward(output, data)` returns a dict with the scalar `loss` to optimize 
 
 from . import functional
 from .anchor import AnchorHeadLoss, MultiGroupAnchorHeadLoss
-from .centerpoint import CenterHeadLoss, VoxelNeXtHeadLoss
+from .centerpoint import CenterHeadLoss, VoxelNeXtHeadLoss, center_regression_loss, iou_prediction_loss
 from .chamfer import ChamferDistance, chamfer_distance
 from .corner import CornerLoss, corner_loss
 from .focal import (
@@ -51,12 +51,14 @@ __all__ = [
     "TransFusionHeadLoss",
     "VoteNetLoss",
     "VoxelNeXtHeadLoss",
+    "center_regression_loss",
     "chamfer_distance",
     "corner_loss",
     "functional",
     "gaussian_focal_loss",
     "hungarian_match",
     "hungarian_match_batched",
+    "iou_prediction_loss",
     "kpconv_deform_regularizer",
     "lovasz_softmax",
     "one_hot_foreground",

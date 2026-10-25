@@ -3,7 +3,6 @@
 {{ paper("kitti-2012") }}
 """
 
-import json
 import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
@@ -340,8 +339,6 @@ class KITTI(PointCloudDataset):
         self.fov = fov
         self.return_calib = return_calib
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
@@ -376,11 +373,18 @@ class KITTI(PointCloudDataset):
         velodyne_dir = self.raw_split_dir / "velodyne"
         return velodyne_dir.is_dir() and any(velodyne_dir.glob("*.bin"))
 
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta, "fov": self.fov}
+
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [(self.processed_split_dir / "meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
-        if (self.processed_split_dir / "meta.json").exists():
-            return True
-
         frame_paths = self.processed_split_dir.glob(f"*/{DataKeys.POS}.npy")
         frame_dirs = sorted(p.parent for p in frame_paths if not p.parent.name.endswith(".tmp"))
         if not frame_dirs:
@@ -424,17 +428,8 @@ class KITTI(PointCloudDataset):
             f"optionally image_2) folders under {self.raw_dir!r}."
         )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        r"""Convert every raw frame in the split into its `.npy` cache directory.
-
-        Args:
-            force: Reprocess even if a cache already exists.
-            num_workers: Worker processes, or `None` for sequential processing.
-            show_progress: Show a progress bar while processing.
-        """
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        r"""Convert every raw frame in the split into its `.npy` cache directory."""
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_split_dir.as_posix()!r}. KITTI must be downloaded manually "
@@ -458,10 +453,7 @@ class KITTI(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        meta_path = self.processed_split_dir / "meta.json"
-        tmp_path = self.processed_split_dir / "meta.json.tmp"
-        tmp_path.write_text(json.dumps({"format_version": 1, "fov": self.fov}))
-        tmp_path.replace(meta_path)
+        return True
 
     def process_frame(self, frame: str) -> None:
         r"""Read one raw frame (optionally FOV-filtered) and write its `.npy` cache.

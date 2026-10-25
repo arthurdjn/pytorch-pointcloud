@@ -76,6 +76,7 @@ class DataKeys(StrEnum):
     GPS_TIME = "gps_time"
     RETURN_NUMBER = "return_number"
     NUMBER_OF_RETURNS = "number_of_returns"
+    NIR = "nir"
     TOKEN = "token"
     CONDITION = "condition"
     NORM_POS = "norm_pos"

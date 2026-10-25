@@ -9,9 +9,27 @@ All notable changes to this project are documented in this file. The format is b
 - Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.
 - Fixed `NuScenes` dropping the ego points of the keyframe; only prior sweeps drop them now.
 - Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
+- Added `format_version`, `cache_meta`, `cache_meta_paths` and `process` to `PointCloudDataset`: every processed cache is stamped with `meta.json` and a stale stamp raises.
+- Dataset `process` methods share one signature; the per-dataset work moved to `write_processed_files`.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
+- Added CenterPoint (`CenterPointDetection`, `CenterPointPillarsDetection`) with the nuScenes checkpoints `centerpoint-voxel01.nuscenes.mmdet3d`, `centerpoint-voxel0075.nuscenes.mmdet3d` and `centerpoint-pillar02.nuscenes.mmdet3d`, and their benchmark and training scripts.
+- Moved `CenterHead`, `SeparateHead` and `CenterHeadOutput` from `models.voxel_mamba` to `layers.center_head`; `CenterHead` takes `class_groups` and optional velocity and IoU branches.
+- `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works until 0.0.20, with a `FutureWarning`.
+- Voxel Mamba's head outputs are one-element lists, its head parameters are `head.heads.0.*` instead of `head.prediction_head.*`, and its head starts from the `CenterHead` initialization.
+- Fixed the IoU term of `CenterHeadLoss` sending gradients into the box maps.
+- Added `center_regression_loss`, the box-code term of `CenterHeadLoss` and `VoxelNeXtHeadLoss`.
+- Added `ops.heatmap.draw_sparse_heatmap_targets`, the sparse target assignment of `VoxelNeXtHeadLoss`.
+- Added `ops.heatmap.decode_center_codes`, the box decode of the center heads, and `iou_prediction_loss`, the IoU term of `CenterHeadLoss`.
+- Added the Myria3D FRACTAL checkpoint `randlanet.fractal.ignf` (Etalab-2.0), loaded from IGN's Hugging Face repository, and its benchmark on the FRACTAL test set.
+- Added the `FRACTAL` dataset, read in place from its zip archives with the optional `laspy` package.
+- Added the `LabelMask`, `MaskedFill`, `NormalizedDifference`, `Add`, `Log` and `Standardize` transforms, and the `nir` data key.
+- Added the `lse_channels`, `lse_input`, `pool` and `stem_plain_last` options of RandLA-Net, and renamed `random_max_pool` to `random_pool`; the former name still works, with a `FutureWarning`.
+- `read_state_dict` reads the objects of a checkpoint other than tensors (training hyperparameters, optimizer configurations) as inert placeholders, so Lightning checkpoints that pickle them load with `weights_only=True`.
+- Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
+- Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
+- Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added the `registration` task: `RegistrationModel`, the `Registration3D` result type, the `ref_x`, `ref_pos`, `transform`, `information` and `overlap` data keys, and the `rotation_error`, `translation_error`, `registration_rmse`, `inlier_ratio`, `feature_matching_recall` and `registration_recall` metrics.
 - Added GeoTransformer (`GeoTransformerRegistration`, MIT) with the authors' 3DMatch, KITTI and ModelNet40 weights (`geotransformer.{3dmatch,kitti,modelnet40}.zheng-qin`), its `GeoTransformerLoss`, and the 3DMatch / 3DLoMatch benchmark and training scripts under `examples/geotransformer`.
 - Added the `ThreeDMatch` dataset (3DMatch and 3DLoMatch pairs of the PREDATOR release) and `ModelNet40Registration`, the synthetic RPM-Net pairs of the ModelNet40 shapes, with the ModelNet40 benchmark script and the `alignment_error` metric.

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Callable
 
@@ -70,6 +71,19 @@ def test_threedmatch_processed_cache_is_reused(datasets_dir_factory: Callable[..
     second = ThreeDMatch(root=datasets_dir, split="test", show_progress=False)
     assert pairs_file.stat().st_mtime_ns == stamp
     assert len(second) == len(first)
+
+
+def test_threedmatch_process_stamps_each_pair_list(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Each pair list gets its own `cache_meta` stamp, so the 3DMatch cache does not stand in for the 3DLoMatch one."""
+    datasets_dir = datasets_dir_factory("ThreeDMatch/**/*")
+    dataset = ThreeDMatch(root=datasets_dir, split="test", show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "pairs", "3DMatch.meta.json")
+    assert json.loads(meta_path.read_text()) == dataset.cache_meta
+    assert not Path(dataset.processed_dir, "pairs", "3DLoMatch.meta.json").exists()
+
+    lomatch = ThreeDMatch(root=datasets_dir, split="test", benchmark="3DLoMatch", show_progress=False)
+    assert Path(lomatch.processed_dir, "pairs", "3DLoMatch.json").exists()
+    assert Path(lomatch.processed_dir, "pairs", "3DLoMatch.meta.json").exists()
 
 
 def test_threedmatch_collate(datasets_dir_factory: Callable[..., Path]) -> None:

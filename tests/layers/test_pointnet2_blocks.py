@@ -6,6 +6,7 @@ from torch_pointcloud.layers.pointnet2_blocks import (
     PointNet2Conv,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
+    PointNet2QuerySetAbstraction,
     PointNet2SetAbstraction,
 )
 from torch_pointcloud.ops.cluster import knn_graph
@@ -163,3 +164,53 @@ def test_pointnet2_feature_propagation_forward() -> None:
     assert out_x.shape == (40, 32)
     assert out_pos.shape == pos_skip.shape
     assert out_batch.shape == batch_skip.shape
+
+
+def test_pointnet2_query_set_abstraction_concatenates_scales_at_query_points() -> None:
+    torch.manual_seed(0)
+    sa = PointNet2QuerySetAbstraction(2, [[8], [4, 6]], radii=[0.5, 1.0], num_neighbors=[4, 8]).eval()
+    pos = torch.rand(40, 3)
+    x = torch.randn(40, 2)
+    batch = torch.cat([torch.zeros(20), torch.ones(20)]).long()
+    pos_query = torch.rand(6, 3)
+    batch_query = torch.tensor([0, 0, 0, 1, 1, 1])
+    out = sa(x, pos, batch, pos_query, batch_query)
+    assert sa.out_channels == 14
+    assert out.shape == (6, 14)
+
+
+def test_pointnet2_query_set_abstraction_empty_ball_pools_the_mlp_of_zero() -> None:
+    torch.manual_seed(0)
+    sa = PointNet2QuerySetAbstraction(2, [[4]], radii=[0.1], num_neighbors=[4]).eval()
+    pos = torch.zeros(3, 3)
+    x = torch.randn(3, 2)
+    batch = torch.zeros(3, dtype=torch.long)
+    pos_query = torch.tensor([[5.0, 5.0, 5.0]])
+    conv = sa.convs[0]
+    assert isinstance(conv, PointNet2Conv)
+    with torch.no_grad():
+        out = sa(x, pos, batch, pos_query, torch.zeros(1, dtype=torch.long))
+        expected = conv.local_nn(torch.zeros(1, 5))
+    assert torch.allclose(out, expected)
+
+
+def test_pointnet2_query_set_abstraction_keeps_the_first_neighbors_in_index_order() -> None:
+    sa = PointNet2QuerySetAbstraction(1, [[1]], radii=[1.0], num_neighbors=[2], norm=None, act=None).eval()
+    conv = sa.convs[0]
+    assert isinstance(conv, PointNet2Conv) and isinstance(conv.local_nn, MLP)
+    weight = conv.local_nn.lins[0].weight
+    assert isinstance(weight, torch.Tensor)
+    with torch.no_grad():
+        weight.copy_(torch.tensor([[0.0, 0.0, 0.0, 1.0]]))
+    pos = torch.zeros(4, 3)
+    x = torch.tensor([[1.0], [2.0], [9.0], [8.0]])
+    batch = torch.zeros(4, dtype=torch.long)
+    with torch.no_grad():
+        out = sa(x, pos, batch, torch.zeros(1, 3), torch.zeros(1, dtype=torch.long))
+    # The ball holds all four points, but only the first two in index order are pooled.
+    assert out.item() == 2.0
+
+
+def test_pointnet2_query_set_abstraction_rejects_mismatched_scales() -> None:
+    with pytest.raises(ValueError, match="one entry per scale"):
+        PointNet2QuerySetAbstraction(2, [[4]], radii=[0.1, 0.2], num_neighbors=[4])

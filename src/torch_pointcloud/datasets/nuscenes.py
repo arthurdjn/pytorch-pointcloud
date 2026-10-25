@@ -19,7 +19,6 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta
 
 NUSCENES_DETECTION_CLASSES = (
     "car",
@@ -648,6 +647,7 @@ class NuScenes(PointCloudDataset):
         ```
     """
 
+    format_version = 3
     data_url = "https://www.nuscenes.org/nuscenes#download"
 
     def __init__(
@@ -685,13 +685,11 @@ class NuScenes(PointCloudDataset):
         self.return_boxes = return_boxes
         self.return_segment = return_segment
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load()
 
     @property
@@ -714,17 +712,14 @@ class NuScenes(PointCloudDataset):
         version_dir = Path(self.raw_dir, self.version)
         return (version_dir / "sample_data.json").exists() and Path(self.raw_dir, "samples", "LIDAR_TOP").is_dir()
 
-    def _cache_meta(self) -> Dict[str, Any]:
-        """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 3, "classes": list(self.classes)}
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta, "classes": list(self.classes)}
 
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, "keyframes.json").exists():
-            return False
-
-        check_cache_meta(Path(self.processed_dir, "meta.json"), self._cache_meta())
-        return True
+        return Path(self.processed_dir, "keyframes.json").exists()
 
     def split_scenes(self) -> Optional[FrozenSet[str]]:
         """Scene names of `split`, or `None` when every scene of `version` belongs to it."""
@@ -767,10 +762,7 @@ class NuScenes(PointCloudDataset):
             annotations.setdefault(ann["sample_token"], []).append(ann)
         return annotations
 
-    def process(self, force: bool = False) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -849,18 +841,16 @@ class NuScenes(PointCloudDataset):
                 class_to_idx=self._class_to_idx,
             ),
             items,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             desc=f"Processing {self.split or self.version}",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
 
         processed_dir = Path(self.processed_dir)
-        meta_tmp_path = processed_dir / "meta.json.tmp"
-        meta_tmp_path.write_text(json.dumps(self._cache_meta()))
-        meta_tmp_path.replace(processed_dir / "meta.json")
         tokens_tmp_path = processed_dir / "keyframes.json.tmp"
         tokens_tmp_path.write_text(json.dumps(tokens))
         tokens_tmp_path.replace(processed_dir / "keyframes.json")
+        return True
 
     def load(self) -> None:
         if not self.processed_files_exist():

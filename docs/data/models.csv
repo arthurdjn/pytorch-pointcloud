@@ -130,6 +130,7 @@ pvcnn-c0p25.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
 pvcnn2-c0p5.s3dis-area5.mit-han-lab,pvcnn2,semantic-segmentation,s3dis-area5,true,MIT,3.43,mIoU,58.30,59.83,mIoU 59.83 · OA 87.22 · simple/mIoU 56.87 · simple/OA 85.81
 pvcnn2.s3dis-area5.mit-han-lab,pvcnn2,semantic-segmentation,s3dis-area5,true,MIT,13.71,mIoU,59.02,59.95,mIoU 59.95 · OA 87.62 · simple/mIoU 57.27 · simple/OA 86.33
+randlanet.fractal.ignf,randlanet,semantic-segmentation,fractal,true,etalab-2.0,1.11,mIoU,77.2,77.35,mIoU 77.35 · OA 96.06
 randlanet.parislille3d.open3d,randlanet,semantic-segmentation,parislille3d,true,MIT,4.99,mIoU,70,83.05,mIoU 83.05 · OA 98.67
 randlanet.s3dis-area3.open3d,randlanet,semantic-segmentation,s3dis-area3,true,MIT,4.99,mIoU,70.9,70.43,mIoU 70.43 · OA 87.90
 randlanet.semantic3d.open3d,randlanet,semantic-segmentation,semantic3d,true,MIT,4.99,mIoU,76,90.34,mIoU 90.34 · OA 98.56
@@ -156,10 +157,16 @@ pointnext-sm.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,tr
 3detr-m.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.44,mAP,65.0,65.46,mAP@0.25 65.46 · mAP@0.5 47.26
 3detr.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.31,mAP,62.1,61.37,mAP@0.25 61.37 · mAP@0.5 38.43
 3detr.sunrgbd.fair,threedetr,detection,sunrgbd,true,Apache-2.0,7.31,mAP,58.0,58.08,mAP@0.25 58.08 · mAP@0.5 29.64
+centerpoint-pillar02.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,5.98,mAP,49.1,49.12,mAP 49.12 · NDS 59.04
+centerpoint-voxel0075.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,57.6,57.06,mAP 57.06 · NDS 65.04
+centerpoint-voxel01.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,56.1,56.71,mAP 56.71 · NDS 64.60
 lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,68.82,mAP 68.82 · NDS 72.33
+part-a2.kitti-car.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.86,mAP,79.08,79.08,mAP 79.08 · AP/Car 79.08
+part-a2.kitti.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.89,mAP,68.33,68.34,mAP 68.34 · AP/Car 79.03 · AP/Pedestrian 55.28 · AP/Cyclist 70.70
 pointpillars-multihead.nuscenes.openpcdet,pointpillars,detection,nuscenes,true,Apache-2.0,6.08,mAP,44.63,44.56,mAP 44.56 · NDS 57.21
 pointpillars.kitti.openpcdet,pointpillars,detection,kitti,true,Apache-2.0,4.83,mAP,64.08,64.16,mAP 64.16 · AP/Car 77.35 · AP/Pedestrian 52.39 · AP/Cyclist 62.74
 pointrcnn.kitti.openpcdet,pointrcnn,detection,kitti,true,Apache-2.0,4.04,mAP,68.41,69.29,mAP 69.29 · AP/Car 78.67 · AP/Pedestrian 56.94 · AP/Cyclist 72.27
+pv-rcnn.kitti.mmdet3d,pv_rcnn,detection,kitti,true,Apache-2.0,13.12,mAP,72.14,72.16,mAP 72.16 · AP/Car 83.54 · AP/Pedestrian 59.73 · AP/Cyclist 73.20
 second-multihead.nuscenes.openpcdet,second,detection,nuscenes,true,Apache-2.0,9.04,mAP,50.59,50.76,mAP 50.76 · NDS 61.85
 second.kitti.openpcdet,second,detection,kitti,true,Apache-2.0,5.33,mAP,66.25,66.26,mAP 66.26 · AP/Car 78.63 · AP/Pedestrian 52.98 · AP/Cyclist 67.16
 votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@0.25 57.65 · mAP@0.5 34.10

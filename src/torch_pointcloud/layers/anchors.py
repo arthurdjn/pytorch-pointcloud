@@ -3,17 +3,9 @@ r"""Anchor-based dense detection heads for the voxel detectors (PointPillars, SE
 A packed-format port of the anchor head from
 :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
-- [`AnchorHead`][torch_pointcloud.layers.anchors.AnchorHead]: the single-stage anchor
-  head (per-anchor class logits, box residuals and a direction bin).
-- [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead]: the multi-group
-  separate-head variant (sincos + velocity box code) used by the nuScenes detectors.
-- [`prediction_branch`][torch_pointcloud.layers.anchors.prediction_branch]: the per-attribute
-  `SeparateHead` branch builder, also used by the Voxel Mamba center head.
-
 The anchors themselves come from [`generate_anchors`][torch_pointcloud.ops.anchors.generate_anchors]
 and their training targets from [`assign_anchor_targets`][torch_pointcloud.ops.anchors.assign_anchor_targets],
 in `ops.anchors`; residuals are decoded with `decode_box_residuals`.
-
 """
 
 import math

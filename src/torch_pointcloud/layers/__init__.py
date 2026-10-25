@@ -18,6 +18,7 @@ from .anchors import (
     prediction_branch,
 )
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
+from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
@@ -59,6 +60,7 @@ from .pointnet2_blocks import (
     PointNet2Conv,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
+    PointNet2QuerySetAbstraction,
     PointNet2SetAbstraction,
 )
 from .pointnext_blocks import (
@@ -131,6 +133,9 @@ __all__ = [
     "BEVBackbone",
     "BEVResidualBackbone",
     "ResidualBlock2d",
+    "CenterHead",
+    "CenterHeadOutput",
+    "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
     "DropoutLike",
@@ -170,6 +175,7 @@ __all__ = [
     "PointNet2Conv",
     "PointNet2FeaturePropagation",
     "PointNet2GlobalSetAbstraction",
+    "PointNet2QuerySetAbstraction",
     "PointNet2SetAbstraction",
     "PointNeXtConv",
     "PointNeXtResidualBlock",

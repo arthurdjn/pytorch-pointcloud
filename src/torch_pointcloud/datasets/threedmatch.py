@@ -201,6 +201,11 @@ class ThreeDMatch(PointCloudDataset):
             return Path(self.metadata_dir, "benchmarks", self.benchmark).is_dir()
         return Path(self.metadata_dir, f"{self.split}.pkl").exists()
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, "pairs", f"{self.pairs_name}.meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
         pairs_path = Path(self.processed_dir, "pairs", f"{self.pairs_name}.json")
@@ -231,10 +236,7 @@ class ThreeDMatch(PointCloudDataset):
             )
             archive.unlink()
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. Pass `download=True`, or download the fragments from "
@@ -249,6 +251,7 @@ class ThreeDMatch(PointCloudDataset):
         tmp_path = pairs_dir / f"{self.pairs_name}.json.tmp"
         tmp_path.write_text(json.dumps(pairs))
         tmp_path.replace(pairs_dir / f"{self.pairs_name}.json")
+        return True
 
     def process_fragments(self, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         """Convert the fragments of the split to `float32` `.npy` files, skipping the ones already converted."""
