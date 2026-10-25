@@ -2131,7 +2131,7 @@ _PTV3_GRIDNETHD_TRANSFORMS = T.Compose(
         dataset="gridnet-hd",
         # NOTE: the paper scores the test zones, whose labels are hidden: 69.32 over ten views, 66.86 in one; this is
         # the six validation zones through the same chunked pipeline in one view.
-        metrics={"mIoU": 0.0, "OA": 0.0},
+        metrics={"mIoU": 71.61, "OA": 90.78},
         classes=GRIDNETHD_CLASSES,
         author="heig-vd-geo",
         license="MIT",
