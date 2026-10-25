@@ -40,7 +40,8 @@ CHUNK_VOXEL_SIZE = 0.025
 VOXEL_SIZE = 0.05
 SW_BATCH_SIZE = 1
 
-# The zone is sampled to one point per 2 cm voxel, and scored back on every point through `inverse`.
+# The zone is sampled to one point per 2 cm voxel, and scored back on every point through `inverse`; nothing else
+# leaves the transform.
 TRANSFORM = T.Compose(
     [
         T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
@@ -48,12 +49,13 @@ TRANSFORM = T.Compose(
         T.Voxelize(
             pos_key=DataKeys.POS,
             pos_reduce="first",
-            keys=[DataKeys.COLOR, DataKeys.SEGMENT],
+            keys=[DataKeys.COLOR],
             reduce="first",
             size=ZONE_VOXEL_SIZE,
             method="fnv",
             dst_inverse_key=DataKeys.INVERSE,
         ),
+        T.KeepItems(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.ORIGIN_SEGMENT, DataKeys.INVERSE]),
     ]
 )
 # Each chunk is sampled to one point per 2.5 cm voxel, so a 5 cm voxel-partition fragment holds up to eight of them.

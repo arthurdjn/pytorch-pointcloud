@@ -162,9 +162,9 @@ def _point_block_pairs(
     A point lies in up to `num_offsets`^D_t blocks: the rows of each block offset are counted first, then written
     into the preallocated pair tensors.
     """
-    i_hi = (
-        ((pos_tiled - lo + padding) / step).floor().long().clamp(min=torch.zeros_like(n_per_dim), max=n_per_dim - 1)
-    )  # (N, D_t)
+    # Block indices are int32: the grids stay far below 2^31 blocks per axis.
+    i_hi = ((pos_tiled - lo + padding) / step).floor().to(torch.int32).clamp_min(0)  # (N, D_t)
+    i_hi = torch.minimum(i_hi, (n_per_dim - 1).to(torch.int32))
     i_lo = (i_hi - num_offsets + 1).clamp_min(0)  # (N, D_t)
 
     masks: List[Tuple[Tensor, Tensor]] = []
@@ -180,7 +180,7 @@ def _point_block_pairs(
     for (off, mask), start, end in zip(masks, bounds[:-1], bounds[1:]):
         point_ids[start:end] = mask.nonzero().squeeze(1)
         block_idx = i_lo[point_ids[start:end]] + off  # (M, D_t)
-        block_flat[start:end] = (block_idx * strides).sum(dim=1)
+        block_flat[start:end] = (block_idx.long() * strides).sum(dim=1)
         if mode == "gaussian":
             centers = lo + (block_size / 2.0) + block_idx.to(pos_tiled.dtype) * step  # (M, D_t)
             dist = torch.linalg.norm(pos_tiled[point_ids[start:end]] - centers, dim=-1)
@@ -207,6 +207,9 @@ def _block_mask(
     """Mask of the points lying in the block `off` steps above their lowest candidate block."""
     i = i_lo + off  # (N, D_t)
     valid = (i <= i_hi).all(dim=1)
+    if not valid.any():
+        return valid
+
     block_lo = lo + i.to(pos_tiled.dtype) * step
     # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
     # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.

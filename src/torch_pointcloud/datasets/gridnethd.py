@@ -19,6 +19,7 @@ import torch
 from torch import Tensor
 from typing_extensions import override
 
+from torch_pointcloud.transforms.utils import relabel
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _LASPY_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import PathLike
@@ -62,17 +63,10 @@ GRIDNETHD_LABEL_GROUPS: Tuple[Tuple[int, ...], ...] = (
     (20,),
     (21,),
 )
+GRIDNETHD_LABEL_MAPPING: Dict[int, int] = {
+    source: label for label, sources in enumerate(GRIDNETHD_LABEL_GROUPS) for source in sources
+}
 GridNetHDSplit = Literal["train", "val", "test"]
-
-
-def _label_lookup() -> np.ndarray:
-    table = np.full(256, GRIDNETHD_IGNORE_IDX, dtype=np.int64)
-    for label, sources in enumerate(GRIDNETHD_LABEL_GROUPS):
-        table[list(sources)] = label
-    return table
-
-
-_LABEL_LOOKUP = _label_lookup()
 
 
 def load_gridnethd_data(path: PathLike, /) -> Dict[str, Tensor]:
@@ -99,9 +93,14 @@ def load_gridnethd_data(path: PathLike, /) -> Dict[str, Tensor]:
         `GRIDNETHD_IGNORE_IDX` for the unassigned points, and is absent from the test zones (no `ground_truth` field).
     """
     las = laspy.read(Path(path).as_posix())
-    xyz = np.stack([las.x, las.y, las.z], axis=1)
-    pos = (xyz - xyz.min(axis=0)).astype(np.float32)
-    rgb = np.stack([las.red, las.green, las.blue], axis=1).astype(np.uint16)
+    # A zone holds up to 110 million points: the labels come first, while nothing else is resident, and the
+    # positions one float64 axis at a time.
+    segment = _read_segment(las) if "ground_truth" in las.point_format.dimension_names else None
+    pos = np.empty((las.header.point_count, 3), dtype=np.float32)
+    for axis, coordinates in enumerate((las.x, las.y, las.z)):
+        coordinates = np.asarray(coordinates)
+        pos[:, axis] = coordinates - coordinates.min()
+    rgb = np.stack([las.red, las.green, las.blue], axis=1)
     data: Dict[str, Tensor] = {
         DataKeys.POS: torch.from_numpy(pos),
         DataKeys.COLOR: torch.from_numpy((rgb >> 8).astype(np.uint8)),
@@ -109,11 +108,15 @@ def load_gridnethd_data(path: PathLike, /) -> Dict[str, Tensor]:
         DataKeys.RETURN_NUMBER: torch.from_numpy(np.asarray(las.return_number, dtype=np.int64)).unsqueeze(1),
         DataKeys.NUMBER_OF_RETURNS: torch.from_numpy(np.asarray(las.number_of_returns, dtype=np.int64)).unsqueeze(1),
     }
-    if "ground_truth" in las.point_format.dimension_names:
-        ground_truth = np.asarray(las["ground_truth"], dtype=np.int64)
-        ground_truth = np.where((ground_truth >= 0) & (ground_truth < 256), ground_truth, GRIDNETHD_IGNORE_IDX)
-        data[DataKeys.SEGMENT] = torch.from_numpy(_LABEL_LOOKUP[ground_truth])
+    if segment is not None:
+        data[DataKeys.SEGMENT] = segment
     return data
+
+
+def _read_segment(las: "laspy.LasData") -> Tensor:
+    """The benchmark class of every point, grouped from the `ground_truth` field."""
+    ground_truth = torch.from_numpy(np.asarray(las["ground_truth"], dtype=np.int64))
+    return relabel(ground_truth, GRIDNETHD_LABEL_MAPPING, default=GRIDNETHD_IGNORE_IDX)
 
 
 class GridNetHD(PointCloudDataset):

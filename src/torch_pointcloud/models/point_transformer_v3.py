@@ -2129,8 +2129,8 @@ _PTV3_GRIDNETHD_TRANSFORMS = T.Compose(
         url="hf://heig-vd-geo/PTv3_GridNet-HD_baseline/resolve/7bc24896b9b8cddd86335e90422e8834b69202a5/model_best_PTv3.pth",
         pretrained_filter_fn=segmentation_checkpoint_filter_fn,
         dataset="gridnet-hd",
-        # NOTE: the paper's 69.32 is scored on the test zones, whose labels are hidden, over ten views; this is the
-        # six validation zones through the same chunked pipeline in one view.
+        # NOTE: the paper scores the test zones, whose labels are hidden: 69.32 over ten views, 66.86 in one; this is
+        # the six validation zones through the same chunked pipeline in one view.
         metrics={"mIoU": 0.0, "OA": 0.0},
         classes=GRIDNETHD_CLASSES,
         author="heig-vd-geo",
