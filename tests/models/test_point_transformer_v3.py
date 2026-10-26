@@ -380,18 +380,33 @@ def test_batch_norm_segmentation_checkpoint_filter_fn_wraps_the_norms_of_a_train
     assert all(key in model_seg.state_dict() for key in filtered)
 
 
-def test_gridnethd_registered_transform_runs_without_labels() -> None:
-    """The registered GridNet-HD transform runs on a cloud with only positions and colours, as at inference."""
-    transform = model_info("ptv3.gridnet-hd.heig-vd-geo")["transform"]
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("ptv3-base.nuscenes.pointcept", id="nuscenes"),
+        pytest.param("ptv3-base.s3dis-area5.pointcept", id="s3dis-area5"),
+        pytest.param("ptv3-base.scannet20.pointcept", id="scannet20"),
+        pytest.param("ptv3-base.scannet200.pointcept", id="scannet200"),
+        pytest.param("ptv3.dales.jayakumar-pujar", id="dales"),
+        pytest.param("ptv3.gridnet-hd.heig-vd-geo", id="gridnet-hd"),
+    ],
+)
+def test_segmentation_registered_transform_runs_without_labels(name: str) -> None:
+    """A registered transform runs on a cloud that carries the model inputs and no label, as at inference."""
+    transform = model_info(name)["transform"]
     assert transform is not None
     torch.manual_seed(0)
     data = {
         DataKeys.POS: torch.rand(500, 3) * 2.0,
         DataKeys.COLOR: torch.randint(0, 256, (500, 3), dtype=torch.uint8),
+        DataKeys.NORMAL: torch.nn.functional.normalize(torch.randn(500, 3), dim=1),
+        DataKeys.INTENSITY: torch.rand(500, 1),
+        DataKeys.RETURN_NUMBER: torch.randint(1, 4, (500, 1)),
+        DataKeys.NUMBER_OF_RETURNS: torch.randint(1, 4, (500, 1)),
     }
 
     out = transform(data)
 
     assert DataKeys.SEGMENT not in out
-    assert out[DataKeys.X].shape == (out[DataKeys.POS_GRID].size(0), 3)
+    assert out[DataKeys.X].size(0) == out[DataKeys.POS_GRID].size(0)
     assert out[DataKeys.INVERSE].shape == (500,)
