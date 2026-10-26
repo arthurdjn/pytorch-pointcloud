@@ -1,7 +1,7 @@
 """Random geometric and color augmentations."""
 
 import math
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -541,8 +541,8 @@ def translate_boxes(boxes: Tensor, translation: Tensor) -> Tensor:
 class RandomTranslate(DictTransform, Randomizable):
     """Translate listed keys (and optionally oriented boxes) by a random vector.
 
-    Every axis of the vector is drawn uniformly from `translation_range`, or from a centered normal distribution of
-    standard deviation `std` when it is given.
+    Every axis of the vector is drawn uniformly from `translation_range`, or with `distribution="normal"` from a normal
+    distribution centered on the middle of `translation_range` with half its width as standard deviation.
 
     Sampling is done once per call: all listed keys and the optional box are shifted by the same
     translation vector. Pass `box_key` to also translate a $(K, 7)$ oriented-box tensor (centers only;
@@ -564,14 +564,15 @@ class RandomTranslate(DictTransform, Randomizable):
 
     Args:
         keys: Keys to translate. Point-like keys only; do not list direction vectors such as `normal`.
-        translation_range: Min and max per-axis translation.
+        translation_range: Min and max per-axis translation; with `distribution="normal"`, the mean minus and plus
+            one standard deviation.
         p: Probability of applying the transform.
         box_key: Optional key of a $(K, 7)$ oriented-box tensor to translate jointly.
         dst_keys: Where to store the shifted tensors.
         dst_box_key: Where to store the shifted boxes. Defaults to `box_key` (in-place).
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
+        distribution: `uniform` or `normal` draws of every axis of the translation.
         allow_missing_keys: If `True`, silently skip absent keys.
-        std: Standard deviation of a normal per-axis translation, used instead of `translation_range` when given.
     """
 
     def __init__(
@@ -583,17 +584,17 @@ class RandomTranslate(DictTransform, Randomizable):
         dst_keys: Optional[KeyCollection] = None,
         dst_box_key: Optional[str] = None,
         seed: Optional[int] = None,
+        distribution: Literal["uniform", "normal"] = "uniform",
         allow_missing_keys: bool = False,
-        std: Optional[float] = None,
     ) -> None:
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
-        if std is not None and std < 0:
-            raise ValueError(f"std must be non-negative; got {std}.")
+        if distribution not in ("uniform", "normal"):
+            raise ValueError(f"Invalid distribution: {distribution!r}. Expected 'uniform' or 'normal'.")
 
         super().__init__(keys, allow_missing_keys)
         self.translation_range = translation_range
-        self.std = std
+        self.distribution = distribution
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -613,8 +614,8 @@ class RandomTranslate(DictTransform, Randomizable):
             return data
 
         d = data[first_key].shape[-1] if first_key is not None else 3
-        if self.std is not None:
-            translation = torch.randn(d, generator=self.R) * self.std
+        if self.distribution == "normal":
+            translation = (lo + hi) / 2 + torch.randn(d, generator=self.R) * (hi - lo) / 2
         else:
             translation = torch.empty(d).uniform_(lo, hi, generator=self.R)
         if box_key is not None and box_key in data:

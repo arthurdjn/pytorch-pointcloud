@@ -118,7 +118,12 @@ def configure_train_transform(args: Namespace) -> T.Transform:
             T.RandomFlip(keys=DataKeys.POS, axes=(0,), p=0.5, box_key=DataKeys.BOX),
             T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(-30.0, 30.0), box_key=DataKeys.BOX),
             T.RandomScale(keys=DataKeys.POS, scale_range=(0.85, 1.15), box_key=DataKeys.BOX),
-            T.RandomTranslate(keys=DataKeys.POS, std=0.1, box_key=DataKeys.BOX),
+            T.RandomTranslate(
+                keys=DataKeys.POS,
+                translation_range=(-0.1, 0.1),
+                box_key=DataKeys.BOX,
+                distribution="normal",
+            ),
         ]
         return T.Compose([*steps, *colors])
 
@@ -144,7 +149,10 @@ def configure_train_transform(args: Namespace) -> T.Transform:
             T.RandomFlip(keys=DataKeys.POS, axes=(1,), p=0.5),
             T.RandomScale(keys=DataKeys.POS, scale_range=(0.95, 1.05)),
         ]
-    steps += [T.RandomTranslate(keys=DataKeys.POS, std=0.1), T.InstanceToBox(ignore_index=-1)]
+    steps += [
+        T.RandomTranslate(keys=DataKeys.POS, translation_range=(-0.1, 0.1), distribution="normal"),
+        T.InstanceToBox(ignore_index=-1),
+    ]
     return T.Compose([*steps, *colors])
 
 

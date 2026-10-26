@@ -69,19 +69,27 @@ def test_random_translate_translates_uniformly() -> None:
     assert torch.allclose(out["pos"], torch.ones_like(pos))
 
 
-def test_random_translate_normal_std_moves_points_and_boxes_together() -> None:
+def test_random_translate_normal_distribution_moves_points_and_boxes_together() -> None:
     pos = torch.zeros(5, 3)
     box = torch.tensor([[1.0, 2.0, 3.0, 1.0, 1.0, 1.0, 0.3]])
     shifts = []
     for seed in range(200):
-        out = T.RandomTranslate(keys="pos", std=0.1, box_key="box", seed=seed)({"pos": pos, "box": box})
+        translate = T.RandomTranslate(
+            keys="pos",
+            translation_range=(0.9, 1.1),
+            box_key="box",
+            seed=seed,
+            distribution="normal",
+        )
+        out = translate({"pos": pos, "box": box})
         shift = out["pos"][0]
         assert torch.allclose(out["pos"], shift.expand_as(pos))
         assert torch.allclose(out["box"][0, :3], box[0, :3] + shift) and torch.equal(out["box"][0, 3:], box[0, 3:])
         shifts.append(shift)
+    assert torch.stack(shifts).mean().item() == pytest.approx(1.0, abs=0.03)
     assert torch.stack(shifts).std().item() == pytest.approx(0.1, rel=0.2)
-    with pytest.raises(ValueError, match="std"):
-        T.RandomTranslate(keys="pos", std=-1.0)
+    with pytest.raises(ValueError, match="distribution"):
+        T.RandomTranslate(keys="pos", distribution="laplace")  # type: ignore[arg-type]
 
 
 def test_random_color_jitter_preserves_dtype_and_range() -> None:
