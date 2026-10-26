@@ -269,6 +269,31 @@ class MultiLevelAnchorHead(nn.Module):
         code_size: Length of the box code; channels past the 7 box parameters decode as plain deltas.
         num_dir_bins: Number of direction bins.
         dir_limit_offset: Offset used when wrapping the decoded heading before snapping.
+
+    Shape:
+        - Input: one $(B, C, H_l, W_l)$ map per level, $H_l = n_y / s_l$ and $W_l = n_x / s_l$ for stride $s_l$.
+        - Output: per-level `cls` / `box` / `dir_cls` maps and the decoded `batch_cls` $(B, A, C)$ and `batch_box`
+          $(B, A, \text{code\_size})$ over the $A$ anchors of every level.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.layers import MultiLevelAnchorHead
+
+        head = MultiLevelAnchorHead(
+            16,
+            3,
+            (64, 64),
+            (0.0, -16.0, -3.0, 32.0, 16.0, 1.0),
+            anchor_sizes=[[3.9, 1.6, 1.56], [0.8, 0.6, 1.73]],
+            anchor_bottom_heights=[-1.78, -0.6],
+            feature_map_strides=[2, 4],
+            anchor_scales=[1.0, 2.0],
+            dir_offset=0.78539,
+        )
+        out = head([torch.randn(1, 16, 32, 32), torch.randn(1, 16, 16, 16)])
+        print(out["batch_box"].shape)  # (1, (32 * 32 + 16 * 16) * 4, 7)
+        ```
     """
 
     anchors: Tensor
@@ -347,6 +372,7 @@ class MultiLevelAnchorHead(nn.Module):
         nn.init.normal_(self.conv_box.weight, mean=0.0, std=0.001)
 
     def forward(self, features: Sequence[Tensor]) -> MultiLevelAnchorHeadOutput:
+        r"""Predict on every level and decode the boxes of all anchors, finest level first."""
         cls_list = [self.conv_cls(x).permute(0, 2, 3, 1).contiguous() for x in features]
         box_list = [self.conv_box(x).permute(0, 2, 3, 1).contiguous() for x in features]
         dir_list = [self.conv_dir_cls(x).permute(0, 2, 3, 1).contiguous() for x in features]
