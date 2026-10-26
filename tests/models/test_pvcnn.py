@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict
 
 import pytest
 import torch
@@ -8,6 +8,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear as PyGLinear
 
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
+from torch_pointcloud.models import create_model
 from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNPartSegmentation, PVCNNSegmentation
 
 
@@ -242,9 +243,36 @@ def test_pvcnn_part_segmentation_forward_features_decoder_head(
     assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
 
 
-def test_pvcnn_part_segmentation_head_dropout_skips_the_last_hidden_layer(model_part: PVCNNPartSegmentation) -> None:
-    assert isinstance(model_part.head, MLP)
-    assert model_part.head.dropout == [0.2, 0.0, 0.0]
+@pytest.mark.parametrize(
+    "model_cls",
+    [
+        pytest.param(PVCNNSegmentation, id="segmentation"),
+        pytest.param(PVCNNPartSegmentation, id="part_segmentation"),
+    ],
+)
+def test_pvcnn_head_dropout_per_hidden_layer(model_cls: type) -> None:
+    hparams: Dict[str, Any] = dict(
+        in_channels=6,
+        num_classes=10,
+        channels=[32, 64],
+        depths=[1, 1],
+        kernel_sizes=[3, 3],
+        resolutions=[8, 0],
+        head_channels=[64, 32],
+    )
+    if model_cls is PVCNNPartSegmentation:
+        hparams["num_categories"] = 4
+
+    assert model_cls(**hparams, head_dropout=0.2).head.dropout == [0.2, 0.2, 0.0]
+    assert model_cls(**hparams, head_dropout=[0.2, 0.0]).head.dropout == [0.2, 0.0, 0.0]
+    with pytest.raises(ValueError):
+        model_cls(**hparams, head_dropout=[0.2, 0.2, 0.0])
+
+
+def test_pvcnn_shapenetpart_head_dropout_skips_the_last_hidden_layer() -> None:
+    model = create_model("pvcnn-c0p25.shapenetpart.mit-han-lab")
+    assert isinstance(model.head, MLP)
+    assert model.head.dropout == [0.2, 0.2, 0.0, 0.0]
 
 
 def test_pvcnn_part_segmentation_reset_classifier(

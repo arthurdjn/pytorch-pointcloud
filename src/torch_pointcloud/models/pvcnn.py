@@ -291,7 +291,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         spatial_dim: Spatial dimensionality of the point clouds.
         use_se: Add a squeeze-and-excitation gate to every voxel branch.
         normalize: Normalize coordinates into the unit voxel grid before voxelization.
-        dropout: Dropout applied to the concatenated point features before the head.
+        dropout: Dropout applied to the concatenated point features before a single linear head (`head_channels=None`).
         global_pool: Global pooling producing the cloud-level feature that is broadcast back to the points.
         act: Activation function.
         act_kwargs: Keyword arguments for the activation function.
@@ -299,7 +299,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
         head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
-        head_dropout: Dropout between the hidden head layers.
+        head_dropout: Dropout after each hidden head layer: one value for all of them, or one per `head_channels` entry.
     """
 
     def __init__(
@@ -323,7 +323,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         head_channels: Optional[Sequence[int]] = None,
-        head_dropout: float = 0.0,
+        head_dropout: Union[float, Sequence[float]] = 0.0,
     ):
         super().__init__(in_channels=max(in_channels, spatial_dim), num_classes=num_classes)
 
@@ -341,7 +341,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
-        self.head_dropout = head_dropout
+        self.head_dropout = ensure_tuple_size(head_dropout, size=len(self.head_channels))
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -400,7 +400,6 @@ class PVCNNSegmentation(SemanticSegmentationModel):
             return nn.Linear(self.num_features, self.num_classes)
 
         channels = [self.num_features, *self.head_channels, self.num_classes]
-        dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]
         return MLP(
             channels,
             act=self.act,
@@ -408,7 +407,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
-            dropout=dropout,
+            dropout=[*self.head_dropout, 0.0],
             plain_last=True,
         )
 
@@ -489,7 +488,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         spatial_dim: Spatial dimensionality of the point clouds.
         use_se: Add a squeeze-and-excitation gate to every voxel branch.
         normalize: Normalize coordinates into the unit voxel grid before voxelization.
-        dropout: Dropout applied to the concatenated point features before the head.
+        dropout: Dropout applied to the concatenated point features before a single linear head (`head_channels=None`).
         global_pool: Global pooling producing the cloud-level feature that is broadcast back to the points.
         act: Activation function.
         act_kwargs: Keyword arguments for the activation function.
@@ -497,7 +496,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
         head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
-        head_dropout: Dropout after every hidden head layer except the last one.
+        head_dropout: Dropout after each hidden head layer: one value for all of them, or one per `head_channels` entry.
     """
 
     def __init__(
@@ -522,7 +521,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         head_channels: Optional[Sequence[int]] = None,
-        head_dropout: float = 0.0,
+        head_dropout: Union[float, Sequence[float]] = 0.0,
     ):
         super().__init__(
             in_channels=max(in_channels, spatial_dim),
@@ -544,7 +543,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         self.norm = norm
         self.norm_kwargs = norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
-        self.head_dropout = head_dropout
+        self.head_dropout = ensure_tuple_size(head_dropout, size=len(self.head_channels))
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -606,8 +605,6 @@ class PVCNNPartSegmentation(PartSegmentationModel):
             return nn.Linear(self.num_features, self.num_classes)
 
         channels = [self.num_features, *self.head_channels, self.num_classes]
-        dropout = [self.head_dropout] * (len(channels) - 1)
-        dropout[-2:] = [0.0] * len(dropout[-2:])
         return MLP(
             channels,
             act=self.act,
@@ -615,7 +612,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
-            dropout=dropout,
+            dropout=[*self.head_dropout, 0.0],
             plain_last=True,
         )
 
@@ -796,23 +793,6 @@ _PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
 )
 
 
-def _pvcnn_shapenetpart_hparams(channels: Sequence[int], head_channels: Sequence[int]) -> Dict[str, Any]:
-    return dict(
-        in_channels=6,
-        num_classes=50,
-        num_categories=16,
-        channels=channels,
-        depths=[1, 2, 1, 1],
-        kernel_sizes=[3, 3, 3, 3],
-        resolutions=[32, 16, 0, 0],
-        use_se=True,
-        normalize=False,
-        head_channels=head_channels,
-        head_dropout=0.2,
-        act="relu",
-    )
-
-
 @register_model(
     "pvcnn.shapenetpart.mit-han-lab",
     task="part-segmentation",
@@ -824,7 +804,20 @@ def _pvcnn_shapenetpart_hparams(channels: Sequence[int], head_channels: Sequence
         author="mit-han-lab",
         license="MIT",
     ),
-    hparams=_pvcnn_shapenetpart_hparams(channels=[64, 128, 512, 2048], head_channels=[256, 256, 128]),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[64, 128, 512, 2048],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[256, 256, 128],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+    ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
@@ -843,7 +836,20 @@ def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
         author="mit-han-lab",
         license="MIT",
     ),
-    hparams=_pvcnn_shapenetpart_hparams(channels=[32, 64, 256, 1024], head_channels=[128, 128, 64]),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[32, 64, 256, 1024],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[128, 128, 64],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+    ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
@@ -862,7 +868,20 @@ def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation
         author="mit-han-lab",
         license="MIT",
     ),
-    hparams=_pvcnn_shapenetpart_hparams(channels=[16, 32, 128, 512], head_channels=[64, 64, 32]),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[16, 32, 128, 512],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[64, 64, 32],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+    ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
@@ -881,7 +900,20 @@ def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentatio
         author="mit-han-lab",
         license="MIT",
     ),
-    hparams=_pvcnn_shapenetpart_hparams(channels=[64, 128, 512, 2048], head_channels=[256, 256, 128]),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[64, 128, 512, 2048],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[256, 256, 128],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+    ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
@@ -900,7 +932,20 @@ def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
         author="mit-han-lab",
         license="MIT",
     ),
-    hparams=_pvcnn_shapenetpart_hparams(channels=[16, 32, 128, 512], head_channels=[64, 64, 32]),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[16, 32, 128, 512],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[64, 64, 32],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+    ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_c0p25_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
