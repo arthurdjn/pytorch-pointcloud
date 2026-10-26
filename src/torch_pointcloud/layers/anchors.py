@@ -9,6 +9,7 @@ in `ops.anchors`; residuals are decoded with `decode_box_residuals`.
 """
 
 import math
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
@@ -86,7 +87,8 @@ class AnchorHead(nn.Module):
         align_center: Place the anchors at the feature-map cell centers (see `generate_anchors`).
         code_size: Length of the box code; channels past the 7 box parameters decode as plain deltas.
         num_dir_bins: Number of direction bins.
-        dir_offset: Direction-classifier angle offset.
+        dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
+            warns and uses $0.78539$) and an error from 0.0.20.
         dir_limit_offset: Offset used when wrapping the decoded heading before snapping.
     """
 
@@ -107,7 +109,7 @@ class AnchorHead(nn.Module):
         align_center: bool = False,
         code_size: int = 7,
         num_dir_bins: int = 2,
-        dir_offset: float = 0.78539,
+        dir_offset: Optional[float] = None,
         dir_limit_offset: float = 0.0,
     ) -> None:
         super().__init__()
@@ -118,6 +120,14 @@ class AnchorHead(nn.Module):
             )
         if code_size < 7:
             raise ValueError(f"The box code holds at least the 7 box parameters, got code_size={code_size}.")
+        if dir_offset is None:
+            warnings.warn(
+                "Omitting `dir_offset` of `AnchorHead` is deprecated since 0.0.19 and an error from 0.0.20; pass the "
+                "direction offset the weights were trained with (0.78539 was the default).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            dir_offset = 0.78539
 
         self.num_classes = num_classes
         self.num_dir_bins = num_dir_bins

@@ -91,6 +91,7 @@ def test_anchor_head_single_decode_has_no_velocity() -> None:
         anchor_sizes=[[4.0, 2.0, 1.5]],
         anchor_bottom_heights=[0.0],
         feature_map_stride=1,
+        dir_offset=0.78539,
     ).eval()
     with torch.no_grad():
         out = head(torch.randn(2, 8, 4, 4))
@@ -109,6 +110,7 @@ def test_anchor_head_shares_templates_across_classes_and_decodes_velocity() -> N
         anchor_sizes=[[4.0, 2.0, 1.5], [1.0, 1.0, 1.0]],
         anchor_bottom_heights=[0.0, -0.5],
         feature_map_stride=1,
+        dir_offset=0.78539,
         anchor_range=(1.0, -2.0, 0.0, 7.0, 2.0, 0.0),
         align_center=True,
         code_size=9,
@@ -127,10 +129,25 @@ def test_anchor_head_shares_templates_across_classes_and_decodes_velocity() -> N
     assert torch.equal(det["scores"], det["class_probs"].max(dim=1).values)
 
 
+def test_anchor_head_without_dir_offset_warns_and_keeps_the_former_default() -> None:
+    with pytest.warns(FutureWarning, match="dir_offset"):
+        head = AnchorHead(
+            8, 1, (4, 4), RANGE, anchor_sizes=[[4.0, 2.0, 1.5]], anchor_bottom_heights=[0.0], feature_map_stride=1
+        )
+    assert head.dir_offset == 0.78539
+
+
 def test_anchor_head_needs_one_bottom_height_per_size() -> None:
     with pytest.raises(ValueError, match="one anchor bottom height per anchor size"):
         AnchorHead(
-            8, 1, (4, 4), RANGE, anchor_sizes=[[4.0, 2.0, 1.5]], anchor_bottom_heights=[0.0, 1.0], feature_map_stride=1
+            8,
+            1,
+            (4, 4),
+            RANGE,
+            anchor_sizes=[[4.0, 2.0, 1.5]],
+            anchor_bottom_heights=[0.0, 1.0],
+            feature_map_stride=1,
+            dir_offset=0.78539,
         )
 
 
@@ -178,6 +195,7 @@ def test_multi_level_anchor_head_with_one_level_matches_the_anchor_head() -> Non
         anchor_sizes=[[4.0, 2.0, 1.5], [1.0, 1.0, 1.0]],
         anchor_bottom_heights=[0.0, 0.0],
         feature_map_stride=2,
+        dir_offset=0.78539,
         code_size=9,
     ).eval()
     single.load_state_dict(multi.state_dict())
