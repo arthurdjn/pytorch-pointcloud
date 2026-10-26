@@ -4,7 +4,7 @@
 """
 
 import math
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -58,6 +58,7 @@ class VoltEncoder(nn.Module):
     Shape:
         - Input: $(N, C)$ voxel features, $(N, 3)$ integer voxel coordinates and the $(N,)$ batch index.
         - Output: $(P, D)$ patch tokens, then the $(N,)$ patch of every voxel and its $(N,)$ position in the patch.
+          With `return_intermediates`, also the $(P, D)$ tokens after every block.
     """
 
     def __init__(
@@ -103,14 +104,38 @@ class VoltEncoder(nn.Module):
             ]
         )
 
-    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Tensor]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward(self, x: Tensor, pos_grid: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
         patch_grid, patch_batch, inverse, offset = voxel_patch_partition(pos_grid, batch, self.patch_size)
         x = self.patch_embed(x, inverse, offset, patch_grid.size(0))
 
         cu_seqlens = batch_to_cu_seqlens(patch_batch).int()
         max_seqlen = int(cu_seqlens.diff().max())
+        intermediates: List[Tensor] = []
         for block in self.blocks:
             x = block(x, cu_seqlens, max_seqlen, pos=patch_grid)
+            if return_intermediates:
+                intermediates.append(x)
+
+        if return_intermediates:
+            return x, inverse, offset, intermediates
         return x, inverse, offset
 
 
@@ -294,19 +319,39 @@ class VoltSegmentation(SemanticSegmentationModel):
         self.head = self.configure_head()
         self.head.apply(_init_volt_weights)
 
-    def forward_features(self, x: Tensor, pos_grid: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[Tensor]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos_grid: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(self, x: Tensor, pos_grid: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
         r"""Encode the voxels into patch tokens.
 
         Args:
             x: Voxel features of shape $(N, C)$, one row per voxel.
             pos_grid: Integer voxel coordinates of shape $(N, 3)$.
             batch: Batch index of every voxel, shape $(N,)$.
+            return_intermediates: Whether to also return the $(P, D)$ tokens after every transformer block.
 
         Returns:
             A tuple `(tokens, inverse, offset)`: the $(P, D)$ patch tokens, the $(N,)$ patch of every voxel and its
-            $(N,)$ position inside the patch, the inputs of `forward_decoder`.
+            $(N,)$ position inside the patch, the inputs of `forward_decoder`. With `return_intermediates`, the list
+            of block outputs is appended, the last one being `tokens`.
         """
-        return self.encoder(x, pos_grid, batch)
+        return self.encoder(x, pos_grid, batch, return_intermediates=return_intermediates)
 
     def forward_decoder(self, x: Tensor, inverse: Tensor, offset: Tensor) -> Tensor:
         return self.decoder(x, inverse, offset)

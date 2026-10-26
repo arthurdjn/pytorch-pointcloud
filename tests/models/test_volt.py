@@ -47,6 +47,20 @@ def test_volt_segmentation_composes_features_decoder_head(model: VoltSegmentatio
     torch.testing.assert_close(model.forward_head(features, pre_logits=True), features)
 
 
+def test_volt_segmentation_returns_every_block_output(model: VoltSegmentation, data: Dict[str, Tensor]) -> None:
+    tokens, inverse, offset, intermediates = model.forward_features(
+        data["x"],
+        data["pos_grid"],
+        data["batch"],
+        return_intermediates=True,
+    )
+
+    assert len(intermediates) == 2
+    assert all(block.shape == tokens.shape for block in intermediates)
+    torch.testing.assert_close(intermediates[-1], tokens)
+    torch.testing.assert_close(tokens, model.forward_features(data["x"], data["pos_grid"], data["batch"])[0])
+
+
 def test_volt_segmentation_samples_are_independent(model: VoltSegmentation, data: Dict[str, Tensor]) -> None:
     logits = model(data["x"], data["pos_grid"], data["batch"])
     first = data["batch"] == 0
