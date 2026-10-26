@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.ops.geometry import transform_points
+from torch_pointcloud.ops.geometry import rotation_matrix_to_quaternion, transform_points
 from torch_pointcloud.ops.registration import rotation_angle
 
 
@@ -91,21 +91,8 @@ def registration_rmse(transform: Tensor, target: Tensor, information: Tensor) ->
         ```
     """
     residual = torch.linalg.inv(target) @ transform
-    rotation = residual[..., :3, :3]
-    translation = residual[..., :3, 3]
-    # Vector part of the unit quaternion of the residual rotation, through its trace.
-    trace = rotation[..., 0, 0] + rotation[..., 1, 1] + rotation[..., 2, 2]
-    w = 0.5 * torch.sqrt((1.0 + trace).clamp(min=1e-12))
-    scale = 0.25 / w
-    quaternion = torch.stack(
-        [
-            (rotation[..., 2, 1] - rotation[..., 1, 2]) * scale,
-            (rotation[..., 0, 2] - rotation[..., 2, 0]) * scale,
-            (rotation[..., 1, 0] - rotation[..., 0, 1]) * scale,
-        ],
-        dim=-1,
-    )
-    error = torch.cat([translation, quaternion], dim=-1).unsqueeze(-1)  # (..., 6, 1)
+    quaternion = rotation_matrix_to_quaternion(residual[..., :3, :3])
+    error = torch.cat([residual[..., :3, 3], quaternion[..., 1:]], dim=-1).unsqueeze(-1)  # (..., 6, 1)
     squared = (error.transpose(-1, -2) @ information @ error).squeeze(-1).squeeze(-1) / information[..., 0, 0]
     return torch.sqrt(squared.clamp(min=0.0))
 

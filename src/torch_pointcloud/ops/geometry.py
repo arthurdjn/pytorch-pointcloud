@@ -1,4 +1,5 @@
-"""Geometric operations: bounding boxes, rotations, point transforms, vertex normals, and spherical sampling."""
+"""Geometric operations: bounding boxes, rotations and quaternions, point transforms, vertex normals, and spherical
+sampling."""
 
 import math
 import warnings
@@ -161,6 +162,60 @@ def rodrigues_rotation_matrix(axis: Tensor, theta: float) -> Tensor:
     t = torch.tensor([theta], device=axis.device)
     R = torch.eye(3, device=axis.device) + torch.sin(t) * K + (1 - torch.cos(t)) * K.mm(K)
     return R
+
+
+def rotation_matrix_to_quaternion(rotation: Tensor) -> Tensor:
+    r"""Unit quaternion $(w, x, y, z)$ of rotation matrices.
+
+    Each quaternion is read from the largest of $1 + \operatorname{tr}(R)$ and $1 + 2 R_{ii} - \operatorname{tr}(R)$,
+    so it stays accurate at every angle, including half turns. Of the two quaternions of a rotation, the one with
+    $w \geq 0$ is returned, and for $w = 0$ the one whose first nonzero vector component is positive.
+
+    Args:
+        rotation: Rotation matrices, shape $(\ldots, 3, 3)$.
+
+    Returns:
+        The quaternions, shape $(\ldots, 4)$, scalar part first.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.geometry import rotation_matrix_to_quaternion
+        >>> half_turn = torch.diag(torch.tensor([1.0, -1.0, -1.0]))
+        >>> rotation_matrix_to_quaternion(half_turn).tolist()
+        [0.0, 1.0, 0.0, 0.0]
+
+        ```
+    """
+    r = rotation
+    r00, r11, r22 = r[..., 0, 0], r[..., 1, 1], r[..., 2, 2]
+    magnitudes = torch.stack(
+        [1.0 + r00 + r11 + r22, 1.0 + r00 - r11 - r22, 1.0 - r00 + r11 - r22, 1.0 - r00 - r11 + r22],
+        dim=-1,
+    )
+    sums = torch.stack([r[..., 2, 1] - r[..., 1, 2], r[..., 0, 2] - r[..., 2, 0], r[..., 1, 0] - r[..., 0, 1]], dim=-1)
+    pairs = torch.stack([r[..., 0, 1] + r[..., 1, 0], r[..., 0, 2] + r[..., 2, 0], r[..., 1, 2] + r[..., 2, 1]], dim=-1)
+    # Row i holds 4 * q_i * q, whose largest entry 4 * q_i^2 is the magnitude of branch i.
+    candidates = torch.stack(
+        [
+            torch.stack([magnitudes[..., 0], sums[..., 0], sums[..., 1], sums[..., 2]], dim=-1),
+            torch.stack([sums[..., 0], magnitudes[..., 1], pairs[..., 0], pairs[..., 1]], dim=-1),
+            torch.stack([sums[..., 1], pairs[..., 0], magnitudes[..., 2], pairs[..., 2]], dim=-1),
+            torch.stack([sums[..., 2], pairs[..., 1], pairs[..., 2], magnitudes[..., 3]], dim=-1),
+        ],
+        dim=-2,
+    )
+    branch = magnitudes.argmax(dim=-1, keepdim=True)
+    quaternion = torch.take_along_dim(candidates, branch.unsqueeze(-1), dim=-2).squeeze(-2)
+    quaternion = quaternion / torch.linalg.norm(quaternion, dim=-1, keepdim=True)
+
+    first_nonzero = torch.where(
+        quaternion[..., 1] != 0,
+        quaternion[..., 1],
+        torch.where(quaternion[..., 2] != 0, quaternion[..., 2], quaternion[..., 3]),
+    )
+    sign = torch.where(quaternion[..., 0] != 0, quaternion[..., 0].sign(), first_nonzero.sign())
+    return quaternion * sign.unsqueeze(-1)
 
 
 def vertex_normals(vertices: Tensor, face: Tensor) -> Tensor:

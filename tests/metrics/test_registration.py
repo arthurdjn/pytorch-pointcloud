@@ -43,6 +43,22 @@ def test_registration_rmse_translation_only_with_identity_information() -> None:
     assert registration_rmse(estimate, target, torch.eye(6)).item() == pytest.approx(0.5, abs=1e-5)
 
 
+@pytest.mark.parametrize(
+    "degrees",
+    [
+        pytest.param(90.0, id="quarter-turn"),
+        pytest.param(179.99, id="near-half-turn"),
+        pytest.param(180.0, id="half-turn"),
+    ],
+)
+def test_registration_rmse_of_a_rotation_reads_the_quaternion(degrees: float) -> None:
+    """With an identity information matrix the RMSE of a pure rotation is the norm of its quaternion vector part,
+    $\sin(\theta / 2)$, up to and including a half turn."""
+    estimate = _transform(degrees, [0.0, 0.0, 0.0])
+    rmse = registration_rmse(estimate, torch.eye(4), torch.eye(6)).item()
+    assert rmse == pytest.approx(math.sin(math.radians(degrees) / 2), abs=1e-5)
+
+
 def test_registration_rmse_matches_point_displacement() -> None:
     """The information matrix of a point set reproduces the mean squared displacement of its points under a
     translation (the rotational part of the protocol reads the quaternion, a half-angle approximation)."""
