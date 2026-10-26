@@ -579,6 +579,17 @@ def test_create_model_pretrained_registered_num_classes_keeps_head(_register_pre
 
 
 @pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_registered_num_classes_as_a_sequence_keeps_head(
+    _register_pretrained_dummy: Path,
+) -> None:
+    model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, num_classes=[5])
+    assert isinstance(model, DummyClassificationModel)
+    state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
 def test_create_model_pretrained_in_channels_override_keeps_fresh_stem(_register_pretrained_dummy: Path) -> None:
     model = create_model("dummy-pretrained.classification", task="classification", pretrained=True, in_channels=4)
     assert isinstance(model, DummyClassificationModel)

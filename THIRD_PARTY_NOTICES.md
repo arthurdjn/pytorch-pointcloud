@@ -20,19 +20,20 @@ neither are marked as such.
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 6     | not stated upstream                                                                                                        |
 | open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 6     | Copyright 2018-2019 Open-MMLab                                                                                             |
+| Pointcept/Pointcept                             | `pointcept`      | MIT          | 6     | Copyright (c) 2023 Pointcept                                                                                               |
 | Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |
 | HuguesTHOMAS/KPConv-PyTorch                     | `hugues-thomas`  | MIT          | 4     | Copyright (c) 2019 HuguesTHOMAS                                                                                            |
 | mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 4     | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
 | ma-xu/pointMLP-pytorch                          | `xu-ma`          | Apache-2.0   | 4     | not stated upstream                                                                                                        |
-| Pointcept/Pointcept                             | `pointcept`      | MIT          | 4     | Copyright (c) 2023 Pointcept                                                                                               |
 | octree-nn/octformer                             | `octree-nn`      | MIT          | 3     | Copyright (c) 2023 Peng-Shuai Wang                                                                                         |
 | yanx27/Pointnet_Pointnet2_pytorch               | `xu-yan`         | MIT          | 3     | Copyright (c) 2019 benny                                                                                                   |
 | facebookresearch/3detr                          | `fair`           | Apache-2.0   | 3     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
 | Pointcept/Utonia                                | `pointcept`      | CC BY-NC 4.0 | 2     | not stated upstream                                                                                                        |
 | facebookresearch/sonata                         | `fair`           | CC BY-NC 4.0 | 2     | Copyright (c) Meta Platforms, Inc. and affiliates                                                                          |
 | facebookresearch/votenet                        | `fair`           | MIT          | 2     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
+| labelmaker/PTv3-ARKit-LabelMaker (Hugging Face) | `labelmaker`     | MIT          | 2     | not stated upstream                                                                                                        |
 | DylanWusee/pointconv_pytorch                    | `wenxuan-wu`     | MIT          | 1     | Copyright (c) 2019 Wenxuan Wu                                                                                              |
 | tsunghan-wu/RandLA-Net-pytorch                  | `tsung-han-wu`   | MIT          | 1     | Copyright (c) 2020 Tsunghan Wu                                                                                             |
 | IGNF/myria3d                                    | `ignf`           | Etalab-2.0   | 1     | Copyright (c) 2021, Institut National de l'Information Géographique et Forestière                                          |
@@ -45,15 +46,18 @@ Licenses of the datasets the checkpoints were trained on.
 
 | dataset                                         | terms                                                     | checkpoints |
 | ----------------------------------------------- | --------------------------------------------------------- | ----------- |
-| S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
+| S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 43          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
+| ScanNet                                         | terms of use, non-commercial research and educational use | 16          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
-| ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
 | SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
+| Structured3D                                    | terms of use, non-commercial research                     | 4           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
+| ScanNet++                                       | terms of use, non-commercial research                     | 2           |
+| ARKitScenes (ARKit LabelMaker labels)           | non-commercial                                            | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
 | FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
@@ -68,7 +72,7 @@ Files adapted from other implementations, with the copyright notice each source 
 | open-mmlab/OpenPCDet              | Apache-2.0 | `models/pointpillars.py`, `models/pointrcnn.py`, `models/second.py`, `models/voxelnext.py`, `models/voxel_mamba.py` | not stated upstream                                                           |
 | facebookresearch/3detr            | Apache-2.0 | `models/threedetr.py`                                                                                               | Copyright (c) Facebook, Inc. and its affiliates                               |
 | facebookresearch/votenet          | MIT        | `models/votenet.py`, `lightning/callbacks.py`                                                                       | Copyright (c) Facebook, Inc. and its affiliates                               |
-| Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `ops/hilbert.py`                                                                  | Copyright (c) 2023 Pointcept                                                  |
+| Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `layers/conditional_heads.py`, `ops/hilbert.py`                                   | Copyright (c) 2023 Pointcept                                                  |
 | PrincetonLIPS/numpy-hilbert-curve | MIT        | `ops/hilbert.py`                                                                                                    | Copyright (c) 2020 Princeton Laboratory for Intelligent Probabilistic Systems |
 | pyg-team/pytorch_geometric        | MIT        | `models/point_transformer.py`                                                                                       | Copyright (c) 2023 PyG Team <team@pyg.org>                                    |
 | Project-MONAI/MONAI               | Apache-2.0 | `datasets/utils.py`                                                                                                 | Copyright (c) MONAI Consortium                                                |

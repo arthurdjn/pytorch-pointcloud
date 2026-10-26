@@ -25,7 +25,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.02
 SW_BATCH_SIZE = 8
-MODEL = "ptv3-base.s3dis-area5.pointcept"
+MODELS = ["ptv3-base.s3dis-area5.pointcept", "ptv3-ppt.s3dis-area5.pointcept"]
 NUM_CLASSES = 13
 
 INFERER_TRANSFORM = T.Compose(
@@ -71,7 +71,7 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark Point Transformer V3 semantic segmentation on S3DIS Area 5.")
-    parser.add_argument("--model", default=MODEL, choices=[MODEL])
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS)
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)

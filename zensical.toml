@@ -166,6 +166,7 @@ nav = [
             { "anchors" = "api/layers/anchors.md" },
             { "bev_backbone" = "api/layers/bev_backbone.md" },
             { "center_head" = "api/layers/center_head.md" },
+            { "conditional_heads" = "api/layers/conditional_heads.md" },
             { "conv2d_blocks" = "api/layers/conv2d_blocks.md" },
             { "conv3d_blocks" = "api/layers/conv3d_blocks.md" },
             { "dropouts" = "api/layers/dropouts.md" },

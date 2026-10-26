@@ -32,6 +32,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added `CosineSimilarityHead`, `ConditionalLinear` and per-condition heads for `PointTransformerV3Segmentation`, with the checkpoints `ptv3-ppt.scannet20.pointcept`, `ptv3-ppt.s3dis-area5.pointcept`, `ptv3-ppt.scannet20.labelmaker` and `ptv3-ppt.scannet200.labelmaker`.
+- Fixed the registered transforms of the indoor PTv3 checkpoints failing on clouds without `segment`.
+- Fixed `forward_features` and `forward_decoder` of the PTv3 models ignoring the default `condition`.
 
 ## 0.0.18 (2026-10-20)
 
