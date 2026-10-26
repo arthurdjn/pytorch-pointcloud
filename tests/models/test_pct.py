@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import model_info
-from torch_pointcloud.models.pct import PCTClassification, PCTNeighborEmbedding
+from torch_pointcloud.models.pct import PCTClassification
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
@@ -42,13 +42,6 @@ def model() -> PCTClassification:
         head_channels=[32],
         dropout=0.0,
     ).eval()
-
-
-def test_pct_neighbor_embedding_samples_per_sample(data: Dict[str, Tensor]) -> None:
-    block = PCTNeighborEmbedding(3, [16, 16], num_points=20, num_neighbors=8)
-    x, pos, batch = block(data["x"], data["pos"], data["batch"])
-    assert x.shape == (40, 16) and pos.shape == (40, 3)
-    assert torch.equal(batch, torch.arange(2).repeat_interleave(20))
 
 
 def test_pct_classification_forward(model: PCTClassification, data: Dict[str, Tensor]) -> None:

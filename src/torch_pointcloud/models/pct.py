@@ -8,68 +8,17 @@ from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch_geometric.nn import MLP, EdgeConv
+from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
-from torch_pointcloud.layers import CatPool, OffsetAttention, PoolLike, create_pool
-from torch_pointcloud.ops.cluster import fps, knn
+from torch_pointcloud.layers import CatPool, OffsetAttention, PCTNeighborEmbedding, PoolLike, create_pool
 from torch_pointcloud.utils.conversion import ensure_list, ensure_list_size, is_iterable
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
 from ._base import ClassificationModel
 from ._registry import WeightsDict, register_model
-
-
-class PCTNeighborEmbedding(nn.Module):
-    r"""Sampling and grouping block of PCT: farthest point sampling, $k$-NN grouping on the coordinates and an
-    `EdgeConv` MLP over $[\mathbf{x}_i, \mathbf{x}_j - \mathbf{x}_i]$ max-pooled on every sampled point.
-
-    Args:
-        in_channels: Number of input channels.
-        out_channels: Channels of every MLP layer.
-        num_points: Number of sampled points per sample.
-        num_neighbors: Number of grouped neighbors $k$.
-        act: Activation function.
-        act_kwargs: Extra arguments for the activation.
-        norm: Normalization layer.
-        norm_kwargs: Extra arguments for the normalization.
-        bias: Whether the MLP layers use a bias.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: Union[int, Sequence[int]],
-        num_points: int,
-        num_neighbors: int,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-        bias: bool = True,
-    ) -> None:
-        super().__init__()
-        self.num_points = num_points
-        self.num_neighbors = num_neighbors
-        nn_module = MLP(
-            [2 * in_channels] + ensure_list(out_channels),
-            plain_last=False,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-        )
-        self.conv = EdgeConv(nn_module, aggr="max")
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        idx = fps(pos, batch, num_nodes=self.num_points, random_start=False)
-        pos_center, batch_center = pos[idx], batch[idx]
-        row, col = knn(pos, pos_center, self.num_neighbors, batch_x=batch, batch_y=batch_center)
-        x = self.conv((x, x[idx]), torch.stack([col, row]))
-        return x, pos_center, batch_center
 
 
 class PCTClassification(ClassificationModel):
