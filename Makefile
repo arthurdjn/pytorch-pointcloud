@@ -49,6 +49,10 @@ doctest: ## Run doctests in source docstrings (>>> examples)
 doctest-docs: ## Run every python code block of the docstrings and the docs pages, the data ones included
 	$(CMD) pytest $(TESTS)/test_docs_examples.py --run-docs
 
+.PHONY: test-hub
+test-hub: ## Compare the Hugging Face Hub repositories (cards, configs, pinned weights) with the registry
+	$(CMD) pytest $(TESTS)/models/test_hub_sync.py --run-hub
+
 # Documentation
 
 .PHONY: tables
