@@ -25,13 +25,14 @@ class GroupFree3DLoss(nn.Module):
     Every target is assigned inside the loss from the packed ground-truth boxes. A seed belongs to the first box of its
     scene that contains it, and a candidate inherits the box of the seed it was sampled from.
 
-    - **Sampling:** the `num_positive_seeds` seeds of each object closest to its center, in units of its size, are
+    - **Sampling:** the `num_positives` seeds of each object closest to its center, in units of its size, are
       positives of the seed objectness logits; a sigmoid focal loss averaged per scene supervises them.
     - **Objectness:** a candidate is positive when its seed lies inside an object; a sigmoid focal loss averaged per
       scene supervises the objectness logits of every stage.
     - **Box and semantic:** positive candidates drive, at every stage, the center (smooth-$L_1$ to the object center),
-      heading (bin cross-entropy and normalized residual Huber loss), size (direct Huber regression, or template
-      cross-entropy and normalized residual Huber loss) and semantic-class terms, each averaged over the positives.
+      heading (bin cross-entropy weighted by `heading_cls_weight` and normalized residual Huber loss), size (direct
+      Huber regression, or template cross-entropy weighted by `size_cls_weight` and normalized residual Huber loss)
+      and semantic-class terms, each averaged over the positives.
 
     The total is `loss_weight` times the weighted sampling term plus the weighted objectness, box and semantic terms
     averaged over the stages. The library heading is counter-clockwise about $+z$ while the heading head predicts the
@@ -47,7 +48,9 @@ class GroupFree3DLoss(nn.Module):
         center_delta: Smooth-$L_1$ transition point of the center term.
         size_delta: Huber transition point of the size term.
         heading_delta: Huber transition point of the heading residual term.
-        num_positive_seeds: Seeds per object labeled positive for the sampling term.
+        num_positives: Seeds per object labeled positive for the sampling term.
+        heading_cls_weight: Weight of the heading bin term inside the box term.
+        size_cls_weight: Weight of the size template term inside the box term.
         box_weight: Weight of the box term.
         sem_cls_weight: Weight of the semantic-class term.
         loss_weight: Global multiplier applied to the summed loss.
@@ -66,7 +69,9 @@ class GroupFree3DLoss(nn.Module):
         center_delta: float,
         size_delta: float,
         heading_delta: float,
-        num_positive_seeds: int = 4,
+        num_positives: int = 4,
+        heading_cls_weight: float = 0.1,
+        size_cls_weight: float = 0.1,
         box_weight: float = 1.0,
         sem_cls_weight: float = 0.1,
         loss_weight: float = 10.0,
@@ -83,7 +88,9 @@ class GroupFree3DLoss(nn.Module):
         self.center_delta = center_delta
         self.size_delta = size_delta
         self.heading_delta = heading_delta
-        self.num_positive_seeds = num_positive_seeds
+        self.num_positives = num_positives
+        self.heading_cls_weight = heading_cls_weight
+        self.size_cls_weight = size_cls_weight
         self.box_weight = box_weight
         self.sem_cls_weight = sem_cls_weight
         self.loss_weight = loss_weight
@@ -192,7 +199,8 @@ class GroupFree3DLoss(nn.Module):
         sem_cls = _cross_entropy(output["sem_cls_scores"], target_label)
         sem_cls_loss = (sem_cls * positive).sum() / denom
 
-        box_loss = center_loss + 0.1 * heading_cls_loss + heading_res_loss + 0.1 * size_cls_loss + size_res_loss
+        box_loss = center_loss + self.heading_cls_weight * heading_cls_loss + heading_res_loss
+        box_loss = box_loss + self.size_cls_weight * size_cls_loss + size_res_loss
         stage_loss = self.objectness_weight * objectness_loss + self.box_weight * box_loss
         stage_loss = stage_loss + self.sem_cls_weight * sem_cls_loss
         total = self.loss_weight * (self.sampling_weight * sampling + stage_loss / num_stages)
@@ -231,7 +239,7 @@ class GroupFree3DLoss(nn.Module):
         sorted_box = assignment[order]
         rank = torch.arange(order.numel(), device=order.device) - torch.searchsorted(sorted_box, sorted_box)
         label = torch.zeros_like(distance)
-        label[order] = ((rank < self.num_positive_seeds) & has_box[order]).to(label.dtype)
+        label[order] = ((rank < self.num_positives) & has_box[order]).to(label.dtype)
 
         counts = torch.zeros(batch_size, device=logits.device).index_add_(0, batch_seed, torch.ones_like(logits))
         weight = 1.0 / counts.clamp(min=1.0)[batch_seed]

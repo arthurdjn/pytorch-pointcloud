@@ -107,7 +107,7 @@ def test_groupfree3d_loss_without_boxes_is_finite() -> None:
 
 
 def test_groupfree3d_loss_sampling_marks_the_closest_seeds_of_each_object() -> None:
-    loss_fn = _create_loss(num_positive_seeds=2)
+    loss_fn = _create_loss(num_positives=2)
     output, data = _create_data(batch_size=1, num_seeds=6, num_queries=2)
     output["pos_seed"] = torch.tensor(
         [
@@ -143,6 +143,19 @@ def test_groupfree3d_loss_exact_centers_give_no_center_loss() -> None:
 
     output["center"] = output["center"] + 0.5
     assert loss_fn(output, data)["center_loss"] > 0
+
+
+def test_groupfree3d_loss_box_term_weights_its_classification_terms() -> None:
+    output, data = _create_data()
+    out = _create_loss(heading_cls_weight=0.3, size_cls_weight=0.7)(output, data)
+    expected = (
+        out["center_loss"]
+        + 0.3 * out["heading_cls_loss"]
+        + out["heading_res_loss"]
+        + 0.7 * out["size_cls_loss"]
+        + out["size_res_loss"]
+    )
+    assert torch.allclose(out["box_loss"], expected)
 
 
 def test_groupfree3d_loss_requires_one_size_template_per_class() -> None:
