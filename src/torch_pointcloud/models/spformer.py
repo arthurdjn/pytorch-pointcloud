@@ -114,6 +114,11 @@ class SPFormerQueryDecoder(nn.Module):
         """Build the class head for the current `num_classes`, with the trailing no-object slot."""
         return MLP([self.embed_dim, self.embed_dim, self.num_classes + 1], act="relu", norm=None)
 
+    def reset_classifier(self, num_classes: int) -> None:
+        """Rebuild the class head for `num_classes` instance classes, keeping the mask and score branches."""
+        self.num_classes = num_classes
+        self.class_head = self.configure_class_head()
+
     def predict(self, queries: Tensor, mask_features: Sequence[Tensor]) -> Tuple[SPFormerPrediction, List[Tensor]]:
         r"""Predict classes, scores and masks from the queries, and the attention masks of the next layer.
 
@@ -284,8 +289,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
 
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
-        self.head.num_classes = num_classes
-        self.head.class_head = self.head.configure_class_head()
+        self.head.reset_classifier(num_classes)
 
     def forward_features(
         self,

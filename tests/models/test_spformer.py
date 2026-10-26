@@ -69,6 +69,15 @@ def test_query_decoder_predicts_after_every_layer() -> None:
         assert prediction["mask_logits"].shape == (5, 11)
 
 
+def test_query_decoder_reset_classifier() -> None:
+    decoder = _decoder()
+    score_head = decoder.score_head
+    decoder.reset_classifier(6)
+    assert decoder.num_classes == 6
+    assert decoder(torch.randn(4, 8), torch.zeros(4, dtype=torch.long))[-1]["class_logits"].shape == (1, 5, 7)
+    assert decoder.score_head is score_head
+
+
 def test_query_decoder_scenes_are_independent() -> None:
     """A scene's predictions do not depend on the other scenes of the batch."""
     decoder = _decoder()
