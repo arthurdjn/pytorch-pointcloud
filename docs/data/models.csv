@@ -148,17 +148,17 @@ spvcnn-119gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantick
 spvcnn-30gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,5.45,mIoU,60.7,60.70,mIoU 60.70 · OA 91.94
 spvcnn-47gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,8.79,mIoU,61.4,61.59,mIoU 61.59 · OA 92.22
 utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,137.28,mIoU,77.7,77.70,mIoU 77.70 · OA 91.88
-volt-b-joint.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,93.84,mIoU,82.17,,
-volt-b-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,94.03,mIoU,80.45,,
-volt-b-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,94.08,mIoU,40.08,,
-volt-s-joint.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,23.59,mIoU,81.84,,
-volt-s-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,80.18,,
-volt-s-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,38.54,,
-volt-s-joint.semantickitti.kadir-yilmaz,volt,semantic-segmentation,semantickitti,true,MIT,23.59,mIoU,72.78,,
-volt-s.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,23.59,mIoU,81.11,,
-volt-s.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,77.28,,
-volt-s.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,36.15,,
-volt-s.semantickitti.kadir-yilmaz,volt,semantic-segmentation,semantickitti,true,MIT,23.59,mIoU,70.30,,
+volt-b-joint.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,93.84,mIoU,81.76,81.79,mIoU 81.79 · OA 94.73 · simple/mIoU 81.79 · simple/OA 94.73
+volt-b-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,94.03,mIoU,80.45,,simple/mIoU 79.69 · simple/OA 92.78
+volt-b-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,94.08,mIoU,40.08,,simple/mIoU 39.47 · simple/OA 85.01
+volt-s-joint.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,23.59,mIoU,81.52,81.53,mIoU 81.53 · OA 94.72 · simple/mIoU 81.53 · simple/OA 94.72
+volt-s-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,80.18,80.18,mIoU 80.18 · OA 92.81 · simple/mIoU 79.50 · simple/OA 92.45
+volt-s-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,38.54,38.53,mIoU 38.53 · OA 84.79 · simple/mIoU 37.91 · simple/OA 84.27
+volt-s-joint.semantickitti.kadir-yilmaz,volt,semantic-segmentation,semantickitti,true,MIT,23.59,mIoU,71.55,71.52,mIoU 71.52 · OA 92.97 · simple/mIoU 71.52 · simple/OA 92.97
+volt-s.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,23.59,mIoU,80.49,80.57,mIoU 80.57 · OA 94.54 · simple/mIoU 80.57 · simple/OA 94.54
+volt-s.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,77.28,77.27,mIoU 77.27 · OA 91.77 · simple/mIoU 76.38 · simple/OA 91.36
+volt-s.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,36.15,,simple/mIoU 35.36 · simple/OA 83.32
+volt-s.semantickitti.kadir-yilmaz,volt,semantic-segmentation,semantickitti,true,MIT,23.59,mIoU,69.39,69.42,mIoU 69.42 · OA 92.64 · simple/mIoU 69.42 · simple/OA 92.64
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
 point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.05,ins_mIoU 86.05 · cls_mIoU 84.12
