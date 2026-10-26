@@ -1861,7 +1861,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
         steps.append(T.EstimateNormals(keys=DataKeys.POS, dst_keys=DataKeys.NORMAL, orient_to_centroid=True))
     steps.append(T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1))
     if relabel_labels is not None:
-        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
+        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1, allow_missing_keys=True))
     steps += [
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
