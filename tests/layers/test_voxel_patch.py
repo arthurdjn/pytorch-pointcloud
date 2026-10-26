@@ -23,6 +23,7 @@ def test_voxel_patch_embed_is_a_strided_convolution() -> None:
     x = torch.randn(pos_grid.size(0), 4)
     embed = VoxelPatchEmbed(in_channels=4, embed_dim=8, patch_size=PATCH_SIZE)
     conv = nn.Conv3d(4, 8, kernel_size=PATCH_SIZE, stride=PATCH_SIZE)
+    assert conv.bias is not None
     with torch.no_grad():
         conv.weight.copy_(embed.proj.weight.view(8, PATCH_SIZE, PATCH_SIZE, PATCH_SIZE, 4).permute(0, 4, 1, 2, 3))
         conv.bias.copy_(embed.proj.bias)
@@ -41,6 +42,7 @@ def test_voxel_patch_expand_is_a_strided_transposed_convolution() -> None:
     expand = VoxelPatchExpand(in_channels=6, out_channels=5, patch_size=PATCH_SIZE)
     nn.init.normal_(expand.bias)
     deconv = nn.ConvTranspose3d(6, 5, kernel_size=PATCH_SIZE, stride=PATCH_SIZE)
+    assert deconv.bias is not None
     with torch.no_grad():
         weight = expand.proj.weight.view(PATCH_SIZE, PATCH_SIZE, PATCH_SIZE, 5, 6)
         deconv.weight.copy_(weight.permute(4, 3, 0, 1, 2))
