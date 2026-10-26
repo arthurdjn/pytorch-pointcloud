@@ -35,7 +35,6 @@ from .grouped_vector_attention import GroupedVectorAttention
 from .kpconv_blocks import (
     KPConv,
     KPConvBlock,
-    KPConvGroupNormBlock,
     KPResidualBlock,
     KPResidualGroupNormBlock,
     LinearGroupNormBlock,
@@ -150,7 +149,6 @@ __all__ = [
     "GroupedVectorAttention",
     "KPConv",
     "KPConvBlock",
-    "KPConvGroupNormBlock",
     "KPResidualBlock",
     "KPResidualGroupNormBlock",
     "LinearGroupNormBlock",

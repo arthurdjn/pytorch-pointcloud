@@ -114,8 +114,8 @@ class KPConv(MessagePassing):
         deformable: Whether to predict per-point kernel offsets.
         modulated: Whether the deformable branch also predicts a per-kernel-point modulation.
         bias: Whether to add a bias to the output.
-        normalize: Whether to divide the output of every query point by its number of neighbors whose features sum
-            to a positive value (at least one), as the KPConv-PyTorch and GeoTransformer convolutions do.
+        normalize_by_positive_neighbors: Whether to divide the output of every query point by the number of its
+            neighbors whose features sum to a positive value (at least one).
         track_running_stats: Whether to keep the deformable statistics of the last forward pass (`running_min_d2`,
             `running_deformed_kernel`, `running_offset_features`) for `losses.kpconv_deform_regularizer`.
 
@@ -140,7 +140,7 @@ class KPConv(MessagePassing):
         deformable: bool = False,
         modulated: bool = False,
         bias: bool = False,
-        normalize: bool = False,
+        normalize_by_positive_neighbors: bool = False,
         track_running_stats: bool = True,
     ) -> None:
         super().__init__(aggr=None)
@@ -157,7 +157,7 @@ class KPConv(MessagePassing):
         self.kp_influence = kp_influence
         self.aggregation_mode = aggregation_mode
         self.modulated = modulated
-        self.normalize = normalize
+        self.normalize_by_positive_neighbors = normalize_by_positive_neighbors
 
         self.weight = nn.Parameter(torch.zeros(kernel_size, in_channels, out_channels), requires_grad=True)
         self.register_buffer("kernel", self.configure_kernel())
@@ -329,7 +329,7 @@ class KPConv(MessagePassing):
         pooled = torch.bmm(weights, x_dense)  # (N_t, K, in_channels)
         weight = self.weight.reshape(self.kernel_size * self.in_channels, self.out_channels)
         out = torch.matmul(pooled.reshape(num_targets, -1), weight.to(pooled.dtype))
-        if self.normalize:
+        if self.normalize_by_positive_neighbors:
             num_neighbors = (x_dense.sum(dim=-1) > 0).sum(dim=1).clamp(min=1)
             out = out / num_neighbors.unsqueeze(1).to(out.dtype)
         return out
@@ -345,7 +345,7 @@ class KPConv(MessagePassing):
             f"aggregation_mode={self.aggregation_mode!r}, "
             f"deformable={self.deformable}, "
             f"modulated={self.modulated}, "
-            f"normalize={self.normalize}"
+            f"normalize_by_positive_neighbors={self.normalize_by_positive_neighbors}"
         )
 
     def __repr__(self) -> str:
@@ -353,7 +353,16 @@ class KPConv(MessagePassing):
 
 
 class KPConvBlock(nn.Module):
-    """Kernel point convolution followed by normalization and activation."""
+    r"""Kernel point convolution followed by normalization and activation.
+
+    Given a batch index, the normalization is computed per batch element; it then has to take one, as `GroupNorm`
+    and the PyG instance and layer normalizations do.
+
+    Shape:
+        - Input: $(N_s, C_\text{in})$ features, $(N, D)$ positions or a $((N_s, D), (N_t, D))$ pair, a $(2, E)$
+          `[source, target]` edge index, an optional $(N_t,)$ batch index and the optional number of batch elements.
+        - Output: $(N_t, C_\text{out})$.
+    """
 
     def __init__(
         self,
@@ -373,6 +382,7 @@ class KPConvBlock(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
+        normalize_by_positive_neighbors: bool = False,
     ):
         super().__init__()
         self.conv = KPConv(
@@ -388,17 +398,22 @@ class KPConvBlock(nn.Module):
             deformable=deformable,
             modulated=modulated,
             bias=bias,
+            normalize_by_positive_neighbors=normalize_by_positive_neighbors,
         )
         self.norm = create_norm(norm, out_channels, **(norm_kwargs or {})) or nn.Identity()
         self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
-    def forward(self, x: Tensor, pos: Union[Tensor, PairTensor], edge_index: Tensor) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        pos: Union[Tensor, PairTensor],
+        edge_index: Tensor,
+        batch: Optional[Tensor] = None,
+        batch_size: Optional[int] = None,
+    ) -> Tensor:
         x = self.conv(x, pos, edge_index)
-        if self.norm is not None:
-            x = self.norm(x)
-        if self.act is not None:
-            x = self.act(x)
-        return x
+        x = self.norm(x) if batch is None else self.norm(x, batch, batch_size)
+        return self.act(x)
 
 
 class KPResidualBlock(nn.Module):
@@ -497,7 +512,8 @@ class LinearGroupNormBlock(nn.Module):
         act: Whether to apply the LeakyReLU after the normalization.
 
     Shape:
-        - Input: $(N, C_\text{in})$ features and an optional $(N,)$ batch index of the normalization.
+        - Input: $(N, C_\text{in})$ features, an optional $(N,)$ batch index of the normalization and the optional
+          number of batch elements.
         - Output: $(N, C_\text{out})$.
     """
 
@@ -510,73 +526,18 @@ class LinearGroupNormBlock(nn.Module):
     ) -> None:
         super().__init__()
         self.linear = nn.Linear(in_channels, out_channels)
-        self.norm = GroupNorm(num_groups, out_channels)
+        self.norm = GroupNorm(out_channels, num_groups)
         self.act = nn.LeakyReLU(0.1) if act else nn.Identity()
 
-    def forward(self, x: Tensor, batch: Optional[Tensor] = None) -> Tensor:
+    def forward(self, x: Tensor, batch: Optional[Tensor] = None, batch_size: Optional[int] = None) -> Tensor:
         x = self.linear(x)
-        x = self.norm(x, batch)
-        return self.act(x)
-
-
-class KPConvGroupNormBlock(nn.Module):
-    r"""Kernel point convolution followed by a `GroupNorm` and a LeakyReLU, the stem of the KPConv-FPN
-    registration backbones.
-
-    The convolution normalizes its output by the number of neighbors (`KPConv(normalize=True)`).
-
-    Args:
-        in_channels: Number of input channels.
-        out_channels: Number of output channels.
-        kernel_size: Number of kernel points.
-        kp_radius: Radius of the sphere the kernel points are placed on.
-        kp_sigma: Kernel extent, the distance over which a kernel point still influences a neighbor.
-        num_groups: Number of channel groups of the normalization.
-
-    Shape:
-        - Input: $(N_s, C_\text{in})$ features, $(N, 3)$ positions or a $((N_s, 3), (N_t, 3))$ pair, a $(2, E)$
-          `[source, target]` edge index and an optional $(N_t,)$ batch index of the normalization.
-        - Output: $(N_t, C_\text{out})$.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
-        kp_radius: float,
-        kp_sigma: float,
-        num_groups: int = 32,
-    ) -> None:
-        super().__init__()
-        self.conv = KPConv(
-            spatial_dim=3,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            kp_radius=kp_radius,
-            kp_sigma=kp_sigma,
-            bias=True,
-            normalize=True,
-        )
-        self.norm = GroupNorm(num_groups, out_channels)
-        self.act = nn.LeakyReLU(0.1)
-
-    def forward(
-        self,
-        x: Tensor,
-        pos: Union[Tensor, PairTensor],
-        edge_index: Tensor,
-        batch: Optional[Tensor] = None,
-    ) -> Tensor:
-        x = self.conv(x, pos, edge_index)
-        x = self.norm(x, batch)
+        x = self.norm(x, batch, batch_size)
         return self.act(x)
 
 
 class KPResidualGroupNormBlock(nn.Module):
     r"""Bottleneck residual block of the KPConv-FPN registration backbones: a channel-reducing
-    `LinearGroupNormBlock`, a `KPConvGroupNormBlock` and a channel-restoring `LinearGroupNormBlock`.
+    `LinearGroupNormBlock`, a group-normalized `KPConvBlock` and a channel-restoring `LinearGroupNormBlock`.
 
     The bottleneck width is a quarter of `out_channels`, and the first unary block is skipped when the input already
     has that width. A strided block maps a support cloud onto a coarser query cloud; its skip connection is the
@@ -595,8 +556,8 @@ class KPResidualGroupNormBlock(nn.Module):
 
     Shape:
         - Input: $(N_s, C_\text{in})$ features, $(N, 3)$ positions or a $((N_s, 3), (N_t, 3))$ pair, a $(2, E)$
-          `[source, target]` edge index and an optional batch index of the normalizations, $(N,)$ or a
-          $((N_s,), (N_t,))$ pair for a strided block.
+          `[source, target]` edge index, an optional batch index of the normalizations, $(N,)$ or a
+          $((N_s,), (N_t,))$ pair for a strided block, and the optional number of batch elements.
         - Output: $(N_t, C_\text{out})$.
     """
 
@@ -624,7 +585,20 @@ class KPResidualGroupNormBlock(nn.Module):
         self.unary1: Optional[LinearGroupNormBlock] = None
         if in_channels != mid_channels:
             self.unary1 = LinearGroupNormBlock(in_channels, mid_channels, num_groups)
-        self.conv = KPConvGroupNormBlock(mid_channels, mid_channels, kernel_size, kp_radius, kp_sigma, num_groups)
+        self.conv = KPConvBlock(
+            spatial_dim=3,
+            in_channels=mid_channels,
+            out_channels=mid_channels,
+            kernel_size=kernel_size,
+            kp_radius=kp_radius,
+            kp_sigma=kp_sigma,
+            act="leaky_relu",
+            act_kwargs={"negative_slope": 0.1},
+            norm="group_norm",
+            norm_kwargs={"num_groups": num_groups},
+            bias=True,
+            normalize_by_positive_neighbors=True,
+        )
         self.unary2 = LinearGroupNormBlock(mid_channels, out_channels, num_groups, act=False)
         self.shortcut: Optional[LinearGroupNormBlock] = None
         if in_channels != out_channels:
@@ -637,6 +611,7 @@ class KPResidualGroupNormBlock(nn.Module):
         pos: Union[Tensor, PairTensor],
         edge_index: Tensor,
         batch: Union[Tensor, PairOptTensor, None] = None,
+        batch_size: Optional[int] = None,
     ) -> Tensor:
         batch_source, batch_target = batch if isinstance(batch, tuple) else (batch, batch)
         shortcut = x
@@ -645,10 +620,10 @@ class KPResidualGroupNormBlock(nn.Module):
             table, _ = dense_neighbors(edge_index, x.size(0), num_targets, max_num_neighbors=self.max_num_neighbors)
             shortcut = gather_neighbors(x, table).max(dim=1).values
         if self.shortcut is not None:
-            shortcut = self.shortcut(shortcut, batch_target)
+            shortcut = self.shortcut(shortcut, batch_target, batch_size)
 
         if self.unary1 is not None:
-            x = self.unary1(x, batch_source)
-        x = self.conv(x, pos, edge_index, batch_target)
-        x = self.unary2(x, batch_target)
+            x = self.unary1(x, batch_source, batch_size)
+        x = self.conv(x, pos, edge_index, batch_target, batch_size)
+        x = self.unary2(x, batch_target, batch_size)
         return self.act(x + shortcut)

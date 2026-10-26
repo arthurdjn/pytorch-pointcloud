@@ -16,7 +16,7 @@ from torch_geometric.utils import mask_to_index, to_dense_batch
 from typing_extensions import NotRequired
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers.kpconv_blocks import KPConvGroupNormBlock, KPResidualGroupNormBlock, LinearGroupNormBlock
+from torch_pointcloud.layers.kpconv_blocks import KPConvBlock, KPResidualGroupNormBlock, LinearGroupNormBlock
 from torch_pointcloud.layers.voxel_grid_pool import VoxelGridPool
 from torch_pointcloud.ops.cluster import dense_neighbors, gather_neighbors, knn
 from torch_pointcloud.ops.geometry import transform_points
@@ -401,7 +401,7 @@ class KPConvFPN(nn.Module):
     r"""KPConv feature pyramid of the registration backbones: a stem stage at the input resolution, grid-subsampled
     encoder stages, and nearest-neighbor upsampling decoders back to the fine stage.
 
-    The first stage is a `KPConvGroupNormBlock` followed by one residual block; every further stage grid-subsamples
+    The first stage is a group-normalized `KPConvBlock` followed by one residual block; every further stage grid-subsamples
     the points, then runs a strided residual block and two residual blocks at the doubled radius. The decoders
     upsample the coarsest features to each finer stage, concatenate that stage's encoder features and mix them with
     a unary block; the last decoder is a plain linear layer and defines the fine stage. Neighborhoods are the
@@ -460,7 +460,20 @@ class KPConvFPN(nn.Module):
 
         self.pools = nn.ModuleList([VoxelGridPool(grid_size=size, reduce="max") for size in voxel_sizes])
         self.stages = nn.ModuleList()
-        stem = KPConvGroupNormBlock(in_channels, stem_channels, kernel_size, radii[0], kp_sigma[0], num_groups)
+        stem = KPConvBlock(
+            spatial_dim=3,
+            in_channels=in_channels,
+            out_channels=stem_channels,
+            kernel_size=kernel_size,
+            kp_radius=radii[0],
+            kp_sigma=kp_sigma[0],
+            act="leaky_relu",
+            act_kwargs={"negative_slope": 0.1},
+            norm="group_norm",
+            norm_kwargs={"num_groups": num_groups},
+            bias=True,
+            normalize_by_positive_neighbors=True,
+        )
         first = KPResidualGroupNormBlock(
             stem_channels, encoder_channels[0], kernel_size, radii[0], kp_sigma[0], num_groups
         )
@@ -522,6 +535,7 @@ class KPConvFPN(nn.Module):
     def forward(self, x: Tensor, pos: Tensor, cloud: Tensor, batch: Tensor) -> Tuple[FeaturesDict, FeaturesDict]:
         num_stages = len(self.stages)
         num_clouds = int(cloud.max()) + 1
+        batch_size = int(batch.max()) + 1
         feats: List[Tensor] = []
         positions: List[Tensor] = [pos]
         clouds: List[Tensor] = [cloud]
@@ -545,11 +559,11 @@ class KPConvFPN(nn.Module):
                     self.max_num_neighbors[i - 1],
                     num_clouds,
                 )
-                x = blocks.pop(0)(x, (positions[i - 1], pos), edge_index, (batches[i - 1], batch))
+                x = blocks.pop(0)(x, (positions[i - 1], pos), edge_index, (batches[i - 1], batch), batch_size)
 
             edge_index = self.neighbors(pos, cloud, pos, cloud, self.radii[i], self.max_num_neighbors[i], num_clouds)
             for block in blocks:
-                x = block(x, pos, edge_index, batch)
+                x = block(x, pos, edge_index, batch, batch_size)
             feats.append(x)
 
         coarse: FeaturesDict = {"x": x, "pos": positions[-1], "batch": clouds[-1]}
@@ -569,7 +583,7 @@ class KPConvFPN(nn.Module):
             upsampled = gather_neighbors(latent, nearest).squeeze(1)
             latent = torch.cat([upsampled, feats[stage]], dim=1)
             if isinstance(decoder, LinearGroupNormBlock):
-                latent = decoder(latent, batches[stage])
+                latent = decoder(latent, batches[stage], batch_size)
             else:
                 latent = decoder(latent)
 

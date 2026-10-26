@@ -1,6 +1,7 @@
 import pytest
 import torch
 import torch.nn as nn
+from torch_geometric.nn import MLP
 from torch_geometric.nn.norm import BatchNorm as GraphBatchNorm
 from torch_geometric.nn.norm import InstanceNorm as GraphInstanceNorm
 from torch_geometric.nn.norm import LayerNorm as GraphLayerNorm
@@ -88,9 +89,9 @@ def test_conditions_wrap_in_pdnorm() -> None:
     assert isinstance(norm, PDNorm)
 
 
-def test_packed_group_norm_matches_group_norm_on_one_cloud() -> None:
+def test_group_norm_matches_torch_group_norm_on_one_cloud() -> None:
     torch.manual_seed(0)
-    norm = GroupNorm(num_groups=4, num_channels=16)
+    norm = GroupNorm(16, num_groups=4)
     reference = nn.GroupNorm(4, 16)
     with torch.no_grad():
         norm.weight.copy_(torch.randn(16))
@@ -103,22 +104,40 @@ def test_packed_group_norm_matches_group_norm_on_one_cloud() -> None:
     assert torch.allclose(norm(x, torch.zeros(50, dtype=torch.long)), expected, atol=1e-5)
 
 
-def test_packed_group_norm_is_per_batch_element() -> None:
+def test_group_norm_is_per_batch_element() -> None:
     torch.manual_seed(0)
-    norm = GroupNorm(num_groups=2, num_channels=8)
+    norm = GroupNorm(8, num_groups=2)
     a, b = torch.randn(30, 8), torch.randn(20, 8) * 5 + 2
     batch = torch.cat([torch.zeros(30), torch.ones(20)]).long()
     out = norm(torch.cat([a, b]), batch)
     assert torch.allclose(out[:30], norm(a), atol=1e-5)
     assert torch.allclose(out[30:], norm(b), atol=1e-5)
+    assert torch.equal(norm(torch.cat([a, b]), batch, batch_size=2), out)
 
 
-def test_packed_group_norm_rejects_indivisible_channels() -> None:
+def test_group_norm_rejects_indivisible_channels() -> None:
     with pytest.raises(ValueError, match="multiple"):
-        GroupNorm(num_groups=3, num_channels=8)
+        GroupNorm(8, num_groups=3)
 
 
-def test_packed_group_norm_empty_input() -> None:
-    norm = GroupNorm(num_groups=2, num_channels=8)
+def test_group_norm_empty_input() -> None:
+    norm = GroupNorm(8, num_groups=2)
     out = norm(torch.zeros(0, 8), torch.zeros(0, dtype=torch.long))
     assert out.shape == (0, 8)
+
+
+def test_create_norm_resolves_group_norm_for_packed_features() -> None:
+    norm = create_norm("group_norm", 16, num_groups=4)
+    assert isinstance(norm, GroupNorm) and norm.num_groups == 4
+    assert isinstance(create_norm(GroupNorm, 16, num_groups=4), GroupNorm)
+    assert isinstance(create_norm("group_norm", 16, dim=2, num_groups=4), nn.GroupNorm)
+
+
+def test_group_norm_in_pyg_mlp_is_per_batch_element() -> None:
+    torch.manual_seed(0)
+    mlp = MLP([4, 8], norm=GroupNorm(8, num_groups=2), plain_last=False)
+    a, b = torch.randn(30, 4), torch.randn(20, 4) * 5 + 2
+    batch = torch.cat([torch.zeros(30), torch.ones(20)]).long()
+    out = mlp(torch.cat([a, b]), batch, batch_size=2)
+    assert torch.allclose(out[:30], mlp(a), atol=1e-5)
+    assert torch.allclose(out[30:], mlp(b), atol=1e-5)

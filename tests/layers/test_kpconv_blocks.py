@@ -9,7 +9,6 @@ from torch_geometric.utils import scatter
 from torch_pointcloud.layers.kpconv_blocks import (
     KPConv,
     KPConvBlock,
-    KPConvGroupNormBlock,
     KPResidualBlock,
     KPResidualGroupNormBlock,
     LinearGroupNormBlock,
@@ -181,11 +180,17 @@ def test_create_kernel_points_gradient(tmp_path: Path, monkeypatch: pytest.Monke
     assert float(kernel_points.norm(dim=-1).max()) < 0.1
 
 
-def test_kpconv_normalize_divides_by_positive_neighbors(data: Dict[str, Tensor]) -> None:
+def test_kpconv_divides_by_positive_neighbors(data: Dict[str, Tensor]) -> None:
     torch.manual_seed(0)
     conv = KPConv(spatial_dim=3, in_channels=3, out_channels=8, kernel_size=15, kp_radius=0.1, kp_sigma=0.1)
     normalized = KPConv(
-        spatial_dim=3, in_channels=3, out_channels=8, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, normalize=True
+        spatial_dim=3,
+        in_channels=3,
+        out_channels=8,
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+        normalize_by_positive_neighbors=True,
     )
     normalized.load_state_dict(conv.state_dict())
     features = data["features"].abs()  # every neighbor has a positive feature sum
@@ -194,8 +199,22 @@ def test_kpconv_normalize_divides_by_positive_neighbors(data: Dict[str, Tensor])
     assert torch.allclose(out_normalized, out / 16, atol=1e-5)
 
 
+def test_kpconv_block_normalizes_per_batch_element(data: Dict[str, Tensor]) -> None:
+    torch.manual_seed(0)
+    block = KPConvBlock(
+        3, 3, 32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, norm="group_norm", norm_kwargs={"num_groups": 8}
+    )
+    out = block(data["features"], data["pos"], data["edge_index"], data["batch"], batch_size=2)
+    assert out.shape == (len(data["pos"]), 32)
+    first = data["batch"] == 0
+    convolved = block.act(block.norm(block.conv(data["features"], data["pos"], data["edge_index"])[first]))
+    assert torch.allclose(out[first], convolved, atol=1e-5)
+
+
 def test_group_norm_blocks_shapes(data: Dict[str, Tensor]) -> None:
-    block = KPConvGroupNormBlock(3, 32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, num_groups=8)
+    block = KPConvBlock(
+        3, 3, 32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, norm="group_norm", norm_kwargs={"num_groups": 8}
+    )
     out = block(data["features"], data["pos"], data["edge_index"], data["batch"])
     assert out.shape == (len(data["pos"]), 32)
 
