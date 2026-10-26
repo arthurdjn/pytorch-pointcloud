@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import Dataset
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.inferers import SimpleInferer, SlidingWindowSegmentationInferer
+from torch_pointcloud.inferers import SimpleInferer, SlidingWindowSegmentationInferer, TTADetectionInferer
 from torch_pointcloud.lightning import (
     LitClassificationModel,
     LitDetectionModel,
@@ -800,6 +800,13 @@ def test_detection_segmentation_inferer_raises() -> None:
     """A segmentation inferer would average boxes as per-point scores, so the module rejects it up front."""
     with pytest.raises(TypeError, match="SlidingWindowSegmentationInferer"):
         LitDetectionModel(name="dummy.detection", inferer=SlidingWindowSegmentationInferer(block_size=1.0))
+
+
+def test_segmentation_detection_inferer_raises() -> None:
+    """A detection inferer returns boxes where the segmentation step expects logits, so the module rejects it."""
+    inferer = TTADetectionInferer(lambda sample: sample)
+    with pytest.raises(TypeError, match="TTADetectionInferer"):
+        LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
 
 
 def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch) -> None:

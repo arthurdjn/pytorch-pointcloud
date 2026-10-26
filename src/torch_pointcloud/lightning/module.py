@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
 
-from torch_pointcloud.inferers import Inferer, SegmentationInferer, SimpleInferer
+from torch_pointcloud.inferers import DetectionInferer, Inferer, SegmentationInferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
@@ -53,6 +53,10 @@ class LitModel(LightningModule):
         param_groups: Optional dict of kwargs forwarded to
             `torch_pointcloud.optim.generate_param_groups`.
         **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+
+    Raises:
+        TypeError: If `inferer` merges the outputs of another task: a `DetectionInferer` for a classification
+            or segmentation model, a `SegmentationInferer` for a detection model.
     """
 
     def __init__(
@@ -71,6 +75,18 @@ class LitModel(LightningModule):
         param_groups: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
+        if task == "detection" and isinstance(inferer, SegmentationInferer):
+            raise TypeError(
+                f"`inferer` must merge detections (a `DetectionInferer` or `SimpleInferer`), got the segmentation "
+                f"inferer {type(inferer).__name__}."
+            )
+
+        if task != "detection" and isinstance(inferer, DetectionInferer):
+            raise TypeError(
+                f"`inferer` must merge logits (a `SegmentationInferer` or `SimpleInferer`), got the detection "
+                f"inferer {type(inferer).__name__}."
+            )
+
         super().__init__()
         model, info = create_model(name, task=task, return_info=True, **kwargs)
 
@@ -342,8 +358,9 @@ class LitDetectionModel(LitModel):
       the `inferer` on test batches, e.g. a `TTADetectionInferer`), postprocess it (optional `min_points`
       filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou` on the rotated BEV IoU
       when `nms_rotated`, and the indoor per-class expansion when `decode` emits `class_probs`), and pair
-      the result with the ground truth for a `MetricCallback` (e.g. `BoxMeanAveragePrecision`, `BoxAveragePrecision`); any other
-      per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is filtered alongside the boxes and kept
+      the result with the ground truth for a `MetricCallback` (e.g. `BoxMeanAveragePrecision`,
+      `BoxAveragePrecision`); any other per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is
+      filtered alongside the boxes and kept
       in the predictions dict, and when the batch carries `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked
       per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px `projected_ignore_mask` of the surviving boxes is
       attached as the predictions' `ignore_mask` (the KITTI min-height rule); the ground-truth boxes are
@@ -395,12 +412,6 @@ class LitDetectionModel(LitModel):
         ignore_mask_key: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        if isinstance(kwargs.get("inferer"), SegmentationInferer):
-            raise TypeError(
-                f"`inferer` must merge detections (a `DetectionInferer` or `SimpleInferer`), got the segmentation "
-                f"inferer {type(kwargs['inferer']).__name__}."
-            )
-
         super().__init__(name, task="detection", **kwargs)
         self.save_hyperparameters(
             {

@@ -233,9 +233,9 @@ class PotentialSphereSegmentationInferer(SegmentationInferer):
     each sphere's softmax predictions into the running per-point scores by an exponential moving average,
     until every region has been covered about `num_votes` times.
 
-    All parameters are forwarded verbatim to `potential_sphere_segmentation_inference`, except `seed`, which is offset by the
-    number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes) draw different
-    random numbers, and a fresh instance replays the same sequence.
+    All parameters are forwarded verbatim to `potential_sphere_segmentation_inference`, except `seed`, which is
+    offset by the number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes)
+    draw different random numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python

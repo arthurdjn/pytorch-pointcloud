@@ -493,9 +493,9 @@ class SlidingWindowSegmentationInferer(SegmentationInferer):
     At `overlap=0` each point lands in exactly one block and the weight division
     is a no-op.
 
-    All parameters are forwarded verbatim to `sliding_window_segmentation_inference`, except `seed`, which is offset by the
-    number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes) draw different
-    random numbers, and a fresh instance replays the same sequence.
+    All parameters are forwarded verbatim to `sliding_window_segmentation_inference`, except `seed`, which is
+    offset by the number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes)
+    draw different random numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python

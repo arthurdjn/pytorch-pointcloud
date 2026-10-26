@@ -49,7 +49,7 @@ scene = {
 model, info = create_model("pointpillars.kitti.openpcdet", task="detection", return_info=True)
 model.eval()
 
-inferer = TTADetectionInferer(flips=[(), (1,)], transform=info["transform"], cat_keys=[DataKeys.POS_VOXEL])
+inferer = TTADetectionInferer(info["transform"], flips=[(), (1,)], cat_keys=[DataKeys.POS_VOXEL])
 detections = inferer(scene, predictor=lambda d: model.decode(model(*select_inputs(d, info["input_keys"]))))
 ```
 

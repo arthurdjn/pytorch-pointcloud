@@ -102,14 +102,14 @@ class SegmentationInferer(Inferer[Tensor]):
     The `softmax` parameter controls whether partial predictions are converted to softmax
     probabilities before aggregation, and `aggregate` how they are combined:
 
-    | Inferer                              | `softmax` | Aggregated quantity                                             |
-    | ------------------------------------ | --------- | --------------------------------------------------------------- |
-    | `SlidingWindowSegmentationInferer`   | `False`   | raw logits per block; always probabilities (`"max"` / `"vote"`) |
-    | `KNNWindowSegmentationInferer`       | `False`   | raw logits (`"mean"`); always probabilities (`"ema"`)           |
-    | `VoxelPartitionSegmentationInferer`  | `False`   | raw logits per pass                                             |
-    | `PotentialSphereSegmentationInferer` | none      | always an EMA of softmax probabilities                          |
-    | `TTASegmentationInferer`             | `False`   | base output as-is                                               |
-    | `PartRefinementInferer`              | none      | one-hot refined labels of the base output's argmax              |
+    | Inferer                              | `softmax` | Aggregated quantity                                         |
+    | ------------------------------------ | --------- | ----------------------------------------------------------- |
+    | `SlidingWindowSegmentationInferer`   | `False`   | raw block logits; always probabilities (`"max"` / `"vote"`) |
+    | `KNNWindowSegmentationInferer`       | `False`   | raw logits (`"mean"`); always probabilities (`"ema"`)       |
+    | `VoxelPartitionSegmentationInferer`  | `False`   | raw logits per pass                                         |
+    | `PotentialSphereSegmentationInferer` | none      | always an EMA of softmax probabilities                      |
+    | `TTASegmentationInferer`             | `False`   | base output as-is                                           |
+    | `PartRefinementInferer`              | none      | one-hot refined labels of the base output's argmax          |
 
     When the input scene is empty ($N = 0$), inferers that never call the predictor
     return a $(0, 0)$ tensor (the channel count cannot be inferred without a predictor

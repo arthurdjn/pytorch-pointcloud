@@ -228,6 +228,10 @@ def _scenes(num_scenes: int, *, seed: int = 0) -> Dict[str, Any]:
     }
 
 
+def _identity(sample: Dict[str, Any]) -> Dict[str, Any]:
+    return sample
+
+
 def _equivariant_detections(window: Dict[str, Any]) -> Detection3D:
     """One box per scene built from its points, so it moves with them: centered at their mean, sized and headed by
     the offset of the first point, with the planar offset of the second point as velocity."""
@@ -249,6 +253,7 @@ def _equivariant_detections(window: Dict[str, Any]) -> Detection3D:
         "scores": torch.arange(1, num_scenes + 1) / num_scenes,
         "labels": torch.arange(num_scenes),
         "batch": torch.arange(num_scenes),
+        "ignore_mask": torch.arange(num_scenes) % 2 == 0,
         "velocity": torch.stack(velocity),
         "class_probs": torch.softmax(torch.arange(3.0 * num_scenes).reshape(num_scenes, 3), dim=1),
     }
@@ -280,10 +285,11 @@ def test_tta_detection_maps_every_view_back_to_the_input_scene(
     flips: Sequence[Sequence[int]],
 ) -> None:
     """A predictor whose boxes move with the points gives the same boxes, headings and velocities from every view
-    once they are mapped back; scores, labels, batch indices and class probabilities are kept as they are."""
+    once they are mapped back; scores, labels, batch indices, ignore masks and class probabilities are kept."""
     data = _scenes(2)
     expected = _equivariant_detections(data)
-    out = TTADetectionInferer(rotations=rotations, scales=scales, flips=flips)(data, predictor=_equivariant_detections)
+    inferer = TTADetectionInferer(_identity, rotations=rotations, scales=scales, flips=flips, sw_batch_size=2)
+    out = inferer(data, predictor=_equivariant_detections)
 
     num_views = len(rotations) * len(scales) * len(flips)
     rows = torch.arange(2).repeat(num_views)
@@ -296,6 +302,7 @@ def test_tta_detection_maps_every_view_back_to_the_input_scene(
     torch.testing.assert_close(out["scores"], expected["scores"][rows])
     torch.testing.assert_close(out["labels"], expected["labels"][rows])
     torch.testing.assert_close(out["batch"], expected["batch"][rows])
+    torch.testing.assert_close(out["ignore_mask"], expected["ignore_mask"][rows])
     torch.testing.assert_close(out["class_probs"], expected["class_probs"][rows])
 
 
@@ -308,7 +315,7 @@ def test_tta_detection_default_is_one_unaugmented_pass() -> None:
         calls.append(window)
         return _equivariant_detections(window)
 
-    out = TTADetectionInferer()(data, predictor=predictor)
+    out = TTADetectionInferer(_identity, sw_batch_size=2)(data, predictor=predictor)
     expected = _equivariant_detections(data)
     assert len(calls) == 1
     assert torch.equal(calls[0][DataKeys.POS], data[DataKeys.POS])
@@ -332,7 +339,7 @@ def test_tta_detection_views_rotate_and_flip_keys_and_scale_positions_only() -> 
         seen_normal.append(window[DataKeys.NORMAL][0])
         return _no_detections()
 
-    inferer = TTADetectionInferer(rotations=(0.0, 90.0), scales=(1.0, 2.0), flips=((), (0,)))
+    inferer = TTADetectionInferer(_identity, rotations=(0.0, 90.0), scales=(1.0, 2.0), flips=((), (0,)))
     out = inferer(data, predictor=predictor)
 
     expected_pos = torch.tensor(
@@ -369,8 +376,8 @@ def test_tta_detection_transform_runs_per_scene_after_the_view() -> None:
         return _equivariant_detections(packed)
 
     inferer = TTADetectionInferer(
+        transform,
         flips=((), (1,)),
-        transform=transform,
         sw_batch_size=2,
         cat_keys=[DataKeys.POS_VOXEL],
     )
@@ -394,20 +401,52 @@ def test_tta_detection_empty_input_with_a_transform_returns_no_boxes() -> None:
         DataKeys.BATCH: torch.zeros(0, dtype=torch.long),
     }
     predictor = Mock()
-    out = TTADetectionInferer(flips=((), (1,)), transform=lambda sample: sample)(data, predictor=predictor)
+    out = TTADetectionInferer(_identity, flips=((), (1,)))(data, predictor=predictor)
     predictor.assert_not_called()
     assert out["boxes"].shape == (0, 7)
     assert out["batch"].dtype == torch.long
+
+
+def test_tta_detection_splits_packed_keys_by_their_scene_index() -> None:
+    """A collated batch splits into its scenes: ground-truth boxes by `batch_box`, whose scene index is dropped."""
+    data = {
+        **_scenes(2),
+        DataKeys.BOX: torch.arange(3.0).unsqueeze(1).expand(3, 7),
+        f"batch_{DataKeys.BOX}": torch.tensor([0, 0, 1]),
+    }
+    transformed: List[Dict[str, Any]] = []
+
+    def transform(sample: Dict[str, Any]) -> Dict[str, Any]:
+        transformed.append(sample)
+        return sample
+
+    TTADetectionInferer(transform, cat_keys=[DataKeys.BOX])(data, predictor=_equivariant_detections)
+
+    assert [sample[DataKeys.BOX][:, 0].tolist() for sample in transformed] == [[0.0, 1.0], [2.0]]
+    assert all(f"batch_{DataKeys.BOX}" not in sample for sample in transformed)
 
 
 def test_tta_detection_unknown_predictor_key_raises() -> None:
     """A per-box entry the inversion does not know could be geometric, so it raises instead of passing through."""
 
     def predictor(window: Dict[str, Any]) -> Any:
-        return {**_equivariant_detections(window), "direction_scores": torch.zeros(2, 2)}
+        return {**_equivariant_detections(window), "direction_scores": torch.zeros(1, 2)}
 
     with pytest.raises(ValueError, match="direction_scores"):
-        TTADetectionInferer()(_scenes(2), predictor=predictor)
+        TTADetectionInferer(_identity)(_scenes(2), predictor=predictor)
+
+
+def test_tta_detection_predictor_keys_changing_across_calls_raise() -> None:
+    """Merging calls that disagree on the optional keys would drop or misalign them, so it raises."""
+    calls: List[int] = []
+
+    def predictor(window: Dict[str, Any]) -> Any:
+        calls.append(1)
+        det = _equivariant_detections(window)
+        return det if len(calls) == 1 else {key: value for key, value in det.items() if key != "velocity"}
+
+    with pytest.raises(ValueError, match="different keys"):
+        TTADetectionInferer(_identity, flips=((), (1,)))(_scenes(1), predictor=predictor)
 
 
 @pytest.mark.parametrize(
@@ -422,7 +461,7 @@ def test_tta_detection_unknown_predictor_key_raises() -> None:
 )
 def test_tta_detection_invalid_arguments_raise(kwargs: Dict[str, Any], match: str) -> None:
     with pytest.raises(ValueError, match=match):
-        TTADetectionInferer(**kwargs)
+        TTADetectionInferer(_identity, **kwargs)
 
 
 def test_tta_inferer_is_deprecated() -> None:
