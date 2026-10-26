@@ -35,7 +35,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
 - Moved `TransFusionHead` from `models.lion` to `layers.transfusion_head`; it now reads the $(y, x)$ BEV layout and adds `use_iou`, `height_code` and whole-map attention.
 - Added `height_code` to `TransFusionHeadLoss`; its IoU term now applies only to a head with an `iou` branch.
-- Fixed LION training against a transposed heatmap target.
+- Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 
 ## 0.0.18 (2026-10-20)
 
