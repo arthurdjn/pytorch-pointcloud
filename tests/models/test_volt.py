@@ -2,7 +2,7 @@ from typing import Dict
 
 import pytest
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from torch_pointcloud.models.volt import VoltSegmentation
 
@@ -83,6 +83,17 @@ def test_volt_segmentation_headless_returns_features(data: Dict[str, Tensor]) ->
     ).eval()
     out = model(data["x"], data["pos_grid"], data["batch"])
     assert out.shape == (data["x"].size(0), model.num_features)
+
+
+def test_volt_segmentation_defaults_to_the_authors_batch_norm() -> None:
+    model = VoltSegmentation(
+        6, 10, embed_dim=48, depth=1, num_heads=2, rope_frequencies=(4, 4, 4), use_flash_attn=False
+    )
+
+    norms = [module for module in model.decoder.modules() if isinstance(module, nn.BatchNorm1d)]
+
+    assert len(norms) == 3
+    assert all(norm.eps == 1e-3 and norm.momentum == 0.01 for norm in norms)
 
 
 def test_volt_segmentation_rejects_mismatched_rope_frequencies() -> None:

@@ -217,7 +217,7 @@ class VoltSegmentation(SemanticSegmentationModel):
         act: Activation function.
         act_kwargs: Extra arguments for the activation.
         norm: Normalization of the decoder.
-        norm_kwargs: Extra arguments for the normalization.
+        norm_kwargs: Extra arguments for the normalization; `None` gives the authors' `eps=1e-3` and `momentum=0.01`.
         use_flash_attn: Whether attention runs the flash attention kernel.
 
     Example:
@@ -268,7 +268,7 @@ class VoltSegmentation(SemanticSegmentationModel):
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
-        self.norm_kwargs = norm_kwargs
+        self.norm_kwargs = {"eps": 1e-3, "momentum": 0.01} if norm_kwargs is None else norm_kwargs
         self.use_flash_attn = use_flash_attn
 
         self.encoder = self.configure_encoder()
