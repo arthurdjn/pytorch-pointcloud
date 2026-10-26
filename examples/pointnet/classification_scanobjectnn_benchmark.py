@@ -23,9 +23,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 BATCH_SIZE = 32
 SEED = 42
 
-MODELS: Dict[str, Dict[str, Any]] = {
-    "pointnet.scanobjectnn-hardest.openpoints": {"background": True, "variant": "augmentedrot_scale75"},
-}
+MODELS = ("pointnet.scanobjectnn-hardest.openpoints",)
 
 
 def main() -> None:
@@ -46,7 +44,7 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark the PointNet classifier on ScanObjectNN.")
-    parser.add_argument("--model", default="pointnet.scanobjectnn-hardest.openpoints", choices=sorted(MODELS))
+    parser.add_argument("--model", default=MODELS[0], choices=sorted(MODELS))
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
@@ -58,7 +56,6 @@ def parse_args() -> Namespace:
 
 
 def configure_dataset(args: Namespace) -> Dataset:
-    spec = MODELS[args.model]
     entry = model_info(args.model)
 
     dataset: Dataset
@@ -66,8 +63,8 @@ def configure_dataset(args: Namespace) -> Dataset:
         root=args.root,
         train=False,
         partition="main",
-        background=spec["background"],
-        variant=spec["variant"],
+        background=True,
+        variant="augmentedrot_scale75",
         transform=entry["transform"],
         download=args.download,
     )
