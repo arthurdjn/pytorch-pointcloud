@@ -1,6 +1,6 @@
 r"""Transformer building blocks for point-cloud backbones and detectors."""
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import torch
 import torch.nn.functional as F
@@ -11,7 +11,6 @@ from torch_geometric.utils import to_dense_batch
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.layers.rope import AxialRoPE
 from torch_pointcloud.utils.conversion import cu_seqlens_to_batch
 from torch_pointcloud.utils.imports import _FLASH_ATTN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
@@ -183,39 +182,39 @@ class TransformerBlock(nn.Module):
 
 
 class PackedAttention(nn.Module):
-    r"""Multi-head self-attention over every sample of a packed token batch, with axial rotary position embedding.
+    r"""Multi-head self-attention over every sample of a packed token batch.
 
     Each token attends to every token of its own sample and to none of the others. Queries and keys are optionally
-    layer-normalized per head (`qk_norm`), then rotated by `AxialRoPE` from the token positions. The samples are given
-    in the variable-length layout of flash attention: `cu_seqlens` holds the cumulative token counts
-    $[0, n_0, n_0 + n_1, \ldots]$ of the contiguous samples and `max_seqlen` the largest count (build them once from a
-    sorted batch index with `batch_to_cu_seqlens`). With `use_flash_attn`, attention runs the variable-length flash
-    attention kernel in half precision, which needs the `flash-attn` package and a CUDA device; otherwise
-    `scaled_dot_product_attention` over the samples padded to `max_seqlen`.
+    layer-normalized per head (`qk_norm`), then rotated from the token positions by `rope`, a rotary position embedding
+    called as `rope(q, k, pos)` (`AxialRoPE`, `Point3DRoPE`). The samples are given in the variable-length layout of
+    flash attention: `cu_seqlens` holds the cumulative token counts $[0, n_0, n_0 + n_1, \ldots]$ of the contiguous
+    samples and `max_seqlen` the largest count (build them once from a sorted batch index with `batch_to_cu_seqlens`).
+    With `use_flash_attn`, attention runs the variable-length flash attention kernel in half precision, which needs the
+    `flash-attn` package and a CUDA device; otherwise `scaled_dot_product_attention` over the samples padded to
+    `max_seqlen`.
 
     Args:
         embed_dim: Token dimension $C$, divisible by `num_heads`.
         num_heads: Number of attention heads $h$.
-        rope_frequencies: Channel pairs rotated by each axis, see `AxialRoPE`; they sum to half the head dimension
-            $C / h$.
-        rope_base: Frequency base of `AxialRoPE`.
         qkv_bias: Whether the fused query/key/value projection uses a bias.
         qk_norm: Whether queries and keys go through a `LayerNorm` over the head channels.
+        rope: Rotary position embedding of head dimension $C / h$, or `None` to attend without positions.
         use_flash_attn: Whether to run the flash attention kernel.
 
     Shape:
-        - Input: $(N, C)$ tokens, $(N, 3)$ positions, $(B + 1,)$ `int32` `cu_seqlens` and the integer `max_seqlen`.
+        - Input: $(N, C)$ tokens, $(B + 1,)$ `int32` `cu_seqlens`, the integer `max_seqlen` and, with `rope`, $(N, 3)$
+          positions.
         - Output: $(N, C)$.
 
     Example:
         ```python
         import torch
-        from torch_pointcloud.layers import PackedAttention
+        from torch_pointcloud.layers import AxialRoPE, PackedAttention
         from torch_pointcloud.utils.conversion import batch_to_cu_seqlens
 
-        attn = PackedAttention(64, num_heads=2, rope_frequencies=(6, 6, 4), rope_base=100.0, use_flash_attn=False)
+        attn = PackedAttention(64, num_heads=2, rope=AxialRoPE((6, 6, 4), base=100.0), use_flash_attn=False)
         batch = torch.tensor([0] * 30 + [1] * 50)
-        x = attn(torch.randn(80, 64), torch.randint(0, 16, (80, 3)), batch_to_cu_seqlens(batch).int(), 50)
+        x = attn(torch.randn(80, 64), batch_to_cu_seqlens(batch).int(), 50, pos=torch.randint(0, 16, (80, 3)))
         ```
     """
 
@@ -223,37 +222,35 @@ class PackedAttention(nn.Module):
         self,
         embed_dim: int,
         num_heads: int,
-        rope_frequencies: Sequence[int],
-        rope_base: float,
         qkv_bias: bool = True,
         qk_norm: bool = False,
+        rope: Optional[nn.Module] = None,
         use_flash_attn: bool = True,
     ) -> None:
         if embed_dim % num_heads != 0:
             raise ValueError(f"`embed_dim` ({embed_dim}) must be divisible by `num_heads` ({num_heads}).")
-
-        head_dim = embed_dim // num_heads
-        if 2 * sum(rope_frequencies) != head_dim:
-            raise ValueError(
-                f"`rope_frequencies` {tuple(rope_frequencies)} rotate {2 * sum(rope_frequencies)} channels, but a "
-                f"head has {head_dim}."
-            )
 
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.use_flash_attn = use_flash_attn
 
+        head_dim = embed_dim // num_heads
         self.qkv = nn.Linear(embed_dim, 3 * embed_dim, bias=qkv_bias)
         self.q_norm: nn.Module = nn.LayerNorm(head_dim) if qk_norm else nn.Identity()
         self.k_norm: nn.Module = nn.LayerNorm(head_dim) if qk_norm else nn.Identity()
-        self.rope = AxialRoPE(rope_frequencies, base=rope_base)
+        self.rope = rope
         self.proj = nn.Linear(embed_dim, embed_dim)
 
-    def forward(self, x: Tensor, pos: Tensor, cu_seqlens: Tensor, max_seqlen: int) -> Tensor:
+    def forward(self, x: Tensor, cu_seqlens: Tensor, max_seqlen: int, pos: OptTensor = None) -> Tensor:
         N, C = x.shape
         q, k, v = self.qkv(x).view(N, 3, self.num_heads, C // self.num_heads).unbind(dim=1)
-        q, k = self.rope(self.q_norm(q).to(q.dtype), self.k_norm(k).to(k.dtype), pos)
+        q, k = self.q_norm(q).to(q.dtype), self.k_norm(k).to(k.dtype)
+        if self.rope is not None:
+            if pos is None:
+                raise ValueError("`pos` is required to rotate the queries and keys with `rope`.")
+
+            q, k = self.rope(q, k, pos)
 
         qkv = torch.stack([q, k, v], dim=1)  # (N, 3, H, D)
         if self.use_flash_attn:
@@ -273,36 +270,38 @@ class PackedAttention(nn.Module):
 class PackedTransformerBlock(nn.Module):
     r"""Pre-norm transformer block over a packed token batch: global attention within each sample, then an MLP.
 
-    Applies $x \leftarrow x + \text{DropPath}(\text{Attn}(\text{LN}(x)))$ with `PackedAttention`, then
-    $x \leftarrow x + \text{DropPath}(\text{MLP}(\text{LN}(x)))$ with a two-layer `torch_geometric.nn.MLP` of hidden
+    Applies $x \leftarrow x + \text{DropPath}(\text{Attn}(\text{Norm}(x)))$ with `PackedAttention`, then
+    $x \leftarrow x + \text{DropPath}(\text{MLP}(\text{Norm}(x)))$ with a two-layer `torch_geometric.nn.MLP` of hidden
     size $\lfloor C \cdot \text{mlp\_ratio} \rfloor$.
 
     Args:
         embed_dim: Token dimension $C$.
         num_heads: Number of attention heads.
-        rope_frequencies: Channel pairs rotated by each axis, see `AxialRoPE`.
-        rope_base: Frequency base of `AxialRoPE`.
         mlp_ratio: Hidden-to-input ratio of the MLP.
         qkv_bias: Whether the attention `qkv` projection uses a bias.
         qk_norm: Whether queries and keys are layer-normalized per head.
         drop_path: Stochastic-depth rate of the two residual branches.
         act: Activation of the MLP.
         act_kwargs: Extra arguments for the activation.
+        norm: Normalization applied before attention and before the MLP.
+        norm_kwargs: Extra arguments for the normalization.
+        rope: Rotary position embedding of the attention, see `PackedAttention`.
         use_flash_attn: Whether attention runs the flash attention kernel.
 
     Shape:
-        - Input: $(N, C)$ tokens, $(N, 3)$ positions, $(B + 1,)$ `int32` `cu_seqlens` and the integer `max_seqlen`.
+        - Input: $(N, C)$ tokens, $(B + 1,)$ `int32` `cu_seqlens`, the integer `max_seqlen` and, with `rope`, $(N, 3)$
+          positions.
         - Output: $(N, C)$.
 
     Example:
         ```python
         import torch
-        from torch_pointcloud.layers import PackedTransformerBlock
+        from torch_pointcloud.layers import AxialRoPE, PackedTransformerBlock
         from torch_pointcloud.utils.conversion import batch_to_cu_seqlens
 
-        block = PackedTransformerBlock(64, 2, rope_frequencies=(6, 6, 4), rope_base=100.0, use_flash_attn=False)
+        block = PackedTransformerBlock(64, 2, rope=AxialRoPE((6, 6, 4), base=100.0), use_flash_attn=False)
         batch = torch.tensor([0] * 30 + [1] * 50)
-        x = block(torch.randn(80, 64), torch.randint(0, 16, (80, 3)), batch_to_cu_seqlens(batch).int(), 50)
+        x = block(torch.randn(80, 64), batch_to_cu_seqlens(batch).int(), 50, pos=torch.randint(0, 16, (80, 3)))
         ```
     """
 
@@ -310,29 +309,37 @@ class PackedTransformerBlock(nn.Module):
         self,
         embed_dim: int,
         num_heads: int,
-        rope_frequencies: Sequence[int],
-        rope_base: float,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
         qk_norm: bool = False,
         drop_path: float = 0.0,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        rope: Optional[nn.Module] = None,
         use_flash_attn: bool = True,
     ) -> None:
         super().__init__()
-        self.norm1 = nn.LayerNorm(embed_dim)
+
+        def make_norm() -> nn.Module:
+            module = create_norm(norm, embed_dim, **(norm_kwargs or {}))
+            if module is None:
+                raise ValueError("PackedTransformerBlock requires a normalization layer, got norm=None.")
+
+            return module
+
+        self.norm1 = make_norm()
         self.attn = PackedAttention(
             embed_dim,
             num_heads,
-            rope_frequencies=rope_frequencies,
-            rope_base=rope_base,
             qkv_bias=qkv_bias,
             qk_norm=qk_norm,
+            rope=rope,
             use_flash_attn=use_flash_attn,
         )
         self.drop_path = DropPath(drop_path)
-        self.norm2 = nn.LayerNorm(embed_dim)
+        self.norm2 = make_norm()
         self.mlp = MLP(
             [embed_dim, int(embed_dim * mlp_ratio), embed_dim],
             act=act,
@@ -341,8 +348,8 @@ class PackedTransformerBlock(nn.Module):
             plain_last=True,
         )
 
-    def forward(self, x: Tensor, pos: Tensor, cu_seqlens: Tensor, max_seqlen: int) -> Tensor:
-        x = x + self.drop_path(self.attn(self.norm1(x), pos, cu_seqlens, max_seqlen))
+    def forward(self, x: Tensor, cu_seqlens: Tensor, max_seqlen: int, pos: OptTensor = None) -> Tensor:
+        x = x + self.drop_path(self.attn(self.norm1(x), cu_seqlens, max_seqlen, pos=pos))
         x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
 

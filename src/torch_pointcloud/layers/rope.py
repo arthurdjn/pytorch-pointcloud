@@ -83,7 +83,9 @@ class AxialRoPE(nn.Module):
     The head channels form adjacent pairs $(2i, 2i + 1)$; the first $F_x$ pairs rotate with the x coordinate, the next
     $F_y$ with y and the last $F_z$ with z, so the head dimension is $2 (F_x + F_y + F_z)$. Pair $j$ of a band of $F$
     pairs turns by the angle $p \, \theta^{-j / (F - 1)}$ for the coordinate $p$: frequencies are log-spaced from $1$
-    down to $1 / \theta$. Unlike `Point3DRoPE`, the bands can differ in size.
+    down to $1 / \theta$. `Point3DRoPE` instead splits the head into three equal chunks, rotates the two halves of each
+    chunk and spaces its frequencies as $\theta^{-2j / D_c}$ for a chunk of $D_c$ channels; the two embeddings are not
+    interchangeable on trained weights, and only this one lets the bands differ in size.
 
     Args:
         num_frequencies: Number of channel pairs $(F_x, F_y, F_z)$ rotated by each axis.

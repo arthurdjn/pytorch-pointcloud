@@ -71,6 +71,11 @@ def test_volt_segmentation_headless_returns_features(data: Dict[str, Tensor]) ->
     assert out.shape == (data["x"].size(0), model.num_features)
 
 
+def test_volt_segmentation_rejects_mismatched_rope_frequencies() -> None:
+    with pytest.raises(ValueError, match="rope_frequencies"):
+        VoltSegmentation(6, 10, embed_dim=48, depth=1, num_heads=2, rope_frequencies=(4, 4, 2), use_flash_attn=False)
+
+
 def test_volt_segmentation_reset_classifier(model: VoltSegmentation, data: Dict[str, Tensor]) -> None:
     model.reset_classifier(num_classes=3)
     assert model(data["x"], data["pos_grid"], data["batch"]).shape == (data["x"].size(0), 3)

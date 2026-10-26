@@ -17,7 +17,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES, SEMANTIC_KITTI_LEARNING_MAP
-from torch_pointcloud.layers import PackedTransformerBlock, VoxelPatchEmbed, VoxelPatchExpand
+from torch_pointcloud.layers import AxialRoPE, PackedTransformerBlock, VoxelPatchEmbed, VoxelPatchExpand
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SemanticSegmentationModel
@@ -78,6 +78,12 @@ class VoltEncoder(nn.Module):
         act_kwargs: Optional[Dict[str, Any]],
         use_flash_attn: bool,
     ) -> None:
+        if 2 * sum(rope_frequencies) != embed_dim // num_heads:
+            raise ValueError(
+                f"`rope_frequencies` {tuple(rope_frequencies)} rotate {2 * sum(rope_frequencies)} channels, but a "
+                f"head has {embed_dim // num_heads}."
+            )
+
         super().__init__()
         self.patch_size = patch_size
         self.patch_embed = VoxelPatchEmbed(in_channels, embed_dim, patch_size)
@@ -87,13 +93,12 @@ class VoltEncoder(nn.Module):
                 PackedTransformerBlock(
                     embed_dim,
                     num_heads,
-                    rope_frequencies=rope_frequencies,
-                    rope_base=rope_base,
                     mlp_ratio=mlp_ratio,
                     qk_norm=qk_norm,
                     drop_path=drop_paths[i],
                     act=act,
                     act_kwargs=act_kwargs,
+                    rope=AxialRoPE(rope_frequencies, base=rope_base),
                     use_flash_attn=use_flash_attn,
                 )
                 for i in range(depth)
@@ -107,7 +112,7 @@ class VoltEncoder(nn.Module):
         cu_seqlens = batch_to_cu_seqlens(patch_batch).int()
         max_seqlen = int(cu_seqlens.diff().max())
         for block in self.blocks:
-            x = block(x, patch_grid, cu_seqlens, max_seqlen)
+            x = block(x, cu_seqlens, max_seqlen, pos=patch_grid)
         return x, inverse, offset
 
 

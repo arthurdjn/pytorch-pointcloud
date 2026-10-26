@@ -2,8 +2,9 @@ from typing import Tuple
 
 import pytest
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
+from torch_pointcloud.layers.rope import AxialRoPE
 from torch_pointcloud.layers.transformer import (
     PackedAttention,
     PackedTransformerBlock,
@@ -59,45 +60,71 @@ def _packed_tokens(lengths: Tuple[int, ...], channels: int) -> Tuple[Tensor, Ten
 
 def test_packed_attention_matches_each_sample_alone() -> None:
     torch.manual_seed(0)
-    attn = PackedAttention(32, 2, rope_frequencies=(3, 3, 2), rope_base=100.0, qk_norm=True, use_flash_attn=False)
+    attn = PackedAttention(32, 2, qk_norm=True, rope=AxialRoPE((3, 3, 2), base=100.0), use_flash_attn=False)
     x, pos, cu_seqlens, max_seqlen = _packed_tokens((7, 12, 5), 32)
 
-    out = attn(x, pos, cu_seqlens, max_seqlen)
+    out = attn(x, cu_seqlens, max_seqlen, pos=pos)
 
     for start, end in zip(cu_seqlens[:-1].tolist(), cu_seqlens[1:].tolist()):
-        alone = attn(x[start:end], pos[start:end], torch.tensor([0, end - start], dtype=torch.int32), end - start)
+        alone = attn(x[start:end], torch.tensor([0, end - start], dtype=torch.int32), end - start, pos=pos[start:end])
         torch.testing.assert_close(out[start:end], alone)
 
 
-def test_packed_attention_rejects_mismatched_rope_frequencies() -> None:
-    with pytest.raises(ValueError, match="rope_frequencies"):
-        PackedAttention(32, 2, rope_frequencies=(4, 4, 4), rope_base=100.0)
+def test_packed_attention_without_rope_ignores_positions() -> None:
+    torch.manual_seed(0)
+    attn = PackedAttention(32, 2, use_flash_attn=False)
+    x, pos, cu_seqlens, max_seqlen = _packed_tokens((7, 12), 32)
+
+    out = attn(x, cu_seqlens, max_seqlen)
+
+    assert out.shape == x.shape
+    torch.testing.assert_close(attn(x, cu_seqlens, max_seqlen, pos=pos), out)
+
+
+def test_packed_attention_with_rope_requires_positions() -> None:
+    attn = PackedAttention(32, 2, rope=AxialRoPE((3, 3, 2), base=100.0), use_flash_attn=False)
+    x, _, cu_seqlens, max_seqlen = _packed_tokens((7, 12), 32)
+
+    with pytest.raises(ValueError, match="pos"):
+        attn(x, cu_seqlens, max_seqlen)
 
 
 @pytest.mark.skipif(not (_CUDA_AVAILABLE and _FLASH_ATTN_AVAILABLE), reason="flash attention needs CUDA and flash-attn")
 def test_packed_attention_flash_matches_scaled_dot_product() -> None:
     torch.manual_seed(0)
-    attn = PackedAttention(64, 4, rope_frequencies=(3, 3, 2), rope_base=100.0, qk_norm=True).cuda()
+    attn = PackedAttention(64, 4, qk_norm=True, rope=AxialRoPE((3, 3, 2), base=100.0)).cuda()
     x, pos, cu_seqlens, max_seqlen = _packed_tokens((70, 120, 50), 64)
     x, pos, cu_seqlens = x.cuda(), pos.cuda(), cu_seqlens.cuda()
 
-    flash = attn(x, pos, cu_seqlens, max_seqlen)
+    flash = attn(x, cu_seqlens, max_seqlen, pos=pos)
     attn.use_flash_attn = False
-    reference = attn(x, pos, cu_seqlens, max_seqlen)
+    reference = attn(x, cu_seqlens, max_seqlen, pos=pos)
 
     torch.testing.assert_close(flash, reference, atol=2e-3, rtol=1e-2)
 
 
 def test_packed_transformer_block_backward() -> None:
     torch.manual_seed(0)
-    block = PackedTransformerBlock(
-        32, 2, rope_frequencies=(3, 3, 2), rope_base=100.0, drop_path=0.1, use_flash_attn=False
-    )
+    block = PackedTransformerBlock(32, 2, drop_path=0.1, rope=AxialRoPE((3, 3, 2), base=100.0), use_flash_attn=False)
     x, pos, cu_seqlens, max_seqlen = _packed_tokens((9, 4), 32)
     x.requires_grad_(True)
 
-    out = block(x, pos, cu_seqlens, max_seqlen)
+    out = block(x, cu_seqlens, max_seqlen, pos=pos)
     out.sum().backward()
 
     assert out.shape == x.shape
     assert x.grad is not None
+
+
+def test_packed_transformer_block_builds_the_given_norm() -> None:
+    block = PackedTransformerBlock(32, 2, norm=nn.RMSNorm, norm_kwargs={"eps": 1e-6}, use_flash_attn=False)
+    x, _, cu_seqlens, max_seqlen = _packed_tokens((9, 4), 32)
+
+    assert isinstance(block.norm1, nn.RMSNorm) and isinstance(block.norm2, nn.RMSNorm)
+    assert block.norm1.eps == 1e-6
+    assert block(x, cu_seqlens, max_seqlen).shape == x.shape
+
+
+def test_packed_transformer_block_requires_a_norm() -> None:
+    with pytest.raises(ValueError, match="normalization"):
+        PackedTransformerBlock(32, 2, norm=None)
