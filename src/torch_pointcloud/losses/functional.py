@@ -7,6 +7,7 @@ from .corner import corner_loss
 from .focal import gaussian_focal_loss, one_hot_foreground, poly1_focal_loss, sigmoid_focal_loss
 from .kpconv import kpconv_deform_regularizer
 from .lovasz import lovasz_softmax
+from .mask import dice_loss, pairwise_binary_cross_entropy_with_logits, pairwise_dice_loss
 from .matching import hungarian_match, hungarian_match_batched
 from .tnet import tnet_orthogonality_regularizer
 
@@ -14,6 +15,7 @@ __all__ = [
     "center_regression_loss",
     "chamfer_distance",
     "corner_loss",
+    "dice_loss",
     "gaussian_focal_loss",
     "hungarian_match",
     "hungarian_match_batched",
@@ -21,6 +23,8 @@ __all__ = [
     "kpconv_deform_regularizer",
     "lovasz_softmax",
     "one_hot_foreground",
+    "pairwise_binary_cross_entropy_with_logits",
+    "pairwise_dice_loss",
     "poly1_focal_loss",
     "sigmoid_focal_loss",
     "tnet_orthogonality_regularizer",

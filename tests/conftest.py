@@ -88,6 +88,17 @@ def scannet20_dataset(transform: Optional[Callable] = None) -> ScanNet20:
     )
 
 
+def scannet20_superpoint_dataset(transform: Optional[Callable] = None) -> ScanNet20:
+    return ScanNet20(
+        root=DATASETS_DIR,
+        split="val",
+        use_axis_alignment=False,
+        return_superpoint=True,
+        show_progress=False,
+        transform=transform,
+    )
+
+
 def scannet20_blocks_dataset(transform: Optional[Callable] = None) -> ScanNet20:
     # tile_scannet_scene samples points per block with torch RNG; seed so the snapshot stays reproducible.
     torch.manual_seed(0)
@@ -140,6 +151,7 @@ def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
         "s3dis_hdf5": s3dis_hdf5_dataset,
         "scannet20": scannet20_dataset,
         "scannet20_blocks": scannet20_blocks_dataset,
+        "scannet20_superpoint": scannet20_superpoint_dataset,
         "semantickitti": semantickitti_dataset,
         "dales": dales_dataset,
         "nuscenes_lidarseg": partial(nuscenes_lidarseg_dataset, tmp_path),

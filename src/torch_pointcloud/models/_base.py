@@ -1,4 +1,5 @@
-"""Abstract base classes for classification, semantic and part segmentation, detection and pretraining models."""
+"""Abstract base classes for classification, semantic, part and instance segmentation, detection and pretraining
+models."""
 
 from abc import ABCMeta, abstractmethod
 from typing import Any
@@ -14,13 +15,14 @@ class PretrainingModel(nn.Module, metaclass=ABCMeta):
     stores `in_channels`; each subclass defines its own `forward` signature.
 
     Models with a task head inherit from one of the task ABCs instead: `ClassificationModel`,
-    `SemanticSegmentationModel`, `PartSegmentationModel` or `DetectionModel`. The classification and segmentation
-    ABCs require the
+    `SemanticSegmentationModel`, `PartSegmentationModel`, `InstanceSegmentationModel` or `DetectionModel`. The
+    classification and semantic / part segmentation ABCs require the
     split into `forward_features` (encoder), `forward_decoder` (segmentation only, optional) and
     `forward_head` (logits), plus `configure_head` / `reset_classifier` for building the head and
     the read-only `num_features` property for the width of the features entering it. Detection models
     split into `forward_features` (backbone), `forward_head` (raw predictions) and `decode` (boxes), and
-    expose `num_features` as the backbone output width.
+    expose `num_features` as the backbone output width; instance segmentation models follow the same split,
+    with `decode` returning per-instance point masks.
 
     Args:
         in_channels: Number of input feature channels.
@@ -339,4 +341,73 @@ class DetectionModel(nn.Module, metaclass=ABCMeta):
 
         Canonical signature: `decode(output)`, returning a `Detection3D` with `boxes` $(K, 7)$, `scores`
         $(K,)$, `labels` $(K,)$ and `batch` $(K,)$. The decode is raw: no score thresholding and no NMS.
+        """
+
+
+class InstanceSegmentationModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for point cloud instance segmentation models, registered under the `"instance-segmentation"` task.
+
+    Subclasses implement `forward_features` (the backbone, pooled to the units the head predicts over: points,
+    voxels or superpoints), `forward_head` (backbone features to the raw prediction output), `decode` (raw output
+    to per-instance point masks) and `num_features`, and compose the first two in `forward`. Like detectors,
+    instance segmentation models have no headless mode: features come from `forward_features`, and
+    `reset_classifier` is only available where the class count can change without touching the mask branches.
+
+    Args:
+        in_channels: Number of input feature channels.
+        num_classes: Number of instance classes (the head predicts one extra no-object slot where it applies).
+    """
+
+    def __init__(self, in_channels: int, num_classes: int) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+
+    @property
+    @abstractmethod
+    def num_features(self) -> int:
+        r"""Channel count $C$ of the `forward_features` output entering the head.
+
+        Read-only: it is derived from the instantiated submodules.
+        """
+
+    def reset_classifier(self, num_classes: int) -> None:
+        r"""Replace the classification branch of the head for `num_classes` outputs.
+
+        Models whose head is not rebuildable in isolation raise `NotImplementedError`.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement `reset_classifier`.")
+
+    @abstractmethod
+    def forward(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Run the model and return its raw prediction output.
+
+        Canonical signature: `forward(x, pos, batch, superpoint)` with features `x` $(N, C)$, positions `pos`
+        $(N, 3)$, batch index `batch` $(N,)$ and, for superpoint models, the per-point superpoint id `superpoint`
+        $(N,)$ (voxel models take their voxelized layout instead), returning the prediction dict consumed by the
+        training criterion and by `decode`.
+        """
+
+    @abstractmethod
+    def forward_features(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Run the backbone on the packed input.
+
+        Canonical signature: `forward_features(x, pos, batch, superpoint)`, returning the features the head
+        predicts over (per point, voxel or superpoint) with the index tensors that place them in the batch.
+        """
+
+    @abstractmethod
+    def forward_head(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Map backbone features to the raw prediction output.
+
+        Canonical signature: `forward_head(features, ...)`, returning the same prediction output as `forward`.
+        """
+
+    @abstractmethod
+    def decode(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Decode the raw `forward` output into per-instance point masks.
+
+        Canonical signature: `decode(output)`, returning an `InstanceSegmentation3D` with boolean `masks` $(K, N)$
+        over the points of the batch, `labels` $(K,)$, `scores` $(K,)$ and `batch` $(K,)$: the inputs of
+        `metrics.instance_matches`. The decode is raw: no score threshold and no minimum mask size.
         """

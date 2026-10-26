@@ -1,7 +1,7 @@
 # Models
 
-:pytorch-pointcloud-mini: `torch-pointcloud` ships architectures for point cloud classification, semantic and part
-segmentation, object detection and self-supervised pretraining, behind one :pytorch: timm-style factory:
+:pytorch-pointcloud-mini: `torch-pointcloud` ships architectures for point cloud classification, semantic, part and
+instance segmentation, object detection and self-supervised pretraining, behind one :pytorch: timm-style factory:
 
 ```{.python notest}
 import torch_pointcloud as tp
@@ -32,6 +32,10 @@ and a few are restricted to non-commercial use: see
 -   :material-puzzle-outline: __[Part segmentation](part-segmentation.md)__
 
     Category-conditioned part labels and the ShapeNetPart protocol.
+
+-   :material-select-group: __[Instance segmentation](instance-segmentation.md)__
+
+    One mask per object: superpoints, decoded masks, mask AP.
 
 -   :material-cube-scan: __[Object detection](detection.md)__
 
@@ -69,6 +73,13 @@ Best for **dense per-point labeling** (S3DIS, ScanNet, SemanticKITTI). Inputs ar
 Best for **object parts** (ShapeNetPart). Inputs are single objects and their category, outputs are per-point part labels.
 
 {{ architecture_table("part-segmentation") }}
+
+### Instance segmentation
+
+Separate **every object of a scene** (ScanNet). Inputs are large scenes, outputs are one point mask, class and score per
+object.
+
+{{ architecture_table("instance-segmentation") }}
 
 ### Detection
 

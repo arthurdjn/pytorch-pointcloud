@@ -27,7 +27,7 @@ from torch_pointcloud.models import create_model
 from torch_pointcloud.models.parta2 import PartA2Detection
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
-from torch_pointcloud.utils.data import collate, select_inputs
+from torch_pointcloud.utils.data import DataKeys, collate, offset_index, select_inputs
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -741,3 +741,35 @@ def test_pretrained_parta2(
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+def test_pretrained_spformer(
+    dataset_factory: Callable[..., Dataset],
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """SPFormer reads per-point superpoints and the point-to-voxel `inverse` map, so the two scenes are collated with
+    `inverse` offset to the packed voxel rows. The snapshot is the last layer's class logits, scores and mask logits.
+    """
+    if not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "spformer.scannet.jiahao-sun"
+    model, info = create_model(model_name, task="instance-segmentation", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    dataset = dataset_factory("scannet20_superpoint", transform=info["transform"])
+    data = collate([dataset[0], dataset[1]], cat_keys=[DataKeys.INVERSE])
+    data[DataKeys.INVERSE] = offset_index(
+        data[DataKeys.INVERSE], data[f"batch_{DataKeys.INVERSE}"], data[DataKeys.BATCH]
+    )
+    data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
+    with torch.no_grad():
+        output = model(*select_inputs(data, info["input_keys"]))
+
+    snapshot = torch.cat(
+        [output["class_logits"].flatten(), output["scores"].flatten(), output["mask_logits"].flatten()]
+    )
+    _check_output(snapshot, model_name, force_regen, models_dir)

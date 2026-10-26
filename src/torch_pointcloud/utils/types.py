@@ -63,6 +63,22 @@ class Detection3D(Boxes3D):
     velocity: NotRequired[Tensor]
 
 
+class InstanceSegmentation3D(TypedDict):
+    r"""Packed instance masks with class, score and scene indices (a model's `decode` output).
+
+    Attributes:
+        masks: Per-instance boolean point masks over the points of the batch, shape $(K, N)$.
+        labels: Per-instance class, shape $(K,)$.
+        scores: Per-instance confidence score, shape $(K,)$.
+        batch: Per-instance scene index, shape $(K,)$.
+    """
+
+    masks: Tensor
+    labels: Tensor
+    scores: Tensor
+    batch: Tensor
+
+
 class FeaturesDict(TypedDict):
     r"""Features of one encoder stage on a packed point cloud, as returned in the `return_intermediates` list.
 

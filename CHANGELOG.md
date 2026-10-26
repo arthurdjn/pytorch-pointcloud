@@ -32,7 +32,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added the `instance-segmentation` task with SPFormer and its ScanNet checkpoint, and the ScanNet instance segmentation benchmark.
+- Added the `instance-segmentation` task with SPFormer (`spformer.scannet.jiahao-sun`), its loss and its ScanNet benchmark and train scripts.
+- Added `ops.superpoint`, the dice losses and the `RandomLinearJitter` transform.
+- Fixed `instance_matches` to count the points without an instance as void.
 
 ## 0.0.18 (2026-10-20)
 

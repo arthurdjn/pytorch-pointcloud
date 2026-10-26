@@ -21,9 +21,17 @@ from torch_pointcloud.utils.hub import HF_ENDPOINT, HF_URL_RE, load_hub_token
 from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
-from ._base import ClassificationModel, DetectionModel, PartSegmentationModel, SemanticSegmentationModel
+from ._base import (
+    ClassificationModel,
+    DetectionModel,
+    InstanceSegmentationModel,
+    PartSegmentationModel,
+    SemanticSegmentationModel,
+)
 
-Task = Literal["pretraining", "classification", "semantic-segmentation", "part-segmentation", "detection"]
+Task = Literal[
+    "pretraining", "classification", "semantic-segmentation", "part-segmentation", "instance-segmentation", "detection"
+]
 
 _INSTALLATION_URL = "https://pytorch-pointcloud.org/latest/installation/"
 F = TypeVar("F", bound=Callable[..., Any])
@@ -102,6 +110,7 @@ _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
     "classification": {},
     "semantic-segmentation": {},
     "part-segmentation": {},
+    "instance-segmentation": {},
     "detection": {},
 }
 
@@ -164,6 +173,18 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    task: Literal["instance-segmentation"],
+) -> Callable[[Callable[..., InstanceSegmentationModel]], Callable[..., InstanceSegmentationModel]]: ...
+
+
+@overload
+def register_model(
+    name: str,
+    *,
+    hparams: Optional[Dict[str, Any]] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
+    weights: Union[str, WeightsDict, None] = None,
     task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
 
@@ -186,7 +207,7 @@ def register_model(
     Args:
         name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn-hardest.openpoints`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
-            `part-segmentation` or `detection`).
+            `part-segmentation`, `instance-segmentation` or `detection`).
         hparams: Default keyword arguments the entry point is called with; `create_model` kwargs override them.
         transform: Evaluation transform reproducing the preprocessing the weights were trained with.
         input_keys: Batch keys `forward` takes positionally, in order; a dotted key reads an attribute (e.g.
@@ -648,6 +669,30 @@ def create_model(
 @overload
 def create_model(
     name: str,
+    task: Literal["instance-segmentation"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
+) -> Tuple[InstanceSegmentationModel, ModelInfoDict]: ...
+
+
+@overload
+def create_model(
+    name: str,
+    task: Literal["instance-segmentation"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
+) -> InstanceSegmentationModel: ...
+
+
+@overload
+def create_model(
+    name: str,
     task: Literal["detection"],
     *,
     pretrained: bool = False,
@@ -723,7 +768,8 @@ def create_model(
     Args:
         name: Registered model name (see `list_models`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
-            `part-segmentation` or `detection`). Optional when `name` is registered under a single task.
+            `part-segmentation`, `instance-segmentation` or `detection`). Optional when `name` is registered under a
+            single task.
         pretrained: Load the registered pretrained weights, warning when their license is non-commercial. Mutually
             exclusive with `checkpoint_path`.
         checkpoint_path: Local checkpoint to load instead of the registered weights. Supports `torch.save`

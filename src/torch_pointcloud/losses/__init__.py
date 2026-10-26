@@ -23,8 +23,10 @@ from .focal import (
 )
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
+from .mask import DiceLoss, dice_loss, pairwise_binary_cross_entropy_with_logits, pairwise_dice_loss
 from .matching import hungarian_match, hungarian_match_batched
 from .pointrcnn import PointRCNNLoss
+from .spformer import SPFormerLoss
 from .sum import SumLoss
 from .threedetr import ThreeDETRLoss
 from .tnet import TNetOrthogonalityRegularizer, tnet_orthogonality_regularizer
@@ -36,12 +38,14 @@ __all__ = [
     "CenterHeadLoss",
     "ChamferDistance",
     "CornerLoss",
+    "DiceLoss",
     "GaussianFocalLoss",
     "Poly1FocalLoss",
     "KPConvDeformRegularizer",
     "LovaszLoss",
     "MultiGroupAnchorHeadLoss",
     "PointRCNNLoss",
+    "SPFormerLoss",
     "SigmoidFocalLoss",
     "SumLoss",
     "TNetOrthogonalityRegularizer",
@@ -52,6 +56,7 @@ __all__ = [
     "center_regression_loss",
     "chamfer_distance",
     "corner_loss",
+    "dice_loss",
     "functional",
     "gaussian_focal_loss",
     "hungarian_match",
@@ -60,6 +65,8 @@ __all__ = [
     "kpconv_deform_regularizer",
     "lovasz_softmax",
     "one_hot_foreground",
+    "pairwise_binary_cross_entropy_with_logits",
+    "pairwise_dice_loss",
     "poly1_focal_loss",
     "sigmoid_focal_loss",
     "tnet_orthogonality_regularizer",

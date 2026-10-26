@@ -3,6 +3,7 @@
 from ._base import (
     ClassificationModel,
     DetectionModel,
+    InstanceSegmentationModel,
     PartSegmentationModel,
     PretrainingModel,
     SemanticSegmentationModel,
@@ -48,6 +49,7 @@ from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
 from .second import SECONDDetection, SECONDMultiHeadDetection
 from .sonata import SonataSegmentation
+from .spformer import SPFormerInstanceSegmentation
 from .spformer_unet import SPFormerUNetSegmentation
 from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
@@ -61,6 +63,7 @@ from .voxelnext import VoxelNeXtDetection
 __all__ = [
     "ClassificationModel",
     "DetectionModel",
+    "InstanceSegmentationModel",
     "PartA2Detection",
     "PartSegmentationModel",
     "PretrainingModel",
@@ -130,6 +133,7 @@ __all__ = [
     "SECONDDetection",
     "SECONDMultiHeadDetection",
     "SonataSegmentation",
+    "SPFormerInstanceSegmentation",
     "SPFormerUNetSegmentation",
     "SphereFormerSegmentation",
     "SparseUNetSegmentation",
