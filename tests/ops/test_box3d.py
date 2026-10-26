@@ -338,6 +338,22 @@ def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None
     )
 
 
+def test_nms3d_max_candidates_suppresses_among_the_top_scores_only() -> None:
+    boxes = _boxes(
+        [
+            [0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [0.5, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [10.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [20.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+        ]
+    )
+    scores = torch.tensor([0.9, 0.8, 0.7, 0.6])
+    batch = torch.tensor([0, 0, 0, 1])
+    assert nms3d(boxes, scores, 0.3, rotated=True).tolist() == [0, 2, 3]
+    assert nms3d(boxes, scores, 0.3, rotated=True, max_candidates=2).tolist() == [0]
+    assert nms3d(boxes, scores, 0.3, batch=batch, rotated=True, max_candidates=1).tolist() == [0, 3]
+
+
 def test_angle_to_class_roundtrip() -> None:
     angles = torch.tensor([0.0, 0.6, 2.5, math.pi])
     cls, residual = angle_to_class(angles, 12)
