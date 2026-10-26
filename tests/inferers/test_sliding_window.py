@@ -184,17 +184,31 @@ def _block_confidence_predictor(window: Dict[str, Any]) -> Tensor:
     return torch.stack([torch.zeros(pos.size(0)), logit.expand(pos.size(0))], dim=1)
 
 
-def test_sliding_window_aggregate_max_keeps_the_most_confident_block() -> None:
-    """`aggregate="max"` gives every point the softmax of the covering block that is most confident about
-    it, instead of a blend: x=1 (blocks 0 and 1) takes block 1, x=2 (blocks 1 and 2) takes block 2."""
+def test_sliding_window_aggregate_max_keeps_the_elementwise_maximum() -> None:
+    """`aggregate="max"` keeps, per class, the highest probability of the blocks covering a point: x=0 sees block 0
+    only, x=1 blocks 0 and 1, x=2 blocks 1 and 2."""
     data = _line_data()
     out = sliding_window_inference(
         data, predictor=_block_confidence_predictor, block_size=2.0, overlap=0.5, aggregate="max"
     )
     block_probs = [torch.softmax(torch.tensor([0.0, m * 4.0]), dim=0) for m in (0.5, 1.5, 2.0)]
     assert torch.allclose(out[0], block_probs[0])
-    assert torch.allclose(out[1], block_probs[1])
-    assert torch.allclose(out[2], block_probs[2])
+    assert torch.allclose(out[1], torch.maximum(block_probs[0], block_probs[1]))
+    assert torch.allclose(out[2], torch.maximum(block_probs[1], block_probs[2]))
+
+
+def test_sliding_window_aggregate_max_restricted_argmax_follows_the_most_confident_block() -> None:
+    """Over classes 0 and 1 only, x=1 takes class 0 from block 1 (0.45) over class 1 from block 0 (0.20), although
+    block 0 is the more confident of the two over all the classes (0.69)."""
+    data = _line_data()
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        pos = window[DataKeys.POS]
+        probs = [0.10, 0.20, 0.69, 0.01] if pos[:, 0].mean() < 1.0 else [0.45, 0.15, 0.20, 0.20]
+        return torch.tensor(probs).log().expand(pos.size(0), -1)
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="max")
+    assert int(out[1, :2].argmax()) == 0
 
 
 def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:

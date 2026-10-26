@@ -250,8 +250,8 @@ def sliding_window_inference(
     Places block centers on a regular grid with step
     $\text{block\_size} \cdot (1 - \text{overlap})$ and calls `predictor` once
     per non-empty block. Each point's predictions from all covering blocks are
-    combined by `aggregate`: a distance-weighted average (`"mean"`), the single
-    most confident prediction (`"max"`), or a count of hard votes (`"vote"`).
+    combined by `aggregate`: a distance-weighted average (`"mean"`), the elementwise
+    maximum of the probabilities (`"max"`), or a count of hard votes (`"vote"`).
 
     With `overlap=0` and `mode="constant"`, each point lands in exactly one
     block and the weight division is a no-op.
@@ -298,11 +298,13 @@ def sliding_window_inference(
             `"vote"` aggregation always read confidences off the softmax.
         aggregate: How the predictions of the blocks covering a point are
             combined. `"mean"`: distance-weighted average of the (softmax)
-            predictions. `"max"`: winner-takes-all, each point keeps the
-            prediction of the block that is most confident about it (the
-            PVCNN / PointCNN scene merge). `"vote"`: each block casts one hard
-            vote (its argmax) per point and the output holds the weighted vote
-            fractions, so `argmax` is the majority label (the PointNet++ protocol).
+            predictions. `"max"`: elementwise maximum of the block
+            probabilities, so the argmax of a point, over all the classes or a
+            subset of them, is the class of the block most confident about it
+            (the PVCNN / PointCNN scene merge). `"vote"`: each block casts one
+            hard vote (its argmax) per point and the output holds the weighted
+            vote fractions, so `argmax` is the majority label (the PointNet++
+            protocol).
         transform: Optional callable applied to each block's data dict before
             the predictor. The transform sees the whole block; if it changes the
             row count (pad, voxelize, ...) it must record a source-to-predictor
@@ -335,7 +337,7 @@ def sliding_window_inference(
         Per-point output tensor of shape $(N, C_\text{out})$: with
         `aggregate="mean"` a distance-weighted average of softmax probabilities
         when `softmax=True` or of raw logits when `softmax=False`; with
-        `"max"` the most confident block's probabilities; with `"vote"` the
+        `"max"` the elementwise maximum of the block probabilities; with `"vote"` the
         per-class vote fractions. An empty scene ($N = 0$) returns
         a $(0, 0)$ tensor: the predictor is never called, so the channel count
         cannot be inferred.
@@ -398,7 +400,6 @@ def sliding_window_inference(
 
         scores_b: Optional[Tensor] = None
         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
-        confidence_b = torch.full((n_b,), -1.0, device=device, dtype=torch.float32)
 
         blocks = list(zip(point_groups, weight_groups, bbox_groups))
         for start in tqdm(
@@ -454,10 +455,7 @@ def sliding_window_inference(
                 preds_at_block = block_preds if inverse_map is None else block_preds[inverse_map]
 
                 if aggregate == "max":
-                    confidence, _ = preds_at_block.max(dim=-1)
-                    better = confidence > confidence_b[point_ids]
-                    scores_b[point_ids[better]] = preds_at_block[better]
-                    confidence_b[point_ids[better]] = confidence[better]
+                    scores_b[point_ids] = torch.maximum(scores_b[point_ids], preds_at_block)
                     weights_b[point_ids] = 1.0
                     continue
 

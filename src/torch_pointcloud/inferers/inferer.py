@@ -54,7 +54,7 @@ class Inferer(metaclass=ABCMeta):
     | `KNNWindowInferer`       | `False`   | raw logits (`"mean"`); always probabilities (`"ema"`)           |
     | `VoxelPartitionInferer`  | `False`   | raw logits per pass                                             |
     | `PotentialSphereInferer` | none      | always an EMA of softmax probabilities                          |
-    | `TTAInferer`             | `False`   | base output as-is                                               |
+    | `TTAInferer`             | `False`   | base output as-is; probabilities expected with `"max"`          |
     | `PartRefinementInferer`  | none      | one-hot refined labels of the base output's argmax              |
 
     When the input scene is empty ($N = 0$), inferers that never call the predictor

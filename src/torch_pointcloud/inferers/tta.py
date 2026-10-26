@@ -57,7 +57,8 @@ class TTAInferer(Inferer):
             protocol), so the total pass count is `num_passes + 1`.
         aggregate: How per-point predictions are combined across passes.
             `"mean"` averages per-pass outputs. `"max"` keeps their elementwise maximum, so on
-            probabilities each point takes the prediction of the pass that is most confident about it.
+            probabilities the argmax of a point is the class of the pass most confident about it;
+            it reads probabilities, so set `softmax=True` unless the base returns them.
             `"ema"` maintains an exponential moving average of them.
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ used when `aggregate="ema"`.
         softmax: If `True`, softmax each pass's output before aggregating. Leave
