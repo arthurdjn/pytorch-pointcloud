@@ -118,7 +118,8 @@ class GeometricStructureEmbedding(nn.Module):
     For every pair of superpoints $(i, j)$ the embedding sums a projection of the sinusoidal embedding of their
     distance $d_{ij} / \sigma_d$ and a projection of the sinusoidal embedding of the angles between
     $\vec{p_i p_j}$ and the vectors from $p_i$ to its $k$ nearest superpoints, scaled by $\sigma_a$ and reduced
-    over the $k$ neighbors.
+    over the $k$ neighbors. A set of fewer than `angle_k + 1` superpoints measures the angles against all the
+    others, and a single superpoint has no angular term.
 
     Args:
         embed_dim: Embedding width $C$.
@@ -170,6 +171,8 @@ class GeometricStructureEmbedding(nn.Module):
     def forward(self, points: Tensor) -> Tensor:
         d_indices, a_indices = self.embedding_indices(points)
         d_embeddings = self.proj_d(sinusoidal_embedding(d_indices, self.embed_dim))
+        if a_indices.size(3) == 0:
+            return d_embeddings
         a_embeddings = self.proj_a(sinusoidal_embedding(a_indices, self.embed_dim)).amax(dim=3)
         return d_embeddings + a_embeddings
 
@@ -187,8 +190,7 @@ class GeometricAttention(nn.Module):
         relative_pos: Whether the layer projects and attends to a pair-wise positional embedding.
 
     Shape:
-        - Input: $(B, N, C)$ queries, $(B, M, C)$ keys and values, an optional $(B, N, M, C)$ positional embedding
-          and an optional $(B, M)$ key mask (`True` where a key is ignored).
+        - Input: $(B, N, C)$ queries, $(B, M, C)$ keys and values and an optional $(B, N, M, C)$ positional embedding.
         - Output: $(B, N, C)$.
     """
 
@@ -211,7 +213,6 @@ class GeometricAttention(nn.Module):
         key: Tensor,
         value: Tensor,
         pos_embed: OptTensor = None,
-        key_masks: OptTensor = None,
     ) -> Tensor:
         batch_size, num_queries, _ = query.shape
         num_keys = key.size(1)
@@ -226,10 +227,7 @@ class GeometricAttention(nn.Module):
 
             p = self.proj_p(pos_embed).view(batch_size, num_queries, num_keys, self.num_heads, self.head_dim)
             scores = scores + torch.einsum("bhnc,bnmhc->bhnm", q, p)
-        scores = scores / self.head_dim**0.5
-        if key_masks is not None:
-            scores = scores.masked_fill(key_masks.unsqueeze(1).unsqueeze(1), float("-inf"))
-        scores = F.softmax(scores, dim=-1)
+        scores = F.softmax(scores / self.head_dim**0.5, dim=-1)
 
         out = torch.matmul(scores, v)  # (B, H, N, C / H)
         return out.transpose(1, 2).reshape(batch_size, num_queries, self.embed_dim)
@@ -245,8 +243,7 @@ class GeometricTransformerLayer(nn.Module):
         relative_pos: Whether the attention takes the pair-wise positional embedding (the self-attention layers).
 
     Shape:
-        - Input: $(B, N, C)$ tokens, $(B, M, C)$ memory tokens, an optional $(B, N, M, C)$ positional embedding and
-          an optional $(B, M)$ memory mask.
+        - Input: $(B, N, C)$ tokens, $(B, M, C)$ memory tokens and an optional $(B, N, M, C)$ positional embedding.
         - Output: $(B, N, C)$.
     """
 
@@ -263,9 +260,8 @@ class GeometricTransformerLayer(nn.Module):
         x: Tensor,
         memory: Tensor,
         pos_embed: OptTensor = None,
-        memory_masks: OptTensor = None,
     ) -> Tensor:
-        hidden = self.attention(x, memory, memory, pos_embed=pos_embed, key_masks=memory_masks)
+        hidden = self.attention(x, memory, memory, pos_embed=pos_embed)
         x = self.norm1(x + self.linear(hidden))
         return self.norm2(x + self.mlp(x))
 
@@ -287,7 +283,7 @@ class GeometricTransformer(nn.Module):
 
     Shape:
         - Input: $(B, N, 3)$ reference superpoints, $(B, M, 3)$ source superpoints, $(B, N, C_\text{in})$ and
-          $(B, M, C_\text{in})$ features, optional $(B, N)$ and $(B, M)$ masks.
+          $(B, M, C_\text{in})$ features; the $B$ sets of a cloud have the same size.
         - Output: $(B, N, C_\text{out})$ and $(B, M, C_\text{out})$ features.
     """
 
@@ -319,8 +315,6 @@ class GeometricTransformer(nn.Module):
         src_points: Tensor,
         ref_feats: Tensor,
         src_feats: Tensor,
-        ref_masks: OptTensor = None,
-        src_masks: OptTensor = None,
     ) -> Tuple[Tensor, Tensor]:
         ref_embeddings = self.embedding(ref_points)
         src_embeddings = self.embedding(src_points)
@@ -328,11 +322,11 @@ class GeometricTransformer(nn.Module):
         src_feats = self.in_proj(src_feats)
         for i, layer in enumerate(self.layers):
             if i % 2 == 0:
-                ref_feats = layer(ref_feats, ref_feats, pos_embed=ref_embeddings, memory_masks=ref_masks)
-                src_feats = layer(src_feats, src_feats, pos_embed=src_embeddings, memory_masks=src_masks)
+                ref_feats = layer(ref_feats, ref_feats, pos_embed=ref_embeddings)
+                src_feats = layer(src_feats, src_feats, pos_embed=src_embeddings)
             else:
-                ref_feats = layer(ref_feats, src_feats, memory_masks=src_masks)
-                src_feats = layer(src_feats, ref_feats, memory_masks=ref_masks)
+                ref_feats = layer(ref_feats, src_feats)
+                src_feats = layer(src_feats, ref_feats)
         return self.out_proj(ref_feats), self.out_proj(src_feats)
 
 

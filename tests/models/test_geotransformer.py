@@ -85,6 +85,32 @@ def test_geometric_structure_embedding_is_rigid_invariant() -> None:
     assert embedding(points).shape == (1, 20, 20, 16)
 
 
+@pytest.mark.parametrize(
+    "num_points",
+    [
+        pytest.param(1, id="single-superpoint"),
+        pytest.param(2, id="one-angle-neighbor"),
+    ],
+)
+def test_geometric_structure_embedding_of_small_sets(num_points: int) -> None:
+    """Fewer superpoints than `angle_k + 1` measure the angles against all the others; a single one has none."""
+    embedding = GeometricStructureEmbedding(16, sigma_d=0.2, sigma_a=15.0, angle_k=3)
+    points = torch.rand(1, num_points, 3)
+    out = embedding(points)
+    assert out.shape == (1, num_points, num_points, 16)
+    assert torch.isfinite(out).all()
+    if num_points == 1:
+        assert torch.equal(out, embedding.proj_d(sinusoidal_embedding(torch.zeros(1, 1, 1), 16)))
+
+
+def test_geometric_transformer_runs_on_a_single_superpoint() -> None:
+    transformer = GeometricTransformer(24, 32, 16, 4, 1, 0.2, 15.0, 3)
+    ref_feats, src_feats = transformer(
+        torch.rand(1, 1, 3), torch.rand(1, 5, 3), torch.randn(1, 1, 24), torch.randn(1, 5, 24)
+    )
+    assert ref_feats.shape == (1, 1, 16) and src_feats.shape == (1, 5, 16)
+
+
 def test_geometric_transformer_shapes() -> None:
     transformer = GeometricTransformer(24, 32, 16, 4, 1, 0.2, 15.0, 3)
     ref, src = torch.rand(1, 10, 3), torch.rand(1, 12, 3)
