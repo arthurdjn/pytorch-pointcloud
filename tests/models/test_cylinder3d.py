@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.cylinder3d import Cylinder3DSegmentation
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 CUDA_SPCONV = pytest.mark.skipif(
@@ -131,3 +133,21 @@ def test_cylinder3d_grid_puts_the_last_cell_at_the_upper_bound() -> None:
         strides=((2, 2, 2), (2, 2, 1)),
     )
     assert torch.equal(model.vfe.voxel_size, torch.tensor([1.0, 0.5, 4.0]))
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        pytest.param("cylinder3d.semantickitti.mmdet3d"),
+        pytest.param("cylinder3d-laser-polar-mix.semantickitti.mmdet3d"),
+        pytest.param("cylinder3d.semantickitti.xinge-zhu"),
+        pytest.param("cylinder3d-0p5x.nuscenes.yuenan-hou"),
+    ],
+)
+def test_cylinder3d_registered_transform_runs_without_labels(model_name: str) -> None:
+    transform = model_info(model_name, task="semantic-segmentation")["transform"]
+    assert transform is not None
+    intensity = torch.rand(100, 1)
+    sample = transform({DataKeys.POS: torch.rand(100, 3), DataKeys.INTENSITY: intensity})
+    assert torch.equal(sample[DataKeys.X], intensity)
+    assert DataKeys.SEGMENT not in sample
