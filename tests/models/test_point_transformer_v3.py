@@ -328,6 +328,28 @@ def test_pt_v3_segmentation_cosine_similarity_head_routes_the_condition(
     assert torch.equal(model_seg_language.forward_head(features, pre_logits=True), features)
 
 
+@requires_spconv
+@pytest.mark.parametrize(
+    ("num_classes", "head_type", "logits_dim"),
+    [
+        pytest.param(3, nn.Linear, 3, id="one-count"),
+        pytest.param((3, 5), ConditionalLinear, 5, id="one-count-per-condition"),
+        pytest.param(0, nn.Identity, 16, id="headless"),
+    ],
+)
+def test_pt_v3_segmentation_reset_classifier_builds_linear_heads(
+    model_seg_language: PointTransformerV3Segmentation,
+    num_classes: Union[int, Tuple[int, ...]],
+    head_type: type,
+    logits_dim: int,
+) -> None:
+    model_seg_language.reset_classifier(num_classes)
+    assert type(model_seg_language.head) is head_type
+    assert model_seg_language.text_embed_dim is None
+    features = torch.randn(7, model_seg_language.num_features)
+    assert model_seg_language.forward_head(features).shape == (7, logits_dim)
+
+
 @pytest.mark.parametrize(
     ("num_classes", "pdnorm_conditions", "condition", "text_embed_dim", "text_scale"),
     [

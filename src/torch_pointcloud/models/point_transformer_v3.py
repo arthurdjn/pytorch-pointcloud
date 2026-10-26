@@ -1666,6 +1666,9 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
     def reset_classifier(self, num_classes: Union[int, Sequence[int]], **kwargs: Any) -> None:
         """Resets the segmentation head with new parameters.
 
+        The new head is linear, also on a model built with `text_embed_dim`: fixed class embeddings only score the
+        classes they were computed for.
+
         Note:
             To set an empty segmentation head, use `num_classes=0`.
 
@@ -1676,6 +1679,8 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         """
         self.num_classes = _default_num_classes(num_classes, self.pdnorm_conditions, self.condition)
         self.num_classes_per_condition = None if isinstance(num_classes, int) else tuple(num_classes)
+        self.text_embed_dim = None
+        self.text_scale = None
         self.head = self.configure_head()
 
     @overload
