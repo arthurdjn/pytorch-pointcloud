@@ -199,8 +199,8 @@ class PointGPTExtractor(nn.Module):
     token is prepended to the patch-token sequence, a stack of causally-masked `PointGPTBlock` layers
     consumes the tokens plus their positional embedding, and a final layer normalization produces the
     encoded points. This is the backbone reused for downstream classification and part segmentation;
-    `fetch_idx` returns the hidden states after the given blocks instead, before the final normalization, and
-    `attn_mask=None` lets every token attend to the whole sequence.
+    `fetch_idx` returns the hidden states after the given blocks instead, each through the final normalization, and
+    skips the blocks after the last one. `attn_mask=None` lets every token attend to the whole sequence.
 
     Args:
         embed_dim: The token dimension $C$.
@@ -211,7 +211,8 @@ class PointGPTExtractor(nn.Module):
 
     Shape:
         - Input: $(B, L, C)$ tokens, $(B, L + 1, C)$ positions, and an optional $(L + 1, L + 1)$ mask.
-        - Output: $(B, L + 1, C)$ encoded points, or one $(B, L + 1, C)$ hidden state per index of `fetch_idx`.
+        - Output: $(B, L + 1, C)$ encoded points, or one normalized $(B, L + 1, C)$ hidden state per index of
+          `fetch_idx`.
 
     Example:
         ```python
@@ -249,12 +250,24 @@ class PointGPTExtractor(nn.Module):
 
     @overload
     def forward(
-        self, x: Tensor, pos: Tensor, attn_mask: OptTensor, shift: bool = ..., *, fetch_idx: Sequence[int]
+        self,
+        x: Tensor,
+        pos: Tensor,
+        attn_mask: OptTensor,
+        shift: bool = ...,
+        *,
+        fetch_idx: Sequence[int],
     ) -> List[Tensor]: ...
 
     @overload
     def forward(
-        self, x: Tensor, pos: Tensor, attn_mask: OptTensor, shift: bool = ..., *, fetch_idx: None = None
+        self,
+        x: Tensor,
+        pos: Tensor,
+        attn_mask: OptTensor,
+        shift: bool = ...,
+        *,
+        fetch_idx: None = None,
     ) -> Tensor: ...
 
     def forward(
@@ -276,13 +289,16 @@ class PointGPTExtractor(nn.Module):
         else:
             x = torch.cat([sos, x], dim=0)
 
-        features: List[Tensor] = []
-        for i, layer in enumerate(self.layers):
-            x = layer(x + pos, attn_mask)
-            if fetch_idx is not None and i in fetch_idx:
-                features.append(x.transpose(0, 1))
         if fetch_idx is not None:
+            features: List[Tensor] = []
+            for i, layer in enumerate(self.layers[: max(fetch_idx) + 1]):
+                x = layer(x + pos, attn_mask)
+                if i in fetch_idx:
+                    features.append(self.ln_f(x).transpose(0, 1))
             return features
+
+        for layer in self.layers:
+            x = layer(x + pos, attn_mask)
         x = self.ln_f(x)
         return x.transpose(0, 1)
 
@@ -564,13 +580,13 @@ class PointGPTClassification(ClassificationModel):
 class PointGPTPartSegmentation(PartSegmentationModel):
     r"""PointGPT part-segmentation model.
 
-    Implements the segmentation model (`segmentation/models/pt.py`) of :arxiv: [PointGPT: Auto-regressively
-    Generative Pre-training from Point Clouds](https://arxiv.org/abs/2305.11487), adapted from
+    Implements the segmentation model of :arxiv: [PointGPT: Auto-regressively Generative Pre-training from Point
+    Clouds](https://arxiv.org/abs/2305.11487), adapted from
     :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT). Patches are tokenized
     with a mini-PointNet, ordered by a greedy nearest-neighbor ("simplified Morton") traversal of the
     centers, and consumed by the GPT extractor (causally masked unless `causal=False`) with a start-of-sequence
-    and a class token. The normalized hidden states of three extractor blocks are concatenated per patch and
-    propagated back to every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`); a
+    and a class token. The normalized hidden states of the `fetch_idx` extractor blocks are concatenated per patch
+    and propagated back to every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`); a
     category-conditioned global branch (max- and mean-pooled patch features plus the embedded category
     one-hot) is fused before the per-point classifier. Every sample in the packed batch must contain the
     same number of points; a ragged batch raises `ValueError`.
@@ -585,7 +601,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         num_heads: The number of attention heads.
         num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
-        decoder_depth: The number of generator blocks (kept for weight compatibility).
+        fetch_idx: The extractor blocks whose hidden states feed the decoder, each below `depth`.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-patch MLP.
         propagation_channels: Widths of the feature-propagation MLP, the last one being its output width.
@@ -615,8 +631,6 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         ```
     """
 
-    fetch_idx: Tuple[int, int, int] = (3, 7, 11)
-
     def __init__(
         self,
         in_channels: int,
@@ -628,7 +642,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         num_heads: int = 6,
         num_groups: int = 128,
         group_size: int = 32,
-        decoder_depth: int = 4,
+        fetch_idx: Sequence[int] = (3, 7, 11),
         encoder_local_channels: Sequence[int] = (128, 256),
         encoder_global_channels: Sequence[int] = (512,),
         propagation_channels: Sequence[int] = (1536, 1024),
@@ -640,9 +654,9 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         spatial_dim: int = 3,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
-        if max(self.fetch_idx) >= depth:
+        if max(fetch_idx) >= depth:
             raise ValueError(
-                f"`fetch_idx` {self.fetch_idx} requires at least {max(self.fetch_idx) + 1} blocks; got depth={depth}."
+                f"`fetch_idx` {fetch_idx} requires at least {max(fetch_idx) + 1} blocks; got depth={depth}."
             )
 
         self.embed_dim = embed_dim
@@ -650,7 +664,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         self.num_heads = num_heads
         self.num_groups = num_groups
         self.group_size = group_size
-        self.decoder_depth = decoder_depth
+        self.fetch_idx = fetch_idx
         self.encoder_local_channels = encoder_local_channels
         self.encoder_global_channels = encoder_global_channels
         self.propagation_channels = propagation_channels
@@ -669,8 +683,6 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         self.sos_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.blocks = self.configure_blocks()
-        self.generator_blocks = self.configure_generator_blocks()
-        self.norm = nn.LayerNorm(embed_dim)
 
         self.label_conv = self.configure_label_conv()
         self.propagation_0 = self.configure_propagation_0()
@@ -694,17 +706,6 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         """Build the GPT extractor."""
         return PointGPTExtractor(self.embed_dim, self.num_heads, self.depth, act=self.act, act_kwargs=self.act_kwargs)
 
-    def configure_generator_blocks(self) -> PointGPTGenerator:
-        """Build the GPT generator predicting the next patch (unused at finetuning, kept for weight compatibility)."""
-        return PointGPTGenerator(
-            self.embed_dim,
-            self.num_heads,
-            self.decoder_depth,
-            self.group_size,
-            act=self.act,
-            act_kwargs=self.act_kwargs,
-        )
-
     def configure_label_conv(self) -> MLP:
         """Build the MLP embedding the category one-hot for the global branch."""
         return MLP(
@@ -719,7 +720,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
     def configure_propagation_0(self) -> PointNet2FeaturePropagation:
         """Build the feature-propagation module interpolating patch features back to every point."""
         return PointNet2FeaturePropagation(
-            channels=[3 * self.embed_dim + self.spatial_dim, *self.propagation_channels],
+            channels=[len(self.fetch_idx) * self.embed_dim + self.spatial_dim, *self.propagation_channels],
             k=3,
             act="relu",
             norm="batch_norm",
@@ -732,7 +733,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
     @property
     def num_features(self) -> int:
         """Channel count $C$ of the per-point features entering the head."""
-        return self.propagation_channels[-1] + 3 * self.embed_dim * 2 + 64
+        return self.propagation_channels[-1] + len(self.fetch_idx) * self.embed_dim * 2 + 64
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -797,8 +798,8 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         if self.causal:
             attn_mask = torch.triu(torch.ones(L + 2, L + 2, dtype=torch.bool, device=tokens.device), diagonal=1)
         feature_list = self.blocks(x_seq, pos_seq, attn_mask, fetch_idx=self.fetch_idx)
-        feature_list = [self.norm(feat[:, 2:]).transpose(-1, -2).contiguous() for feat in feature_list]
-        x_feat = torch.cat([feature_list[0], feature_list[1], feature_list[2]], dim=1)
+        feature_list = [feat[:, 2:].transpose(-1, -2).contiguous() for feat in feature_list]
+        x_feat = torch.cat(feature_list, dim=1)
         return x_feat, center, batch
 
     def forward_decoder(self, x_feat: Tensor, pos: Tensor, batch: Tensor, center: Tensor, category: Tensor) -> Tensor:
@@ -1269,7 +1270,7 @@ for _size in ("s", "b", "l"):
         num_heads=6,
         num_groups=128,
         group_size=32,
-        decoder_depth=4,
+        fetch_idx=(3, 7, 11),
         encoder_local_channels=(128, 256),
         encoder_global_channels=(512,),
         propagation_channels=(1536, 1024),
@@ -1305,7 +1306,7 @@ def pointgpt_s_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
         num_heads=12,
         num_groups=128,
         group_size=32,
-        decoder_depth=4,
+        fetch_idx=(3, 7, 11),
         encoder_local_channels=(256, 512, 1024),
         encoder_global_channels=(2048,),
         propagation_channels=(3072, 2048),
@@ -1337,11 +1338,11 @@ def pointgpt_b_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
         num_classes=50,
         num_categories=16,
         embed_dim=1024,
-        depth=24,
+        depth=12,  # the decoder reads blocks 3, 7 and 11; the released 24-block extractor's later ones never run
         num_heads=16,
         num_groups=128,
         group_size=32,
-        decoder_depth=4,
+        fetch_idx=(3, 7, 11),
         encoder_local_channels=(256, 512, 1024),
         encoder_global_channels=(2048,),
         propagation_channels=(4096, 2048),

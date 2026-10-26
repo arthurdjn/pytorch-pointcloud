@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pytest
 import torch
@@ -237,6 +237,24 @@ def test_pointgpt_part_segmentation_basic(
     assert model.head.channel_list == [model.num_features, *head_channels, 50]
 
 
+def test_pointgpt_part_segmentation_every_parameter_gets_a_gradient() -> None:
+    model = PointGPTPartSegmentation(
+        in_channels=0,
+        num_classes=5,
+        num_categories=16,
+        embed_dim=96,
+        depth=12,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+        propagation_channels=(64, 32),
+    )
+    model.train()
+    pos, batch, category = _uniform_batch(128)
+    model(None, pos, batch, category).sum().backward()
+    assert [name for name, param in model.named_parameters() if param.grad is None] == []
+
+
 def test_pointgpt_part_segmentation_num_classes_zero_returns_features() -> None:
     model = PointGPTPartSegmentation(
         in_channels=0,
@@ -312,7 +330,16 @@ def test_pointgpt_extractor_fetch_idx_returns_hidden_states() -> None:
     mask = torch.triu(torch.ones(6, 6, dtype=torch.bool), diagonal=1)
     features = extractor(tokens, pos, mask, fetch_idx=(1, 3))
     assert [tuple(feat.shape) for feat in features] == [(2, 6, 32), (2, 6, 32)]
-    assert torch.allclose(extractor.ln_f(features[-1]), extractor(tokens, pos, mask))
+    assert torch.allclose(features[-1], extractor(tokens, pos, mask))
+
+
+def test_pointgpt_extractor_fetch_idx_skips_the_later_blocks() -> None:
+    extractor = PointGPTExtractor(embed_dim=32, num_heads=2, depth=6)
+    calls: List[int] = []
+    for i, layer in enumerate(extractor.layers):
+        layer.register_forward_hook(lambda *_, i=i: calls.append(i))
+    extractor(torch.randn(2, 5, 32), torch.randn(2, 6, 32), None, fetch_idx=(0, 2))
+    assert calls == [0, 1, 2]
 
 
 def test_pointgpt_shapenetpart_transform_runs_without_labels() -> None:

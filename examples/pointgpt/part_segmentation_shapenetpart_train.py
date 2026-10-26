@@ -236,8 +236,13 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
 
 
 def rename_backbone(state: Dict[str, Tensor]) -> Dict[str, Tensor]:
-    """The encoder keys are the segmentation model's; a post-pre-training classifier's norm and head are dropped."""
-    return {key: value for key, value in state.items() if not key.startswith(("cls_norm.", "head."))}
+    """The entry's `norm` normalizes the fetched blocks; a post-pre-training classifier's norm and head are dropped."""
+    renamed: Dict[str, Tensor] = {}
+    for key, value in state.items():
+        if key.startswith(("cls_norm.", "head.", "blocks.ln_f.")):
+            continue
+        renamed["blocks.ln_f." + key.removeprefix("norm.") if key.startswith("norm.") else key] = value
+    return renamed
 
 
 def load_backbone(model: nn.Module, name: str) -> None:
