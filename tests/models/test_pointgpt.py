@@ -274,7 +274,7 @@ def test_pointgpt_part_segmentation_num_classes_zero_returns_features() -> None:
     assert out.shape == (256, model.num_features)
 
 
-def test_pointgpt_part_segmentation_ragged_batch_raises() -> None:
+def test_pointgpt_part_segmentation_ragged_batch() -> None:
     model = PointGPTPartSegmentation(
         in_channels=0,
         num_classes=5,
@@ -289,8 +289,10 @@ def test_pointgpt_part_segmentation_ragged_batch_raises() -> None:
     pos = torch.randn(128, 3)
     batch = torch.cat([torch.zeros(96), torch.ones(32)]).long()
     category = torch.nn.functional.one_hot(torch.tensor([3, 7]), 16).float()
-    with pytest.raises(ValueError, match="same number of points per sample"):
-        model(None, pos, batch, category)
+    out = model(None, pos, batch, category)
+    first = model(None, pos[:96], batch[:96], category[:1])
+    assert out.shape == (128, 5)
+    assert torch.allclose(out[:96], first, atol=1e-5)
 
 
 def test_pointgpt_part_segmentation_validates_fetch_idx_against_depth() -> None:

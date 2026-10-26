@@ -671,15 +671,9 @@ def data_factory() -> Callable[[int, int], Dict[str, Any]]:
 # on one spanning only a few strides, two torchsparse forwards of the same model differ.
 SPVCNN_VOXEL_SIZE = 0.005
 
-# The Point-MAE / Point-M2AE / PointGPT part-segmentation heads require a uniform number of points per sample
+# The Point-MAE / Point-M2AE part-segmentation heads require a uniform number of points per sample
 # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
-UNIFORM_POINT_MODELS = (
-    "point-mae-base.shapenetpart.yatian-pang",
-    "point-m2ae-base.shapenetpart.renrui-zhang",
-    "pointgpt-s.shapenetpart.guangyan-chen",
-    "pointgpt-b.shapenetpart.guangyan-chen",
-    "pointgpt-l.shapenetpart.guangyan-chen",
-)
+UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
 
 
 @pytest.mark.skipif(

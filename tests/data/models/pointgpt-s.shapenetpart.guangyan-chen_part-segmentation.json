@@ -559,63 +559,63 @@
     "blocks.ln_f.bias": [
       384
     ],
-    "label_conv.lins.0.weight": [
+    "decoder.category_embed.lins.0.weight": [
       64,
       16
     ],
-    "label_conv.norms.0.module.weight": [
+    "decoder.category_embed.norms.0.module.weight": [
       64
     ],
-    "label_conv.norms.0.module.bias": [
+    "decoder.category_embed.norms.0.module.bias": [
       64
     ],
-    "label_conv.norms.0.module.running_mean": [
+    "decoder.category_embed.norms.0.module.running_mean": [
       64
     ],
-    "label_conv.norms.0.module.running_var": [
+    "decoder.category_embed.norms.0.module.running_var": [
       64
     ],
-    "label_conv.norms.0.module.num_batches_tracked": [],
-    "propagation_0.mlp.lins.0.weight": [
+    "decoder.category_embed.norms.0.module.num_batches_tracked": [],
+    "decoder.propagation.mlp.lins.0.weight": [
       1536,
       1155
     ],
-    "propagation_0.mlp.lins.0.bias": [
+    "decoder.propagation.mlp.lins.0.bias": [
       1536
     ],
-    "propagation_0.mlp.lins.1.weight": [
+    "decoder.propagation.mlp.lins.1.weight": [
       1024,
       1536
     ],
-    "propagation_0.mlp.lins.1.bias": [
+    "decoder.propagation.mlp.lins.1.bias": [
       1024
     ],
-    "propagation_0.mlp.norms.0.module.weight": [
+    "decoder.propagation.mlp.norms.0.module.weight": [
       1536
     ],
-    "propagation_0.mlp.norms.0.module.bias": [
+    "decoder.propagation.mlp.norms.0.module.bias": [
       1536
     ],
-    "propagation_0.mlp.norms.0.module.running_mean": [
+    "decoder.propagation.mlp.norms.0.module.running_mean": [
       1536
     ],
-    "propagation_0.mlp.norms.0.module.running_var": [
+    "decoder.propagation.mlp.norms.0.module.running_var": [
       1536
     ],
-    "propagation_0.mlp.norms.0.module.num_batches_tracked": [],
-    "propagation_0.mlp.norms.1.module.weight": [
+    "decoder.propagation.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.propagation.mlp.norms.1.module.weight": [
       1024
     ],
-    "propagation_0.mlp.norms.1.module.bias": [
+    "decoder.propagation.mlp.norms.1.module.bias": [
       1024
     ],
-    "propagation_0.mlp.norms.1.module.running_mean": [
+    "decoder.propagation.mlp.norms.1.module.running_mean": [
       1024
     ],
-    "propagation_0.mlp.norms.1.module.running_var": [
+    "decoder.propagation.mlp.norms.1.module.running_var": [
       1024
     ],
-    "propagation_0.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.propagation.mlp.norms.1.module.num_batches_tracked": [],
     "head.lins.0.weight": [
       512,
       3392

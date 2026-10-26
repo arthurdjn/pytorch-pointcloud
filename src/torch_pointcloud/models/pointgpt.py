@@ -13,7 +13,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import AdaptivePoolLike, PointNet2FeaturePropagation, PointPatchEmbed, create_adaptive_pool
+from torch_pointcloud.layers import AdaptivePoolLike, PartSegmentationDecoder, PointPatchEmbed, create_adaptive_pool
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
@@ -586,10 +586,8 @@ class PointGPTPartSegmentation(PartSegmentationModel):
     with a mini-PointNet, ordered by a greedy nearest-neighbor ("simplified Morton") traversal of the
     centers, and consumed by the GPT extractor (causally masked unless `causal=False`) with a start-of-sequence
     and a class token. The normalized hidden states of the `fetch_idx` extractor blocks are concatenated per patch
-    and propagated back to every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`); a
-    category-conditioned global branch (max- and mean-pooled patch features plus the embedded category
-    one-hot) is fused before the per-point classifier. Every sample in the packed batch must contain the
-    same number of points; a ragged batch raises `ValueError`.
+    and decoded to every point by a `PartSegmentationDecoder` (feature propagation plus a category-conditioned
+    global descriptor) before the per-point classifier.
 
     Args:
         in_channels: The number of per-point feature channels concatenated to the coordinates ($0$ for
@@ -683,9 +681,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         self.sos_pos = nn.Parameter(torch.zeros(1, 1, embed_dim))
 
         self.blocks = self.configure_blocks()
-
-        self.label_conv = self.configure_label_conv()
-        self.propagation_0 = self.configure_propagation_0()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
         self.reset_parameters()
 
@@ -706,34 +702,19 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         """Build the GPT extractor."""
         return PointGPTExtractor(self.embed_dim, self.num_heads, self.depth, act=self.act, act_kwargs=self.act_kwargs)
 
-    def configure_label_conv(self) -> MLP:
-        """Build the MLP embedding the category one-hot for the global branch."""
-        return MLP(
-            [self.num_categories, 64],
-            act="leaky_relu",
-            act_kwargs=dict(negative_slope=0.2),
-            norm="batch_norm",
-            bias=False,
-            plain_last=False,
-        )
-
-    def configure_propagation_0(self) -> PointNet2FeaturePropagation:
-        """Build the feature-propagation module interpolating patch features back to every point."""
-        return PointNet2FeaturePropagation(
-            channels=[len(self.fetch_idx) * self.embed_dim + self.spatial_dim, *self.propagation_channels],
-            k=3,
-            act="relu",
-            norm="batch_norm",
-            bias=True,
-            plain_last=False,
-            weighting="squared",
-            eps=1e-8,
+    def configure_decoder(self) -> PartSegmentationDecoder:
+        """Build the decoder from the fetched patch features to every point."""
+        return PartSegmentationDecoder(
+            in_channels=len(self.fetch_idx) * self.embed_dim,
+            num_categories=self.num_categories,
+            propagation_channels=self.propagation_channels,
+            spatial_dim=self.spatial_dim,
         )
 
     @property
     def num_features(self) -> int:
         """Channel count $C$ of the per-point features entering the head."""
-        return self.propagation_channels[-1] + len(self.fetch_idx) * self.embed_dim * 2 + 64
+        return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -798,38 +779,13 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         if self.causal:
             attn_mask = torch.triu(torch.ones(L + 2, L + 2, dtype=torch.bool, device=tokens.device), diagonal=1)
         feature_list = self.blocks(x_seq, pos_seq, attn_mask, fetch_idx=self.fetch_idx)
-        feature_list = [feat[:, 2:].transpose(-1, -2).contiguous() for feat in feature_list]
-        x_feat = torch.cat(feature_list, dim=1)
+        x_feat = torch.cat([feat[:, 2:] for feat in feature_list], dim=-1)
         return x_feat, center, batch
 
     def forward_decoder(self, x_feat: Tensor, pos: Tensor, batch: Tensor, center: Tensor, category: Tensor) -> Tensor:
-        B = x_feat.size(0)
-        counts = batch.bincount()
-        if bool((counts != counts[0]).any()):
-            raise ValueError(
-                f"{self.__class__.__name__} requires the same number of points per sample, got per-sample "
-                f"counts from {int(counts.min())} to {int(counts.max())}."
-            )
-
-        N = pos.size(0) // B
-
-        x_max = torch.max(x_feat, 2)[0]
-        x_avg = torch.mean(x_feat, 2)
-        x_max_feature = x_max.view(B, -1).unsqueeze(-1).repeat(1, 1, N)
-        x_avg_feature = x_avg.view(B, -1).unsqueeze(-1).repeat(1, 1, N)
-        cls_label_feature = self.label_conv(category).unsqueeze(-1).repeat(1, 1, N)
-        x_global_feature = torch.cat([x_max_feature, x_avg_feature, cls_label_feature], 1)
-
-        group_batch = torch.arange(B, device=pos.device).repeat_interleave(self.num_groups)
-        x_groups = x_feat.transpose(1, 2).reshape(B * self.num_groups, -1)
-        center_pos = center.reshape(B * self.num_groups, self.spatial_dim)
-        f_level_0, _, _ = self.propagation_0(x_groups, center_pos, group_batch, pos, pos, batch)
-        f_level_0 = f_level_0.reshape(B, N, -1).transpose(1, 2)
-        return torch.cat([f_level_0, x_global_feature], 1)
+        return self.decoder(x_feat, center, pos, batch, category)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-        B, _, N = x.shape
-        x = x.transpose(1, 2).reshape(B * N, -1)
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
