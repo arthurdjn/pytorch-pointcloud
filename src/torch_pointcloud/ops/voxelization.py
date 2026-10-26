@@ -591,8 +591,8 @@ def voxelize_to_spconv_tensor(
         origin  # tensor([-12, -4, -4])
         ```
     """
-    x_voxel, cells, batch_voxel = sparse_voxelize(x, pos, batch, voxel_size, reduce="first", origin="grid")
-    cells = cells.long()
+    x_voxel, grid_voxel, batch_voxel = sparse_voxelize(x, pos, batch, voxel_size, reduce="first", origin="grid")
+    cells = grid_voxel.long()
 
     origin = torch.div(cells.min(0).values, alignment, rounding_mode="floor") * alignment - alignment
     pos_voxel = cells - origin
