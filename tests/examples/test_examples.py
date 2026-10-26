@@ -525,6 +525,12 @@ TRAININGS = [
         id="point_transformer_v3/s3dis",
     ),
     pytest.param(
+        "litept/segmentation_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet-train",
+    ),
+    pytest.param(
         "pvcnn/segmentation_s3dis_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
