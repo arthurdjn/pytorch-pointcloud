@@ -51,9 +51,9 @@ Licenses of the datasets the checkpoints were trained on.
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 13          |
-| Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 6           |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
+| Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
