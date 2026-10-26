@@ -79,6 +79,7 @@ def test_recon_part_segmentation_accepts_a_ragged_batch() -> None:
 
     assert out.shape == (300, 5)
     assert model.num_features == 1024 + 3 * 48 * 2 + 48 + 64
+    assert isinstance(model.head, MLP)
     assert model.head.channel_list[0] == model.num_features
 
 
@@ -90,6 +91,7 @@ def test_recon_part_segmentation_validates_fetch_idx_against_depth() -> None:
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_recon_part_segmentation_transform_runs_without_labels() -> None:
     transform = model_info("recon.shapenetpart.zekun-qi")["transform"]
+    assert transform is not None
     sample = {DataKeys.POS: torch.randn(3000, 3), DataKeys.CATEGORY: torch.tensor(4)}
 
     out = transform(sample)

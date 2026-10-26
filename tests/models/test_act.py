@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import pytest
 import torch
 
@@ -9,7 +11,7 @@ pytestmark = [
     pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
 ]
 
-SMALL_DVAE = dict(
+SMALL_DVAE: Dict[str, Any] = dict(
     image_dim=32,
     image_depth=3,
     image_num_heads=2,
@@ -82,7 +84,7 @@ def test_act_pretraining_regresses_the_frozen_teacher() -> None:
     num_masked = int(0.8 * 16)
     assert predictions.shape == targets.shape == (2 * num_masked, 24)
     assert all(p.grad is None for p in model.teacher.parameters())
-    assert model.blocks.blocks[0].attn.qkv.weight.grad is not None
+    assert model.get_parameter("blocks.blocks.0.attn.qkv.weight").grad is not None
 
 
 def test_act_pretraining_invalid_mask_ratio_raises() -> None:

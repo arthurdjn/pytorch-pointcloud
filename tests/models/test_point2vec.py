@@ -30,10 +30,11 @@ def test_point2vec_classification_pools_max_and_mean() -> None:
 def test_point2vec_classification_layers_before_batch_norm_have_no_bias() -> None:
     model = Point2VecClassification(in_channels=0, num_classes=10, embed_dim=48, depth=2, num_heads=2)
 
-    assert model.encoder.local_mlp.lins[0].bias is None
-    assert model.head.lins[0].bias is None
-    assert model.head.lins[2].bias is not None
-    assert model.blocks.blocks[0].attn.qkv.bias is not None
+    parameters = dict(model.named_parameters())
+    assert "encoder.local_mlp.lins.0.bias" not in parameters
+    assert "head.lins.0.bias" not in parameters
+    assert "head.lins.2.bias" in parameters
+    assert "blocks.blocks.0.attn.qkv.bias" in parameters
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -96,6 +97,7 @@ def test_point2vec_checkpoint_filter_fn_keeps_the_final_norm_of_a_classifier() -
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_point2vec_part_segmentation_transform_runs_without_labels() -> None:
     transform = model_info("point2vec.shapenetpart.karim-knaebel")["transform"]
+    assert transform is not None
     sample = {DataKeys.POS: torch.randn(3000, 3), DataKeys.CATEGORY: torch.tensor(4)}
 
     out = transform(sample)
@@ -124,8 +126,10 @@ def test_point2vec_pretraining_regresses_the_frozen_teacher() -> None:
     num_masked = int(0.65 * 16)
     assert predictions.shape == targets.shape == (2 * num_masked, 48)
     assert all(p.grad is None for p in model.teacher.parameters())
-    assert model.blocks.blocks[0].attn.qkv.weight.grad is not None
-    assert torch.equal(model.teacher.blocks[0].attn.qkv.weight, model.blocks.blocks[0].attn.qkv.weight)
+    assert model.get_parameter("blocks.blocks.0.attn.qkv.weight").grad is not None
+    assert torch.equal(
+        model.get_parameter("teacher.blocks.0.attn.qkv.weight"), model.get_parameter("blocks.blocks.0.attn.qkv.weight")
+    )
 
 
 def test_point2vec_pretraining_validates_the_target_layers() -> None:
