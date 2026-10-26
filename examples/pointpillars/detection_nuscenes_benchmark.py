@@ -2,6 +2,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
+from typing import Optional, Union
 
 import torch
 from torch import Tensor
@@ -39,7 +40,16 @@ def main() -> None:
     dataloader = configure_dataloader(args)
 
     print(f"Test set: {len(dataloader.dataset)} frames")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device)
+    metrics = evaluate(
+        model,
+        dataloader,
+        args.device,
+        score_threshold=args.score_threshold,
+        nms_pre=args.nms_pre,
+        max_detections=args.max_detections,
+        multi_label=args.multi_label,
+        rotated_nms=args.rotated_nms,
+    )
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -58,6 +68,17 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
+    parser.add_argument("--score-threshold", default=SCORE_THRESHOLD, type=float, help="Lowest score kept.")
+    parser.add_argument(
+        "--nms-pre", default=None, type=int, help="Anchors kept per scene and head level before the NMS, by score."
+    )
+    parser.add_argument("--max-detections", default=None, type=int, help="Detections kept per scene after the NMS.")
+    parser.add_argument(
+        "--multi-label",
+        action="store_true",
+        help="Give every anchor to each class it scores above the threshold in, instead of its top class only.",
+    )
+    parser.add_argument("--rotated-nms", action="store_true", help="Suppress on the rotated BEV IoU.")
     return parser.parse_args()
 
 
@@ -102,18 +123,82 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
-def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
+def top_anchors(det: Detection3D, cls_maps: Union[Tensor, list[Tensor]], nms_pre: int) -> Tensor:
+    """Indices of the `nms_pre` best-scoring anchors of every scene and head level (one per class map)."""
+    levels = cls_maps if isinstance(cls_maps, list) else [cls_maps]
+    level_sizes = [level[0].numel() // det["class_probs"].shape[1] for level in levels]
+    # Every scene holds the same anchors, level after level, so the scores fold into one row per scene.
+    scores = det["scores"].view(int(det["batch"][-1]) + 1, -1)
+    tops, start = [], 0
+    for size in level_sizes:
+        tops.append(scores[:, start : start + size].topk(min(nms_pre, size), dim=1).indices + start)
+        start += size
+    top = torch.cat(tops, dim=1)
+    return (top + torch.arange(scores.shape[0], device=top.device)[:, None] * scores.shape[1]).view(-1)
+
+
+def select_detections(
+    det: Detection3D,
+    cls_maps: Union[Tensor, list[Tensor]],
+    score_threshold: float,
+    nms_pre: Optional[int],
+    max_detections: Optional[int],
+    multi_label: bool,
+    rotated_nms: bool,
+) -> Detection3D:
+    """The detections of the protocol: optional top anchors, score threshold, per-class NMS, optional cap."""
+    index = torch.arange(det["scores"].numel(), device=det["scores"].device)
+    if nms_pre is not None:
+        index = top_anchors(det, cls_maps, nms_pre)
+    if multi_label:
+        anchor, labels = (det["class_probs"][index] > score_threshold).nonzero(as_tuple=True)
+        index = index[anchor]
+        scores = det["class_probs"][index, labels]
+    else:
+        index = index[det["scores"][index] > score_threshold]
+        scores, labels = det["scores"][index], det["labels"][index]
+    boxes, batch = det["boxes"][index], det["batch"][index]
+    keep = nms3d(
+        boxes,
+        scores,
+        NMS_IOU,
+        labels=labels,
+        batch=batch,
+        rotated=rotated_nms,
+        max_keep=max_detections,
+    )
+    return {
+        "boxes": boxes[keep],
+        "scores": scores[keep],
+        "labels": labels[keep],
+        "batch": batch[keep],
+        "velocity": det["velocity"][index][keep],
+    }
+
+
+def forward(model: DetectionModel, data: dict[str, Tensor]) -> tuple[Detection3D, Union[Tensor, list[Tensor]]]:
+    """Raw detections, and the class maps of the anchor head (one per level, or a single map)."""
     output = model(
         data[DataKeys.VOXEL],
         data[DataKeys.POS_VOXEL],
         data[DataKeys.VOXEL_NUM_POINTS],
         data[f"batch_{DataKeys.POS_VOXEL}"],
     )
-    return model.decode(output)
+    return model.decode(output), output["cls"]
 
 
 @torch.no_grad()
-def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(
+    model: DetectionModel,
+    dataloader: DataLoader,
+    device: str,
+    *,
+    score_threshold: float = SCORE_THRESHOLD,
+    nms_pre: Optional[int] = None,
+    max_detections: Optional[int] = None,
+    multi_label: bool = False,
+    rotated_nms: bool = False,
+) -> dict[str, float]:
     model.to(device).eval()
     preds: list[Detection3D] = []
     targets: list[Boxes3D] = []
@@ -124,17 +209,21 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        det = forward(model, data)
-        keep = det["scores"] > SCORE_THRESHOLD
-        boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
+        det = select_detections(
+            *forward(model, data),
+            score_threshold,
+            nms_pre,
+            max_detections,
+            multi_label,
+            rotated_nms,
+        )
         preds.append(
             {
-                "boxes": boxes[idx].cpu(),
-                "scores": scores[idx].cpu(),
-                "labels": labels[idx].cpu(),
-                "batch": batch[idx].cpu(),
-                "velocity": det["velocity"][keep][idx].cpu(),
+                "boxes": det["boxes"].cpu(),
+                "scores": det["scores"].cpu(),
+                "labels": det["labels"].cpu(),
+                "batch": det["batch"].cpu(),
+                "velocity": det["velocity"].cpu(),
             }
         )
         targets.append(

@@ -78,15 +78,15 @@ $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3d
 
 # Outdoor detection (KITTI, nuScenes)
 $RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
-$RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
-$RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti-car.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt" --nms-pre 100 --max-detections 50 --multi-label
+$RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti-car.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt" --nms-pre 100 --max-detections 50 --multi-label
 $RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --model pointpillars-multihead.nuscenes.openpcdet
-$RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --model pointpillars.nuscenes.mmdet3d
-$RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --model pointpillars-fpn.nuscenes.mmdet3d
+$RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --model pointpillars.nuscenes.mmdet3d --score-threshold 0.05 --nms-pre 1000 --max-detections 500 --multi-label --rotated-nms
+$RUN examples/pointpillars/detection_nuscenes_benchmark.py --root "$ROOT" --model pointpillars-fpn.nuscenes.mmdet3d --score-threshold 0.05 --nms-pre 1000 --max-detections 500 --multi-label --rotated-nms
 $RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
-$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
-$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti-car.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
-$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second-dynamic-voxel.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt" --nms-pre 100 --max-detections 50 --multi-label
+$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second.kitti-car.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt" --nms-pre 100 --max-detections 50 --multi-label
+$RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second-dynamic-voxel.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt" --nms-pre 100 --max-detections 50 --multi-label
 $RUN examples/second/detection_kitti_benchmark.py --root "$ROOT" --model second-iou.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/second/detection_nuscenes_benchmark.py --root "$ROOT" --model second-multihead.nuscenes.openpcdet
 $RUN examples/pointrcnn/detection_kitti_benchmark.py --root "$ROOT" --model pointrcnn.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
