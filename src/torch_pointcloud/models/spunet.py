@@ -309,15 +309,41 @@ class SparseUNetDecoder(nn.Module):
 
         self.apply(_init_spunet_weights)
 
+    @overload
     def forward(
         self,
         x: "SparseConvTensor",
         skips: List[FeaturesDict],
-    ) -> "SparseConvTensor":
+        *,
+        return_intermediates: Literal[True],
+    ) -> Tuple["SparseConvTensor", List["SparseConvTensor"]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: "SparseConvTensor",
+        skips: List[FeaturesDict],
+        *,
+        return_intermediates: Literal[False] = False,
+    ) -> "SparseConvTensor": ...
+
+    def forward(
+        self,
+        x: "SparseConvTensor",
+        skips: List[FeaturesDict],
+        *,
+        return_intermediates: bool = False,
+    ) -> Any:
+        intermediates: List["SparseConvTensor"] = []
         for s in reversed(range(self.num_stages)):
             x = self.up[s](x)
             x = x.replace_feature(torch.cat([x.features, skips[s]["x"]], dim=1))
             x = self.dec[s](x)
+            if return_intermediates:
+                intermediates.append(x)
+
+        if return_intermediates:
+            return x, intermediates
         return x
 
 
