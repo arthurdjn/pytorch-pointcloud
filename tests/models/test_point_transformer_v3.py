@@ -15,10 +15,11 @@ from torch_pointcloud.models.point_transformer_v3 import (
     serialize,
 )
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
 requires_gpu = pytest.mark.skipif(not (_CUDA_AVAILABLE and _SPCONV_AVAILABLE), reason="CUDA and spconv are required")
 requires_spconv = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+requires_pyg_lib = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 
 
 @pytest.fixture
@@ -491,9 +492,9 @@ def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_orde
     [
         pytest.param("ptv3-base.scannet20.pointcept"),
         pytest.param("ptv3-base.scannet200.pointcept"),
-        pytest.param("ptv3-base.s3dis-area5.pointcept"),
+        pytest.param("ptv3-base.s3dis-area5.pointcept", marks=requires_pyg_lib),
         pytest.param("ptv3-ppt.scannet20.pointcept"),
-        pytest.param("ptv3-ppt.s3dis-area5.pointcept"),
+        pytest.param("ptv3-ppt.s3dis-area5.pointcept", marks=requires_pyg_lib),
         pytest.param("ptv3-ppt.scannet20.labelmaker"),
         pytest.param("ptv3-ppt.scannet200.labelmaker"),
     ],
