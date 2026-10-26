@@ -9,6 +9,7 @@ Adapted from :github: [xinge008/Cylinder3D](https://github.com/xinge008/Cylinder
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import torch.nn as nn
+from torch import Tensor
 
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, _SPCONV_GITHUB_URL, optional_import
 
@@ -115,12 +116,12 @@ class AsymmetricUpsampleBlock(SparseModule):
 
     The input is projected to `out_channels` by a $3 \times 3 \times 3$ `SubMConv3d`, upsampled by a
     `SparseInverseConv3d` that undoes the strided convolution registered under `upsample_indice_key`, summed with the
-    skip tensor of that resolution, then refined by three `SubMConv3d` of `kernel_sizes`. Every convolution is followed
+    skip features of that resolution (one row per voxel of the strided convolution's input), then refined by three `SubMConv3d` of `kernel_sizes`. Every convolution is followed
     by the activation and then the normalization.
 
     Args:
         in_channels: Number of input channels.
-        out_channels: Number of output channels, the width of the skip tensor.
+        out_channels: Number of output channels, the width of the skip features.
         kernel_sizes: Kernel sizes $(k_0, k_1, k_2)$ of the three convolutions after the skip sum, odd along each
             axis, e.g. `((1, 3, 3), (3, 1, 3), (3, 3, 3))`.
         indice_key: spconv index key prefix of the block.
@@ -146,7 +147,7 @@ class AsymmetricUpsampleBlock(SparseModule):
         ).cuda()
         indices = torch.cat([torch.zeros(500, 1), torch.randint(0, 32, (500, 3))], dim=1).int().unique(dim=0).cuda()
         skip = spconv.SparseConvTensor(torch.randn(len(indices), 8).cuda(), indices, [32, 32, 32], 1)
-        block(downsample(skip), skip).features.shape  # (V, 8)
+        block(downsample(skip), skip.features).features.shape  # (V, 8)
         ```
     """
 
@@ -184,11 +185,11 @@ class AsymmetricUpsampleBlock(SparseModule):
         self.norm4 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.act = create_act(act, **act_kwargs) or nn.Identity()
 
-    def forward(self, x: "SparseConvTensor", skip: "SparseConvTensor") -> "SparseConvTensor":
+    def forward(self, x: "SparseConvTensor", skip: Tensor) -> "SparseConvTensor":
         x = self.conv1(x)
         x = x.replace_feature(self.norm1(self.act(x.features)))
         x = self.upsample(x)
-        x = x.replace_feature(x.features + skip.features)
+        x = x.replace_feature(x.features + skip)
 
         x = self.conv2(x)
         x = x.replace_feature(self.norm2(self.act(x.features)))

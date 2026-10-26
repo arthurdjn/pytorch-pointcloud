@@ -3,7 +3,7 @@ r"""Cylinder3D LiDAR semantic segmentation model.
 {{ paper("2011.10033") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -21,8 +21,10 @@ from torch_pointcloud.layers import (
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.ops.geometry import cartesian_to_cylindrical
+from torch_pointcloud.utils.conversion import convert_from_spconv_tensor
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
+from torch_pointcloud.utils.types import FeaturesDict
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -175,25 +177,56 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         self.num_classes = num_classes
         self.head = self.configure_head()
 
-    def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple["SparseConvTensor", Tensor]:
-        """Encode and decode the voxels; return the full-resolution sparse features and the voxel of each point."""
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple["SparseConvTensor", Tensor, List[FeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple["SparseConvTensor", Tensor]: ...
+
+    def forward_features(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        """Encode the voxels into the coarsest sparse features; also return the voxel of each point.
+
+        With `return_intermediates`, the output of every encoder stage is appended, fine to coarse.
+        """
         point_x = torch.cat([pos[:, :2], x], dim=1)
         voxel_x, voxel_indices, inverse = self.vfe(point_x, cartesian_to_cylindrical(pos), batch)
         batch_size = int(batch.max().item()) + 1
         sparse_x = spconv.SparseConvTensor(voxel_x, voxel_indices, list(self.grid_size), batch_size)
 
         sparse_x = self.stem(sparse_x)
-        skips = []
+        skips: List[FeaturesDict] = []
         for block, downsample in zip(self.encoder, self.downsamples):
             sparse_x = block(sparse_x)
-            skips.append(sparse_x)
+            x_skip, pos_grid_skip, batch_skip = convert_from_spconv_tensor(sparse_x)
+            skips.append({"x": x_skip, "pos_grid": pos_grid_skip, "batch": batch_skip})
             sparse_x = downsample(sparse_x)
 
-        for block, skip in zip(self.decoder, reversed(skips)):
-            sparse_x = block(sparse_x, skip)
+        if return_intermediates:
+            return sparse_x, inverse, skips
         return sparse_x, inverse
 
-    def forward_decoder(self, x: "SparseConvTensor") -> "SparseConvTensor":
+    def forward_decoder(self, x: "SparseConvTensor", skips: List[FeaturesDict]) -> "SparseConvTensor":
+        """Upsample through the encoder stages, then concatenate the gated full-resolution features to them."""
+        for block, skip in zip(self.decoder, reversed(skips)):
+            x = block(x, skip["x"])
         gated = self.gate(x)
         return gated.replace_feature(torch.cat([gated.features, x.features], dim=1))
 
@@ -202,8 +235,8 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         return x.features if pre_logits else self.head(x).features
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
-        sparse_x, inverse = self.forward_features(x, pos, batch)
-        sparse_x = self.forward_decoder(sparse_x)
+        sparse_x, inverse, skips = self.forward_features(x, pos, batch, return_intermediates=True)
+        sparse_x = self.forward_decoder(sparse_x, skips)
         logits = self.forward_head(sparse_x)
         return logits[inverse]
 

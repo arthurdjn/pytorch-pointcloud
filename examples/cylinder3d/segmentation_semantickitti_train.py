@@ -185,8 +185,13 @@ def train_one_epoch(
     for data in tqdm(loader, desc="Training", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         # The reference scores the voxels against the majority label of their points.
-        sparse_x, inverse = model.forward_features(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
-        sparse_x = model.forward_decoder(sparse_x)
+        sparse_x, inverse, skips = model.forward_features(
+            data[DataKeys.X],
+            data[DataKeys.POS],
+            data[DataKeys.BATCH],
+            return_intermediates=True,
+        )
+        sparse_x = model.forward_decoder(sparse_x, skips)
         logits = model.forward_head(sparse_x)
         target = majority_label(data[DataKeys.SEGMENT], inverse, NUM_CLASSES, logits.shape[0], IGNORE_INDEX)
         loss = criterion(logits, target)

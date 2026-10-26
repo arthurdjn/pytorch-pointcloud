@@ -674,6 +674,10 @@ SPVCNN_VOXEL_SIZE = 0.005
 # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
 UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
 
+# Strided 3x3x3 convolutions dilate a sparse synthetic cloud: these models' stages gain voxels while their grid gets
+# coarser, so their order is checked on the grid extent.
+GRID_EXTENT_MODELS = ("cylinder3d",)
+
 
 @pytest.mark.skipif(
     not _PYG_LIB_AVAILABLE,
@@ -975,7 +979,7 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
     assert len(plain_outputs) == len(outputs), f"{model_name}: the flag must only append the intermediates"
     assert isinstance(intermediates, list) and intermediates, f"{model_name}: no intermediates returned"
 
-    rows = []
+    sizes = []
     for entry in intermediates:
         if not isinstance(entry, dict) or "x" not in entry:
             continue
@@ -987,9 +991,9 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
             if key in entry:
                 assert entry[key].shape[0] == x.shape[0], f"{model_name}: intermediate `{key}` rows != `x` rows"
 
-        rows.append(x.shape[0])
+        sizes.append(int(entry["pos_grid"].max()) if model_name.startswith(GRID_EXTENT_MODELS) else x.shape[0])
 
-    assert rows == sorted(rows, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {rows}"
+    assert sizes == sorted(sizes, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {sizes}"
 
     if device == "cuda":
         torch.cuda.empty_cache()

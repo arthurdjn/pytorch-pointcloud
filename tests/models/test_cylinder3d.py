@@ -79,8 +79,13 @@ def test_cylinder3d_forward_head_returns_one_row_per_voxel(
     model: Cylinder3DSegmentation, data: Dict[str, Tensor]
 ) -> None:
     with torch.no_grad():
-        sparse_x, inverse = model.forward_features(data["x"], data["pos"], data["batch"])
-        sparse_x = model.forward_decoder(sparse_x)
+        sparse_x, inverse, skips = model.forward_features(
+            data["x"],
+            data["pos"],
+            data["batch"],
+            return_intermediates=True,
+        )
+        sparse_x = model.forward_decoder(sparse_x, skips)
         features = model.forward_head(sparse_x, pre_logits=True)
         logits = model.forward_head(sparse_x)
     assert features.shape == (sparse_x.features.shape[0], model.num_features)

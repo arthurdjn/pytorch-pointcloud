@@ -73,7 +73,7 @@ def test_asymmetric_upsample_block_returns_the_skip_resolution() -> None:
     projection = spconv.SubMConv3d(16, 32, 1, bias=False).cuda()
     skip = _sparse_tensor(16)
     coarse = projection(downsample(skip))
-    out = block(coarse, skip)
+    out = block(coarse, skip.features)
     assert out.features.shape == (skip.features.shape[0], 16)
     assert torch.equal(out.indices, skip.indices)
 
