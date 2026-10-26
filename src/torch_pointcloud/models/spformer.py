@@ -12,6 +12,7 @@ from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.layers import MaskedQueryDecoderLayer
 from torch_pointcloud.models._base import InstanceSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder
@@ -53,63 +54,15 @@ class SPFormerOutput(SPFormerPrediction):
     aux_outputs: List[SPFormerPrediction]
 
 
-class SPFormerDecoderLayer(nn.Module):
-    r"""One SPFormer query decoder layer: masked cross-attention, self-attention and a feed-forward block.
-
-    The queries of each scene attend to that scene's superpoints, restricted to the superpoints their current mask
-    covers, and the attention output is added to the queries without normalization. Self-attention among the queries
-    of a scene and the feed-forward block follow, each as a post-norm residual.
-
-    Args:
-        embed_dim: Query and superpoint embedding dimension.
-        num_heads: Number of attention heads.
-        mlp_dim: Hidden width of the feed-forward block.
-        dropout: Dropout probability.
-        act: Activation of the feed-forward block, passed to PyG `MLP`.
-
-    Shape:
-        - Input: queries $(B, Q, D)$, the superpoints of each scene $(S_b, D)$ and the attention masks
-          $(Q, S_b)$ (`True` blocks a superpoint).
-        - Output: queries $(B, Q, D)$.
-    """
-
-    def __init__(
-        self,
-        embed_dim: int,
-        num_heads: int,
-        mlp_dim: int,
-        dropout: float = 0.0,
-        act: Union[str, Callable, None] = "gelu",
-    ) -> None:
-        super().__init__()
-        self.cross_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True)
-        self.self_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True)
-        self.norm1 = nn.LayerNorm(embed_dim)
-        self.mlp = MLP([embed_dim, mlp_dim, embed_dim], act=act, norm=None, dropout=dropout)
-        self.norm2 = nn.LayerNorm(embed_dim)
-        self.dropout = nn.Dropout(dropout)
-        for param in self.cross_attn.parameters():
-            if param.dim() > 1:
-                nn.init.xavier_uniform_(param)
-
-    def forward(self, queries: Tensor, sources: Sequence[Tensor], attn_masks: Sequence[Tensor]) -> Tensor:
-        attended = []
-        for query, source, attn_mask in zip(queries, sources, attn_masks):
-            out = self.cross_attn(query[None], source[None], source[None], attn_mask=attn_mask)[0]
-            attended.append(out[0] + query)
-        queries = torch.stack(attended)
-        queries = self.norm1(self.dropout(self.self_attn(queries, queries, queries)[0]) + queries)
-        return self.norm2(self.dropout(self.mlp(queries)) + queries)
-
-
 class SPFormerQueryDecoder(nn.Module):
     r"""SPFormer query decoder: learned queries predicting a class, a score and a superpoint mask each.
 
     Superpoint features are projected once into attention sources and once into mask embeddings. The learned
-    queries are refined by `num_layers` [`SPFormerDecoderLayer`](#) blocks; the queries before the first layer and
-    after every layer predict class logits, a mask quality score and mask logits (the dot product of the normalized
-    query with the mask embeddings). Each layer's cross-attention is restricted to the superpoints the previous
-    prediction's mask covers (sigmoid $\geq 0.5$), or to all of them when it covers none.
+    queries are refined by `num_layers` `MaskedQueryDecoderLayer` blocks, without normalizing the cross-attention
+    residual (`cross_attn_norm=False`); the queries before the first layer and after every layer predict class
+    logits, a mask quality score and mask logits (the dot product of the normalized query with the mask embeddings).
+    Each layer's cross-attention is restricted to the superpoints the previous prediction's mask covers (sigmoid
+    $\geq 0.5$), or to all of them when it covers none.
 
     Args:
         in_channels: Width of the superpoint features.
@@ -148,7 +101,10 @@ class SPFormerQueryDecoder(nn.Module):
         self.mask_proj = MLP([in_channels, embed_dim, embed_dim], act="relu", norm=None)
         self.query_embed = nn.Embedding(num_queries, embed_dim)
         self.layers = nn.ModuleList(
-            [SPFormerDecoderLayer(embed_dim, num_heads, mlp_dim, dropout=dropout, act=act) for _ in range(num_layers)]
+            [
+                MaskedQueryDecoderLayer(embed_dim, num_heads, mlp_dim, dropout=dropout, act=act, cross_attn_norm=False)
+                for _ in range(num_layers)
+            ]
         )
         self.norm = nn.LayerNorm(embed_dim)
         self.class_head = self.configure_class_head()
