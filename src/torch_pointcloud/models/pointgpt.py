@@ -1255,6 +1255,7 @@ for _size in ("s", "b", "l"):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointgpt-s.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.98, "cls_mIoU": 84.58},
         author="guangyan-chen",
         license="MIT",
     ),
@@ -1290,6 +1291,7 @@ def pointgpt_s_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointgpt-b.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.91, "cls_mIoU": 84.02},
         author="guangyan-chen",
         license="MIT",
     ),
@@ -1325,6 +1327,7 @@ def pointgpt_b_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointgpt-l.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
+        metrics={"ins_mIoU": 86.80, "cls_mIoU": 84.36},
         author="guangyan-chen",
         license="MIT",
     ),

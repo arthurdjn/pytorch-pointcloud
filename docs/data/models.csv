@@ -153,9 +153,9 @@ utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,C
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
 point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.05,ins_mIoU 86.05 · cls_mIoU 84.12
-pointgpt-b.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,140.75,mIoU,,,
-pointgpt-l.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,389.77,mIoU,,,
-pointgpt-s.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,34.17,mIoU,,,
+pointgpt-b.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,140.75,mIoU,86.5,85.91,ins_mIoU 85.91 · cls_mIoU 84.02
+pointgpt-l.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,389.77,mIoU,86.6,86.80,ins_mIoU 86.80 · cls_mIoU 84.36
+pointgpt-s.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,34.17,mIoU,86.2,85.98,ins_mIoU 85.98 · cls_mIoU 84.58
 pointnext-sm-c160.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,22.52,mIoU,87.1,87.11,ins_mIoU 87.11 · cls_mIoU 85.25
 pointnext-sm-c64.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,3.73,mIoU,86.9,86.93,ins_mIoU 86.93 · cls_mIoU 85.24
 pointnext-sm.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,0.98,mIoU,86.7,86.88,ins_mIoU 86.88 · cls_mIoU 84.48
