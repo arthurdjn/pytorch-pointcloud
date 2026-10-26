@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI
-from torch_pointcloud.datasets.kitti import KITTI_CLASSES
+from torch_pointcloud.datasets.kitti import KITTI_CLASSES, KITTI_IGNORE_CLASSES
 from torch_pointcloud.metrics import box_matches, kitti_average_precision
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DetectionModel, create_model, model_info
@@ -92,7 +92,7 @@ def configure_dataset(args: Namespace) -> Dataset:
         mapping={KITTI_CLASSES.index(name): index for index, name in enumerate(classes)},
         ignore_mapping={
             KITTI_CLASSES.index(ignored): classes.index(name)
-            for ignored, name in (("Van", "Car"), ("Person_sitting", "Pedestrian"))
+            for ignored, name in KITTI_IGNORE_CLASSES.items()
             if name in classes
         },
         ignore_fields={
