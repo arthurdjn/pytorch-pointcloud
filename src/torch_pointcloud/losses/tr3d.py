@@ -53,8 +53,6 @@ class TR3DLoss(nn.Module):
         ```
     """
 
-    label_levels: Tensor
-
     def __init__(self, num_classes: int, label_levels: Sequence[int], center_threshold: int) -> None:
         if len(label_levels) != num_classes:
             raise ValueError(f"label_levels needs one level per class, got {len(label_levels)} for {num_classes}.")
@@ -62,7 +60,7 @@ class TR3DLoss(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self.center_threshold = center_threshold
-        self.register_buffer("label_levels", torch.tensor(label_levels, dtype=torch.long), persistent=False)
+        self.label_levels = tuple(label_levels)
 
     @torch.no_grad()
     def assign(self, pos: Tensor, level: Tensor, boxes: Tensor, labels: Tensor) -> Tuple[Tensor, Tensor]:
@@ -81,7 +79,7 @@ class TR3DLoss(nn.Module):
         if num_boxes == 0:
             return pos.new_zeros(num_points, 7), labels.new_full((num_points,), -1)
 
-        candidate = level[:, None] == self.label_levels[labels][None, :]
+        candidate = level[:, None] == labels.new_tensor(self.label_levels)[labels][None, :]
         distances = (pos[:, None, :] - boxes[None, :, :3]).pow(2).sum(dim=-1)
         distances = torch.where(candidate, distances, torch.full_like(distances, _NO_BOX))
         kth = distances.topk(min(self.center_threshold + 1, num_points), dim=0, largest=False).values[-1]
@@ -123,4 +121,7 @@ class TR3DLoss(nn.Module):
         return {"loss": cls_loss + box_loss, "cls_loss": cls_loss.detach(), "box_loss": box_loss.detach()}
 
     def extra_repr(self) -> str:
-        return f"num_classes={self.num_classes}, center_threshold={self.center_threshold}"
+        return (
+            f"num_classes={self.num_classes}, label_levels={self.label_levels}, "
+            f"center_threshold={self.center_threshold}"
+        )

@@ -37,6 +37,17 @@ def test_tr3d_loss_assigns_the_nearest_locations_of_the_class_level() -> None:
     assert (box[positive] == boxes).all()
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_tr3d_loss_assigns_on_the_device_of_its_inputs() -> None:
+    pyramid = _pyramid()
+    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], center_threshold=6)
+    boxes = torch.tensor([[2.01, 2.10, 2.20, 1.0, 1.0, 1.0, 0.0]], device="cuda")
+    _, cls = criterion.assign(pyramid["pos"].cuda(), pyramid["level"].cuda(), boxes, torch.tensor([1], device="cuda"))
+
+    assert cls.is_cuda
+    assert int((cls >= 0).sum()) == 6
+
+
 def test_tr3d_loss_rejects_a_level_table_of_the_wrong_size() -> None:
     with pytest.raises(ValueError, match="one level per class"):
         TR3DLoss(num_classes=3, label_levels=[0, 1], center_threshold=6)
