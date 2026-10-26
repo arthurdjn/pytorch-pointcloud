@@ -347,7 +347,7 @@ def box3d_overlap(boxes1: Tensor, boxes2: Tensor, *, aligned: bool = False) -> T
     Shape:
         - boxes1: $(M, 8, 3)$
         - boxes2: $(N, 8, 3)$
-        - output: $(M, N)$, $(M, N)$
+        - output: $(M, N)$, $(M, N)$, or $(M,)$, $(M,)$ with `aligned`
     """
     if aligned and boxes1.shape[0] != boxes2.shape[0]:
         raise ValueError(f"`aligned` needs as many boxes on both sides, got {boxes1.shape[0]} and {boxes2.shape[0]}.")

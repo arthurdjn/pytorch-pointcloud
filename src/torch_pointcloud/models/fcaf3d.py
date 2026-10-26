@@ -183,6 +183,24 @@ class FCAF3DHead(nn.Module):
         act_kwargs: Extra keyword arguments for the activation.
         norm: Normalization passed to `create_norm`.
         norm_kwargs: Extra keyword arguments for the normalization.
+
+    Example:
+        ```python
+        import spconv.pytorch as spconv
+        import torch
+        from torch_pointcloud.models.fcaf3d import FCAF3DEncoder, FCAF3DHead
+
+        channels = (64, 128, 256, 512)
+        encoder = FCAF3DEncoder(3, 64, channels=channels, depths=(1, 1, 1, 1)).cuda().eval()
+        head = FCAF3DHead(channels, 128, 18, num_box_outputs=6, max_voxels_per_scene=100000).cuda().eval()
+        indices = torch.randint(0, 256, (20000, 4), dtype=torch.int32, device="cuda")
+        indices[:, 0] = 0
+        indices = torch.unique(indices, dim=0)
+        x = spconv.SparseConvTensor(torch.randn(len(indices), 3, device="cuda"), indices, [256, 256, 256], 1)
+        with torch.no_grad():
+            out = head(encoder(x))
+        out["cls_logits"].shape  # one row per voxel of every level, from the finest
+        ```
     """
 
     def __init__(
@@ -491,6 +509,9 @@ class FCAF3DDetection(DetectionModel):
 
         Every location is scored per class by its class probability times its centerness, and labelled by its best
         class.
+
+        Args:
+            out: The raw output of `forward`.
 
         Returns:
             Packed detections `{"boxes", "scores", "labels", "batch", "class_probs"}` with one row per output row, the

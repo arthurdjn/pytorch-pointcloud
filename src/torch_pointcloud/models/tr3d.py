@@ -68,6 +68,23 @@ class TR3DNeck(nn.Module):
         act_kwargs: Extra keyword arguments for the activation.
         norm: Normalization passed to `create_norm`.
         norm_kwargs: Extra keyword arguments for the normalization.
+
+    Example:
+        ```python
+        import spconv.pytorch as spconv
+        import torch
+        from torch_pointcloud.models.fcaf3d import FCAF3DEncoder
+        from torch_pointcloud.models.tr3d import TR3DNeck
+
+        encoder = FCAF3DEncoder(3, 64, channels=(64, 128, 128, 128), depths=(1, 1, 1, 1)).cuda().eval()
+        neck = TR3DNeck((128, 128, 128), 128).cuda().eval()
+        indices = torch.randint(0, 256, (20000, 4), dtype=torch.int32, device="cuda")
+        indices[:, 0] = 0
+        indices = torch.unique(indices, dim=0)
+        x = spconv.SparseConvTensor(torch.randn(len(indices), 3, device="cuda"), indices, [256, 256, 256], 1)
+        with torch.no_grad():
+            levels = neck(encoder(x)[1:])  # strides 16 and 32
+        ```
     """
 
     def __init__(
@@ -311,6 +328,9 @@ class TR3DDetection(DetectionModel):
         r"""Score the boxes of a forward output (no score threshold, top-k or NMS).
 
         Every location is scored per class by its class probability and labelled by its best class.
+
+        Args:
+            out: The raw output of `forward`.
 
         Returns:
             Packed detections `{"boxes", "scores", "labels", "batch", "class_probs"}` with one row per output row, the

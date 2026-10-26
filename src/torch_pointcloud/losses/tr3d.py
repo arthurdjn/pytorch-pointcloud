@@ -42,6 +42,7 @@ class TR3DLoss(nn.Module):
         import torch
         from torch_pointcloud.losses import TR3DLoss
         from torch_pointcloud.models import create_model
+        from torch_pointcloud.utils.data import DataKeys
 
         model = create_model("tr3d.scannet.mmdet3d", task="detection").cuda()
         label_levels = [0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0]
@@ -49,9 +50,9 @@ class TR3DLoss(nn.Module):
         pos = torch.rand(20000, 3, device="cuda") * 4
         out = model(torch.rand(20000, 3, device="cuda"), pos, torch.zeros(20000, dtype=torch.long, device="cuda"))
         data = {
-            "box": torch.tensor([[2.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0]], device="cuda"),
-            "label": torch.tensor([4], device="cuda"),
-            "batch_box": torch.tensor([0], device="cuda"),
+            DataKeys.BOX: torch.tensor([[2.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0]], device="cuda"),
+            DataKeys.LABEL: torch.tensor([4], device="cuda"),
+            DataKeys.BATCH_BOX: torch.tensor([0], device="cuda"),
         }
         criterion(out, data)["loss"].backward()
         ```

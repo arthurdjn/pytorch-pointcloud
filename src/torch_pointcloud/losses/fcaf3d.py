@@ -62,15 +62,16 @@ class FCAF3DLoss(nn.Module):
         import torch
         from torch_pointcloud.losses import FCAF3DLoss
         from torch_pointcloud.models import create_model
+        from torch_pointcloud.utils.data import DataKeys
 
         model = create_model("fcaf3d.scannet.mmdet3d", task="detection").cuda()
         criterion = FCAF3DLoss(num_classes=18, min_points_per_level=27, num_positives=18)
         pos = torch.rand(20000, 3, device="cuda") * 4
         out = model(torch.rand(20000, 3, device="cuda"), pos, torch.zeros(20000, dtype=torch.long, device="cuda"))
         data = {
-            "box": torch.tensor([[2.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0]], device="cuda"),
-            "label": torch.tensor([4], device="cuda"),
-            "batch_box": torch.tensor([0], device="cuda"),
+            DataKeys.BOX: torch.tensor([[2.0, 2.0, 0.5, 1.0, 1.0, 1.0, 0.0]], device="cuda"),
+            DataKeys.LABEL: torch.tensor([4], device="cuda"),
+            DataKeys.BATCH_BOX: torch.tensor([0], device="cuda"),
         }
         criterion(out, data)["loss"].backward()
         ```
