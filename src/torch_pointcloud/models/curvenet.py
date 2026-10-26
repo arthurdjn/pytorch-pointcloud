@@ -220,7 +220,8 @@ class CurveNetClassification(ClassificationModel):
         in_channels: Number of input feature channels; `0` embeds the coordinates alone.
         num_classes: Number of output classes.
         spatial_dim: Spatial dimension of the input point cloud.
-        embed_channels: Channels of the input `LocalPointFeatureAggregation` MLP.
+        embed_channels: Width of the input `LocalPointFeatureAggregation` MLP.
+        embed_num_layers: Depth of the input `LocalPointFeatureAggregation` MLP.
         channels: Output channels of every encoder stage.
         blocks: Number of blocks of every encoder stage.
         num_points: Points per sample after every stage's subsampling, `None` to keep the points.
@@ -247,7 +248,8 @@ class CurveNetClassification(ClassificationModel):
         num_classes: int,
         *,
         spatial_dim: int = 3,
-        embed_channels: Union[int, Sequence[int]],
+        embed_channels: int,
+        embed_num_layers: int = 1,
         channels: Sequence[int],
         blocks: Union[int, Sequence[int]],
         num_points: Sequence[Optional[int]],
@@ -269,7 +271,8 @@ class CurveNetClassification(ClassificationModel):
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.spatial_dim = spatial_dim
-        self.embed_channels = ensure_list(embed_channels)
+        self.embed_channels = embed_channels
+        self.embed_num_layers = embed_num_layers
         self.channels = ensure_list(channels)
         self.blocks = ensure_list_size(blocks, size=len(self.channels))
         self.num_points = ensure_list_size(num_points, size=len(self.channels))
@@ -298,8 +301,8 @@ class CurveNetClassification(ClassificationModel):
         """Build the input `LocalPointFeatureAggregation`, max-pooled over the neighbors."""
         return LocalPointFeatureAggregation(
             self.in_channels,
-            self.embed_channels[-1],
-            num_layers=len(self.embed_channels),
+            self.embed_channels,
+            num_layers=self.embed_num_layers,
             aggr="max",
             spatial_dim=self.spatial_dim,
             act=self.act,
@@ -311,7 +314,7 @@ class CurveNetClassification(ClassificationModel):
     def configure_encoder(self) -> CurveNetEncoder:
         """Build the `CurveNetEncoder` backbone."""
         return CurveNetEncoder(
-            in_channels=self.embed_channels[-1],
+            in_channels=self.embed_channels,
             channels=self.channels,
             blocks=self.blocks,
             num_points=self.num_points,
@@ -406,7 +409,8 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         num_classes: Number of part classes.
         num_categories: Number of object categories of the one-hot `category` input.
         spatial_dim: Spatial dimension of the input point cloud.
-        embed_channels: Channels of the input `LocalPointFeatureAggregation` MLP.
+        embed_channels: Width of the input `LocalPointFeatureAggregation` MLP.
+        embed_num_layers: Depth of the input `LocalPointFeatureAggregation` MLP.
         channels: Output channels of every encoder stage.
         blocks: Number of blocks of every encoder stage.
         num_points: Points per sample after every stage's subsampling, `None` to keep the points.
@@ -435,7 +439,8 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         *,
         num_categories: int,
         spatial_dim: int = 3,
-        embed_channels: Union[int, Sequence[int]],
+        embed_channels: int,
+        embed_num_layers: int = 1,
         channels: Sequence[int],
         blocks: Union[int, Sequence[int]],
         num_points: Sequence[Optional[int]],
@@ -463,7 +468,8 @@ class CurveNetPartSegmentation(PartSegmentationModel):
 
         super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
         self.spatial_dim = spatial_dim
-        self.embed_channels = ensure_list(embed_channels)
+        self.embed_channels = embed_channels
+        self.embed_num_layers = embed_num_layers
         self.channels = ensure_list(channels)
         self.blocks = ensure_list_size(blocks, size=len(self.channels))
         self.num_points = ensure_list_size(num_points, size=len(self.channels))
@@ -497,8 +503,8 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         """Build the input `LocalPointFeatureAggregation`, max-pooled over the neighbors."""
         return LocalPointFeatureAggregation(
             self.in_channels,
-            self.embed_channels[-1],
-            num_layers=len(self.embed_channels),
+            self.embed_channels,
+            num_layers=self.embed_num_layers,
             aggr="max",
             spatial_dim=self.spatial_dim,
             act=self.act,
@@ -510,7 +516,7 @@ class CurveNetPartSegmentation(PartSegmentationModel):
     def configure_encoder(self) -> CurveNetEncoder:
         """Build the `CurveNetEncoder` backbone."""
         return CurveNetEncoder(
-            in_channels=self.embed_channels[-1],
+            in_channels=self.embed_channels,
             channels=self.channels,
             blocks=self.blocks,
             num_points=self.num_points,
@@ -697,6 +703,7 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         num_classes=40,
         spatial_dim=3,
         embed_channels=32,
+        embed_num_layers=1,
         channels=[64, 128, 256, 512],
         blocks=2,
         num_points=[None, None, 256, 64],
@@ -749,6 +756,7 @@ def curvenet_tiange_xiang_modelnet40_cls(**hparams: Any) -> CurveNetClassificati
         num_categories=16,
         spatial_dim=3,
         embed_channels=32,
+        embed_num_layers=1,
         channels=[64, 128, 256, 512, 1024],
         blocks=[2, 2, 2, 2, 3],
         num_points=[None, 512, 128, 32, 8],

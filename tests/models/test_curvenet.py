@@ -68,6 +68,25 @@ def model_partseg() -> CurveNetPartSegmentation:
     ).eval()
 
 
+@pytest.mark.parametrize("embed_num_layers", [pytest.param(1, id="one-layer"), pytest.param(3, id="three-layers")])
+def test_curvenet_embedding_width_and_depth(embed_num_layers: int) -> None:
+    model = CurveNetClassification(
+        in_channels=0,
+        num_classes=4,
+        embed_channels=12,
+        embed_num_layers=embed_num_layers,
+        channels=[16],
+        blocks=1,
+        num_points=[None],
+        radius=[None],
+        num_neighbors=4,
+        curves=[None],
+        proj_channels=16,
+    )
+    widths = [(lin.in_channels, lin.out_channels) for lin in model.embed.mlp.lins]
+    assert widths == [(9, 12)] + [(12, 12)] * (embed_num_layers - 1)
+
+
 def test_curvenet_classification_forward(model_clf: CurveNetClassification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(None, data["pos"], data["batch"])
     assert logits.shape == (2, 10)
