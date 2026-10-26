@@ -293,6 +293,12 @@ class GroupFree3DDetection(DetectionModel):
         )
 
     def reset_classifier(self, num_classes: int) -> None:
+        if self.mean_sizes is not None:
+            raise ValueError(
+                "A class-aware size head has one size template per class: build a new model with the `mean_sizes` "
+                "of the new classes instead."
+            )
+
         self.num_classes = num_classes
         for head in [self.proposal_head, *self.prediction_heads]:
             assert isinstance(head, GroupFree3DPredictionHead)

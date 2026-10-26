@@ -5,9 +5,11 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.layers.transformer import TransformerDecoderLayer
+from torch_pointcloud.losses import GroupFree3DLoss
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.groupfree3d import GroupFree3DDetection, GroupFree3DPredictionHead
 from torch_pointcloud.ops.box3d import class_to_angle
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 requires_pyg_lib = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -125,18 +127,43 @@ def test_groupfree3d_train_mode_backward() -> None:
 
 
 @requires_pyg_lib
-def test_groupfree3d_reset_classifier() -> None:
-    model = _create_groupfree3d()
-    model.reset_classifier(num_classes=5)
-    assert model.num_classes == 5
+def test_groupfree3d_reset_classifier_trains_with_the_new_classes() -> None:
+    model = _create_groupfree3d(num_heading_bins=12, mean_sizes=None)
+    model.reset_classifier(num_classes=20)
+    assert model.num_classes == 20
     for head in [model.proposal_head, *model.prediction_heads]:
         assert isinstance(head, GroupFree3DPredictionHead)
-        assert head.sem_cls_head.out_features == 5
-    model = model.to(DEVICE).eval()
+        assert head.sem_cls_head.out_features == 20
+    model = model.to(DEVICE).train()
     data = _make_inputs()
-    with torch.no_grad():
-        out = model(None, data["pos"], data["batch"])
-    assert out["sem_cls_scores"].shape[-1] == 5
+    out = model(None, data["pos"], data["batch"])
+    assert out["sem_cls_scores"].shape[-1] == 20
+
+    criterion = GroupFree3DLoss(
+        model.num_classes,
+        num_heading_bins=model.num_heading_bins,
+        mean_sizes=model.mean_sizes,
+        sampling_weight=0.2,
+        objectness_weight=0.4,
+        center_delta=0.111,
+        size_delta=0.0625,
+        heading_delta=0.04,
+    )
+    target = {
+        DataKeys.BOX: torch.tensor([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.3], [3.0, 3.0, 1.0, 1.0, 1.0, 1.0, 0.0]]),
+        DataKeys.LABEL: torch.tensor([19, 4]),
+        DataKeys.BATCH_BOX: torch.tensor([0, 1]),
+    }
+    loss = criterion(out, {key: value.to(DEVICE) for key, value in target.items()})["loss"]
+    loss.backward()
+    assert torch.isfinite(loss)
+
+
+def test_groupfree3d_reset_classifier_rejects_class_aware_size_templates() -> None:
+    model = _create_groupfree3d()
+    with pytest.raises(ValueError, match="mean_sizes"):
+        model.reset_classifier(num_classes=20)
+    assert model.num_classes == 18
 
 
 def test_groupfree3d_rejects_malformed_mean_sizes() -> None:
