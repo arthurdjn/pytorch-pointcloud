@@ -41,8 +41,9 @@ def test_instance_matches_packed_batch_equals_per_scene_records() -> None:
         gt_instance = torch.randint(-1, 4, (size,), generator=generator)
         gt_label = torch.where(gt_instance >= 0, gt_instance % 2, -1)
         masks = torch.rand(6, size, generator=generator) > 0.6
-        scenes.append((masks, torch.randint(0, 2, (6,), generator=generator), torch.rand(6, generator=generator)))
-        scenes[-1] += (gt_instance, gt_label)
+        labels = torch.randint(0, 2, (6,), generator=generator)
+        scores = torch.rand(6, generator=generator)
+        scenes.append((masks, labels, scores, gt_instance, gt_label))
     per_scene = [instance_matches(*scene) for scene in scenes]
 
     masks = torch.block_diag(*(scene[0].int() for scene in scenes)).bool()

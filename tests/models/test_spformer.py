@@ -41,7 +41,7 @@ def _scenes() -> List[Dict[str, Tensor]]:
     scenes = []
     for num_voxels, num_points in ((40, 70), (60, 90)):
         flat = torch.cat([torch.randperm(8**3 - 1)[: num_voxels - 1], torch.tensor([8**3 - 1])])
-        scene = {
+        scene: Dict[str, Tensor] = {
             DataKeys.X: torch.randn(num_voxels, 6),
             DataKeys.POS_GRID: torch.stack([flat // 64, flat // 8 % 8, flat % 8], dim=1),
             DataKeys.SUPERPOINT: torch.randint(0, 9, (num_points,)),
@@ -105,6 +105,7 @@ def test_query_decoder_unblocks_fully_masked_rows() -> None:
 def test_registered_transform_runs_without_labels() -> None:
     """The checkpoint's transform voxelizes a scene that carries no `segment` or `instance`."""
     transform = model_info("spformer.scannet.jiahao-sun", task="instance-segmentation")["transform"]
+    assert transform is not None
     torch.manual_seed(0)
     sample = {
         DataKeys.POS: torch.rand(500, 3) * 4,
