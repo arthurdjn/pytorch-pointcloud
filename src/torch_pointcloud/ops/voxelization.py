@@ -278,6 +278,8 @@ def sparse_voxelize(
     voxel_size: float,
     reduce: str,
     return_inverse: Literal[True],
+    *,
+    origin: Literal["min", "grid"] = ...,
 ) -> Tuple[Tensor, IntTensor, Tensor, Tensor]: ...
 
 
@@ -289,6 +291,8 @@ def sparse_voxelize(
     voxel_size: float,
     reduce: str = "mean",
     return_inverse: Literal[False] = False,
+    *,
+    origin: Literal["min", "grid"] = ...,
 ) -> Tuple[Tensor, IntTensor, Tensor]: ...
 
 
@@ -299,16 +303,24 @@ def sparse_voxelize(
     voxel_size: float,
     reduce: str = "mean",
     return_inverse: bool = False,
+    *,
+    origin: Literal["min", "grid"] = "min",
 ) -> Tuple[Tensor, ...]:
     r"""Pool packed point features into sparse voxels of a regular grid.
+
+    With `origin="min"` the grid starts at the minimum of the points and the voxel coordinates count from it. With
+    `origin="grid"` the voxels are the cells $\lfloor p / \text{voxel\_size} \rfloor$ of the grid through the origin of
+    `pos`, and those cells, negative ones included, are the voxel coordinates.
 
     Args:
         x: Packed point features $(N, C)$.
         pos: Packed point coordinates $(N, 3)$.
         batch: Per-point batch index $(N,)$.
         voxel_size: Edge length of a voxel, in the units of `pos`.
-        reduce: Scatter reduction applied to the points of a voxel (e.g. `mean`, `max`).
+        reduce: Scatter reduction applied to the points of a voxel (e.g. `mean`, `max`), or `first` to keep the first
+            point of a voxel in input order.
         return_inverse: Also return the per-point voxel index, to broadcast voxel values back to the points.
+        origin: Where the grid starts, `min` or `grid`.
 
     Returns:
         The voxel features $(V, C)$, their integer coordinates $(V, 3)$ and batch index $(V,)$, plus the
@@ -316,14 +328,21 @@ def sparse_voxelize(
     """
     # Ensure the position is float
     pos = pos.float()
-    start = pos.min(0)[0]
+    if origin == "grid":
+        cells = torch.cat([batch.view(-1, 1), torch.floor(pos / voxel_size).long()], dim=1)
+        voxels, cluster = torch.unique(cells, dim=0, return_inverse=True)
+        pos_voxel, batch_voxel = voxels[:, 1:].int(), voxels[:, 0]
+    else:
+        start = pos.min(0)[0]
+        cluster = voxel_grid(pos, batch=batch, size=voxel_size, start=start)
+        cluster, perm = consecutive_cluster(cluster)
+        pos_voxel = torch.div(pos[perm] - start, voxel_size, rounding_mode="trunc").int()
+        batch_voxel = batch[perm]
 
-    cluster = voxel_grid(pos, batch=batch, size=voxel_size, start=start)
-    cluster, perm = consecutive_cluster(cluster)
-
-    x_voxel = scatter(x, cluster, dim=0, reduce=reduce)
-    pos_voxel = torch.div(pos[perm] - start, voxel_size, rounding_mode="trunc").int()
-    batch_voxel = batch[perm]
+    if reduce == "first":
+        x_voxel = x[first_permutation(cluster, len(batch_voxel))]
+    else:
+        x_voxel = scatter(x, cluster, dim=0, reduce=reduce)
 
     if return_inverse:
         return x_voxel, pos_voxel, batch_voxel, cluster
@@ -538,8 +557,9 @@ def voxelize_to_spconv_tensor(
 ) -> Tuple["SparseConvTensor", Tensor]:
     r"""Voxelize packed points into a `spconv.SparseConvTensor`, the first point of a voxel giving its features.
 
-    Voxels are the cells $\lfloor p / \text{voxel\_size} \rfloor$ of the grid through the origin of `pos`. Their
-    indices are shifted by `origin`, a multiple of `alignment` chosen so that `alignment` empty voxels border the
+    The voxels are those of `sparse_voxelize` with `reduce="first"` and `origin="grid"`, the cells
+    $\lfloor p / \text{voxel\_size} \rfloor$ of the grid through the origin of `pos`. Their indices are shifted by
+    `origin`, a multiple of `alignment` chosen so that `alignment` empty voxels border the
     occupied ones on every side: strided layers of total stride up to `alignment` then group the same voxels as on
     the unshifted grid, and transposed ones never step outside the spatial shape.
 
@@ -571,12 +591,11 @@ def voxelize_to_spconv_tensor(
         origin  # tensor([-12, -4, -4])
         ```
     """
-    pos_grid = torch.floor(pos / voxel_size).long()
-    voxels, cluster = torch.unique(torch.cat([batch.view(-1, 1), pos_grid], dim=1), dim=0, return_inverse=True)
-    x_voxel = x[first_permutation(cluster, len(voxels))]
+    x_voxel, cells, batch_voxel = sparse_voxelize(x, pos, batch, voxel_size, reduce="first", origin="grid")
+    cells = cells.long()
 
-    origin = torch.div(voxels[:, 1:].min(0).values, alignment, rounding_mode="floor") * alignment - alignment
-    pos_voxel = voxels[:, 1:] - origin
+    origin = torch.div(cells.min(0).values, alignment, rounding_mode="floor") * alignment - alignment
+    pos_voxel = cells - origin
     spatial_shape = torch.div(pos_voxel.max(0).values + 2 * alignment, alignment, rounding_mode="floor") * alignment
-    sparse = convert_to_spconv_tensor(x_voxel, pos_voxel, voxels[:, 0], spatial_shape=spatial_shape.tolist())
+    sparse = convert_to_spconv_tensor(x_voxel, pos_voxel, batch_voxel, spatial_shape=spatial_shape.tolist())
     return sparse, origin

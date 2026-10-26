@@ -97,6 +97,30 @@ def test_sparse_voxelize_separates_batches() -> None:
     assert x_voxel[order].tolist() == [[1.0], [5.0]]
 
 
+def test_sparse_voxelize_grid_origin_keeps_the_first_point_of_each_cell() -> None:
+    x = torch.tensor([[1.0], [2.0], [3.0], [4.0]])
+    pos = torch.tensor([[-0.3, 0.1, 0.0], [-0.4, 0.2, 0.0], [0.6, 0.1, 0.0], [-0.3, 0.1, 0.0]])
+    batch = torch.tensor([0, 0, 0, 1])
+    x_voxel, pos_voxel, batch_voxel, inverse = sparse_voxelize(
+        x,
+        pos,
+        batch,
+        voxel_size=0.5,
+        reduce="first",
+        return_inverse=True,
+        origin="grid",
+    )
+
+    # Cells floor(pos / 0.5) through the origin, negative ones included, one per scene.
+    assert pos_voxel.dtype == torch.int32
+    assert sorted(zip(batch_voxel.tolist(), map(tuple, pos_voxel.tolist()))) == [
+        (0, (-1, 0, 0)),
+        (0, (1, 0, 0)),
+        (1, (-1, 0, 0)),
+    ]
+    assert x_voxel[inverse].view(-1).tolist() == [1.0, 1.0, 3.0, 4.0]
+
+
 def test_point_to_voxel_generator_cache_is_bounded() -> None:
     assert _point_to_voxel_generator.cache_info().maxsize == 8
 
