@@ -169,8 +169,7 @@ class GroupFree3DDetection(DetectionModel):
     Args:
         in_channels: Input feature channels per point excluding xyz ($0$ for the released checkpoints).
         num_classes: Number of semantic classes.
-        num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned ScanNet boxes, $12$ for oriented
-            SUN RGB-D boxes).
+        num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned boxes).
         num_size_clusters: Number of size templates of the class-aware size head ($0$ when class agnostic).
         mean_sizes: Per-template mean box size, shape $(\text{num\_size\_clusters}, 3)$, or `None` when the size
             head is class agnostic.
