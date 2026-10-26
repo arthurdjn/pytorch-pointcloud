@@ -38,12 +38,12 @@ from .pointconv import PointConvDensityClassification
 from .pointgpt import PointGPTClassification, PointGPTPretraining
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetSegmentation
-from .pointnet2 import PointNet2Classification, PointNet2Segmentation
+from .pointnet2 import PointNet2Classification, PointNet2PartSegmentation, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtPartSegmentation, PointNeXtSegmentation
 from .pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
 from .pointrcnn import PointRCNNDetection
 from .pv_rcnn import PVRCNNDetection
-from .pvcnn import PVCNNClassification, PVCNNSegmentation
+from .pvcnn import PVCNNClassification, PVCNNPartSegmentation, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
 from .second import SECONDDetection, SECONDMultiHeadDetection
@@ -113,6 +113,7 @@ __all__ = [
     "PointNetClassification",
     "PointNetSegmentation",
     "PointNet2Classification",
+    "PointNet2PartSegmentation",
     "PointNet2Segmentation",
     "PointNeXtClassification",
     "PointNeXtPartSegmentation",
@@ -122,6 +123,7 @@ __all__ = [
     "PointRCNNDetection",
     "PVRCNNDetection",
     "PVCNNClassification",
+    "PVCNNPartSegmentation",
     "PVCNNSegmentation",
     "PVCNN2Classification",
     "PVCNN2Segmentation",

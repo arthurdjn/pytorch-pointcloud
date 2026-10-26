@@ -9,6 +9,7 @@ from torch_pointcloud.metrics import (
     intersection_over_union,
     part_intersection_over_union,
     part_mean_intersection_over_union,
+    part_predictions,
 )
 from torch_pointcloud.metrics.segmentation import compute_intersection_union
 
@@ -197,6 +198,16 @@ def test_part_intersection_over_union_without_batch_is_one_shape() -> None:
     # part 0: 1 / 2, part 1: 2 / 3
     assert ious.item() == pytest.approx((1 / 2 + 2 / 3) / 2)
     assert torch.equal(ious, part_intersection_over_union(preds, target, part_ids, torch.tensor(0)))
+
+
+def test_part_predictions_argmax_over_the_category_parts_only() -> None:
+    part_ids = [[0, 1], [2, 3]]
+    scores = torch.tensor([[0.1, 0.2, 0.9, 0.3], [0.8, 0.1, 0.0, 0.5], [0.9, 0.0, 0.1, 0.2], [0.0, 0.7, 0.1, 0.6]])
+    batch = torch.tensor([0, 0, 1, 1])
+
+    preds = part_predictions(scores, part_ids, torch.tensor([0, 1]), batch)
+    assert torch.equal(preds, torch.tensor([1, 0, 3, 3]))
+    assert torch.equal(part_predictions(scores[:2], part_ids, torch.tensor([0])), torch.tensor([1, 0]))
 
 
 def test_part_mean_iou_instance_vs_class_averaging() -> None:

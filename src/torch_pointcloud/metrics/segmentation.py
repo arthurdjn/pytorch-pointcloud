@@ -161,6 +161,50 @@ def intersection_over_union(
     return per_class[keep].mean().item()
 
 
+def part_predictions(
+    scores: Tensor,
+    part_ids: Sequence[Sequence[int]],
+    category: Tensor,
+    batch: Optional[Tensor] = None,
+) -> Tensor:
+    r"""Per-point part predictions restricted to the parts of each shape's category.
+
+    The argmax of each point runs over the part labels its shape's category owns only, so a point never takes a part
+    of another category.
+
+    Args:
+        scores: Per-point part scores (logits or probabilities), shape $(N, C)$.
+        part_ids: Part labels owned by each category.
+        category: Per-shape category index into `part_ids`, shape $(B,)$.
+        batch: Optional per-point shape index, shape $(N,)$; when omitted, all the points belong to one shape.
+
+    Returns:
+        Predicted part indices of shape $(N,)$.
+
+    Shape:
+        - scores: $(N, C)$
+        - category: $(B,)$
+        - batch, output: $(N,)$
+
+    Example:
+        ```pycon
+        >>> scores = torch.tensor([[0.1, 0.2, 0.9, 0.3], [0.8, 0.1, 0.0, 0.5]])
+        >>> part_predictions(scores, part_ids=[[0, 1], [2, 3]], category=torch.tensor([0]))
+        tensor([1, 0])
+
+        ```
+    """
+    owned = torch.zeros(len(part_ids), scores.size(1), dtype=torch.bool, device=scores.device)
+    for c, ids in enumerate(part_ids):
+        owned[c, list(ids)] = True
+
+    if batch is None:
+        batch = torch.zeros(scores.size(0), dtype=torch.long, device=scores.device)
+
+    allowed = owned[category.long().reshape(-1)][batch]
+    return scores.masked_fill(~allowed, float("-inf")).argmax(dim=1)
+
+
 def part_intersection_over_union(
     preds: Tensor,
     target: Tensor,

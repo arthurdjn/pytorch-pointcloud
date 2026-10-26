@@ -2,9 +2,15 @@ from typing import Dict
 
 import pytest
 import torch
+import torch.nn as nn
 from torch import Tensor
 
-from torch_pointcloud.models.pointnet2 import PointNet2Classification, PointNet2Encoder, PointNet2Segmentation
+from torch_pointcloud.models.pointnet2 import (
+    PointNet2Classification,
+    PointNet2Encoder,
+    PointNet2PartSegmentation,
+    PointNet2Segmentation,
+)
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -194,3 +200,105 @@ def test_pointnet2_reset_classifier_keeps_current_pooling(model_clf: PointNet2Cl
     model_clf.reset_classifier(5)
     assert model_clf.global_pool is pool
     assert type(pool).__name__ == "MeanPool"
+
+
+@pytest.fixture
+def model_part() -> PointNet2PartSegmentation:
+    return PointNet2PartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        sa_channels=[[32, 64], [64, 128]],
+        global_channels=[128, 256],
+        fp_channels=[[64, 64], [64, 32], [32, 32]],
+        head_channels=[32],
+        num_points=[64, 16],
+        radii=[0.2, 0.4],
+        num_neighbors=[16, 16],
+        bias=True,
+        dropout=0.5,
+    )
+
+
+@pytest.fixture
+def category() -> Tensor:
+    return torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+
+
+def test_pointnet2_part_segmentation_forward(
+    model_part: PointNet2PartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    logits = model_part(data["x"], data["pos"], data["batch"], category)
+    assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
+    assert logits.dtype == data["x"].dtype
+
+
+def test_pointnet2_part_segmentation_forward_features_decoder_head(
+    model_part: PointNet2PartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    x, pos, batch, intermediates = model_part.forward_features(
+        data["x"], data["pos"], data["batch"], return_intermediates=True
+    )
+    assert x.shape == (2, 256)
+    assert pos.shape == (2, 3)
+    assert torch.equal(batch, torch.arange(2))
+    assert [skip["x"].shape[1] for skip in intermediates] == [6, 64, 128]
+    assert [skip["pos"].shape[0] for skip in intermediates] == [data["pos"].shape[0], 128, 32]
+    x = model_part.forward_decoder(x, pos, batch, intermediates, category)
+    assert x.shape == (data["pos"].shape[0], model_part.num_features)
+    assert torch.equal(model_part.forward_head(x, pre_logits=True), x)
+    logits = model_part.forward_head(x)
+    assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
+
+
+def test_pointnet2_part_segmentation_finest_skip_concatenates_pos_and_category(
+    model_part: PointNet2PartSegmentation,
+) -> None:
+    assert model_part.decoder.skip_channels == [128, 64, 6 + 3 + 4]
+    model = PointNet2PartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        sa_channels=[[32, 64], [64, 128]],
+        global_channels=[128, 256],
+        fp_channels=[[64, 64], [64, 32], [32, 32]],
+        num_points=[64, 16],
+        radii=[0.2, 0.4],
+        num_neighbors=[16, 16],
+        use_category=False,
+    )
+    assert model.decoder.skip_channels == [128, 64, 6 + 3]
+
+
+def test_pointnet2_part_segmentation_ignores_the_category_when_disabled(data: Dict[str, Tensor]) -> None:
+    model = PointNet2PartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        sa_channels=[[32, 64], [64, 128]],
+        global_channels=[128, 256],
+        fp_channels=[[64, 64], [64, 32], [32, 32]],
+        num_points=[64, 16],
+        radii=[0.2, 0.4],
+        num_neighbors=[16, 16],
+        use_category=False,
+    ).eval()
+    one_hot = torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+    other = torch.nn.functional.one_hot(torch.tensor([0, 2]), num_classes=4).float()
+    with torch.no_grad():
+        assert torch.equal(
+            model(data["x"], data["pos"], data["batch"], one_hot), model(data["x"], data["pos"], data["batch"], other)
+        )
+
+
+def test_pointnet2_part_segmentation_reset_classifier(
+    model_part: PointNet2PartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    model_part.reset_classifier(num_classes=42)
+    logits = model_part(data["x"], data["pos"], data["batch"], category)
+    assert logits.shape == (data["pos"].shape[0], 42)
+
+    model_part.reset_classifier(num_classes=0)
+    assert isinstance(model_part.head, nn.Identity)
+    features = model_part(data["x"], data["pos"], data["batch"], category)
+    assert features.shape == (data["pos"].shape[0], model_part.num_features)

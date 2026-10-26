@@ -8,7 +8,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear as PyGLinear
 
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
-from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNSegmentation
+from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNPartSegmentation, PVCNNSegmentation
 
 
 @pytest.fixture
@@ -196,3 +196,65 @@ def test_pvcnn_segmentation_with_head_channels_creates_mlp_head() -> None:
     for lin, expected_out in zip(head.lins, (24, 16, 13)):
         assert isinstance(lin, PyGLinear)
         assert lin.out_channels == expected_out
+
+
+@pytest.fixture
+def model_part() -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        channels=[32, 64, 128],
+        depths=[1, 1, 1],
+        kernel_sizes=[3, 3, 3],
+        resolutions=[8, 8, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[64, 32],
+        head_dropout=0.2,
+    )
+
+
+@pytest.fixture
+def category() -> Tensor:
+    return torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+
+
+def test_pvcnn_part_segmentation_forward(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    logits = model_part(data["x"], data["pos"], data["batch"], category)
+    assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
+    assert logits.dtype == data["x"].dtype
+
+
+def test_pvcnn_part_segmentation_forward_features_decoder_head(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    x, intermediates = model_part.forward_features(data["x"], data["pos"], data["batch"], return_intermediates=True)
+    assert len(intermediates) == 3
+    x = model_part.forward_decoder(x, data["batch"], intermediates, category)
+    assert x.shape == (data["pos"].shape[0], model_part.num_features)
+    assert model_part.num_features == 32 + 64 + 128 + 128 + 4
+    assert torch.equal(x[:, -4:], category[data["batch"]])
+    assert torch.equal(model_part.forward_head(x, pre_logits=True), x)
+    logits = model_part.forward_head(x)
+    assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
+
+
+def test_pvcnn_part_segmentation_head_dropout_skips_the_last_hidden_layer(model_part: PVCNNPartSegmentation) -> None:
+    assert isinstance(model_part.head, MLP)
+    assert model_part.head.dropout == [0.2, 0.0, 0.0]
+
+
+def test_pvcnn_part_segmentation_reset_classifier(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    model_part.reset_classifier(num_classes=42)
+    logits = model_part(data["x"], data["pos"], data["batch"], category)
+    assert logits.shape == (data["pos"].shape[0], 42)
+
+    model_part.reset_classifier(num_classes=0)
+    assert isinstance(model_part.head, nn.Identity)
+    features = model_part(data["x"], data["pos"], data["batch"], category)
+    assert features.shape == (data["pos"].shape[0], model_part.num_features)

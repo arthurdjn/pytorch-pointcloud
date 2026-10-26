@@ -21,7 +21,7 @@ from torch_pointcloud.utils.types import KeyCollection
 
 from .inferer import Inferer
 
-AggregateMode = Literal["mean", "ema"]
+AggregateMode = Literal["mean", "max", "ema"]
 TransformFn = Callable[[Dict[str, Any]], Dict[str, Any]]
 
 
@@ -56,8 +56,9 @@ class TTAInferer(Inferer):
             before the augmented passes (the "clean + N random views" voting
             protocol), so the total pass count is `num_passes + 1`.
         aggregate: How per-point predictions are combined across passes.
-            `"mean"` averages per-pass outputs. `"ema"` maintains an exponential
-            moving average of them.
+            `"mean"` averages per-pass outputs. `"max"` keeps their elementwise maximum, so on
+            probabilities each point takes the prediction of the pass that is most confident about it.
+            `"ema"` maintains an exponential moving average of them.
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ used when `aggregate="ema"`.
         softmax: If `True`, softmax each pass's output before aggregating. Leave
             `False` when the base inferer already returns probabilities (e.g.
@@ -141,8 +142,8 @@ class TTAInferer(Inferer):
             self._sample = None
             self.num_passes = len(seq)
 
-        if aggregate not in ("mean", "ema"):
-            raise ValueError(f"`aggregate` must be 'mean' or 'ema', got {aggregate!r}.")
+        if aggregate not in ("mean", "max", "ema"):
+            raise ValueError(f"`aggregate` must be 'mean', 'max' or 'ema', got {aggregate!r}.")
 
         if not 0.0 <= ema_smoothing < 1.0:
             raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
@@ -183,6 +184,11 @@ class TTAInferer(Inferer):
                     output = pass_output.clone()
                 else:
                     output = self.ema_smoothing * output + (1.0 - self.ema_smoothing) * pass_output
+            elif self.aggregate == "max":
+                if output is None:
+                    output = pass_output.clone()
+                else:
+                    output = torch.maximum(output, pass_output)
             else:
                 if output is None:
                     output = pass_output.clone()
