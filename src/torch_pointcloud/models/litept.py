@@ -59,7 +59,8 @@ class LitePTBlock(nn.Module):
     The early (fine) stages of LitePT keep only the residual sparse convolution of a Point Transformer V3 block
     (`conv=True`, `attention=False`); the late (coarse) stages keep only its attention and MLP, preceded by a layer
     norm in place of the convolution (`conv=False`, `attention=True`). The attention rotates $Q$ and $K$ with
-    `Point3DRoPE` indexed by the integer grid coordinates of the stage.
+    `Point3DRoPE` indexed by the integer grid coordinates of the stage; with flash attention it rounds $Q$, $K$, $V$
+    to float16 before the rotation and attends in float16, as the released checkpoints were evaluated.
 
     Args:
         channels: Feature width.
@@ -161,6 +162,7 @@ class LitePTBlock(nn.Module):
                 upcast_attn=upcast_attn,
                 upcast_softmax=upcast_softmax,
                 rope_base=rope_base,
+                qkv_dtype=torch.float16,
             )
             self.norm2: nn.Module = create_norm("layer_norm", channels, mode="node") or nn.Identity()
             self.mlp = nn.Sequential(

@@ -1,9 +1,10 @@
-from typing import Dict, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.layers import serialized_attention
 from torch_pointcloud.layers.serialized_attention import (
     RelativePositionalEncoding,
     SerializedAttention,
@@ -149,6 +150,53 @@ def test_serialized_attention_rope_pos_follows_feature_permutation(monkeypatch: 
     padded_indices, _, _ = divisible_pad(batch, patch_size, mode="above", pad_fill="replicate", return_inverse=True)
     assert padded_indices.numel() > batch.numel()  # the config must introduce padding
     torch.testing.assert_close(captured["pos"], pos[padded_indices])
+
+
+@pytest.mark.parametrize(
+    "qkv_dtype,flash_dtype",
+    [
+        pytest.param(None, torch.bfloat16, id="default"),
+        pytest.param(torch.float16, torch.float16, id="float16"),
+    ],
+)
+def test_serialized_attention_rope_qkv_dtype(
+    qkv_dtype: Optional[torch.dtype], flash_dtype: torch.dtype, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`qkv_dtype` rounds Q, K, V before the float32 rotation and sets the flash attention dtype."""
+    torch.manual_seed(0)
+    monkeypatch.setattr(serialized_attention, "_FLASH_ATTN_AVAILABLE", True)
+    attn = SerializedAttentionRoPE(
+        channels=12,
+        num_heads=2,
+        patch_size=8,
+        upcast_attn=False,
+        upcast_softmax=False,
+        qkv_dtype=qkv_dtype,
+    )
+    x = torch.randn(16, 12)
+    pos = torch.randn(16, 3)
+    batch = torch.zeros(16, dtype=torch.long)
+
+    captured: Dict[str, Tensor] = {}
+    rope_forward = attn.rope.forward
+
+    def capture_rope(q: Tensor, k: Tensor, p: Tensor) -> Tuple[Tensor, Tensor]:
+        captured["q"] = q
+        return rope_forward(q, k, p)
+
+    def capture_flash(qkv_packed: Tensor, *args: object) -> Tensor:
+        captured["qkv_packed"] = qkv_packed
+        return qkv_packed[:, 2]
+
+    monkeypatch.setattr(attn.rope, "forward", capture_rope)
+    monkeypatch.setattr(serialized_attention, "_flash_attend_qkv", capture_flash)
+    out = attn(x, None, batch, pos=pos)
+
+    assert out.dtype == torch.float32
+    assert captured["q"].dtype == torch.float32
+    assert captured["qkv_packed"].dtype == flash_dtype
+    rounded = torch.equal(captured["q"], captured["q"].half().float())
+    assert rounded == (qkv_dtype == torch.float16)
 
 
 def test_serialized_attention_rope_batched_matches_per_scene() -> None:

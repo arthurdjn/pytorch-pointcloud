@@ -398,7 +398,8 @@ class SerializedAttentionRoPE(nn.Module):
 
     Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
     position of each token. Flash Attention is supported and uses bfloat16
-    (matching upstream Utonia's reference implementation).
+    (matching upstream Utonia's reference implementation) unless `qkv_dtype` is set: flash attention then
+    rounds $Q$, $K$, $V$ to `qkv_dtype` before the rotation, rotates them in float32 and attends in `qkv_dtype`.
 
     Note:
         The input must be batch-blocked: each sample's points contiguous (a sorted `batch`), and
@@ -420,6 +421,7 @@ class SerializedAttentionRoPE(nn.Module):
         upcast_attn: bool = True,
         upcast_softmax: bool = True,
         rope_base: float = 10.0,
+        qkv_dtype: Optional[torch.dtype] = None,
     ) -> None:
         super().__init__()
         if channels % num_heads != 0:
@@ -448,6 +450,7 @@ class SerializedAttentionRoPE(nn.Module):
         self.pad_mode: PadMode = "above" if use_flash_attn else "all"
         self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
+        self.qkv_dtype = qkv_dtype
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.proj = nn.Linear(channels, channels)
@@ -481,10 +484,12 @@ class SerializedAttentionRoPE(nn.Module):
         pos_ordered = pos[order]
 
         q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
+        if self.use_flash_attn and self.qkv_dtype is not None:
+            q, k, v = (t.to(self.qkv_dtype).float() for t in (q, k, v))
         q, k = self.rope(q, k, pos_ordered)
 
         if self.use_flash_attn:
-            qkv_packed = torch.stack([q, k, v], dim=1).to(torch.bfloat16)
+            qkv_packed = torch.stack([q, k, v], dim=1).to(self.qkv_dtype or torch.bfloat16)
             feat = _flash_attend_qkv(
                 qkv_packed, layout["cu_seqlens"], patch_size, self.scale, self.attn_drop, self.training
             )
