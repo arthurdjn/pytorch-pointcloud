@@ -1157,11 +1157,11 @@ def color_shift(color: Tensor, shift: Tensor, int_color: bool = False) -> Tensor
 
 
 class RandomColorShift(DictTransform, Randomizable):
-    """Additive per-channel color shift sampled uniformly per channel.
+    """Additive per-channel color shift, drawn uniformly or from a normal distribution per channel.
 
-    For each of the 3 channels, sample one offset uniformly from `shift_range`
-    and add it to every point's value. Sampling is once per call (same shift
-    across all listed keys). Result is clamped to the valid color range.
+    For each of the 3 channels, sample one offset uniformly from `shift_range`, or from a centered normal
+    distribution of standard deviation `std` when it is given, and add it to every point's value. Sampling is once
+    per call (same shift across all listed keys). Result is clamped to the valid color range.
 
     ![RandomColorShift before / after](../../assets/transforms/color_shift.png)
 
@@ -1178,6 +1178,7 @@ class RandomColorShift(DictTransform, Randomizable):
         dst_keys: Where to store the shifted tensors.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
         allow_missing_keys: If `True`, silently skip absent keys.
+        std: Standard deviation of a normal per-channel offset, used instead of `shift_range` when given.
     """
 
     def __init__(
@@ -1189,12 +1190,16 @@ class RandomColorShift(DictTransform, Randomizable):
         dst_keys: Optional[KeyCollection] = None,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
+        std: Optional[float] = None,
     ) -> None:
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
+        if std is not None and std < 0:
+            raise ValueError(f"std must be non-negative; got {std}.")
 
         super().__init__(keys, allow_missing_keys)
         self.shift_range = shift_range
+        self.std = std
         self.int_color = int_color
         self.p = p
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -1205,8 +1210,11 @@ class RandomColorShift(DictTransform, Randomizable):
         if torch.rand(1, generator=self.R).item() >= self.p:
             return data
 
-        lo, hi = self.shift_range
-        shift = torch.empty(3).uniform_(lo, hi, generator=self.R)
+        if self.std is not None:
+            shift = torch.randn(3, generator=self.R) * self.std
+        else:
+            lo, hi = self.shift_range
+            shift = torch.empty(3).uniform_(lo, hi, generator=self.R)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = color_shift(data[key], shift, int_color=self.int_color)
         return data

@@ -178,6 +178,25 @@ def test_random_color_shift_int_dtype_preserved() -> None:
     assert out["color"].dtype == torch.uint8
 
 
+def test_random_color_shift_normal_offsets() -> None:
+    """With `std`, every point of a channel moves by one offset drawn from a centered normal distribution."""
+    transform = T.RandomColorShift(keys="color", std=0.01, seed=0)
+    color = torch.full((4, 3), 0.5)
+    shifts = []
+    for _ in range(500):
+        out = transform({"color": color})["color"] - color
+        assert torch.equal(out, out[:1].expand_as(out))
+        shifts.append(out[0])
+    shifts_tensor = torch.stack(shifts)
+    assert abs(float(shifts_tensor.mean())) < 1e-3
+    assert float(shifts_tensor.std()) == pytest.approx(0.01, rel=0.1)
+
+
+def test_random_color_shift_negative_std_raises() -> None:
+    with pytest.raises(ValueError, match="std"):
+        T.RandomColorShift(keys="color", std=-1.0)
+
+
 def test_random_color_shift_same_shift_across_keys() -> None:
     """The shift is sampled once per call, so every listed key moves by the same offset."""
     data = {"c1": torch.full((4, 3), 0.5), "c2": torch.full((4, 3), 0.5)}

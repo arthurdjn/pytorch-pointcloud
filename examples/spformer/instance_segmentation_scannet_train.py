@@ -34,8 +34,8 @@ POINT_KEYS = [DataKeys.X, DataKeys.SEGMENT, DataKeys.INSTANCE, DataKeys.SUPERPOI
 TRAIN_TRANSFORM = T.Compose(
     [
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(3, 21), default=-1),
-        # rgb += N(0, 0.1) per channel on [-1, 1] colors: a uniform shift of the same standard deviation.
-        T.RandomColorShift(keys=DataKeys.COLOR, shift_range=(-22.08, 22.08), int_color=True),
+        # rgb += N(0, 0.1) per channel on [-1, 1] colors, drawn here on the [0, 255] colors and clamped to them.
+        T.RandomColorShift(keys=DataKeys.COLOR, int_color=True, std=12.75),
         T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
         T.Shift(keys=DataKeys.POS, method="centroid"),
         T.RandomLinearJitter(keys=DataKeys.POS, sigma=0.1),
