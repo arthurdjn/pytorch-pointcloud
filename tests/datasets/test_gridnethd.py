@@ -149,7 +149,7 @@ def test_gridnethd_dataset_download_fetches_the_split_and_its_zones(
     download = Mock(side_effect=fake_download)
     monkeypatch.setattr("torch_pointcloud.datasets.gridnethd.download_url", download)
 
-    dataset = GridNetHD(root=datasets_dir, split="val", download=True)
+    dataset = GridNetHD(root=datasets_dir, split="val", download=True, show_progress=False)
 
     base_url = f"{GridNetHD.data_url}/resolve/{GridNetHD.revision}"
     assert [call.args[0] for call in download.call_args_list] == [
@@ -157,4 +157,9 @@ def test_gridnethd_dataset_download_fetches_the_split_and_its_zones(
         f"{base_url}/t1z8/lidar/t1z8.las",
     ]
     assert download.call_args_list[0].args[1] == split_path.as_posix()
+    assert [call.kwargs["description"] for call in download.call_args_list] == [
+        "Downloading split.json",
+        "Downloading t1z8.las",
+    ]
+    assert all(call.kwargs["show_progress"] is False for call in download.call_args_list)
     assert len(dataset) == 1

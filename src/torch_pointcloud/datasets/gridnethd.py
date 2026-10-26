@@ -12,7 +12,7 @@ leaderboard. The Hub release ships one `.las` file per zone.
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Tuple, Union, get_args
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Tuple, get_args
 
 import numpy as np
 import torch
@@ -149,6 +149,7 @@ class GridNetHD(PointCloudDataset):
         transform: Callable applied to each loaded sample dict at `__getitem__` time.
         download: Whether to download the split file and the zones of `split` from the Hub (CC BY 4.0).
         force_download: Whether to download the files again when they exist.
+        show_progress: Whether to display download progress bars.
 
     !!! note
         A zone weighs 1.2 to 4.3 GB (40 to 110 million points): the training split is 52 GB, the validation
@@ -174,6 +175,7 @@ class GridNetHD(PointCloudDataset):
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,
         force_download: bool = False,
+        show_progress: bool = True,
     ) -> None:
         if split not in get_args(GridNetHDSplit):
             raise ValueError(f"Invalid split {split!r}; expected one of {get_args(GridNetHDSplit)}.")
@@ -181,6 +183,7 @@ class GridNetHD(PointCloudDataset):
         super().__init__(root)
         self.split = split
         self.transform = transform
+        self.show_progress = show_progress
 
         if download or force_download:
             self.download(force=force_download)
@@ -192,16 +195,16 @@ class GridNetHD(PointCloudDataset):
             )
 
         self.zones: Tuple[str, ...] = tuple(self.read_split()[split])
-        self.paths: Tuple[Path, ...] = tuple(self.zone_path(zone) for zone in self.zones)
+        self.paths: Tuple[str, ...] = tuple(self.zone_path(zone) for zone in self.zones)
 
     @property
     def split_path(self) -> str:
         """Path of the `split.json` file listing the zones of each split."""
         return Path(self.raw_dir, "split.json").as_posix()
 
-    def zone_path(self, zone: str) -> Path:
+    def zone_path(self, zone: str) -> str:
         """Path of the `.las` file of a zone."""
-        return Path(self.raw_dir, zone, "lidar", f"{zone}.las")
+        return Path(self.raw_dir, zone, "lidar", f"{zone}.las").as_posix()
 
     def read_split(self) -> Dict[str, List[str]]:
         """The zone names of each split, as `split.json` lists them."""
@@ -213,7 +216,7 @@ class GridNetHD(PointCloudDataset):
     def raw_files_exist(self) -> bool:
         if not Path(self.split_path).is_file():
             return False
-        return all(self.zone_path(zone).is_file() for zone in self.read_split()[self.split])
+        return all(Path(self.zone_path(zone)).is_file() for zone in self.read_split()[self.split])
 
     def download(self, force: bool = False) -> None:
         """Download `split.json` and the `.las` file of every zone of the split from the Hub.
@@ -222,10 +225,21 @@ class GridNetHD(PointCloudDataset):
             force: Whether to download the files again when they exist.
         """
         base_url = f"{self.data_url}/resolve/{self.revision}"
-        overwrite: Union[bool, Literal["incomplete"]] = True if force else "incomplete"
-        download_url(f"{base_url}/split.json", self.split_path, overwrite=overwrite)
+        download_url(
+            f"{base_url}/split.json",
+            self.split_path,
+            description="Downloading split.json",
+            show_progress=self.show_progress,
+            overwrite=True if force else "incomplete",
+        )
         for zone in self.read_split()[self.split]:
-            download_url(f"{base_url}/{zone}/lidar/{zone}.las", self.zone_path(zone), overwrite=overwrite)
+            download_url(
+                f"{base_url}/{zone}/lidar/{zone}.las",
+                self.zone_path(zone),
+                description=f"Downloading {zone}.las",
+                show_progress=self.show_progress,
+                overwrite=True if force else "incomplete",
+            )
 
     def __len__(self) -> int:
         return len(self.paths)
