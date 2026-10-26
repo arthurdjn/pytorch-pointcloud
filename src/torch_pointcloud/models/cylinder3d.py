@@ -37,8 +37,8 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
 
     :arxiv: [Cylindrical and Asymmetrical 3D Convolution Networks for LiDAR Segmentation](https://arxiv.org/abs/2011.10033)
 
-    The points are partitioned on a cylindrical $(\rho, \phi, z)$ grid of `grid_shape` cells over
-    `point_cloud_range`. A `DynamicMaxVFE` encodes each point (offset to its voxel center, cylindrical coordinates,
+    The points are partitioned on a cylindrical $(\rho, \phi, z)$ grid of `grid_size` cells over
+    `point_cloud_range`, the last cell along each axis starting at the upper bound. A `DynamicMaxVFE` encodes each point (offset to its voxel center, cylindrical coordinates,
     Cartesian $x, y$ and the features `x`) and max-pools it per voxel. A sparse U-Net of `AsymmetricResidualBlock`
     and `AsymmetricUpsampleBlock` stages processes the voxels, a `DimensionDecompositionBlock` gates the
     full-resolution features, and a $3 \times 3 \times 3$ submanifold convolution classifies each voxel. `forward`
@@ -52,7 +52,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         num_classes: Number of semantic classes; `0` drops the head.
         point_cloud_range: Bounds $(\rho_\min, \phi_\min, z_\min, \rho_\max, \phi_\max, z_\max)$ of the cylindrical
             grid; points outside are clamped to it.
-        grid_shape: Number of cells $(n_\rho, n_\phi, n_z)$ of the cylindrical grid.
+        grid_size: Number of cells $(n_\rho, n_\phi, n_z)$ of the cylindrical grid.
         vfe_channels: Output width of each point MLP layer of the voxel encoder.
         vfe_out_channels: Width of the voxel features entering the U-Net.
         channels: Width of the stem and of each encoder stage; the decoder mirrors them.
@@ -79,7 +79,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         num_classes: int,
         *,
         point_cloud_range: Sequence[float],
-        grid_shape: Sequence[int],
+        grid_size: Sequence[int],
         vfe_channels: Sequence[int] = (64, 128, 256, 256),
         vfe_out_channels: int = 16,
         channels: Sequence[int] = (32, 64, 128, 256, 512),
@@ -91,15 +91,20 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
             raise ValueError(f"Expected one stride per encoder stage ({len(channels) - 1}), got {len(strides)}.")
 
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        self.grid_shape = tuple(grid_shape)
+        self.grid_size = tuple(grid_size)
         self.channels = tuple(channels)
 
+        range_min = torch.tensor(point_cloud_range[:3], dtype=torch.float32)
+        range_max = torch.tensor(point_cloud_range[3:], dtype=torch.float32)
+        # The last cell along each axis starts at the upper bound of the range.
+        voxel_size = (range_max - range_min) / (torch.tensor(self.grid_size, dtype=torch.float32) - 1)
         self.vfe = DynamicMaxVFE(
             in_channels + 2,
             vfe_channels,
             vfe_out_channels,
+            voxel_size=voxel_size.tolist(),
             point_cloud_range=point_cloud_range,
-            grid_shape=grid_shape,
+            grid_size=grid_size,
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
@@ -175,7 +180,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         point_x = torch.cat([pos[:, :2], x], dim=1)
         voxel_x, voxel_indices, inverse = self.vfe(point_x, cartesian_to_cylindrical(pos), batch)
         batch_size = int(batch.max().item()) + 1
-        sparse_x = spconv.SparseConvTensor(voxel_x, voxel_indices, list(self.grid_shape), batch_size)
+        sparse_x = spconv.SparseConvTensor(voxel_x, voxel_indices, list(self.grid_size), batch_size)
 
         sparse_x = self.stem(sparse_x)
         skips = []
@@ -225,7 +230,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         in_channels=1,
         num_classes=19,
         point_cloud_range=(0.0, -3.14159265359, -4.0, 50.0, 3.14159265359, 2.0),
-        grid_shape=(480, 360, 32),
+        grid_size=(480, 360, 32),
     ),
 )
 def cylinder3d_semantickitti_mmdet3d(**hparams: Any) -> Cylinder3DSegmentation:
@@ -254,7 +259,7 @@ def cylinder3d_semantickitti_mmdet3d(**hparams: Any) -> Cylinder3DSegmentation:
         in_channels=1,
         num_classes=19,
         point_cloud_range=(0.0, -3.14159265359, -4.0, 50.0, 3.14159265359, 2.0),
-        grid_shape=(480, 360, 32),
+        grid_size=(480, 360, 32),
     ),
 )
 def cylinder3d_laser_polar_mix_semantickitti_mmdet3d(**hparams: Any) -> Cylinder3DSegmentation:
@@ -283,7 +288,7 @@ def cylinder3d_laser_polar_mix_semantickitti_mmdet3d(**hparams: Any) -> Cylinder
         in_channels=1,
         num_classes=19,
         point_cloud_range=(0.0, -3.1415926, -4.0, 50.0, 3.1415926, 2.0),
-        grid_shape=(480, 360, 32),
+        grid_size=(480, 360, 32),
     ),
 )
 def cylinder3d_semantickitti_xinge_zhu(**hparams: Any) -> Cylinder3DSegmentation:
@@ -314,7 +319,7 @@ def cylinder3d_semantickitti_xinge_zhu(**hparams: Any) -> Cylinder3DSegmentation
         in_channels=1,
         num_classes=16,
         point_cloud_range=(0.0, -3.1415926, -5.0, 50.0, 3.1415926, 3.0),
-        grid_shape=(480, 360, 32),
+        grid_size=(480, 360, 32),
         vfe_channels=(32, 64, 128, 128),
         vfe_out_channels=16,
         channels=(16, 32, 64, 128, 256),

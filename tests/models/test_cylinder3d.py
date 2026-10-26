@@ -8,11 +8,10 @@ from torch import Tensor
 from torch_pointcloud.models.cylinder3d import Cylinder3DSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
-    pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed"),
-]
+CUDA_SPCONV = pytest.mark.skipif(
+    not (_SPCONV_AVAILABLE and _CUDA_AVAILABLE),
+    reason="the sparse backbone needs spconv and CUDA",
+)
 
 POINT_CLOUD_RANGE = (0.0, -3.14159265359, -4.0, 50.0, 3.14159265359, 2.0)
 
@@ -37,7 +36,7 @@ def model() -> Cylinder3DSegmentation:
             1,
             5,
             point_cloud_range=POINT_CLOUD_RANGE,
-            grid_shape=(96, 72, 16),
+            grid_size=(96, 72, 16),
             vfe_channels=(16, 32),
             vfe_out_channels=8,
             channels=(8, 16, 32),
@@ -48,6 +47,7 @@ def model() -> Cylinder3DSegmentation:
     )
 
 
+@CUDA_SPCONV
 def test_cylinder3d_forward_returns_one_row_per_point(model: Cylinder3DSegmentation, data: Dict[str, Tensor]) -> None:
     with torch.no_grad():
         logits = model(data["x"], data["pos"], data["batch"])
@@ -55,6 +55,7 @@ def test_cylinder3d_forward_returns_one_row_per_point(model: Cylinder3DSegmentat
     assert torch.isfinite(logits).all()
 
 
+@CUDA_SPCONV
 def test_cylinder3d_scenes_of_a_batch_are_independent(model: Cylinder3DSegmentation, data: Dict[str, Tensor]) -> None:
     mask = data["batch"] == 1
     with torch.no_grad():
@@ -63,6 +64,7 @@ def test_cylinder3d_scenes_of_a_batch_are_independent(model: Cylinder3DSegmentat
     assert torch.allclose(batched[mask], alone, atol=1e-4)
 
 
+@CUDA_SPCONV
 def test_cylinder3d_clamps_points_outside_the_range(model: Cylinder3DSegmentation, data: Dict[str, Tensor]) -> None:
     pos = data["pos"].clone()
     pos[:10] *= 100.0
@@ -72,6 +74,7 @@ def test_cylinder3d_clamps_points_outside_the_range(model: Cylinder3DSegmentatio
     assert torch.isfinite(logits).all()
 
 
+@CUDA_SPCONV
 def test_cylinder3d_forward_head_returns_one_row_per_voxel(
     model: Cylinder3DSegmentation, data: Dict[str, Tensor]
 ) -> None:
@@ -86,6 +89,7 @@ def test_cylinder3d_forward_head_returns_one_row_per_voxel(
     assert int(inverse.max()) + 1 == logits.shape[0]
 
 
+@CUDA_SPCONV
 def test_cylinder3d_reset_classifier(model: Cylinder3DSegmentation, data: Dict[str, Tensor]) -> None:
     model.reset_classifier(num_classes=0)
     assert isinstance(model.head, nn.Identity)
@@ -105,7 +109,20 @@ def test_cylinder3d_rejects_a_stride_count_that_does_not_match_the_stages() -> N
             1,
             5,
             point_cloud_range=POINT_CLOUD_RANGE,
-            grid_shape=(96, 72, 16),
+            grid_size=(96, 72, 16),
             channels=(8, 16, 32),
             strides=((2, 2, 2),),
         )
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_cylinder3d_grid_puts_the_last_cell_at_the_upper_bound() -> None:
+    model = Cylinder3DSegmentation(
+        1,
+        5,
+        point_cloud_range=(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
+        grid_size=(5, 9, 2),
+        channels=(8, 16, 32),
+        strides=((2, 2, 2), (2, 2, 1)),
+    )
+    assert torch.equal(model.vfe.voxel_size, torch.tensor([1.0, 0.5, 4.0]))

@@ -1,4 +1,3 @@
-import pytest
 import torch
 from torch_geometric.utils import scatter
 
@@ -49,8 +48,9 @@ def test_dynamic_max_vfe_voxels_and_inverse() -> None:
         1,
         (8, 16),
         4,
+        voxel_size=(1.0, 1.0, 1.0),
         point_cloud_range=(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
-        grid_shape=(5, 5, 5),
+        grid_size=(5, 5, 5),
     ).eval()
     torch.manual_seed(0)
     pos = torch.rand(300, 3) * 6.0 - 1.0
@@ -71,8 +71,9 @@ def test_dynamic_max_vfe_max_pools_the_point_features() -> None:
         1,
         (8,),
         4,
+        voxel_size=(1.0, 1.0, 1.0),
         point_cloud_range=(0.0, 0.0, 0.0, 2.0, 2.0, 2.0),
-        grid_shape=(3, 3, 3),
+        grid_size=(2, 2, 2),
     ).eval()
     torch.manual_seed(0)
     pos = torch.rand(50, 3) * 2.0
@@ -87,15 +88,15 @@ def test_dynamic_max_vfe_max_pools_the_point_features() -> None:
     assert torch.allclose(voxel_x, expected, atol=1e-6)
 
 
-@pytest.mark.parametrize(
-    "grid_shape, voxel_size",
-    [
-        pytest.param((5, 5, 5), (1.0, 1.0, 1.0), id="unit-voxels"),
-        pytest.param((3, 9, 2), (2.0, 0.5, 4.0), id="anisotropic"),
-    ],
-)
-def test_dynamic_max_vfe_voxel_size_spans_the_range_with_the_last_cell_at_the_bound(
-    grid_shape: tuple, voxel_size: tuple
-) -> None:
-    vfe = DynamicMaxVFE(0, (8,), 4, point_cloud_range=(0.0, 0.0, 0.0, 4.0, 4.0, 4.0), grid_shape=grid_shape)
-    assert torch.allclose(vfe.voxel_size, torch.tensor(voxel_size))
+def test_dynamic_max_vfe_sends_points_outside_the_range_to_the_border_voxels() -> None:
+    vfe = DynamicMaxVFE(
+        0,
+        (8,),
+        4,
+        voxel_size=(1.0, 1.0, 1.0),
+        point_cloud_range=(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
+        grid_size=(4, 4, 4),
+    ).eval()
+    pos = torch.tensor([[4.0, 4.0, 4.0], [9.0, -3.0, 2.5], [0.5, 1.5, 3.5]])
+    _, voxel_indices, inverse = vfe(torch.empty(3, 0), pos, torch.zeros(3, dtype=torch.long))
+    assert torch.equal(voxel_indices[inverse].long(), torch.tensor([[0, 3, 3, 3], [0, 3, 0, 2], [0, 0, 1, 3]]))

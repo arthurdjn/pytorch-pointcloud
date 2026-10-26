@@ -194,23 +194,22 @@ class DynamicMeanVFE(nn.Module):
 class DynamicMaxVFE(nn.Module):
     r"""Dynamic max-pooled voxel feature encoder: a point MLP max-pooled per voxel, then compressed.
 
-    Points are assigned to voxels on the fly (no fixed points-per-voxel budget): their coordinates are clamped to
-    `point_cloud_range` and quantized on the `grid_shape` grid, whose last cell along each axis starts at the upper
-    bound, so the voxel size is $(c_\max - c_\min) / (\text{grid\_shape} - 1)$. Each point gets the offset to its
-    voxel center and its coordinates prepended to its features, a normalization layer normalizes the result, and an MLP
-    (linear, norm, ReLU layers, the last one linear only) encodes it. The per-voxel maximum of the MLP output goes
-    through a linear + ReLU compression layer.
+    Points are assigned to voxels on the fly (no fixed points-per-voxel budget): their coordinates are quantized with
+    `voxel_size` from the lower bound of `point_cloud_range`, and the points outside the range go to its border
+    voxels. Each point gets the offset to its voxel center and its coordinates prepended to its features, a
+    normalization layer normalizes the result, and an MLP (linear, norm, ReLU layers, the last one linear only)
+    encodes it. The per-voxel maximum of the MLP output goes through a linear + ReLU compression layer.
 
     The coordinates live in any 3D system: a Cartesian grid, or a cylindrical $(\rho, \phi, z)$ partition when `pos`
     holds cylindrical coordinates and `point_cloud_range` their bounds.
 
     Args:
         in_channels: Point feature channels, without the coordinates.
-        feat_channels: Output width of each MLP layer.
+        num_filters: Output width of each MLP layer.
         out_channels: Width of the compressed voxel features.
-        point_cloud_range: Lower and upper bounds $(c^0_\min, c^1_\min, c^2_\min, c^0_\max, c^1_\max, c^2_\max)$
-            of the coordinates.
-        grid_shape: Number of voxels $(n_0, n_1, n_2)$ along each coordinate axis.
+        voxel_size: Voxel size $(v_0, v_1, v_2)$ along each coordinate axis.
+        point_cloud_range: Range $(c^0_\min, c^1_\min, c^2_\min, c^0_\max, c^1_\max, c^2_\max)$ of the coordinates.
+        grid_size: Voxel grid extent $(n_0, n_1, n_2)$.
         norm: Normalization of the input features and of the MLP layers, passed to `create_norm`.
         norm_kwargs: Extra keyword arguments for the normalization.
 
@@ -223,7 +222,14 @@ class DynamicMaxVFE(nn.Module):
         ```pycon
         >>> import torch
         >>> from torch_pointcloud.layers import DynamicMaxVFE
-        >>> vfe = DynamicMaxVFE(1, (16, 32), 8, point_cloud_range=(0, -3.2, -4, 50, 3.2, 2), grid_shape=(48, 36, 8))
+        >>> vfe = DynamicMaxVFE(
+        ...     1,
+        ...     (16, 32),
+        ...     8,
+        ...     voxel_size=(1.0, 0.2, 0.75),
+        ...     point_cloud_range=(0, -3.2, -4, 50, 3.2, 2),
+        ...     grid_size=(50, 32, 8),
+        ... )
         >>> x = torch.rand(100, 1)
         >>> pos = torch.rand(100, 3) * torch.tensor([50.0, 6.4, 6.0]) - torch.tensor([0.0, 3.2, 4.0])
         >>> batch = torch.zeros(100, dtype=torch.long)
@@ -234,18 +240,19 @@ class DynamicMaxVFE(nn.Module):
         ```
     """
 
-    range_min: Tensor
-    range_max: Tensor
     voxel_size: Tensor
+    point_cloud_range: Tensor
+    grid_size: Tensor
 
     def __init__(
         self,
         in_channels: int,
-        feat_channels: Sequence[int],
+        num_filters: Sequence[int],
         out_channels: int,
         *,
+        voxel_size: Sequence[float],
         point_cloud_range: Sequence[float],
-        grid_shape: Sequence[int],
+        grid_size: Sequence[int],
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
@@ -253,30 +260,37 @@ class DynamicMaxVFE(nn.Module):
         norm_kwargs = norm_kwargs or {}
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.grid_shape = tuple(int(n) for n in grid_shape)
 
-        range_min = torch.tensor(point_cloud_range[:3], dtype=torch.float32)
-        range_max = torch.tensor(point_cloud_range[3:], dtype=torch.float32)
-        self.register_buffer("range_min", range_min, persistent=False)
-        self.register_buffer("range_max", range_max, persistent=False)
         self.register_buffer(
             "voxel_size",
-            (range_max - range_min) / (torch.tensor(self.grid_shape, dtype=torch.float32) - 1),
+            torch.tensor(voxel_size, dtype=torch.float32),
+            persistent=False,
+        )
+        self.register_buffer(
+            "point_cloud_range",
+            torch.tensor(point_cloud_range, dtype=torch.float32),
+            persistent=False,
+        )
+        self.register_buffer(
+            "grid_size",
+            torch.tensor(list(grid_size), dtype=torch.long),
             persistent=False,
         )
 
         self.norm = create_norm(norm, in_channels + 6, **norm_kwargs) or nn.Identity()
-        self.mlp = MLP([in_channels + 6, *feat_channels], norm=norm, norm_kwargs=norm_kwargs, plain_last=True)
-        self.compression = MLP([feat_channels[-1], out_channels], norm=None, plain_last=False)
+        self.mlp = MLP([in_channels + 6, *num_filters], norm=norm, norm_kwargs=norm_kwargs, plain_last=True)
+        self.compression = MLP([num_filters[-1], out_channels], norm=None, plain_last=False)
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        pos_grid = torch.floor((pos.clamp(self.range_min, self.range_max) - self.range_min) / self.voxel_size).long()
-        center = pos_grid.to(pos.dtype) * self.voxel_size + (self.voxel_size / 2 + self.range_min)
+        range_min, range_max = self.point_cloud_range[:3], self.point_cloud_range[3:]
+        pos_grid = torch.floor((pos.clamp(range_min, range_max) - range_min) / self.voxel_size).long()
+        pos_grid = torch.minimum(pos_grid, self.grid_size - 1)
+        center = pos_grid.to(pos.dtype) * self.voxel_size + (self.voxel_size / 2 + range_min)
         features = torch.cat([pos - center, pos, x], dim=1)
         features = self.norm(features)
         features = self.mlp(features)
 
-        n_0, n_1, n_2 = self.grid_shape
+        n_0, n_1, n_2 = self.grid_size.unbind()
         key = ((batch * n_0 + pos_grid[:, 0]) * n_1 + pos_grid[:, 1]) * n_2 + pos_grid[:, 2]
         unique, inverse = torch.unique(key, return_inverse=True)
         voxel_x = scatter(features, inverse, dim=0, dim_size=unique.numel(), reduce="max")
