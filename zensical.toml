@@ -197,6 +197,7 @@ nav = [
             { "vfe" = "api/layers/vfe.md" },
             { "view" = "api/layers/view.md" },
             { "voxel_grid_pool" = "api/layers/voxel_grid_pool.md" },
+            { "voxel_patch" = "api/layers/voxel_patch.md" },
             { "xconv" = "api/layers/xconv.md" },
         ] },
         { Lightning = [
@@ -270,6 +271,7 @@ nav = [
             { "spunet" = "api/models/spunet.md" },
             { "spvcnn" = "api/models/spvcnn.md" },
             { "utonia" = "api/models/utonia.md" },
+            { "volt" = "api/models/volt.md" },
             { "votenet" = "api/models/votenet.md" },
             { "voxel_mamba" = "api/models/voxel_mamba.md" },
             { "voxelnext" = "api/models/voxelnext.md" },

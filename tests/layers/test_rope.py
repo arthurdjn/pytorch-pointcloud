@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.layers.rope import Point3DRoPE
+from torch_pointcloud.layers.rope import AxialRoPE, Point3DRoPE
 
 
 def test_point3d_rope_forward() -> None:
@@ -29,3 +29,36 @@ def test_point3d_rope_preserves_norm() -> None:
     q_out, _ = rope(q, q, pos)
     # At pos=0, cos=1, sin=0, so rotation is identity.
     torch.testing.assert_close(q_out, q)
+
+
+def test_axial_rope_matches_complex_rotation() -> None:
+    torch.manual_seed(0)
+    rope = AxialRoPE(num_frequencies=(3, 3, 2), base=100.0)
+    q, k = torch.randn(2, 20, 2, 16).unbind(0)
+    pos = torch.randint(0, 50, (20, 3))
+    q_out, k_out = rope(q, k, pos)
+
+    freqs = [1.0 / 100.0 ** torch.linspace(0, 1, n) for n in (3, 3, 2)]
+    angle = torch.cat([torch.outer(pos[:, axis].float(), freqs[axis]) for axis in range(3)], dim=1)
+    cis = torch.polar(torch.ones_like(angle), angle).unsqueeze(1)
+    expected = torch.view_as_real(torch.view_as_complex(q.reshape(20, 2, 8, 2)) * cis).flatten(2)
+    torch.testing.assert_close(q_out, expected)
+    assert k_out.shape == k.shape
+
+
+def test_axial_rope_logits_depend_on_relative_positions() -> None:
+    torch.manual_seed(0)
+    rope = AxialRoPE(num_frequencies=(4, 4, 4), base=10.0)
+    q, k = torch.randn(2, 1, 1, 24).unbind(0)
+    pos = torch.tensor([[3, 1, 4]])
+    shift = torch.tensor([[7, 2, 5]])
+    q_a, _ = rope(q, q, pos)
+    _, k_a = rope(k, k, pos + 2)
+    q_b, _ = rope(q, q, pos + shift)
+    _, k_b = rope(k, k, pos + 2 + shift)
+    torch.testing.assert_close((q_a * k_a).sum(), (q_b * k_b).sum())
+
+
+def test_axial_rope_requires_three_bands() -> None:
+    with pytest.raises(ValueError, match="three positive counts"):
+        AxialRoPE(num_frequencies=(4, 4), base=10.0)

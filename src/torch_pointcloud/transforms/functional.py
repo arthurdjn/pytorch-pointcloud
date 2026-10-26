@@ -27,7 +27,7 @@ from .sampling import (
     shuffle_indices,
 )
 from .scaling import maxabs_scale, minimal_enclosing_ball, normalize, rescale, standardize
-from .utils import absolute, relabel
+from .utils import absolute, clamp_norm, relabel
 from .voxelization import divisible_pad, voxelize
 
 __all__ = [
@@ -36,6 +36,7 @@ __all__ = [
     "axis_min_offset",
     "bounding_box",
     "box_mask",
+    "clamp_norm",
     "color_auto_contrast",
     "color_drop",
     "color_grayscale",

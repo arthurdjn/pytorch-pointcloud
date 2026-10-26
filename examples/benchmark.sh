@@ -164,3 +164,14 @@ $RUN examples/sonata/segmentation_scannet_benchmark.py --root "$ROOT" --model so
 $RUN examples/point_transformer_v3/segmentation_dales_benchmark.py --root "$ROOT" --model ptv3.dales.jayakumar-pujar --sw-batch-size 2
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s.scannet20.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet200_benchmark.py --root "$ROOT" --model volt-s.scannet200.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-s.nuscenes.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_semantickitti_benchmark.py --root "$ROOT" --model volt-s.semantickitti.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s-joint.scannet20.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet200_benchmark.py --root "$ROOT" --model volt-s-joint.scannet200.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-s-joint.nuscenes.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_semantickitti_benchmark.py --root "$ROOT" --model volt-s-joint.semantickitti.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet20.kadir-yilmaz --sw-batch-size 2
+$RUN examples/volt/segmentation_scannet200_benchmark.py --root "$ROOT" --model volt-b-joint.scannet200.kadir-yilmaz --sw-batch-size 2
+$RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-b-joint.nuscenes.kadir-yilmaz --sw-batch-size 2

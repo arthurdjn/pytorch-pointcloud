@@ -63,6 +63,7 @@ DISPLAY_TITLES = {
     "sonata": "Sonata",
     "concerto": "Concerto",
     "utonia": "Utonia",
+    "volt": "Volt",
     "dales": "DALES",
     "fractal": "FRACTAL",
     "modelnet": "ModelNet",

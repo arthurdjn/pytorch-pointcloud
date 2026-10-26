@@ -209,6 +209,17 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "spvcnn-30gmacs.semantickitti.mit-han-lab",
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
+    "volt-s.scannet20.kadir-yilmaz",
+    "volt-s.scannet200.kadir-yilmaz",
+    "volt-s.nuscenes.kadir-yilmaz",
+    "volt-s.semantickitti.kadir-yilmaz",
+    "volt-s-joint.scannet20.kadir-yilmaz",
+    "volt-s-joint.scannet200.kadir-yilmaz",
+    "volt-s-joint.nuscenes.kadir-yilmaz",
+    "volt-s-joint.semantickitti.kadir-yilmaz",
+    "volt-b-joint.scannet20.kadir-yilmaz",
+    "volt-b-joint.scannet200.kadir-yilmaz",
+    "volt-b-joint.nuscenes.kadir-yilmaz",
 ]
 PART_SEGMENTATION_MODELS = [
     "dgcnn.shapenetpart.an-tao",

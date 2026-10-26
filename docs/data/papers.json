@@ -229,6 +229,11 @@
     "date": "March 2026",
     "title": "Utonia: Toward One Encoder for All Point Clouds"
   },
+  "2604.19609": {
+    "crop": 0.47,
+    "date": "April 2026",
+    "title": "Volume Transformer: Revisiting Vanilla Transformers for 3D Scene Understanding"
+  },
   "kitti-2012": {
     "crop": 0.47,
     "date": "June 2012",
