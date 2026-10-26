@@ -445,8 +445,8 @@ def random_jitter(
     x: Tensor,
     sigma: float = 0.01,
     clip: Optional[float] = 0.05,
-    distribution: Literal["normal", "uniform"] = "normal",
     generator: Optional[torch.Generator] = None,
+    distribution: Literal["normal", "uniform"] = "normal",
 ) -> Tensor:
     """Add random noise to `x`, optionally clipped.
 
@@ -454,8 +454,8 @@ def random_jitter(
         x: Input tensor.
         sigma: Standard deviation of the normal noise, or half-width of the uniform noise.
         clip: If not `None`, clip the noise to `[-clip, clip]`.
-        distribution: `normal` draws Gaussian noise, `uniform` draws noise uniformly in `[-sigma, sigma]`.
         generator: Random generator for reproducibility.
+        distribution: `normal` draws Gaussian noise, `uniform` draws noise uniformly in `[-sigma, sigma]`.
 
     Returns:
         Jittered tensor with the same shape as `x`.
@@ -530,7 +530,9 @@ class RandomJitter(DictTransform, Randomizable):
             return data
 
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = random_jitter(data[key], self.sigma, self.clip, self.distribution, generator=self.R)
+            data[dst_key] = random_jitter(
+                data[key], self.sigma, self.clip, generator=self.R, distribution=self.distribution
+            )
         return data
 
 

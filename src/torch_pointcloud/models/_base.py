@@ -373,10 +373,12 @@ class RegistrationModel(nn.Module, metaclass=ABCMeta):
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         r"""Run the model on a batch of point cloud pairs and return its raw matching output.
 
-        Canonical signature: `forward(x, pos, batch, ref_x, ref_pos, ref_batch)` with the source cloud as features
-        `x` $(N, C)$ (or `None`), positions `pos` $(N, 3)$ and batch index `batch` $(N,)$, and the reference cloud
-        as `ref_x` $(M, C)$ (or `None`), `ref_pos` $(M, 3)$ and `ref_batch` $(M,)$, returning the output dict
-        consumed by the training criterion and by `decode`.
+        Canonical signature: `forward(x, pos, batch, ref_x, ref_pos, ref_batch, transform=None)` with the source
+        cloud as features `x` $(N, C)$ (or `None`), positions `pos` $(N, 3)$ and batch index `batch` $(N,)$, the
+        reference cloud as `ref_x` $(M, C)$ (or `None`), `ref_pos` $(M, 3)$ and `ref_batch` $(M,)$, and the
+        ground-truth `transform` $(B, 4, 4)$ of every pair, which training needs to build the matching targets.
+        The registered `input_keys` name the six inference inputs; the training loop passes `transform` by keyword.
+        Returns the output dict consumed by the training criterion and by `decode`.
         """
 
     @abstractmethod
@@ -391,7 +393,8 @@ class RegistrationModel(nn.Module, metaclass=ABCMeta):
     def forward_head(self, *args: Any, **kwargs: Any) -> Any:
         r"""Match the backbone features of the two clouds.
 
-        Canonical signature: `forward_head(features)`, returning the same output as `forward`.
+        Canonical signature: `forward_head(*features, transform=None)`, taking what `forward_features` returns and
+        the optional ground-truth transform of `forward`, and returning the same output as `forward`.
         """
 
     @abstractmethod
