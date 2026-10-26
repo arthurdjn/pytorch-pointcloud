@@ -3,7 +3,9 @@
 {{ paper("1812.05784") }}
 """
 
+import itertools
 import math
+import operator
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -339,7 +341,6 @@ class PointPillarsFPNDetection(DetectionModel):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         anchor_sizes: Box size $(d_x, d_y, d_z)$ of every anchor template at scale 1.
         anchor_bottom_heights: Bottom $z$ of every anchor template.
-        feature_map_strides: BEV stride of every pyramid level, finest first.
         anchor_scales: Template size factor of every pyramid level.
         dir_offset: Direction-classifier angle offset.
         anchor_rotations: Yaw angles (radians) shared by all anchor templates.
@@ -348,7 +349,8 @@ class PointPillarsFPNDetection(DetectionModel):
         code_size: Length of the box code; channels past the 7 box parameters (e.g. velocity) decode as deltas.
         feat_channels: Output channels of the pillar feature net.
         layer_nums: 2D backbone conv counts per level.
-        layer_strides: 2D backbone downsample strides per level.
+        layer_strides: 2D backbone downsample strides per level; the BEV stride of a pyramid level is their running
+            product.
         num_filters: 2D backbone channel widths per level.
         out_channels: Channels of every pyramid level.
         num_dir_bins: Number of direction bins in the head.
@@ -368,7 +370,6 @@ class PointPillarsFPNDetection(DetectionModel):
         point_cloud_range: Sequence[float],
         anchor_sizes: Sequence[Sequence[float]],
         anchor_bottom_heights: Sequence[float],
-        feature_map_strides: Sequence[int],
         anchor_scales: Sequence[float],
         dir_offset: float,
         anchor_rotations: Sequence[float] = (0.0, 1.57),
@@ -392,7 +393,7 @@ class PointPillarsFPNDetection(DetectionModel):
         self.point_cloud_range = tuple(point_cloud_range)
         self.anchor_sizes = anchor_sizes
         self.anchor_bottom_heights = anchor_bottom_heights
-        self.feature_map_strides = feature_map_strides
+        self.feature_map_strides = list(itertools.accumulate(layer_strides, operator.mul))
         self.anchor_scales = anchor_scales
         self.anchor_rotations = anchor_rotations
         self.anchor_range = anchor_range
@@ -936,7 +937,6 @@ def pointpillars_mmdet3d_nuscenes(**hparams: Any) -> PointPillarsDetection:
         # Templates at scale 1, shared by all classes and scaled by 1, 2 and 4 on the three pyramid levels.
         anchor_sizes=[[2.5981, 0.8660, 1.0], [1.7321, 0.5774, 1.0], [1.0, 1.0, 1.0], [0.4, 0.4, 1.0]],
         anchor_bottom_heights=[-1.8, -1.8, -1.8, -1.8],
-        feature_map_strides=[2, 4, 8],
         anchor_scales=[1.0, 2.0, 4.0],
         anchor_range=(-50.0, -50.0, -1.8, 50.0, 50.0, -1.8),
         align_center=True,

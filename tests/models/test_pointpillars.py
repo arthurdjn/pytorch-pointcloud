@@ -173,8 +173,16 @@ def test_pointpillars_fpn_create_model_hparams() -> None:
     model = create_model("pointpillars-fpn.nuscenes.mmdet3d", task="detection")
     assert isinstance(model, PointPillarsFPNDetection)
     assert model.num_features == 256
+    assert model.feature_map_strides == [2, 4, 8]
     assert model.head.anchors.shape == ((200 * 200 + 100 * 100 + 50 * 50) * 8, 9)
     assert model.head.conv_cls.out_channels == 8 * 10
+
+
+def test_pointpillars_fpn_level_strides_follow_the_backbone_strides() -> None:
+    model = create_model("pointpillars-fpn.nuscenes.mmdet3d", task="detection", layer_strides=(1, 2, 2))
+    assert isinstance(model, PointPillarsFPNDetection)
+    assert model.feature_map_strides == [1, 2, 4]
+    assert model.head.anchors.shape == ((400 * 400 + 200 * 200 + 100 * 100) * 8, 9)
 
 
 def test_pointpillars_fpn_forward_and_decode() -> None:
