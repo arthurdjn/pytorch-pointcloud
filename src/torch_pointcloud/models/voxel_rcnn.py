@@ -496,7 +496,7 @@ class VoxelRCNNDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/voxel-rcnn.kitti-car.openpcdet/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 0.0, "AP/Car": 0.0},
+        metrics={"mAP": 84.53, "AP/Car": 84.53},
         classes=("Car",),
         author="openpcdet",
         license="Apache-2.0",
