@@ -7,13 +7,15 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn import MLP
 from torch_geometric.nn.pool.select.topk import topk
-from torch_geometric.utils import scatter
 
-from torch_pointcloud.ops.cluster import fps, knn_interpolate, knn_table, radius
+from torch_pointcloud.ops.cluster import knn_interpolate, knn_table
+from torch_pointcloud.ops.math import hard_softmax
 from torch_pointcloud.utils.conversion import ensure_option
 from torch_pointcloud.utils.types import OptTensor
 
 from .act import create_act
+from .attention_gate import AttentionGate
+from .radius_max_pool import RadiusMaxPool
 
 
 class LocalPointFeatureAggregation(nn.Module):
@@ -224,34 +226,6 @@ def crossover_suppression(direction: Tensor, candidates: Tensor) -> Tensor:
     return (1.0 + cosine).clamp(0.0, 1.0)
 
 
-def hard_softmax(logits: Tensor, dim: int = -1) -> Tensor:
-    r"""One-hot of the largest logit in the forward pass, with the softmax gradient (straight-through estimator).
-
-    Args:
-        logits: Unnormalized scores.
-        dim: Dimension to normalize.
-
-    Returns:
-        A one-hot tensor shaped like `logits`.
-
-    Shape:
-        Input: $(*, k)$
-        Output: $(*, k)$
-
-    Example:
-        ```pycon
-        >>> import torch
-        >>> from torch_pointcloud.layers.curvenet_blocks import hard_softmax
-        >>> hard_softmax(torch.tensor([[0.1, 2.0, -1.0]])).tolist()
-        [[0.0, 1.0, 0.0]]
-
-        ```
-    """
-    soft = logits.softmax(dim=dim)
-    hard = torch.zeros_like(soft).scatter_(dim, soft.argmax(dim=dim, keepdim=True), 1.0)
-    return (hard - soft).detach() + soft
-
-
 class CurveGrouping(nn.Module):
     r"""Curve grouping from
     :arxiv: [Walk in the Cloud: Learning Curves for Point Clouds Shape Analysis](https://arxiv.org/abs/2105.01288).
@@ -378,57 +352,6 @@ class CurveAggregation(nn.Module):
         intra = torch.einsum("nk,nkc->nc", intra_weights, self.intra_value(intra).index_select(0, batch))
         x = x + self.proj(torch.cat([inter, intra], dim=1))
         return self.act(x)
-
-
-class RadiusMaxPool(nn.Module):
-    r"""Subsample a point cloud with farthest point sampling and max-pool the features inside a ball around every
-    sampled point.
-
-    The ball keeps the `max_num_neighbors` points of smallest index (`radius` with `sort=True`).
-
-    Args:
-        num_points: Number of sampled points per sample.
-        radius: Ball radius.
-        max_num_neighbors: Maximum number of points pooled per ball.
-
-    Shape:
-        - Input: features $(N, C)$, positions $(N, d)$ and batch index $(N,)$.
-        - Output: $(M, C)$, $(M, d)$ and $(M,)$ with $M = B \cdot \text{num\_points}$.
-
-    Example:
-        ```python
-        import torch
-        from torch_pointcloud.layers import RadiusMaxPool
-
-        pool = RadiusMaxPool(num_points=32, radius=0.5, max_num_neighbors=16)
-        pos = torch.randn(256, 3)
-        x = torch.randn(256, 8)
-        batch = torch.cat([torch.zeros(128), torch.ones(128)]).long()
-        x, pos, batch = pool(x, pos, batch)
-        print(x.shape, pos.shape)
-        ```
-    """
-
-    def __init__(self, num_points: int, radius: float, max_num_neighbors: int) -> None:
-        super().__init__()
-        self.num_points = num_points
-        self.radius = radius
-        self.max_num_neighbors = max_num_neighbors
-
-    def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        idx = fps(pos, batch, num_nodes=self.num_points, random_start=False)
-        pos_center, batch_center = pos[idx], batch[idx]
-        row, col = radius(
-            pos,
-            pos_center,
-            self.radius,
-            batch,
-            batch_center,
-            max_num_neighbors=self.max_num_neighbors,
-            sort=True,
-        )
-        x = scatter(x.index_select(0, col), row, dim=0, dim_size=pos_center.size(0), reduce="max")
-        return x, pos_center, batch_center
 
 
 class CurveInterventionConv(nn.Module):
@@ -561,58 +484,6 @@ class CurveInterventionConv(nn.Module):
         x = self.lpfa(x, pos, table[:, :-1])
         x = self.conv2(x)
         return self.act(x + self.shortcut(shortcut)), pos, batch
-
-
-class AttentionGate(nn.Module):
-    r"""Additive attention gate of
-    :arxiv: [Attention U-Net: Learning Where to Look for the Pancreas](https://arxiv.org/abs/1804.03999).
-
-    Scores every skip feature from the sum of its projection and the projection of the gating signal, and returns
-    the sigmoid gate to multiply the skip features with.
-
-    Args:
-        in_channels: Number of channels of the gating signal.
-        skip_channels: Number of channels of the skip features.
-        channels: Width of the joint projection.
-        act: Activation of the joint projection.
-        act_kwargs: Extra arguments for the activation.
-        norm: Normalization layer.
-        norm_kwargs: Extra arguments for the normalization.
-
-    Shape:
-        - Input: gating signal $(N, C_\text{in})$ and skip features $(N, C_\text{skip})$.
-        - Output: $(N, 1)$ gate in $[0, 1]$.
-
-    Example:
-        ```python
-        import torch
-        from torch_pointcloud.layers import AttentionGate
-
-        gate = AttentionGate(64, 32, 16)
-        g = torch.randn(128, 64)
-        x = torch.randn(128, 32)
-        print(gate(g, x).shape)
-        ```
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        skip_channels: int,
-        channels: int,
-        act: Union[str, Callable, None] = "relu",
-        act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = "batch_norm",
-        norm_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__()
-        self.gate = MLP([in_channels, channels], plain_last=False, act=None, norm=norm, norm_kwargs=norm_kwargs)
-        self.skip = MLP([skip_channels, channels], plain_last=False, act=None, norm=norm, norm_kwargs=norm_kwargs)
-        self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
-        self.psi = MLP([channels, 1], plain_last=False, act=None, norm=norm, norm_kwargs=norm_kwargs)
-
-    def forward(self, g: Tensor, x: Tensor) -> Tensor:
-        return torch.sigmoid(self.psi(self.act(self.gate(g) + self.skip(x))))
 
 
 class CurveNetFeaturePropagation(nn.Module):

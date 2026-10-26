@@ -33,7 +33,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with the checkpoints `pct.modelnet40.strawberry-eat-mango`, `curvenet.modelnet40.tiange-xiang` and `curvenet.shapenetpart.tiange-xiang`, and their benchmark and training scripts.
-- Added `ops.cluster.knn_table` and the PCT and CurveNet blocks.
+- Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
 
 ## 0.0.18 (2026-10-20)
 

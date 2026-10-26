@@ -1,4 +1,4 @@
-"""Elementwise math: division with a default for zero denominators."""
+"""Tensor math: division with a default for zero denominators and a straight-through hard softmax."""
 
 from typing import Union
 
@@ -39,3 +39,31 @@ def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("
     b = b if torch.is_floating_point(b) else b.float()
     default = default if torch.is_floating_point(default) else default.float()
     return torch.where(b != 0, a / b, default)
+
+
+def hard_softmax(logits: Tensor, dim: int = -1) -> Tensor:
+    r"""One-hot of the largest logit in the forward pass, with the softmax gradient (straight-through estimator).
+
+    Args:
+        logits: Unnormalized scores.
+        dim: Dimension to normalize.
+
+    Returns:
+        A one-hot tensor shaped like `logits`.
+
+    Shape:
+        Input: $(*, k)$
+        Output: $(*, k)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.math import hard_softmax
+        >>> hard_softmax(torch.tensor([[0.1, 2.0, -1.0]])).tolist()
+        [[0.0, 1.0, 0.0]]
+
+        ```
+    """
+    soft = logits.softmax(dim=dim)
+    hard = torch.zeros_like(soft).scatter_(dim, soft.argmax(dim=dim, keepdim=True), 1.0)
+    return (hard - soft).detach() + soft

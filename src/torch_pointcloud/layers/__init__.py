@@ -17,21 +17,18 @@ from .anchors import (
     MultiGroupAnchorHead,
     prediction_branch,
 )
+from .attention_gate import AttentionGate
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .curvenet_blocks import (
-    AttentionGate,
     CurveAggregation,
     CurveGrouping,
     CurveInterventionConv,
     CurveNetFeaturePropagation,
     CurveWalk,
     LocalPointFeatureAggregation,
-    RadiusMaxPool,
-    crossover_suppression,
-    hard_softmax,
 )
 from .dropouts import (
     DropoutLike,
@@ -88,6 +85,7 @@ from .pools import (
     create_pool,
 )
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
+from .radius_max_pool import RadiusMaxPool
 from .randlanet_blocks import (
     AttentivePooling,
     LocalFeatureAggregation,
@@ -135,6 +133,7 @@ __all__ = [
     "AnchorHeadOutput",
     "MultiGroupAnchorHead",
     "prediction_branch",
+    "AttentionGate",
     "BEVBackbone",
     "BEVResidualBackbone",
     "ResidualBlock2d",
@@ -143,16 +142,12 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
-    "AttentionGate",
     "CurveAggregation",
     "CurveGrouping",
     "CurveInterventionConv",
     "CurveNetFeaturePropagation",
     "CurveWalk",
     "LocalPointFeatureAggregation",
-    "RadiusMaxPool",
-    "crossover_suppression",
-    "hard_softmax",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -208,6 +203,7 @@ __all__ = [
     "PVConv",
     "SE3d",
     "Voxelization",
+    "RadiusMaxPool",
     "AttentivePooling",
     "LocalFeatureAggregation",
     "LocalSpatialEncoding",
