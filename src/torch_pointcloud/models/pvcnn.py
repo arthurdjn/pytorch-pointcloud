@@ -3,7 +3,7 @@
 {{ paper("1907.03739") }}
 """
 
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, TypeVar, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -22,8 +22,6 @@ from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, PartSegmentationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
-
-_PVCNN = TypeVar("_PVCNN", bound=nn.Module)
 
 
 class PVConvBlock(nn.Module):
@@ -700,7 +698,7 @@ def _pvcnn_s3dis_hparams(
     )
 
 
-def _patch_pvcnn_segmentation_mit_han_lab(model: _PVCNN) -> _PVCNN:
+def _patch_pvcnn_mit_han_lab(model: nn.Module) -> None:
     """Give the voxel branch upstream's `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\\epsilon=10^{-4}$."""
     for pv in model.modules():
         if not isinstance(pv, PVConv):
@@ -712,7 +710,6 @@ def _patch_pvcnn_segmentation_mit_han_lab(model: _PVCNN) -> _PVCNN:
                     block.norm.eps = 1e-4
                 if isinstance(block.act, nn.ReLU):
                     block.act = nn.LeakyReLU(negative_slope=0.1, inplace=True)
-    return model
 
 
 @register_model(
@@ -735,7 +732,8 @@ def _patch_pvcnn_segmentation_mit_han_lab(model: _PVCNN) -> _PVCNN:
 )
 def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     model = PVCNNSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 @register_model(
@@ -758,7 +756,8 @@ def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
 )
 def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     model = PVCNNSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 @register_model(
@@ -781,7 +780,8 @@ def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
 )
 def pvcnn_c0p125_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     model = PVCNNSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 _PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
@@ -822,7 +822,8 @@ _PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
 )
 def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     model = PVCNNPartSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 @register_model(
@@ -854,7 +855,8 @@ def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
 )
 def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     model = PVCNNPartSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 @register_model(
@@ -886,7 +888,8 @@ def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation
 )
 def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     model = PVCNNPartSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 @register_model(
@@ -918,7 +921,8 @@ def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentatio
 )
 def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     model = PVCNNPartSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
 
 
 @register_model(
@@ -950,4 +954,5 @@ def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
 )
 def pvcnn_c0p25_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     model = PVCNNPartSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    _patch_pvcnn_mit_han_lab(model)
+    return model
