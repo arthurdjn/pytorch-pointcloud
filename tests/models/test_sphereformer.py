@@ -14,6 +14,7 @@ from torch_pointcloud.models.sphereformer import (
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
+    _PYG_LIB_AVAILABLE,
     _SPCONV_AVAILABLE,
     _SPTR_AVAILABLE,
     package_available,
@@ -183,6 +184,7 @@ def test_windowed_attention_without_sptr_raises_import_error() -> None:
         )
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_sphereformer_nuscenes_transform_runs_without_labels() -> None:
     transform = model_info("sphereformer.nuscenes")["transform"]
     assert transform is not None
