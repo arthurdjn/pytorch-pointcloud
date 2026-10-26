@@ -1,5 +1,7 @@
 r"""Mask losses: the dice loss and the pairwise mask costs of the set-prediction matchers."""
 
+from typing import Literal
+
 import torch.nn.functional as F
 from torch import Tensor, nn
 
@@ -42,23 +44,46 @@ def dice_loss(logits: Tensor, targets: Tensor, *, smooth: float = 1.0) -> Tensor
 
 
 class DiceLoss(nn.Module):
-    r"""Dice loss between mask logits and binary targets, averaged over the masks (see `dice_loss`).
+    r"""Module form of [`dice_loss`][torch_pointcloud.losses.mask.dice_loss], reduced over the masks.
 
     Args:
         smooth: Smoothing term added to the numerator and the denominator.
+        reduction: `"none"` returns the per-mask loss, `"sum"` its sum, `"mean"` its mean.
 
     Shape:
         - input: $(\ldots, M)$ logits
         - target: $(\ldots, M)$
-        - output: scalar
+        - output: $(\ldots)$ with `reduction="none"`, else a scalar
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> logits = torch.tensor([[10.0, 10.0, -10.0], [-10.0, -10.0, 10.0]])
+        >>> targets = torch.tensor([[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
+        >>> DiceLoss(reduction="sum")(logits, targets).round(decimals=2).item()
+        0.75
+
+        ```
     """
 
-    def __init__(self, smooth: float = 1.0) -> None:
+    def __init__(self, smooth: float = 1.0, reduction: Literal["none", "sum", "mean"] = "mean") -> None:
         super().__init__()
+        if reduction not in ("none", "sum", "mean"):
+            raise ValueError(f"`reduction` must be 'none', 'sum' or 'mean', got {reduction!r}.")
+
         self.smooth = smooth
+        self.reduction = reduction
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        return dice_loss(input, target, smooth=self.smooth).mean()
+        loss = dice_loss(input, target, smooth=self.smooth)
+        if self.reduction == "sum":
+            loss = loss.sum()
+        elif self.reduction == "mean":
+            loss = loss.mean()
+        return loss
+
+    def extra_repr(self) -> str:
+        return f"smooth={self.smooth}, reduction={self.reduction!r}"
 
 
 def pairwise_dice_loss(logits: Tensor, targets: Tensor, *, smooth: float = 1.0) -> Tensor:

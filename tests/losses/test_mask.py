@@ -1,3 +1,4 @@
+import pytest
 import torch
 import torch.nn.functional as F
 
@@ -14,6 +15,16 @@ def test_dice_loss_module_averages_masks() -> None:
     logits = torch.randn(3, 10)
     targets = (torch.rand(3, 10) > 0.5).float()
     torch.testing.assert_close(DiceLoss(smooth=2.0)(logits, targets), dice_loss(logits, targets, smooth=2.0).mean())
+
+
+def test_dice_loss_module_reductions() -> None:
+    logits = torch.randn(3, 10)
+    targets = (torch.rand(3, 10) > 0.5).float()
+    per_mask = dice_loss(logits, targets)
+    torch.testing.assert_close(DiceLoss(reduction="none")(logits, targets), per_mask)
+    torch.testing.assert_close(DiceLoss(reduction="sum")(logits, targets), per_mask.sum())
+    with pytest.raises(ValueError, match="reduction"):
+        DiceLoss(reduction="max")  # type: ignore[arg-type]
 
 
 def test_pairwise_losses_match_the_elementwise_losses() -> None:
