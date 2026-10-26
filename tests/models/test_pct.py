@@ -112,6 +112,8 @@ def test_registered_transform_runs_without_labels(name: str) -> None:
     sample = {DataKeys.POS: torch.rand(3000, 3)}
     if info["task"] == "part-segmentation":
         sample[DataKeys.CATEGORY] = torch.tensor(3)
-    data = info["transform"](sample)
+    transform = info["transform"]
+    assert transform is not None
+    data = transform(sample)
     assert DataKeys.SEGMENT not in data and DataKeys.NORMAL not in data
     assert data[DataKeys.POS].shape[1] == 3
