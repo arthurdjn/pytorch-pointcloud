@@ -121,7 +121,7 @@ class TR3DLoss(nn.Module):
 
         boxes = output["boxes"][positive]
         if positive.any():
-            box_loss = box_iou_loss(boxes, box_targets[positive], distance=True).mean()
+            box_loss = box_iou_loss(boxes, box_targets[positive], mode="diou").mean()
         else:
             box_loss = boxes.sum()
         return {"loss": cls_loss + box_loss, "cls_loss": cls_loss.detach(), "box_loss": box_loss.detach()}

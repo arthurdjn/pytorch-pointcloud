@@ -128,17 +128,17 @@ def test_box_iou_loss_hand_values() -> None:
     assert box_iou_loss(target, target).abs().max() < 1e-6
     # IoU 4 / 12; the enclosing box is 3 x 2 x 2, so the center term is 1 / 17.
     assert torch.allclose(box_iou_loss(pred, target), torch.tensor([2.0 / 3.0]))
-    assert torch.allclose(box_iou_loss(pred, target, distance=True), torch.tensor([2.0 / 3.0 + 1.0 / 17.0]))
+    assert torch.allclose(box_iou_loss(pred, target, mode="diou"), torch.tensor([2.0 / 3.0 + 1.0 / 17.0]))
     far = pred.clone()
     far[:, 0] = 5.0
     assert box_iou_loss(far, target).item() == pytest.approx(1.0)
-    assert box_iou_loss(far, target, distance=True).item() > 1.0
+    assert box_iou_loss(far, target, mode="diou").item() > 1.0
 
 
 def test_box_iou_loss_trains_the_heading_without_nan() -> None:
     target = torch.tensor([[0.0, 0.0, 0.0, 4.0, 1.0, 1.0, 0.3], [1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 0.0]])
     pred = torch.tensor([[0.1, 0.0, 0.0, 4.0, 1.0, 1.0, 0.0], [1.0, 1.0, 0.0, 2.0, 1.0, 1.0, 0.0]], requires_grad=True)
-    box_iou_loss(pred, target, distance=True).sum().backward()
+    box_iou_loss(pred, target, mode="diou").sum().backward()
     assert pred.grad is not None and torch.isfinite(pred.grad).all()
     assert pred.grad[0, 6] < 0  # rotating towards the target heading lowers the loss
 
@@ -147,13 +147,15 @@ def test_box_iou_loss_module_reductions() -> None:
     torch.manual_seed(0)
     pred = torch.rand(4, 7) + torch.tensor([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
     target = pred + torch.randn(4, 7) * 0.2
-    per_box = box_iou_loss(pred, target, distance=True)
-    assert torch.allclose(BoxIoULoss(distance=True, reduction="none")(pred, target), per_box)
-    assert torch.allclose(BoxIoULoss(distance=True, reduction="sum")(pred, target), per_box.sum())
-    assert torch.allclose(BoxIoULoss(distance=True)(pred, target), per_box.mean())
-    assert "distance=True" in repr(BoxIoULoss(distance=True))
+    per_box = box_iou_loss(pred, target, mode="diou")
+    assert torch.allclose(BoxIoULoss(mode="diou", reduction="none")(pred, target), per_box)
+    assert torch.allclose(BoxIoULoss(mode="diou", reduction="sum")(pred, target), per_box.sum())
+    assert torch.allclose(BoxIoULoss(mode="diou")(pred, target), per_box.mean())
+    assert "mode='diou'" in repr(BoxIoULoss(mode="diou"))
     with pytest.raises(ValueError, match="reduction"):
         BoxIoULoss(reduction="avg")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="mode"):
+        BoxIoULoss(mode="giou")  # type: ignore[arg-type]
 
 
 def test_poly1_focal_loss_matches_openpoints_formula() -> None:
