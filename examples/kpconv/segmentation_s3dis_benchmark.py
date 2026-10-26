@@ -13,7 +13,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.datasets.s3dis import S3DISArea
-from torch_pointcloud.inferers import Inferer, PotentialSphereInferer
+from torch_pointcloud.inferers import Inferer, PotentialSphereSegmentationInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -123,7 +123,7 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
 
 def configure_inferer(args: Namespace) -> Inferer:
     open3d = args.model.endswith(".open3d")
-    return PotentialSphereInferer(
+    return PotentialSphereSegmentationInferer(
         radius=args.radius,
         num_votes=3.0 if open3d else 10.0,
         inner_ratio=1.0 if open3d else 0.7,

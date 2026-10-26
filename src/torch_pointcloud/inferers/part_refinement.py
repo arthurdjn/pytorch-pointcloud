@@ -12,7 +12,7 @@ from torch import Tensor
 from torch_pointcloud.datasets.shapenetpart import ShapeNetPart
 from torch_pointcloud.utils.data import DataKeys
 
-from .inferer import Inferer
+from .inferer import Inferer, SegmentationInferer
 from .simple import SimpleInferer
 
 
@@ -20,7 +20,7 @@ def part_refinement_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
-    base: Optional[Inferer] = None,
+    base: Optional[Inferer[Tensor]] = None,
     part_ids: Optional[Sequence[Sequence[int]]] = None,
     min_count: int = 10,
     num_neighbors: int = 11,
@@ -112,7 +112,7 @@ def part_refinement_inference(
     return torch.nn.functional.one_hot(labels, num_classes=num_classes).to(scores.dtype)
 
 
-class PartRefinementInferer(Inferer):
+class PartRefinementInferer(SegmentationInferer):
     r"""Nearest-neighbor refinement of part labels on top of another inferer.
 
     Takes the base inferer's per-point argmax and re-assigns the implausible part labels (rare parts, parts
@@ -142,7 +142,7 @@ class PartRefinementInferer(Inferer):
 
     def __init__(
         self,
-        base: Inferer,
+        base: Inferer[Tensor],
         part_ids: Optional[Sequence[Sequence[int]]] = None,
         min_count: int = 10,
         num_neighbors: int = 11,

@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import Dataset
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.inferers import SimpleInferer
+from torch_pointcloud.inferers import SimpleInferer, SlidingWindowSegmentationInferer
 from torch_pointcloud.lightning import (
     LitClassificationModel,
     LitDetectionModel,
@@ -408,6 +408,7 @@ def test_inferer_defaults_to_simple() -> None:
     """Every module runs its test predictions through an inferer; the default is a plain forward."""
     assert isinstance(_make_cls_module().inferer, SimpleInferer)
     assert isinstance(_make_seg_module().inferer, SimpleInferer)
+    assert isinstance(_make_det_module().inferer, SimpleInferer)
 
 
 def test_cls_inferer_runs_on_test_step() -> None:
@@ -763,6 +764,42 @@ def test_detection_validation_step_decodes_filters_and_targets(monkeypatch: pyte
     assert out["preds"]["boxes"].shape[0] == 1
     assert out["target"]["labels"].tolist() == [3]
     assert torch.allclose(out["target"]["boxes"][0], torch.tensor([0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]))
+
+
+def test_detection_inferer_runs_on_test_step_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`test_step` hands the batch and `detect` to the inferer and postprocesses what it returns; validation
+    runs `detect` directly."""
+    decoded: Detection3D = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0], [5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.9, 0.01]),
+        "labels": torch.tensor([2, 5]),
+        "batch": torch.tensor([0, 1]),
+    }
+    inferer = Mock(return_value=decoded)
+    module = LitDetectionModel(name="dummy.detection", inferer=inferer)
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    batch = {
+        "x": torch.zeros(4, 1),
+        "pos": torch.zeros(4, 3),
+        "batch": torch.tensor([0, 0, 1, 1]),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
+        "batch_box": torch.tensor([0]),
+        "label": torch.tensor([3]),
+    }
+    out = module.test_step(batch, batch_idx=0)
+    inferer.assert_called_once()
+    assert inferer.call_args.args[0] is batch
+    assert inferer.call_args.kwargs["predictor"] == module.detect
+    assert out["preds"]["labels"].tolist() == [2]
+
+    module.validation_step(batch, batch_idx=0)
+    inferer.assert_called_once()
+
+
+def test_detection_segmentation_inferer_raises() -> None:
+    """A segmentation inferer would average boxes as per-point scores, so the module rejects it up front."""
+    with pytest.raises(TypeError, match="SlidingWindowSegmentationInferer"):
+        LitDetectionModel(name="dummy.detection", inferer=SlidingWindowSegmentationInferer(block_size=1.0))
 
 
 def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch) -> None:

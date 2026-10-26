@@ -16,7 +16,7 @@ from torch_pointcloud.ops.voxelization import voxel_grid_fnv
 from torch_pointcloud.utils.data import DataKeys, collate
 
 from ._utils import apply_transform, check_batch_alignment, index_select_dict
-from .inferer import Inferer
+from .inferer import SegmentationInferer
 
 
 def _next_sphere(
@@ -41,7 +41,7 @@ def _next_sphere(
 
 
 @torch.no_grad()
-def potential_sphere_inference(
+def potential_sphere_segmentation_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
@@ -225,28 +225,28 @@ def potential_sphere_inference(
     return output
 
 
-class PotentialSphereInferer(Inferer):
+class PotentialSphereSegmentationInferer(SegmentationInferer):
     r"""Potential-driven sphere voting inferer for large-scale point cloud segmentation.
 
     Covers the scene with radius-defined spheres centered where a coarse potential grid is lowest and blends
     each sphere's softmax predictions into the running per-point scores by an exponential moving average,
     until every region has been covered about `num_votes` times.
 
-    All parameters are forwarded verbatim to `potential_sphere_inference`, except `seed`, which is offset by
-    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
-    numbers, and a fresh instance replays the same sequence.
+    All parameters are forwarded verbatim to `potential_sphere_segmentation_inference`, except `seed`, which is offset by the
+    number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes) draw different
+    random numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python
         import torch
 
         import torch_pointcloud as tp
-        from torch_pointcloud.inferers import PotentialSphereInferer
+        from torch_pointcloud.inferers import PotentialSphereSegmentationInferer
 
         model = tp.create_model("pointnet.s3dis-area5").eval()
         room = {"pos": torch.rand(4096, 3) * 3, "x": torch.rand(4096, 9), "batch": torch.zeros(4096, dtype=torch.long)}
 
-        inferer = PotentialSphereInferer(radius=1.5, num_votes=10.0)
+        inferer = PotentialSphereSegmentationInferer(radius=1.5, num_votes=10.0)
         probs = inferer(room, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
@@ -289,7 +289,7 @@ class PotentialSphereInferer(Inferer):
     ) -> Tensor:
         seed = None if self.seed is None else self.seed + self._num_calls
         self._num_calls += 1
-        return potential_sphere_inference(
+        return potential_sphere_segmentation_inference(
             data,
             predictor=predictor,
             radius=self.radius,

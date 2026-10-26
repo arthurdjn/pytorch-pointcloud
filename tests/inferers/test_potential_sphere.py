@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.inferers import PotentialSphereInferer, potential_sphere_inference
+from torch_pointcloud.inferers import PotentialSphereSegmentationInferer, potential_sphere_segmentation_inference
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -25,7 +25,7 @@ def _left_right_predictor(window: Dict[str, Any]) -> Tensor:
 
 def test_potential_sphere_covers_every_point_with_probabilities() -> None:
     data = _room()
-    out = PotentialSphereInferer(radius=1.5, num_votes=2.0, seed=0)(data, predictor=_left_right_predictor)
+    out = PotentialSphereSegmentationInferer(radius=1.5, num_votes=2.0, seed=0)(data, predictor=_left_right_predictor)
     assert out.shape == (2000, 2)
     assert bool((out.sum(dim=1) > 0).all())
     # EMA of softmax rows never exceeds 1 and every row is a convex blend of probabilities.
@@ -40,10 +40,10 @@ def test_potential_sphere_more_votes_means_more_spheres() -> None:
         calls.append(int(window[DataKeys.POS].size(0)))
         return _left_right_predictor(window)
 
-    PotentialSphereInferer(radius=1.5, num_votes=1.0, seed=0)(data, predictor=predictor)
+    PotentialSphereSegmentationInferer(radius=1.5, num_votes=1.0, seed=0)(data, predictor=predictor)
     few = len(calls)
     calls.clear()
-    PotentialSphereInferer(radius=1.5, num_votes=4.0, seed=0)(data, predictor=predictor)
+    PotentialSphereSegmentationInferer(radius=1.5, num_votes=4.0, seed=0)(data, predictor=predictor)
     assert len(calls) > few
 
 
@@ -61,7 +61,7 @@ def test_potential_sphere_transform_sees_centered_spheres_and_batches_them() -> 
         assert int(window[DataKeys.BATCH].max()) <= 2
         return _left_right_predictor(window)
 
-    PotentialSphereInferer(radius=1.0, num_votes=1.0, sw_batch_size=3, transform=transform, seed=0)(
+    PotentialSphereSegmentationInferer(radius=1.0, num_votes=1.0, sw_batch_size=3, transform=transform, seed=0)(
         data, predictor=predictor
     )
     assert seen
@@ -75,10 +75,10 @@ def test_potential_sphere_inner_ratio_limits_the_update() -> None:
     tiny inner ratio some points never get an update and stay at zero (default ratio covers everything)."""
     data = _room(n=400)
     predictor = _left_right_predictor
-    tight = PotentialSphereInferer(radius=1.5, num_votes=1.0, inner_ratio=0.05, jitter=0.0, seed=0)(
+    tight = PotentialSphereSegmentationInferer(radius=1.5, num_votes=1.0, inner_ratio=0.05, jitter=0.0, seed=0)(
         data, predictor=predictor
     )
-    full = PotentialSphereInferer(radius=1.5, num_votes=1.0, inner_ratio=1.0, jitter=0.0, seed=0)(
+    full = PotentialSphereSegmentationInferer(radius=1.5, num_votes=1.0, inner_ratio=1.0, jitter=0.0, seed=0)(
         data, predictor=predictor
     )
     assert int((tight.sum(dim=1) == 0).sum()) > int((full.sum(dim=1) == 0).sum())
@@ -91,8 +91,8 @@ def test_potential_sphere_batched_matches_per_scene() -> None:
         DataKeys.BATCH: torch.cat([torch.zeros(500, dtype=torch.long), torch.ones(300, dtype=torch.long)]),
         "x": torch.cat([a["x"], b["x"]]),
     }
-    out = PotentialSphereInferer(radius=1.5, num_votes=1.0, seed=0)(packed, predictor=_left_right_predictor)
-    out_a = PotentialSphereInferer(radius=1.5, num_votes=1.0, seed=0)(a, predictor=_left_right_predictor)
+    out = PotentialSphereSegmentationInferer(radius=1.5, num_votes=1.0, seed=0)(packed, predictor=_left_right_predictor)
+    out_a = PotentialSphereSegmentationInferer(radius=1.5, num_votes=1.0, seed=0)(a, predictor=_left_right_predictor)
     assert out.shape == (800, 2)
     # Scene 0 is processed first with the same generator state either way.
     assert torch.allclose(out[:500], out_a)
@@ -108,10 +108,10 @@ def test_potential_sphere_with_divisible_pad_matches_unpadded_scores() -> None:
         rows_seen.append(int(window[DataKeys.POS].size(0)))
         return _left_right_predictor(window)
 
-    out = PotentialSphereInferer(radius=1.5, num_votes=2.0, sw_batch_size=2, seed=0)(
+    out = PotentialSphereSegmentationInferer(radius=1.5, num_votes=2.0, sw_batch_size=2, seed=0)(
         data, predictor=_left_right_predictor
     )
-    out_pad = PotentialSphereInferer(
+    out_pad = PotentialSphereSegmentationInferer(
         radius=1.5,
         num_votes=2.0,
         sw_batch_size=2,
@@ -132,43 +132,45 @@ def test_potential_sphere_row_altering_transform_raises() -> None:
         return sphere
 
     with pytest.raises(ValueError, match="row count"):
-        PotentialSphereInferer(radius=1.5, num_votes=1.0, transform=drop_one, seed=0)(
+        PotentialSphereSegmentationInferer(radius=1.5, num_votes=1.0, transform=drop_one, seed=0)(
             data, predictor=_left_right_predictor
         )
 
 
 def test_potential_sphere_empty_scene_returns_zero_by_zero() -> None:
     data: Dict[str, Any] = {DataKeys.POS: torch.empty(0, 3), DataKeys.BATCH: torch.empty(0, dtype=torch.long)}
-    out = PotentialSphereInferer(radius=1.0)(data, predictor=_left_right_predictor)
+    out = PotentialSphereSegmentationInferer(radius=1.0)(data, predictor=_left_right_predictor)
     assert out.shape == (0, 0)
 
 
 def test_potential_sphere_validates_args() -> None:
     data: Dict[str, Any] = {DataKeys.POS: torch.zeros(1, 3), DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}
     with pytest.raises(ValueError, match="radius"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=0.0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=0.0)
     with pytest.raises(ValueError, match="num_votes"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, num_votes=0.0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=1.0, num_votes=0.0)
     with pytest.raises(ValueError, match="potential_size"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, potential_size=0.0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=1.0, potential_size=0.0)
     with pytest.raises(ValueError, match="jitter"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, jitter=-1.0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=1.0, jitter=-1.0)
     with pytest.raises(ValueError, match="inner_ratio"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, inner_ratio=0.0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=1.0, inner_ratio=0.0)
     with pytest.raises(ValueError, match="ema_smoothing"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, ema_smoothing=1.0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=1.0, ema_smoothing=1.0)
     with pytest.raises(ValueError, match="sw_batch_size"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.0, sw_batch_size=0)
+        potential_sphere_segmentation_inference(data, predictor=_left_right_predictor, radius=1.0, sw_batch_size=0)
     with pytest.raises(ValueError, match="aligned to the positions"):
-        potential_sphere_inference(
+        potential_sphere_segmentation_inference(
             {**data, DataKeys.BATCH: torch.zeros(0, dtype=torch.long)}, predictor=_left_right_predictor, radius=1.0
         )
     with pytest.raises(KeyError, match="pos"):
-        potential_sphere_inference(
+        potential_sphere_segmentation_inference(
             {DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}, predictor=_left_right_predictor, radius=1.0
         )
     with pytest.raises(KeyError, match="batch"):
-        potential_sphere_inference({DataKeys.POS: torch.zeros(1, 3)}, predictor=_left_right_predictor, radius=1.0)
+        potential_sphere_segmentation_inference(
+            {DataKeys.POS: torch.zeros(1, 3)}, predictor=_left_right_predictor, radius=1.0
+        )
 
 
 def test_potential_sphere_free_function_is_no_grad() -> None:
@@ -177,7 +179,7 @@ def test_potential_sphere_free_function_is_no_grad() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.randn(window[DataKeys.POS].size(0), 3, requires_grad=True)
 
-    out = potential_sphere_inference(data, predictor=predictor, radius=1.5, num_votes=2.0, seed=0)
+    out = potential_sphere_segmentation_inference(data, predictor=predictor, radius=1.5, num_votes=2.0, seed=0)
     assert not out.requires_grad
 
 
@@ -185,7 +187,9 @@ def test_potential_sphere_unreachable_scene_raises() -> None:
     """A scene where every sphere draw is skipped cannot produce scores of a known class count."""
     data: Dict[str, Any] = {DataKeys.POS: torch.zeros(1, 3), DataKeys.BATCH: torch.zeros(1, dtype=torch.long)}
     with pytest.raises(ValueError, match="at least 2 points"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=0.5, num_votes=2.0, seed=0)
+        potential_sphere_segmentation_inference(
+            data, predictor=_left_right_predictor, radius=0.5, num_votes=2.0, seed=0
+        )
 
 
 def test_potential_sphere_unreachable_batch_element_raises() -> None:
@@ -198,4 +202,6 @@ def test_potential_sphere_unreachable_batch_element_raises() -> None:
         "x": torch.cat([room["x"], torch.zeros(1, 2)]),
     }
     with pytest.raises(ValueError, match=r"batch element 1 \(radius=1\.5\)"):
-        potential_sphere_inference(data, predictor=_left_right_predictor, radius=1.5, num_votes=2.0, seed=0)
+        potential_sphere_segmentation_inference(
+            data, predictor=_left_right_predictor, radius=1.5, num_votes=2.0, seed=0
+        )

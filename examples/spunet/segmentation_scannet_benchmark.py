@@ -11,7 +11,12 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
-from torch_pointcloud.inferers import Inferer, TTAInferer, VoxelPartitionInferer, simple_tta_transforms
+from torch_pointcloud.inferers import (
+    Inferer,
+    TTASegmentationInferer,
+    VoxelPartitionSegmentationInferer,
+    simple_tta_transforms,
+)
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -105,7 +110,7 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    base = VoxelPartitionInferer(
+    base = VoxelPartitionSegmentationInferer(
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
@@ -113,7 +118,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         sw_batch_size=args.sw_batch_size,
         seed=args.seed,
     )
-    return TTAInferer(base=base, transforms=simple_tta_transforms(), aggregate="mean")
+    return TTASegmentationInferer(base=base, transforms=simple_tta_transforms(), aggregate="mean")
 
 
 @torch.no_grad()
