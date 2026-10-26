@@ -1,6 +1,12 @@
+import pytest
 import torch
 
-from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadMultiOutput, MultiGroupAnchorHead
+from torch_pointcloud.layers.anchors import (
+    AnchorHead,
+    AnchorHeadMultiOutput,
+    MultiGroupAnchorHead,
+    MultiLevelAnchorHead,
+)
 from torch_pointcloud.ops.box3d import decode_box_residuals, encode_box_residuals
 
 RANGE = (0.0, -4.0, -1.0, 8.0, 4.0, 1.0)
@@ -91,3 +97,94 @@ def test_anchor_head_single_decode_has_no_velocity() -> None:
     det = head.decode(out)
     assert "velocity" not in det
     assert det["boxes"].shape == (2 * head.anchors.shape[0], 7)
+
+
+def test_anchor_head_shares_templates_across_classes_and_decodes_velocity() -> None:
+    torch.manual_seed(0)
+    head = AnchorHead(
+        8,
+        3,
+        (4, 4),
+        RANGE,
+        anchor_sizes=[[4.0, 2.0, 1.5], [1.0, 1.0, 1.0]],
+        anchor_bottom_heights=[0.0, -0.5],
+        feature_map_stride=1,
+        anchor_range=(1.0, -2.0, 0.0, 7.0, 2.0, 0.0),
+        align_center=True,
+        code_size=9,
+    ).eval()
+    assert head.anchors.shape == (4 * 4 * 2 * 2, 9)
+    assert head.conv_cls.out_channels == 4 * 3 and head.conv_box.out_channels == 4 * 9
+    # The anchor grid spans `anchor_range`, not the point-cloud range; the velocity slots start at zero.
+    assert torch.allclose(head.anchors[:, 0].unique(), torch.tensor([1.75, 3.25, 4.75, 6.25]))
+    assert torch.all(head.anchors[:, 7:] == 0)
+    with torch.no_grad():
+        out = head(torch.randn(2, 8, 4, 4))
+    det = head.decode(out)
+    assert out["batch_cls"].shape == (2, 64, 3) and out["batch_box"].shape == (2, 64, 9)
+    assert torch.equal(det["velocity"], out["batch_box"][..., 7:9].reshape(-1, 2))
+
+
+def test_anchor_head_needs_one_bottom_height_per_size() -> None:
+    with pytest.raises(ValueError, match="one anchor bottom height per anchor size"):
+        AnchorHead(
+            8, 1, (4, 4), RANGE, anchor_sizes=[[4.0, 2.0, 1.5]], anchor_bottom_heights=[0.0, 1.0], feature_map_stride=1
+        )
+
+
+def _make_multi_level_head(strides: list, scales: list) -> MultiLevelAnchorHead:
+    return MultiLevelAnchorHead(
+        8,
+        3,
+        (8, 8),
+        RANGE,
+        anchor_sizes=[[4.0, 2.0, 1.5], [1.0, 1.0, 1.0]],
+        anchor_bottom_heights=[0.0, 0.0],
+        feature_map_strides=strides,
+        anchor_scales=scales,
+        dir_offset=0.78539,
+        code_size=9,
+    )
+
+
+def test_multi_level_anchor_head_scales_the_templates_of_every_level() -> None:
+    head = _make_multi_level_head([1, 2], [1.0, 2.0])
+    fine, coarse = 8 * 8 * 4, 4 * 4 * 4
+    assert head.anchors.shape == (fine + coarse, 9)
+    assert head.anchors[:fine, 3:6].unique(dim=0).tolist() == [[1.0, 1.0, 1.0], [4.0, 2.0, 1.5]]
+    assert head.anchors[fine:, 3:6].unique(dim=0).tolist() == [[2.0, 2.0, 2.0], [8.0, 4.0, 3.0]]
+
+    torch.manual_seed(0)
+    with torch.no_grad():
+        out = head([torch.randn(2, 8, 8, 8), torch.randn(2, 8, 4, 4)])
+    assert [tuple(c.shape) for c in out["cls"]] == [(2, 8, 8, 12), (2, 4, 4, 12)]
+    assert out["batch_cls"].shape == (2, fine + coarse, 3)
+    assert out["batch_box"].shape == (2, fine + coarse, 9)
+    assert head.decode(out)["boxes"].shape == (2 * (fine + coarse), 7)
+
+
+def test_multi_level_anchor_head_with_one_level_matches_the_anchor_head() -> None:
+    torch.manual_seed(0)
+    multi = _make_multi_level_head([2], [1.0]).eval()
+    single = AnchorHead(
+        8,
+        3,
+        (8, 8),
+        RANGE,
+        anchor_sizes=[[4.0, 2.0, 1.5], [1.0, 1.0, 1.0]],
+        anchor_bottom_heights=[0.0, 0.0],
+        feature_map_stride=2,
+        code_size=9,
+    ).eval()
+    single.load_state_dict(multi.state_dict())
+    features = torch.randn(2, 8, 4, 4)
+    with torch.no_grad():
+        out_multi, out_single = multi([features]), single(features)
+    assert torch.equal(multi.anchors, single.anchors)
+    assert torch.equal(out_multi["batch_cls"], out_single["batch_cls"])
+    assert torch.allclose(out_multi["batch_box"], out_single["batch_box"])
+
+
+def test_multi_level_anchor_head_needs_one_scale_per_level() -> None:
+    with pytest.raises(ValueError, match="one anchor scale per level"):
+        _make_multi_level_head([1, 2], [1.0])
