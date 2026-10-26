@@ -85,6 +85,21 @@ class LitePTBlock(nn.Module):
         - Input: $(N, C)$ features, their `SparseConvTensor` (`None` for a block without convolution), $(N, 3)$
           integer grid coordinates, $(N,)$ batch.
         - Output: $(N, C)$ features and the `SparseConvTensor` holding them (`None` when none was given).
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.models.litept import LitePTBlock
+        >>> block = LitePTBlock(channels=12, num_heads=2, patch_size=16, conv=False, use_flash_attn=False)
+        >>> x = torch.randn(40, 12)
+        >>> pos_grid = torch.randint(0, 8, (40, 3))
+        >>> batch = torch.zeros(40, dtype=torch.long)
+        >>> order = torch.randperm(40)
+        >>> y, _ = block(x, None, pos_grid, batch, order, torch.argsort(order))
+        >>> y.shape
+        torch.Size([40, 12])
+
+        ```
     """
 
     def __init__(
@@ -777,6 +792,13 @@ class LitePTSegmentation(SemanticSegmentationModel):
         act_kwargs: Extra keyword arguments for the activation.
         norm_kwargs: Extra keyword arguments for the normalization.
 
+    Shape:
+        - x: $(N, \text{in\_channels})$ point features.
+        - pos_grid: $(N, 3)$ integer grid coordinates.
+        - batch: $(N,)$ per-point batch index.
+        - output: $(N, \text{num\_classes})$ per-point class logits, or $(N, \text{num\_features})$ features when
+          `num_classes=0`.
+
     Example:
         ```python
         import torch
@@ -937,7 +959,7 @@ class LitePTSegmentation(SemanticSegmentationModel):
 
         Args:
             num_classes: Number of output classes.
-            **kwargs: Additional keyword arguments to pass to the segmentation head.
+            **kwargs: Unused; the head is a single linear layer.
         """
         self.num_classes = num_classes
         self.head = self.configure_head()
