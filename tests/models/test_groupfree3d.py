@@ -187,7 +187,7 @@ def test_groupfree3d_prediction_head_class_aware_size() -> None:
     with torch.no_grad():
         out = head(x, pos, mean_sizes)
     assert out["center"].shape == (2, 5, 3)
-    assert torch.allclose(out["center"] - pos, head.center_head(head.mlp(x.view(-1, 8))).view(2, 5, 3))
+    assert torch.allclose(out["center"], pos + head.center_head(head.mlp(x.view(-1, 8))).view(2, 5, 3))
     size_class = out["size_scores"].argmax(-1)
     expected = (
         mean_sizes[size_class]
