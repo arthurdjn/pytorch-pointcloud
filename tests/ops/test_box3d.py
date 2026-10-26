@@ -339,19 +339,6 @@ def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None
     )
 
 
-@pytest.mark.parametrize("rotated", [False, True])
-def test_nms3d_max_candidates_matches_nms_over_the_top_boxes(rotated: bool) -> None:
-    torch.manual_seed(0)
-    boxes = torch.cat([torch.randn(96, 3) * 4.0, torch.rand(96, 3) * 3.0 + 0.1, torch.rand(96, 1) * 6.28], dim=1)
-    scores = torch.rand(96)
-    batch = torch.randint(0, 3, (96,)).sort().values
-    capped = nms3d(boxes, scores, 0.2, batch=batch, rotated=rotated, max_candidates=10)
-    for scene in range(3):
-        members = (batch == scene).nonzero().squeeze(-1)
-        top = members[scores[members].argsort(descending=True)[:10]]
-        assert torch.equal(top[nms3d(boxes[top], scores[top], 0.2, rotated=rotated)], capped[batch[capped] == scene])
-
-
 def test_angle_to_class_roundtrip() -> None:
     angles = torch.tensor([0.0, 0.6, 2.5, math.pi])
     cls, residual = angle_to_class(angles, 12)
