@@ -19,6 +19,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ShapeNetPart
 from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
+from torch_pointcloud.metrics.segmentation import part_predictions
 from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -90,10 +91,6 @@ def configure_inferer(args: Namespace) -> Inferer:
 def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: str) -> Dict[str, Any]:
     model.to(device).eval()
     part_ids = list(ShapeNetPart.seg_ids.values())
-    # The reference scores the argmax over the parts of each shape's category.
-    part_mask = torch.full((len(part_ids), sum(len(ids) for ids in part_ids)), float("-inf"), device=device)
-    for i, ids in enumerate(part_ids):
-        part_mask[i, ids] = 0.0
     ious: List[Tensor] = []
     categories: List[Tensor] = []
 
@@ -103,7 +100,8 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
             data, predictor=lambda d: model(None, d[DataKeys.POS], d[DataKeys.BATCH], d[DataKeys.CATEGORY])
         )
         category = data[DataKeys.CATEGORY].argmax(dim=1)
-        preds = (scores + part_mask[category][data[DataKeys.BATCH]]).argmax(dim=1).cpu()
+        # The reference scores the argmax over the parts of each shape's category.
+        preds = part_predictions(scores, part_ids, category, data[DataKeys.BATCH]).cpu()
         category = category.cpu()
         shape_ious = part_intersection_over_union(
             preds, data[DataKeys.SEGMENT].cpu(), part_ids, category, data[DataKeys.BATCH].cpu()

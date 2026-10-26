@@ -161,6 +161,50 @@ def intersection_over_union(
     return per_class[keep].mean().item()
 
 
+def part_predictions(
+    scores: Tensor,
+    part_ids: Sequence[Sequence[int]],
+    category: Tensor,
+    batch: Optional[Tensor] = None,
+) -> Tensor:
+    r"""Predict each point's part among the parts its shape's category owns (the ShapeNetPart protocol).
+
+    The argmax of the part scores is taken over the part labels of the shape's category only, so a point is never
+    assigned a part of another category.
+
+    Args:
+        scores: Per-point part scores (logits or probabilities), shape $(N, C)$.
+        part_ids: Part labels owned by each category, e.g. `ShapeNetPart.seg_ids.values()`.
+        category: Per-shape category index into `part_ids`, shape $(B,)$.
+        batch: Optional per-point shape index, shape $(N,)$; when omitted, all the points belong to one shape.
+
+    Returns:
+        Predicted part indices of shape $(N,)$.
+
+    Shape:
+        - scores: $(N, C)$
+        - category: $(B,)$
+        - batch, output: $(N,)$
+
+    Example:
+        ```pycon
+        >>> scores = torch.tensor([[0.1, 0.2, 0.9, 0.0], [0.6, 0.1, 0.0, 0.3]])
+        >>> part_predictions(scores, part_ids=[[0, 1], [2, 3]], category=torch.tensor([0]))
+        tensor([1, 0])
+
+        ```
+    """
+    allowed = torch.zeros(len(part_ids), scores.shape[1], dtype=torch.bool, device=scores.device)
+    for c, ids in enumerate(part_ids):
+        allowed[c, list(ids)] = True
+
+    if batch is None:
+        batch = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
+
+    point_allowed = allowed[category.long().reshape(-1)][batch]
+    return scores.masked_fill(~point_allowed, float("-inf")).argmax(dim=1)
+
+
 def part_intersection_over_union(
     preds: Tensor,
     target: Tensor,

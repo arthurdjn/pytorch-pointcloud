@@ -10,7 +10,7 @@ from torch_pointcloud.metrics import (
     part_intersection_over_union,
     part_mean_intersection_over_union,
 )
-from torch_pointcloud.metrics.segmentation import compute_intersection_union
+from torch_pointcloud.metrics.segmentation import compute_intersection_union, part_predictions
 
 
 @pytest.fixture
@@ -252,3 +252,14 @@ def test_part_mean_iou_accumulates_batches() -> None:
     assert torch.equal(ious, whole)
     instance_miou = part_mean_intersection_over_union(ious, category)
     assert part_mean_intersection_over_union(ious, category, average="macro") != instance_miou
+
+
+def test_part_predictions_stay_in_the_parts_of_the_shape_category() -> None:
+    scores = torch.tensor([[0.1, 0.2, 0.9, 0.0], [0.6, 0.1, 0.0, 0.3], [0.9, 0.0, 0.1, 0.2], [0.0, 0.5, 0.0, 0.4]])
+    category = torch.tensor([0, 1])
+    batch = torch.tensor([0, 0, 1, 1])
+
+    preds = part_predictions(scores, [[0, 1], [2, 3]], category, batch)
+
+    assert preds.tolist() == [1, 0, 3, 3]
+    assert torch.equal(part_predictions(scores[:2], [[0, 1], [2, 3]], category[:1]), preds[:2])
