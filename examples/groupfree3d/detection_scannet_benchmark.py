@@ -1,4 +1,9 @@
-"""Benchmark Group-Free 3D on ScanNet with its evaluation protocol."""
+"""Benchmark Group-Free 3D on ScanNet with its evaluation protocol.
+
+NOTE: one run draws 50 000 random points per scene, so its score moves with the seed. The authors' references are the
+average of five evaluations (`eval_avg.py --avg_times 5` at zeliu98/Group-Free-3D ef8b7bb), the MMDetection3D ones
+the best validation epoch of the training run.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace
