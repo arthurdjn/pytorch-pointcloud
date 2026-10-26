@@ -465,8 +465,8 @@ class VoxelRCNNDetection(DetectionModel):
             self.train_proposal_nms_thresh if self.training else self.proposal_nms_thresh,
             batch=det["batch"],
             rotated=True,
-            pre_max_keep=self.train_proposal_pre_maxsize if self.training else self.proposal_pre_maxsize,
             max_keep=self.train_proposal_post_maxsize if self.training else self.proposal_post_maxsize,
+            max_candidates=self.train_proposal_pre_maxsize if self.training else self.proposal_pre_maxsize,
         )
         return det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
 

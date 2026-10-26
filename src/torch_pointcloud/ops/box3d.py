@@ -720,8 +720,8 @@ def _nms3d_single(
     labels: OptTensor,
     iou_threshold: float,
     rotated: bool,
-    pre_max_keep: Optional[int],
     max_keep: Optional[int],
+    max_candidates: Optional[int],
 ) -> Tensor:
     """Greedy 3D NMS within a single scene; see `nms3d`."""
     limit = boxes.shape[0] if max_keep is None else max_keep
@@ -731,7 +731,7 @@ def _nms3d_single(
         # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
         boxes_bev = boxes.clone()
         boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        order = scores.argsort(descending=True)[:pre_max_keep]
+        order = scores.argsort(descending=True)[:max_candidates]
         keep: List[Tensor] = []
 
         # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
@@ -752,7 +752,7 @@ def _nms3d_single(
     # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
     hi = torch.maximum(hi, lo + 1e-2)
     volume = (hi - lo).prod(dim=-1)
-    order = scores.argsort(descending=True)[:pre_max_keep]
+    order = scores.argsort(descending=True)[:max_candidates]
     keep = []
 
     while order.numel() > 0 and len(keep) < limit:
@@ -779,8 +779,8 @@ def nms3d(
     labels: OptTensor = None,
     batch: OptTensor = None,
     rotated: bool = False,
-    pre_max_keep: Optional[int] = None,
     max_keep: Optional[int] = None,
+    max_candidates: Optional[int] = None,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
 
@@ -799,10 +799,10 @@ def nms3d(
         labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
         batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
-        pre_max_keep: Optional cap on the highest-scoring boxes per scene that enter the suppression; the others
-            are dropped.
         max_keep: Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
             equals the first `max_keep` entries of the uncapped result.
+        max_candidates: Optional cap on the boxes considered per scene: only the `max_candidates` highest-scoring
+            boxes enter the suppression, the others are dropped.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
@@ -815,7 +815,7 @@ def nms3d(
         return boxes.new_zeros((0,), dtype=torch.long)
 
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, pre_max_keep, max_keep)
+        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep, max_candidates)
 
     keep = []
     for b in torch.unique(batch):
@@ -827,8 +827,8 @@ def nms3d(
             scene_labels,
             iou_threshold,
             rotated,
-            pre_max_keep,
             max_keep,
+            max_candidates,
         )
         keep.append(scene[kept])
 
