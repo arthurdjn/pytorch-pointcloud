@@ -36,7 +36,7 @@ def _output(pyramid: Dict[str, Tensor], num_classes: int) -> Dict[str, Tensor]:
 
 def test_fcaf3d_loss_assigns_a_box_to_one_level_and_its_most_central_locations() -> None:
     pyramid = _pyramid()
-    criterion = FCAF3DLoss(num_classes=3, assign_threshold=27, center_threshold=18)
+    criterion = FCAF3DLoss(num_classes=3, min_points_per_level=27, num_positives=18)
     boxes = torch.tensor([[2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 0.0]])
     center, box, cls = criterion.assign(pyramid["pos"], pyramid["level"], boxes, torch.tensor([2]), num_levels=4)
 
@@ -52,7 +52,7 @@ def test_fcaf3d_loss_assigns_a_box_to_one_level_and_its_most_central_locations()
 
 def test_fcaf3d_loss_gives_a_location_to_the_smallest_box() -> None:
     pyramid = _pyramid()
-    criterion = FCAF3DLoss(num_classes=2, assign_threshold=1, center_threshold=1000)
+    criterion = FCAF3DLoss(num_classes=2, min_points_per_level=1, num_positives=1000)
     boxes = torch.tensor([[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 0.0], [2.0, 2.0, 2.0, 0.6, 0.6, 0.6, 0.0]])
     _, box, cls = criterion.assign(pyramid["pos"], pyramid["level"], boxes, torch.tensor([0, 1]), num_levels=4)
     both = (cls >= 0) & ((pyramid["pos"] - 2.0).abs() < 0.3).all(dim=1)
@@ -62,7 +62,7 @@ def test_fcaf3d_loss_gives_a_location_to_the_smallest_box() -> None:
 
 def test_fcaf3d_loss_rotated_boxes_use_their_own_frame() -> None:
     pos = torch.tensor([[0.0, 0.9, 0.0], [0.9, 0.0, 0.0]])
-    criterion = FCAF3DLoss(num_classes=1, assign_threshold=1, center_threshold=10)
+    criterion = FCAF3DLoss(num_classes=1, min_points_per_level=1, num_positives=10)
     boxes = torch.tensor([[0.0, 0.0, 0.0, 2.0, 0.5, 1.0, torch.pi / 2]])
     _, _, cls = criterion.assign(pos, torch.zeros(2, dtype=torch.long), boxes, torch.tensor([0]), num_levels=1)
     assert cls.tolist() == [0, -1]
@@ -75,7 +75,7 @@ def test_fcaf3d_loss_terms_are_finite_and_train_every_branch() -> None:
         "label": torch.tensor([2, 0]),
         "batch_box": torch.tensor([0, 1]),
     }
-    losses = FCAF3DLoss(num_classes=3, assign_threshold=27, center_threshold=18)(output, data)
+    losses = FCAF3DLoss(num_classes=3, min_points_per_level=27, num_positives=18)(output, data)
 
     assert set(losses) == {"loss", "cls_loss", "center_loss", "box_loss"}
     assert torch.isfinite(losses["loss"]) and not losses["cls_loss"].requires_grad
@@ -95,5 +95,5 @@ def test_fcaf3d_loss_scene_without_boxes_only_classifies() -> None:
         "label": torch.zeros(0, dtype=torch.long),
         "batch_box": torch.zeros(0, dtype=torch.long),
     }
-    losses = FCAF3DLoss(num_classes=3, assign_threshold=27, center_threshold=18)(output, empty)
+    losses = FCAF3DLoss(num_classes=3, min_points_per_level=27, num_positives=18)(output, empty)
     assert losses["center_loss"] == 0 and losses["box_loss"] == 0 and losses["cls_loss"] > 0

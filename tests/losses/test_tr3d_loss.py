@@ -24,7 +24,7 @@ def _pyramid(num_scenes: int = 1, extent: float = 4.0) -> Dict[str, Tensor]:
 
 def test_tr3d_loss_assigns_the_nearest_locations_of_the_class_level() -> None:
     pyramid = _pyramid()
-    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], center_threshold=6)
+    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)
     boxes = torch.tensor([[2.01, 2.10, 2.20, 1.0, 1.0, 1.0, 0.0]])
     box, cls = criterion.assign(pyramid["pos"], pyramid["level"], boxes, torch.tensor([1]))
 
@@ -40,7 +40,7 @@ def test_tr3d_loss_assigns_the_nearest_locations_of_the_class_level() -> None:
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
 def test_tr3d_loss_assigns_on_the_device_of_its_inputs() -> None:
     pyramid = _pyramid()
-    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], center_threshold=6)
+    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)
     boxes = torch.tensor([[2.01, 2.10, 2.20, 1.0, 1.0, 1.0, 0.0]], device="cuda")
     _, cls = criterion.assign(pyramid["pos"].cuda(), pyramid["level"].cuda(), boxes, torch.tensor([1], device="cuda"))
 
@@ -50,7 +50,7 @@ def test_tr3d_loss_assigns_on_the_device_of_its_inputs() -> None:
 
 def test_tr3d_loss_rejects_a_level_table_of_the_wrong_size() -> None:
     with pytest.raises(ValueError, match="one level per class"):
-        TR3DLoss(num_classes=3, label_levels=[0, 1], center_threshold=6)
+        TR3DLoss(num_classes=3, label_levels=[0, 1], num_positives=6)
 
 
 def test_tr3d_loss_terms_are_finite_and_train_every_branch() -> None:
@@ -68,7 +68,7 @@ def test_tr3d_loss_terms_are_finite_and_train_every_branch() -> None:
         "label": torch.tensor([1, 0]),
         "batch_box": torch.tensor([0, 1]),
     }
-    losses = TR3DLoss(num_classes=2, label_levels=[0, 1], center_threshold=6)(output, data)
+    losses = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)(output, data)
 
     assert set(losses) == {"loss", "cls_loss", "box_loss"}
     assert torch.isfinite(losses["loss"])

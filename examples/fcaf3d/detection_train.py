@@ -40,8 +40,8 @@ MODELS = {
 # Passes over the training scenes per epoch.
 REPEATS = {"scannet": 10, "sunrgbd": 3, "s3dis": 13}
 NUM_POINTS = 100000
-ASSIGN_THRESHOLD = 27
-CENTER_THRESHOLD = 18
+MIN_POINTS_PER_LEVEL = 27
+NUM_POSITIVES = 18
 NMS_PRE = 1000
 SCORE_THRESHOLD = 0.01
 NMS_IOU = 0.5
@@ -55,7 +55,7 @@ def main() -> None:
     train_loader, val_loader = configure_dataloaders(args)
     model = configure_model(args)
     optimizer, scheduler = configure_optimizers(args, model)
-    criterion = FCAF3DLoss(model.num_classes, assign_threshold=ASSIGN_THRESHOLD, center_threshold=CENTER_THRESHOLD)
+    criterion = FCAF3DLoss(model.num_classes, min_points_per_level=MIN_POINTS_PER_LEVEL, num_positives=NUM_POSITIVES)
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scenes, validating on {num_val}.")

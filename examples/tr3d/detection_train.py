@@ -42,7 +42,7 @@ LABEL_LEVELS = {
     "sunrgbd": [1, 1, 1, 0, 0, 1, 0, 0, 1, 0],
     "s3dis": [1, 0, 1, 1, 0],
 }
-CENTER_THRESHOLD = 6
+NUM_POSITIVES = 6
 NMS_PRE = 1000
 SCORE_THRESHOLD = 0.01
 NMS_IOU = 0.5
@@ -57,7 +57,7 @@ def main() -> None:
     model = configure_model(args)
     optimizer, scheduler = configure_optimizers(args, model)
     # The oriented distance-IoU of the reference measures the center distance on (x, y, width), this one on (x, y, z).
-    criterion = TR3DLoss(model.num_classes, label_levels=LABEL_LEVELS[args.dataset], center_threshold=CENTER_THRESHOLD)
+    criterion = TR3DLoss(model.num_classes, label_levels=LABEL_LEVELS[args.dataset], num_positives=NUM_POSITIVES)
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scenes, validating on {num_val}.")

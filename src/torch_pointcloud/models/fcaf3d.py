@@ -168,7 +168,7 @@ class FCAF3DHead(nn.Module):
 
     From the coarsest encoder stage down, a transposed convolution generates the $2 \times 2 \times 2$ children of every
     voxel, the encoder stage of that resolution is added on the union of both voxel sets, and only the
-    `prune_threshold` voxels of every scene whose parents score highest are kept. Every level then predicts, per
+    `max_voxels_per_scene` voxels of every scene whose parents score highest are kept. Every level then predicts, per
     voxel, class logits, a centerness logit and the box regression; the class logits of a level, maxed over the
     classes and interpolated at the voxels of the next finer level, are the scores of its pruning. The neck and the
     head cannot be separated, as pruning a level needs the predictions of the level above.
@@ -178,7 +178,7 @@ class FCAF3DHead(nn.Module):
         channels: Channels of the per-level features entering the predictions.
         num_classes: Number of object classes.
         num_box_outputs: Box regression channels: $6$ face distances, or $8$ with the heading code.
-        prune_threshold: Voxels kept per scene at every level but the coarsest.
+        max_voxels_per_scene: Voxels kept per scene at every level but the coarsest.
         act: Activation passed to `create_act`.
         act_kwargs: Extra keyword arguments for the activation.
         norm: Normalization passed to `create_norm`.
@@ -192,7 +192,7 @@ class FCAF3DHead(nn.Module):
         num_classes: int,
         *,
         num_box_outputs: int,
-        prune_threshold: int,
+        max_voxels_per_scene: int,
         act: Union[str, Callable, None] = "elu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -205,7 +205,7 @@ class FCAF3DHead(nn.Module):
         self.in_channels = tuple(in_channels)
         self.channels = channels
         self.num_box_outputs = num_box_outputs
-        self.prune_threshold = prune_threshold
+        self.max_voxels_per_scene = max_voxels_per_scene
         block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
 
         self.up_blocks = nn.ModuleList(
@@ -242,7 +242,7 @@ class FCAF3DHead(nn.Module):
         nn.init.constant_(self.cls.bias, -math.log(99))
 
     def prune(self, x: "SparseConvTensor", scores: "SparseConvTensor") -> "SparseConvTensor":
-        r"""Keep the `prune_threshold` voxels of every scene of `x` that score highest under the coarser `scores`."""
+        r"""Keep the `max_voxels_per_scene` voxels of every scene of `x` scoring highest under the coarser `scores`."""
         with torch.no_grad():
             indices = x.indices.long()
             coarse = scores.indices.long()
@@ -253,7 +253,7 @@ class FCAF3DHead(nn.Module):
                 indices[:, 1:].to(scores.features.dtype) / 2,
                 indices[:, 0],
             )
-            keep = topk(score.view(-1), self.prune_threshold, indices[:, 0])
+            keep = topk(score.view(-1), self.max_voxels_per_scene, indices[:, 0])
             mask = torch.zeros(len(indices), dtype=torch.bool, device=indices.device)
             mask[keep] = True
         pruned = x.replace_feature(x.features[mask])
@@ -269,8 +269,8 @@ class FCAF3DHead(nn.Module):
             stages: Encoder stages, from the finest, with the channels of `in_channels`.
 
         Returns:
-            The packed `cls_logits`, `centerness` and `box` predictions, the `[batch, x, y, z]` voxel `indices` of each level's
-            grid and the `level` of every row, from the finest level.
+            The packed `cls_logits`, `centerness` and `box` predictions, the `[batch, x, y, z]` voxel `indices` of
+            each level's grid and the `level` of every row, from the finest level.
         """
         num_levels = len(stages)
         outputs: List[Dict[str, Tensor]] = []
@@ -325,7 +325,7 @@ class FCAF3DDetection(DetectionModel):
         num_classes: Number of object classes.
         voxel_size: Edge length of the input voxels, in the units of `pos`.
         oriented_boxes: Whether the boxes have a heading; axis-aligned boxes have heading $0$.
-        prune_threshold: Voxels kept per scene at every pyramid level but the coarsest.
+        max_voxels_per_scene: Voxels kept per scene at every pyramid level but the coarsest.
         stem_channels: Output channels of the encoder stem.
         encoder_channels: Output channels of every encoder stage.
         encoder_depths: Number of residual blocks in every encoder stage.
@@ -355,7 +355,7 @@ class FCAF3DDetection(DetectionModel):
         *,
         voxel_size: float,
         oriented_boxes: bool,
-        prune_threshold: int,
+        max_voxels_per_scene: int,
         stem_channels: int = 64,
         encoder_channels: Sequence[int] = (64, 128, 256, 512),
         encoder_depths: Sequence[int] = (3, 4, 6, 3),
@@ -368,7 +368,7 @@ class FCAF3DDetection(DetectionModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = voxel_size
         self.oriented_boxes = oriented_boxes
-        self.prune_threshold = prune_threshold
+        self.max_voxels_per_scene = max_voxels_per_scene
         self.stem_channels = stem_channels
         self.encoder_channels = tuple(encoder_channels)
         self.encoder_depths = tuple(encoder_depths)
@@ -401,7 +401,7 @@ class FCAF3DDetection(DetectionModel):
             self.head_channels,
             self.num_classes,
             num_box_outputs=8 if self.oriented_boxes else 6,
-            prune_threshold=self.prune_threshold,
+            max_voxels_per_scene=self.max_voxels_per_scene,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
         )
@@ -538,7 +538,7 @@ class FCAF3DDetection(DetectionModel):
         num_classes=18,
         voxel_size=0.01,
         oriented_boxes=False,
-        prune_threshold=100000,
+        max_voxels_per_scene=100000,
         stem_norm="instance_norm",
         stem_norm_kwargs={"eps": 1e-8, "affine": True},
     ),
@@ -573,7 +573,7 @@ def fcaf3d_scannet_mmdet3d(**hparams: Any) -> FCAF3DDetection:
         num_classes=10,
         voxel_size=0.01,
         oriented_boxes=True,
-        prune_threshold=100000,
+        max_voxels_per_scene=100000,
         stem_norm="instance_norm",
         stem_norm_kwargs={"eps": 1e-8, "affine": True},
     ),
@@ -608,7 +608,7 @@ def fcaf3d_sunrgbd_mmdet3d(**hparams: Any) -> FCAF3DDetection:
         num_classes=5,
         voxel_size=0.01,
         oriented_boxes=False,
-        prune_threshold=100000,
+        max_voxels_per_scene=100000,
         stem_norm="instance_norm",
         stem_norm_kwargs={"eps": 1e-8, "affine": True},
     ),

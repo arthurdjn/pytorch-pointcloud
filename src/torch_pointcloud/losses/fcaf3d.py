@@ -43,8 +43,8 @@ class FCAF3DLoss(nn.Module):
     most one box, then classify, score the centerness and regress the box.
 
     Every ground-truth box goes to one pyramid level: the coarsest one, from the finest down, before the first level
-    with fewer than `assign_threshold` of its locations inside the box (the finest level when even it has fewer, the
-    coarsest when none has). On that level, its `center_threshold` locations of highest centerness
+    with fewer than `min_points_per_level` of its locations inside the box (the finest level when even it has fewer,
+    the coarsest when none has). On that level, its `num_positives` locations of highest centerness
     $\sqrt{\prod_d \min(f^-_d, f^+_d) / \max(f^-_d, f^+_d)}$, with $f^\pm_d$ the distances to the faces of the box,
     are its positives; a location positive for several boxes takes the smallest one.
 
@@ -54,8 +54,8 @@ class FCAF3DLoss(nn.Module):
 
     Args:
         num_classes: Number of object classes.
-        assign_threshold: Locations inside a box that a level needs to keep the box for a coarser level.
-        center_threshold: Positive locations per box.
+        min_points_per_level: Locations inside a box that a level needs to keep the box for a coarser level.
+        num_positives: Positive locations per box.
 
     Example:
         ```python
@@ -64,7 +64,7 @@ class FCAF3DLoss(nn.Module):
         from torch_pointcloud.models import create_model
 
         model = create_model("fcaf3d.scannet.mmdet3d", task="detection").cuda()
-        criterion = FCAF3DLoss(num_classes=18, assign_threshold=27, center_threshold=18)
+        criterion = FCAF3DLoss(num_classes=18, min_points_per_level=27, num_positives=18)
         pos = torch.rand(20000, 3, device="cuda") * 4
         out = model(torch.rand(20000, 3, device="cuda"), pos, torch.zeros(20000, dtype=torch.long, device="cuda"))
         data = {
@@ -76,11 +76,11 @@ class FCAF3DLoss(nn.Module):
         ```
     """
 
-    def __init__(self, num_classes: int, assign_threshold: int, center_threshold: int) -> None:
+    def __init__(self, num_classes: int, min_points_per_level: int, num_positives: int) -> None:
         super().__init__()
         self.num_classes = num_classes
-        self.assign_threshold = assign_threshold
-        self.center_threshold = center_threshold
+        self.min_points_per_level = min_points_per_level
+        self.num_positives = num_positives
 
     @torch.no_grad()
     def assign(self, pos: Tensor, level: Tensor, boxes: Tensor, labels: Tensor, num_levels: int) -> Tuple[Tensor, ...]:
@@ -104,7 +104,7 @@ class FCAF3DLoss(nn.Module):
         faces = _face_distances(pos, boxes)  # (P, K, 6)
         inside = faces.min(dim=-1).values > 0
         counts = torch.zeros(num_levels, num_boxes, device=pos.device).index_add_(0, level, inside.float())
-        sparse = counts < self.assign_threshold
+        sparse = counts < self.min_points_per_level
         best = (sparse.int().argmax(dim=0) - 1).clamp(min=0)
         best = torch.where(sparse.any(dim=0), best, torch.full_like(best, num_levels - 1))
         candidate = inside & (level[:, None] == best[None, :])
@@ -112,7 +112,7 @@ class FCAF3DLoss(nn.Module):
         pairs = faces.view(num_points, num_boxes, 3, 2)
         centerness = (pairs.min(dim=-1).values / pairs.max(dim=-1).values).prod(dim=-1).sqrt()
         centerness = torch.where(candidate, centerness, torch.full_like(centerness, -1.0))
-        kth = centerness.topk(min(self.center_threshold + 1, num_points), dim=0).values[-1]
+        kth = centerness.topk(min(self.num_positives + 1, num_points), dim=0).values[-1]
         candidate = candidate & (centerness > kth[None, :])
 
         volumes = boxes[:, 3:6].prod(dim=1).expand(num_points, num_boxes)
@@ -127,8 +127,8 @@ class FCAF3DLoss(nn.Module):
 
         Args:
             output: The model's raw output: the packed locations `pos` $(P, 3)$, `batch` $(P,)$ and `level` $(P,)$,
-                their class logits `cls_logits` $(P, \text{num\_classes})$, centerness logits `centerness` $(P, 1)$ and decoded
-                `boxes` $(P, 7)$.
+                their class logits `cls_logits` $(P, \text{num\_classes})$, centerness logits `centerness`
+                $(P, 1)$ and decoded `boxes` $(P, 7)$.
             data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise headings,
                 `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
 
@@ -173,6 +173,6 @@ class FCAF3DLoss(nn.Module):
 
     def extra_repr(self) -> str:
         return (
-            f"num_classes={self.num_classes}, assign_threshold={self.assign_threshold}, "
-            f"center_threshold={self.center_threshold}"
+            f"num_classes={self.num_classes}, min_points_per_level={self.min_points_per_level}, "
+            f"num_positives={self.num_positives}"
         )

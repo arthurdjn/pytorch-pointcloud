@@ -22,7 +22,7 @@ class TR3DLoss(nn.Module):
     box, then classify and regress the box.
 
     Every ground-truth box goes to the pyramid level its class is assigned to by `label_levels`, where its
-    `center_threshold` locations nearest to its center are its positives; a location positive for several boxes
+    `num_positives` locations nearest to its center are its positives; a location positive for several boxes
     takes the one with the nearest center.
 
     The focal loss of the class logits is summed over every location and class of the batch and divided by the
@@ -31,7 +31,7 @@ class TR3DLoss(nn.Module):
     Args:
         num_classes: Number of object classes.
         label_levels: Pyramid level of every class, from the finest level.
-        center_threshold: Positive locations per box.
+        num_positives: Positive locations per box.
 
     Example:
         ```python
@@ -41,7 +41,7 @@ class TR3DLoss(nn.Module):
 
         model = create_model("tr3d.scannet.mmdet3d", task="detection").cuda()
         label_levels = [0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0]
-        criterion = TR3DLoss(num_classes=18, label_levels=label_levels, center_threshold=6)
+        criterion = TR3DLoss(num_classes=18, label_levels=label_levels, num_positives=6)
         pos = torch.rand(20000, 3, device="cuda") * 4
         out = model(torch.rand(20000, 3, device="cuda"), pos, torch.zeros(20000, dtype=torch.long, device="cuda"))
         data = {
@@ -53,13 +53,13 @@ class TR3DLoss(nn.Module):
         ```
     """
 
-    def __init__(self, num_classes: int, label_levels: Sequence[int], center_threshold: int) -> None:
+    def __init__(self, num_classes: int, label_levels: Sequence[int], num_positives: int) -> None:
         if len(label_levels) != num_classes:
             raise ValueError(f"label_levels needs one level per class, got {len(label_levels)} for {num_classes}.")
 
         super().__init__()
         self.num_classes = num_classes
-        self.center_threshold = center_threshold
+        self.num_positives = num_positives
         self.label_levels = tuple(label_levels)
 
     @torch.no_grad()
@@ -82,7 +82,7 @@ class TR3DLoss(nn.Module):
         candidate = level[:, None] == labels.new_tensor(self.label_levels)[labels][None, :]
         distances = (pos[:, None, :] - boxes[None, :, :3]).pow(2).sum(dim=-1)
         distances = torch.where(candidate, distances, torch.full_like(distances, _NO_BOX))
-        kth = distances.topk(min(self.center_threshold + 1, num_points), dim=0, largest=False).values[-1]
+        kth = distances.topk(min(self.num_positives + 1, num_points), dim=0, largest=False).values[-1]
         distances = torch.where(distances < kth[None, :], distances, torch.full_like(distances, _NO_BOX))
 
         nearest, box = distances.min(dim=1)
@@ -127,7 +127,4 @@ class TR3DLoss(nn.Module):
         return {"loss": cls_loss + box_loss, "cls_loss": cls_loss.detach(), "box_loss": box_loss.detach()}
 
     def extra_repr(self) -> str:
-        return (
-            f"num_classes={self.num_classes}, label_levels={self.label_levels}, "
-            f"center_threshold={self.center_threshold}"
-        )
+        return f"num_classes={self.num_classes}, label_levels={self.label_levels}, num_positives={self.num_positives}"

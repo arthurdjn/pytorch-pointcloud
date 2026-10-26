@@ -138,8 +138,8 @@ def test_fcaf3d_scenes_are_independent_in_a_batch() -> None:
 
 
 @CUDA_SPCONV
-def test_fcaf3d_head_prunes_every_scene_to_the_threshold() -> None:
-    model = create_model("fcaf3d.scannet.mmdet3d", task="detection", prune_threshold=200).cuda().eval()
+def test_fcaf3d_head_prunes_every_scene_to_max_voxels_per_scene() -> None:
+    model = create_model("fcaf3d.scannet.mmdet3d", task="detection", max_voxels_per_scene=200).cuda().eval()
     assert isinstance(model, FCAF3DDetection)
     x, pos, batch = _scenes()
     with torch.no_grad():
