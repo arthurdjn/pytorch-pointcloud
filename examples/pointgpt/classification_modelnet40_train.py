@@ -30,8 +30,8 @@ WARMUP_EPOCHS = 10
 WARMUP_LR_INIT = 1e-6
 MIN_LR = 1e-6
 GRAD_CLIP_NORM = 10.0
-# Every entry: the entry it starts from (the post-pre-training stage for PointGPT-B and -L), its points per shape (`point_all` is the
-# farthest-point sample the training points are drawn from) and its config's optimizer and schedule.
+# Every entry: the entry it starts from (the post-pre-training stage for PointGPT-B and -L), its points per shape
+# (`point_all` is the farthest-point sample the training points are drawn from) and its config's optimizer and schedule.
 MODELS: Dict[str, Dict[str, Any]] = {
     "pointgpt-s.modelnet40.guangyan-chen": dict(
         pretrain="pointgpt-s.pretrain.guangyan-chen",
