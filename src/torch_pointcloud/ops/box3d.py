@@ -8,10 +8,9 @@ in any right-handed frame.
 """
 
 import math
-from typing import List, Literal, Optional, Sequence, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.utils import scatter
 
@@ -940,80 +939,6 @@ def roi_aware_pool3d(
             out[index] = pooled.view(index.numel(), num_cells, x.shape[1])
 
     return out.view(boxes.shape[0], out_size, out_size, out_size, x.shape[1])
-
-
-def roi_grid_sample_bev(
-    features: Tensor,
-    boxes: Tensor,
-    out_size: int,
-    origin: Sequence[float],
-    cell_size: Sequence[float],
-    *,
-    box_batch: OptTensor = None,
-) -> Tensor:
-    r"""Bilinearly sample an $S \times S$ grid of a bird's-eye-view feature map inside every oriented box.
-
-    Map pixel $(i, j)$ sits at $(x_0 + j\,s_x,\; y_0 + i\,s_y)$. The unit grid $(u, v) \in [-1, 1]^2$ is rotated by
-    the box heading and then scaled by the half box extents along the map axes, so a grid point lands at
-    $c_x + \tfrac{d_x}{2}(u \cos\theta - v \sin\theta)$ and $c_y + \tfrac{d_y}{2}(u \sin\theta + v \cos\theta)$
-    (exactly the box footprint when $\theta = 0$). Samples outside the map are zero. Boxes are
-    $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
-
-    Args:
-        features: Bird's-eye-view feature maps, shape $(B, C, H, W)$.
-        boxes: Boxes, shape $(K, 7)$.
-        out_size: Grid points per box side $S$.
-        origin: Map position $(x_0, y_0)$ of pixel $(0, 0)$.
-        cell_size: Map extent $(s_x, s_y)$ of one pixel.
-        box_batch: Optional per-box map index, shape $(K,)$; all boxes sample map 0 when omitted.
-
-    Returns:
-        The sampled features, shape $(K, C, S, S)$, indexed $(v, u)$.
-
-    Shape:
-        - features: $(B, C, H, W)$
-        - boxes: $(K, 7)$
-        - output: $(K, C, S, S)$
-
-    Example:
-        ```pycon
-        >>> features = torch.arange(16.0).view(1, 1, 4, 4)
-        >>> boxes = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]])
-        >>> roi_grid_sample_bev(features, boxes, 2, (0.0, 0.0), (1.0, 1.0))[0, 0].tolist()
-        [[0.0, 3.0], [12.0, 15.0]]
-
-        ```
-    """
-    if box_batch is None:
-        box_batch = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
-
-    height, width = features.shape[2:]
-    x1 = (boxes[:, 0] - boxes[:, 3] / 2 - origin[0]) / cell_size[0]
-    x2 = (boxes[:, 0] + boxes[:, 3] / 2 - origin[0]) / cell_size[0]
-    y1 = (boxes[:, 1] - boxes[:, 4] / 2 - origin[1]) / cell_size[1]
-    y2 = (boxes[:, 1] + boxes[:, 4] / 2 - origin[1]) / cell_size[1]
-    cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
-    theta = torch.stack(
-        [
-            (x2 - x1) / (width - 1) * cos,
-            (x2 - x1) / (width - 1) * -sin,
-            (x1 + x2 - width + 1) / (width - 1),
-            (y2 - y1) / (height - 1) * sin,
-            (y2 - y1) / (height - 1) * cos,
-            (y1 + y2 - height + 1) / (height - 1),
-        ],
-        dim=1,
-    ).view(-1, 2, 3)
-
-    out = features.new_zeros(boxes.shape[0], features.shape[1], out_size, out_size)
-    for scene in box_batch.unique().tolist():
-        index = (box_batch == scene).nonzero(as_tuple=False).squeeze(-1)
-        size = (index.numel(), features.shape[1], out_size, out_size)
-        grid = F.affine_grid(theta[index], list(size), align_corners=True)
-        # The map is broadcast to every box of the scene, a stride-0 view rather than a copy.
-        scene_features = features[scene].unsqueeze(0).expand(index.numel(), -1, -1, -1)
-        out[index] = F.grid_sample(scene_features, grid, align_corners=True)
-    return out
 
 
 def projected_ignore_mask(

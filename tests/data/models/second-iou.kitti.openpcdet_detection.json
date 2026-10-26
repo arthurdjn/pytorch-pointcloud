@@ -568,46 +568,46 @@
       256
     ],
     "roi_head.shared.norms.1.module.num_batches_tracked": [],
-    "roi_head.iou.lins.0.weight": [
+    "roi_head.cls.lins.0.weight": [
       256,
       256
     ],
-    "roi_head.iou.lins.1.weight": [
+    "roi_head.cls.lins.1.weight": [
       256,
       256
     ],
-    "roi_head.iou.lins.2.weight": [
+    "roi_head.cls.lins.2.weight": [
       1,
       256
     ],
-    "roi_head.iou.lins.2.bias": [
+    "roi_head.cls.lins.2.bias": [
       1
     ],
-    "roi_head.iou.norms.0.module.weight": [
+    "roi_head.cls.norms.0.module.weight": [
       256
     ],
-    "roi_head.iou.norms.0.module.bias": [
+    "roi_head.cls.norms.0.module.bias": [
       256
     ],
-    "roi_head.iou.norms.0.module.running_mean": [
+    "roi_head.cls.norms.0.module.running_mean": [
       256
     ],
-    "roi_head.iou.norms.0.module.running_var": [
+    "roi_head.cls.norms.0.module.running_var": [
       256
     ],
-    "roi_head.iou.norms.0.module.num_batches_tracked": [],
-    "roi_head.iou.norms.1.module.weight": [
+    "roi_head.cls.norms.0.module.num_batches_tracked": [],
+    "roi_head.cls.norms.1.module.weight": [
       256
     ],
-    "roi_head.iou.norms.1.module.bias": [
+    "roi_head.cls.norms.1.module.bias": [
       256
     ],
-    "roi_head.iou.norms.1.module.running_mean": [
+    "roi_head.cls.norms.1.module.running_mean": [
       256
     ],
-    "roi_head.iou.norms.1.module.running_var": [
+    "roi_head.cls.norms.1.module.running_var": [
       256
     ],
-    "roi_head.iou.norms.1.module.num_batches_tracked": []
+    "roi_head.cls.norms.1.module.num_batches_tracked": []
   }
 }

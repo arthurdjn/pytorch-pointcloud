@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
 
@@ -23,7 +24,7 @@ from torch_pointcloud.layers.anchors import (
 )
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.ops.box3d import nms3d, roi_grid_sample_bev
+from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D
@@ -280,14 +281,14 @@ class SECONDIoUOutput(TypedDict):
     r"""Predictions of [`SECONDIoUDetection`][torch_pointcloud.models.second.SECONDIoUDetection].
 
     Attributes:
-        iou: Predicted IoU logit of every RoI with its object, shape $(R, 1)$.
+        rcnn_cls: Second-stage confidence logit of every RoI (its predicted IoU with the object), shape $(R, 1)$.
         boxes: The RoIs, shape $(R, 7)$.
         roi_labels: First-stage class of every RoI, shape $(R,)$.
         roi_scores: First-stage score of every RoI, shape $(R,)$.
         batch: Scene index of every RoI, shape $(R,)$.
     """
 
-    iou: Tensor
+    rcnn_cls: Tensor
     boxes: Tensor
     roi_labels: Tensor
     roi_scores: Tensor
@@ -297,9 +298,8 @@ class SECONDIoUOutput(TypedDict):
 class SECONDIoUHead(nn.Module):
     r"""RoI head that scores every proposal by its predicted IoU with the object it covers.
 
-    Every RoI samples a $G \times G$ grid of the bird's-eye-view feature map (see
-    [`roi_grid_sample_bev`][torch_pointcloud.ops.box3d.roi_grid_sample_bev]); the flattened grid goes through shared
-    fully connected layers and an IoU branch ending in one logit. The boxes are not refined.
+    Every RoI samples a $G \times G$ grid of the bird's-eye-view feature map (see `pool`); the flattened grid goes
+    through shared fully connected layers and a confidence branch ending in one logit. The boxes are not refined.
 
     Args:
         in_channels: Channels of the bird's-eye-view feature map.
@@ -307,12 +307,29 @@ class SECONDIoUHead(nn.Module):
         origin: Map position $(x_0, y_0)$ of the first feature-map pixel.
         cell_size: Map extent $(s_x, s_y)$ of one feature-map pixel.
         shared_channels: Channels of the shared fully connected layers.
-        iou_channels: Hidden channels of the IoU branch.
+        cls_channels: Hidden channels of the confidence branch.
         dropout: Dropout after the first layer of every branch.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
         norm_kwargs: Extra normalization arguments.
+
+    Shape:
+        - rois: $(R, 7)$ boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$.
+        - roi_batch: $(R,)$ map index of every RoI.
+        - features: $(B, C, H, W)$.
+        - Output: $(R, 1)$ confidence logits.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models.second import SECONDIoUHead
+
+        head = SECONDIoUHead(8, 7, (0.0, -40.0), (0.4, 0.4), shared_channels=(32,), cls_channels=(16,)).eval()
+        rois = torch.tensor([[10.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.3]])
+        logits = head(rois, torch.zeros(1, dtype=torch.long), torch.randn(1, 8, 200, 176))
+        print(logits.shape)  # (1, 1)
+        ```
     """
 
     def __init__(
@@ -323,7 +340,7 @@ class SECONDIoUHead(nn.Module):
         cell_size: Sequence[float],
         *,
         shared_channels: Sequence[int],
-        iou_channels: Sequence[int],
+        cls_channels: Sequence[int],
         dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
@@ -342,33 +359,63 @@ class SECONDIoUHead(nn.Module):
             plain_last=False,
             **layer_kwargs,
         )
-        self.iou = MLP(
-            [shared_channels[-1], *iou_channels, 1],
-            bias=[False] * len(iou_channels) + [True],
-            dropout=[dropout] + [0.0] * len(iou_channels),
+        self.cls = MLP(
+            [shared_channels[-1], *cls_channels, 1],
+            bias=[False] * len(cls_channels) + [True],
+            dropout=[dropout] + [0.0] * len(cls_channels),
             **layer_kwargs,
         )
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
         r"""Xavier-normal weights and zero biases on every linear layer."""
-        for lin in [*self.shared.lins, *self.iou.lins]:
+        for lin in [*self.shared.lins, *self.cls.lins]:
             nn.init.xavier_normal_(lin.weight)
             if lin.bias is not None:
                 nn.init.zeros_(lin.bias)
 
-    def forward(self, features: Tensor, rois: Tensor, roi_batch: Tensor) -> Tensor:
-        r"""Predict the IoU logit $(R, 1)$ of every RoI from the $(B, C, H, W)$ feature map."""
-        pooled = roi_grid_sample_bev(
-            features,
-            rois,
-            self.grid_size,
-            self.origin,
-            self.cell_size,
-            box_batch=roi_batch,
-        )
+    def pool(self, rois: Tensor, roi_batch: Tensor, features: Tensor) -> Tensor:
+        r"""Bilinearly sample the $G \times G$ grid of every RoI from its feature map, $(R, C, G, G)$ indexed $(v, u)$.
+
+        Map pixel $(i, j)$ sits at $(x_0 + j\,s_x,\; y_0 + i\,s_y)$. The unit grid $(u, v) \in [-1, 1]^2$ is rotated
+        by the RoI heading first and scaled by the half extents along the map axes second, so a grid point lands at
+        $c_x + \tfrac{d_x}{2}(u \cos\theta - v \sin\theta)$ and $c_y + \tfrac{d_y}{2}(u \sin\theta + v \cos\theta)$.
+        This is the box footprint only for a square box or $\theta = 0$: a rotated non-square RoI gets a sheared
+        grid, which is what the released weights were trained on. Samples outside the map are zero.
+        """
+        height, width = features.shape[2:]
+        x1 = (rois[:, 0] - rois[:, 3] / 2 - self.origin[0]) / self.cell_size[0]
+        x2 = (rois[:, 0] + rois[:, 3] / 2 - self.origin[0]) / self.cell_size[0]
+        y1 = (rois[:, 1] - rois[:, 4] / 2 - self.origin[1]) / self.cell_size[1]
+        y2 = (rois[:, 1] + rois[:, 4] / 2 - self.origin[1]) / self.cell_size[1]
+        cos, sin = torch.cos(rois[:, 6]), torch.sin(rois[:, 6])
+        theta = torch.stack(
+            [
+                (x2 - x1) / (width - 1) * cos,
+                (x2 - x1) / (width - 1) * -sin,
+                (x1 + x2 - width + 1) / (width - 1),
+                (y2 - y1) / (height - 1) * sin,
+                (y2 - y1) / (height - 1) * cos,
+                (y1 + y2 - height + 1) / (height - 1),
+            ],
+            dim=1,
+        ).view(-1, 2, 3)
+
+        out = features.new_zeros(rois.shape[0], features.shape[1], self.grid_size, self.grid_size)
+        for scene in roi_batch.unique().tolist():
+            index = (roi_batch == scene).nonzero(as_tuple=False).squeeze(-1)
+            size = (index.numel(), features.shape[1], self.grid_size, self.grid_size)
+            grid = F.affine_grid(theta[index], list(size), align_corners=True)
+            # The map is broadcast to every RoI of the scene, a stride-0 view rather than a copy.
+            scene_features = features[scene].unsqueeze(0).expand(index.numel(), -1, -1, -1)
+            out[index] = F.grid_sample(scene_features, grid, align_corners=True)
+        return out
+
+    def forward(self, rois: Tensor, roi_batch: Tensor, features: Tensor) -> Tensor:
+        r"""Predict the confidence logit $(R, 1)$ of every RoI from the $(B, C, H, W)$ feature map."""
+        pooled = self.pool(rois, roi_batch, features)
         shared = self.shared(pooled.flatten(1))
-        return self.iou(shared)
+        return self.cls(shared)
 
 
 class SECONDIoUDetection(DetectionModel):
@@ -401,10 +448,10 @@ class SECONDIoUDetection(DetectionModel):
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the head.
         dir_limit_offset: Heading wrap offset used during decoding.
-        roi_grid_size: Grid points per RoI side of the IoU head.
-        roi_shared_channels: Channels of the shared fully connected layers of the IoU head.
-        roi_iou_channels: Hidden channels of the IoU branch.
-        roi_dropout: Dropout of the IoU head.
+        grid_size: Grid points per RoI side of the IoU head.
+        shared_channels: Channels of the shared fully connected layers of the IoU head.
+        cls_channels: Hidden channels of the confidence branch of the IoU head.
+        dropout: Dropout of the IoU head.
         act: Activation type or callable for the 3D/2D backbones.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable for the 3D/2D backbones.
@@ -433,10 +480,10 @@ class SECONDIoUDetection(DetectionModel):
         num_upsample_filters: Sequence[int] = (256, 256),
         num_dir_bins: int = 2,
         dir_limit_offset: float = 0.0,
-        roi_grid_size: int = 7,
-        roi_shared_channels: Sequence[int] = (256, 256),
-        roi_iou_channels: Sequence[int] = (256, 256),
-        roi_dropout: float = 0.0,
+        grid_size: int = 7,
+        shared_channels: Sequence[int] = (256, 256),
+        cls_channels: Sequence[int] = (256, 256),
+        dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -461,17 +508,17 @@ class SECONDIoUDetection(DetectionModel):
         self.num_dir_bins = num_dir_bins
         self.dir_offset = dir_offset
         self.dir_limit_offset = dir_limit_offset
-        self.roi_grid_size = roi_grid_size
-        self.roi_shared_channels = roi_shared_channels
-        self.roi_iou_channels = roi_iou_channels
-        self.roi_dropout = roi_dropout
+        self.grid_size = grid_size
+        self.shared_channels = shared_channels
+        self.cls_channels = cls_channels
+        self.dropout = dropout
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
         self.norm_kwargs = norm_kwargs
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
-        self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
+        self.grid_size_3d: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         # spconv spatial shape is (z, y, x) with an extra +1 on z (matches the reference implementation).
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
 
@@ -517,7 +564,7 @@ class SECONDIoUDetection(DetectionModel):
         return AnchorHead(
             self.backbone.num_bev_features,
             self.num_classes,
-            (self.grid_size[0], self.grid_size[1]),
+            (self.grid_size_3d[0], self.grid_size_3d[1]),
             self.point_cloud_range,
             anchor_sizes=self.anchor_sizes,
             anchor_bottom_heights=self.anchor_bottom_heights,
@@ -532,12 +579,12 @@ class SECONDIoUDetection(DetectionModel):
         """Build the IoU head over the BEV feature map."""
         return SECONDIoUHead(
             self.backbone.num_bev_features,
-            self.roi_grid_size,
+            self.grid_size,
             self.point_cloud_range[:2],
             (self.voxel_size[0] * self.feature_map_stride, self.voxel_size[1] * self.feature_map_stride),
-            shared_channels=self.roi_shared_channels,
-            iou_channels=self.roi_iou_channels,
-            dropout=self.roi_dropout,
+            shared_channels=self.shared_channels,
+            cls_channels=self.cls_channels,
+            dropout=self.dropout,
             act=self.act,
             act_kwargs=self.act_kwargs,
             # The IoU head keeps the default norm settings of the reference, not the trunk's.
@@ -600,9 +647,9 @@ class SECONDIoUDetection(DetectionModel):
         features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
-        iou = self.roi_head(features, rois, roi_batch)
+        rcnn_cls = self.roi_head(rois, roi_batch, features)
         return {
-            "iou": iou,
+            "rcnn_cls": rcnn_cls,
             "boxes": rois,
             "roi_labels": roi_labels,
             "roi_scores": roi_scores,
@@ -620,7 +667,7 @@ class SECONDIoUDetection(DetectionModel):
         """
         return {
             "boxes": out["boxes"],
-            "scores": out["iou"].sigmoid().view(-1),
+            "scores": out["rcnn_cls"].sigmoid().view(-1),
             "labels": out["roi_labels"],
             "batch": out["batch"],
         }
@@ -956,7 +1003,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
         proposal_post_maxsize=100,
         proposal_nms_thresh=0.7,
         dir_offset=0.78539,
-        roi_dropout=0.3,
+        dropout=0.3,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )

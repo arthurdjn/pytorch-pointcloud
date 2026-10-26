@@ -20,7 +20,6 @@ from torch_pointcloud.ops.box3d import (
     points_in_boxes,
     projected_ignore_mask,
     roi_aware_pool3d,
-    roi_grid_sample_bev,
 )
 
 
@@ -459,33 +458,3 @@ def test_decode_roi_residuals_in_the_roi_frame() -> None:
     # One length unit ahead of a quarter-turned RoI is one unit along +y; z moves by half the RoI height.
     expected = torch.tensor([[10.0, 6.0, 2.0, 8.0, 2.0, 2.0, math.pi / 2 + 0.1]])
     assert torch.allclose(boxes, expected, atol=1e-5)
-
-
-def test_roi_grid_sample_bev_reads_the_box_corners() -> None:
-    features = torch.arange(32.0).view(1, 2, 4, 4)
-    boxes = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]])
-    out = roi_grid_sample_bev(features, boxes, 2, (0.0, 0.0), (1.0, 1.0))
-    assert out.shape == (1, 2, 2, 2)
-    assert out[0, 0].tolist() == [[0.0, 3.0], [12.0, 15.0]]
-    assert out[0, 1].tolist() == [[16.0, 19.0], [28.0, 31.0]]
-
-
-def test_roi_grid_sample_bev_rotates_the_grid_and_uses_map_coordinates() -> None:
-    features = torch.arange(16.0).view(1, 1, 4, 4)
-    # A quarter turn transposes the grid of a square box; origin and cell size map the box into pixels.
-    boxes = torch.tensor([[13.0, 23.0, 0.0, 6.0, 6.0, 1.0, math.pi / 2]])
-    out = roi_grid_sample_bev(features, boxes, 2, (10.0, 20.0), (2.0, 2.0))[0, 0]
-    assert torch.allclose(out, torch.tensor([[3.0, 15.0], [0.0, 12.0]]), atol=1e-5)
-
-
-def test_roi_grid_sample_bev_reads_the_map_of_each_box() -> None:
-    features = torch.stack([torch.zeros(1, 4, 4), torch.ones(1, 4, 4)])
-    boxes = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]]).repeat(3, 1)
-    out = roi_grid_sample_bev(features, boxes, 3, (0.0, 0.0), (1.0, 1.0), box_batch=torch.tensor([1, 0, 1]))
-    assert out[:, 0].mean(dim=(1, 2)).tolist() == [1.0, 0.0, 1.0]
-
-
-def test_roi_grid_sample_bev_is_zero_outside_the_map() -> None:
-    features = torch.ones(1, 1, 4, 4)
-    boxes = torch.tensor([[100.0, 100.0, 0.0, 2.0, 2.0, 1.0, 0.3]])
-    assert roi_grid_sample_bev(features, boxes, 3, (0.0, 0.0), (1.0, 1.0)).abs().max() == 0.0

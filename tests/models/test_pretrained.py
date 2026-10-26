@@ -745,9 +745,9 @@ def test_pretrained_second_iou(
     with torch.no_grad():
         features = model.forward_features(voxels, pos_voxel, num_points, batch_voxel)
         out = model.forward_head(features)
-        iou = model.roi_head(features, rois, roi_batch)
+        rcnn_cls = model.roi_head(rois, roi_batch, features)
 
-    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], iou.reshape(-1)]
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 

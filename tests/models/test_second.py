@@ -1,3 +1,4 @@
+import math
 from typing import Dict
 
 import pytest
@@ -111,22 +112,69 @@ def test_second_iou_create_model_hparams() -> None:
     assert model.roi_head.shared.lins[0].in_channels == 512 * 7 * 7
     assert model.roi_head.origin == (0.0, -40.0)
     assert model.roi_head.cell_size == pytest.approx((0.4, 0.4))
+    assert model.grid_size == 7 and model.grid_size_3d == (1408, 1600, 40)
 
 
 def test_second_iou_head_reads_only_the_map_of_each_roi() -> None:
     torch.manual_seed(0)
-    head = SECONDIoUHead(8, 3, (0.0, 0.0), (1.0, 1.0), shared_channels=[16], iou_channels=[16]).eval()
+    head = SECONDIoUHead(8, 3, (0.0, 0.0), (1.0, 1.0), shared_channels=[16], cls_channels=[16]).eval()
     features = torch.randn(2, 8, 10, 10)
     rois = torch.tensor([[4.0, 4.0, 0.0, 3.0, 2.0, 1.0, 0.3], [5.0, 6.0, 0.0, 2.0, 4.0, 1.0, -1.0]]).repeat(2, 1)
     roi_batch = torch.tensor([0, 0, 1, 1])
     with torch.no_grad():
-        iou = head(features, rois, roi_batch)
+        iou = head(rois, roi_batch, features)
         changed = features.clone()
         changed[1] = torch.randn(8, 10, 10)
-        iou_changed = head(changed, rois, roi_batch)
+        iou_changed = head(rois, roi_batch, changed)
     assert iou.shape == (4, 1)
     assert torch.equal(iou[:2], iou_changed[:2])
     assert not torch.equal(iou[2:], iou_changed[2:])
+
+
+def _pooling_head(grid_size: int, origin: tuple, cell_size: tuple) -> SECONDIoUHead:
+    return SECONDIoUHead(2, grid_size, origin, cell_size, shared_channels=[4], cls_channels=[4])
+
+
+def test_second_iou_head_pool_reads_the_box_corners() -> None:
+    features = torch.arange(32.0).view(1, 2, 4, 4)
+    rois = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]])
+    out = _pooling_head(2, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.zeros(1, dtype=torch.long), features)
+    assert out.shape == (1, 2, 2, 2)
+    assert out[0, 0].tolist() == [[0.0, 3.0], [12.0, 15.0]]
+    assert out[0, 1].tolist() == [[16.0, 19.0], [28.0, 31.0]]
+
+
+def test_second_iou_head_pool_rotates_the_grid_and_uses_map_coordinates() -> None:
+    features = torch.arange(16.0).view(1, 1, 4, 4).repeat(1, 2, 1, 1)
+    # A quarter turn transposes the grid of a square box; origin and cell size map the box into pixels.
+    rois = torch.tensor([[13.0, 23.0, 0.0, 6.0, 6.0, 1.0, math.pi / 2]])
+    out = _pooling_head(2, (10.0, 20.0), (2.0, 2.0)).pool(rois, torch.zeros(1, dtype=torch.long), features)[0, 0]
+    assert torch.allclose(out, torch.tensor([[3.0, 15.0], [0.0, 12.0]]), atol=1e-5)
+
+
+def test_second_iou_head_pool_shears_a_rotated_non_square_box() -> None:
+    # Channel 0 holds the map x of every pixel, channel 1 its map y.
+    j, i = torch.meshgrid(torch.arange(9.0), torch.arange(9.0), indexing="xy")
+    features = torch.stack([j, i]).unsqueeze(0)
+    rois = torch.tensor([[4.0, 4.0, 0.0, 4.0, 2.0, 1.0, math.pi / 2]])
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.zeros(1, dtype=torch.long), features)[0]
+    # The grid is rotated first and scaled along the map axes second: x spans the half length 2 (along v), y the
+    # half width 1 (along u), where the turned 4 x 2 footprint itself spans 1 in x and 2 in y.
+    assert torch.allclose(out[0], torch.tensor([[6.0] * 3, [4.0] * 3, [2.0] * 3]), atol=1e-5)
+    assert torch.allclose(out[1], torch.tensor([[3.0, 4.0, 5.0]] * 3), atol=1e-5)
+
+
+def test_second_iou_head_pool_reads_the_map_of_each_roi() -> None:
+    features = torch.stack([torch.zeros(2, 4, 4), torch.ones(2, 4, 4)])
+    rois = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]]).repeat(3, 1)
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.tensor([1, 0, 1]), features)
+    assert out[:, 0].mean(dim=(1, 2)).tolist() == [1.0, 0.0, 1.0]
+
+
+def test_second_iou_head_pool_is_zero_outside_the_map() -> None:
+    rois = torch.tensor([[100.0, 100.0, 0.0, 2.0, 2.0, 1.0, 0.3]])
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.zeros(1, dtype=torch.long), torch.ones(1, 2, 4, 4))
+    assert out.abs().max() == 0.0
 
 
 def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
@@ -137,14 +185,20 @@ def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
     with torch.no_grad():
         out = model.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = model.proposals(out)
-        iou = model.roi_head(features, rois, roi_batch)
+        rcnn_cls = model.roi_head(rois, roi_batch, features)
         det = model.decode(
-            {"iou": iou, "boxes": rois, "roi_labels": roi_labels, "roi_scores": roi_scores, "batch": roi_batch}
+            {
+                "rcnn_cls": rcnn_cls,
+                "boxes": rois,
+                "roi_labels": roi_labels,
+                "roi_scores": roi_scores,
+                "batch": roi_batch,
+            }
         )
     assert 0 < rois.shape[0] <= 2 * 8
     assert torch.bincount(roi_batch).max() <= 8
     assert torch.equal(det["boxes"], rois) and torch.equal(det["labels"], roi_labels)
-    assert torch.equal(det["scores"], iou.sigmoid().view(-1))
+    assert torch.equal(det["scores"], rcnn_cls.sigmoid().view(-1))
     assert int(det["labels"].max()) < 3
 
 
@@ -159,7 +213,7 @@ def test_second_iou_forward_and_decode() -> None:
         det = model.decode(out)
     num_rois = out["boxes"].shape[0]
     assert 0 < num_rois <= 2 * 16
-    assert out["iou"].shape == (num_rois, 1)
+    assert out["rcnn_cls"].shape == (num_rois, 1)
     assert det["scores"].shape == det["labels"].shape == det["batch"].shape == (num_rois,)
     assert torch.isfinite(det["boxes"]).all()
 
