@@ -5,7 +5,9 @@ import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.litept import LitePTBlock, LitePTSegmentation, segmentation_checkpoint_filter_fn
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 requires_spconv = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
@@ -96,13 +98,19 @@ def test_litept_segmentation_serializes_attention_stages_only(data: Dict[str, Te
 
 @requires_cuda
 @requires_spconv
-def test_litept_segmentation_headless(data: Dict[str, Tensor]) -> None:
+def test_litept_segmentation_headless_forward(data: Dict[str, Tensor]) -> None:
     model = _litept((0, 0))
     model.reset_classifier(num_classes=0)
     model.cuda()
-    assert isinstance(model.head, nn.Identity)
     features = model(data["x"], data["pos_grid"], data["batch"])
     assert features.shape == (data["x"].shape[0], model.num_features)
+
+
+@requires_spconv
+def test_litept_segmentation_headless() -> None:
+    model = _litept((0, 0))
+    model.reset_classifier(num_classes=0)
+    assert isinstance(model.head, nn.Identity)
     assert model.num_features == 12
 
 
@@ -141,3 +149,62 @@ def test_segmentation_checkpoint_filter_fn() -> None:
 def test_segmentation_checkpoint_filter_fn_targets_exist() -> None:
     model = _litept((1, 1))
     assert set(RELEASED_KEYS.values()) <= set(model.state_dict())
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("litept-small.scannet20.prs-eth", id="scannet20"),
+        pytest.param("litept-small.structured3d.prs-eth", id="structured3d-small"),
+        pytest.param("litept-base.structured3d.prs-eth", id="structured3d-base"),
+        pytest.param("litept-large.structured3d.prs-eth", id="structured3d-large"),
+    ],
+)
+def test_litept_indoor_registered_transform_runs_without_labels(name: str) -> None:
+    """The indoor transform runs on an unlabeled cloud and feeds colors in $[0, 1]$, the scale of the training data."""
+    transform = model_info(name)["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    color = torch.randint(0, 256, (500, 3), dtype=torch.uint8)
+    color[0] = 255
+    data = {
+        DataKeys.POS: torch.rand(500, 3) * 2.0,
+        DataKeys.COLOR: color,
+        DataKeys.NORMAL: nn.functional.normalize(torch.randn(500, 3), dim=1),
+    }
+
+    out = transform(data)
+
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].shape == (out[DataKeys.POS_GRID].size(0), 6)
+    assert out[DataKeys.INVERSE].shape == (500,)
+    assert out[DataKeys.X][:, :3].min() >= 0.0
+    assert out[DataKeys.X][:, :3].max() == 1.0
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("litept-small.nuscenes.prs-eth", id="small"),
+        pytest.param("litept-large.nuscenes.prs-eth", id="large"),
+    ],
+)
+def test_litept_nuscenes_registered_transform_runs_without_labels(name: str) -> None:
+    """The nuScenes transform runs on an unlabeled scan and scales the intensities to $[0, 1]$."""
+    transform = model_info(name)["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    intensity = torch.randint(0, 256, (500, 1)).float()
+    intensity[0] = 255.0
+    data = {
+        DataKeys.POS: torch.rand(500, 3) * 50.0,
+        DataKeys.INTENSITY: intensity,
+    }
+
+    out = transform(data)
+
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].shape == (out[DataKeys.POS_GRID].size(0), 4)
+    assert out[DataKeys.INVERSE].shape == (500,)
+    assert out[DataKeys.X][:, 3].min() >= 0.0
+    assert out[DataKeys.X][:, 3].max() == 1.0
