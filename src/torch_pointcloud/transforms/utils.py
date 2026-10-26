@@ -971,8 +971,9 @@ class Clamp(DictTransform):
 def clamp_norm(x: Tensor, max_norm: float) -> Tensor:
     r"""Scale the rows of `x` whose Euclidean norm exceeds `max_norm` back onto that norm, keeping their direction.
 
-    A row $x_i$ with $\lVert x_i \rVert > m$ becomes $x_i \cdot m / \lVert x_i \rVert$; the other rows are unchanged. On
-    positions centred on a sensor, this pulls every point beyond the range $m$ onto the sphere of that radius.
+    A row $x_i$ with $\lVert x_i \rVert > m$ becomes $x_i \cdot m / \lVert x_i \rVert$; the other rows are unchanged.
+    This is `torch.renorm(x, p=2, dim=0, maxnorm=m)` without its $10^{-7}$ epsilon, so the ratio
+    $m / \lVert x_i \rVert$ is exact.
 
     Args:
         x: Input tensor of shape $(N, D)$.
@@ -1002,6 +1003,14 @@ def clamp_norm(x: Tensor, max_norm: float) -> Tensor:
 
 class ClampNorm(DictTransform):
     r"""Clamp the Euclidean norm of every row of tensor entries, keeping each row's direction (see `clamp_norm`).
+
+    === "Object"
+
+        ![ClampNorm on an object](../../assets/transforms/clamp_norm.png)
+
+    === "Scene"
+
+        ![ClampNorm on a room](../../assets/transforms/clamp_norm_scene.png)
 
     Args:
         keys: Keys holding tensors of shape $(N, D)$.

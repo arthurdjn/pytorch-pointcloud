@@ -271,6 +271,12 @@ def test_clamp_norm_keeps_direction() -> None:
     torch.testing.assert_close(out / norms[:, None], x / torch.linalg.vector_norm(x, dim=1, keepdim=True))
 
 
+def test_clamp_norm_matches_renorm_up_to_its_epsilon() -> None:
+    torch.manual_seed(0)
+    x = torch.randn(1000, 3) * 100.0
+    torch.testing.assert_close(F.clamp_norm(x, max_norm=50.0), torch.renorm(x, p=2, dim=0, maxnorm=50.0))
+
+
 def test_clamp_norm_requires_a_positive_bound() -> None:
     with pytest.raises(ValueError, match="max_norm"):
         F.clamp_norm(torch.zeros(2, 3), max_norm=0.0)
