@@ -33,7 +33,10 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added `PVCNNPartSegmentation` and `PointNet2PartSegmentation` with the PVCNN and PointNet++ ShapeNetPart checkpoints, and their benchmark and training scripts.
-- Added `metrics.part_predictions` and the `"max"` aggregation of `TTAInferer`.
+- Added `metrics.part_predictions`, the `"max"` aggregation of `TTAInferer` and `SlidingWindowInferer(block_size=None)`, which takes each cloud as one block.
+- `SlidingWindowInferer(aggregate="max")` keeps the elementwise maximum of the block probabilities; the argmax over all the classes is unchanged.
+- `PVCNNSegmentation(head_dropout=...)` also takes one value per hidden head layer.
+- Fixed `part_intersection_over_union` scoring the wrong parts when given a one-hot `category`; it raises now.
 
 ## 0.0.18 (2026-10-20)
 
