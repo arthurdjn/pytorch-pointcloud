@@ -23,7 +23,13 @@ from .focal import (
 )
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
-from .mask import DiceLoss, dice_loss, pairwise_binary_cross_entropy_with_logits, pairwise_dice_loss
+from .mask import (
+    DiceLoss,
+    dice_loss,
+    mask_matching_cost,
+    pairwise_binary_cross_entropy_with_logits,
+    pairwise_dice_loss,
+)
 from .matching import hungarian_match, hungarian_match_batched
 from .pointrcnn import PointRCNNLoss
 from .spformer import SPFormerLoss
@@ -64,6 +70,7 @@ __all__ = [
     "iou_prediction_loss",
     "kpconv_deform_regularizer",
     "lovasz_softmax",
+    "mask_matching_cost",
     "one_hot_foreground",
     "pairwise_binary_cross_entropy_with_logits",
     "pairwise_dice_loss",

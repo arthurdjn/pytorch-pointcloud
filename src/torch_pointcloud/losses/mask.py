@@ -152,3 +152,56 @@ def pairwise_binary_cross_entropy_with_logits(logits: Tensor, targets: Tensor) -
     positive = F.binary_cross_entropy_with_logits(logits, logits.new_ones(()).expand_as(logits), reduction="none")
     negative = F.binary_cross_entropy_with_logits(logits, logits.new_zeros(()).expand_as(logits), reduction="none")
     return (positive @ targets.T + negative @ (1 - targets).T) / logits.shape[-1]
+
+
+def mask_matching_cost(
+    class_prob: Tensor,
+    mask_logits: Tensor,
+    target_masks: Tensor,
+    target_labels: Tensor,
+    *,
+    class_weight: float = 1.0,
+    mask_weight: float = 1.0,
+    dice_weight: float = 1.0,
+) -> Tensor:
+    r"""Cost of matching every predicted mask to every target instance, the input of a Hungarian assignment.
+
+    Entry $(q, i)$ is the weighted sum of the negative probability that query $q$ predicts the class of instance $i$,
+    the mask binary cross-entropy and the mask dice loss between them (`pairwise_binary_cross_entropy_with_logits`
+    and `pairwise_dice_loss`).
+
+    Args:
+        class_prob: Per-query class probabilities, shape $(Q, C)$.
+        mask_logits: Per-query mask logits, shape $(Q, M)$.
+        target_masks: Binary (or soft) target masks, shape $(I, M)$.
+        target_labels: Target classes in $[0, C)$, shape $(I,)$.
+        class_weight: Weight of the class probability term.
+        mask_weight: Weight of the binary cross-entropy term.
+        dice_weight: Weight of the dice term.
+
+    Returns:
+        The pairwise costs, shape $(Q, I)$.
+
+    Shape:
+        - class_prob: $(Q, C)$
+        - mask_logits: $(Q, M)$
+        - target_masks: $(I, M)$
+        - target_labels: $(I,)$
+        - output: $(Q, I)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> class_prob = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+        >>> mask_logits = torch.tensor([[10.0, -10.0], [-10.0, 10.0]])
+        >>> cost = mask_matching_cost(class_prob, mask_logits, torch.tensor([[0.0, 1.0]]), torch.tensor([1]))
+        >>> cost.argmin(dim=0).tolist()
+        [1]
+
+        ```
+    """
+    return (
+        -class_weight * class_prob[:, target_labels]
+        + mask_weight * pairwise_binary_cross_entropy_with_logits(mask_logits, target_masks)
+        + dice_weight * pairwise_dice_loss(mask_logits, target_masks)
+    )

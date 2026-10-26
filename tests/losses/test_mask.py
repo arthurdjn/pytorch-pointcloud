@@ -2,7 +2,13 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from torch_pointcloud.losses import DiceLoss, dice_loss, pairwise_binary_cross_entropy_with_logits, pairwise_dice_loss
+from torch_pointcloud.losses import (
+    DiceLoss,
+    dice_loss,
+    mask_matching_cost,
+    pairwise_binary_cross_entropy_with_logits,
+    pairwise_dice_loss,
+)
 
 
 def test_dice_loss_hand_checked() -> None:
@@ -38,3 +44,18 @@ def test_pairwise_losses_match_the_elementwise_losses() -> None:
         for i in range(3):
             torch.testing.assert_close(dice[q, i], dice_loss(logits[q], targets[i]))
             torch.testing.assert_close(bce[q, i], F.binary_cross_entropy_with_logits(logits[q], targets[i]))
+
+
+def test_mask_matching_cost_sums_the_weighted_terms() -> None:
+    torch.manual_seed(0)
+    class_prob = torch.rand(5, 4).softmax(dim=-1)
+    logits = torch.randn(5, 30)
+    targets = (torch.rand(3, 30) > 0.5).float()
+    labels = torch.tensor([2, 0, 2])
+    cost = mask_matching_cost(class_prob, logits, targets, labels, class_weight=0.5, mask_weight=2.0, dice_weight=3.0)
+    expected = (
+        -0.5 * class_prob[:, labels]
+        + 2.0 * pairwise_binary_cross_entropy_with_logits(logits, targets)
+        + 3.0 * pairwise_dice_loss(logits, targets)
+    )
+    torch.testing.assert_close(cost, expected)
