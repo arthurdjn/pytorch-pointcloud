@@ -294,12 +294,13 @@ def test_read_state_dict_unwraps_model_state_dict(tmp_path: Path) -> None:
     assert list(result.keys()) == ["lin.weight"]
 
 
-def test_read_state_dict_lightning_checkpoint_without_model_prefix_raises(tmp_path: Path) -> None:
+def test_read_state_dict_lightning_checkpoint_without_model_prefix_keeps_every_key(tmp_path: Path) -> None:
     path = tmp_path / "lit.ckpt"
     torch.save({"pytorch-lightning_version": "2.0", "state_dict": {"net.lin.weight": torch.zeros(2, 2)}}, path)
 
-    with pytest.raises(ValueError, match="no 'model.'-prefixed keys"):
-        read_state_dict(path)
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["net.lin.weight"]
 
 
 def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path) -> None:
