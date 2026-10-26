@@ -58,6 +58,7 @@ def superpoint_instance_masks(
     Ground-truth instances are the (scene, `instance`) pairs among the points with a non-negative id and a label
     other than `ignore_index`, numbered scene by scene in ascending id order. A superpoint belongs to an instance when
     more than `threshold` of its points do; the fraction counts every point of the superpoint, ignored ones included.
+    Any packed point clustering works as `superpoint`, e.g. the voxels of a voxelized scene (its `inverse` map).
 
     Args:
         instance: Instance id of every point within its scene, shape $(N,)$; negative marks no instance.
