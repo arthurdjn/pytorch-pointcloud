@@ -398,7 +398,7 @@ class HardVoxelize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feat = d.get(self.feature_key) if self.feature_key is not None else None
+        feat = d[self.feature_key] if self.feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = hard_voxelize(
@@ -421,7 +421,9 @@ class DynamicVoxelize(DictTransform):
     The dynamic counterpart of `HardVoxelize`: every voxel keeps the mean of all its points instead of a capped,
     padded stack, so the result does not depend on the point order or on a voxel budget. The output uses the same
     keys and layout as `HardVoxelize` with a single point per voxel (the mean), which is what the mean voxel
-    encoders of the voxel detectors consume.
+    encoders of the voxel detectors consume. Unlike `Voxelize`, which keeps one representative point per voxel of
+    a grid set by the cloud itself, the grid here is the fixed one of `point_cloud_range`, so the indices address
+    the spatial shape of a detector.
 
     Args:
         pos_key: Key holding the point positions $(N, 3)$.
@@ -430,13 +432,14 @@ class DynamicVoxelize(DictTransform):
         feature_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
         dst_voxel_key: Output key for the per-voxel mean point.
         dst_pos_voxel_key: Output key for the integer voxel grid indices.
-        dst_num_points_key: Output key for the per-voxel point counts (one, the mean point, for every voxel).
+        dst_num_points_key: Output key for the per-voxel point counts: one for every voxel on purpose, since the
+            voxel already holds the mean and a mean voxel encoder divides by this count.
         allow_missing_keys: Unused (`pos_key` is always required); kept for interface parity.
 
     Shape:
         - `dst_voxel_key`: $(V, 1, 3 + C)$.
         - `dst_pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
-        - `dst_num_points_key`: $(V,)$.
+        - `dst_num_points_key`: $(V,)$, all ones.
 
     Example:
         ```python
@@ -477,7 +480,7 @@ class DynamicVoxelize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feat = d.get(self.feature_key) if self.feature_key is not None else None
+        feat = d[self.feature_key] if self.feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, self.voxel_size, self.point_cloud_range)

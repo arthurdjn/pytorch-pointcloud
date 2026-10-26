@@ -296,6 +296,13 @@ def dynamic_voxelize(
         A tuple `(voxels, voxel_indices, num_points)` where `voxels` is the per-voxel mean of the point features
         $(V, C)$, `voxel_indices` is $(V, 4)$ with columns $(\text{batch}, z, y, x)$ and `num_points` is $(V,)$.
 
+    Shape:
+        - points: $(N, C)$
+        - batch: $(N,)$
+        - voxels: $(V, C)$
+        - voxel_indices: $(V, 4)$
+        - num_points: $(V,)$, the points of every voxel
+
     Example:
         ```python
         import torch
