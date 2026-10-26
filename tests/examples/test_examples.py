@@ -153,6 +153,12 @@ BENCHMARKS = [
         id="randlanet/semantic3d",
     ),
     pytest.param(
+        "minkunet/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="minkunet/semantickitti",
+    ),
+    pytest.param(
         "spvcnn/segmentation_semantickitti_benchmark.py",
         ("--limit", "1"),
         marks=_GPU_TORCHSPARSE,
@@ -533,6 +539,22 @@ TRAININGS = [
         ),
         marks=_CLUSTER,
         id="randlanet/semantickitti",
+    ),
+    pytest.param(
+        "minkunet/segmentation_semantickitti_train.py",
+        (
+            *_SMOKE_RECIPE,
+            "--train-sequences",
+            "00",
+            "--val-sequences",
+            "08",
+            "--batch-size",
+            "2",
+            "--warmup-iters",
+            "1",
+        ),
+        marks=_GPU_SPCONV,
+        id="minkunet/semantickitti",
     ),
     pytest.param(
         "spvcnn/segmentation_semantickitti_train.py",
