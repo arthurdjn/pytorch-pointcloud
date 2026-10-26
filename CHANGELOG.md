@@ -34,7 +34,6 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added Volt (`VoltSegmentation`) with the authors' ScanNet, ScanNet200, nuScenes and SemanticKITTI checkpoints, and their benchmark scripts.
 - Added the `PackedTransformerBlock`, `AxialRoPE` and voxel patch layers, `ops.voxelization.voxel_patch_partition` and the `ClampNorm` transform.
-- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
 
 ## 0.0.18 (2026-10-20)
 

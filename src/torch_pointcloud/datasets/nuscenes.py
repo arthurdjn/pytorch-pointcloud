@@ -304,9 +304,10 @@ NUSCENES_LIDARSEG_LABEL_NAMES: Dict[int, str] = {
     31: "vehicle.ego",
 }
 
-# Raw lidarseg label id to 16-class index, the learning map of the lidarseg benchmark: the pedestrian kinds merge, so do
-# the two buses. Noise, animal, the rare movable and static objects, the emergency vehicles, `static.other` and the ego
-# vehicle are absent, so a `Relabel` with this map sends them to its `default`.
+# Raw lidarseg label id to 16-class index, the learning map of the lidarseg benchmark: the pedestrian kinds merge, both
+# buses merge. Noise, animals, debris, pushable objects, bicycle racks, personal mobility, strollers, wheelchairs,
+# emergency vehicles, `static.other` and the ego vehicle are absent, so a `Relabel` with this map sends them to its
+# `default`.
 NUSCENES_LIDARSEG_LEARNING_MAP: Dict[int, int] = {
     9: 0,  # barrier
     14: 1,  # bicycle
