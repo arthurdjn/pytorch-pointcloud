@@ -39,6 +39,7 @@ neither are marked as such.
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
 | cardwing/Codes-for-PVKD                         | `yuenan-hou`     | MIT          | 1     | Copyright (c) 2022 HOU Yuenan                                                                                              |
+| xinge008/Cylinder3D                             | `xinge-zhu`      | Apache-2.0   | 1     | Copyright 2020-2021 Xinge ZHU                                                                                              |
 
 ## Training data
 
@@ -51,7 +52,7 @@ Licenses of the datasets the checkpoints were trained on.
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 6           |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 7           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 5           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |

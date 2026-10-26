@@ -151,6 +151,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("cylinder3d.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
     ("cylinder3d-laser-polar-mix.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d.semantickitti.xinge-zhu", "semantic-segmentation", "semantickitti"),
     # DALES based models
     ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
     # nuScenes-lidarseg based models

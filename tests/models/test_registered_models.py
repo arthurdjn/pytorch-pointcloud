@@ -121,6 +121,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "spformer-unet.scannet",
     "cylinder3d.semantickitti.mmdet3d",
     "cylinder3d-laser-polar-mix.semantickitti.mmdet3d",
+    "cylinder3d.semantickitti.xinge-zhu",
     "cylinder3d-0p5x.nuscenes.yuenan-hou",
     "concerto-large-lp.scannet20.pointcept",
     "utonia-base-lp.scannet20.pointcept",

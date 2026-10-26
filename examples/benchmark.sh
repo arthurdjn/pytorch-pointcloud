@@ -130,6 +130,7 @@ $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --mo
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-30gmacs.semantickitti.mit-han-lab
 $RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d.semantickitti.mmdet3d
 $RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d-laser-polar-mix.semantickitti.mmdet3d
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d.semantickitti.xinge-zhu
 $RUN examples/octformer/segmentation_scannet_benchmark.py --root "$ROOT" --model octformer-base.scannet20.octree-nn
 $RUN examples/octformer/segmentation_scannet200_benchmark.py --root "$ROOT" --model octformer-base.scannet200.octree-nn
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-sm.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 8

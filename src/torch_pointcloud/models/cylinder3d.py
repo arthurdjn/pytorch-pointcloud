@@ -210,6 +210,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/cylinder3d.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
+        metrics={"mIoU": 63.19, "OA": 91.08},
         classes=SEMANTIC_KITTI_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -238,6 +239,7 @@ def cylinder3d_semantickitti_mmdet3d(**hparams: Any) -> Cylinder3DSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/cylinder3d-laser-polar-mix.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
+        metrics={"mIoU": 67.54, "OA": 91.87},
         classes=SEMANTIC_KITTI_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -260,12 +262,42 @@ def cylinder3d_laser_polar_mix_semantickitti_mmdet3d(**hparams: Any) -> Cylinder
 
 
 @register_model(
+    "cylinder3d.semantickitti.xinge-zhu",
+    task="semantic-segmentation",
+    input_keys=("x", "pos", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/cylinder3d.semantickitti.xinge-zhu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="semantickitti",
+        metrics={"mIoU": 66.91, "OA": 91.49},
+        classes=SEMANTIC_KITTI_CLASSES,
+        author="xinge-zhu",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=255, allow_missing_keys=True),
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=1,
+        num_classes=19,
+        point_cloud_range=(0.0, -3.1415926, -4.0, 50.0, 3.1415926, 2.0),
+        grid_shape=(480, 360, 32),
+    ),
+)
+def cylinder3d_semantickitti_xinge_zhu(**hparams: Any) -> Cylinder3DSegmentation:
+    return Cylinder3DSegmentation(**hparams)
+
+
+@register_model(
     "cylinder3d-0p5x.nuscenes.yuenan-hou",
     task="semantic-segmentation",
     input_keys=("x", "pos", "batch"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/cylinder3d-0p5x.nuscenes.yuenan-hou/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
+        metrics={"mIoU": 76.15, "OA": 93.22},
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="yuenan-hou",
         license="MIT",
