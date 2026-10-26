@@ -149,6 +149,11 @@
     "date": "March 2022",
     "title": "Masked Autoencoders for Point Cloud Self-supervised Learning"
   },
+  "2203.11496": {
+    "crop": 0.47,
+    "date": "March 2022",
+    "title": "TransFusion: Robust LiDAR-Camera Fusion for 3D Object Detection with Transformers"
+  },
   "2205.14401": {
     "crop": 0.47,
     "date": "May 2022",

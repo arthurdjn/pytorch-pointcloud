@@ -1,18 +1,16 @@
-r"""Loss of the query-based `TransFusionHead` (LION): Hungarian-matched query targets and a dense center heatmap."""
+r"""Loss of the query-based `TransFusionHead`: Hungarian-matched query targets and a dense center heatmap."""
 
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Sequence, Tuple
 
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.layers.transfusion_head import TransFusionHeadOutput, decode_query_boxes
 from torch_pointcloud.losses._utils import unbatch_boxes
 from torch_pointcloud.losses.focal import gaussian_focal_loss, sigmoid_focal_loss
 from torch_pointcloud.losses.matching import hungarian_match_batched
 from torch_pointcloud.ops.box3d import boxes_iou3d
 from torch_pointcloud.ops.heatmap import draw_heatmap_targets
-
-if TYPE_CHECKING:
-    from torch_pointcloud.models.lion import TransFusionHeadOutput
 
 _LOG_EPS = 1e-12
 
@@ -23,7 +21,7 @@ class TransFusionHeadLoss(nn.Module):
     Reference: :arxiv: [TransFusion: Robust LiDAR-Camera Fusion for 3D Object Detection with Transformers](https://arxiv.org/abs/2203.11496) (Bai et al., 2022).
 
     The head predicts a dense per-class BEV heatmap plus a fixed set of object queries, each carrying a
-    class logit vector and a box code. Four terms are summed:
+    class logit vector and a box code. Three terms are summed, four when the head has the `iou` branch:
 
     - **Heatmap:** the ground-truth box centers are splatted onto a per-class BEV Gaussian map and the
       dense heatmap is supervised by the penalty-reduced center focal loss.
@@ -32,10 +30,10 @@ class TransFusionHeadLoss(nn.Module):
       per-query class logits are then trained by sigmoid focal loss over one-hot targets (background for
       unmatched queries), normalized by the positive count.
     - **Box regression:** code-weighted $L_1$ over the $10$-dim box code
-      $(x, y, z + d_z / 2, \log d_x, \log d_y, \log d_z, \sin\theta, \cos\theta, v_x, v_y)$ at the
-      matched queries.
-    - **IoU rescore:** an $L_1$ term regressing the per-query `iou` branch toward $2 \cdot \text{IoU}_{3D} - 1$
-      between each matched query's decoded box and its ground-truth box.
+      $(x, y, h, \log d_x, \log d_y, \log d_z, \sin\theta, \cos\theta, v_x, v_y)$ at the matched queries, with
+      $h = z$ or the box top $h = z + d_z / 2$ (`height_code`).
+    - **IoU rescore:** an $L_1$ term regressing the per-query `iou` branch, when the head has one, toward
+      $2 \cdot \text{IoU}_{3D} - 1$ between each matched query's decoded box and its ground-truth box.
 
     The loss holds no reference to the model: the grid geometry is rebuilt from the constructor params.
 
@@ -54,9 +52,11 @@ class TransFusionHeadLoss(nn.Module):
         cls_weight: Multiplier on the classification term.
         loc_weight: Multiplier on the box-regression term.
         heatmap_weight: Multiplier on the heatmap term.
-        iou_weight: Multiplier on the IoU-rescore term.
+        iou_weight: Multiplier on the IoU-rescore term of a head with the `iou` branch.
         focal_alpha: Focal positive/negative balance (classification loss and matching cost).
         focal_gamma: Focal focusing exponent (classification loss and matching cost).
+        height_code: Box point the head's `height` code regresses: the gravity center, or the top face
+            ($z + d_z / 2$).
     """
 
     code_weights: Tensor
@@ -81,6 +81,7 @@ class TransFusionHeadLoss(nn.Module):
         iou_weight: float = 0.5,
         focal_alpha: float = 0.25,
         focal_gamma: float = 2.0,
+        height_code: Literal["center", "top"] = "center",
     ) -> None:
         super().__init__()
         if len(code_weights) != 10:
@@ -102,6 +103,7 @@ class TransFusionHeadLoss(nn.Module):
         self.iou_weight = iou_weight
         self.focal_alpha = focal_alpha
         self.focal_gamma = focal_gamma
+        self.height_code = height_code
 
         pcr, vs = self.point_cloud_range, self.voxel_size
         grid = [int(round((pcr[i + 3] - pcr[i]) / vs[i])) for i in range(3)]
@@ -109,19 +111,20 @@ class TransFusionHeadLoss(nn.Module):
 
         self.register_buffer("code_weights", torch.tensor(list(code_weights), dtype=torch.float32))
 
-    def forward(self, output: "TransFusionHeadOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+    def forward(self, output: TransFusionHeadOutput, data: Dict[str, Any]) -> Dict[str, Tensor]:
         r"""Compute the TransFusion loss and its terms.
 
         Args:
             output: The head's raw output: per-query `center` $(B, 2, Q)$, `height` $(B, 1, Q)$,
-                `dim` $(B, 3, Q)$, `rot` $(B, 2, Q)$, `vel` $(B, 2, Q)$, `iou` $(B, 1, Q)$ and `heatmap`
-                $(B, C, Q)$ class logits, plus the dense `dense_heatmap` $(B, C, H, W)$.
+                `dim` $(B, 3, Q)$, `rot` $(B, 2, Q)$, `vel` $(B, 2, Q)$, an optional `iou` $(B, 1, Q)$ and
+                `heatmap` $(B, C, Q)$ class logits, plus the dense `dense_heatmap` $(B, C, H, W)$.
             data: Packed ground truth (`DataKeys.BOX` $(K, 7)$ full-extent, or $(K, 9)$ with the velocity in
                 the last two columns, `DataKeys.LABEL` $(K,)$ $0$-based, `DataKeys.BATCH_BOX` $(K,)$ per-box
                 scene index).
 
         Returns:
-            A dict with the scalar `loss` and detached `heatmap_loss`, `cls_loss`, `box_loss`, `iou_loss`.
+            A dict with the scalar `loss` and detached `heatmap_loss`, `cls_loss`, `box_loss`, plus `iou_loss`
+            when `output` carries the `iou` branch.
         """
         center = output["center"]
         batch_size, _, num_queries = center.shape
@@ -155,7 +158,7 @@ class TransFusionHeadLoss(nn.Module):
 
             # IoU-rescore target: the 3D IoU of each matched query's decoded box with its ground-truth box.
             for b in range(batch_size):
-                if counts[b] == 0:
+                if counts[b] == 0 or "iou" not in output:
                     continue
 
                 iou = ious[b].gather(1, assignment[b].clamp(min=0).unsqueeze(1)).squeeze(1)
@@ -163,15 +166,18 @@ class TransFusionHeadLoss(nn.Module):
 
         cls_loss = self._cls_loss(output["heatmap"], labels, num_pos) * self.cls_weight
         box_loss = self._box_loss(output, bbox_targets, bbox_weights, num_pos) * self.loc_weight
-        iou_loss = iou_sum / max(num_pos, 1) * self.iou_weight
-
-        return {
-            "loss": heatmap_loss + cls_loss + box_loss + iou_loss,
+        losses = {
+            "loss": heatmap_loss + cls_loss + box_loss,
             "heatmap_loss": heatmap_loss.detach(),
             "cls_loss": cls_loss.detach(),
             "box_loss": box_loss.detach(),
-            "iou_loss": iou_loss.detach(),
         }
+        if "iou" in output:
+            iou_loss = iou_sum / max(num_pos, 1) * self.iou_weight
+            losses["loss"] = losses["loss"] + iou_loss
+            losses["iou_loss"] = iou_loss.detach()
+
+        return losses
 
     def _heatmap_targets(self, boxes_per_scene: List[Tensor], labels_per_scene: List[Tensor]) -> Tensor:
         r"""Per-class Gaussian center heatmaps of every scene, stacked to $(B, C, H, W)$."""
@@ -204,18 +210,11 @@ class TransFusionHeadLoss(nn.Module):
             kept_labels.append(labels[keep])
         return kept_boxes, kept_labels
 
-    def _decode_queries(self, output: "TransFusionHeadOutput") -> Tensor:
+    def _decode_queries(self, output: TransFusionHeadOutput) -> Tensor:
         r"""Decode the per-query predictions of every scene to oriented boxes $(B, Q, 7)$ in metric coordinates."""
-        vs, pcr, stride = self.voxel_size, self.point_cloud_range, self.feature_map_stride
-        center = output["center"]
-        dim = output["dim"].exp()
-        rot = output["rot"]
-
-        x = center[:, 0] * stride * vs[0] + pcr[0]
-        y = center[:, 1] * stride * vs[1] + pcr[1]
-        z = output["height"][:, 0] - dim[:, 2] * 0.5
-        angle = torch.atan2(rot[:, 0], rot[:, 1])
-        return torch.stack([x, y, z, dim[:, 0], dim[:, 1], dim[:, 2], angle], dim=-1)
+        return decode_query_boxes(
+            output, self.voxel_size, self.point_cloud_range, self.feature_map_stride, height_code=self.height_code
+        )
 
     @torch.no_grad()
     def _match(
@@ -258,16 +257,12 @@ class TransFusionHeadLoss(nn.Module):
         return hungarian_match_batched(cost, counts), ious
 
     def _encode(self, boxes: Tensor) -> Tensor:
-        r"""Encode matched ground-truth boxes into the $10$-dim query box code (grid center, box-top $z$, log size, sincos).
-
-        The height code is $z + d_z / 2$: the head's decode recovers the gravity center as
-        $\text{height} - d_z / 2$ after exponentiating the size code.
-        """
+        r"""Encode matched ground-truth boxes into the $10$-dim query box code (grid center, height, log size, sincos)."""
         vs, pcr, stride = self.voxel_size, self.point_cloud_range, self.feature_map_stride
         targets = boxes.new_zeros((boxes.shape[0], 10))
         targets[:, 0] = (boxes[:, 0] - pcr[0]) / (stride * vs[0])
         targets[:, 1] = (boxes[:, 1] - pcr[1]) / (stride * vs[1])
-        targets[:, 2] = boxes[:, 2] + 0.5 * boxes[:, 5]
+        targets[:, 2] = boxes[:, 2] + 0.5 * boxes[:, 5] if self.height_code == "top" else boxes[:, 2]
         targets[:, 3:6] = boxes[:, 3:6].log()
         targets[:, 6] = torch.sin(boxes[:, 6])
         targets[:, 7] = torch.cos(boxes[:, 6])
@@ -287,7 +282,7 @@ class TransFusionHeadLoss(nn.Module):
 
     def _box_loss(
         self,
-        output: "TransFusionHeadOutput",
+        output: TransFusionHeadOutput,
         bbox_targets: Tensor,
         bbox_weights: Tensor,
         num_pos: int,

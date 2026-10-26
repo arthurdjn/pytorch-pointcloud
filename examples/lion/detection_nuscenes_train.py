@@ -18,10 +18,11 @@ import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, NuScenesSplit, velocity_attributes
+from torch_pointcloud.layers.transfusion_head import TransFusionHeadOutput
 from torch_pointcloud.losses import TransFusionHeadLoss
 from torch_pointcloud.metrics import nuscenes_detection_metrics
 from torch_pointcloud.models import create_model, model_info
-from torch_pointcloud.models.lion import LIONDetection, TransFusionHeadOutput
+from torch_pointcloud.models.lion import LIONDetection
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -33,6 +34,7 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 MODEL = "lion-mamba.nuscenes.zhe-liu"
+CIRCULAR_NMS_RADIUS = 0.175
 POINT_CLOUD_RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 # Objects pasted per scene and class, in the order of NUSCENES_DETECTION_CLASSES, counting the ones already there.
 SAMPLES_PER_CLASS = dict(enumerate((2, 3, 7, 4, 6, 2, 6, 6, 2, 2)))
@@ -211,6 +213,7 @@ def configure_criterion(args: Namespace) -> TransFusionHeadLoss:
         loc_weight=0.25,
         heatmap_weight=1.0,
         iou_weight=0.5,
+        height_code="top",
     ).to(args.device)
 
 
@@ -339,7 +342,7 @@ def evaluate(model: LIONDetection, loader: DataLoader, device: str) -> dict[str,
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
-        det = circular_nms(model.decode(forward(model, data)), model.head.local_max_classes, model.head.nms_radius)
+        det = circular_nms(model.decode(forward(model, data)), model.head.local_max_classes, CIRCULAR_NMS_RADIUS)
         preds.append(
             {
                 "boxes": det["boxes"].cpu(),

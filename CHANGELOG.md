@@ -30,7 +30,10 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added TransFusion-L with its nuScenes checkpoint, and its benchmark script.
+- Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
+- Moved `TransFusionHead` from `models.lion` to `layers.transfusion_head`; it now reads the $(y, x)$ BEV layout and adds `use_iou`, `height_code` and whole-map attention.
+- Added `height_code` to `TransFusionHeadLoss`; its IoU term now applies only to a head with an `iou` branch.
+- Fixed LION training against a transposed heatmap target.
 
 ## 0.0.18 (2026-10-20)
 

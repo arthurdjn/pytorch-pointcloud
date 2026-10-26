@@ -53,6 +53,7 @@ from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
+from .transfusion import TransFusionDetection
 from .utonia import UtoniaSegmentation
 from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
@@ -84,6 +85,7 @@ __all__ = [
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
+    "TransFusionDetection",
     "OctFormerClassification",
     "OctFormerSegmentation",
     "PointBERTClassification",

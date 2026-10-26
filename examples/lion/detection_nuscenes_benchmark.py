@@ -25,6 +25,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+CIRCULAR_NMS_RADIUS = 0.175
 
 
 def main() -> None:
@@ -133,7 +134,7 @@ def evaluate(model: LIONDetection, dataloader: DataLoader, device: str) -> Dict[
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
         output = model(data[DataKeys.X], data[DataKeys.POS], data[f"batch_{DataKeys.POS}"])
-        det = circular_nms(model.decode(output), model.head.local_max_classes, model.head.nms_radius)
+        det = circular_nms(model.decode(output), model.head.local_max_classes, CIRCULAR_NMS_RADIUS)
         preds.append(
             {
                 "boxes": det["boxes"].cpu(),

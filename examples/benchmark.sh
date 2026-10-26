@@ -86,6 +86,7 @@ $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model v
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel01.nuscenes.mmdet3d
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel0075.nuscenes.mmdet3d
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-pillar02.nuscenes.mmdet3d
+$RUN examples/transfusion/detection_nuscenes_benchmark.py --root "$ROOT" --model transfusion-lidar.nuscenes.openpcdet
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu
 
 # Segmentation (S3DIS, ScanNet, SemanticKITTI, Toronto-3D, Paris-Lille-3D, FRACTAL)
