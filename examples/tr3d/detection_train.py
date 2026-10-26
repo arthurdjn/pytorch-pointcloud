@@ -43,6 +43,8 @@ LABEL_LEVELS = {
     "s3dis": [1, 0, 1, 1, 0],
 }
 NUM_POSITIVES = 6
+# Box columns of the distance-IoU center distance: the oriented loss of the reference measures (x, y, width).
+DISTANCE_DIMS = {"scannet": (0, 1, 2), "sunrgbd": (0, 1, 3), "s3dis": (0, 1, 2)}
 NMS_PRE = 1000
 SCORE_THRESHOLD = 0.01
 NMS_IOU = 0.5
@@ -56,8 +58,12 @@ def main() -> None:
     train_loader, val_loader = configure_dataloaders(args)
     model = configure_model(args)
     optimizer, scheduler = configure_optimizers(args, model)
-    # The oriented distance-IoU of the reference measures the center distance on (x, y, width), this one on (x, y, z).
-    criterion = TR3DLoss(model.num_classes, label_levels=LABEL_LEVELS[args.dataset], num_positives=NUM_POSITIVES)
+    criterion = TR3DLoss(
+        model.num_classes,
+        label_levels=LABEL_LEVELS[args.dataset],
+        num_positives=NUM_POSITIVES,
+        distance_dims=DISTANCE_DIMS[args.dataset],
+    )
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scenes, validating on {num_val}.")

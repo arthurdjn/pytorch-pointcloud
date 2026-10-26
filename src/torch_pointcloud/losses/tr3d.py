@@ -7,6 +7,7 @@ from torch import Tensor, nn
 
 from torch_pointcloud.losses.focal import one_hot_foreground, sigmoid_focal_loss
 from torch_pointcloud.losses.iou import box_iou_loss
+from torch_pointcloud.ops.box3d import box_corners
 from torch_pointcloud.utils.data import DataKeys
 
 if TYPE_CHECKING:
@@ -26,12 +27,15 @@ class TR3DLoss(nn.Module):
     takes the one with the nearest center.
 
     The focal loss of the class logits is summed over every location and class of the batch and divided by the
-    number of positives, and the distance-IoU loss of the boxes is averaged over the positives.
+    number of positives, and the distance-IoU loss of the boxes is averaged over the positives. Its center distance
+    is taken over the box columns `distance_dims`, the box center $(c_x, c_y, c_z)$ by default.
 
     Args:
         num_classes: Number of object classes.
         label_levels: Pyramid level of every class, from the finest level.
         num_positives: Positive locations per box.
+        distance_dims: Columns of the $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ boxes whose squared differences make
+            the center distance of the distance-IoU term.
 
     Example:
         ```python
@@ -53,7 +57,13 @@ class TR3DLoss(nn.Module):
         ```
     """
 
-    def __init__(self, num_classes: int, label_levels: Sequence[int], num_positives: int) -> None:
+    def __init__(
+        self,
+        num_classes: int,
+        label_levels: Sequence[int],
+        num_positives: int,
+        distance_dims: Tuple[int, int, int] = (0, 1, 2),
+    ) -> None:
         if len(label_levels) != num_classes:
             raise ValueError(f"label_levels needs one level per class, got {len(label_levels)} for {num_classes}.")
 
@@ -61,6 +71,7 @@ class TR3DLoss(nn.Module):
         self.num_classes = num_classes
         self.num_positives = num_positives
         self.label_levels = tuple(label_levels)
+        self.distance_dims = tuple(distance_dims)
 
     @torch.no_grad()
     def assign(self, pos: Tensor, level: Tensor, boxes: Tensor, labels: Tensor) -> Tuple[Tensor, Tensor]:
@@ -119,12 +130,19 @@ class TR3DLoss(nn.Module):
         focal = sigmoid_focal_loss(cls, one_hot_foreground(labels + 1, self.num_classes).to(cls.dtype))
         cls_loss = focal.sum() / positive.sum().clamp(min=1)
 
-        boxes = output["boxes"][positive]
+        boxes, targets = output["boxes"][positive], box_targets[positive]
         if positive.any():
-            box_loss = box_iou_loss(boxes, box_targets[positive], mode="diou").mean()
+            corners = torch.cat([box_corners(boxes), box_corners(targets)], dim=1)
+            diagonal = (corners.amax(dim=1) - corners.amin(dim=1)).pow(2).sum(dim=1)
+            dims = list(self.distance_dims)
+            distance = (boxes[:, dims] - targets[:, dims]).pow(2).sum(dim=1) / diagonal.clamp_min(1e-8)
+            box_loss = (box_iou_loss(boxes, targets) + distance).mean()
         else:
             box_loss = boxes.sum()
         return {"loss": cls_loss + box_loss, "cls_loss": cls_loss.detach(), "box_loss": box_loss.detach()}
 
     def extra_repr(self) -> str:
-        return f"num_classes={self.num_classes}, label_levels={self.label_levels}, num_positives={self.num_positives}"
+        return (
+            f"num_classes={self.num_classes}, label_levels={self.label_levels}, num_positives={self.num_positives}, "
+            f"distance_dims={self.distance_dims}"
+        )

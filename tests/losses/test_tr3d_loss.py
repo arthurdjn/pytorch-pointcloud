@@ -4,7 +4,9 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import TR3DLoss
+from torch_pointcloud.losses import TR3DLoss, box_iou_loss
+from torch_pointcloud.ops.box3d import box_corners
+from torch_pointcloud.utils.data import DataKeys
 
 STRIDES = (0.16, 0.32)
 
@@ -76,3 +78,26 @@ def test_tr3d_loss_terms_are_finite_and_train_every_branch() -> None:
     for key in ("cls_logits", "boxes"):
         grad = output[key].grad
         assert grad is not None and grad.abs().sum() > 0
+
+
+def test_tr3d_loss_distance_dims_select_the_columns_of_the_center_distance() -> None:
+    pyramid = _pyramid()
+    m = len(pyramid["pos"])
+    gt = torch.tensor([[2.0, 2.0, 2.0, 1.2, 0.6, 1.0, 0.4]])
+    generator = torch.Generator().manual_seed(0)
+    boxes = gt.expand(m, 7) + 0.1 * torch.randn(m, 7, generator=generator)
+    output = {"cls_logits": torch.zeros(m, 2), "boxes": boxes, **pyramid}
+    data = {DataKeys.BOX: gt, DataKeys.LABEL: torch.tensor([1]), DataKeys.BATCH_BOX: torch.tensor([0])}
+    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)
+    _, cls = criterion.assign(pyramid["pos"], pyramid["level"], gt, torch.tensor([1]))
+    pred, target = boxes[cls >= 0], gt.expand(int((cls >= 0).sum()), 7)
+
+    default = criterion(output, data)["box_loss"]
+    torch.testing.assert_close(default, box_iou_loss(pred, target, mode="diou").mean())
+
+    width = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6, distance_dims=(0, 1, 3))(output, data)
+    corners = torch.cat([box_corners(pred), box_corners(target)], dim=1)
+    diagonal = (corners.amax(dim=1) - corners.amin(dim=1)).pow(2).sum(dim=1)
+    distance = (pred[:, [0, 1, 3]] - target[:, [0, 1, 3]]).pow(2).sum(dim=1) / diagonal
+    torch.testing.assert_close(width["box_loss"], (box_iou_loss(pred, target) + distance).mean())
+    assert not torch.isclose(width["box_loss"], default)
