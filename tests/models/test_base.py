@@ -5,6 +5,7 @@ from torch import Tensor, nn
 from torch_pointcloud.models import (
     ClassificationModel,
     DetectionModel,
+    InstanceSegmentationModel,
     PartSegmentationModel,
     SemanticSegmentationModel,
 )
@@ -16,6 +17,7 @@ from torch_pointcloud.models import (
         pytest.param(ClassificationModel, id="classification"),
         pytest.param(SemanticSegmentationModel, id="semantic-segmentation"),
         pytest.param(DetectionModel, id="detection"),
+        pytest.param(InstanceSegmentationModel, id="instance-segmentation"),
     ],
 )
 def test_task_abc_cannot_be_instantiated(model_cls: type) -> None:
@@ -77,6 +79,41 @@ def test_detection_subclass_with_full_contract_instantiates() -> None:
     assert model.in_channels == 3
     assert model.num_classes == 5
     assert model.num_features == 3
+
+
+@pytest.mark.parametrize("method", ["num_features", "forward_features", "forward_head", "decode"])
+def test_instance_segmentation_subclass_missing_member_raises(method: str) -> None:
+    class ForwardOnlyInstanceSegmentation(InstanceSegmentationModel):
+        def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+            return x
+
+    with pytest.raises(TypeError, match=method):
+        ForwardOnlyInstanceSegmentation(in_channels=3, num_classes=5)  # type: ignore[abstract]
+
+
+def test_instance_segmentation_reset_classifier_raises_by_default() -> None:
+    class MinimalInstanceSegmentation(InstanceSegmentationModel):
+        @property
+        def num_features(self) -> int:
+            return self.in_channels
+
+        def forward_features(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+            return x
+
+        def forward_head(self, features: Tensor) -> Tensor:
+            return features
+
+        def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tensor:
+            features = self.forward_features(x, pos, batch)
+            return self.forward_head(features)
+
+        def decode(self, output: Tensor) -> Tensor:
+            return output
+
+    model = MinimalInstanceSegmentation(in_channels=3, num_classes=5)
+    assert (model.in_channels, model.num_classes, model.num_features) == (3, 5, 3)
+    with pytest.raises(NotImplementedError, match="reset_classifier"):
+        model.reset_classifier(2)
 
 
 @pytest.mark.parametrize(

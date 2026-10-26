@@ -91,6 +91,33 @@ def test_query_decoder_scenes_are_independent() -> None:
     torch.testing.assert_close(together["mask_logits"][:, 7:], alone["mask_logits"])
 
 
+def test_query_decoder_unblocks_fully_masked_rows() -> None:
+    """A query whose mask covers no superpoint attends to all of them rather than to none."""
+    decoder = _decoder()
+    queries = torch.randn(1, 5, 16)
+    with torch.no_grad():
+        normed = decoder.norm(queries)[0, 0]
+        prediction, attn_masks = decoder.predict(queries, [-normed.expand(6, 16)])
+    assert (prediction["mask_logits"][0] < 0).all()
+    assert not attn_masks[0][0].any()
+
+
+def test_registered_transform_runs_without_labels() -> None:
+    """The checkpoint's transform voxelizes a scene that carries no `segment` or `instance`."""
+    transform = model_info("spformer.scannet.jiahao-sun", task="instance-segmentation")["transform"]
+    torch.manual_seed(0)
+    sample = {
+        DataKeys.POS: torch.rand(500, 3) * 4,
+        DataKeys.COLOR: torch.randint(0, 256, (500, 3)).float(),
+        DataKeys.SUPERPOINT: torch.randint(0, 20, (500,)),
+    }
+    data = transform(sample)
+    assert {DataKeys.X, DataKeys.POS_GRID, DataKeys.INVERSE, DataKeys.SUPERPOINT} <= set(data)
+    assert DataKeys.ORIGIN_INSTANCE not in data
+    assert data[DataKeys.INVERSE].shape == (500,)
+    assert data[DataKeys.X].shape == (data[DataKeys.POS_GRID].shape[0], 6)
+
+
 @_REQUIRES_SPCONV
 def test_decode_keeps_the_best_pairs_of_every_scene() -> None:
     """Hand-built output: 2 scenes of 3 and 2 superpoints, 4 queries, 3 classes."""
