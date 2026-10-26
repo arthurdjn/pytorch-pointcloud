@@ -42,7 +42,7 @@ def test_fcaf3d_registered_variants() -> None:
         assert isinstance(model, FCAF3DDetection)
         assert model.num_classes == num_classes and model.head.cls.out_features == num_classes
         assert model.head.box.out_features == num_box_outputs
-        assert isinstance(model.encoder.norm1, InstanceNorm) and model.encoder.stem_norm_takes_batch
+        assert isinstance(model.encoder.norm1, InstanceNorm) and model.encoder.supports_norm_batch
         assert model.encoder.strides == (8, 16, 32, 64)
         assert model.num_features == 512
 

@@ -119,7 +119,7 @@ class FCAF3DEncoder(nn.Module):
 
         self.conv1 = StridedSparseConv3d(in_channels, stem_channels, kernel_size=3, stride=2)
         self.norm1 = create_norm(stem_norm, stem_channels, **(stem_norm_kwargs or {})) or nn.Identity()
-        self.stem_norm_takes_batch = "batch" in inspect.signature(self.norm1.forward).parameters
+        self.supports_norm_batch = "batch" in inspect.signature(self.norm1.forward).parameters
         self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
         self.pool = spconv.SparseMaxPool3d(2, 2)
 
@@ -149,7 +149,7 @@ class FCAF3DEncoder(nn.Module):
 
     def forward(self, x: "SparseConvTensor") -> List["SparseConvTensor"]:
         x = self.conv1(x)
-        if self.stem_norm_takes_batch:
+        if self.supports_norm_batch:
             features = self.norm1(x.features, x.indices[:, 0].long(), x.batch_size)
         else:
             features = self.norm1(x.features)
