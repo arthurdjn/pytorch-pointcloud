@@ -7,6 +7,7 @@ from torch import Tensor
 from torch_pointcloud.metrics import (
     confusion_matrix,
     intersection_over_union,
+    part_argmax,
     part_intersection_over_union,
     part_mean_intersection_over_union,
 )
@@ -151,6 +152,30 @@ def test_mean_iou_ignore_index_excluded_from_mean() -> None:
     cm = confusion_matrix(preds, target, num_classes=3)
     assert intersection_over_union(cm) == pytest.approx(2.0 / 3.0)
     assert intersection_over_union(cm, ignore_index=2) == pytest.approx(1.0)
+
+
+def test_part_argmax_keeps_each_shape_in_its_category_parts() -> None:
+    part_ids = [[0, 1], [2, 3]]
+    scores = torch.tensor(
+        [
+            [0.1, 0.2, 0.9, 0.0],
+            [0.3, 0.1, 0.2, 0.8],
+            [0.9, 0.8, 0.1, 0.2],
+            [0.0, 0.7, 0.3, 0.6],
+        ]
+    )
+    batch = torch.tensor([0, 0, 1, 1])
+    preds = part_argmax(scores, part_ids, torch.tensor([0, 1]), batch)
+    assert torch.equal(preds, torch.tensor([1, 0, 3, 3]))
+    assert torch.equal(scores.argmax(dim=1), torch.tensor([2, 3, 0, 1]))
+
+
+def test_part_argmax_without_batch_is_one_shape() -> None:
+    part_ids = [[0, 1], [2, 3]]
+    scores = torch.tensor([[0.9, 0.0, 0.1, 0.8], [0.0, 0.1, 0.9, 0.0]])
+    preds = part_argmax(scores, part_ids, torch.tensor([1]))
+    assert torch.equal(preds, part_argmax(scores, part_ids, torch.tensor([1]), torch.zeros(2, dtype=torch.long)))
+    assert torch.equal(preds, torch.tensor([3, 2]))
 
 
 def test_part_iou_two_shapes_hand_checked() -> None:
