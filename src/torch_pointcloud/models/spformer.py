@@ -433,6 +433,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/spformer.scannet.jiahao-sun/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet",
+        metrics={"mAP": 56.47, "mAP@0.5": 73.93, "mAP@0.25": 82.55},
         classes=SCANNET20_CLASSES[2:],
         author="jiahao-sun",
         license="MIT",
