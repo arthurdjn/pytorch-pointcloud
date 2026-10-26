@@ -91,6 +91,26 @@ class VoxelRCNNBoxHead(nn.Module):
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
         norm_kwargs: Extra normalization arguments.
+
+    Example:
+        ```pycon
+        >>> head = VoxelRCNNBoxHead(
+        ...     (8, 8),
+        ...     grid_size=2,
+        ...     pool_channels=(((4, 4),), ((4, 4),)),
+        ...     pool_radii=((0.5,), (1.0,)),
+        ...     pool_num_neighbors=((4,), (4,)),
+        ...     shared_channels=(16,),
+        ...     cls_channels=(16,),
+        ...     reg_channels=(16,),
+        ... ).eval()
+        >>> x, pos, batch = [torch.randn(50, 8)] * 2, [torch.rand(50, 3)] * 2, [torch.zeros(50, dtype=torch.long)] * 2
+        >>> rois, roi_batch = torch.tensor([[0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0.0]]), torch.zeros(1, dtype=torch.long)
+        >>> rcnn_cls, rcnn_reg = head(rois, roi_batch, x, pos, batch)  # doctest: +SKIP
+        >>> rcnn_cls.shape, rcnn_reg.shape  # doctest: +SKIP
+        (torch.Size([1, 1]), torch.Size([1, 7]))
+
+        ```
     """
 
     def __init__(
