@@ -3,7 +3,6 @@
 {{ paper("1812.04244") }}
 """
 
-import math
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
@@ -13,7 +12,8 @@ from torch_geometric.nn import MLP, Linear
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2GlobalSetAbstraction, PointNet2SetAbstraction
-from torch_pointcloud.ops.box3d import boxes_iou3d, decode_box_residuals, nms3d
+from torch_pointcloud.ops.box3d import nms3d
+from torch_pointcloud.ops.roi import decode_roi_residuals, roi_frame_boxes, sample_rois
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
@@ -468,7 +468,7 @@ class PointRCNNRefinementHead(nn.Module):
         shared = x
         rcnn_cls = self.cls_layers(shared)
         rcnn_reg = self.reg_layers(shared)
-        refined = self._decode_rcnn(rois, rcnn_reg)
+        refined = decode_roi_residuals(rcnn_reg.view(-1, 7), rois)
         return rcnn_cls, rcnn_reg, refined
 
     def _densify(self, pos: Tensor, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
@@ -489,30 +489,6 @@ class PointRCNNRefinementHead(nn.Module):
         m, s, _ = pos.shape
         batch = torch.arange(m, device=pos.device).repeat_interleave(s)
         return x.reshape(m * s, -1), pos.reshape(m * s, 3), batch
-
-    def _decode_rcnn(self, rois: Tensor, rcnn_reg: Tensor) -> Tensor:
-        r"""Decode the stage-2 residual against each ROI and map back to the lidar frame.
-
-        Args:
-            rois: Proposal boxes $(M, 7)$.
-            rcnn_reg: Per-ROI box residual $(M, 1, 7)$ or $(M, 7)$.
-
-        Returns:
-            Refined boxes $(M, 7)$ in the lidar frame.
-
-        Shape:
-            - rois: $(M, 7)$
-            - rcnn_reg: $(M, 7)$
-            - output: $(M, 7)$
-        """
-        roi_ry = rois[:, 6]
-        roi_xyz = rois[:, 0:3]
-        local = rois.clone()
-        local[:, 0:3] = 0
-        boxes = decode_box_residuals(rcnn_reg.view(-1, 7), local)
-        boxes = rotate_points_along_z(boxes.unsqueeze(1), roi_ry).squeeze(1)
-        boxes[:, 0:3] = boxes[:, 0:3] + roi_xyz
-        return boxes
 
 
 class PointRCNNDetection(DetectionModel):
@@ -877,141 +853,49 @@ class PointRCNNDetection(DetectionModel):
         gt_labels: Tensor,
         gt_batch: Tensor,
     ) -> Dict[str, Tensor]:
-        r"""Sample `roi_per_image` ROIs per scene and match each to a ground-truth box (ProposalTargetLayer).
+        r"""Sample `roi_per_image` ROIs per scene and match each to a ground-truth box of its class.
 
-        Per scene the proposals are matched to same-class ground-truth boxes by 3D IoU
-        ([`boxes_iou3d`][torch_pointcloud.ops.box3d.boxes_iou3d]), a foreground / background subset is
-        sampled, and each sampled ROI's matched box is returned both in the lidar frame and canonically
-        transformed into the ROI frame (translated to the ROI center, rotated by $-\theta$, heading
-        wrapped to $[-\pi/2, \pi/2]$).
+        The sampling is [`sample_rois`][torch_pointcloud.ops.roi.sample_rois]; each sampled ROI's matched box is
+        returned both in the lidar frame and in the ROI frame
+        ([`roi_frame_boxes`][torch_pointcloud.ops.roi.roi_frame_boxes]), zeros when it matches no box.
 
         Args:
             rois: Proposal boxes $(P, 7)$.
-            roi_labels: Per-proposal $1$-based class, shape $(P,)$.
+            roi_labels: Per-proposal class, shape $(P,)$.
             roi_batch: Per-proposal scene index, shape $(P,)$.
             gt_boxes: Ground-truth boxes $(K, 7)$.
-            gt_labels: Ground-truth $1$-based class, shape $(K,)$.
+            gt_labels: Ground-truth class, shape $(K,)$, numbered like `roi_labels`.
             gt_batch: Per-box scene index, shape $(K,)$.
 
         Returns:
-            A dict of the sampled `rois` $(M, 7)$, per-ROI scene index `batch` $(M,)$, ROI-canonical matched
+            A dict of the sampled `rois` $(M, 7)$, per-ROI scene index `batch` $(M,)$, ROI-frame matched
             box `gt_of_rois` $(M, 7)$, lidar-frame matched box `gt_of_rois_src` $(M, 7)$ and per-ROI max IoU
             `roi_ious` $(M,)$, with $M = \text{roi\_per\_image} \cdot B$.
         """
-        batch_size = int(roi_batch.max().item()) + 1 if roi_batch.numel() else 0
-        rois_list, batch_list, gt_ct_list, gt_src_list, iou_list = [], [], [], [], []
-        for b in range(batch_size):
-            roi_mask = roi_batch == b
-            cur_rois = rois[roi_mask]
-            cur_roi_labels = roi_labels[roi_mask]
-            box_mask = gt_batch == b
-            cur_gt = gt_boxes[box_mask]
-            cur_gt_labels = gt_labels[box_mask]
-            if cur_gt.shape[0] == 0:
-                cur_gt = cur_gt.new_zeros((1, cur_gt.shape[1]))
-                cur_gt_labels = cur_gt_labels.new_zeros(1)
-
-            max_overlaps, gt_assignment = self._roi_gt_iou(cur_rois, cur_roi_labels, cur_gt, cur_gt_labels)
-            sampled = self._subsample_rois(max_overlaps)
-
-            sampled_rois = cur_rois[sampled]
-            sampled_gt = cur_gt[gt_assignment[sampled]][:, 0:7]
-            rois_list.append(sampled_rois)
-            batch_list.append(torch.full((sampled.numel(),), b, dtype=torch.long, device=rois.device))
-            gt_ct_list.append(self._canonical_gt(sampled_rois, sampled_gt))
-            gt_src_list.append(sampled_gt)
-            iou_list.append(max_overlaps[sampled])
-
-        return {
-            "rois": torch.cat(rois_list),
-            "batch": torch.cat(batch_list),
-            "gt_of_rois": torch.cat(gt_ct_list),
-            "gt_of_rois_src": torch.cat(gt_src_list),
-            "roi_ious": torch.cat(iou_list),
-        }
-
-    def _roi_gt_iou(
-        self,
-        rois: Tensor,
-        roi_labels: Tensor,
-        gt_boxes: Tensor,
-        gt_labels: Tensor,
-    ) -> Tuple[Tensor, Tensor]:
-        r"""Per-proposal max 3D IoU and matched-box index, restricted to same-class ROI / GT pairs."""
-        max_overlaps = rois.new_zeros(rois.shape[0])
-        gt_assignment = rois.new_zeros(rois.shape[0], dtype=torch.long)
-        for cls in torch.unique(gt_labels).tolist():
-            roi_mask = roi_labels == cls
-            gt_mask = gt_labels == cls
-            if roi_mask.any() and gt_mask.any():
-                gt_idx = gt_mask.nonzero(as_tuple=False).squeeze(1)
-                iou = boxes_iou3d(rois[roi_mask][:, 0:7], gt_boxes[gt_mask][:, 0:7])
-                cur_max, cur_arg = iou.max(dim=1)
-                max_overlaps[roi_mask] = cur_max
-                gt_assignment[roi_mask] = gt_idx[cur_arg]
-        return max_overlaps, gt_assignment
-
-    def _subsample_rois(self, max_overlaps: Tensor) -> Tensor:
-        r"""Sample foreground / hard-background / easy-background ROI indices to `roi_per_image` total.
-
-        A scene with no proposals at all yields an empty index tensor rather than indices into an empty
-        ROI set.
-        """
-        device = max_overlaps.device
-        fg_rois_per_image = int(round(self.fg_ratio * self.roi_per_image))
-        fg_thresh = min(self.reg_fg_thresh, self.cls_fg_thresh)
-
-        fg_inds = (max_overlaps >= fg_thresh).nonzero(as_tuple=False).view(-1)
-        easy_bg = (max_overlaps < self.cls_bg_thresh_lo).nonzero(as_tuple=False).view(-1)
-        hard_bg = (
-            ((max_overlaps < self.reg_fg_thresh) & (max_overlaps >= self.cls_bg_thresh_lo))
-            .nonzero(as_tuple=False)
-            .view(-1)
+        samples = sample_rois(
+            rois,
+            gt_boxes,
+            roi_labels=roi_labels,
+            box_labels=gt_labels,
+            roi_batch=roi_batch,
+            box_batch=gt_batch,
+            num_samples=self.roi_per_image,
+            foreground_ratio=self.fg_ratio,
+            foreground_threshold=min(self.reg_fg_thresh, self.cls_fg_thresh),
+            hard_background_threshold=self.cls_bg_thresh_lo,
+            hard_background_ratio=self.hard_bg_ratio,
         )
-        fg_num, bg_num = fg_inds.numel(), hard_bg.numel() + easy_bg.numel()
-
-        if fg_num > 0 and bg_num > 0:
-            fg_this = min(fg_rois_per_image, fg_num)
-            fg_inds = fg_inds[torch.randperm(fg_num, device=device)[:fg_this]]
-            bg_inds = self._sample_bg(hard_bg, easy_bg, self.roi_per_image - fg_this)
-        elif fg_num > 0:
-            fg_inds = fg_inds[torch.randint(0, fg_num, (self.roi_per_image,), device=device)]
-            bg_inds = fg_inds.new_empty(0)
-        elif bg_num > 0:
-            fg_inds = max_overlaps.new_empty(0, dtype=torch.long)
-            bg_inds = self._sample_bg(hard_bg, easy_bg, self.roi_per_image)
-        else:
-            return max_overlaps.new_zeros(0, dtype=torch.long)
-        return torch.cat([fg_inds, bg_inds], dim=0)
-
-    def _sample_bg(self, hard_bg: Tensor, easy_bg: Tensor, num: int) -> Tensor:
-        r"""Draw `num` background indices, splitting between hard and easy background by `hard_bg_ratio`."""
-        device = hard_bg.device
-        if hard_bg.numel() > 0 and easy_bg.numel() > 0:
-            hard_num = min(int(num * self.hard_bg_ratio), hard_bg.numel())
-            hard = hard_bg[torch.randint(0, hard_bg.numel(), (hard_num,), device=device)]
-            easy = easy_bg[torch.randint(0, easy_bg.numel(), (num - hard_num,), device=device)]
-            return torch.cat([hard, easy])
-        if hard_bg.numel() > 0:
-            return hard_bg[torch.randint(0, hard_bg.numel(), (num,), device=device)]
-        return easy_bg[torch.randint(0, easy_bg.numel(), (num,), device=device)]
-
-    def _canonical_gt(self, rois: Tensor, gt_boxes: Tensor) -> Tensor:
-        r"""Transform each matched ground-truth box into its ROI-canonical frame with a wrapped heading."""
-        gt = gt_boxes.clone()
-        roi_center = rois[:, 0:3]
-        roi_ry = rois[:, 6] % (2 * math.pi)
-        gt[:, 0:3] = gt[:, 0:3] - roi_center
-        gt[:, 6] = gt[:, 6] - roi_ry
-        gt = rotate_points_along_z(gt[:, None, :], -roi_ry).squeeze(1)
-
-        heading = gt[:, 6] % (2 * math.pi)
-        opposite = (heading > math.pi * 0.5) & (heading < math.pi * 1.5)
-        heading[opposite] = (heading[opposite] + math.pi) % (2 * math.pi)
-        flag = heading > math.pi
-        heading[flag] = heading[flag] - 2 * math.pi
-        gt[:, 6] = heading.clamp(min=-math.pi / 2, max=math.pi / 2)
-        return gt
+        sampled_rois = rois[samples["index"]]
+        matched = samples["target_index"] >= 0
+        gt_of_rois_src = torch.zeros_like(sampled_rois)
+        gt_of_rois_src[matched] = gt_boxes[samples["target_index"][matched], 0:7]
+        return {
+            "rois": sampled_rois,
+            "batch": roi_batch[samples["index"]],
+            "gt_of_rois": roi_frame_boxes(gt_of_rois_src, sampled_rois),
+            "gt_of_rois_src": gt_of_rois_src,
+            "roi_ious": samples["iou"],
+        }
 
     @torch.no_grad()
     def decode(self, out: PointRCNNOutput) -> Detection3D:
