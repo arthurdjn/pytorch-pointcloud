@@ -32,12 +32,12 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added the MMDetection3D checkpoints `pointpillars.kitti.mmdet3d`, `pointpillars.kitti-car.mmdet3d`, `pointpillars.nuscenes.mmdet3d`, `pointpillars-fpn.nuscenes.mmdet3d`, `second.kitti.mmdet3d`, `second.kitti-car.mmdet3d`, `second-dynamic-voxel.kitti.mmdet3d`, `votenet.scannet.mmdet3d` and `votenet.sunrgbd.mmdet3d`.
-- Added SECOND-IoU (`SECONDIoUDetection`) with `second-iou.kitti.openpcdet`, and the checkpoints `pointrcnn-iou.kitti.openpcdet` and `3detr-m.sunrgbd.fair`.
+- Added nine MMDetection3D checkpoints for PointPillars, SECOND and VoteNet.
+- Added SECOND-IoU (`SECONDIoUDetection`) with its KITTI checkpoint, and the PointRCNN-IoU KITTI and 3DETR-m SUN RGB-D checkpoints.
 - Added `PointPillarsFPNDetection`, the `BEVPyramidBackbone` layer and `MultiLevelAnchorHead`.
-- `AnchorHead` takes anchor templates shared by all classes, an `anchor_range`, `align_center` and a `code_size` carrying velocity.
-- `AnchorHeadLoss` takes the `anchor_range` and `align_center` of its head. Omitting `dir_offset` from `AnchorHead` or `AnchorHeadLoss` warns, and is an error from 0.0.20.
-- Added `ops.voxelization.dynamic_voxelize` and the `DynamicVoxelize` transform.
+- `AnchorHead` takes anchor templates shared by all classes, `anchor_range`, `align_center` and a `code_size` carrying velocity, and its `decode` returns `class_probs`; `AnchorHeadLoss` takes `anchor_range` and `align_center`.
+- Omitting `dir_offset` from `AnchorHead` or `AnchorHeadLoss` warns, and is an error from 0.0.20.
+- Added `ops.voxelization.dynamic_voxelize` and the `DynamicVoxelize` transform; `HardVoxelize` raises when its `feature_key` is missing.
 
 ## 0.0.18 (2026-10-20)
 
