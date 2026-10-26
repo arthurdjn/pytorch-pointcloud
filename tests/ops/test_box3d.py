@@ -545,3 +545,28 @@ def test_nms3d_matches_a_brute_force_greedy_loop(rotated: bool) -> None:
     capped = nms3d(boxes, scores, 0.2, labels=labels, batch=batch, rotated=rotated, max_keep=4)
     assert capped.tolist() == [i for scene in (1, 3, 5) for i in [k for k in expected if batch[k] == scene][:4]]
 
+
+@pytest.mark.parametrize("rotated", [False, True])
+def test_nms3d_max_candidates_keeps_the_best_boxes_of_every_scene(rotated: bool) -> None:
+    torch.manual_seed(1)
+    boxes = torch.cat([torch.rand(90, 3) * 4.0, torch.rand(90, 3) * 1.5 + 0.2, torch.rand(90, 1) * 6.28], dim=1)
+    scores = torch.rand(90)
+    labels = torch.randint(0, 3, (90,))
+    batch = torch.randint(0, 3, (90,))
+    candidates = torch.cat(
+        [(batch == s).nonzero().squeeze(1)[scores[batch == s].argsort(descending=True)[:10]] for s in range(3)]
+    )
+    expected = candidates[
+        nms3d(
+            boxes[candidates],
+            scores[candidates],
+            0.2,
+            labels=labels[candidates],
+            batch=batch[candidates],
+            rotated=rotated,
+        )
+    ]
+
+    keep = nms3d(boxes, scores, 0.2, labels=labels, batch=batch, rotated=rotated, max_candidates=10)
+    assert torch.equal(keep, expected)
+    assert len(nms3d(boxes, scores, 0.2, batch=batch, rotated=rotated, max_candidates=0)) == 0

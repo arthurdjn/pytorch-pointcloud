@@ -687,6 +687,7 @@ def nms3d(
     batch: OptTensor = None,
     rotated: bool = False,
     max_keep: Optional[int] = None,
+    max_candidates: Optional[int] = None,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
 
@@ -707,6 +708,8 @@ def nms3d(
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
         max_keep: Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
             equals the first `max_keep` entries of the uncapped result.
+        max_candidates: Optional cap on the boxes considered per scene: only the `max_candidates` highest-scoring
+            boxes enter the suppression, the others are dropped.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
@@ -720,12 +723,15 @@ def nms3d(
 
     # Rank the boxes scene by scene, by decreasing score: the order of the greedy pass and of the output.
     if batch is None:
-        order = scores.argsort(descending=True)
-        scene = torch.zeros_like(order)
+        order = scores.argsort(descending=True)[:max_candidates]
+        scene = torch.zeros_like(scores, dtype=torch.long)
     else:
         _, scene = torch.unique(batch, return_inverse=True)
         members = [(scene == s).nonzero(as_tuple=False).squeeze(-1) for s in range(int(scene.max()) + 1)]
-        order = torch.cat([m[scores[m].argsort(descending=True)] for m in members])
+        order = torch.cat([m[scores[m].argsort(descending=True)][:max_candidates] for m in members])
+    if order.numel() == 0:
+        return order
+
     keys = scene if labels is None else torch.stack([scene, labels.long()], dim=1)
     _, group = torch.unique(keys, dim=0, return_inverse=True)
     scene, group = scene[order], group[order]  # per rank
@@ -755,11 +761,16 @@ def nms3d(
     kept = torch.cat(keep).sort().values
     if max_keep is not None:
         # A scene keeps its first `max_keep` boxes: no group gives more than that, so the capped groups suffice.
-        position = torch.arange(len(kept), device=kept.device)
-        start = torch.full((num_scenes,), len(kept), dtype=torch.long, device=kept.device)
-        start = start.scatter_reduce_(0, scene[kept], position, reduce="amin")
-        kept = kept[position - start[scene[kept]] < max_keep]
+        kept = kept[_position_in_scene(scene[kept], num_scenes) < max_keep]
     return order[kept]
+
+
+def _position_in_scene(scene: Tensor, num_scenes: int) -> Tensor:
+    """Position of every entry among the entries of its scene, for a `scene` index sorted by scene."""
+    position = torch.arange(len(scene), device=scene.device)
+    start = torch.full((num_scenes,), len(scene), dtype=torch.long, device=scene.device)
+    start = start.scatter_reduce_(0, scene, position, reduce="amin")
+    return position - start[scene]
 
 
 def points_in_boxes(pos: Tensor, boxes: Tensor) -> Tensor:
