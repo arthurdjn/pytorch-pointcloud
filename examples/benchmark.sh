@@ -28,6 +28,21 @@ $RUN examples/point_mae/classification_modelnet40_benchmark.py --root "$ROOT" --
 $RUN examples/point_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point-mae-base.scanobjectnn-objbg.yatian-pang
 $RUN examples/point_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point-mae-base.scanobjectnn-objonly.yatian-pang
 $RUN examples/point_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point-mae-base.scanobjectnn-hardest.yatian-pang
+$RUN examples/recon/classification_modelnet40_benchmark.py --root "$ROOT" --model recon.modelnet40.zekun-qi
+$RUN examples/recon/classification_modelnet40_benchmark.py --root "$ROOT" --model recon.modelnet40-8k.zekun-qi
+$RUN examples/act/classification_modelnet40_benchmark.py --root "$ROOT" --model act.modelnet40.runpei-dong
+$RUN examples/pcp_mae/classification_modelnet40_benchmark.py --root "$ROOT" --model pcp-mae.modelnet40.xiangdong-zhang
+$RUN examples/point2vec/classification_modelnet40_benchmark.py --root "$ROOT" --model point2vec.modelnet40.karim-knaebel
+$RUN examples/recon/classification_scanobjectnn_benchmark.py --root "$ROOT" --model recon.scanobjectnn-objbg.zekun-qi
+$RUN examples/recon/classification_scanobjectnn_benchmark.py --root "$ROOT" --model recon.scanobjectnn-objonly.zekun-qi
+$RUN examples/recon/classification_scanobjectnn_benchmark.py --root "$ROOT" --model recon.scanobjectnn-hardest.zekun-qi
+$RUN examples/act/classification_scanobjectnn_benchmark.py --root "$ROOT" --model act.scanobjectnn-objbg.runpei-dong
+$RUN examples/act/classification_scanobjectnn_benchmark.py --root "$ROOT" --model act.scanobjectnn-objonly.runpei-dong
+$RUN examples/act/classification_scanobjectnn_benchmark.py --root "$ROOT" --model act.scanobjectnn-hardest.runpei-dong
+$RUN examples/pcp_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pcp-mae.scanobjectnn-objbg.xiangdong-zhang
+$RUN examples/pcp_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pcp-mae.scanobjectnn-objonly.xiangdong-zhang
+$RUN examples/pcp_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pcp-mae.scanobjectnn-hardest.xiangdong-zhang
+$RUN examples/point2vec/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point2vec.scanobjectnn-hardest.karim-knaebel
 $RUN examples/point_bert/classification_modelnet40_benchmark.py --root "$ROOT" --model point-bert-base.modelnet40.xumin-yu
 $RUN examples/point_bert/classification_modelnet40_benchmark.py --root "$ROOT" --model point-bert-base.modelnet40-4k.xumin-yu
 $RUN examples/point_bert/classification_modelnet40_benchmark.py --root "$ROOT" --model point-bert-base.modelnet40-8k.xumin-yu
@@ -65,6 +80,8 @@ $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROO
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm-c160.shapenetpart.openpoints
 $RUN examples/point_mae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-mae-base.shapenetpart.yatian-pang
 $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-m2ae-base.shapenetpart.renrui-zhang
+$RUN examples/recon/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model recon.shapenetpart.zekun-qi
+$RUN examples/point2vec/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point2vec.shapenetpart.karim-knaebel
 
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
