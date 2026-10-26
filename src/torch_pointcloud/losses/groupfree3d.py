@@ -40,9 +40,8 @@ class GroupFree3DLoss(nn.Module):
     Args:
         num_classes: Number of semantic classes.
         num_heading_bins: Number of heading-angle bins.
-        num_size_clusters: Number of size templates (the size class is the semantic class); $0$ when class agnostic.
-        mean_sizes: Per-template mean box size, shape $(\text{num\_size\_clusters}, 3)$, or `None` when class agnostic.
-        size_class_agnostic: Whether the model regresses the size directly instead of through templates.
+        mean_sizes: Mean box size of each template of a class-aware size head, shape $(C, 3)$ (the size class is the
+            semantic class), or `None` when the model regresses the size directly.
         sampling_weight: Weight of the candidate sampling term.
         objectness_weight: Weight of the objectness term.
         center_delta: Smooth-$L_1$ transition point of the center term.
@@ -61,9 +60,7 @@ class GroupFree3DLoss(nn.Module):
         num_classes: int,
         *,
         num_heading_bins: int,
-        num_size_clusters: int,
         mean_sizes: Union[Tensor, List[List[float]], None],
-        size_class_agnostic: bool,
         sampling_weight: float,
         objectness_weight: float,
         center_delta: float,
@@ -75,19 +72,12 @@ class GroupFree3DLoss(nn.Module):
         loss_weight: float = 10.0,
     ) -> None:
         super().__init__()
-        if size_class_agnostic:
-            mean = None
-        else:
-            if mean_sizes is None:
-                raise ValueError("`mean_sizes` is required unless `size_class_agnostic=True`.")
-            mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
-            if mean.shape != (num_size_clusters, 3):
-                raise ValueError(f"`mean_sizes` must have shape ({num_size_clusters}, 3), got {tuple(mean.shape)}.")
+        mean = None if mean_sizes is None else torch.as_tensor(mean_sizes, dtype=torch.float32)
+        if mean is not None and mean.shape != (num_classes, 3):
+            raise ValueError(f"`mean_sizes` must have shape ({num_classes}, 3), got {tuple(mean.shape)}.")
 
         self.num_classes = num_classes
         self.num_heading_bins = num_heading_bins
-        self.num_size_clusters = num_size_clusters
-        self.size_class_agnostic = size_class_agnostic
         self.sampling_weight = sampling_weight
         self.objectness_weight = objectness_weight
         self.center_delta = center_delta
@@ -171,11 +161,10 @@ class GroupFree3DLoss(nn.Module):
         heading_res = self._huber(pred_heading.squeeze(-1) - heading_residual / (math.pi / nh), self.heading_delta)
         heading_res_loss = (heading_res * positive).sum() / denom
 
-        if self.size_class_agnostic:
+        if self.mean_sizes is None:
             size_res = self._huber(output["size"] - target[..., 3:6], self.size_delta).sum(dim=-1)
             size_cls_loss = size_res.new_zeros(())
         else:
-            assert self.mean_sizes is not None
             mean = self.mean_sizes[target_label]  # (B, Q, 3)
             size_cls = _cross_entropy(output["size_scores"], target_label)
             size_cls_loss = (size_cls * positive).sum() / denom

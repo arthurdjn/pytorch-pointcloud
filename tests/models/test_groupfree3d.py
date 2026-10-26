@@ -20,9 +20,7 @@ def _create_groupfree3d(**overrides: Any) -> GroupFree3DDetection:
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=[[1.0, 1.0, 1.0]] * 18,
-        size_class_agnostic=False,
         num_proposals=16,
         sa_channels=[[16, 16, 32], [32, 32, 64], [64, 64, 64], [64, 64, 64]],
         sa_num_points=[256, 128, 64, 32],
@@ -141,11 +139,9 @@ def test_groupfree3d_reset_classifier() -> None:
     assert out["sem_cls_scores"].shape[-1] == 5
 
 
-def test_groupfree3d_class_aware_size_requires_mean_sizes() -> None:
+def test_groupfree3d_rejects_malformed_mean_sizes() -> None:
     with pytest.raises(ValueError, match="mean_sizes"):
-        _create_groupfree3d(mean_sizes=None)
-    with pytest.raises(ValueError, match="mean_sizes"):
-        _create_groupfree3d(num_size_clusters=3, mean_sizes=[[1.0, 1.0, 1.0]])
+        _create_groupfree3d(mean_sizes=[[1.0, 1.0]] * 18)
 
 
 def test_groupfree3d_mean_sizes_not_persisted() -> None:
@@ -158,10 +154,7 @@ def test_groupfree3d_mean_sizes_not_persisted() -> None:
 
 def test_groupfree3d_prediction_head_class_aware_size() -> None:
     torch.manual_seed(0)
-    head = GroupFree3DPredictionHead(
-        8, num_classes=4, num_heading_bins=3, num_size_clusters=2, size_class_agnostic=False
-    )
-    head = head.eval()
+    head = GroupFree3DPredictionHead(8, num_classes=4, num_heading_bins=3, num_size_clusters=2).eval()
     mean_sizes = torch.tensor([[1.0, 2.0, 3.0], [2.0, 2.0, 2.0]])
     x, pos = torch.randn(2, 5, 8), torch.randn(2, 5, 3)
     with torch.no_grad():

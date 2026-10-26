@@ -13,11 +13,9 @@ def _create_loss(size_class_agnostic: bool = False, **overrides: Any) -> GroupFr
     kwargs: Dict[str, Any] = dict(
         num_classes=4,
         num_heading_bins=12,
-        num_size_clusters=0 if size_class_agnostic else 4,
         mean_sizes=None
         if size_class_agnostic
         else [[1.0, 1.0, 1.0], [2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]],
-        size_class_agnostic=size_class_agnostic,
         sampling_weight=0.8,
         objectness_weight=0.1,
         center_delta=0.04,
@@ -147,8 +145,6 @@ def test_groupfree3d_loss_exact_centers_give_no_center_loss() -> None:
     assert loss_fn(output, data)["center_loss"] > 0
 
 
-def test_groupfree3d_loss_requires_mean_sizes_for_templates() -> None:
-    with pytest.raises(ValueError, match="mean_sizes"):
-        _create_loss(mean_sizes=None)
+def test_groupfree3d_loss_requires_one_size_template_per_class() -> None:
     with pytest.raises(ValueError, match="mean_sizes"):
         _create_loss(mean_sizes=[[1.0, 1.0, 1.0]])

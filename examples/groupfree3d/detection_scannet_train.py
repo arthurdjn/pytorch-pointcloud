@@ -186,9 +186,7 @@ def configure_criterion(args: Namespace, model: GroupFree3DDetection) -> GroupFr
     criterion = GroupFree3DLoss(
         num_classes=model.num_classes,
         num_heading_bins=model.num_heading_bins,
-        num_size_clusters=model.num_size_clusters,
         mean_sizes=model.mean_sizes,
-        size_class_agnostic=model.size_class_agnostic,
         sampling_weight=0.8,
         objectness_weight=0.1,
         center_delta=0.04,

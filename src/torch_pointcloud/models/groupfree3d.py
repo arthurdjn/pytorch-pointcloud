@@ -72,8 +72,8 @@ class GroupFree3DPredictionHead(nn.Module):
         in_channels: Candidate feature channels.
         num_classes: Number of semantic classes.
         num_heading_bins: Number of heading-angle bins.
-        num_size_clusters: Number of size templates of the class-aware size head (ignored when agnostic).
-        size_class_agnostic: Regress the size directly instead of through size templates.
+        num_size_clusters: Number of size templates of a class-aware size head, or `None` to regress the size
+            directly.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
@@ -89,9 +89,8 @@ class GroupFree3DPredictionHead(nn.Module):
         in_channels: int,
         num_classes: int,
         num_heading_bins: int,
-        num_size_clusters: int,
+        num_size_clusters: Optional[int],
         *,
-        size_class_agnostic: bool,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -102,7 +101,6 @@ class GroupFree3DPredictionHead(nn.Module):
         self.num_classes = num_classes
         self.num_heading_bins = num_heading_bins
         self.num_size_clusters = num_size_clusters
-        self.size_class_agnostic = size_class_agnostic
 
         self.mlp = MLP(
             [in_channels, in_channels, in_channels],
@@ -116,7 +114,7 @@ class GroupFree3DPredictionHead(nn.Module):
         self.center_head = nn.Linear(in_channels, 3)
         self.heading_class_head = nn.Linear(in_channels, num_heading_bins)
         self.heading_residual_head = nn.Linear(in_channels, num_heading_bins)
-        if size_class_agnostic:
+        if num_size_clusters is None:
             self.size_head = nn.Linear(in_channels, 3)
         else:
             self.size_class_head = nn.Linear(in_channels, num_size_clusters)
@@ -136,12 +134,12 @@ class GroupFree3DPredictionHead(nn.Module):
             "heading_residuals": heading_residuals_normalized * (math.pi / self.num_heading_bins),
             "sem_cls_scores": self.sem_cls_head(x),
         }
-        if self.size_class_agnostic:
+        ns = self.num_size_clusters
+        if ns is None:
             out["size"] = self.size_head(x)
             return out
 
         assert mean_sizes is not None, "A class-aware size head requires the size templates `mean_sizes`."
-        ns = self.num_size_clusters
         size_scores = self.size_class_head(x)
         size_residuals_normalized = self.size_residual_head(x).view(batch_size, num_queries, ns, 3)
         size_residuals = size_residuals_normalized * mean_sizes.view(1, 1, ns, 3)
@@ -170,10 +168,8 @@ class GroupFree3DDetection(DetectionModel):
         in_channels: Input feature channels per point excluding xyz ($0$ for the released checkpoints).
         num_classes: Number of semantic classes.
         num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned boxes).
-        num_size_clusters: Number of size templates of the class-aware size head ($0$ when class agnostic).
-        mean_sizes: Per-template mean box size, shape $(\text{num\_size\_clusters}, 3)$, or `None` when the size
-            head is class agnostic.
-        size_class_agnostic: Regress the box size directly instead of through size templates.
+        mean_sizes: Mean box size of each template of a class-aware size head, shape $(S, 3)$, or `None` to regress
+            the box size directly.
         num_proposals: Number of object candidates per scene.
         sa_channels: Per-SA-block MLP channel lists for the backbone.
         sa_num_points: Per-SA-block farthest-point-sample counts.
@@ -198,9 +194,7 @@ class GroupFree3DDetection(DetectionModel):
         num_classes: int,
         *,
         num_heading_bins: int,
-        num_size_clusters: int,
         mean_sizes: Union[Tensor, List[List[float]], None],
-        size_class_agnostic: bool,
         num_proposals: int,
         sa_channels: Sequence[Sequence[int]],
         sa_num_points: Sequence[int],
@@ -217,18 +211,11 @@ class GroupFree3DDetection(DetectionModel):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
-        if size_class_agnostic:
-            mean = None
-        else:
-            if mean_sizes is None:
-                raise ValueError("`mean_sizes` is required unless `size_class_agnostic=True`.")
-            mean = torch.as_tensor(mean_sizes, dtype=torch.float32)
-            if mean.shape != (num_size_clusters, 3):
-                raise ValueError(f"`mean_sizes` must have shape ({num_size_clusters}, 3), got {tuple(mean.shape)}.")
+        mean = None if mean_sizes is None else torch.as_tensor(mean_sizes, dtype=torch.float32)
+        if mean is not None and (mean.dim() != 2 or mean.shape[1] != 3):
+            raise ValueError(f"`mean_sizes` must have shape (S, 3), got {tuple(mean.shape)}.")
 
         self.num_heading_bins = num_heading_bins
-        self.num_size_clusters = num_size_clusters
-        self.size_class_agnostic = size_class_agnostic
         self.num_proposals = num_proposals
         self.num_decoder_layers = num_decoder_layers
         self.act = act
@@ -298,8 +285,7 @@ class GroupFree3DDetection(DetectionModel):
             self.backbone.out_channels,
             self.num_classes,
             self.num_heading_bins,
-            self.num_size_clusters,
-            size_class_agnostic=self.size_class_agnostic,
+            None if self.mean_sizes is None else self.mean_sizes.shape[0],
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -475,9 +461,7 @@ _SUNRGBD_TRANSFORM = T.Compose(
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=256,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -510,9 +494,7 @@ def groupfree3d_l6_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=256,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -545,9 +527,7 @@ def groupfree3d_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=256,
         sa_channels=[[128, 128, 256], [256, 256, 512], [256, 256, 512], [256, 256, 512]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -580,9 +560,7 @@ def groupfree3d_w2x_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetect
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=512,
         sa_channels=[[128, 128, 256], [256, 256, 512], [256, 256, 512], [256, 256, 512]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -615,9 +593,7 @@ def groupfree3d_w2x_l12_o512_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetect
         in_channels=0,
         num_classes=10,
         num_heading_bins=12,
-        num_size_clusters=0,
         mean_sizes=None,
-        size_class_agnostic=True,
         num_proposals=256,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -650,9 +626,7 @@ def groupfree3d_l6_o256_sunrgbd_ze_liu(**hparams: Any) -> GroupFree3DDetection:
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=256,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -685,9 +659,7 @@ def groupfree3d_l6_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=256,
         sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -720,9 +692,7 @@ def groupfree3d_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=256,
         sa_channels=[[128, 128, 256], [256, 256, 512], [256, 256, 512], [256, 256, 512]],
         sa_num_points=[2048, 1024, 512, 256],
@@ -755,9 +725,7 @@ def groupfree3d_w2x_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetec
         in_channels=0,
         num_classes=18,
         num_heading_bins=1,
-        num_size_clusters=18,
         mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
-        size_class_agnostic=False,
         num_proposals=512,
         sa_channels=[[128, 128, 256], [256, 256, 512], [256, 256, 512], [256, 256, 512]],
         sa_num_points=[2048, 1024, 512, 256],
