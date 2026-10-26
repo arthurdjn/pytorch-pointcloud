@@ -39,8 +39,7 @@ _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
-# dataset here (SUN RGB-D, ModelNet40 HDF5, ScanNet200, the KITTI split files) and the unreleased SphereFormer
-# weights have no row.
+# dataset here (SUN RGB-D, ScanNet200, the KITTI split files) and the unreleased SphereFormer weights have no row.
 BENCHMARKS = [
     pytest.param("spunet/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="spunet/scannet"),
     pytest.param(
@@ -70,6 +69,14 @@ BENCHMARKS = [
         ("--model", "pointnext-sm.scanobjectnn-hardest.openpoints", "--limit", "8"),
         marks=_CLUSTER,
         id="pointnext/scanobjectnn",
+    ),
+    pytest.param("pointnet/segmentation_s3dis_benchmark.py", ("--limit", "1"), id="pointnet/s3dis"),
+    pytest.param("pointnet/classification_modelnet40_benchmark.py", ("--limit", "4"), id="pointnet/modelnet40"),
+    pytest.param(
+        "pointnet/classification_scanobjectnn_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="pointnet/scanobjectnn",
     ),
     pytest.param(
         "pointnet2/segmentation_s3dis_benchmark.py",
@@ -412,7 +419,7 @@ TRAININGS = [
     ),
     pytest.param(
         "pointnet2/segmentation_s3dis_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.s3dis-area5", "--batch-size", "2"),
+        (*_SMOKE_RECIPE, "--model", "pointnet.s3dis-area5.xu-yan", "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointnet2/s3dis-pointnet",
     ),
@@ -429,6 +436,11 @@ TRAININGS = [
         id="pointnet/modelnet40",
     ),
     pytest.param(
+        "pointnet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        id="pointnet/modelnet40-jiawei-ren",
+    ),
+    pytest.param(
         "pointnext/classification_scanobjectnn_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
@@ -439,6 +451,20 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="pointnet2/scanobjectnn-train",
+    ),
+    pytest.param(
+        "pointnet2/classification_scanobjectnn_train.py",
+        (
+            *_SMOKE_RECIPE,
+            "--model",
+            "pointnet.scanobjectnn-hardest.openpoints",
+            "--batch-size",
+            "2",
+            "--val-batch-size",
+            "2",
+        ),
+        marks=_CLUSTER,
+        id="pointnet2/scanobjectnn-pointnet",
     ),
     pytest.param(
         "pointnext/classification_modelnet40_train.py",

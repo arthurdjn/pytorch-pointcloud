@@ -47,6 +47,8 @@ pointmlp-elite,pointmlp,classification,,false,,,OA,,,
 pointmlp-elite.modelnet40.xu-ma,pointmlp,classification,modelnet40,true,Apache-2.0,0.72,OA,93.6,92.79,OA 92.79 · mAcc 89.36
 pointmlp-elite.scanobjectnn-hardest.xu-ma,pointmlp,classification,scanobjectnn-hardest,true,Apache-2.0,0.71,OA,84.1,84.18,OA 84.18 · mAcc 81.77
 pointnet.modelnet40,pointnet,classification,modelnet40,false,,3.47,OA,,,
+pointnet.modelnet40.jiawei-ren,pointnet,classification,modelnet40,true,Apache-2.0,3.47,OA,90.7,,OA 0.00 · mAcc 0.00
+pointnet.scanobjectnn-hardest.openpoints,pointnet,classification,scanobjectnn-hardest,true,MIT,3.47,OA,75.2,,OA 0.00 · mAcc 0.00
 pointnet2-msg.modelnet40.xu-yan,pointnet2,classification,modelnet40,true,MIT,1.75,OA,92.8,92.67,OA 92.67 · mAcc 90.60
 pointnet2-ssg.modelnet40.xu-yan,pointnet2,classification,modelnet40,true,MIT,1.48,OA,92.0,92.30,OA 92.30 · mAcc 88.23
 pointnet2.modelnet40.openpoints,pointnet2,classification,modelnet40,true,MIT,1.48,OA,93.0,91.90,OA 91.90 · mAcc 88.88
@@ -83,6 +85,7 @@ pointcnn-base,pointcnn,semantic-segmentation,,false,,,mIoU,,,
 pointmlp-base,pointmlp,semantic-segmentation,,false,,,mIoU,,,
 pointmlp-elite,pointmlp,semantic-segmentation,,false,,,mIoU,,,
 pointnet.s3dis-area5,pointnet,semantic-segmentation,s3dis-area5,false,,3.53,mIoU,,,
+pointnet.s3dis-area5.xu-yan,pointnet,semantic-segmentation,s3dis-area5,true,MIT,3.53,mIoU,43.7,,mIoU 0.00 · OA 0.00
 pointnet.shapenetpart,pointnet,semantic-segmentation,shapenetpart,false,,3.53,mIoU,,,
 pointnet2.s3dis-area1.openpoints,pointnet2,semantic-segmentation,s3dis-area1,true,MIT,0.97,mIoU,,74.96,mIoU 74.96 · OA 89.78
 pointnet2.s3dis-area2.openpoints,pointnet2,semantic-segmentation,s3dis-area2,true,MIT,0.97,mIoU,,48.31,mIoU 48.31 · OA 80.14

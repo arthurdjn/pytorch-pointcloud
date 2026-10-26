@@ -33,6 +33,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added the first PointNet checkpoints, for ModelNet40, ScanObjectNN and S3DIS Area 5, and their benchmark scripts.
+- Added `act_first`, `act_last` and `stnet_use_features` to the PointNet models, and `in_channels` to `TNet`.
+- Changed the key of the last PointNet encoder norm to `encoder.out_norm`.
 
 ## 0.0.18 (2026-10-20)
 

@@ -10,6 +10,8 @@ ROOT="${ROOT:-data}"
 RUN="uv run --no-sync python"
 
 # Classification (ModelNet40, ScanObjectNN)
+$RUN examples/pointnet/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet.modelnet40.jiawei-ren
+$RUN examples/pointnet/classification_scanobjectnn_benchmark.py --root "$ROOT" --model pointnet.scanobjectnn-hardest.openpoints
 $RUN examples/pointnet2/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet2-ssg.modelnet40.xu-yan
 $RUN examples/pointnet2/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet2-msg.modelnet40.xu-yan
 $RUN examples/pointnet2/classification_modelnet40_benchmark.py --root "$ROOT" --model pointnet2.modelnet40.openpoints
@@ -109,6 +111,7 @@ $RUN examples/kpconv/segmentation_s3dis_benchmark.py --root "$ROOT" --model kpfc
 $RUN examples/kpconv/segmentation_toronto3d_benchmark.py --root "$ROOT" --model kpfcnn.toronto3d.open3d
 $RUN examples/kpconv/segmentation_parislille3d_benchmark.py --root "$ROOT" --model kpfcnn-deform.parislille3d.open3d
 $RUN examples/kpconv/segmentation_semantickitti_benchmark.py --root "$ROOT" --model kpfcnn.semantickitti.open3d
+$RUN examples/pointnet/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet.s3dis-area5.xu-yan --areas Area_5
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area5.xu-yan --areas Area_5
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 4
 $RUN examples/pointnet2/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnet2.s3dis-area2.openpoints --areas Area_2 --sw-batch-size 1

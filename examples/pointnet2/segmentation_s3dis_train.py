@@ -26,7 +26,11 @@ from torch_pointcloud.utils.random import seed_everything
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
-MODELS = ["pointnet2.s3dis-area5.xu-yan", "pointnet.s3dis-area5"]
+# The point features each model reads, stacked into `x`.
+MODELS = {
+    "pointnet2.s3dis-area5.xu-yan": [DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS],
+    "pointnet.s3dis-area5.xu-yan": [DataKeys.COLOR, DataKeys.NORM_POS],
+}
 NUM_CLASSES = 13
 NUM_POINTS = 4096
 BLOCK_SIZE = 1.0
@@ -53,7 +57,6 @@ TRAIN_TRANSFORM = T.Compose(
         T.RandomSample(keys=[*POINT_KEYS, DataKeys.NORM_POS], num_samples=NUM_POINTS),
         T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
         T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(0.0, 360.0)),  # rotate_point_cloud_z
-        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
     ]
 )
 # The validation blocks are drawn from a fixed seed, so every validation scores the same blocks.
@@ -75,7 +78,6 @@ VAL_TRANSFORM = T.Compose(
         ),
         T.RandomSample(keys=[*POINT_KEYS, DataKeys.NORM_POS], num_samples=NUM_POINTS, seed=0),
         T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
-        T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
     ]
 )
 
@@ -115,7 +117,7 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Train PointNet++ on S3DIS.")
-    parser.add_argument("--model", default=MODELS[0], choices=MODELS)
+    parser.add_argument("--model", default=next(iter(MODELS)), choices=list(MODELS))
     parser.add_argument("--area", default=5, type=int, choices=range(1, 7), help="Held-out area.")
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--output", default=None, help="Directory for the checkpoints (default: none saved).")
@@ -146,8 +148,9 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
 
     train_dataset: Dataset
     val_dataset: Dataset
-    train_dataset = S3DIS(areas=train_areas, transform=TRAIN_TRANSFORM, **common)
-    val_dataset = S3DIS(areas=val_areas, transform=VAL_TRANSFORM, **common)
+    features = T.Cat(keys=MODELS[args.model], dst_key=DataKeys.X)
+    train_dataset = S3DIS(areas=train_areas, transform=T.Compose([TRAIN_TRANSFORM, features]), **common)
+    val_dataset = S3DIS(areas=val_areas, transform=T.Compose([VAL_TRANSFORM, features]), **common)
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(

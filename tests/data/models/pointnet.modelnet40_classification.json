@@ -262,19 +262,19 @@
       128
     ],
     "encoder.mlp2.norms.0.module.num_batches_tracked": [],
-    "encoder.mlp2.norms.1.module.weight": [
+    "encoder.out_norm.module.weight": [
       1024
     ],
-    "encoder.mlp2.norms.1.module.bias": [
+    "encoder.out_norm.module.bias": [
       1024
     ],
-    "encoder.mlp2.norms.1.module.running_mean": [
+    "encoder.out_norm.module.running_mean": [
       1024
     ],
-    "encoder.mlp2.norms.1.module.running_var": [
+    "encoder.out_norm.module.running_var": [
       1024
     ],
-    "encoder.mlp2.norms.1.module.num_batches_tracked": [],
+    "encoder.out_norm.module.num_batches_tracked": [],
     "head.lins.0.weight": [
       512,
       1024

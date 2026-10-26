@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.pointnet import PointNetClassification, PointNetSegmentation
+from torch_pointcloud.models.pointnet import PointNetClassification, PointNetEncoder, PointNetSegmentation
 
 
 @pytest.fixture
@@ -103,3 +103,52 @@ def test_pointnet_classification_head_channels(model_clf: PointNetClassification
 
 def test_pointnet_segmentation_head_keeps_full_chain(model_seg: PointNetSegmentation) -> None:
     assert model_seg.head.channel_list == [model_seg.num_features, 64, 32, model_seg.num_classes]
+
+
+@pytest.mark.parametrize(
+    ("act_last", "nonnegative"),
+    [
+        pytest.param(True, True, id="act-last"),
+        pytest.param(False, False, id="no-act-last"),
+    ],
+)
+def test_pointnet_encoder_act_last(act_last: bool, nonnegative: bool, data: Dict[str, Tensor]) -> None:
+    encoder = PointNetEncoder(
+        in_channels=6,
+        mlp1_channels=(32,),
+        mlp2_channels=(64, 128),
+        tnet_mlp1_dims=(32, 64),
+        tnet_mlp2_dims=(32,),
+        act_first=False,
+        act_last=act_last,
+    )
+    out = encoder(data["x"], data["pos"], data["batch"])
+    assert out.shape == (data["pos"].shape[0], 128)
+    assert bool((out >= 0).all()) is nonnegative
+
+
+@pytest.mark.parametrize("act_first", [pytest.param(True, id="act-first"), pytest.param(False, id="norm-first")])
+def test_pointnet_encoder_act_first(act_first: bool) -> None:
+    encoder = PointNetEncoder(in_channels=6, act_first=act_first)
+    assert encoder.stnet.local_nn.act_first is act_first
+    assert encoder.ftnet is not None and encoder.ftnet.local_nn.act_first is act_first
+    assert encoder.mlp1.act_first is act_first
+    assert encoder.mlp2.act_first is act_first
+
+
+@pytest.mark.parametrize(
+    ("stnet_use_features", "stnet_in_channels"),
+    [
+        pytest.param(False, 3, id="coordinates"),
+        pytest.param(True, 9, id="coordinates-and-features"),
+    ],
+)
+def test_pointnet_encoder_stnet_use_features(
+    stnet_use_features: bool,
+    stnet_in_channels: int,
+    data: Dict[str, Tensor],
+) -> None:
+    encoder = PointNetEncoder(in_channels=6, stnet_use_features=stnet_use_features)
+    out = encoder(data["x"], data["pos"], data["batch"])
+    assert encoder.stnet.local_nn.channel_list[0] == stnet_in_channels
+    assert out.shape == (data["pos"].shape[0], 1024)
