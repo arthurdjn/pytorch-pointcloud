@@ -81,6 +81,75 @@ class Attention(nn.Module):
         return x
 
 
+class CrossAttention(nn.Module):
+    r"""Multi-head cross-attention from a query sequence to a key / value sequence.
+
+    Queries are projected from `x` and keys / values from `y`, so a few global tokens can attend over a long
+    local token sequence without entering it. The query and key / value projections mirror the fused `qkv` of
+    `Attention`, followed by the same output `proj`.
+
+    Args:
+        dim: Token dimension $C$. Must be divisible by `num_heads`.
+        num_heads: Number of attention heads $h$.
+        qkv_bias: Whether the query and key / value projections use a bias.
+        qk_scale: Override for the $1/\sqrt{d_\text{head}}$ logit scale. Defaults to
+            $d_\text{head}^{-1/2}$ when `None`.
+        attn_dropout: Dropout applied to the attention weights.
+        proj_dropout: Dropout applied to the output projection.
+
+    Shape:
+        - Input: $(B, N_q, C)$ queries and $(B, N_{kv}, C)$ keys / values.
+        - Output: $(B, N_q, C)$.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.layers import CrossAttention
+
+        attn = CrossAttention(384, num_heads=6)
+        queries = torch.randn(2, 3, 384)
+        tokens = torch.randn(2, 64, 384)
+        y = attn(queries, tokens)
+        print(y.shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        qk_scale: Optional[float] = None,
+        attn_dropout: float = 0.0,
+        proj_dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+        self.scale = qk_scale or head_dim**-0.5
+        self.q = nn.Linear(dim, dim, bias=qkv_bias)
+        self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias)
+        self.attn_drop = nn.Dropout(attn_dropout)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_dropout)
+
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
+        B, N, C = x.shape
+        M = y.shape[1]
+        q = self.q(x).reshape(B, N, self.num_heads, C // self.num_heads).transpose(1, 2)
+        kv = self.kv(y).reshape(B, M, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        k, v = kv[0], kv[1]
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
 class TransformerBlock(nn.Module):
     r"""Pre-norm transformer block: residual multi-head attention then a residual MLP.
 

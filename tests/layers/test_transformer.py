@@ -1,7 +1,12 @@
 import pytest
 import torch
 
-from torch_pointcloud.layers.transformer import TransformerDecoderLayer, TransformerEncoderLayer
+from torch_pointcloud.layers.transformer import (
+    Attention,
+    CrossAttention,
+    TransformerDecoderLayer,
+    TransformerEncoderLayer,
+)
 
 
 @pytest.mark.parametrize("norm_first", [True, False])
@@ -38,3 +43,29 @@ def test_transformer_decoder_layer_pos_in_value_only_matters_with_positions() ->
     in_value.load_state_dict(plain.state_dict())
     tgt, memory = torch.randn(6, 2, 32), torch.randn(10, 2, 32)
     assert torch.allclose(plain(tgt, memory), in_value(tgt, memory))
+
+
+def test_cross_attention_matches_self_attention_on_its_own_tokens() -> None:
+    torch.manual_seed(0)
+    attn = Attention(32, num_heads=4, qkv_bias=True).eval()
+    cross = CrossAttention(32, num_heads=4, qkv_bias=True).eval()
+    with torch.no_grad():
+        cross.q.weight.copy_(attn.qkv.weight[:32])
+        cross.q.bias.copy_(attn.qkv.bias[:32])
+        cross.kv.weight.copy_(attn.qkv.weight[32:])
+        cross.kv.bias.copy_(attn.qkv.bias[32:])
+        cross.proj.load_state_dict(attn.proj.state_dict())
+    x = torch.randn(2, 10, 32)
+
+    assert torch.allclose(cross(x, x), attn(x), atol=1e-6)
+
+
+def test_cross_attention_output_follows_the_queries() -> None:
+    attn = CrossAttention(32, num_heads=4).eval()
+    queries = torch.randn(2, 3, 32)
+    tokens = torch.randn(2, 10, 32)
+
+    out = attn(queries, tokens)
+
+    assert out.shape == (2, 3, 32)
+    assert torch.allclose(attn(queries[:, :1], tokens), out[:, :1], atol=1e-6)

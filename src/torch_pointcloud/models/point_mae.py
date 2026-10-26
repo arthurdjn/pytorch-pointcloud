@@ -24,6 +24,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.ops.cluster import group
+from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
@@ -265,11 +266,7 @@ class MaskTransformer(nn.Module):
             A boolean mask of shape $(B, G)$, `True` where the group is masked out.
         """
         B, G, _ = center.shape
-        num_mask = int(self.mask_ratio * G)
-        noise = torch.rand(B, G, device=center.device)
-        keep = torch.argsort(noise, dim=1)[:, : G - num_mask]
-        mask = torch.ones(B, G, dtype=torch.bool, device=center.device)
-        mask.scatter_(1, keep, False)
+        mask = random_mask(B, G, self.mask_ratio, device=center.device)
         return mask
 
     def forward(self, neighborhood: Tensor, center: Tensor) -> Tuple[Tensor, Tensor]:
