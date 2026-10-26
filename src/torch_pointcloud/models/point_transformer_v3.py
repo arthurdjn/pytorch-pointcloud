@@ -19,6 +19,7 @@ from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
+from torch_pointcloud.layers.language_guided_head import LanguageGuidedHead
 from torch_pointcloud.layers.linear_blocks import LinearBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.serialized_attention import (
@@ -201,6 +202,40 @@ def _resolve_condition(
         )
 
     return resolved
+
+
+def _default_num_classes(
+    num_classes: Union[int, Sequence[int]],
+    conditions: Optional[Sequence[str]],
+    condition: Optional[str],
+) -> int:
+    """Return the class count of the default `condition`, checking one count per condition was given.
+
+    Args:
+        num_classes: A class count, or one count per entry of `conditions`.
+        conditions: Condition names the model was built with, or `None`.
+        condition: Default condition of the model, or `None`.
+
+    Returns:
+        `num_classes` itself when it is a count, otherwise the count of `condition`.
+
+    Raises:
+        ValueError: If the counts do not match `conditions` one to one, or `condition` is not one of them.
+    """
+    if isinstance(num_classes, int):
+        return num_classes
+    if conditions is None or len(conditions) != len(num_classes):
+        raise ValueError(
+            f"`num_classes` has {len(num_classes)} entries; `pdnorm_conditions` must name as many "
+            f"(got {None if conditions is None else list(conditions)!r})."
+        )
+    if condition is None or condition not in conditions:
+        raise ValueError(
+            f"One `num_classes` per condition requires the default `condition` to be one of {list(conditions)!r}, "
+            f"got {condition!r}."
+        )
+
+    return num_classes[list(conditions).index(condition)]
 
 
 class PointTransformerV3Block(nn.Module):
@@ -1405,9 +1440,17 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
 
     This segmentation variant uses an encoder-decoder architecture with skip connections.
 
+    Multi-dataset checkpoints condition the model on the dataset of each batch, as in :arxiv: [Point Prompt
+    Training](https://arxiv.org/abs/2308.09718): `pdnorm_conditions` gives every norm one set of statistics per dataset,
+    and `num_classes` with one count per condition gives one head per dataset, both selected by the `condition`
+    argument of `forward`. `text_embed_dim` and `text_scale` replace the linear heads by a `LanguageGuidedHead`, whose
+    class weights are fixed text embeddings of the class names.
+
     Args:
         in_channels: Number of input channels.
-        num_classes: Number of output classes for segmentation.
+        num_classes: Number of output classes for segmentation. A sequence with one count per entry of
+            `pdnorm_conditions` builds one head per condition; `num_classes` then reads as the count of the default
+            `condition`.
         serialization_orders: Serialization orders to use for the encoder.
         strides: Strides for the downsampling operations.
         encoder_depths: Number of encoder blocks for each stage.
@@ -1441,12 +1484,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         stem_type: Encoder stem (`"sparse_conv"` or `"linear"`).
         act_kwargs: Optional keyword arguments for the activation factory.
         norm_kwargs: Optional keyword arguments for the normalization factory.
+        legacy: Make each block's xCPE convolve the previous block's pre-residual output instead of its output, the
+            structure some released checkpoints were trained with.
+        pdnorm_conditions: Ordered condition names; when given, every norm holds one inner norm per condition.
+        condition: Default condition used when `forward` receives none.
+        text_embed_dim: Width of the text-embedding space of a `LanguageGuidedHead`. `None` builds linear heads.
+        text_scale: Scale of the cosine similarities of the `LanguageGuidedHead`; required with `text_embed_dim`.
     """
 
     def __init__(
         self,
         in_channels: int,
-        num_classes: int,
+        num_classes: Union[int, Sequence[int]],
         serialization_orders: Sequence[SerializationOrder] = ("hilbert", "hilbert-trans"),
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
@@ -1479,8 +1528,19 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         legacy: bool = False,
         pdnorm_conditions: Optional[Sequence[str]] = None,
         condition: Optional[str] = None,
+        text_embed_dim: Optional[int] = None,
+        text_scale: Optional[float] = None,
     ) -> None:
-        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if (text_embed_dim is None) != (text_scale is None):
+            raise ValueError(f"`text_embed_dim` and `text_scale` go together, got {text_embed_dim=} and {text_scale=}.")
+
+        super().__init__(
+            in_channels=in_channels,
+            num_classes=_default_num_classes(num_classes, pdnorm_conditions, condition),
+        )
+        self.num_classes_per_condition = None if isinstance(num_classes, int) else tuple(num_classes)
+        self.text_embed_dim = text_embed_dim
+        self.text_scale = text_scale
         self.condition = condition
         self.pdnorm_conditions = pdnorm_conditions
         norm_kwargs = norm_kwargs or {}
@@ -1585,21 +1645,35 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
-        if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+        if self.num_classes_per_condition is None:
+            if self.num_classes == 0:
+                return nn.Identity()
+            if self.text_embed_dim is not None and self.text_scale is not None:
+                return LanguageGuidedHead(self.num_features, self.text_embed_dim, self.num_classes, self.text_scale)
+            return nn.Linear(self.num_features, self.num_classes)
+        if self.text_embed_dim is not None and self.text_scale is not None:
+            return LanguageGuidedHead(
+                self.num_features,
+                self.text_embed_dim,
+                self.num_classes_per_condition,
+                self.text_scale,
+                conditions=self.pdnorm_conditions,
+            )
+        return nn.ModuleList([nn.Linear(self.num_features, k) for k in self.num_classes_per_condition])
 
-    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+    def reset_classifier(self, num_classes: Union[int, Sequence[int]], **kwargs: Any) -> None:
         """Resets the segmentation head with new parameters.
 
         Note:
             To set an empty segmentation head, use `num_classes=0`.
 
         Args:
-            num_classes: Number of output classes.
+            num_classes: Number of output classes, or one count per entry of `pdnorm_conditions` for one head per
+                condition.
             **kwargs: Additional keyword arguments to pass to the segmentation head.
         """
-        self.num_classes = num_classes
+        self.num_classes = _default_num_classes(num_classes, self.pdnorm_conditions, self.condition)
+        self.num_classes_per_condition = None if isinstance(num_classes, int) else tuple(num_classes)
         self.head = self.configure_head()
 
     @overload
@@ -1645,10 +1719,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
     ) -> Tuple[Tensor, Tensor, Tensor]:
         return self.decoder.forward(x, intermediates, condition=condition)
 
-    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, pre_logits: bool = False, condition: Optional[str] = None) -> Tensor:
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
-        return x if pre_logits else self.head(x)
+        if pre_logits:
+            return x
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
+        if isinstance(self.head, nn.ModuleList):
+            assert self.pdnorm_conditions is not None and condition is not None
+            return self.head[list(self.pdnorm_conditions).index(condition)](x)
+        if isinstance(self.head, LanguageGuidedHead):
+            return self.head(x, condition=condition)
+        return self.head(x)
 
     def forward(
         self,
@@ -1667,17 +1749,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             batch: Batch indices for each point of shape $(N,)$.
             pos: Real-valued metric positions of shape $(N, 3)$. Required when
                 `attn_kind="rope"`; ignored otherwise.
-            condition: Optional per-batch condition selecting the PDNorm inner norms (keyword-only).
+            condition: Optional per-batch condition selecting the PDNorm inner norms and the head (keyword-only).
 
         Returns:
-            Per-point segmentation logits of shape $(N, \text{num\_classes})$.
+            Per-point segmentation logits of shape $(N, \text{num\_classes})$, with the class count of the selected
+            condition when the model has one head per condition.
         """
         condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         x, _, _, intermediates = self.forward_features(
             x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition
         )
         x, _, _ = self.forward_decoder(x, intermediates, condition=condition)
-        return self.forward_head(x)
+        return self.forward_head(x, condition=condition)
 
 
 _ENCODER_CHECKPOINT_MAPPING = {
