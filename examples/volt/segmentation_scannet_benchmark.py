@@ -1,4 +1,4 @@
-"""Benchmark Volt semantic segmentation on ScanNet at full resolution."""
+"""Benchmark Volt semantic segmentation on ScanNet and ScanNet200 at full resolution."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import ScanNet20
+from torch_pointcloud.datasets import ScanNet20, ScanNet200
 from torch_pointcloud.inferers import Inferer, SimpleInferer, TTAInferer, VoxelPartitionInferer, simple_tta_transforms
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model, model_info
@@ -29,22 +29,16 @@ MODELS = (
     "volt-s.scannet20.kadir-yilmaz",
     "volt-s-joint.scannet20.kadir-yilmaz",
     "volt-b-joint.scannet20.kadir-yilmaz",
+    "volt-s.scannet200.kadir-yilmaz",
+    "volt-s-joint.scannet200.kadir-yilmaz",
+    "volt-b-joint.scannet200.kadir-yilmaz",
 )
-NUM_CLASSES = 20
+DATASETS = {"scannet20": ScanNet20, "scannet200": ScanNet200}
 
 INFERER_TRANSFORM = T.Compose(
     [
         T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
         T.Quantize(keys=DataKeys.POS, size=VOXEL_SIZE, dst_keys=DataKeys.POS_GRID),
-    ]
-)
-TRANSFORM = T.Compose(
-    [
-        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
-        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        # The released weights were trained on colors in $[0, 1]$.
-        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, NUM_CLASSES + 1), default=-1),
     ]
 )
 
@@ -54,7 +48,10 @@ def main() -> None:
     seed_everything(args.seed)
     set_determinism(tf32=False)
 
-    print(f"Benchmarking model {args.model!r} on ScanNet!")
+    weights = model_info(args.model, task="semantic-segmentation")["weights"]
+    assert weights is not None
+    num_classes = len(weights["classes"])
+    print(f"Benchmarking model {args.model!r} on {weights['dataset']}!")
     dataloader = configure_dataloader(args)
     model = configure_model(args)
     inferer = configure_inferer(args)
@@ -62,14 +59,14 @@ def main() -> None:
     num_scenes = len(dataloader.dataset)  # type: ignore[arg-type]
     protocol = "single pass" if args.simple else "test-time views x voxel-partition fragments"
     print(f"Test set: {num_scenes} scenes  ({protocol}, scored at full resolution)")
-    metrics = evaluate(model, dataloader, inferer, args.device, NUM_CLASSES, args.simple)
+    metrics = evaluate(model, dataloader, inferer, args.device, num_classes, args.simple)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark Volt semantic segmentation on ScanNet.")
+    parser = ArgumentParser(description="Benchmark Volt semantic segmentation on ScanNet and ScanNet200.")
     parser.add_argument("--model", default=MODELS[0], choices=MODELS)
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
@@ -87,10 +84,25 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
+def configure_transform(num_classes: int) -> T.Compose:
+    return T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            # The released weights were trained on colors in $[0, 1]$.
+            T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, num_classes + 1), default=-1),
+        ]
+    )
+
+
 def configure_dataset(args: Namespace) -> Dataset:
-    transform = model_info(args.model, task="semantic-segmentation")["transform"] if args.simple else TRANSFORM
+    info = model_info(args.model, task="semantic-segmentation")
+    weights = info["weights"]
+    assert weights is not None
+    transform = info["transform"] if args.simple else configure_transform(len(weights["classes"]))
     dataset: Dataset
-    dataset = ScanNet20(
+    dataset = DATASETS[weights["dataset"]](
         root=args.root,
         split="val",
         transform=transform,

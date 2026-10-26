@@ -785,7 +785,6 @@ def test_every_script_has_a_row() -> None:
         "sphereformer/segmentation_semantickitti_benchmark.py",
         "threedetr/detection_sunrgbd_benchmark.py",
         "votenet/detection_sunrgbd_benchmark.py",
-        "volt/segmentation_scannet200_benchmark.py",
     }
     covered = {str(param.values[0]) for param in BENCHMARKS + TRAININGS}
     scripts = {path.relative_to(EXAMPLES_DIR).as_posix() for path in EXAMPLES_DIR.glob("*/*.py")}
