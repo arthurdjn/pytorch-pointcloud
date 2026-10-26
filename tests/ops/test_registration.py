@@ -5,6 +5,8 @@ import torch
 
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.ops.registration import (
+    local_to_global_registration,
+    mutual_topk_correspondences,
     node_correspondences,
     pairwise_squared_distance,
     point_to_node_partition,
@@ -90,14 +92,16 @@ def test_point_to_node_partition_pads_small_patches() -> None:
 
 
 def test_node_correspondences_overlap_under_transform() -> None:
-    nodes = torch.tensor([[0.0, 0, 0], [1.0, 0, 0], [10.0, 0, 0]])
+    """The pairs come as `(source node, reference node)`, ordered by reference node."""
+    ref_nodes = torch.tensor([[0.0, 0, 0], [1.0, 0, 0], [10.0, 0, 0]])
     offsets = torch.tensor([[[0.0, 0, 0], [0.02, 0, 0], [0.0, 0.02, 0]]])
-    ref_patches = nodes.unsqueeze(1) + offsets
+    ref_patches = ref_nodes.unsqueeze(1) + offsets
     transform = _transform(torch.eye(3), torch.tensor([0.0, 0.0, 0.3]))
-    src_nodes = transform_points(nodes, torch.linalg.inv(transform))
-    src_patches = transform_points(ref_patches, torch.linalg.inv(transform))
-    corr, overlaps = node_correspondences(nodes, src_nodes, ref_patches, src_patches, transform, radius=0.05)
-    assert corr.tolist() == [[0, 0], [1, 1], [2, 2]]
+    order = torch.tensor([2, 0, 1])  # source node i is reference node order[i]
+    src_nodes = transform_points(ref_nodes[order], torch.linalg.inv(transform))
+    src_patches = transform_points(ref_patches[order], torch.linalg.inv(transform))
+    corr, overlaps = node_correspondences(src_nodes, ref_nodes, src_patches, ref_patches, transform, radius=0.05)
+    assert corr.tolist() == [[1, 0], [2, 1], [0, 2]]
     assert torch.allclose(overlaps, torch.ones(3))
 
 
@@ -126,3 +130,34 @@ def test_point_to_node_partition_pads_to_point_limit_with_few_points() -> None:
     assert knn_indices.shape == (2, 4) and knn_masks.shape == (2, 4)
     assert knn_indices.tolist() == [[0, 2, 2, 2], [1, 2, 2, 2]]
     assert knn_masks.tolist() == [[True, False, False, False], [True, False, False, False]]
+
+
+def test_mutual_topk_correspondences_keeps_mutual_entries_above_threshold() -> None:
+    scores = torch.tensor([[[0.9, 0.0, 0.0], [0.7, 0.1, 0.03], [0.0, 0.6, 0.02]]])
+    selected = mutual_topk_correspondences(scores, k=1, threshold=0.05)
+    # (1, 0) is the best of its row but not of its column.
+    assert selected.tolist() == [[[True, False, False], [False, False, False], [False, True, False]]]
+    assert not mutual_topk_correspondences(scores, k=1, threshold=0.95).any()
+    masked = mutual_topk_correspondences(scores, k=2, threshold=0.05, row_mask=torch.tensor([[True, False, True]]))
+    assert not masked[0, 1].any()
+    assert mutual_topk_correspondences(scores, k=10, threshold=0.0).shape == (1, 3, 3)
+
+
+def test_local_to_global_registration_selects_the_consistent_hypothesis() -> None:
+    torch.manual_seed(0)
+    transform = _transform(_rotation("z", 30.0), torch.tensor([0.5, -0.2, 0.1]))
+    src = torch.rand(30, 3)
+    ref = transform_points(src, transform)
+    ref[20:] += torch.rand(10, 3) + 1.0  # the third hypothesis is all outliers
+    group = torch.arange(3).repeat_interleave(10)
+    estimate = local_to_global_registration(src, ref, torch.ones(30), group, 0.05, 3, 5)
+    assert torch.allclose(estimate, transform, atol=1e-4)
+
+
+def test_local_to_global_registration_without_large_groups_fits_all_correspondences() -> None:
+    src = torch.rand(6, 3)
+    transform = _transform(torch.eye(3), torch.tensor([0.3, 0.0, 0.0]))
+    estimate = local_to_global_registration(
+        src, transform_points(src, transform), torch.ones(6), torch.arange(6), 0.05, 3, 2
+    )
+    assert torch.allclose(estimate, transform, atol=1e-5)

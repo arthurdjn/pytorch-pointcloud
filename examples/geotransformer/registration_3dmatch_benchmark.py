@@ -4,7 +4,7 @@ import os
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from functools import partial
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Union
 
 import torch
 from torch import Tensor
@@ -17,7 +17,7 @@ from torch_pointcloud.metrics import (
     feature_matching_recall,
     inlier_ratio,
     registration_recall,
-    registration_rmse,
+    root_mean_square_alignment_error,
     rotation_error,
     translation_error,
 )
@@ -140,14 +140,14 @@ def evaluate(model: GeoTransformerRegistration, dataloader: DataLoader, device: 
 
         ref_frame, src_frame = data[DataKeys.FRAME][0].tolist()
         if src_frame > ref_frame + 1:
-            rmse = registration_rmse(transform, target, data[DataKeys.INFORMATION])
+            rmse = root_mean_square_alignment_error(transform, target, data[DataKeys.INFORMATION])
             scene_rmse[scene].append(rmse)
             if rmse.item() < RMSE_THRESHOLD:
                 scene_rre[scene].append(rotation_error(transform, target))
                 scene_rte[scene].append(translation_error(transform, target))
 
-    def scene_mean(values: Dict[str, List[Tensor]], reduce: Callable[[Tensor], Tensor]) -> float:
-        return sum(reduce(torch.cat(v)).item() for v in values.values() if v) / max(len(values), 1)
+    def scene_mean(values: Dict[str, List[Tensor]], reduce: Callable[[Tensor], Union[Tensor, float]]) -> float:
+        return sum(float(reduce(torch.cat(v))) for v in values.values() if v) / max(len(values), 1)
 
     matching_recall = partial(feature_matching_recall, threshold=INLIER_RATIO_THRESHOLD)
     recall = partial(registration_recall, threshold=RMSE_THRESHOLD)

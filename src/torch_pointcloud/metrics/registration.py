@@ -1,8 +1,8 @@
-r"""Rigid registration metrics: rotation and translation errors, the 3DMatch RMSE, the correspondence inlier ratio
-and the feature matching and registration recalls built on them.
+r"""Rigid registration metrics: rotation and translation errors, the alignment errors of the source points, the
+correspondence inlier ratio, and the feature matching and registration recalls built on them.
 
 The per-pair functions score a batch of pairs at once and return one value per pair, so a split accumulates as a
-list of small tensors that the recalls reduce.
+list of small tensors that the recalls reduce to a `float`.
 """
 
 import torch
@@ -63,13 +63,14 @@ def translation_error(transform: Tensor, target: Tensor) -> Tensor:
     return torch.linalg.norm(transform[..., :3, 3] - target[..., :3, 3], dim=-1)
 
 
-def registration_rmse(transform: Tensor, target: Tensor, information: Tensor) -> Tensor:
-    r"""Root mean square alignment error of the 3DMatch benchmark.
+def root_mean_square_alignment_error(transform: Tensor, target: Tensor, information: Tensor) -> Tensor:
+    r"""Root mean square displacement of the overlapping points under the residual transform, read through the
+    information matrix of the ground truth (the RMSE of the 3DMatch benchmark).
 
     The error of the residual transform $\bar{T}^{-1} T$ is read through the information matrix $\Omega$ the
     benchmark ships with every ground-truth pair: with $\xi = (t, q_x, q_y, q_z)$ its translation and the vector
     part of its quaternion, $\text{RMSE}^2 = \xi^\top \Omega \xi / \Omega_{00}$, the mean squared displacement of
-    the overlapping points. A pair is registered when the RMSE is under $0.2$ m.
+    the overlapping points.
 
     Args:
         transform: Estimated transforms, shape $(\ldots, 4, 4)$.
@@ -82,10 +83,10 @@ def registration_rmse(transform: Tensor, target: Tensor, information: Tensor) ->
     Example:
         ```pycon
         >>> import torch
-        >>> from torch_pointcloud.metrics import registration_rmse
+        >>> from torch_pointcloud.metrics import root_mean_square_alignment_error
         >>> estimate = torch.eye(4)
         >>> estimate[0, 3] = 0.1
-        >>> registration_rmse(estimate, torch.eye(4), torch.eye(6)).item()
+        >>> root_mean_square_alignment_error(estimate, torch.eye(4), torch.eye(6)).item()
         0.10000000149011612
 
         ```
@@ -171,45 +172,45 @@ def alignment_error(
     return scatter(distances, batch, dim=0, dim_size=target.size(0), reduce="mean")
 
 
-def feature_matching_recall(inlier_ratios: Tensor, threshold: float = 0.05) -> Tensor:
+def feature_matching_recall(inlier_ratios: Tensor, threshold: float) -> float:
     r"""Fraction of pairs whose inlier ratio reaches `threshold`.
 
     Args:
-        inlier_ratios: Inlier ratio of each pair, shape $(P,)$.
-        threshold: Minimum inlier ratio of a matched pair, $0.05$ on 3DMatch.
+        inlier_ratios: Inlier ratio of each pair, shape $(P,)$, from `inlier_ratio`.
+        threshold: Minimum inlier ratio of a matched pair.
 
     Returns:
-        The feature matching recall (FMR), a scalar in $[0, 1]$.
+        The feature matching recall (FMR), in $[0, 1]$.
 
     Example:
         ```pycon
         >>> import torch
         >>> from torch_pointcloud.metrics import feature_matching_recall
-        >>> feature_matching_recall(torch.tensor([0.0, 0.04, 0.05, 0.7])).item()
+        >>> feature_matching_recall(torch.tensor([0.0, 0.04, 0.05, 0.7]), threshold=0.05)
         0.5
 
         ```
     """
-    return (inlier_ratios >= threshold).float().mean()
+    return float((inlier_ratios >= threshold).float().mean())
 
 
-def registration_recall(errors: Tensor, threshold: float = 0.2) -> Tensor:
-    r"""Fraction of pairs whose alignment error is under `threshold`.
+def registration_recall(errors: Tensor, threshold: float) -> float:
+    r"""Fraction of pairs whose error is under `threshold`.
 
     Args:
-        errors: Error of each pair, shape $(P,)$: the `registration_rmse` on 3DMatch.
-        threshold: Error under which a pair is registered, $0.2$ m on 3DMatch.
+        errors: Error of each pair, shape $(P,)$, such as `root_mean_square_alignment_error`.
+        threshold: Error under which a pair is registered.
 
     Returns:
-        The registration recall (RR), a scalar in $[0, 1]$.
+        The registration recall (RR), in $[0, 1]$.
 
     Example:
         ```pycon
         >>> import torch
         >>> from torch_pointcloud.metrics import registration_recall
-        >>> registration_recall(torch.tensor([0.01, 0.1, 0.2, 0.5])).item()
+        >>> registration_recall(torch.tensor([0.01, 0.1, 0.2, 0.5]), threshold=0.2)
         0.5
 
         ```
     """
-    return (errors < threshold).float().mean()
+    return float((errors < threshold).float().mean())

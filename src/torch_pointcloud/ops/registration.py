@@ -1,4 +1,5 @@
-r"""Rigid registration primitives: pairwise distances, the weighted Procrustes fit, and coarse-to-fine patch partitions.
+r"""Rigid registration primitives: pairwise distances, the weighted Procrustes fit, correspondence selection, the
+local-to-global registration, and coarse-to-fine patch partitions.
 
 A rigid transform is a $4 \times 4$ matrix $T = \begin{bmatrix} R & t \\ 0 & 1 \end{bmatrix}$ mapping the source cloud
 into the reference frame, $q = R p + t$; `ops.geometry.transform_points` applies it.
@@ -9,7 +10,7 @@ from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.utils import index_to_mask
+from torch_geometric.utils import index_to_mask, mask_to_index, to_dense_batch
 
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.utils.types import OptTensor
@@ -118,6 +119,116 @@ def weighted_procrustes(
     return transform.squeeze(0) if squeeze else transform
 
 
+def mutual_topk_correspondences(
+    scores: Tensor,
+    k: int,
+    threshold: float,
+    row_mask: OptTensor = None,
+    col_mask: OptTensor = None,
+) -> Tensor:
+    r"""Entries of score matrices among the top-$k$ of both their row and their column, and above `threshold`.
+
+    Args:
+        scores: Score matrices, shape $(B, N, M)$.
+        k: Number of entries kept per row and per column; capped at the matrix size.
+        threshold: Minimum score of a kept entry, exclusive.
+        row_mask: Valid rows, shape $(B, N)$; every row when `None`.
+        col_mask: Valid columns, shape $(B, M)$; every column when `None`.
+
+    Returns:
+        The selected entries, a boolean tensor of shape $(B, N, M)$.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.registration import mutual_topk_correspondences
+        >>> scores = torch.tensor([[[0.9, 0.1], [0.2, 0.8]]])
+        >>> mutual_topk_correspondences(scores, k=1, threshold=0.05).tolist()
+        [[[True, False], [False, True]]]
+
+        ```
+    """
+    k = min(k, scores.size(1), scores.size(2))
+    row_topk_scores, row_topk_indices = scores.topk(k=k, dim=2)
+    row_selected = torch.zeros_like(scores).scatter_(2, row_topk_indices, row_topk_scores) > threshold
+    col_topk_scores, col_topk_indices = scores.topk(k=k, dim=1)
+    col_selected = torch.zeros_like(scores).scatter_(1, col_topk_indices, col_topk_scores) > threshold
+    selected = row_selected & col_selected
+    if row_mask is not None:
+        selected = selected & row_mask.unsqueeze(2)
+    if col_mask is not None:
+        selected = selected & col_mask.unsqueeze(1)
+    return selected
+
+
+@torch.no_grad()
+def local_to_global_registration(
+    src_points: Tensor,
+    ref_points: Tensor,
+    scores: Tensor,
+    group: Tensor,
+    acceptance_radius: float,
+    min_group_size: int,
+    num_refinement_steps: int,
+) -> Tensor:
+    r"""Rigid transform of one pair from correspondences grouped into local hypotheses.
+
+    Every group of at least `min_group_size` correspondences proposes the `weighted_procrustes` transform of its
+    own correspondences; the proposal with the most inliers among all the correspondences (residual under
+    `acceptance_radius`) is refit on those inliers, then refit `num_refinement_steps - 1` more times on the inliers
+    of the previous fit. Without any large enough group, the first fit uses all the correspondences.
+
+    Args:
+        src_points: Source point of every correspondence, shape $(C, 3)$.
+        ref_points: Reference point of every correspondence, shape $(C, 3)$.
+        scores: Weight of every correspondence, shape $(C,)$.
+        group: Hypothesis every correspondence belongs to, shape $(C,)$, sorted.
+        acceptance_radius: Residual under which a correspondence is an inlier of a transform.
+        min_group_size: Number of correspondences a group needs to propose a transform.
+        num_refinement_steps: Number of fits on the inliers of the selected transform.
+
+    Returns:
+        The transform moving the source onto the reference, shape $(4, 4)$.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.registration import local_to_global_registration
+        >>> src = torch.rand(8, 3)
+        >>> group = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
+        >>> transform = local_to_global_registration(src, src + 0.5, torch.ones(8), group, 0.1, 3, 5)
+        >>> torch.allclose(transform[:3, 3], torch.full((3,), 0.5), atol=1e-4)
+        True
+
+        ```
+    """
+
+    def inlier_scores(transform: Tensor) -> Tensor:
+        residuals = torch.linalg.norm(ref_points - transform_points(src_points, transform), dim=1)
+        return scores * (residuals < acceptance_radius).float()
+
+    counts = torch.bincount(group)
+    proposals = mask_to_index(counts >= min_group_size)
+    if proposals.numel() > 0:
+        max_group_size = int(counts[proposals].max())
+        group_src_points, _ = to_dense_batch(src_points, group, max_num_nodes=max_group_size)
+        group_ref_points, _ = to_dense_batch(ref_points, group, max_num_nodes=max_group_size)
+        group_scores, _ = to_dense_batch(scores, group, max_num_nodes=max_group_size)
+        transforms = weighted_procrustes(
+            group_src_points[proposals], group_ref_points[proposals], group_scores[proposals]
+        )
+        aligned = transform_points(src_points.unsqueeze(0), transforms)  # (P, C, 3)
+        inliers = torch.linalg.norm(ref_points.unsqueeze(0) - aligned, dim=2) < acceptance_radius
+        current_scores = scores * inliers[inliers.sum(dim=1).argmax()].float()
+    else:
+        current_scores = inlier_scores(weighted_procrustes(src_points, ref_points, scores))
+
+    transform = weighted_procrustes(src_points, ref_points, current_scores)
+    for _ in range(num_refinement_steps - 1):
+        transform = weighted_procrustes(src_points, ref_points, inlier_scores(transform))
+    return transform
+
+
 @torch.no_grad()
 def point_to_node_partition(
     points: Tensor,
@@ -174,16 +285,16 @@ def point_to_node_partition(
 
 @torch.no_grad()
 def node_correspondences(
-    ref_nodes: Tensor,
     src_nodes: Tensor,
-    ref_knn_points: Tensor,
+    ref_nodes: Tensor,
     src_knn_points: Tensor,
+    ref_knn_points: Tensor,
     transform: Tensor,
     radius: float,
-    ref_masks: OptTensor = None,
     src_masks: OptTensor = None,
-    ref_knn_masks: OptTensor = None,
+    ref_masks: OptTensor = None,
     src_knn_masks: OptTensor = None,
+    ref_knn_masks: OptTensor = None,
 ) -> Tuple[Tensor, Tensor]:
     r"""Ground-truth node (patch) correspondences and their overlap ratios under a known transform.
 
@@ -192,20 +303,20 @@ def node_correspondences(
     fraction of source patch points with a match. Pairs whose enclosing spheres cannot intersect are skipped.
 
     Args:
-        ref_nodes: Reference nodes, shape $(M, 3)$.
         src_nodes: Source nodes, shape $(N, 3)$.
-        ref_knn_points: Reference patches, shape $(M, K, 3)$.
+        ref_nodes: Reference nodes, shape $(M, 3)$.
         src_knn_points: Source patches, shape $(N, K, 3)$.
+        ref_knn_points: Reference patches, shape $(M, K, 3)$.
         transform: Ground-truth transform of the source onto the reference, shape $(4, 4)$.
         radius: Distance under which two points match.
-        ref_masks: Nodes of the reference with a non-empty patch, shape $(M,)$.
         src_masks: Nodes of the source with a non-empty patch, shape $(N,)$.
-        ref_knn_masks: Validity of the reference patch slots, shape $(M, K)$.
+        ref_masks: Nodes of the reference with a non-empty patch, shape $(M,)$.
         src_knn_masks: Validity of the source patch slots, shape $(N, K)$.
+        ref_knn_masks: Validity of the reference patch slots, shape $(M, K)$.
 
     Returns:
-        A tuple `(corr_indices, corr_overlaps)`: the `(reference node, source node)` index pairs with a positive
-        overlap, shape $(C, 2)$, and their overlap ratios, shape $(C,)$.
+        A tuple `(corr_indices, corr_overlaps)`: the `(source node, reference node)` index pairs with a positive
+        overlap, shape $(C, 2)$, ordered by reference node, and their overlap ratios, shape $(C,)$.
 
     Example:
         ```pycon
@@ -260,7 +371,7 @@ def node_correspondences(
     overlaps = (ref_overlaps + src_overlaps) / 2
 
     overlap_masks = overlaps > 0
-    corr_indices = torch.stack([sel_ref_indices[overlap_masks], sel_src_indices[overlap_masks]], dim=1)
+    corr_indices = torch.stack([sel_src_indices[overlap_masks], sel_ref_indices[overlap_masks]], dim=1)
     return corr_indices, overlaps[overlap_masks]
 
 

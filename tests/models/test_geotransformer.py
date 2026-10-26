@@ -38,6 +38,7 @@ def _create_model(**overrides: Any) -> GeoTransformerRegistration:
         sigma_d=0.2,
         num_points_in_patch=16,
         matching_radius=0.05,
+        acceptance_radius=0.1,
         num_correspondences=32,
         num_targets=16,
         num_sinkhorn_iterations=10,
@@ -240,7 +241,7 @@ def test_geotransformer_training_uses_ground_truth_targets() -> None:
     )
     assert output["gt_node_corr_indices"].shape[1] == 2
     assert output["node_corr_batch"].numel() <= 16
-    losses = GeoTransformerLoss()(output, data)
+    losses = GeoTransformerLoss(positive_radius=0.05)(output, data)
     losses["loss"].backward()
     assert torch.isfinite(losses["loss"])
     assert model.transformer.in_proj.weight.grad is not None

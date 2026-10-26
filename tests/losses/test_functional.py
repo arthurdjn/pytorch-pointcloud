@@ -24,6 +24,7 @@ from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 def test_functional_reexports_every_tensor_function() -> None:
     expected = {
+        "assignment_negative_log_likelihood",
         "center_regression_loss",
         "chamfer_distance",
         "corner_loss",

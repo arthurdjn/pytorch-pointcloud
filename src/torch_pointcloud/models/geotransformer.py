@@ -12,19 +12,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.utils import mask_to_index, to_dense_batch
+from torch_geometric.utils import mask_to_index
 from typing_extensions import NotRequired
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.kpconv_blocks import KPConvBlock, KPResidualGroupNormBlock, LinearGroupNormBlock
 from torch_pointcloud.layers.voxel_grid_pool import VoxelGridPool
 from torch_pointcloud.ops.cluster import dense_neighbors, gather_neighbors, knn
-from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.ops.registration import (
+    local_to_global_registration,
+    mutual_topk_correspondences,
     node_correspondences,
     pairwise_squared_distance,
     point_to_node_partition,
-    weighted_procrustes,
 )
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor, Registration3D
@@ -58,7 +58,7 @@ class GeoTransformerOutput(TypedDict):
         src_patch_masks: Validity of the source patch slots, shape $(P, K)$.
         matching_scores: Log optimal-transport assignment between the two patches of every correspondence, with
             a dustbin row and column, shape $(P, K + 1, K + 1)$.
-        gt_node_corr_indices: Ground-truth `(reference, source)` superpoint correspondences, shape $(G, 2)$; present
+        gt_node_corr_indices: Ground-truth `(source, reference)` superpoint correspondences, shape $(G, 2)$; present
             when `forward` received the ground-truth transform.
         gt_node_corr_overlaps: Overlap ratio of every ground-truth superpoint correspondence, shape $(G,)$.
         gt_node_corr_batch: Pair index of every ground-truth superpoint correspondence, shape $(G,)$.
@@ -281,10 +281,13 @@ class GeometricTransformer(nn.Module):
         sigma_a: Angle temperature of the geometric structure embedding, in degrees.
         angle_k: Number of nearest superpoints of the angular embedding.
 
+    Each cross-attention layer updates the reference features first, then the source features from the updated
+    reference ones.
+
     Shape:
-        - Input: $(B, N, 3)$ reference superpoints, $(B, M, 3)$ source superpoints, $(B, N, C_\text{in})$ and
+        - Input: $(B, N, 3)$ source superpoints, $(B, M, 3)$ reference superpoints, $(B, N, C_\text{in})$ and
           $(B, M, C_\text{in})$ features; the $B$ sets of a cloud have the same size.
-        - Output: $(B, N, C_\text{out})$ and $(B, M, C_\text{out})$ features.
+        - Output: $(B, N, C_\text{out})$ source and $(B, M, C_\text{out})$ reference features.
     """
 
     def __init__(
@@ -311,10 +314,10 @@ class GeometricTransformer(nn.Module):
 
     def forward(
         self,
-        ref_points: Tensor,
         src_points: Tensor,
-        ref_feats: Tensor,
+        ref_points: Tensor,
         src_feats: Tensor,
+        ref_feats: Tensor,
     ) -> Tuple[Tensor, Tensor]:
         ref_embeddings = self.embedding(ref_points)
         src_embeddings = self.embedding(src_points)
@@ -327,7 +330,7 @@ class GeometricTransformer(nn.Module):
             else:
                 ref_feats = layer(ref_feats, src_feats)
                 src_feats = layer(src_feats, ref_feats)
-        return self.out_proj(ref_feats), self.out_proj(src_feats)
+        return self.out_proj(src_feats), self.out_proj(ref_feats)
 
 
 class LogOptimalTransport(nn.Module):
@@ -608,15 +611,23 @@ class GeoTransformerRegistration(RegistrationModel):
         The implementation is based on the original paper and the authors' code
         :github: [GeoTransformer](https://github.com/qinzheng93/GeoTransformer).
 
+    The arguments in the unit of the coordinates (`voxel_sizes`, `radii`, `kp_sigma`, `sigma_d`, `matching_radius`,
+    `acceptance_radius`) and the neighbor limits calibrated on the training data have no default; the registered
+    checkpoints set them.
+
     Args:
         in_channels: Number of input feature channels; the registered checkpoints read a constant feature.
-        stem_channels: Output width of the backbone stem.
-        encoder_channels: Output width of each backbone stage.
-        decoder_channels: Output width of each backbone decoder; the last one is the fine feature width.
         voxel_sizes: Grid size of each backbone subsampling.
         radii: Neighborhood radius of each backbone stage.
         kp_sigma: Kernel extent of each backbone stage.
         max_num_neighbors: Neighbor limit of each backbone stage.
+        sigma_d: Distance temperature of the geometric structure embedding.
+        matching_radius: Distance under which two fine points match when building the ground-truth superpoint
+            correspondences from the ground-truth transform.
+        acceptance_radius: Inlier distance of the local-to-global registration.
+        stem_channels: Output width of the backbone stem.
+        encoder_channels: Output width of each backbone stage.
+        decoder_channels: Output width of each backbone decoder; the last one is the fine feature width.
         kernel_size: Number of kernel points of every convolution.
         num_groups: Number of channel groups of the backbone normalizations.
         embed_dim: Token width of the geometric transformer.
@@ -624,90 +635,115 @@ class GeoTransformerRegistration(RegistrationModel):
         num_heads: Number of attention heads.
         depth: Number of transformer blocks, each a geometric self-attention layer followed by a cross-attention
             layer.
-        sigma_d: Distance temperature of the geometric structure embedding.
         sigma_a: Angle temperature of the geometric structure embedding, in degrees.
         angle_k: Number of nearest superpoints of the angular embedding.
         num_points_in_patch: Number of fine points $K$ in the patch of a superpoint.
-        matching_radius: Distance under which two fine points match when building the ground-truth superpoint
-            correspondences from the ground-truth transform.
         num_correspondences: Number of superpoint correspondences kept at inference.
         num_targets: Number of ground-truth superpoint correspondences sampled at training.
         overlap_threshold: Minimum overlap of a ground-truth superpoint correspondence sampled at training.
         num_sinkhorn_iterations: Number of Sinkhorn iterations of the optimal transport.
         topk: Number of candidates kept per row and per column of a patch assignment in `decode`.
-        acceptance_radius: Inlier distance of the local-to-global registration.
         confidence_threshold: Minimum assignment probability of a point correspondence.
         correspondence_threshold: Minimum number of point correspondences for a patch pair to propose a transform.
-        num_refinement_steps: Number of global Procrustes refinements of the selected transform.
+        num_refinement_steps: Number of weighted Procrustes fits on the inliers of the selected transform.
     """
 
     def __init__(
         self,
         in_channels: int = 1,
         *,
+        voxel_sizes: Sequence[float],
+        radii: Sequence[float],
+        kp_sigma: Sequence[float],
+        max_num_neighbors: Sequence[int],
+        sigma_d: float,
+        matching_radius: float,
+        acceptance_radius: float,
         stem_channels: int = 64,
         encoder_channels: Sequence[int] = (128, 256, 512, 1024),
         decoder_channels: Sequence[int] = (512, 256),
-        voxel_sizes: Sequence[float] = (0.05, 0.1, 0.2),
-        radii: Sequence[float] = (0.0625, 0.125, 0.25, 0.5),
-        kp_sigma: Sequence[float] = (0.05, 0.1, 0.2, 0.4),
-        max_num_neighbors: Sequence[int] = (38, 36, 36, 38),
         kernel_size: int = 15,
         num_groups: int = 32,
         embed_dim: int = 256,
         coarse_channels: int = 256,
         num_heads: int = 4,
         depth: int = 3,
-        sigma_d: float = 0.2,
         sigma_a: float = 15.0,
         angle_k: int = 3,
         num_points_in_patch: int = 64,
-        matching_radius: float = 0.05,
         num_correspondences: int = 256,
         num_targets: int = 128,
         overlap_threshold: float = 0.1,
         num_sinkhorn_iterations: int = 100,
         topk: int = 3,
-        acceptance_radius: float = 0.1,
         confidence_threshold: float = 0.05,
         correspondence_threshold: int = 3,
         num_refinement_steps: int = 5,
     ) -> None:
         super().__init__(in_channels)
-        self.num_points_in_patch = num_points_in_patch
+        self.voxel_sizes = tuple(voxel_sizes)
+        self.radii = tuple(radii)
+        self.kp_sigma = tuple(kp_sigma)
+        self.max_num_neighbors = tuple(max_num_neighbors)
+        self.sigma_d = sigma_d
         self.matching_radius = matching_radius
+        self.acceptance_radius = acceptance_radius
+        self.stem_channels = stem_channels
+        self.encoder_channels = tuple(encoder_channels)
+        self.decoder_channels = tuple(decoder_channels)
+        self.kernel_size = kernel_size
+        self.num_groups = num_groups
+        self.embed_dim = embed_dim
+        self.coarse_channels = coarse_channels
+        self.num_heads = num_heads
+        self.depth = depth
+        self.sigma_a = sigma_a
+        self.angle_k = angle_k
+        self.num_points_in_patch = num_points_in_patch
         self.num_correspondences = num_correspondences
         self.num_targets = num_targets
         self.overlap_threshold = overlap_threshold
+        self.num_sinkhorn_iterations = num_sinkhorn_iterations
         self.topk = topk
-        self.acceptance_radius = acceptance_radius
         self.confidence_threshold = confidence_threshold
         self.correspondence_threshold = correspondence_threshold
         self.num_refinement_steps = num_refinement_steps
 
-        self.backbone = KPConvFPN(
-            in_channels,
-            stem_channels=stem_channels,
-            encoder_channels=encoder_channels,
-            decoder_channels=decoder_channels,
-            voxel_sizes=voxel_sizes,
-            radii=radii,
-            kp_sigma=kp_sigma,
-            max_num_neighbors=max_num_neighbors,
-            kernel_size=kernel_size,
-            num_groups=num_groups,
+        self.backbone = self.configure_backbone()
+        self.transformer = self.configure_transformer()
+        self.optimal_transport = self.configure_optimal_transport()
+
+    def configure_backbone(self) -> KPConvFPN:
+        """Build the `KPConvFPN` backbone shared by the two clouds."""
+        return KPConvFPN(
+            self.in_channels,
+            stem_channels=self.stem_channels,
+            encoder_channels=self.encoder_channels,
+            decoder_channels=self.decoder_channels,
+            voxel_sizes=self.voxel_sizes,
+            radii=self.radii,
+            kp_sigma=self.kp_sigma,
+            max_num_neighbors=self.max_num_neighbors,
+            kernel_size=self.kernel_size,
+            num_groups=self.num_groups,
         )
-        self.transformer = GeometricTransformer(
-            self.backbone.encoder_channels[-1],
-            embed_dim,
-            coarse_channels,
-            num_heads,
-            depth,
-            sigma_d,
-            sigma_a,
-            angle_k,
+
+    def configure_transformer(self) -> GeometricTransformer:
+        """Build the `GeometricTransformer` on the coarsest backbone stage."""
+        return GeometricTransformer(
+            self.encoder_channels[-1],
+            self.embed_dim,
+            self.coarse_channels,
+            self.num_heads,
+            self.depth,
+            self.sigma_d,
+            self.sigma_a,
+            self.angle_k,
         )
-        self.optimal_transport = LogOptimalTransport(num_sinkhorn_iterations)
+
+    def configure_optimal_transport(self) -> LogOptimalTransport:
+        """Build the Sinkhorn layer matching the points of two patches."""
+        return LogOptimalTransport(self.num_sinkhorn_iterations)
 
     @property
     def num_features(self) -> int:
@@ -750,12 +786,16 @@ class GeoTransformerRegistration(RegistrationModel):
 
     def superpoint_matching(
         self,
-        ref_feats: Tensor,
         src_feats: Tensor,
-        ref_masks: Tensor,
+        ref_feats: Tensor,
         src_masks: Tensor,
+        ref_masks: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        r"""Top `num_correspondences` superpoint pairs by dual-normalized feature similarity, ignoring empty patches."""
+        r"""Top `num_correspondences` superpoint pairs by dual-normalized feature similarity, ignoring empty patches.
+
+        Returns:
+            The source and reference superpoint of every pair, shape $(P,)$ each, and its score, shape $(P,)$.
+        """
         ref_indices = mask_to_index(ref_masks)
         src_indices = mask_to_index(src_masks)
         scores = torch.exp(-pairwise_squared_distance(ref_feats[ref_indices], src_feats[src_indices], normalized=True))
@@ -765,7 +805,7 @@ class GeoTransformerRegistration(RegistrationModel):
         num_correspondences = min(self.num_correspondences, scores.numel())
         corr_scores, corr_indices = scores.view(-1).topk(k=num_correspondences, largest=True)
         ref_corr_indices, src_corr_indices = torch.unravel_index(corr_indices, scores.shape)
-        return ref_indices[ref_corr_indices], src_indices[src_corr_indices], corr_scores
+        return src_indices[src_corr_indices], ref_indices[ref_corr_indices], corr_scores
 
     def forward_head(
         self,
@@ -810,33 +850,33 @@ class GeoTransformerRegistration(RegistrationModel):
 
             if transform is not None:
                 gt_node_corr_indices, gt_node_corr_overlaps = node_correspondences(
-                    ref_points_c,
                     src_points_c,
-                    ref_node_knn_points,
+                    ref_points_c,
                     src_node_knn_points,
+                    ref_node_knn_points,
                     transform[b],
                     self.matching_radius,
-                    ref_masks=ref_node_masks,
                     src_masks=src_node_masks,
-                    ref_knn_masks=ref_node_knn_masks,
+                    ref_masks=ref_node_masks,
                     src_knn_masks=src_node_knn_masks,
+                    ref_knn_masks=ref_node_knn_masks,
                 )
                 collected["gt_node_corr_indices"].append(gt_node_corr_indices)
                 collected["gt_node_corr_overlaps"].append(gt_node_corr_overlaps)
                 collected["gt_node_corr_batch"].append(torch.full_like(gt_node_corr_overlaps, b, dtype=torch.long))
 
-            ref_feats_c, src_feats_c = self.transformer(
-                ref_points_c.unsqueeze(0),
+            src_feats_c, ref_feats_c = self.transformer(
                 src_points_c.unsqueeze(0),
-                coarse["x"][ref_c].unsqueeze(0),
+                ref_points_c.unsqueeze(0),
                 coarse["x"][src_c].unsqueeze(0),
+                coarse["x"][ref_c].unsqueeze(0),
             )
             ref_feats_c = F.normalize(ref_feats_c.squeeze(0), p=2, dim=1)
             src_feats_c = F.normalize(src_feats_c.squeeze(0), p=2, dim=1)
 
             with torch.no_grad():
-                ref_node_corr_indices, src_node_corr_indices, node_corr_scores = self.superpoint_matching(
-                    ref_feats_c, src_feats_c, ref_node_masks, src_node_masks
+                src_node_corr_indices, ref_node_corr_indices, node_corr_scores = self.superpoint_matching(
+                    src_feats_c, ref_feats_c, src_node_masks, ref_node_masks
                 )
                 if self.training:
                     assert transform is not None
@@ -845,7 +885,7 @@ class GeoTransformerRegistration(RegistrationModel):
                     if targets.size(0) > self.num_targets:
                         sel = torch.randperm(targets.size(0), device=targets.device)[: self.num_targets]
                         targets, node_corr_scores = targets[sel], node_corr_scores[sel]
-                    ref_node_corr_indices, src_node_corr_indices = targets.unbind(dim=1)
+                    src_node_corr_indices, ref_node_corr_indices = targets.unbind(dim=1)
 
             ref_node_corr_knn_indices = ref_node_knn_indices[ref_node_corr_indices]  # (P, K)
             src_node_corr_knn_indices = src_node_knn_indices[src_node_corr_indices]  # (P, K)
@@ -904,82 +944,6 @@ class GeoTransformerRegistration(RegistrationModel):
         fine, coarse = self.forward_features(x, pos, batch, ref_x, ref_pos, ref_batch)
         return self.forward_head(fine, coarse, transform=transform)
 
-    def correspondence_matrix(self, score_mat: Tensor, ref_knn_masks: Tensor, src_knn_masks: Tensor) -> Tensor:
-        r"""Point correspondences of every patch pair: the entries above the confidence threshold among the
-        top-`topk` of both their row and their column, restricted to the valid patch slots."""
-        mask_mat = ref_knn_masks.unsqueeze(2) & src_knn_masks.unsqueeze(1)
-        k = min(self.topk, score_mat.size(1), score_mat.size(2))
-
-        ref_topk_scores, ref_topk_indices = score_mat.topk(k=k, dim=2)  # (B, N, k)
-        ref_score_mat = torch.zeros_like(score_mat).scatter_(2, ref_topk_indices, ref_topk_scores)
-        ref_corr_mat = ref_score_mat > self.confidence_threshold
-
-        src_topk_scores, src_topk_indices = score_mat.topk(k=k, dim=1)  # (B, k, M)
-        src_score_mat = torch.zeros_like(score_mat).scatter_(1, src_topk_indices, src_topk_scores)
-        src_corr_mat = src_score_mat > self.confidence_threshold
-
-        return ref_corr_mat & src_corr_mat & mask_mat
-
-    def inlier_scores(
-        self,
-        ref_corr_points: Tensor,
-        src_corr_points: Tensor,
-        corr_scores: Tensor,
-        transform: Tensor,
-    ) -> Tensor:
-        r"""Correspondence scores zeroed where the source point moved by `transform` misses `acceptance_radius`."""
-        aligned = transform_points(src_corr_points, transform)
-        inliers = torch.linalg.norm(ref_corr_points - aligned, dim=1) < self.acceptance_radius
-        return corr_scores * inliers.float()
-
-    def local_to_global_registration(
-        self,
-        ref_knn_points: Tensor,
-        src_knn_points: Tensor,
-        score_mat: Tensor,
-        corr_mat: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        r"""Local-to-global registration of one pair from the point correspondences of its patch pairs.
-
-        Every patch pair with at least `correspondence_threshold` correspondences proposes a weighted Procrustes
-        transform; the proposal with the most inliers over all correspondences seeds `num_refinement_steps`
-        weighted Procrustes refinements on the inliers.
-
-        Returns:
-            The reference and source points of all correspondences $(C, 3)$, their scores $(C,)$ and the
-            estimated transform $(4, 4)$.
-        """
-        batch_indices, ref_indices, src_indices = torch.nonzero(corr_mat, as_tuple=True)
-        ref_corr_points = ref_knn_points[batch_indices, ref_indices]
-        src_corr_points = src_knn_points[batch_indices, src_indices]
-        corr_scores = score_mat[batch_indices, ref_indices, src_indices]
-
-        counts = torch.bincount(batch_indices, minlength=corr_mat.size(0))
-        proposals = mask_to_index(counts >= self.correspondence_threshold)
-        if proposals.numel() > 0:
-            max_corr = int(counts[proposals].max())
-            batch_ref_corr_points, _ = to_dense_batch(ref_corr_points, batch_indices, max_num_nodes=max_corr)
-            batch_src_corr_points, _ = to_dense_batch(src_corr_points, batch_indices, max_num_nodes=max_corr)
-            batch_corr_scores, _ = to_dense_batch(corr_scores, batch_indices, max_num_nodes=max_corr)
-            batch_transforms = weighted_procrustes(
-                batch_src_corr_points[proposals], batch_ref_corr_points[proposals], batch_corr_scores[proposals]
-            )
-            batch_aligned = transform_points(src_corr_points.unsqueeze(0), batch_transforms)  # (P, C, 3)
-            batch_residuals = torch.linalg.norm(ref_corr_points.unsqueeze(0) - batch_aligned, dim=2)
-            batch_inlier_masks = batch_residuals < self.acceptance_radius
-            best_index = batch_inlier_masks.sum(dim=1).argmax()
-            cur_corr_scores = corr_scores * batch_inlier_masks[best_index].float()
-        else:
-            estimated_transform = weighted_procrustes(src_corr_points, ref_corr_points, corr_scores)
-            cur_corr_scores = self.inlier_scores(ref_corr_points, src_corr_points, corr_scores, estimated_transform)
-
-        estimated_transform = weighted_procrustes(src_corr_points, ref_corr_points, cur_corr_scores)
-        for _ in range(self.num_refinement_steps - 1):
-            cur_corr_scores = self.inlier_scores(ref_corr_points, src_corr_points, corr_scores, estimated_transform)
-            estimated_transform = weighted_procrustes(src_corr_points, ref_corr_points, cur_corr_scores)
-
-        return ref_corr_points, src_corr_points, corr_scores, estimated_transform
-
     @torch.no_grad()
     def decode(self, output: GeoTransformerOutput) -> Registration3D:
         r"""Estimate the transform of every pair with the local-to-global registration.
@@ -1009,12 +973,26 @@ class GeoTransformerRegistration(RegistrationModel):
                 scores.append(empty.new_zeros(0))
                 batches.append(empty.new_zeros(0, dtype=torch.long))
                 continue
-            score_mat = torch.exp(output["matching_scores"][pairs][:, :-1, :-1])
-            ref_masks, src_masks = output["ref_patch_masks"][pairs], output["src_patch_masks"][pairs]
-            corr_mat = self.correspondence_matrix(score_mat, ref_masks, src_masks)
-            score_mat = score_mat * corr_mat.float()
-            ref_corr, src_corr, corr_scores, transform = self.local_to_global_registration(
-                output["ref_patch_points"][pairs], output["src_patch_points"][pairs], score_mat, corr_mat
+            score_mat = torch.exp(output["matching_scores"][pairs][:, :-1, :-1])  # (P, K, K), reference rows
+            corr_mat = mutual_topk_correspondences(
+                score_mat,
+                self.topk,
+                self.confidence_threshold,
+                row_mask=output["ref_patch_masks"][pairs],
+                col_mask=output["src_patch_masks"][pairs],
+            )
+            patch, ref_slot, src_slot = torch.nonzero(corr_mat, as_tuple=True)
+            src_corr = output["src_patch_points"][pairs][patch, src_slot]
+            ref_corr = output["ref_patch_points"][pairs][patch, ref_slot]
+            corr_scores = score_mat[patch, ref_slot, src_slot]
+            transform = local_to_global_registration(
+                src_corr,
+                ref_corr,
+                corr_scores,
+                patch,
+                self.acceptance_radius,
+                self.correspondence_threshold,
+                self.num_refinement_steps,
             )
             transforms.append(transform)
             src_points.append(src_corr)

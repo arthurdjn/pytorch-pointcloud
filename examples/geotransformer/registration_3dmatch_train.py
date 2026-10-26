@@ -29,6 +29,7 @@ SEED = 42
 POINT_LIMIT = 30000
 INLIER_RADIUS = 0.1
 INLIER_RATIO_THRESHOLD = 0.05
+POSITIVE_RADIUS = 0.05
 
 TRAIN_TRANSFORM = T.Compose(
     [
@@ -143,7 +144,7 @@ def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, 
 
 
 def configure_criterion(args: Namespace) -> GeoTransformerLoss:
-    return GeoTransformerLoss()
+    return GeoTransformerLoss(positive_radius=POSITIVE_RADIUS)
 
 
 def train_one_epoch(
@@ -208,7 +209,7 @@ def evaluate(model: GeoTransformerRegistration, loader: DataLoader, device: str)
 
     return {
         "IR": 100 * torch.cat(inlier_ratios).mean().item(),
-        "FMR": 100 * feature_matching_recall(torch.cat(inlier_ratios), INLIER_RATIO_THRESHOLD).item(),
+        "FMR": 100 * feature_matching_recall(torch.cat(inlier_ratios), INLIER_RATIO_THRESHOLD),
         "RRE": torch.cat(rotation_errors).mean().item(),
         "RTE": 100 * torch.cat(translation_errors).mean().item(),
     }

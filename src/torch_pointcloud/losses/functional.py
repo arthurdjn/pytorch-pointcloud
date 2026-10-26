@@ -3,15 +3,17 @@
 
 from .centerpoint import center_regression_loss, iou_prediction_loss
 from .chamfer import chamfer_distance
+from .circle import weighted_circle_loss
 from .corner import corner_loss
 from .focal import gaussian_focal_loss, one_hot_foreground, poly1_focal_loss, sigmoid_focal_loss
-from .geotransformer import weighted_circle_loss
+from .geotransformer import assignment_negative_log_likelihood
 from .kpconv import kpconv_deform_regularizer
 from .lovasz import lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched
 from .tnet import tnet_orthogonality_regularizer
 
 __all__ = [
+    "assignment_negative_log_likelihood",
     "center_regression_loss",
     "chamfer_distance",
     "corner_loss",

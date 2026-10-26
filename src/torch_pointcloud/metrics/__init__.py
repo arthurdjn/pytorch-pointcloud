@@ -10,7 +10,7 @@ from .registration import (
     feature_matching_recall,
     inlier_ratio,
     registration_recall,
-    registration_rmse,
+    root_mean_square_alignment_error,
     rotation_error,
     translation_error,
 )
@@ -32,7 +32,7 @@ __all__ = [
     "part_intersection_over_union",
     "part_mean_intersection_over_union",
     "registration_recall",
-    "registration_rmse",
+    "root_mean_square_alignment_error",
     "rotation_error",
     "translation_error",
 ]

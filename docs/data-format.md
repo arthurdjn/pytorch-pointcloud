@@ -52,7 +52,7 @@ Registration samples hold a pair of clouds and the rigid transform between them:
 | `pos`         | $(N, 3)$ | float32 | Source cloud, the one the transform moves                            |
 | `ref_pos`     | $(M, 3)$ | float32 | Reference cloud; collate it as a `cat_keys` entry for `batch_ref_pos` |
 | `transform`   | $(4, 4)$ | float32 | Source-to-reference transform $q = R p + t$, a `stack_keys` entry    |
-| `information` | $(6, 6)$ | float32 | Information matrix of the 3DMatch ground truth, for `registration_rmse` |
+| `information` | $(6, 6)$ | float32 | Information matrix of the 3DMatch ground truth, for `root_mean_square_alignment_error` |
 | `overlap`     | scalar   | float32 | Overlap ratio of the pair                                            |
 
 Some models read other keys: a voxel grid (`voxel`, `pos_voxel`, `voxel_num_points` from `HardVoxelize`), integer

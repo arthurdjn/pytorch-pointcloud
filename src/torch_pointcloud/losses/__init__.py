@@ -11,6 +11,7 @@ from . import functional
 from .anchor import AnchorHeadLoss, MultiGroupAnchorHeadLoss
 from .centerpoint import CenterHeadLoss, VoxelNeXtHeadLoss, center_regression_loss, iou_prediction_loss
 from .chamfer import ChamferDistance, chamfer_distance
+from .circle import WeightedCircleLoss, weighted_circle_loss
 from .corner import CornerLoss, corner_loss
 from .focal import (
     GaussianFocalLoss,
@@ -21,7 +22,7 @@ from .focal import (
     poly1_focal_loss,
     sigmoid_focal_loss,
 )
-from .geotransformer import GeoTransformerLoss, weighted_circle_loss
+from .geotransformer import GeoTransformerLoss, assignment_negative_log_likelihood
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched
@@ -51,6 +52,8 @@ __all__ = [
     "TransFusionHeadLoss",
     "VoteNetLoss",
     "VoxelNeXtHeadLoss",
+    "WeightedCircleLoss",
+    "assignment_negative_log_likelihood",
     "center_regression_loss",
     "chamfer_distance",
     "corner_loss",
