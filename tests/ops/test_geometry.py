@@ -7,6 +7,7 @@ from torch import Tensor
 
 from torch_pointcloud.ops.geometry import (
     axis_aligned_bounding_box,
+    cartesian_to_cylindrical,
     cross_product_matrix,
     random_spherical_points,
     rodrigues_rotation_matrix,
@@ -405,3 +406,26 @@ def test_spherical_points_gradient_honors_radius() -> None:
     points = spherical_points_gradient(radius, 16, max_steps=50)
     distances = torch.norm(points, dim=1)
     assert torch.allclose(torch.mean(distances[1:]), torch.tensor(0.66 * radius), atol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "pos, expected",
+    [
+        pytest.param(torch.tensor([[1.0, 0.0, 2.0]]), torch.tensor([[1.0, 0.0, 2.0]]), id="positive-x-axis"),
+        pytest.param(torch.tensor([[0.0, 2.0, -1.0]]), torch.tensor([[2.0, math.pi / 2, -1.0]]), id="positive-y-axis"),
+        pytest.param(torch.tensor([[-3.0, 0.0, 0.0]]), torch.tensor([[3.0, math.pi, 0.0]]), id="negative-x-axis"),
+        pytest.param(torch.tensor([[0.0, 0.0, 5.0]]), torch.tensor([[0.0, 0.0, 5.0]]), id="on-the-axis"),
+    ],
+)
+def test_cartesian_to_cylindrical(pos: Tensor, expected: Tensor) -> None:
+    assert torch.allclose(cartesian_to_cylindrical(pos), expected)
+
+
+def test_cartesian_to_cylindrical_round_trip() -> None:
+    torch.manual_seed(0)
+    pos = torch.randn(100, 3) * 10
+    cylindrical = cartesian_to_cylindrical(pos)
+    rho, phi, z = cylindrical.unbind(dim=1)
+    restored = torch.stack([rho * torch.cos(phi), rho * torch.sin(phi), z], dim=1)
+    assert torch.allclose(restored, pos, atol=1e-5)
+    assert (phi > -math.pi).all() and (phi <= math.pi).all()

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 import torch
 
@@ -6,6 +8,7 @@ from torch_pointcloud.ops.voxelization import (
     dense_voxelize,
     first_permutation,
     hard_voxelize,
+    majority_label,
     sparse_voxelize,
     trilinear_dense_devoxelize,
     voxel_grid_fnv,
@@ -210,3 +213,23 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+@pytest.mark.parametrize(
+    "labels, cluster, ignore_index, expected",
+    [
+        pytest.param([2, 2, 0, 1, 1, 0], [0, 0, 0, 1, 1, 1], None, [2, 1], id="majority"),
+        pytest.param([0, 1, 1, 0], [0, 0, 1, 1], None, [0, 0], id="tie-to-lowest-class"),
+        pytest.param([2, 255, 255, 1], [0, 0, 0, 1], 255, [255, 1], id="ignored-majority"),
+        pytest.param([255, 1], [0, 0], 255, [1], id="tie-against-ignored"),
+        pytest.param([-1, -1, 0, 2], [0, 0, 1, 1], -1, [-1, 0], id="negative-ignore-index"),
+    ],
+)
+def test_majority_label(labels: list, cluster: list, ignore_index: Optional[int], expected: list) -> None:
+    result = majority_label(torch.tensor(labels), torch.tensor(cluster), num_classes=3, ignore_index=ignore_index)
+    assert torch.equal(result, torch.tensor(expected))
+
+
+def test_majority_label_keeps_empty_clusters_at_the_first_class() -> None:
+    result = majority_label(torch.tensor([1, 1]), torch.tensor([0, 0]), num_classes=3, num_clusters=2)
+    assert torch.equal(result, torch.tensor([1, 0]))

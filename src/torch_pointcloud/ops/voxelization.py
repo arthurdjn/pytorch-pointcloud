@@ -1,4 +1,5 @@
-"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization."""
+"""Dense and sparse voxelization, FNV voxel hashing, the first point and the majority label per voxel, and trilinear
+devoxelization."""
 
 import functools
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
@@ -396,3 +397,55 @@ def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Te
     perm = torch.arange(n, device=cluster.device)
     first = torch.full((num_clusters,), n, dtype=torch.long, device=cluster.device)
     return first.scatter_reduce_(0, cluster, perm, reduce="amin")
+
+
+def majority_label(
+    labels: Tensor,
+    cluster: Tensor,
+    num_classes: int,
+    num_clusters: Optional[int] = None,
+    ignore_index: Optional[int] = None,
+) -> Tensor:
+    r"""Most frequent label of each cluster, e.g. the label of each voxel from the labels of its points.
+
+    Ties go to the lowest class index. With `ignore_index`, the labels equal to it vote as an extra class ranked after
+    the others: a cluster where they are the most frequent gets `ignore_index`.
+
+    Args:
+        labels: Per-point labels in $[0, C)$, or equal to `ignore_index`.
+        cluster: Cluster index of each point, with values in $[0, V)$.
+        num_classes: Number of classes $C$.
+        num_clusters: Number of clusters $V$. Inferred as `cluster.max() + 1` when `None`.
+        ignore_index: Label of the points without a class, or `None` when every label is in $[0, C)$.
+
+    Returns:
+        The label of each cluster.
+
+    Shape:
+        - `labels`, `cluster`: $(N,)$
+        - Output: $(V,)$
+
+    Example:
+        ```pycon
+        >>> labels = torch.tensor([2, 2, 0, 255, 255, 1])
+        >>> cluster = torch.tensor([0, 0, 0, 1, 1, 1])
+        >>> majority_label(labels, cluster, num_classes=3, ignore_index=255)
+        tensor([  2, 255])
+
+        ```
+    """
+    if num_clusters is None:
+        num_clusters = int(cluster.max().item()) + 1 if cluster.numel() > 0 else 0
+    votes = labels if ignore_index is None else labels.masked_fill(labels == ignore_index, num_classes)
+    num_votes = num_classes if ignore_index is None else num_classes + 1
+    counts = scatter(
+        torch.nn.functional.one_hot(votes, num_votes),
+        cluster,
+        dim=0,
+        dim_size=num_clusters,
+        reduce="sum",
+    )
+    majority = counts.argmax(dim=1)
+    if ignore_index is None:
+        return majority
+    return majority.masked_fill(majority == num_classes, ignore_index)

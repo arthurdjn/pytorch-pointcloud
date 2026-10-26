@@ -124,6 +124,11 @@
     "date": "July 2020",
     "title": "Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution"
   },
+  "2011.10033": {
+    "crop": 0.47,
+    "date": "November 2020",
+    "title": "Cylindrical and Asymmetrical 3D Convolution Networks for LiDAR Segmentation"
+  },
   "2012.09164": {
     "crop": 0.47,
     "date": "December 2020",

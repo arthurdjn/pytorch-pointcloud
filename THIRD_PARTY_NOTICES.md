@@ -19,7 +19,7 @@ neither are marked as such.
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 6     | not stated upstream                                                                                                        |
-| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 6     | Copyright 2018-2019 Open-MMLab                                                                                             |
+| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 8     | Copyright 2018-2019 Open-MMLab                                                                                             |
 | Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |
@@ -38,6 +38,7 @@ neither are marked as such.
 | IGNF/myria3d                                    | `ignf`           | Etalab-2.0   | 1     | Copyright (c) 2021, Institut National de l'Information Géographique et Forestière                                          |
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
+| cardwing/Codes-for-PVKD                         | `yuenan-hou`     | MIT          | 1     | Copyright (c) 2022 HOU Yuenan                                                                                              |
 
 ## Training data
 
@@ -50,8 +51,8 @@ Licenses of the datasets the checkpoints were trained on.
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
-| nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 6           |
+| nuScenes                                        | CC BY-NC-SA 4.0                                           | 5           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
@@ -83,6 +84,7 @@ Files adapted from other implementations, with the copyright notice each source 
 | ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                              | Copyright (c) 2022 Renrui Zhang                                               |
 | CGuangyan-BIT/PointGPT            | MIT        | `models/pointgpt.py`                                                                                                | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
 | LMD0311/PointMamba                | Apache-2.0 | `models/point_mamba.py`                                                                                             | not stated upstream                                                           |
+| xinge008/Cylinder3D               | Apache-2.0 | `layers/cylinder3d_blocks.py`, `layers/vfe.py`, `models/cylinder3d.py`                                              | Copyright 2020-2021 Xinge ZHU                                                 |
 
 ## Dependencies
 

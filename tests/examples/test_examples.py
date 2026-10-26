@@ -158,6 +158,18 @@ BENCHMARKS = [
         marks=_GPU_TORCHSPARSE,
         id="spvcnn/semantickitti",
     ),
+    pytest.param(
+        "cylinder3d/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="cylinder3d/semantickitti",
+    ),
+    pytest.param(
+        "cylinder3d/segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="cylinder3d/nuscenes",
+    ),
     pytest.param("dgcnn/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="dgcnn/scannet"),
     pytest.param(
         "dgcnn/segmentation_s3dis_benchmark.py",
@@ -551,6 +563,22 @@ TRAININGS = [
         ),
         marks=_GPU_TORCHSPARSE,
         id="spvcnn/semantickitti",
+    ),
+    pytest.param(
+        "cylinder3d/segmentation_semantickitti_train.py",
+        (
+            *_SMOKE_RECIPE,
+            "--train-sequences",
+            "00",
+            "--val-sequences",
+            "08",
+            "--batch-size",
+            "2",
+            "--warmup-iters",
+            "1",
+        ),
+        marks=_GPU_SPCONV,
+        id="cylinder3d/semantickitti",
     ),
     pytest.param(
         "sphereformer/segmentation_semantickitti_train.py",

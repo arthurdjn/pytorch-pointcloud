@@ -119,6 +119,9 @@ PRETRAINING_MODELS = [
 ]
 SEMANTIC_SEGMENTATION_MODELS = [
     "spformer-unet.scannet",
+    "cylinder3d.semantickitti.mmdet3d",
+    "cylinder3d-laser-polar-mix.semantickitti.mmdet3d",
+    "cylinder3d-0p5x.nuscenes.yuenan-hou",
     "concerto-large-lp.scannet20.pointcept",
     "utonia-base-lp.scannet20.pointcept",
     "dgcnn.s3dis-area1.an-tao",
@@ -269,7 +272,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "spformer", "cylinder3d")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn"))
@@ -299,7 +302,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3", "cylinder3d"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
