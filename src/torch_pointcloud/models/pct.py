@@ -50,7 +50,8 @@ class PCTClassification(ClassificationModel):
         head_act_kwargs: Extra arguments for `head_act`.
         norm: Normalization layer type.
         norm_kwargs: Additional arguments for the normalization layer.
-        bias: Whether the linear layers before the head use a bias; the head layers always do.
+        bias: Whether the stem, the neighbor embedding blocks, the attention input MLP and the projection before pooling
+            use a bias; the head and the attention value and output projections always do.
         dropout: Dropout probability after every hidden layer of the head.
         global_pool: Global pooling operation for final feature aggregation.
     """

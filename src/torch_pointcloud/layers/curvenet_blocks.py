@@ -121,8 +121,7 @@ class CurveWalk(nn.Module):
     features of the visited points.
 
     The momentum weights of a sample are read from its channels-first $(2, n)$ score block as $n$ consecutive pairs,
-    so curve $i$ mixes with the scores $2i$ and $2i + 1$ of that block rather than with its own two scores: the
-    released checkpoints were trained with this pairing.
+    so curve $i$ mixes with the scores $2i$ and $2i + 1$ of that block rather than with its own two scores.
 
     Args:
         channels: Number of feature channels $C$.
@@ -179,6 +178,7 @@ class CurveWalk(nn.Module):
         for step in range(self.curve_length):
             if step > 0:
                 weights = self.momentum(torch.cat([feature, descriptor], dim=1)).softmax(dim=1)  # (M, 2)
+                # The released checkpoints were trained with this pairing of the momentum scores.
                 weights = weights.view(batch_size, num_curves, 2).transpose(1, 2).reshape(-1, 2)
                 descriptor = feature * weights[:, :1] + descriptor * weights[:, 1:]
             neighbors = table[current]  # (M, k)
