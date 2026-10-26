@@ -418,28 +418,28 @@ TRAININGS = [
         id="pointnet2/s3dis-xu-yan",
     ),
     pytest.param(
-        "pointnet2/segmentation_s3dis_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.s3dis-area5.xu-yan", "--batch-size", "2"),
-        marks=_CLUSTER,
-        id="pointnet2/s3dis-pointnet",
-    ),
-    pytest.param(
         "pointnet2/classification_modelnet40_train.py",
         (*_SMOKE_RECIPE, "--model", "pointnet2-msg.modelnet40.xu-yan", "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointnet2/modelnet40-msg",
     ),
     pytest.param(
-        "pointnet2/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2"),
-        marks=_CLUSTER,
-        id="pointnet/modelnet40",
-    ),
-    pytest.param(
         "pointnet/classification_modelnet40_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         id="pointnet/modelnet40-jiawei-ren",
     ),
+    pytest.param(
+        "pointnet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2", "--val-batch-size", "2"),
+        id="pointnet/modelnet40",
+    ),
+    pytest.param(
+        "pointnet/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet/scanobjectnn",
+    ),
+    pytest.param("pointnet/segmentation_s3dis_train.py", (*_SMOKE_RECIPE, "--batch-size", "2"), id="pointnet/s3dis"),
     pytest.param(
         "pointnext/classification_scanobjectnn_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
@@ -451,20 +451,6 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="pointnet2/scanobjectnn-train",
-    ),
-    pytest.param(
-        "pointnet2/classification_scanobjectnn_train.py",
-        (
-            *_SMOKE_RECIPE,
-            "--model",
-            "pointnet.scanobjectnn-hardest.openpoints",
-            "--batch-size",
-            "2",
-            "--val-batch-size",
-            "2",
-        ),
-        marks=_CLUSTER,
-        id="pointnet2/scanobjectnn-pointnet",
     ),
     pytest.param(
         "pointnext/classification_modelnet40_train.py",

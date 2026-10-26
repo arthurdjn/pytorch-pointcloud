@@ -1,4 +1,4 @@
-"""Train PointNet++ (SSG / MSG) or PointNet on ModelNet40 (normal-resampled release), following yanx27's
+"""Train PointNet++ (SSG / MSG) on ModelNet40 (normal-resampled release), following yanx27's
 `train_classification.py`."""
 
 import os
@@ -16,7 +16,6 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.losses import TNetOrthogonalityRegularizer
 from torch_pointcloud.metrics import confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -25,10 +24,9 @@ from torch_pointcloud.utils.random import seed_everything
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
-MODELS = ["pointnet2-ssg.modelnet40.xu-yan", "pointnet2-msg.modelnet40.xu-yan", "pointnet.modelnet40"]
+MODELS = ["pointnet2-ssg.modelnet40.xu-yan", "pointnet2-msg.modelnet40.xu-yan"]
 NUM_CLASSES = 40
 NUM_POINTS = 1024
-REGULARIZER_WEIGHT = 0.001
 POINT_KEYS = [DataKeys.POS, DataKeys.NORMAL]
 
 TRAIN_TRANSFORM = T.Compose(
@@ -57,7 +55,6 @@ def main() -> None:
     model = configure_model(args)
     optimizer, scheduler = configure_optimizers(args, model)
     criterion = configure_criterion(args)
-    regularizer = configure_regularizer(args)
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} shapes, validating on {num_val}.")
@@ -65,7 +62,7 @@ def main() -> None:
     best_loss = float("inf")
     for epoch in range(args.epochs):
         scheduler.step()  # the reference steps the schedule before each epoch, so epoch 20 is the first at 0.7x
-        loss = train_one_epoch(model, criterion, regularizer, optimizer, train_loader, args.device, use_normals)
+        loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device, use_normals)
         lr = optimizer.param_groups[0]["lr"]
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
@@ -160,15 +157,9 @@ def configure_criterion(args: Namespace) -> nn.Module:
     return nn.CrossEntropyLoss()
 
 
-def configure_regularizer(args: Namespace) -> Optional[nn.Module]:
-    # The reference regularizes the feature transform of PointNet, not its input transform.
-    return TNetOrthogonalityRegularizer() if args.model.startswith("pointnet.") else None
-
-
 def train_one_epoch(
     model: nn.Module,
     criterion: nn.Module,
-    regularizer: Optional[nn.Module],
     optimizer: Optimizer,
     loader: DataLoader,
     device: str,
@@ -181,8 +172,6 @@ def train_one_epoch(
         x = data[DataKeys.NORMAL] if use_normals else None
         logits = model(x, data[DataKeys.POS], data[DataKeys.BATCH])
         loss = criterion(logits, data[DataKeys.LABEL])
-        if regularizer is not None:
-            loss = loss + REGULARIZER_WEIGHT * regularizer(model.get_submodule("encoder.ftnet"))
 
         optimizer.zero_grad(set_to_none=True)
         loss.backward()

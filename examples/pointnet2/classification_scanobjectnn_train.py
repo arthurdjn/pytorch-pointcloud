@@ -1,4 +1,4 @@
-"""Train the openpoints PointNet++ or PointNet on ScanObjectNN PB_T50_RS following openpoints' ScanObjectNN config."""
+"""Train the openpoints PointNet++ on ScanObjectNN PB_T50_RS following openpoints' ScanObjectNN config."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -24,11 +24,7 @@ from torch_pointcloud.utils.random import seed_everything
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
-# The point features each model reads, stacked into `x`.
-MODELS = {
-    "pointnet2.scanobjectnn-hardest.openpoints": [DataKeys.POS, "height"],
-    "pointnet.scanobjectnn-hardest.openpoints": ["height"],
-}
+MODELS = ["pointnet2.scanobjectnn-hardest.openpoints"]
 NUM_CLASSES = 15
 NUM_POINTS = 1024
 # The training clouds are farthest-point sampled to 1200 points, 1024 of which are kept.
@@ -44,6 +40,7 @@ TRAIN_TRANSFORM = T.Compose(
         T.RandomRotate(keys=DataKeys.POS, axis=1, angle_range=(-180.0, 180.0), p=1.0),
         T.FarthestPointSample(pos_key=DataKeys.POS, keys="height", num_samples=NUM_FPS_POINTS, random_start=True),
         T.RandomSample(keys=[DataKeys.POS, "height"], num_samples=NUM_POINTS),
+        T.Cat(keys=[DataKeys.POS, "height"], dst_key=DataKeys.X),
     ]
 )
 VAL_TRANSFORM = T.Compose(
@@ -51,6 +48,7 @@ VAL_TRANSFORM = T.Compose(
         T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=NUM_POINTS, random_start=False),
         T.AxisMinOffset(keys=DataKeys.POS, axis=1, dst_keys="height"),
         T.Rescale(keys=DataKeys.POS, method="centroid"),
+        T.Cat(keys=[DataKeys.POS, "height"], dst_key=DataKeys.X),
     ]
 )
 
@@ -87,8 +85,8 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Train PointNet++ or PointNet on ScanObjectNN.")
-    parser.add_argument("--model", default=next(iter(MODELS)), choices=list(MODELS))
+    parser = ArgumentParser(description="Train PointNet++ on ScanObjectNN.")
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--output", default=None, help="Directory for the checkpoints (default: none saved).")
     parser.add_argument("--device", default=DEVICE)
@@ -116,9 +114,8 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
 
     train_dataset: Dataset
     val_dataset: Dataset
-    features = T.Cat(keys=MODELS[args.model], dst_key=DataKeys.X)
-    train_dataset = ScanObjectNN(train=True, transform=T.Compose([TRAIN_TRANSFORM, features]), **common)
-    val_dataset = ScanObjectNN(train=False, transform=T.Compose([VAL_TRANSFORM, features]), **common)
+    train_dataset = ScanObjectNN(train=True, transform=TRAIN_TRANSFORM, **common)
+    val_dataset = ScanObjectNN(train=False, transform=VAL_TRANSFORM, **common)
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(

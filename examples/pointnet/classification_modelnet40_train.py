@@ -24,7 +24,7 @@ from torch_pointcloud.utils.random import seed_everything
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
-MODELS = ["pointnet.modelnet40.jiawei-ren"]
+MODELS = ["pointnet.modelnet40.jiawei-ren", "pointnet.modelnet40"]
 NUM_CLASSES = 40
 NUM_POINTS = 1024
 POINT_KEYS = [DataKeys.POS, DataKeys.NORMAL]
