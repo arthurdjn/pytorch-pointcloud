@@ -13,6 +13,7 @@ from torch_pointcloud.datasets import KITTI
 from torch_pointcloud.datasets.kitti import (
     KITTI_CLASSES,
     fov_flag,
+    kitti_difficulty,
     lidar_to_rect,
     load_kitti_calib,
     rect_to_img,
@@ -327,3 +328,27 @@ def test_kitti_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(KITTI, "write_processed_files", incomplete)
     KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
     assert not meta_path.exists()
+
+
+@pytest.mark.parametrize(
+    "bbox_height, truncation, occlusion, level",
+    [
+        pytest.param(40.0, 0.15, 0, 0, id="easy-at-every-limit"),
+        pytest.param(39.9, 0.15, 0, 1, id="moderate-below-the-easy-height"),
+        pytest.param(40.0, 0.16, 0, 1, id="moderate-above-the-easy-truncation"),
+        pytest.param(40.0, 0.15, 1, 1, id="moderate-occluded"),
+        pytest.param(25.0, 0.3, 1, 1, id="moderate-at-every-limit"),
+        pytest.param(25.0, 0.31, 1, 2, id="hard-above-the-moderate-truncation"),
+        pytest.param(25.0, 0.3, 2, 2, id="hard-occluded"),
+        pytest.param(25.0, 0.5, 2, 2, id="hard-at-every-limit"),
+        pytest.param(24.9, 0.0, 0, -1, id="below-the-hard-height"),
+        pytest.param(25.0, 0.51, 0, -1, id="above-the-hard-truncation"),
+        pytest.param(25.0, 0.0, 3, -1, id="occlusion-unknown"),
+    ],
+)
+def test_kitti_difficulty_levels_at_the_limits(
+    bbox_height: float, truncation: float, occlusion: int, level: int
+) -> None:
+    result = kitti_difficulty(torch.tensor([bbox_height]), torch.tensor([truncation]), torch.tensor([occlusion]))
+    assert result.dtype == torch.long
+    assert result.tolist() == [level]
