@@ -291,6 +291,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Run the code blocks of the docstrings and the docs pages (reads the fixture datasets, downloads weights)",
     )
+    parser.addoption(
+        "--run-hub",
+        action="store_true",
+        default=False,
+        help="Compare the Hugging Face Hub repositories with the registry (queries the Hub API, skipped by default)",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -309,14 +315,19 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "docs: the code blocks of the docstrings and the docs pages. Skipped unless --run-docs is passed.",
     )
+    config.addinivalue_line(
+        "markers",
+        "hub: tests that compare the Hugging Face Hub repositories with the registry. Skipped unless --run-hub is passed.",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip tests marked `pretrained`, `example` or `docs` unless their opt-in flag is passed.
+    """Skip tests marked `pretrained`, `example`, `docs` or `hub` unless their opt-in flag is passed.
 
     `pretrained` tests need local weights CI does not cache; `example` tests run every example script on
-    the dummy datasets (slow); `docs` tests run the code blocks of the docstrings and the docs pages. All stay opt-in
-    via `--run-pretrained` / `--run-examples` / `--run-docs`.
+    the dummy datasets (slow); `docs` tests run the code blocks of the docstrings and the docs pages; `hub` tests
+    query the Hugging Face Hub API. All stay opt-in via `--run-pretrained` / `--run-examples` / `--run-docs` /
+    `--run-hub`.
     """
     if not config.getoption("--run-pretrained"):
         skip_pretrained = pytest.mark.skip(reason="needs --run-pretrained to run")
@@ -335,6 +346,12 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         for item in items:
             if "docs" in item.keywords:
                 item.add_marker(skip_docs)
+
+    if not config.getoption("--run-hub"):
+        skip_hub = pytest.mark.skip(reason="needs --run-hub to run")
+        for item in items:
+            if "hub" in item.keywords:
+                item.add_marker(skip_hub)
 
 
 @pytest.fixture
