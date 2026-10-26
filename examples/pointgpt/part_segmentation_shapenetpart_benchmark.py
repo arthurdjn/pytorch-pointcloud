@@ -13,7 +13,7 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ShapeNetPart
 from torch_pointcloud.inferers import Inferer, SimpleInferer
-from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
+from torch_pointcloud.metrics import part_argmax, part_intersection_over_union, part_mean_intersection_over_union
 from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -93,13 +93,13 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
         scores = inferer(
             data, predictor=lambda d: model(None, d[DataKeys.POS], d[DataKeys.BATCH], d[DataKeys.CATEGORY])
         )
-        preds = scores.argmax(dim=1).cpu()
-        category = data[DataKeys.CATEGORY].argmax(dim=1).cpu()
+        category = data[DataKeys.CATEGORY].argmax(dim=1)
+        preds = part_argmax(scores, part_ids, category, data[DataKeys.BATCH]).cpu()
         shape_ious = part_intersection_over_union(
-            preds, data[DataKeys.SEGMENT].cpu(), part_ids, category, data[DataKeys.BATCH].cpu()
+            preds, data[DataKeys.SEGMENT].cpu(), part_ids, category.cpu(), data[DataKeys.BATCH].cpu()
         )
         ious.append(shape_ious)
-        categories.append(category)
+        categories.append(category.cpu())
 
     shape_ious, category = torch.cat(ious), torch.cat(categories)
     return {
