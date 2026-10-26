@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, TypeVar
 
 import pytest
 import torch
@@ -14,14 +14,25 @@ from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE, _SPCONV_GITHUB_URL, optional_import
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
+ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo", url=_SPCONV_GITHUB_URL)
 
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
-    pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed"),
-]
+pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
+DEVICES = pytest.mark.parametrize("device", [pytest.param("cpu"), pytest.param("cuda", marks=CUDA)])
+
+M = TypeVar("M", bound=torch.nn.Module)
 
 
+def _to_device(module: M, device: str) -> M:
+    """Move `module` to `device`; on CPU a CUDA build of spconv runs only its native algorithm."""
+    if device == "cpu":
+        for layer in module.modules():
+            if hasattr(layer, "algo"):
+                layer.algo = ConvAlgo.Native
+    return module.to(device)
+
+
+@CUDA
 def test_submconv3d_block_forward() -> None:
     block = SubMConv3dBlock(
         in_channels=8,
@@ -58,6 +69,7 @@ def test_sparse_conv_block_none_norm_act_builds_identity() -> None:
     assert isinstance(modules["2"], torch.nn.Identity)
 
 
+@CUDA
 def test_sparse_conv_block_none_norm_act_forward() -> None:
     import spconv.pytorch as spconv
 
@@ -81,6 +93,7 @@ def test_sparse_conv_block_invalid_conv_type_raises() -> None:
         SparseConvBlock(4, 8, 3, indice_key="s1", conv_type="invalid")
 
 
+@CUDA
 def test_sparse_basic_block_projects_skip() -> None:
     torch.manual_seed(0)
     x = torch.randn(20, 8).cuda()
@@ -96,26 +109,28 @@ def test_sparse_basic_block_projects_skip() -> None:
     assert same(x_sparse).features.shape == (20, 8)
 
 
-def _random_sparse_tensor(size: int = 12, channels: int = 3, seed: int = 0) -> Any:
+def _random_sparse_tensor(size: int = 12, channels: int = 3, seed: int = 0, device: str = "cuda") -> Any:
     generator = torch.Generator().manual_seed(seed)
     voxels = (torch.rand(size, size, size, generator=generator) < 0.2).nonzero().int()
-    indices = torch.cat([torch.zeros(len(voxels), 1, dtype=torch.int32), voxels], 1).contiguous().cuda()
-    features = torch.randn(len(voxels), channels, generator=generator).cuda()
+    indices = torch.cat([torch.zeros(len(voxels), 1, dtype=torch.int32), voxels], 1).contiguous().to(device)
+    features = torch.randn(len(voxels), channels, generator=generator).to(device)
     return spconv.SparseConvTensor(features, indices, [size, size, size], 1)
 
 
-def test_strided_sparse_conv3d_outputs_the_parent_voxels() -> None:
-    x = _random_sparse_tensor()
-    out = StridedSparseConv3d(3, 4, kernel_size=3, stride=2).cuda()(x)
+@DEVICES
+def test_strided_sparse_conv3d_outputs_the_parent_voxels(device: str) -> None:
+    x = _random_sparse_tensor(device=device)
+    out = _to_device(StridedSparseConv3d(3, 4, kernel_size=3, stride=2), device)(x)
 
     parents = torch.unique(torch.cat([x.indices[:, :1], x.indices[:, 1:] // 2], 1), dim=0)
     assert torch.equal(out.indices, parents.int())
     assert out.spatial_shape == [6, 6, 6]
 
 
-def test_strided_sparse_conv3d_matches_a_dense_convolution() -> None:
-    x = _random_sparse_tensor()
-    conv = StridedSparseConv3d(3, 4, kernel_size=3, stride=2).cuda()
+@DEVICES
+def test_strided_sparse_conv3d_matches_a_dense_convolution(device: str) -> None:
+    x = _random_sparse_tensor(device=device)
+    conv = _to_device(StridedSparseConv3d(3, 4, kernel_size=3, stride=2), device)
     out = conv(x)
 
     dense = F.conv3d(x.dense(), conv.weight.permute(0, 4, 1, 2, 3), stride=2, padding=1)
@@ -124,10 +139,11 @@ def test_strided_sparse_conv3d_matches_a_dense_convolution() -> None:
     torch.testing.assert_close(out.features, expected, atol=1e-4, rtol=1e-4)
 
 
-def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child() -> None:
-    indices = torch.tensor([[0, 0, 0, 0], [0, 3, 1, 1]], dtype=torch.int32).cuda()
-    x = spconv.SparseConvTensor(torch.ones(2, 2).cuda(), indices, [4, 4, 4], 1)
-    conv = StridedSparseConv3d(2, 1, kernel_size=1, stride=2).cuda()
+@DEVICES
+def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child(device: str) -> None:
+    indices = torch.tensor([[0, 0, 0, 0], [0, 3, 1, 1]], dtype=torch.int32, device=device)
+    x = spconv.SparseConvTensor(torch.ones(2, 2, device=device), indices, [4, 4, 4], 1)
+    conv = _to_device(StridedSparseConv3d(2, 1, kernel_size=1, stride=2), device)
     out = conv(x)
 
     assert out.indices.tolist() == [[0, 0, 0, 0], [0, 1, 0, 0]]
@@ -135,9 +151,10 @@ def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child() 
     assert out.features[1].item() == 0.0
 
 
-def test_sparse_basic_block_stride_two_halves_the_resolution() -> None:
-    x = _random_sparse_tensor(channels=8)
-    block = SparseBasicBlock(8, 16, stride=2, indice_key="subm").cuda().eval()
+@DEVICES
+def test_sparse_basic_block_stride_two_halves_the_resolution(device: str) -> None:
+    x = _random_sparse_tensor(channels=8, device=device)
+    block = _to_device(SparseBasicBlock(8, 16, stride=2, indice_key="subm"), device).eval()
     out = block(x)
 
     parents = torch.unique(torch.cat([x.indices[:, :1], x.indices[:, 1:] // 2], 1), dim=0)
@@ -146,11 +163,13 @@ def test_sparse_basic_block_stride_two_halves_the_resolution() -> None:
     assert set(block.state_dict()) >= {"conv1.weight", "proj.0.weight", "proj.1.module.weight", "conv2.weight"}
 
 
-def test_sparse_conv_block_transposeconv_generates_children() -> None:
-    x = _random_sparse_tensor(size=6, channels=4)
-    block = SparseConvBlock(4, 2, 2, stride=2, indice_key=None, conv_type="transposeconv").cuda().eval()
-    out = block(x)
+@DEVICES
+def test_sparse_conv_block_transposeconv_generates_children(device: str) -> None:
+    x = _random_sparse_tensor(size=6, channels=4, device=device)
+    block = SparseConvBlock(4, 2, 2, stride=2, indice_key=None, conv_type="transposeconv")
+    out = _to_device(block, device).eval()(x)
 
-    children = (x.indices[:, None, 1:] * 2 + torch.cartesian_prod(*[torch.arange(2)] * 3).int().cuda()).view(-1, 3)
+    offsets = torch.cartesian_prod(*[torch.arange(2)] * 3).int().to(device)
+    children = (x.indices[:, None, 1:] * 2 + offsets).view(-1, 3)
     assert len(out.indices) == len(children)
     assert out.spatial_shape == [12, 12, 12]
