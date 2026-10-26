@@ -78,6 +78,7 @@ DISPLAY_TITLES = {
     "sunrgbd": "SUN RGB-D",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
+    "structured3d": "Structured3D",
 }
 
 

@@ -14,6 +14,7 @@ from typing_extensions import NotRequired
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.datasets.structured3d import STRUCTURED3D_CLASSES
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
@@ -36,35 +37,6 @@ if TYPE_CHECKING:
 
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
-
-
-_STRUCTURED3D_CLASSES = (
-    "wall",
-    "floor",
-    "cabinet",
-    "bed",
-    "chair",
-    "sofa",
-    "table",
-    "door",
-    "window",
-    "picture",
-    "desk",
-    "shelves",
-    "curtain",
-    "dresser",
-    "pillow",
-    "mirror",
-    "ceiling",
-    "refrigerator",
-    "television",
-    "nightstand",
-    "sink",
-    "lamp",
-    "otherstructure",
-    "otherfurniture",
-    "otherprop",
-)
 
 
 class LitePTFeaturesDict(PooledFeaturesDict):
@@ -1284,7 +1256,7 @@ def litept_large_nuscenes(**hparams: Any) -> LitePTSegmentation:
         url="hf://prs-eth/LitePT/resolve/a8e76e92efbb2061639f5c683968bc5d248ee002/structured3d-semseg-litept-small-v1m1/model/model_best.pth",
         pretrained_filter_fn=segmentation_checkpoint_filter_fn,
         dataset="structured3d",
-        classes=_STRUCTURED3D_CLASSES,
+        classes=STRUCTURED3D_CLASSES,
         author="prs-eth",
         license="MIT",
     ),
@@ -1311,7 +1283,7 @@ def litept_small_structured3d(**hparams: Any) -> LitePTSegmentation:
         url="hf://prs-eth/LitePT/resolve/a8e76e92efbb2061639f5c683968bc5d248ee002/structured3d-semseg-litept-base-v1m1/model/model_best.pth",
         pretrained_filter_fn=segmentation_checkpoint_filter_fn,
         dataset="structured3d",
-        classes=_STRUCTURED3D_CLASSES,
+        classes=STRUCTURED3D_CLASSES,
         author="prs-eth",
         license="MIT",
     ),
@@ -1338,7 +1310,7 @@ def litept_base_structured3d(**hparams: Any) -> LitePTSegmentation:
         url="hf://prs-eth/LitePT/resolve/a8e76e92efbb2061639f5c683968bc5d248ee002/structured3d-semseg-litept-large-v1m1/model/model_best.pth",
         pretrained_filter_fn=segmentation_checkpoint_filter_fn,
         dataset="structured3d",
-        classes=_STRUCTURED3D_CLASSES,
+        classes=STRUCTURED3D_CLASSES,
         author="prs-eth",
         license="MIT",
     ),
