@@ -1,10 +1,14 @@
 """Benchmark Cylinder3D semantic segmentation on SemanticKITTI in a single pass, scored on every point.
 
-NOTE: the reference 67.01 mIoU of `cylinder3d-laser-polar-mix.semantickitti.mmdet3d` is the epoch-29 validation in the
-training log released with the checkpoint. mmdetection3d v1.4.0 (fe25f7a5), with its own model (`init_model` on
-`cylinder3d_8xb2-laser-polar-mix-3x_semantickitti.py` and `..._20230425_144950-372cdf69.pth`), label map and
-`seg_eval` on the raw scans of sequence 08, one scan per forward and no test-time augmentation, scores that file at
-67.54 mIoU / 91.87 OA, as this script does.
+NOTE: 67.01 is the training-log validation of the LaserMix/PolarMix file; mmdetection3d fe25f7a5 scores it at 67.54:
+
+```python
+# mmdetection3d v1.4.0, every raw scan of sequence 08, one scan per forward, no test-time augmentation
+model = init_model("configs/cylinder3d/cylinder3d_8xb2-laser-polar-mix-3x_semantickitti.py", checkpoint)
+data = model.data_preprocessor({"inputs": {"points": [points]}, "data_samples": [Det3DDataSample()]}, False)
+logits = model.decode_head.predict(model.extract_feat(data["inputs"]), data["inputs"], data["data_samples"])[0]
+seg_eval(gt_labels, predictions, label2cat, ignore_index=19)
+```
 """
 
 import os
