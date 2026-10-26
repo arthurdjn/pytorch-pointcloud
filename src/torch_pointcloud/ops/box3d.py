@@ -8,7 +8,7 @@ in any right-handed frame.
 """
 
 import math
-from typing import List, Literal, Optional, Tuple
+from typing import Callable, List, Literal, Optional, Tuple
 
 import torch
 from torch import Tensor
@@ -653,35 +653,15 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
-def _nms3d_single(
-    boxes: Tensor,
-    scores: Tensor,
-    labels: OptTensor,
-    iou_threshold: float,
-    rotated: bool,
-    max_keep: Optional[int],
-) -> Tensor:
-    """Greedy 3D NMS within a single scene; see `nms3d`."""
-    limit = boxes.shape[0] if max_keep is None else max_keep
+def _pair_iou_function(boxes: Tensor, rotated: bool) -> Callable[[Tensor, Tensor], Tensor]:
+    r"""IoU of the box pairs `(i, j)` given as two index tensors, the suppression criterion of `nms3d`."""
     if rotated:
         # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
         # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
         # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
         boxes_bev = boxes.clone()
         boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        order = scores.argsort(descending=True)
-        keep: List[Tensor] = []
-
-        # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
-        while order.numel() > 0 and len(keep) < limit:
-            i = order[0]
-            keep.append(i)
-            rest = order[1:]
-            suppress = boxes_iou_bev(boxes_bev[i : i + 1], boxes_bev[rest])[0] > iou_threshold
-            if labels is not None:
-                suppress = suppress & (labels[rest] == labels[i])
-            order = rest[~suppress]
-        return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+        return lambda i, j: boxes_iou_bev(boxes_bev[i], boxes_bev[j], aligned=True)
 
     corners = box_corners(boxes)
     lo, hi = corners.amin(dim=1), corners.amax(dim=1)
@@ -690,23 +670,12 @@ def _nms3d_single(
     # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
     hi = torch.maximum(hi, lo + 1e-2)
     volume = (hi - lo).prod(dim=-1)
-    order = scores.argsort(descending=True)
-    keep = []
 
-    while order.numel() > 0 and len(keep) < limit:
-        i = order[0]
-        keep.append(i)
-        rest = order[1:]
-        inter_lo = torch.maximum(lo[i], lo[rest])
-        inter_hi = torch.minimum(hi[i], hi[rest])
-        inter = (inter_hi - inter_lo).clamp_min(0).prod(dim=-1)
-        iou = inter / (volume[i] + volume[rest] - inter).clamp_min(1e-6)
-        suppress = iou > iou_threshold
-        if labels is not None:
-            suppress = suppress & (labels[rest] == labels[i])
-        order = rest[~suppress]
+    def pair_iou(i: Tensor, j: Tensor) -> Tensor:
+        inter = (torch.minimum(hi[i], hi[j]) - torch.maximum(lo[i], lo[j])).clamp_min(0).prod(dim=-1)
+        return inter / (volume[i] + volume[j] - inter).clamp_min(1e-6)
 
-    return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+    return pair_iou
 
 
 def nms3d(
@@ -749,16 +718,48 @@ def nms3d(
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
 
+    # Rank the boxes scene by scene, by decreasing score: the order of the greedy pass and of the output.
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep)
+        order = scores.argsort(descending=True)
+        scene = torch.zeros_like(order)
+    else:
+        _, scene = torch.unique(batch, return_inverse=True)
+        members = [(scene == s).nonzero(as_tuple=False).squeeze(-1) for s in range(int(scene.max()) + 1)]
+        order = torch.cat([m[scores[m].argsort(descending=True)] for m in members])
+    keys = scene if labels is None else torch.stack([scene, labels.long()], dim=1)
+    _, group = torch.unique(keys, dim=0, return_inverse=True)
+    scene, group = scene[order], group[order]  # per rank
+    num_boxes, num_scenes, num_groups = len(order), int(scene.max()) + 1, int(group.max()) + 1
+    pair_iou = _pair_iou_function(boxes, rotated)
 
-    keep = []
-    for b in torch.unique(batch):
-        scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
-        scene_labels = None if labels is None else labels[scene]
-        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated, max_keep)])
+    # Every group (a scene, or a class of a scene) runs its greedy pass at once: a step keeps the best remaining box
+    # of every group and drops the boxes of its group that overlap it, so the loop runs as often as the largest group
+    # keeps a box instead of once per kept box, with one IoU per remaining box and step.
+    alive = torch.ones(num_boxes, dtype=torch.bool, device=boxes.device)
+    kept_per_group = torch.zeros(num_groups, dtype=torch.long, device=boxes.device)
+    keep: List[Tensor] = []
+    while True:
+        ranks = alive.nonzero(as_tuple=False).squeeze(-1)
+        if ranks.numel() == 0:
+            break
+        groups = group[ranks]
+        first = torch.full((num_groups,), num_boxes, dtype=torch.long, device=boxes.device)
+        heads = first.scatter_reduce_(0, groups, ranks, reduce="amin")[groups]
+        is_head = heads == ranks
+        keep.append(ranks[is_head])
+        alive[ranks[is_head | (pair_iou(order[heads], order[ranks]) > iou_threshold)]] = False
+        if max_keep is not None:
+            kept_per_group.index_add_(0, groups[is_head], torch.ones_like(heads[is_head]))
+            alive[ranks[kept_per_group[groups] >= max_keep]] = False
 
-    return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+    kept = torch.cat(keep).sort().values
+    if max_keep is not None:
+        # A scene keeps its first `max_keep` boxes: no group gives more than that, so the capped groups suffice.
+        position = torch.arange(len(kept), device=kept.device)
+        start = torch.full((num_scenes,), len(kept), dtype=torch.long, device=kept.device)
+        start = start.scatter_reduce_(0, scene[kept], position, reduce="amin")
+        kept = kept[position - start[scene[kept]] < max_keep]
+    return order[kept]
 
 
 def points_in_boxes(pos: Tensor, boxes: Tensor) -> Tensor:

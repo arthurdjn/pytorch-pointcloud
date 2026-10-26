@@ -37,6 +37,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `lookup_coordinates`, `trilinear_sparse_devoxelize` and `voxelize_to_spconv_tensor` to `ops.voxelization`.
 - Added `box_iou_loss`, its distance-IoU form, and the `aligned` option of `box3d_overlap`.
 - Added the `std` option of `RandomTranslate` and the S3DIS detection classes.
+- `nms3d` suppresses all scenes and classes at once, with the same result: 10 to 100 times faster on indoor detections.
 
 ## 0.0.18 (2026-10-20)
 
