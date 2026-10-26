@@ -4,7 +4,9 @@ import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.volt import VoltSegmentation
+from torch_pointcloud.utils.data import DataKeys
 
 
 @pytest.fixture
@@ -104,3 +106,49 @@ def test_volt_segmentation_rejects_mismatched_rope_frequencies() -> None:
 def test_volt_segmentation_reset_classifier(model: VoltSegmentation, data: Dict[str, Tensor]) -> None:
     model.reset_classifier(num_classes=3)
     assert model(data["x"], data["pos_grid"], data["batch"]).shape == (data["x"].size(0), 3)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("volt-s.scannet20.kadir-yilmaz", id="scannet20"),
+        pytest.param("volt-s.scannet200.kadir-yilmaz", id="scannet200"),
+    ],
+)
+def test_registered_indoor_transform_runs_without_labels(name: str) -> None:
+    transform = model_info(name)["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    num_points = 500
+    data = {
+        DataKeys.POS: torch.rand(num_points, 3) * 4,
+        DataKeys.COLOR: torch.randint(0, 256, (num_points, 3)).float(),
+        DataKeys.NORMAL: torch.nn.functional.normalize(torch.randn(num_points, 3), dim=1),
+    }
+
+    out = transform(data)
+
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].shape[1] == 6
+    assert out[DataKeys.INVERSE].shape == (num_points,)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("volt-s.nuscenes.kadir-yilmaz", id="nuscenes"),
+        pytest.param("volt-s.semantickitti.kadir-yilmaz", id="semantickitti"),
+    ],
+)
+def test_registered_outdoor_transform_runs_without_labels(name: str) -> None:
+    transform = model_info(name)["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    num_points = 500
+    data = {DataKeys.POS: torch.rand(num_points, 3) * 160 - 80, DataKeys.INTENSITY: torch.rand(num_points, 1) * 255}
+
+    out = transform(data)
+
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].shape[1] == 4
+    assert out[DataKeys.INVERSE].shape == (num_points,)
