@@ -36,6 +36,7 @@ def _submconv3d(in_channels: int, out_channels: int, kernel_size: KernelSize, in
         kernel_size,
         padding=tuple(k // 2 for k in kernel_size),
         bias=False,
+        # spconv refuses two kernel shapes under one index key, so the key names the kernel.
         indice_key=f"{indice_key}_{'x'.join(str(k) for k in kernel_size)}",
     )
 
