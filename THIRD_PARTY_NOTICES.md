@@ -14,17 +14,17 @@ neither are marked as such.
 | ----------------------------------------------- | ---------------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------- |
 | guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 36    | Copyright (c) Guocheng Qian                                                                                                |
 | CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 18    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
+| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 15    | Copyright 2018-2019 Open-MMLab                                                                                             |
 | isl-org/Open3D-ML                               | `open3d`         | MIT          | 11    | Copyright (c) 2020 www.open3d.org                                                                                          |
+| mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 11    | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
 | antao97/dgcnn.pytorch                           | `an-tao`         | MIT          | 10    | Copyright (c) 2020 An Tao                                                                                                  |
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 6     | not stated upstream                                                                                                        |
-| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 6     | Copyright 2018-2019 Open-MMLab                                                                                             |
 | Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |
 | HuguesTHOMAS/KPConv-PyTorch                     | `hugues-thomas`  | MIT          | 4     | Copyright (c) 2019 HuguesTHOMAS                                                                                            |
-| mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 4     | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
 | ma-xu/pointMLP-pytorch                          | `xu-ma`          | Apache-2.0   | 4     | not stated upstream                                                                                                        |
 | Pointcept/Pointcept                             | `pointcept`      | MIT          | 4     | Copyright (c) 2023 Pointcept                                                                                               |
 | octree-nn/octformer                             | `octree-nn`      | MIT          | 3     | Copyright (c) 2023 Peng-Shuai Wang                                                                                         |
@@ -48,9 +48,9 @@ Licenses of the datasets the checkpoints were trained on.
 | S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 18          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
