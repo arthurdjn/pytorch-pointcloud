@@ -1318,35 +1318,28 @@ class RandomElasticDistortion(DictTransform, Randomizable):
         return data
 
 
-def rotate_pair(
-    pos: Tensor,
-    ref_pos: Tensor,
-    transform: Tensor,
-    rotation: Tensor,
-    rotate_ref: bool = False,
-) -> Tuple[Tensor, Tensor, Tensor]:
-    r"""Rotate one cloud of a registration pair and update the transform of the source onto the reference.
+def rotate_pair_transform(transform: Tensor, rotation: Tensor, rotate_ref: bool = False) -> Tensor:
+    r"""Transform of the source onto the reference after one cloud of a registration pair is rotated.
 
     Rotating the source by $R$ gives $p' = R p$, so the transform becomes $T R^\top$; rotating the reference gives
-    $q' = R q$ and the transform becomes $R T$.
+    $q' = R q$ and the transform becomes $R T$. The points themselves rotate with `rotate_vectors`.
 
     Args:
-        pos: Source points, shape $(N, 3)$.
-        ref_pos: Reference points, shape $(M, 3)$.
         transform: Transform of the source onto the reference, shape $(4, 4)$.
-        rotation: Rotation matrix, shape $(3, 3)$.
+        rotation: Rotation matrix applied to one cloud, shape $(3, 3)$.
         rotate_ref: Whether the reference is rotated instead of the source.
 
     Returns:
-        The source points, the reference points and the transform after the rotation.
+        The updated transform, shape $(4, 4)$.
 
     Example:
         ```pycon
         >>> import math
         >>> import torch
-        >>> from torch_pointcloud.transforms.functional import rotate_pair, rotation_matrix
-        >>> pos, ref_pos = torch.rand(10, 3), torch.rand(10, 3)
-        >>> pos, ref_pos, transform = rotate_pair(pos, ref_pos, torch.eye(4), rotation_matrix(math.pi / 2, axis=2))
+        >>> from torch_pointcloud.transforms.functional import rotate_pair_transform, rotate_vectors, rotation_matrix
+        >>> pos, transform = torch.rand(10, 3), torch.eye(4)
+        >>> rotation = rotation_matrix(math.pi / 2, axis=2)
+        >>> pos, transform = rotate_vectors(pos, rotation), rotate_pair_transform(transform, rotation)
         >>> transform.shape
         torch.Size([4, 4])
 
@@ -1354,45 +1347,57 @@ def rotate_pair(
     """
     rotation4 = torch.eye(4, dtype=transform.dtype, device=transform.device)
     rotation4[:3, :3] = rotation.to(transform.dtype)
-    if rotate_ref:
-        return pos, rotate_vectors(ref_pos, rotation), rotation4 @ transform
-    return rotate_vectors(pos, rotation), ref_pos, transform @ rotation4.T
+    return rotation4 @ transform if rotate_ref else transform @ rotation4.T
 
 
 class RandomPairRotate(DictTransform, Randomizable):
-    r"""Rotate the source or the reference cloud of a registration pair by a random rotation, keeping the ground-truth
-    transform consistent.
+    r"""Rotate the source or the reference cloud of a registration pair by a random rotation, keeping the transform
+    of the source onto the reference consistent.
 
-    The rotation composes a uniformly random angle in `angle_range` about each axis; the source or the reference is
-    picked with equal probability. The training augmentation of GeoTransformer and PREDATOR.
+    The rotation composes a uniformly random angle in `angle_range` about each axis (extrinsic $z$, $y$, $x$); the
+    source or the reference is picked with equal probability, and every field of the picked cloud rotates with it:
+    its positions and its vector fields such as normals.
 
     See Also:
-        `torch_pointcloud.transforms.functional.rotate_pair`
+        `torch_pointcloud.transforms.functional.rotate_pair_transform`
 
     Args:
-        keys: The source and the reference position keys, in that order.
-        transform_key: Key of the $(4, 4)$ transform of the source onto the reference.
+        src_keys: Keys of the source fields: positions and vector fields of shape $(N, 3)$.
+        ref_keys: Keys of the reference fields, likewise.
+        transform_key: Key of the $(4, 4)$ transform of the source onto the reference; it must be present.
         angle_range: Min and max rotation angle about each axis, in **degrees**.
         p: Probability of applying the transform.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
-        allow_missing_keys: If `True`, silently skip the sample when a key is absent.
+        allow_missing_keys: If `True`, skip the absent source and reference fields.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> import torch_pointcloud.transforms as T
+        >>> rotate = T.RandomPairRotate(src_keys=["pos", "normal"], ref_keys=["ref_pos"], transform_key="transform")
+        >>> data = {"pos": torch.rand(8, 3), "normal": torch.rand(8, 3), "ref_pos": torch.rand(6, 3)}
+        >>> rotate({**data, "transform": torch.eye(4)})["transform"].shape
+        torch.Size([4, 4])
+
+        ```
     """
 
     def __init__(
         self,
-        keys: Sequence[str] = ("pos", "ref_pos"),
-        transform_key: str = "transform",
+        src_keys: KeyCollection,
+        ref_keys: KeyCollection,
+        transform_key: str,
         angle_range: Tuple[float, float] = (0.0, 360.0),
         p: float = 1.0,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
     ) -> None:
-        if len(keys) != 2:
-            raise ValueError(f"Expected the source and the reference position keys, got {len(keys)} keys.")
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
 
-        super().__init__(keys, allow_missing_keys)
+        self.src_keys = ensure_tuple(src_keys)
+        self.ref_keys = ensure_tuple(ref_keys)
+        super().__init__(self.src_keys + self.ref_keys, allow_missing_keys)
         self.transform_key = transform_key
         self.angle_range = angle_range
         self.p = p
@@ -1400,23 +1405,19 @@ class RandomPairRotate(DictTransform, Randomizable):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
-        keys = list(self.iter_keys(d, extra_msg=f"with transform_key={self.transform_key!r}"))
         if self.transform_key not in d:
-            if self.allow_missing_keys:
-                return d
             raise KeyError(f"Key {self.transform_key!r} not found in data.")
-        if len(keys) != 2 or torch.rand(1, generator=self.R).item() >= self.p:
+        present = set(self.iter_keys(d))
+        if torch.rand(1, generator=self.R).item() >= self.p:
             return d
 
         low, high = self.angle_range
         angles = (torch.rand(3, generator=self.R) * (high - low) + low).tolist()
         rx, ry, rz = (math.radians(angle) for angle in angles)
-        rotation = (
-            rotation_matrix(rx, axis=0) @ rotation_matrix(ry, axis=1) @ rotation_matrix(rz, axis=2)
-        )  # extrinsic z-y-x
+        rotation = rotation_matrix(rx, axis=0) @ rotation_matrix(ry, axis=1) @ rotation_matrix(rz, axis=2)
         rotate_ref = bool(torch.rand(1, generator=self.R).item() < 0.5)
-        src_key, ref_key = keys
-        d[src_key], d[ref_key], d[self.transform_key] = rotate_pair(
-            d[src_key], d[ref_key], d[self.transform_key], rotation, rotate_ref=rotate_ref
-        )
+        for key in self.ref_keys if rotate_ref else self.src_keys:
+            if key in present:
+                d[key] = rotate_vectors(d[key], rotation)
+        d[self.transform_key] = rotate_pair_transform(d[self.transform_key], rotation, rotate_ref=rotate_ref)
         return d

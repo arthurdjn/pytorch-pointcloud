@@ -35,7 +35,7 @@ TRAIN_TRANSFORM = T.Compose(
     [
         T.RandomSample(keys=DataKeys.POS, num_samples=POINT_LIMIT, allow_fewer=True),
         T.RandomSample(keys=DataKeys.REF_POS, num_samples=POINT_LIMIT, allow_fewer=True),
-        T.RandomPairRotate(keys=(DataKeys.POS, DataKeys.REF_POS), transform_key=DataKeys.TRANSFORM),
+        T.RandomPairRotate(src_keys=DataKeys.POS, ref_keys=DataKeys.REF_POS, transform_key=DataKeys.TRANSFORM),
         T.RandomJitter(keys=[DataKeys.POS, DataKeys.REF_POS], sigma=0.0025, clip=None, distribution="uniform"),
     ]
 )
