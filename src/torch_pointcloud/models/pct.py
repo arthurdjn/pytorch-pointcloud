@@ -229,7 +229,8 @@ class PCTClassification(ClassificationModel):
             outputs.append(tokens)
 
         x = torch.cat([torch.cat(outputs, dim=-1).flatten(0, 1), x], dim=1)
-        return self.proj(x), pos, batch
+        x = self.proj(x)
+        return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)

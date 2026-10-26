@@ -388,7 +388,8 @@ class CurveNetClassification(ClassificationModel):
         table = knn_table(pos, pos, self.num_neighbors[0], batch_x=batch, batch_y=batch)
         x = self.embed(x, pos, table)
         x, pos, batch = self.encoder(x, pos, batch)
-        return self.proj(x), pos, batch
+        x = self.proj(x)
+        return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
         x = self.global_pool(x, batch)
