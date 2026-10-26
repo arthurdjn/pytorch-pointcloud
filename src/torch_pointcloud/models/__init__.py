@@ -23,8 +23,8 @@ from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
-from .litept import LitePTSegmentation
 from .lion import LIONDetection
+from .litept import LitePTSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
