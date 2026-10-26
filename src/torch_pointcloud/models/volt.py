@@ -4,7 +4,6 @@
 """
 
 import math
-from functools import partial
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
@@ -25,7 +24,6 @@ from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.ops.voxelization import voxel_patch_partition
 from torch_pointcloud.utils.conversion import batch_to_cu_seqlens
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.state_dict import transform_state_dict
 
 
 def _init_volt_weights(module: nn.Module) -> None:
@@ -333,44 +331,6 @@ class VoltSegmentation(SemanticSegmentationModel):
         return self.forward_head(features)
 
 
-_CHECKPOINT_MAPPING = {
-    "backbone.tokenizer.proj.{param}": "encoder.patch_embed.proj.{param}",
-    "backbone.blocks.{i}.norm{j}.{param}": "encoder.blocks.{i}.norm{j}.{param}",
-    "backbone.blocks.{i}.attn.{layer}.{param}": "encoder.blocks.{i}.attn.{layer}.{param}",
-    "backbone.blocks.{i}.mlp.fc1.{param}": "encoder.blocks.{i}.mlp.lins.0.{param}",
-    "backbone.blocks.{i}.mlp.fc2.{param}": "encoder.blocks.{i}.mlp.lins.1.{param}",
-    "backbone.decoder.pre.0.{param}": "decoder.norm.module.{param}",
-    "backbone.decoder.pre.2.weight": "decoder.mlp.lins.0.weight",
-    "backbone.decoder.pre.3.{param}": "decoder.mlp.norms.0.module.{param}",
-    "backbone.decoder.unembed.proj.weight": "decoder.expand.proj.weight",
-    "backbone.decoder.unembed.bias": "decoder.expand.bias",
-    "backbone.decoder.post.0.{param}": "decoder.post_norm.module.{param}",
-}
-
-
-def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module, head: str) -> Dict[str, Any]:
-    """Rename the keys of a released Volt checkpoint to the `VoltSegmentation` ones, keeping the classifier `head`.
-
-    The released checkpoints hold the `backbone.` tokenizer, transformer and decoder, one `seg_heads.<head>` classifier
-    per training dataset (`Default` for a single dataset) and the `distill_heads` of the distillation; only the
-    backbone and the classifier `head` are kept. Bind `head` with `functools.partial` to use it as the
-    `pretrained_filter_fn` of a `WeightsDict`.
-
-    Args:
-        state_dict: State dict keyed as in the released checkpoint file.
-        model: `VoltSegmentation` the state dict is loaded into.
-        head: Name of the classifier to keep (e.g. `ScanNet200`, `nuScenes`).
-
-    Returns:
-        The state dict keyed as `model` expects.
-    """
-    del model
-    prefix = f"seg_heads.{head}."
-    kept = {key: value for key, value in state_dict.items() if key.startswith(("backbone.", prefix))}
-    mapping = {**_CHECKPOINT_MAPPING, prefix + "{param}": "head.{param}"}
-    return transform_state_dict(kept, mapping, strict=True)
-
-
 def _scannet_transforms(labels: Sequence[int]) -> T.Compose:
     """Color and normal features of the ScanNet checkpoints, one point per 2 cm voxel; `labels` are the dataset classes
     mapped in order onto $0..K-1$."""
@@ -477,8 +437,7 @@ def _semantickitti_transforms() -> T.Compose:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/single_dataset/scannet/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="Default"),
+        url="hf://torch-pointcloud/volt-s.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet20",
         classes=SCANNET20_CLASSES,
         author="kadir-yilmaz",
@@ -511,8 +470,7 @@ def volt_s_scannet20(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/single_dataset/scannet200/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="Default"),
+        url="hf://torch-pointcloud/volt-s.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet200",
         classes=SCANNET200_CLASSES,
         author="kadir-yilmaz",
@@ -545,8 +503,7 @@ def volt_s_scannet200(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/single_dataset/nuscenes/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="Default"),
+        url="hf://torch-pointcloud/volt-s.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="kadir-yilmaz",
@@ -579,8 +536,7 @@ def volt_s_nuscenes(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/single_dataset/semantic_kitti/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="Default"),
+        url="hf://torch-pointcloud/volt-s.semantickitti.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
         classes=SEMANTIC_KITTI_CLASSES,
         author="kadir-yilmaz",
@@ -613,8 +569,7 @@ def volt_s_semantickitti(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_small/scannet/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="ScanNet"),
+        url="hf://torch-pointcloud/volt-s-joint.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet20",
         classes=SCANNET20_CLASSES,
         author="kadir-yilmaz",
@@ -647,8 +602,7 @@ def volt_s_joint_scannet20(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_small/scannet200/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="ScanNet200"),
+        url="hf://torch-pointcloud/volt-s-joint.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet200",
         classes=SCANNET200_CLASSES,
         author="kadir-yilmaz",
@@ -681,8 +635,7 @@ def volt_s_joint_scannet200(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_small/nuscenes/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="nuScenes"),
+        url="hf://torch-pointcloud/volt-s-joint.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="kadir-yilmaz",
@@ -715,8 +668,7 @@ def volt_s_joint_nuscenes(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_small/semantic_kitti/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="SemanticKITTI"),
+        url="hf://torch-pointcloud/volt-s-joint.semantickitti.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
         classes=SEMANTIC_KITTI_CLASSES,
         author="kadir-yilmaz",
@@ -749,8 +701,7 @@ def volt_s_joint_semantickitti(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_base/scannet/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="ScanNet"),
+        url="hf://torch-pointcloud/volt-b-joint.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet20",
         classes=SCANNET20_CLASSES,
         author="kadir-yilmaz",
@@ -783,8 +734,7 @@ def volt_b_joint_scannet20(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_base/scannet200/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="ScanNet200"),
+        url="hf://torch-pointcloud/volt-b-joint.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet200",
         classes=SCANNET200_CLASSES,
         author="kadir-yilmaz",
@@ -817,8 +767,7 @@ def volt_b_joint_scannet200(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://KadirYilmaz/Volt/resolve/9dcb91d919983daa2aac99c37a9a6b2a948bb67e/Volt_experiments/joint_training_base/nuscenes/model/model_best.pth",
-        pretrained_filter_fn=partial(checkpoint_filter_fn, head="nuScenes"),
+        url="hf://torch-pointcloud/volt-b-joint.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="kadir-yilmaz",
