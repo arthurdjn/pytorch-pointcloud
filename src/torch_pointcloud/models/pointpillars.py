@@ -3,7 +3,8 @@
 {{ paper("1812.05784") }}
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
+import math
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -16,8 +17,10 @@ from torch_pointcloud.layers.anchors import (
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
     MultiGroupAnchorHead,
+    MultiLevelAnchorHead,
+    MultiLevelAnchorHeadOutput,
 )
-from torch_pointcloud.layers.bev_backbone import BEVBackbone
+from torch_pointcloud.layers.bev_backbone import BEVBackbone, BEVPyramidBackbone
 from torch_pointcloud.layers.vfe import PillarFeatureLayer
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D
@@ -166,10 +169,13 @@ class PointPillarsDetection(DetectionModel):
         num_classes: Number of foreground classes.
         voxel_size: Pillar size $(v_x, v_y, v_z)$.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
-        anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
-        anchor_rotations: Yaw angles (radians) shared by all classes.
+        anchor_sizes: Box size $(d_x, d_y, d_z)$ of every anchor template, usually one per class.
+        anchor_bottom_heights: Bottom $z$ of every anchor template.
+        anchor_rotations: Yaw angles (radians) shared by all anchor templates.
         feature_map_stride: BEV feature-map stride of the head.
+        anchor_range: Range the anchor grid spans in $x$ and $y$; `point_cloud_range` when omitted.
+        align_center: Place the anchors at the feature-map cell centers instead of on the inclusive range grid.
+        code_size: Length of the box code; channels past the 7 box parameters (e.g. velocity) decode as deltas.
         feat_channels: Output channels of the pillar feature net.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
@@ -196,6 +202,9 @@ class PointPillarsDetection(DetectionModel):
         anchor_bottom_heights: Sequence[float],
         feature_map_stride: int,
         anchor_rotations: Sequence[float] = (0.0, 1.57),
+        anchor_range: Optional[Sequence[float]] = None,
+        align_center: bool = False,
+        code_size: int = 7,
         feat_channels: Sequence[int] = (64,),
         layer_nums: Sequence[int] = (3, 5, 5),
         layer_strides: Sequence[int] = (2, 2, 2),
@@ -217,6 +226,9 @@ class PointPillarsDetection(DetectionModel):
         self.anchor_bottom_heights = anchor_bottom_heights
         self.feature_map_stride = feature_map_stride
         self.anchor_rotations = anchor_rotations
+        self.anchor_range = anchor_range
+        self.align_center = align_center
+        self.code_size = code_size
         self.feat_channels = feat_channels
         self.layer_nums = layer_nums
         self.layer_strides = layer_strides
@@ -282,6 +294,9 @@ class PointPillarsDetection(DetectionModel):
             anchor_bottom_heights=self.anchor_bottom_heights,
             anchor_rotations=self.anchor_rotations,
             feature_map_stride=self.feature_map_stride,
+            anchor_range=self.anchor_range,
+            align_center=self.align_center,
+            code_size=self.code_size,
             num_dir_bins=self.num_dir_bins,
             dir_offset=self.dir_offset,
             dir_limit_offset=self.dir_limit_offset,
@@ -304,6 +319,186 @@ class PointPillarsDetection(DetectionModel):
     @torch.no_grad()
     def decode(self, out: AnchorHeadOutput) -> Detection3D:
         r"""Decode a forward output into raw per-anchor detections (see `AnchorHead.decode`)."""
+        return self.head.decode(out)
+
+
+class PointPillarsFPNDetection(DetectionModel):
+    r"""PointPillars with a feature-pyramid neck and an anchor head shared by its levels (packed point format).
+
+    Same pillar trunk as [`PointPillarsDetection`][torch_pointcloud.models.pointpillars.PointPillarsDetection];
+    a [`BEVPyramidBackbone`][torch_pointcloud.layers.bev_backbone.BEVPyramidBackbone] returns one BEV map per
+    level, and a [`MultiLevelAnchorHead`][torch_pointcloud.layers.anchors.MultiLevelAnchorHead] predicts on every
+    level with anchors scaled to the level's stride.
+
+    Reference implementation: :github: [open-mmlab/mmdetection3d](https://github.com/open-mmlab/mmdetection3d).
+
+    Args:
+        in_channels: Raw point feature channels including xyz.
+        num_classes: Number of foreground classes.
+        voxel_size: Pillar size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        anchor_sizes: Box size $(d_x, d_y, d_z)$ of every anchor template at scale 1.
+        anchor_bottom_heights: Bottom $z$ of every anchor template.
+        feature_map_strides: BEV stride of every pyramid level, finest first.
+        anchor_scales: Template size factor of every pyramid level.
+        dir_offset: Direction-classifier angle offset.
+        anchor_rotations: Yaw angles (radians) shared by all anchor templates.
+        anchor_range: Range the anchor grids span in $x$ and $y$; `point_cloud_range` when omitted.
+        align_center: Place the anchors at the feature-map cell centers instead of on the inclusive range grid.
+        code_size: Length of the box code; channels past the 7 box parameters (e.g. velocity) decode as deltas.
+        feat_channels: Output channels of the pillar feature net.
+        layer_nums: 2D backbone conv counts per level.
+        layer_strides: 2D backbone downsample strides per level.
+        num_filters: 2D backbone channel widths per level.
+        out_channels: Channels of every pyramid level.
+        num_dir_bins: Number of direction bins in the head.
+        dir_limit_offset: Heading wrap offset used during decoding.
+        act: Activation type or callable for the pillar feature net and 2D backbone.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable for the pillar feature net and 2D backbone.
+        norm_kwargs: Extra normalization arguments.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
+        anchor_sizes: Sequence[Sequence[float]],
+        anchor_bottom_heights: Sequence[float],
+        feature_map_strides: Sequence[int],
+        anchor_scales: Sequence[float],
+        dir_offset: float,
+        anchor_rotations: Sequence[float] = (0.0, 1.57),
+        anchor_range: Optional[Sequence[float]] = None,
+        align_center: bool = False,
+        code_size: int = 7,
+        feat_channels: Sequence[int] = (64,),
+        layer_nums: Sequence[int] = (3, 5, 5),
+        layer_strides: Sequence[int] = (2, 2, 2),
+        num_filters: Sequence[int] = (64, 128, 256),
+        out_channels: int = 256,
+        num_dir_bins: int = 2,
+        dir_limit_offset: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        self.voxel_size = tuple(voxel_size)
+        self.point_cloud_range = tuple(point_cloud_range)
+        self.anchor_sizes = anchor_sizes
+        self.anchor_bottom_heights = anchor_bottom_heights
+        self.feature_map_strides = feature_map_strides
+        self.anchor_scales = anchor_scales
+        self.anchor_rotations = anchor_rotations
+        self.anchor_range = anchor_range
+        self.align_center = align_center
+        self.code_size = code_size
+        self.feat_channels = feat_channels
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.out_channels = out_channels
+        self.num_dir_bins = num_dir_bins
+        self.dir_offset = dir_offset
+        self.dir_limit_offset = dir_limit_offset
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+
+        grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
+        self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
+
+        self.vfe = self.configure_vfe()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+
+    def configure_vfe(self) -> PillarFeatureNet:
+        """Build the pillar feature net."""
+        return PillarFeatureNet(
+            self.in_channels,
+            self.feat_channels,
+            self.voxel_size,
+            self.point_cloud_range,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_backbone(self) -> BEVPyramidBackbone:
+        """Build the 2D BEV backbone and its feature pyramid."""
+        return BEVPyramidBackbone(
+            self.feat_channels[-1],
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.out_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of every pyramid level entering the head."""
+        return self.backbone.num_bev_features
+
+    def configure_head(self) -> MultiLevelAnchorHead:
+        """Build the anchor head shared by the pyramid levels."""
+        return MultiLevelAnchorHead(
+            self.backbone.num_bev_features,
+            self.num_classes,
+            (self.grid_size[0], self.grid_size[1]),
+            self.point_cloud_range,
+            anchor_sizes=self.anchor_sizes,
+            anchor_bottom_heights=self.anchor_bottom_heights,
+            feature_map_strides=self.feature_map_strides,
+            anchor_scales=self.anchor_scales,
+            anchor_rotations=self.anchor_rotations,
+            anchor_range=self.anchor_range,
+            align_center=self.align_center,
+            code_size=self.code_size,
+            num_dir_bins=self.num_dir_bins,
+            dir_offset=self.dir_offset,
+            dir_limit_offset=self.dir_limit_offset,
+        )
+
+    def forward_features(
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
+    ) -> List[Tensor]:
+        voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
+        batch_size = int(batch.max().item()) + 1
+        pillar_features = self.vfe(voxels, voxel_num_points, voxel_indices)
+        bev = scatter_to_bev(pillar_features, voxel_indices, batch_size, self.grid_size)
+        return self.backbone(bev)
+
+    def forward_head(self, features: List[Tensor]) -> MultiLevelAnchorHeadOutput:
+        return self.head(features)
+
+    def forward(
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
+    ) -> MultiLevelAnchorHeadOutput:
+        features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
+        return self.forward_head(features)
+
+    @torch.no_grad()
+    def decode(self, out: MultiLevelAnchorHeadOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-anchor detections (see `MultiLevelAnchorHead.decode`)."""
         return self.head.decode(out)
 
 
@@ -512,6 +707,93 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
 
 
 @register_model(
+    "pointpillars.kitti.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointpillars.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 63.93, "AP/Pedestrian": 52.07, "AP/Cyclist": 62.07, "AP/Car": 77.65},
+        classes=("Pedestrian", "Cyclist", "Car"),
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.16, 0.16, 4.0),
+                point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+                max_num_points=32,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=3,
+        voxel_size=(0.16, 0.16, 4.0),
+        point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+        # Pedestrian, Cyclist, Car.
+        anchor_sizes=[[0.8, 0.6, 1.73], [1.76, 0.6, 1.73], [3.9, 1.6, 1.56]],
+        anchor_bottom_heights=[-0.6, -0.6, -1.78],
+        feature_map_stride=2,
+        align_center=True,
+        dir_offset=-math.pi / 2,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def pointpillars_mmdet3d_kitti(**hparams: Any) -> PointPillarsDetection:
+    return PointPillarsDetection(**hparams)
+
+
+@register_model(
+    "pointpillars.kitti-car.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointpillars.kitti-car.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 77.60, "AP/Car": 77.60},
+        classes=("Car",),
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # KITTI car inference: lidar reflectance becomes the model's point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.16, 0.16, 4.0),
+                point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+                max_num_points=32,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=1,
+        voxel_size=(0.16, 0.16, 4.0),
+        point_cloud_range=(0.0, -39.68, -3.0, 69.12, 39.68, 1.0),
+        anchor_sizes=[[3.9, 1.6, 1.56]],
+        anchor_bottom_heights=[-1.78],
+        feature_map_stride=2,
+        align_center=True,
+        dir_offset=-math.pi / 2,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def pointpillars_mmdet3d_kitti_car(**hparams: Any) -> PointPillarsDetection:
+    return PointPillarsDetection(**hparams)
+
+
+@register_model(
     "pointpillars-multihead.nuscenes.openpcdet",
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
@@ -563,3 +845,106 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
 )
 def pointpillars_openpcdet_multihead_nuscenes(**hparams: Any) -> PointPillarsMultiHeadDetection:
     return PointPillarsMultiHeadDetection(**hparams)
+
+
+@register_model(
+    "pointpillars.nuscenes.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointpillars.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="nuscenes",
+        metrics={"mAP": 34.79, "NDS": 49.33},
+        classes=NUSCENES_DETECTION_CLASSES,
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # nuScenes 10-sweep inference: the sweep time lag (not the intensity) becomes the point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.25, 0.25, 8.0),
+                point_cloud_range=(-50.0, -50.0, -5.0, 50.0, 50.0, 3.0),
+                max_num_points=64,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=10,
+        voxel_size=(0.25, 0.25, 8.0),
+        point_cloud_range=(-50.0, -50.0, -5.0, 50.0, 50.0, 3.0),
+        # Anchor templates shared by all classes: car, truck, trailer, bicycle, pedestrian, traffic_cone, barrier.
+        anchor_sizes=[
+            [4.60718145, 1.95017717, 1.72270761],
+            [6.73778078, 2.4560939, 2.73004906],
+            [12.01320693, 2.87427237, 3.81509561],
+            [1.68452161, 0.60058911, 1.27192197],
+            [0.7256437, 0.66344886, 1.75748069],
+            [0.40359262, 0.39694519, 1.06232151],
+            [0.48578221, 2.49008838, 0.98297065],
+        ],
+        anchor_bottom_heights=[-1.80032795, -1.74440365, -1.68526504, -1.67339111, -1.61785072, -1.80984986, -1.763965],
+        anchor_range=(-49.6, -49.6, -1.8, 49.6, 49.6, -1.8),
+        align_center=True,
+        code_size=9,
+        feature_map_stride=2,
+        feat_channels=(128, 64),
+        dir_offset=-math.pi / 4,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def pointpillars_mmdet3d_nuscenes(**hparams: Any) -> PointPillarsDetection:
+    return PointPillarsDetection(**hparams)
+
+
+@register_model(
+    "pointpillars-fpn.nuscenes.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointpillars-fpn.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="nuscenes",
+        metrics={"mAP": 39.16, "NDS": 52.93},
+        classes=NUSCENES_DETECTION_CLASSES,
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # nuScenes 10-sweep inference: the sweep time lag (not the intensity) becomes the point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.25, 0.25, 8.0),
+                point_cloud_range=(-50.0, -50.0, -5.0, 50.0, 50.0, 3.0),
+                max_num_points=64,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=10,
+        voxel_size=(0.25, 0.25, 8.0),
+        point_cloud_range=(-50.0, -50.0, -5.0, 50.0, 50.0, 3.0),
+        # Templates at scale 1, shared by all classes and scaled by 1, 2 and 4 on the three pyramid levels.
+        anchor_sizes=[[2.5981, 0.8660, 1.0], [1.7321, 0.5774, 1.0], [1.0, 1.0, 1.0], [0.4, 0.4, 1.0]],
+        anchor_bottom_heights=[-1.8, -1.8, -1.8, -1.8],
+        feature_map_strides=[2, 4, 8],
+        anchor_scales=[1.0, 2.0, 4.0],
+        anchor_range=(-50.0, -50.0, -1.8, 50.0, 50.0, -1.8),
+        align_center=True,
+        code_size=9,
+        feat_channels=(128, 64),
+        dir_offset=-math.pi / 4,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def pointpillars_fpn_mmdet3d_nuscenes(**hparams: Any) -> PointPillarsFPNDetection:
+    return PointPillarsFPNDetection(**hparams)

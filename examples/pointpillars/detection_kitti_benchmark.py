@@ -28,14 +28,6 @@ SEED = 42
 
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.01
-KITTI_DETECTION_CLASSES = ("Car", "Pedestrian", "Cyclist")
-# Van / Person_sitting and harder-than-moderate boxes (occlusion > 1, truncation > 0.3, 2D height < 25 px) are ignored.
-KITTI_TRANSFORM = T.RelabelBoxes(
-    keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
-    mapping={KITTI_CLASSES.index(name): index for index, name in enumerate(KITTI_DETECTION_CLASSES)},
-    ignore_mapping={KITTI_CLASSES.index("Van"): 0, KITTI_CLASSES.index("Person_sitting"): 1},
-    ignore_fields={DataKeys.OCCLUSION: (None, 1), DataKeys.TRUNCATION: (None, 0.3), DataKeys.BBOX_HEIGHT: (25, None)},
-)
 
 
 def main() -> None:
@@ -48,7 +40,7 @@ def main() -> None:
     dataloader = configure_dataloader(args)
 
     print(f"Test set: {len(dataloader.dataset)} frames")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device)
+    metrics = evaluate(model, dataloader, args.device, configure_classes(args))
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -67,10 +59,33 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
+def configure_classes(args: Namespace) -> tuple[str, ...]:
+    """The detection classes of the model, in its label order."""
+    weights = model_info(args.model, task="detection")["weights"]
+    assert weights is not None and weights["classes"] is not None
+    return tuple(weights["classes"])
+
+
 def configure_dataset(args: Namespace) -> Dataset:
     dataset: Dataset
-    model_transform = configure_transform(args)
-    transform = T.Compose([KITTI_TRANSFORM, model_transform])
+    classes = configure_classes(args)
+    # Van / Person_sitting and harder-than-moderate boxes (occlusion > 1, truncation > 0.3, 2D height < 25 px) are
+    # ignored.
+    relabel = T.RelabelBoxes(
+        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
+        mapping={KITTI_CLASSES.index(name): index for index, name in enumerate(classes)},
+        ignore_mapping={
+            KITTI_CLASSES.index(ignored): classes.index(name)
+            for ignored, name in (("Van", "Car"), ("Person_sitting", "Pedestrian"))
+            if name in classes
+        },
+        ignore_fields={
+            DataKeys.OCCLUSION: (None, 1),
+            DataKeys.TRUNCATION: (None, 0.3),
+            DataKeys.BBOX_HEIGHT: (25, None),
+        },
+    )
+    transform = T.Compose([relabel, configure_transform(args)])
     dataset = KITTI(
         root=args.root,
         train=True,
@@ -124,7 +139,7 @@ def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
 
 
 @torch.no_grad()
-def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(model: DetectionModel, dataloader: DataLoader, device: str, classes: tuple[str, ...]) -> dict[str, float]:
     model.to(device).eval()
     matches: list[BoxMatches] = []
 
@@ -151,7 +166,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         }
         matches.append(box_matches(preds, target))
 
-    return kitti_average_precision(matches, class_names=KITTI_DETECTION_CLASSES)
+    return kitti_average_precision(matches, class_names=classes)
 
 
 if __name__ == "__main__":

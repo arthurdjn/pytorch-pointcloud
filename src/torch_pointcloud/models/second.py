@@ -3,11 +3,13 @@
 {{ paper("second-2018") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+import math
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
+from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
@@ -21,6 +23,7 @@ from torch_pointcloud.layers.anchors import (
 )
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.ops.box3d import nms3d, roi_grid_sample_bev
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D
@@ -271,6 +274,356 @@ class SECONDDetection(DetectionModel):
     def decode(self, out: AnchorHeadOutput) -> Detection3D:
         r"""Decode a forward output into raw per-anchor detections (see `AnchorHead.decode`)."""
         return self.head.decode(out)
+
+
+class SECONDIoUOutput(TypedDict):
+    r"""Predictions of [`SECONDIoUDetection`][torch_pointcloud.models.second.SECONDIoUDetection].
+
+    Attributes:
+        iou: Predicted IoU logit of every RoI with its object, shape $(R, 1)$.
+        boxes: The RoIs, shape $(R, 7)$.
+        roi_labels: First-stage class of every RoI, shape $(R,)$.
+        roi_scores: First-stage score of every RoI, shape $(R,)$.
+        batch: Scene index of every RoI, shape $(R,)$.
+    """
+
+    iou: Tensor
+    boxes: Tensor
+    roi_labels: Tensor
+    roi_scores: Tensor
+    batch: Tensor
+
+
+class SECONDIoUHead(nn.Module):
+    r"""RoI head that scores every proposal by its predicted IoU with the object it covers.
+
+    Every RoI samples a $G \times G$ grid of the bird's-eye-view feature map (see
+    [`roi_grid_sample_bev`][torch_pointcloud.ops.box3d.roi_grid_sample_bev]); the flattened grid goes through shared
+    fully connected layers and an IoU branch ending in one logit. The boxes are not refined.
+
+    Args:
+        in_channels: Channels of the bird's-eye-view feature map.
+        grid_size: Grid points per RoI side $G$.
+        origin: Map position $(x_0, y_0)$ of the first feature-map pixel.
+        cell_size: Map extent $(s_x, s_y)$ of one feature-map pixel.
+        shared_channels: Channels of the shared fully connected layers.
+        iou_channels: Hidden channels of the IoU branch.
+        dropout: Dropout after the first layer of every branch.
+        act: Activation type or callable.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable.
+        norm_kwargs: Extra normalization arguments.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        grid_size: int,
+        origin: Sequence[float],
+        cell_size: Sequence[float],
+        *,
+        shared_channels: Sequence[int],
+        iou_channels: Sequence[int],
+        dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.grid_size = grid_size
+        self.origin = tuple(origin)
+        self.cell_size = tuple(cell_size)
+        layer_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
+        self.shared = MLP(
+            [in_channels * grid_size**2, *shared_channels],
+            bias=False,
+            dropout=[dropout] + [0.0] * (len(shared_channels) - 1),
+            plain_last=False,
+            **layer_kwargs,
+        )
+        self.iou = MLP(
+            [shared_channels[-1], *iou_channels, 1],
+            bias=[False] * len(iou_channels) + [True],
+            dropout=[dropout] + [0.0] * len(iou_channels),
+            **layer_kwargs,
+        )
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        r"""Xavier-normal weights and zero biases on every linear layer."""
+        for lin in [*self.shared.lins, *self.iou.lins]:
+            nn.init.xavier_normal_(lin.weight)
+            if lin.bias is not None:
+                nn.init.zeros_(lin.bias)
+
+    def forward(self, features: Tensor, rois: Tensor, roi_batch: Tensor) -> Tensor:
+        r"""Predict the IoU logit $(R, 1)$ of every RoI from the $(B, C, H, W)$ feature map."""
+        pooled = roi_grid_sample_bev(
+            features,
+            rois,
+            self.grid_size,
+            self.origin,
+            self.cell_size,
+            box_batch=roi_batch,
+        )
+        shared = self.shared(pooled.flatten(1))
+        return self.iou(shared)
+
+
+class SECONDIoUDetection(DetectionModel):
+    r"""SECOND with an IoU-scoring second stage (SECOND-IoU, packed point format).
+
+    The [`SECONDDetection`][torch_pointcloud.models.second.SECONDDetection] trunk proposes RoIs from its anchor head
+    (top anchors, then a class-agnostic rotated NMS); a [`SECONDIoUHead`][torch_pointcloud.models.second.SECONDIoUHead]
+    then scores every RoI by its predicted IoU, which replaces the classification score. The RoIs keep their
+    first-stage boxes and classes.
+
+    Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
+
+    Args:
+        in_channels: Raw point feature channels including xyz (e.g. $4$ for $x, y, z, \text{intensity}$).
+        num_classes: Number of foreground classes.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
+        anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
+        feature_map_stride: BEV feature-map stride of the head.
+        proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
+        proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
+        proposal_nms_thresh: Rotated BEV IoU threshold of the proposal NMS.
+        dir_offset: Direction-classifier angle offset.
+        anchor_rotations: Yaw angles (radians) shared by all classes.
+        layer_nums: 2D backbone conv counts per level.
+        layer_strides: 2D backbone downsample strides per level.
+        num_filters: 2D backbone channel widths per level.
+        upsample_strides: 2D backbone upsample strides per level.
+        num_upsample_filters: 2D backbone upsample channels per level.
+        num_dir_bins: Number of direction bins in the head.
+        dir_limit_offset: Heading wrap offset used during decoding.
+        roi_grid_size: Grid points per RoI side of the IoU head.
+        roi_shared_channels: Channels of the shared fully connected layers of the IoU head.
+        roi_iou_channels: Hidden channels of the IoU branch.
+        roi_dropout: Dropout of the IoU head.
+        act: Activation type or callable for the 3D/2D backbones.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable for the 3D/2D backbones.
+        norm_kwargs: Extra normalization arguments of the 3D/2D backbones.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
+        anchor_sizes: Sequence[Sequence[float]],
+        anchor_bottom_heights: Sequence[float],
+        feature_map_stride: int,
+        proposal_pre_maxsize: int,
+        proposal_post_maxsize: int,
+        proposal_nms_thresh: float,
+        dir_offset: float,
+        anchor_rotations: Sequence[float] = (0.0, 1.57),
+        layer_nums: Sequence[int] = (5, 5),
+        layer_strides: Sequence[int] = (1, 2),
+        num_filters: Sequence[int] = (128, 256),
+        upsample_strides: Sequence[int] = (1, 2),
+        num_upsample_filters: Sequence[int] = (256, 256),
+        num_dir_bins: int = 2,
+        dir_limit_offset: float = 0.0,
+        roi_grid_size: int = 7,
+        roi_shared_channels: Sequence[int] = (256, 256),
+        roi_iou_channels: Sequence[int] = (256, 256),
+        roi_dropout: float = 0.0,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes)
+
+        self.voxel_size = tuple(voxel_size)
+        self.point_cloud_range = tuple(point_cloud_range)
+        self.anchor_sizes = anchor_sizes
+        self.anchor_bottom_heights = anchor_bottom_heights
+        self.feature_map_stride = feature_map_stride
+        self.proposal_pre_maxsize = proposal_pre_maxsize
+        self.proposal_post_maxsize = proposal_post_maxsize
+        self.proposal_nms_thresh = proposal_nms_thresh
+        self.anchor_rotations = anchor_rotations
+        self.layer_nums = layer_nums
+        self.layer_strides = layer_strides
+        self.num_filters = num_filters
+        self.upsample_strides = upsample_strides
+        self.num_upsample_filters = num_upsample_filters
+        self.num_dir_bins = num_dir_bins
+        self.dir_offset = dir_offset
+        self.dir_limit_offset = dir_limit_offset
+        self.roi_grid_size = roi_grid_size
+        self.roi_shared_channels = roi_shared_channels
+        self.roi_iou_channels = roi_iou_channels
+        self.roi_dropout = roi_dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+
+        grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
+        self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
+        # spconv spatial shape is (z, y, x) with an extra +1 on z (matches the reference implementation).
+        self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
+
+        self.backbone_3d = self.configure_backbone_3d()
+        self.backbone = self.configure_backbone()
+        self.head = self.configure_head()
+        self.roi_head = self.configure_roi_head()
+
+    def configure_backbone_3d(self) -> VoxelBackbone8x:
+        """Build the sparse 3D voxel backbone."""
+        return VoxelBackbone8x(
+            self.in_channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    def configure_backbone(self) -> BEVBackbone:
+        """Build the 2D BEV backbone."""
+        # height compression folds the sparse-z output (D=2) into the channel dim
+        bev_input_channels = self.backbone_3d.out_channels * 2
+        return BEVBackbone(
+            bev_input_channels,
+            self.layer_nums,
+            self.layer_strides,
+            self.num_filters,
+            self.upsample_strides,
+            self.num_upsample_filters,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+        )
+
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ of the BEV feature map entering the heads."""
+        return self.backbone.num_bev_features
+
+    def configure_head(self) -> AnchorHead:
+        """Build the single-group anchor head that proposes the RoIs."""
+        return AnchorHead(
+            self.backbone.num_bev_features,
+            self.num_classes,
+            (self.grid_size[0], self.grid_size[1]),
+            self.point_cloud_range,
+            anchor_sizes=self.anchor_sizes,
+            anchor_bottom_heights=self.anchor_bottom_heights,
+            anchor_rotations=self.anchor_rotations,
+            feature_map_stride=self.feature_map_stride,
+            num_dir_bins=self.num_dir_bins,
+            dir_offset=self.dir_offset,
+            dir_limit_offset=self.dir_limit_offset,
+        )
+
+    def configure_roi_head(self) -> SECONDIoUHead:
+        """Build the IoU head over the BEV feature map."""
+        return SECONDIoUHead(
+            self.backbone.num_bev_features,
+            self.roi_grid_size,
+            self.point_cloud_range[:2],
+            (self.voxel_size[0] * self.feature_map_stride, self.voxel_size[1] * self.feature_map_stride),
+            shared_channels=self.roi_shared_channels,
+            iou_channels=self.roi_iou_channels,
+            dropout=self.roi_dropout,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            # The IoU head keeps the default norm settings of the reference, not the trunk's.
+            norm=self.norm,
+        )
+
+    def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
+        voxel_indices = torch.cat([batch.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
+        batch_size = int(batch.max().item()) + 1
+
+        # MeanVFE: average the points (xyz + features) inside each voxel.
+        normalizer = torch.clamp_min(voxel_num_points.view(-1, 1), min=1.0).type_as(voxels)
+        voxel_features = voxels.sum(dim=1) / normalizer
+
+        sparse_tensor = spconv.SparseConvTensor(
+            features=voxel_features,
+            indices=voxel_indices.int(),
+            spatial_shape=self.sparse_shape,
+            batch_size=batch_size,
+        )
+        encoded = self.backbone_3d(sparse_tensor)
+
+        dense = encoded.dense()
+        b, c, d, h, w = dense.shape
+        bev = dense.view(b, c * d, h, w)
+        return self.backbone(bev)
+
+    def forward_head(self, features: Tensor) -> AnchorHeadOutput:
+        return self.head(features)
+
+    @torch.no_grad()
+    def proposals(self, out: AnchorHeadOutput) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        r"""Select the RoIs of every scene from the anchor head output.
+
+        The `proposal_pre_maxsize` best anchors (by their top class score) go through a class-agnostic rotated BEV
+        NMS, which keeps at most `proposal_post_maxsize` of them.
+
+        Returns:
+            `(rois, roi_scores, roi_labels, roi_batch)` of shapes $(R, 7)$, $(R,)$, $(R,)$ and $(R,)$.
+        """
+        det = self.head.decode(out)
+        keep = nms3d(
+            det["boxes"],
+            det["scores"],
+            self.proposal_nms_thresh,
+            batch=det["batch"],
+            rotated=True,
+            max_keep=self.proposal_post_maxsize,
+            max_candidates=self.proposal_pre_maxsize,
+        )
+        return det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
+
+    def forward(
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch: Tensor,
+    ) -> SECONDIoUOutput:
+        features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
+        out = self.forward_head(features)
+        rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
+        iou = self.roi_head(features, rois, roi_batch)
+        return {
+            "iou": iou,
+            "boxes": rois,
+            "roi_labels": roi_labels,
+            "roi_scores": roi_scores,
+            "batch": roi_batch,
+        }
+
+    @torch.no_grad()
+    def decode(self, out: SECONDIoUOutput) -> Detection3D:
+        r"""Decode a forward output into raw per-RoI detections (no score threshold or NMS).
+
+        Every RoI keeps its first-stage box and label and is scored by the sigmoid of its predicted IoU.
+
+        Returns:
+            Packed per-RoI detections `{"boxes": (R, 7), "scores": (R,), "labels": (R,), "batch": (R,)}`.
+        """
+        return {
+            "boxes": out["boxes"],
+            "scores": out["iou"].sigmoid().view(-1),
+            "labels": out["roi_labels"],
+            "batch": out["batch"],
+        }
 
 
 class VoxelResBackbone8x(nn.Module):
@@ -561,6 +914,180 @@ class SECONDMultiHeadDetection(DetectionModel):
     ),
 )
 def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
+    return SECONDDetection(**hparams)
+
+
+@register_model(
+    "second-iou.kitti.openpcdet",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/second-iou.kitti.openpcdet/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 68.71, "AP/Car": 79.09, "AP/Pedestrian": 55.75, "AP/Cyclist": 71.31},
+        classes=("Car", "Pedestrian", "Cyclist"),
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
+    # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.05, 0.05, 0.1),
+                point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+                max_num_points=5,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=3,
+        voxel_size=(0.05, 0.05, 0.1),
+        point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        # Car, Pedestrian, Cyclist.
+        anchor_sizes=[[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]],
+        anchor_bottom_heights=[-1.78, -0.6, -0.6],
+        feature_map_stride=8,
+        proposal_pre_maxsize=1024,
+        proposal_post_maxsize=100,
+        proposal_nms_thresh=0.7,
+        dir_offset=0.78539,
+        roi_dropout=0.3,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def second_iou_openpcdet_kitti(**hparams: Any) -> SECONDIoUDetection:
+    return SECONDIoUDetection(**hparams)
+
+
+@register_model(
+    "second.kitti.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/second.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 65.86, "AP/Pedestrian": 53.81, "AP/Cyclist": 66.39, "AP/Car": 77.39},
+        classes=("Pedestrian", "Cyclist", "Car"),
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # KITTI 3-class inference: lidar reflectance becomes the model's point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.05, 0.05, 0.1),
+                point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+                max_num_points=5,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=3,
+        voxel_size=(0.05, 0.05, 0.1),
+        point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        # Pedestrian, Cyclist, Car.
+        anchor_sizes=[[0.8, 0.6, 1.73], [1.76, 0.6, 1.73], [3.9, 1.6, 1.56]],
+        anchor_bottom_heights=[-0.6, -0.6, -1.78],
+        feature_map_stride=8,
+        dir_offset=-math.pi / 2,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def second_mmdet3d_kitti(**hparams: Any) -> SECONDDetection:
+    return SECONDDetection(**hparams)
+
+
+@register_model(
+    "second.kitti-car.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/second.kitti-car.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 78.21, "AP/Car": 78.21},
+        classes=("Car",),
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # KITTI car inference: lidar reflectance becomes the model's point feature `x`.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.HardVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.05, 0.05, 0.1),
+                point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+                max_num_points=5,
+                max_num_voxels=40000,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=1,
+        voxel_size=(0.05, 0.05, 0.1),
+        point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        anchor_sizes=[[3.9, 1.6, 1.56]],
+        anchor_bottom_heights=[-1.78],
+        feature_map_stride=8,
+        dir_offset=-math.pi / 2,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def second_mmdet3d_kitti_car(**hparams: Any) -> SECONDDetection:
+    return SECONDDetection(**hparams)
+
+
+@register_model(
+    "second-dynamic-voxel.kitti.mmdet3d",
+    task="detection",
+    input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/second-dynamic-voxel.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 65.20, "AP/Pedestrian": 56.84, "AP/Cyclist": 62.11, "AP/Car": 76.65},
+        classes=("Pedestrian", "Cyclist", "Car"),
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    # KITTI 3-class inference: lidar reflectance becomes the point feature `x`, and every voxel averages all its
+    # points.
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.DynamicVoxelize(
+                pos_key=DataKeys.POS,
+                feature_key=DataKeys.X,
+                voxel_size=(0.05, 0.05, 0.1),
+                point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=3,
+        voxel_size=(0.05, 0.05, 0.1),
+        point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        # Pedestrian, Cyclist, Car.
+        anchor_sizes=[[0.8, 0.6, 1.73], [1.76, 0.6, 1.73], [3.9, 1.6, 1.56]],
+        anchor_bottom_heights=[-0.6, -0.6, -1.78],
+        feature_map_stride=8,
+        dir_offset=-math.pi / 2,
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+    ),
+)
+def second_dynamic_voxel_mmdet3d_kitti(**hparams: Any) -> SECONDDetection:
     return SECONDDetection(**hparams)
 
 

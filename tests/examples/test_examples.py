@@ -257,6 +257,12 @@ BENCHMARKS = [
         id="votenet/scannet",
     ),
     pytest.param(
+        "votenet/detection_scannet_benchmark.py",
+        ("--model", "votenet.scannet.mmdet3d", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/scannet-mmdet3d",
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
@@ -286,7 +292,55 @@ BENCHMARKS = [
         marks=_GPU_SPCONV,
         id="pointpillars/nuscenes",
     ),
+    pytest.param(
+        "pointpillars/detection_nuscenes_benchmark.py",
+        ("--model", "pointpillars.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/nuscenes-mmdet3d",
+    ),
+    pytest.param(
+        "pointpillars/detection_nuscenes_benchmark.py",
+        ("--model", "pointpillars-fpn.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/nuscenes-fpn-mmdet3d",
+    ),
+    pytest.param(
+        "pointpillars/detection_kitti_benchmark.py",
+        ("--model", "pointpillars.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/kitti-mmdet3d",
+    ),
+    pytest.param(
+        "pointpillars/detection_kitti_benchmark.py",
+        ("--model", "pointpillars.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/kitti-car-mmdet3d",
+    ),
+    pytest.param(
+        "second/detection_kitti_benchmark.py",
+        ("--model", "second.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="second/kitti-car-mmdet3d",
+    ),
+    pytest.param(
+        "second/detection_kitti_benchmark.py",
+        ("--model", "second-dynamic-voxel.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="second/kitti-dynamic-voxel",
+    ),
+    pytest.param(
+        "second/detection_kitti_benchmark.py",
+        ("--model", "second-iou.kitti.openpcdet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="second/kitti-iou",
+    ),
     pytest.param("pointrcnn/detection_kitti_benchmark.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
+    pytest.param(
+        "pointrcnn/detection_kitti_benchmark.py",
+        ("--model", "pointrcnn-iou.kitti.openpcdet", "--limit", "2"),
+        marks=_CLUSTER,
+        id="pointrcnn/kitti-iou",
+    ),
     pytest.param(
         "parta2/detection_kitti_benchmark.py",
         ("--model", "part-a2.kitti.mmdet3d", "--limit", "2"),

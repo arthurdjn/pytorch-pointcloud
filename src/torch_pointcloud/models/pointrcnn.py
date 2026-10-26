@@ -1126,3 +1126,63 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
 )
 def pointrcnn_openpcdet_kitti(**hparams: Any) -> PointRCNNDetection:
     return PointRCNNDetection(**hparams)
+
+
+@register_model(
+    "pointrcnn-iou.kitti.openpcdet",
+    task="detection",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointrcnn-iou.kitti.openpcdet/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="kitti",
+        metrics={"mAP": 68.44, "AP/Car": 78.62, "AP/Pedestrian": 54.99, "AP/Cyclist": 71.70},
+        classes=("Car", "Pedestrian", "Cyclist"),
+        author="openpcdet",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
+        [
+            T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+            T.BoxMask(keys=DataKeys.POS, bbox=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0), dst_keys="range_mask"),
+            T.ApplyMask(
+                keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY, "range_mask"],
+                mask_key="range_mask",
+                dst_index_key=DataKeys.INDEX,
+            ),
+            T.RandomSample(
+                keys=[DataKeys.POS, DataKeys.X, DataKeys.INTENSITY, "range_mask"],
+                num_samples=16384,
+                replace=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
+        ]
+    ),
+    hparams=dict(
+        in_channels=4,
+        num_classes=3,
+        mean_sizes=_KITTI_MEAN_SIZES,
+        sa_channels=[
+            [[16, 16, 32], [32, 32, 64]],
+            [[64, 64, 128], [64, 96, 128]],
+            [[128, 196, 256], [128, 196, 256]],
+            [[256, 256, 512], [256, 384, 512]],
+        ],
+        sa_num_points=[4096, 1024, 256, 64],
+        sa_radii=[[0.1, 0.5], [0.5, 1.0], [1.0, 2.0], [2.0, 4.0]],
+        sa_num_neighbors=[[16, 32], [16, 32], [16, 32], [16, 32]],
+        fp_channels=[[512, 512], [512, 512], [256, 256], [128, 128]],
+        roi_sa_channels=[[128, 128, 128], [128, 128, 256], [256, 256, 512]],
+        roi_sa_num_points=[128, 32, -1],
+        roi_sa_radii=[0.2, 0.4, 100.0],
+        roi_sa_num_neighbors=[16, 16, 16],
+        roi_xyz_up_channels=[128, 128],
+        num_sampled_points=512,
+        pool_extra_width=[0.0, 0.0, 0.0],
+        depth_normalizer=70.0,
+        proposal_post_maxsize=100,
+        proposal_nms_thresh=0.85,
+        proposal_nms_rotated=True,
+    ),
+)
+def pointrcnn_iou_openpcdet_kitti(**hparams: Any) -> PointRCNNDetection:
+    return PointRCNNDetection(**hparams)

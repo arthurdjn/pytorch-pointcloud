@@ -5,7 +5,12 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection
+from torch_pointcloud.models.second import (
+    SECONDDetection,
+    SECONDIoUDetection,
+    SECONDIoUHead,
+    SECONDMultiHeadDetection,
+)
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
@@ -17,7 +22,7 @@ RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
 
 
 def _voxelize(
-    model: SECONDDetection | SECONDMultiHeadDetection,
+    model: SECONDDetection | SECONDIoUDetection | SECONDMultiHeadDetection,
     data: Dict[str, Tensor],
     max_num_points: int,
     max_num_voxels: int,
@@ -97,6 +102,66 @@ def test_second_create_model_hparams() -> None:
     assert model.sparse_shape == [41, 1600, 1408]
     assert model.num_features == model.backbone.num_bev_features
     assert model.head.anchors.shape == (200 * 176 * 6, 7)
+
+
+def test_second_iou_create_model_hparams() -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection")
+    assert isinstance(model, SECONDIoUDetection)
+    assert model.num_features == 512
+    assert model.roi_head.shared.lins[0].in_channels == 512 * 7 * 7
+    assert model.roi_head.origin == (0.0, -40.0)
+    assert model.roi_head.cell_size == pytest.approx((0.4, 0.4))
+
+
+def test_second_iou_head_reads_only_the_map_of_each_roi() -> None:
+    torch.manual_seed(0)
+    head = SECONDIoUHead(8, 3, (0.0, 0.0), (1.0, 1.0), shared_channels=[16], iou_channels=[16]).eval()
+    features = torch.randn(2, 8, 10, 10)
+    rois = torch.tensor([[4.0, 4.0, 0.0, 3.0, 2.0, 1.0, 0.3], [5.0, 6.0, 0.0, 2.0, 4.0, 1.0, -1.0]]).repeat(2, 1)
+    roi_batch = torch.tensor([0, 0, 1, 1])
+    with torch.no_grad():
+        iou = head(features, rois, roi_batch)
+        changed = features.clone()
+        changed[1] = torch.randn(8, 10, 10)
+        iou_changed = head(changed, rois, roi_batch)
+    assert iou.shape == (4, 1)
+    assert torch.equal(iou[:2], iou_changed[:2])
+    assert not torch.equal(iou[2:], iou_changed[2:])
+
+
+def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
+    torch.manual_seed(0)
+    model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=8).eval()
+    assert isinstance(model, SECONDIoUDetection)
+    features = torch.randn(2, model.num_features, 200, 176)
+    with torch.no_grad():
+        out = model.forward_head(features)
+        rois, roi_scores, roi_labels, roi_batch = model.proposals(out)
+        iou = model.roi_head(features, rois, roi_batch)
+        det = model.decode(
+            {"iou": iou, "boxes": rois, "roi_labels": roi_labels, "roi_scores": roi_scores, "batch": roi_batch}
+        )
+    assert 0 < rois.shape[0] <= 2 * 8
+    assert torch.bincount(roi_batch).max() <= 8
+    assert torch.equal(det["boxes"], rois) and torch.equal(det["labels"], roi_labels)
+    assert torch.equal(det["scores"], iou.sigmoid().view(-1))
+    assert int(det["labels"].max()) < 3
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
+def test_second_iou_forward_and_decode() -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=16).to(DEVICE).eval()
+    assert isinstance(model, SECONDIoUDetection)
+    data = _make_inputs()
+    voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
+    with torch.no_grad():
+        out = model(voxels, pos_voxel, num_points, vbatch)
+        det = model.decode(out)
+    num_rois = out["boxes"].shape[0]
+    assert 0 < num_rois <= 2 * 16
+    assert out["iou"].shape == (num_rois, 1)
+    assert det["scores"].shape == det["labels"].shape == det["batch"].shape == (num_rois,)
+    assert torch.isfinite(det["boxes"]).all()
 
 
 NUSCENES_RANGE = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)
