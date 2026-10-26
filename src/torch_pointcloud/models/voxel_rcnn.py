@@ -18,7 +18,7 @@ from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.ops.roi import decode_roi_residuals, roi_grid_points, sample_rois
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import Detection3D, OptTensor
+from torch_pointcloud.utils.types import Detection3D, FeaturesDict, OptTensor
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
@@ -312,8 +312,6 @@ class VoxelRCNNDetection(DetectionModel):
         self.grid_size_3d: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         # spconv spatial shape is (z, y, x) with an extra +1 on z.
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
-        # The RoI head pools the three strided stages of the sparse backbone.
-        self.pool_strides: Tuple[int, int, int] = (2, 4, 8)
 
         self.backbone_3d = self.configure_backbone_3d()
         self.backbone = self.configure_backbone()
@@ -373,7 +371,7 @@ class VoxelRCNNDetection(DetectionModel):
         # The head uses the framework-default norm hyperparameters, so the backbones' `norm_kwargs` are not
         # threaded into it.
         return VoxelRCNNBoxHead(
-            (32, 64, 64),
+            self.backbone_3d.stage_channels[1:],
             grid_size=self.grid_size,
             pool_channels=self.pool_channels,
             pool_radii=self.pool_radii,
@@ -393,12 +391,12 @@ class VoxelRCNNDetection(DetectionModel):
         pos_voxel: Tensor,
         voxel_num_points: Tensor,
         batch_voxel: Tensor,
-    ) -> Tuple[Tensor, List[Tensor], List[Tensor]]:
+    ) -> Tuple[Tensor, List[FeaturesDict]]:
         r"""Run the sparse and BEV backbones.
 
         Returns:
-            `(features, stage_features, stage_indices)`: the BEV features entering the anchor head, and the features
-            and $(b, z, y, x)$ indices of the three strided sparse stages, sorted by scene and voxel coordinate.
+            `(features, stages)`: the BEV features entering the anchor head and the three strided sparse stages
+            (see `VoxelBackbone8x`).
         """
         voxel_indices = torch.cat([batch_voxel.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
         batch_size = int(batch_voxel.max().item()) + 1
@@ -413,27 +411,13 @@ class VoxelRCNNDetection(DetectionModel):
             spatial_shape=self.sparse_shape,
             batch_size=batch_size,
         )
-        x = self.backbone_3d.conv_input(x)
-        x = self.backbone_3d.conv1(x)
-        stage_features, stage_indices = [], []
-        for conv in (self.backbone_3d.conv2, self.backbone_3d.conv3, self.backbone_3d.conv4):
-            x = conv(x)
-            # Strided sparse convs return their voxels in a library-dependent order; visit them in (b, z, y, x)
-            # order so the ball queries, which keep the first neighbors they meet, do not depend on the library.
-            indices = x.indices.long()
-            depth, height, width = x.spatial_shape
-            order = (
-                ((indices[:, 0] * depth + indices[:, 1]) * height + indices[:, 2]) * width + indices[:, 3]
-            ).argsort()
-            stage_features.append(x.features[order])
-            stage_indices.append(x.indices[order])
-        encoded = self.backbone_3d.conv_out(x)
+        encoded, stages = self.backbone_3d(x, return_intermediates=True)
 
         dense = encoded.dense()
         b, c, d, h, w = dense.shape
         bev = dense.view(b, c * d, h, w)
         features = self.backbone(bev)
-        return features, stage_features, stage_indices
+        return features, stages[1:]
 
     def forward_features(
         self,
@@ -442,7 +426,7 @@ class VoxelRCNNDetection(DetectionModel):
         voxel_num_points: Tensor,
         batch_voxel: Tensor,
     ) -> Tensor:
-        features, _, _ = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
+        features, _ = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
         return features
 
     def forward_head(self, features: Tensor) -> AnchorHeadOutput:
@@ -471,20 +455,13 @@ class VoxelRCNNDetection(DetectionModel):
         )
         return det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
 
-    def refine(
-        self,
-        rois: Tensor,
-        roi_batch: Tensor,
-        stage_features: List[Tensor],
-        stage_indices: List[Tensor],
-    ) -> Tuple[Tensor, Tensor]:
-        r"""Pool the sparse stages inside every RoI and refine it.
+    def refine(self, rois: Tensor, roi_batch: Tensor, stages: List[FeaturesDict]) -> Tuple[Tensor, Tensor]:
+        r"""Pool the strided sparse stages inside every RoI and refine it.
 
         Args:
             rois: RoIs, shape $(R, 7)$.
             roi_batch: Scene index of every RoI, sorted, shape $(R,)$.
-            stage_features: Features of the strided sparse stages (see `encode`).
-            stage_indices: Indices of the strided sparse stages (see `encode`).
+            stages: The strided sparse stages (see `encode`).
 
         Returns:
             `(rcnn_cls, rcnn_reg)`: the confidence logit $(R, 1)$ and the box residuals $(R, 7)$ of every RoI.
@@ -492,10 +469,11 @@ class VoxelRCNNDetection(DetectionModel):
         size = rois.new_tensor(self.voxel_size)
         low = rois.new_tensor(self.point_cloud_range[:3])
         stage_pos = [
-            (indices[:, [3, 2, 1]].float() + 0.5) * (size * stride) + low
-            for indices, stride in zip(stage_indices, self.pool_strides)
+            (stage["pos_grid"][:, [2, 1, 0]].float() + 0.5) * (size * stride) + low
+            for stage, stride in zip(stages, self.backbone_3d.stage_strides[1:])
         ]
-        stage_batch = [indices[:, 0].long() for indices in stage_indices]
+        stage_features = [stage["x"] for stage in stages]
+        stage_batch = [stage["batch"] for stage in stages]
         return self.roi_head(rois, roi_batch, stage_features, stage_pos, stage_batch)
 
     def forward(
@@ -525,7 +503,7 @@ class VoxelRCNNDetection(DetectionModel):
         if self.training and (gt_boxes is None or gt_labels is None or gt_batch is None):
             raise ValueError("Training needs `gt_boxes`, `gt_labels` and `gt_batch` to sample the RoIs.")
 
-        features, stage_features, stage_indices = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
+        features, stages = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
         out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
 
@@ -548,7 +526,7 @@ class VoxelRCNNDetection(DetectionModel):
             matched = samples["target_index"] >= 0
             target_boxes = torch.zeros_like(rois)
             target_boxes[matched] = gt_boxes[samples["target_index"][matched]]
-            rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)
+            rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stages)
             return {
                 **out,
                 "rcnn_cls": rcnn_cls,
@@ -559,7 +537,7 @@ class VoxelRCNNDetection(DetectionModel):
                 "roi_target_boxes": target_boxes,
             }
 
-        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)
+        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stages)
         return {
             "rcnn_cls": rcnn_cls,
             "boxes": decode_roi_residuals(rcnn_reg, rois),

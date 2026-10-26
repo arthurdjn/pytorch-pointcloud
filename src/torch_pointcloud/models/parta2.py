@@ -388,6 +388,7 @@ class PartA2Detection(DetectionModel):
         """Build the sparse U-Net decoder."""
         return SparseUNetDecoder(
             self.decoder_channels,
+            self.backbone_3d.stage_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,

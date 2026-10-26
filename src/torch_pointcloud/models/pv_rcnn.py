@@ -19,7 +19,7 @@ from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.ops.roi import decode_roi_residuals, roi_grid_points
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import Detection3D
+from torch_pointcloud.utils.types import Detection3D, FeaturesDict
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
@@ -170,19 +170,18 @@ class VoxelSetAbstraction(nn.Module):
         self.out_channels = out_channels
         self.fusion = MLP([self.in_channels, out_channels], bias=False, plain_last=False, **layer_kwargs)
 
-    def voxel_centers(self, indices: Tensor, stride: int) -> Tensor:
-        r"""Metric centers of voxels given as $(b, z, y, x)$ indices on a grid `stride` times coarser."""
-        size = indices.new_tensor(self.voxel_size, dtype=torch.float) * stride
-        low = indices.new_tensor(self.point_cloud_range[:3], dtype=torch.float)
-        return (indices[:, [3, 2, 1]].float() + 0.5) * size + low
+    def voxel_centers(self, pos_grid: Tensor, stride: int) -> Tensor:
+        r"""Metric centers of voxels given as $(z, y, x)$ coordinates on a grid `stride` times coarser."""
+        size = pos_grid.new_tensor(self.voxel_size, dtype=torch.float) * stride
+        low = pos_grid.new_tensor(self.point_cloud_range[:3], dtype=torch.float)
+        return (pos_grid[:, [2, 1, 0]].float() + 0.5) * size + low
 
     def forward(
         self,
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        voxel_features: List[Tensor],
-        voxel_indices: List[Tensor],
+        stages: List[FeaturesDict],
         bev: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""Sample the keypoints and gather their features.
@@ -191,8 +190,8 @@ class VoxelSetAbstraction(nn.Module):
             x: Raw point features, shape $(N, C_p)$.
             pos: Raw point coordinates, shape $(N, 3)$.
             batch: Sorted raw point scene index, shape $(N,)$.
-            voxel_features: Features of every sparse stage, shapes $(V_s, C_s)$.
-            voxel_indices: Indices $(b, z, y, x)$ of every sparse stage, shapes $(V_s, 4)$, sorted by scene.
+            stages: Features `x`, scene index `batch` (sorted) and $(z, y, x)$ coordinates `pos_grid` of every
+                sparse stage, as returned by `VoxelBackbone8x(..., return_intermediates=True)`.
             bev: BEV feature map, shape $(B, C, H, W)$.
 
         Returns:
@@ -214,14 +213,9 @@ class VoxelSetAbstraction(nn.Module):
             )
         ]
         features.append(self.point_abstraction(x, pos, batch, keypoint_pos, keypoint_batch))
-        for abstraction, stride, stage_features, indices in zip(
-            self.voxel_abstractions,
-            self.voxel_strides,
-            voxel_features,
-            voxel_indices,
-        ):
-            centers = self.voxel_centers(indices, stride)
-            features.append(abstraction(stage_features, centers, indices[:, 0].long(), keypoint_pos, keypoint_batch))
+        for abstraction, stride, stage in zip(self.voxel_abstractions, self.voxel_strides, stages):
+            centers = self.voxel_centers(stage["pos_grid"], stride)
+            features.append(abstraction(stage["x"], centers, stage["batch"], keypoint_pos, keypoint_batch))
 
         keypoint_features = torch.cat(features, dim=1)
         fused = self.fusion(keypoint_features)
@@ -537,8 +531,8 @@ class PVRCNNDetection(DetectionModel):
             point_mlp_channels=self.point_mlp_channels,
             point_radii=self.point_radii,
             point_num_neighbors=self.point_num_neighbors,
-            voxel_channels=(16, 32, 64, 64),
-            voxel_strides=(1, 2, 4, 8),
+            voxel_channels=self.backbone_3d.stage_channels,
+            voxel_strides=self.backbone_3d.stage_strides,
             voxel_mlp_channels=self.voxel_mlp_channels,
             voxel_radii=self.voxel_radii,
             voxel_num_neighbors=self.voxel_num_neighbors,
@@ -584,12 +578,12 @@ class PVRCNNDetection(DetectionModel):
         pos_voxel: Tensor,
         voxel_num_points: Tensor,
         batch_voxel: Tensor,
-    ) -> Tuple[Tensor, Tensor, List[Tensor], List[Tensor]]:
+    ) -> Tuple[Tensor, Tensor, List[FeaturesDict]]:
         r"""Run the sparse and BEV backbones.
 
         Returns:
-            `(features, bev, stage_features, stage_indices)`: the BEV features entering the anchor head, the
-            height-compressed sparse output, and the features and $(b, z, y, x)$ indices of the four sparse stages.
+            `(features, bev, stages)`: the BEV features entering the anchor head, the height-compressed sparse
+            output, and the four sparse stages (see `VoxelBackbone8x`).
         """
         voxel_indices = torch.cat([batch_voxel.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
         batch_size = int(batch_voxel.max().item()) + 1
@@ -604,27 +598,13 @@ class PVRCNNDetection(DetectionModel):
             spatial_shape=self.sparse_shape,
             batch_size=batch_size,
         )
-        x = self.backbone_3d.conv_input(x)
-        x = self.backbone_3d.conv1(x)
-        stage_features, stage_indices = [x.features], [x.indices]
-        for conv in (self.backbone_3d.conv2, self.backbone_3d.conv3, self.backbone_3d.conv4):
-            x = conv(x)
-            # Strided sparse convs return their voxels in a library-dependent order; visit them in (b, z, y, x)
-            # order so the ball queries, which keep the first neighbors they meet, do not depend on the library.
-            indices = x.indices.long()
-            depth, height, width = x.spatial_shape
-            order = (
-                ((indices[:, 0] * depth + indices[:, 1]) * height + indices[:, 2]) * width + indices[:, 3]
-            ).argsort()
-            stage_features.append(x.features[order])
-            stage_indices.append(x.indices[order])
-        encoded = self.backbone_3d.conv_out(x)
+        encoded, stages = self.backbone_3d(x, return_intermediates=True)
 
         dense = encoded.dense()
         b, c, d, h, w = dense.shape
         bev = dense.view(b, c * d, h, w)
         features = self.backbone(bev)
-        return features, bev, stage_features, stage_indices
+        return features, bev, stages
 
     def forward_features(
         self,
@@ -633,7 +613,7 @@ class PVRCNNDetection(DetectionModel):
         voxel_num_points: Tensor,
         batch_voxel: Tensor,
     ) -> Tensor:
-        features, _, _, _ = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
+        features, _, _ = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
         return features
 
     def forward_head(self, features: Tensor) -> AnchorHeadOutput:
@@ -668,8 +648,7 @@ class PVRCNNDetection(DetectionModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        stage_features: List[Tensor],
-        stage_indices: List[Tensor],
+        stages: List[FeaturesDict],
         bev: Tensor,
     ) -> Tuple[Tensor, Tensor]:
         r"""Encode the keypoints, weight them by the foreground head and refine every RoI.
@@ -680,21 +659,13 @@ class PVRCNNDetection(DetectionModel):
             x: Raw point features, shape $(N, C_p)$.
             pos: Raw point coordinates, shape $(N, 3)$.
             batch: Sorted scene index of every raw point, shape $(N,)$.
-            stage_features: Features of every sparse stage (see `encode`).
-            stage_indices: Indices of every sparse stage (see `encode`).
+            stages: The sparse stages (see `encode`).
             bev: Height-compressed sparse output (see `encode`).
 
         Returns:
             `(rcnn_cls, rcnn_reg)`: the confidence logit $(R, 1)$ and the box residuals $(R, 7)$ of every RoI.
         """
-        keypoint_pos, keypoint_batch, keypoint_features, fused = self.keypoint_encoder(
-            x,
-            pos,
-            batch,
-            stage_features,
-            stage_indices,
-            bev,
-        )
+        keypoint_pos, keypoint_batch, keypoint_features, fused = self.keypoint_encoder(x, pos, batch, stages, bev)
         weighted = fused * self.keypoint_head(keypoint_features).sigmoid()
         return self.roi_head(rois, roi_batch, weighted, keypoint_pos, keypoint_batch)
 
@@ -708,15 +679,10 @@ class PVRCNNDetection(DetectionModel):
         pos: Tensor,
         batch: Tensor,
     ) -> PVRCNNOutput:
-        features, bev, stage_features, stage_indices = self.encode(
-            voxels,
-            pos_voxel,
-            voxel_num_points,
-            batch_voxel,
-        )
+        features, bev, stages = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
         out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
-        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, x, pos, batch, stage_features, stage_indices, bev)
+        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, x, pos, batch, stages, bev)
 
         return {
             "rcnn_cls": rcnn_cls,
