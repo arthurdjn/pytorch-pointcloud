@@ -38,8 +38,8 @@ TRANSFORM = T.Compose(
     [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        # The released weights were trained on colors in $[-1, 1]$.
-        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
+        # The released weights were trained on colors in $[0, 1]$.
+        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, NUM_CLASSES + 1), default=-1),
     ]
 )

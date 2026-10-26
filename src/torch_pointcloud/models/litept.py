@@ -1134,8 +1134,8 @@ def _litept_indoor_transforms(relabel_labels: Optional[Sequence[int]] = None) ->
     steps: List[Any] = [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        # The released weights were trained on colors in $[-1, 1]$.
-        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
+        # The released weights were trained on colors in $[0, 1]$.
+        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
         T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
     ]
     if relabel_labels is not None:
