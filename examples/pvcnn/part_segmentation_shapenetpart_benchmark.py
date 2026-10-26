@@ -114,7 +114,6 @@ def evaluate(model: PartSegmentationModel, dataloader: DataLoader, inferer: Infe
     """Instance and class mIoU, each shape predicted among the parts of its own category as the reference does."""
     model.to(device).eval()
     part_ids = list(ShapeNetPart.seg_ids.values())
-
     ious: List[Tensor] = []
     categories: List[Tensor] = []
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):

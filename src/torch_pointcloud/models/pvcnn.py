@@ -820,7 +820,7 @@ def _pvcnn_shapenetpart_hparams(channels: Sequence[int], head_channels: Sequence
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 85.8, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 85.88, "cls_mIoU": 84.14},
         author="mit-han-lab",
         license="MIT",
     ),
@@ -839,7 +839,7 @@ def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn-c0p5.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 85.5, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 85.46, "cls_mIoU": 83.37},
         author="mit-han-lab",
         license="MIT",
     ),
@@ -858,7 +858,7 @@ def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn-c0p25.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 84.9, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 84.85, "cls_mIoU": 81.65},
         author="mit-han-lab",
         license="MIT",
     ),
@@ -877,7 +877,7 @@ def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentatio
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn-dml.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.1, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 86.01, "cls_mIoU": 84.44},
         author="mit-han-lab",
         license="MIT",
     ),
@@ -896,7 +896,7 @@ def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn-c0p25-dml.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 85.1, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 85.10, "cls_mIoU": 82.12},
         author="mit-han-lab",
         license="MIT",
     ),

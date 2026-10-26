@@ -1396,7 +1396,6 @@ def _pointnet2_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmenta
         sa.sort_neighbors = True
     for fp in model.decoder.fp_blocks:
         assert isinstance(fp, PointNet2FeaturePropagation)
-        fp.weighting = "squared"
         fp.eps = 1e-10
     return model
 
@@ -1408,7 +1407,7 @@ def _pointnet2_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmenta
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2-ssg.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 85.1, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 85.04, "cls_mIoU": 82.64},
         author="mit-han-lab",
         license="MIT",
     ),
@@ -1442,7 +1441,7 @@ def pointnet2_ssg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegme
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2-msg.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 85.3, "cls_mIoU": 0.0},
+        metrics={"ins_mIoU": 85.24, "cls_mIoU": 82.84},
         author="mit-han-lab",
         license="MIT",
     ),
