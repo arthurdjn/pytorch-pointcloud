@@ -77,7 +77,7 @@ class PointNetEncoder(nn.Module):
         tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
         act_first: Whether to apply the activation before the normalization in every layer.
         act_last: Whether the last layer of the second MLP applies the activation; `False` returns its normalized
-            linear output.
+            linear output. Unlike PyG's `plain_last`, the normalization is kept.
         stnet_use_features: Whether the input T-Net predicts its transform from the coordinates concatenated with
             the point features, the coordinates alone otherwise.
     """
@@ -237,6 +237,11 @@ class PointNetClassification(ClassificationModel):
         You can control the activations, normalization, and dropout rate of the encoder and head.
         To skip them, set them to `None`.
 
+    Tip:
+        The registered checkpoints use `act_first=False` and `act_last=False`. Both layouts share their `state_dict`
+        keys, so a strict load does not tell them apart: build a checkpoint with `create_model`, which sets them from
+        the registry.
+
     Args:
         in_channels: Dimension of additional point features.
         num_classes: Number of output classes.
@@ -259,7 +264,7 @@ class PointNetClassification(ClassificationModel):
         head_channels: Hidden dimensions of the classification head MLP.
         act_first: Whether to apply the activation before the normalization in every layer.
         act_last: Whether the last encoder layer applies the activation; `False` pools the normalized linear
-            output.
+            output. Unlike PyG's `plain_last`, the normalization is kept.
         stnet_use_features: Whether the input T-Net predicts its transform from the coordinates concatenated with
             the point features, the coordinates alone otherwise.
 
@@ -447,6 +452,11 @@ class PointNetSegmentation(SemanticSegmentationModel):
         local geometry and the global shape context. This enables part segmentation that is
         aware of the overall object structure.
 
+    Tip:
+        The registered checkpoints use `act_first=False` and `act_last=False`. Both layouts share their `state_dict`
+        keys, so a strict load does not tell them apart: build a checkpoint with `create_model`, which sets them from
+        the registry.
+
     Args:
         in_channels: Dimension of additional point features.
         num_classes: Number of segmentation classes.
@@ -469,7 +479,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
         seg_head_dims: Dimensions of segmentation head MLPs.
         act_first: Whether to apply the activation before the normalization in every layer.
         act_last: Whether the last encoder layer applies the activation; `False` pools the normalized linear
-            output.
+            output. Unlike PyG's `plain_last`, the normalization is kept.
         stnet_use_features: Whether the input T-Net predicts its transform from the coordinates concatenated with
             the point features, the coordinates alone otherwise.
 
