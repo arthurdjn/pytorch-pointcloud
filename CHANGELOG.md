@@ -32,7 +32,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added `PointGPTPartSegmentation` with the PointGPT-S, -B and -L ShapeNetPart checkpoints, the PointGPT-B and -L post-pre-training checkpoints, and the ShapeNetPart benchmark and training scripts.
+- Added `PointGPTPartSegmentation` with the ShapeNetPart checkpoints `pointgpt-{s,b,l}.shapenetpart.guangyan-chen`, the post-pre-training checkpoints `pointgpt-{b,l}.post-pretrain.guangyan-chen`, and their benchmark and training scripts.
+- Added `metrics.part_argmax`, the part prediction taken over the parts of the shape's category only.
 
 ## 0.0.18 (2026-10-20)
 
