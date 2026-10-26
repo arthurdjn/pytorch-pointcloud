@@ -139,7 +139,7 @@ BENCHMARKS = [
     ),
     pytest.param(
         "litept/segmentation_nuscenes_benchmark.py",
-        ("--model", "litept-large.nuscenes.prs-eth", "--split", "mini", "--limit", "1", "--simple"),
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1", "--simple"),
         marks=_GPU_SPCONV,
         id="litept/nuscenes-simple",
     ),

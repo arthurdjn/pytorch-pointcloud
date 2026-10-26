@@ -1044,6 +1044,17 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
 
     Returns:
         The state dict keyed as `model` expects.
+
+    Example:
+        ```{.python notest}
+        from torch_pointcloud.models import create_model
+        from torch_pointcloud.models.litept import segmentation_checkpoint_filter_fn
+        from torch_pointcloud.utils.state_dict import read_state_dict
+
+        model = create_model("litept-small.scannet20.prs-eth", task="semantic-segmentation")
+        state_dict = read_state_dict("exp/scannet/semseg-litept-small-v1m1/model/model_best.pth")
+        model.load_state_dict(segmentation_checkpoint_filter_fn(state_dict, model))
+        ```
     """
     assert isinstance(model, LitePTSegmentation)
     state_dict = {key.removeprefix("module."): value for key, value in state_dict.items()}
@@ -1112,29 +1123,6 @@ def _litept_seg_hparams(
         rope_base=100.0,
         use_flash_attn=True,
     )
-
-
-_LITEPT_SMALL = dict(
-    encoder_depths=(2, 2, 2, 6, 2),
-    encoder_channels=(36, 72, 144, 252, 504),
-    encoder_num_heads=(2, 4, 8, 14, 28),
-    decoder_channels=(252, 144, 72, 72),
-    decoder_num_heads=(14, 8, 4, 4),
-)
-_LITEPT_BASE = dict(
-    encoder_depths=(3, 3, 3, 12, 3),
-    encoder_channels=(54, 108, 216, 432, 576),
-    encoder_num_heads=(3, 6, 12, 24, 32),
-    decoder_channels=(432, 216, 108, 72),
-    decoder_num_heads=(24, 12, 6, 4),
-)
-_LITEPT_LARGE = dict(
-    encoder_depths=(3, 3, 3, 12, 3),
-    encoder_channels=(72, 144, 288, 576, 864),
-    encoder_num_heads=(4, 8, 16, 32, 48),
-    decoder_channels=(576, 288, 144, 72),
-    decoder_num_heads=(32, 16, 8, 4),
-)
 
 
 def _litept_indoor_transforms(relabel_labels: Optional[Sequence[int]] = None) -> T.Compose:
@@ -1217,7 +1205,15 @@ _LITEPT_NUSCENES_TRANSFORM = T.Compose(
         license="MIT",
     ),
     transform=_litept_indoor_transforms(range(1, 21)),
-    hparams=_litept_seg_hparams(20, 6, **_LITEPT_SMALL),
+    hparams=_litept_seg_hparams(
+        num_classes=20,
+        in_channels=6,
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(36, 72, 144, 252, 504),
+        encoder_num_heads=(2, 4, 8, 14, 28),
+        decoder_channels=(252, 144, 72, 72),
+        decoder_num_heads=(14, 8, 4, 4),
+    ),
 )
 def litept_small_scannet20(**hparams: Any) -> LitePTSegmentation:
     return LitePTSegmentation(**hparams)
@@ -1236,7 +1232,15 @@ def litept_small_scannet20(**hparams: Any) -> LitePTSegmentation:
         license="MIT",
     ),
     transform=_LITEPT_NUSCENES_TRANSFORM,
-    hparams=_litept_seg_hparams(16, 4, **_LITEPT_SMALL),
+    hparams=_litept_seg_hparams(
+        num_classes=16,
+        in_channels=4,
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(36, 72, 144, 252, 504),
+        encoder_num_heads=(2, 4, 8, 14, 28),
+        decoder_channels=(252, 144, 72, 72),
+        decoder_num_heads=(14, 8, 4, 4),
+    ),
 )
 def litept_small_nuscenes(**hparams: Any) -> LitePTSegmentation:
     return LitePTSegmentation(**hparams)
@@ -1255,7 +1259,15 @@ def litept_small_nuscenes(**hparams: Any) -> LitePTSegmentation:
         license="MIT",
     ),
     transform=_LITEPT_NUSCENES_TRANSFORM,
-    hparams=_litept_seg_hparams(16, 4, **_LITEPT_LARGE),
+    hparams=_litept_seg_hparams(
+        num_classes=16,
+        in_channels=4,
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(72, 144, 288, 576, 864),
+        encoder_num_heads=(4, 8, 16, 32, 48),
+        decoder_channels=(576, 288, 144, 72),
+        decoder_num_heads=(32, 16, 8, 4),
+    ),
 )
 def litept_large_nuscenes(**hparams: Any) -> LitePTSegmentation:
     return LitePTSegmentation(**hparams)
@@ -1274,7 +1286,15 @@ def litept_large_nuscenes(**hparams: Any) -> LitePTSegmentation:
         license="MIT",
     ),
     transform=_litept_indoor_transforms(),
-    hparams=_litept_seg_hparams(25, 6, **_LITEPT_SMALL),
+    hparams=_litept_seg_hparams(
+        num_classes=25,
+        in_channels=6,
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(36, 72, 144, 252, 504),
+        encoder_num_heads=(2, 4, 8, 14, 28),
+        decoder_channels=(252, 144, 72, 72),
+        decoder_num_heads=(14, 8, 4, 4),
+    ),
 )
 def litept_small_structured3d(**hparams: Any) -> LitePTSegmentation:
     return LitePTSegmentation(**hparams)
@@ -1293,7 +1313,15 @@ def litept_small_structured3d(**hparams: Any) -> LitePTSegmentation:
         license="MIT",
     ),
     transform=_litept_indoor_transforms(),
-    hparams=_litept_seg_hparams(25, 6, **_LITEPT_BASE),
+    hparams=_litept_seg_hparams(
+        num_classes=25,
+        in_channels=6,
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(54, 108, 216, 432, 576),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        decoder_channels=(432, 216, 108, 72),
+        decoder_num_heads=(24, 12, 6, 4),
+    ),
 )
 def litept_base_structured3d(**hparams: Any) -> LitePTSegmentation:
     return LitePTSegmentation(**hparams)
@@ -1312,7 +1340,15 @@ def litept_base_structured3d(**hparams: Any) -> LitePTSegmentation:
         license="MIT",
     ),
     transform=_litept_indoor_transforms(),
-    hparams=_litept_seg_hparams(25, 6, **_LITEPT_LARGE),
+    hparams=_litept_seg_hparams(
+        num_classes=25,
+        in_channels=6,
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(72, 144, 288, 576, 864),
+        encoder_num_heads=(4, 8, 16, 32, 48),
+        decoder_channels=(576, 288, 144, 72),
+        decoder_num_heads=(32, 16, 8, 4),
+    ),
 )
 def litept_large_structured3d(**hparams: Any) -> LitePTSegmentation:
     return LitePTSegmentation(**hparams)
