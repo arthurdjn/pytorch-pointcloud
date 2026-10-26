@@ -82,8 +82,9 @@ class LitePTBlock(nn.Module):
         attention: Whether the block has the attention and MLP branches.
 
     Shape:
-        - Input: $(N, C)$ features, their `SparseConvTensor`, $(N, 3)$ integer grid coordinates, $(N,)$ batch.
-        - Output: $(N, C)$ features and the `SparseConvTensor` holding them.
+        - Input: $(N, C)$ features, their `SparseConvTensor` (`None` for a block without convolution), $(N, 3)$
+          integer grid coordinates, $(N,)$ batch.
+        - Output: $(N, C)$ features and the `SparseConvTensor` holding them (`None` when none was given).
     """
 
     def __init__(
@@ -192,7 +193,8 @@ class LitePTBlock(nn.Module):
             x = self.mlp(x)
             x = shortcut + self.drop_path(x)
 
-        x_sparse = x_sparse.replace_feature(x)
+        if x_sparse is not None:
+            x_sparse = x_sparse.replace_feature(x)
         return x, x_sparse
 
 
@@ -205,7 +207,12 @@ def _run_blocks(
     serialized_inverse: OptTensor,
 ) -> Tensor:
     """Run the `LitePTBlock` units of one stage, cycling the attention blocks through the serialization orders."""
-    x_sparse = convert_to_spconv_tensor(x, pos_grid, batch)
+    if len(blocks) == 0:
+        return x
+
+    # Building the `SparseConvTensor` synchronizes with the host, so only a stage that convolves pays for it.
+    use_conv = any(isinstance(block, LitePTBlock) and block.use_conv for block in blocks)
+    x_sparse = convert_to_spconv_tensor(x, pos_grid, batch) if use_conv else None
     layout: Optional[PatchLayout] = None
     attention_blocks = [block for block in blocks if isinstance(block, LitePTBlock) and block.use_attention]
     if attention_blocks:
