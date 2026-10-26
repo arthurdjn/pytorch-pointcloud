@@ -69,7 +69,7 @@ def test_tr3d_decode_scores_by_class() -> None:
     cls = torch.full((1, 18), -10.0)
     cls[0, 2] = 1.0
     out: TR3DOutput = {
-        "cls": cls,
+        "cls_logits": cls,
         "boxes": torch.rand(1, 7),
         "pos": torch.rand(1, 3),
         "batch": torch.tensor([0]),
@@ -99,8 +99,8 @@ def test_tr3d_forward_and_decode_shapes() -> None:
         out = model(x, pos, batch)
         det = model.decode(out)
 
-    m = len(out["cls"])
-    assert out["cls"].shape == (m, 18) and out["boxes"].shape == (m, 7)
+    m = len(out["cls_logits"])
+    assert out["cls_logits"].shape == (m, 18) and out["boxes"].shape == (m, 7)
     assert set(out["level"].unique().tolist()) == {0, 1}
     assert set(out["batch"].unique().tolist()) == {0, 1}
     assert (out["boxes"][:, 3:6] > 0).all()

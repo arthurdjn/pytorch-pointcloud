@@ -75,8 +75,8 @@ def test_fcaf3d_decode_scores_by_class_and_centerness() -> None:
     cls = torch.full((2, 18), -10.0)
     cls[0, 4], cls[1, 7] = 2.0, 0.5
     out: FCAF3DOutput = {
-        "cls": cls,
-        "center": torch.tensor([[1.0], [-1.0]]),
+        "cls_logits": cls,
+        "centerness": torch.tensor([[1.0], [-1.0]]),
         "boxes": torch.rand(2, 7),
         "pos": torch.rand(2, 3),
         "batch": torch.tensor([0, 1]),
@@ -86,7 +86,7 @@ def test_fcaf3d_decode_scores_by_class_and_centerness() -> None:
 
     assert det["labels"].tolist() == [4, 7]
     assert det["boxes"] is out["boxes"] and det["batch"] is out["batch"]
-    torch.testing.assert_close(det["class_probs"], cls.sigmoid() * out["center"].sigmoid())
+    torch.testing.assert_close(det["class_probs"], cls.sigmoid() * out["centerness"].sigmoid())
     torch.testing.assert_close(det["scores"], det["class_probs"].max(dim=1).values)
 
 
@@ -107,8 +107,8 @@ def test_fcaf3d_forward_and_decode_shapes() -> None:
         out = model(x, pos, batch)
         det = model.decode(out)
 
-    m = len(out["cls"])
-    assert out["cls"].shape == (m, 10) and out["center"].shape == (m, 1) and out["boxes"].shape == (m, 7)
+    m = len(out["cls_logits"])
+    assert out["cls_logits"].shape == (m, 10) and out["centerness"].shape == (m, 1) and out["boxes"].shape == (m, 7)
     assert set(out["level"].unique().tolist()) == {0, 1, 2, 3}
     assert set(out["batch"].unique().tolist()) == {0, 1}
     assert (out["boxes"][:, 3:6] > 0).all()
@@ -134,7 +134,7 @@ def test_fcaf3d_scenes_are_independent_in_a_batch() -> None:
     keys_alone = torch.cat([alone["level"][:, None], torch.round(alone["pos"] / 0.01).long()], 1)
     index = lookup_coordinates(keys_both, keys_alone)
     assert (index >= 0).all() and len(keys_alone) == len(keys_both)
-    torch.testing.assert_close(both["cls"][rows][index], alone["cls"], atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(both["cls_logits"][rows][index], alone["cls_logits"], atol=1e-4, rtol=1e-4)
 
 
 @CUDA_SPCONV

@@ -94,7 +94,7 @@ class TR3DLoss(nn.Module):
 
         Args:
             output: The model's raw output: the packed locations `pos` $(P, 3)$, `batch` $(P,)$ and `level` $(P,)$,
-                their class logits `cls` $(P, \text{num\_classes})$ and decoded `boxes` $(P, 7)$.
+                their class logits `cls_logits` $(P, \text{num\_classes})$ and decoded `boxes` $(P, 7)$.
             data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise headings,
                 `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
 
@@ -115,7 +115,7 @@ class TR3DLoss(nn.Module):
             )
 
         positive = labels >= 0
-        cls = output["cls"]
+        cls = output["cls_logits"]
         focal = sigmoid_focal_loss(cls, one_hot_foreground(labels + 1, self.num_classes).to(cls.dtype))
         cls_loss = focal.sum() / positive.sum().clamp(min=1)
 

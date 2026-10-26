@@ -59,7 +59,7 @@ def test_tr3d_loss_terms_are_finite_and_train_every_branch() -> None:
     generator = torch.Generator().manual_seed(0)
     boxes = torch.cat([pyramid["pos"], torch.full((m, 3), 0.5), torch.zeros(m, 1)], dim=1)
     output = {
-        "cls": torch.randn(m, 2, generator=generator).requires_grad_(),
+        "cls_logits": torch.randn(m, 2, generator=generator).requires_grad_(),
         "boxes": (boxes + 0.05 * torch.randn(m, 7, generator=generator)).requires_grad_(),
         **pyramid,
     }
@@ -73,6 +73,6 @@ def test_tr3d_loss_terms_are_finite_and_train_every_branch() -> None:
     assert set(losses) == {"loss", "cls_loss", "box_loss"}
     assert torch.isfinite(losses["loss"])
     losses["loss"].backward()
-    for key in ("cls", "boxes"):
+    for key in ("cls_logits", "boxes"):
         grad = output[key].grad
         assert grad is not None and grad.abs().sum() > 0

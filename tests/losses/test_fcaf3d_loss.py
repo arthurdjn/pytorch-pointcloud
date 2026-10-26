@@ -27,8 +27,8 @@ def _output(pyramid: Dict[str, Tensor], num_classes: int) -> Dict[str, Tensor]:
     m = len(pyramid["pos"])
     boxes = torch.cat([pyramid["pos"], torch.full((m, 3), 0.5), torch.zeros(m, 1)], dim=1)
     return {
-        "cls": torch.randn(m, num_classes, generator=generator).requires_grad_(),
-        "center": torch.randn(m, 1, generator=generator).requires_grad_(),
+        "cls_logits": torch.randn(m, num_classes, generator=generator).requires_grad_(),
+        "centerness": torch.randn(m, 1, generator=generator).requires_grad_(),
         "boxes": (boxes + 0.05 * torch.randn(m, 7, generator=generator)).requires_grad_(),
         **pyramid,
     }
@@ -83,7 +83,7 @@ def test_fcaf3d_loss_terms_are_finite_and_train_every_branch() -> None:
         sum(losses[k].item() for k in ("cls_loss", "center_loss", "box_loss"))
     )
     losses["loss"].backward()
-    for key in ("cls", "center", "boxes"):
+    for key in ("cls_logits", "centerness", "boxes"):
         grad = output[key].grad
         assert grad is not None and grad.abs().sum() > 0
 

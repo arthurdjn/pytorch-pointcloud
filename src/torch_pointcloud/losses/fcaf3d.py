@@ -127,7 +127,7 @@ class FCAF3DLoss(nn.Module):
 
         Args:
             output: The model's raw output: the packed locations `pos` $(P, 3)$, `batch` $(P,)$ and `level` $(P,)$,
-                their class logits `cls` $(P, \text{num\_classes})$, centerness logits `center` $(P, 1)$ and decoded
+                their class logits `cls_logits` $(P, \text{num\_classes})$, centerness logits `centerness` $(P, 1)$ and decoded
                 `boxes` $(P, 7)$.
             data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise headings,
                 `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
@@ -151,11 +151,11 @@ class FCAF3DLoss(nn.Module):
             positive = cls_targets >= 0
             num_positives = positive.sum().clamp(min=1)
 
-            cls = output["cls"][rows]
+            cls = output["cls_logits"][rows]
             focal = sigmoid_focal_loss(cls, one_hot_foreground(cls_targets + 1, self.num_classes).to(cls.dtype))
             terms["cls_loss"].append(focal.sum() / num_positives)
 
-            center = output["center"][rows][positive, 0]
+            center = output["centerness"][rows][positive, 0]
             boxes = output["boxes"][rows][positive]
             weights = center_targets[positive]
             if positive.any():

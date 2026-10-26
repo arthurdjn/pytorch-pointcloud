@@ -42,8 +42,8 @@ class FCAF3DOutput(TypedDict):
     Rows are ordered level by level, from the finest level.
 
     Attributes:
-        cls: Class logits, shape $(M, C)$.
-        center: Centerness logit, shape $(M, 1)$.
+        cls_logits: Class logits, shape $(M, C)$.
+        centerness: Centerness logit, shape $(M, 1)$.
         boxes: Predicted boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, heading $0$ for axis-aligned boxes, shape
             $(M, 7)$.
         pos: Location of the prediction, in the units of the input positions, shape $(M, 3)$.
@@ -51,8 +51,8 @@ class FCAF3DOutput(TypedDict):
         level: Pyramid level of the prediction, shape $(M,)$.
     """
 
-    cls: Tensor
-    center: Tensor
+    cls_logits: Tensor
+    centerness: Tensor
     boxes: Tensor
     pos: Tensor
     batch: Tensor
@@ -269,7 +269,7 @@ class FCAF3DHead(nn.Module):
             stages: Encoder stages, from the finest, with the channels of `in_channels`.
 
         Returns:
-            The packed `cls`, `center` and `box` predictions, the `[batch, x, y, z]` voxel `indices` of each level's
+            The packed `cls_logits`, `centerness` and `box` predictions, the `[batch, x, y, z]` voxel `indices` of each level's
             grid and the `level` of every row, from the finest level.
         """
         num_levels = len(stages)
@@ -290,8 +290,8 @@ class FCAF3DHead(nn.Module):
             distances = torch.exp(box[:, :6] * self.scales[i])
             outputs.append(
                 {
-                    "cls": cls,
-                    "center": self.center(features),
+                    "cls_logits": cls,
+                    "centerness": self.center(features),
                     "box": torch.cat([distances, box[:, 6:]], dim=1),
                     "indices": out.indices,
                     "level": torch.full((len(features),), i, dtype=torch.long, device=features.device),
@@ -448,8 +448,8 @@ class FCAF3DDetection(DetectionModel):
         pos = (indices[:, 1:] * strides + origin) * self.voxel_size
 
         return {
-            "cls": out["cls"],
-            "center": out["center"],
+            "cls_logits": out["cls_logits"],
+            "centerness": out["centerness"],
             "boxes": self.decode_boxes(out["box"], pos),
             "pos": pos,
             "batch": indices[:, 0],
@@ -501,7 +501,7 @@ class FCAF3DDetection(DetectionModel):
             - scores / labels / batch: $(M,)$
             - class_probs: $(M, C)$
         """
-        class_probs = out["cls"].sigmoid() * out["center"].sigmoid()
+        class_probs = out["cls_logits"].sigmoid() * out["centerness"].sigmoid()
         scores, labels = class_probs.max(dim=1)
         return {
             "boxes": out["boxes"],

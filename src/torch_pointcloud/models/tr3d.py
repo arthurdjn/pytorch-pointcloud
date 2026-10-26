@@ -39,7 +39,7 @@ class TR3DOutput(TypedDict):
     Rows are ordered level by level, from the finest level.
 
     Attributes:
-        cls: Class logits, shape $(M, C)$.
+        cls_logits: Class logits, shape $(M, C)$.
         boxes: Predicted boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, heading $0$ for axis-aligned boxes, shape
             $(M, 7)$.
         pos: Location of the prediction, in the units of the input positions, shape $(M, 3)$.
@@ -47,7 +47,7 @@ class TR3DOutput(TypedDict):
         level: Pyramid level of the prediction, shape $(M,)$.
     """
 
-    cls: Tensor
+    cls_logits: Tensor
     boxes: Tensor
     pos: Tensor
     batch: Tensor
@@ -257,11 +257,11 @@ class TR3DDetection(DetectionModel):
         Returns:
             The raw per-voxel predictions of every pyramid level.
         """
-        outputs: Dict[str, List[Tensor]] = {"cls": [], "box": [], "pos": [], "batch": [], "level": []}
+        outputs: Dict[str, List[Tensor]] = {"cls_logits": [], "box": [], "pos": [], "batch": [], "level": []}
         for i, level in enumerate(self.neck(stages[1:])):
             features = level.features
             indices = level.indices.long()
-            outputs["cls"].append(self.cls(features))
+            outputs["cls_logits"].append(self.cls(features))
             outputs["box"].append(self.box(features))
             outputs["pos"].append((indices[:, 1:] * self.strides[i] + origin) * self.voxel_size)
             outputs["batch"].append(indices[:, 0])
@@ -269,7 +269,7 @@ class TR3DDetection(DetectionModel):
         box, pos = torch.cat(outputs["box"]), torch.cat(outputs["pos"])
 
         return {
-            "cls": torch.cat(outputs["cls"]),
+            "cls_logits": torch.cat(outputs["cls_logits"]),
             "boxes": self.decode_boxes(box, pos),
             "pos": pos,
             "batch": torch.cat(outputs["batch"]),
@@ -321,7 +321,7 @@ class TR3DDetection(DetectionModel):
             - scores / labels / batch: $(M,)$
             - class_probs: $(M, C)$
         """
-        class_probs = out["cls"].sigmoid()
+        class_probs = out["cls_logits"].sigmoid()
         scores, labels = class_probs.max(dim=1)
         return {
             "boxes": out["boxes"],
