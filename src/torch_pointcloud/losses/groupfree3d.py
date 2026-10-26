@@ -158,11 +158,22 @@ class GroupFree3DLoss(nn.Module):
         pred_heading = output["heading_residuals_normalized"].gather(
             -1, heading_class.expand(num_stages, -1, -1).unsqueeze(-1)
         )
-        heading_res = self._huber(pred_heading.squeeze(-1) - heading_residual / (math.pi / nh), self.heading_delta)
+        pred_heading = pred_heading.squeeze(-1)
+        heading_res = F.huber_loss(
+            pred_heading,
+            (heading_residual / (math.pi / nh)).expand_as(pred_heading),
+            delta=self.heading_delta,
+            reduction="none",
+        )
         heading_res_loss = (heading_res * positive).sum() / denom
 
         if self.mean_sizes is None:
-            size_res = self._huber(output["size"] - target[..., 3:6], self.size_delta).sum(dim=-1)
+            size_res = F.huber_loss(
+                output["size"],
+                target[..., 3:6].expand_as(output["size"]),
+                delta=self.size_delta,
+                reduction="none",
+            ).sum(dim=-1)
             size_cls_loss = size_res.new_zeros(())
         else:
             mean = self.mean_sizes[target_label]  # (B, Q, 3)
@@ -170,7 +181,12 @@ class GroupFree3DLoss(nn.Module):
             size_cls_loss = (size_cls * positive).sum() / denom
             index = target_label.view(1, batch_size, num_queries, 1, 1).expand(num_stages, -1, -1, 1, 3)
             pred_size = output["size_residuals_normalized"].gather(3, index).squeeze(3)
-            size_res = self._huber(pred_size - (target[..., 3:6] - mean) / mean, self.size_delta).sum(dim=-1)
+            size_res = F.huber_loss(
+                pred_size,
+                ((target[..., 3:6] - mean) / mean).expand_as(pred_size),
+                delta=self.size_delta,
+                reduction="none",
+            ).sum(dim=-1)
         size_res_loss = (size_res * positive).sum() / denom
 
         sem_cls = _cross_entropy(output["sem_cls_scores"], target_label)
@@ -221,11 +237,6 @@ class GroupFree3DLoss(nn.Module):
         weight = 1.0 / counts.clamp(min=1.0)[batch_seed]
         loss = sigmoid_focal_loss(logits.unsqueeze(-1), label.unsqueeze(-1), weight)
         return loss.sum() / batch_size
-
-    @staticmethod
-    def _huber(error: Tensor, delta: float) -> Tensor:
-        """Huber loss: `delta` times the smooth-$L_1$ loss with transition `delta`."""
-        return delta * F.smooth_l1_loss(error, torch.zeros_like(error), beta=delta, reduction="none")
 
 
 def _cross_entropy(logits: Tensor, target: Tensor) -> Tensor:
