@@ -15,6 +15,7 @@ from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.datasets.sunrgbd import (
     SUNRGBD_CLASS_TO_IDX,
     SUNRGBD_CLASSES,
+    SUNRGBD_MEAN_SIZES,
     decode_depth,
     parse_boxes,
     rebase_sequence,
@@ -448,3 +449,9 @@ def test_sunrgbd_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(SunRGBD, "write_processed_files", incomplete)
     SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_sunrgbd_mean_sizes_have_one_template_per_class() -> None:
+    mean_sizes = torch.tensor(SUNRGBD_MEAN_SIZES)
+    assert mean_sizes.shape == (len(SUNRGBD_CLASSES), 3)
+    assert (mean_sizes > 0).all()

@@ -16,6 +16,8 @@ from torch_pointcloud.datasets.scannet import (
     SCANNET20_CLASSES,
     SCANNET20_LABELS,
     SCANNET200_LABELS,
+    SCANNET_DETECTION_CLASSES,
+    SCANNET_DETECTION_MEAN_SIZES,
     SCANNET_UNK_CLS,
     load_scannet_scene,
     select_scannet_classes,
@@ -736,3 +738,9 @@ def test_scannet20_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(ScanNet20, "write_processed_files", incomplete)
     ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_scannet_detection_mean_sizes_have_one_template_per_class() -> None:
+    mean_sizes = torch.tensor(SCANNET_DETECTION_MEAN_SIZES)
+    assert mean_sizes.shape == (len(SCANNET_DETECTION_CLASSES), 3)
+    assert (mean_sizes > 0).all()
