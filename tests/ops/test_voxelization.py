@@ -4,6 +4,7 @@ import torch
 from torch_pointcloud.ops.voxelization import (
     _point_to_voxel_generator,
     dense_voxelize,
+    dynamic_voxelize,
     first_permutation,
     hard_voxelize,
     sparse_voxelize,
@@ -210,3 +211,14 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_dynamic_voxelize_means_points_and_sorts_voxels() -> None:
+    points = torch.tensor([[0.8, 0.8, 0.8, 5.0], [0.2, 0.2, 0.2, 1.0], [0.4, 0.2, 0.2, 3.0], [1.5, 0.2, 0.2, 7.0]])
+    batch = torch.tensor([1, 0, 0, 0])
+    voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, (0.5, 0.5, 0.5), (0, 0, 0, 1, 1, 1))
+    # The out-of-range point is dropped; voxels come out sorted by (batch, z, y, x).
+    assert voxel_indices.tolist() == [[0, 0, 0, 0], [1, 1, 1, 1]]
+    assert num_points.tolist() == [2, 1]
+    assert torch.allclose(voxels, torch.tensor([[0.3, 0.2, 0.2, 2.0], [0.8, 0.8, 0.8, 5.0]]))
+    assert voxel_indices.dtype == torch.int32 and num_points.dtype == torch.int32

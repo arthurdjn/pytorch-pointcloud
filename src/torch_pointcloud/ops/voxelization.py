@@ -274,6 +274,62 @@ def hard_voxelize(
     return torch.cat(voxels_list, dim=0), torch.cat(voxel_indices_list, dim=0), torch.cat(num_points_list, dim=0)
 
 
+def dynamic_voxelize(
+    points: Tensor,
+    batch: Tensor,
+    voxel_size: Sequence[float],
+    point_cloud_range: Sequence[float],
+) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Dynamic voxelization of a packed batch of point clouds: every occupied voxel averages all its points.
+
+    Unlike `hard_voxelize` there is no cap on the points per voxel or on the voxels per scene, so the result is a
+    function of the point set alone. Points outside `point_cloud_range` are dropped. Voxels come out sorted by
+    their linear $(\text{batch}, z, y, x)$ index.
+
+    Args:
+        points: Packed point features $(N, C)$ with the first three columns the $xyz$ coordinates.
+        batch: Per-point batch index $(N,)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+
+    Returns:
+        A tuple `(voxels, voxel_indices, num_points)` where `voxels` is the per-voxel mean of the point features
+        $(V, C)$, `voxel_indices` is $(V, 4)$ with columns $(\text{batch}, z, y, x)$ and `num_points` is $(V,)$.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.ops.voxelization import dynamic_voxelize
+
+        points = torch.tensor([[0.2, 0.2, 0.2, 1.0], [0.4, 0.2, 0.2, 3.0], [0.8, 0.8, 0.8, 5.0]])
+        batch = torch.zeros(3, dtype=torch.long)
+        voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, (0.5, 0.5, 0.5), (0, 0, 0, 1, 1, 1))
+        print(voxels.shape, voxel_indices.tolist(), num_points.tolist())
+        ```
+    """
+    size = points.new_tensor(list(voxel_size))
+    low = points.new_tensor(list(point_cloud_range[:3]))
+    grid_size = torch.round((points.new_tensor(list(point_cloud_range[3:])) - low) / size).long()
+    coords = torch.floor((points[:, :3] - low) / size).long()
+    inside = ((coords >= 0) & (coords < grid_size)).all(dim=1)
+    coords, points, batch = coords[inside], points[inside], batch[inside]
+
+    nx, ny, nz = grid_size.tolist()
+    linear = ((batch * nz + coords[:, 2]) * ny + coords[:, 1]) * nx + coords[:, 0]
+    unique, inverse, counts = torch.unique(linear, return_inverse=True, return_counts=True)
+    voxels = scatter(points, inverse, dim=0, dim_size=unique.numel(), reduce="mean")
+    voxel_indices = torch.stack(
+        [
+            unique // (nx * ny * nz),
+            unique // (nx * ny) % nz,
+            unique // nx % ny,
+            unique % nx,
+        ],
+        dim=1,
+    ).int()
+    return voxels, voxel_indices, counts.int()
+
+
 @overload
 def voxel_grid_fnv(
     pos: Tensor,
