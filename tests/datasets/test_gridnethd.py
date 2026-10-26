@@ -20,6 +20,30 @@ pytestmark = pytest.mark.skipif(not _LASPY_AVAILABLE, reason="laspy is not insta
 # Must match generate.py's `SPLIT` and `--num-points` default.
 SPLIT = {"train": ["t1z6a"], "val": ["t1z8"], "test": ["t1z4"]}
 NUM_POINTS_PER_ZONE = 1024
+# The grouping table of the release card: annotated `ground_truth` id to benchmark class. 12, 13 and 255 are
+# ignored, as is 22, which the card does not group.
+RELEASE_GROUPS = {
+    0: "pylon",
+    1: "pylon",
+    2: "pylon",
+    3: "pylon",
+    4: "pylon",
+    5: "conductor_cable",
+    6: "structural_cable",
+    7: "structural_cable",
+    8: "insulator",
+    9: "insulator",
+    10: "insulator",
+    11: "insulator",
+    14: "high_vegetation",
+    15: "low_vegetation",
+    16: "herbaceous_vegetation",
+    17: "rock_gravel_soil",
+    18: "rock_gravel_soil",
+    19: "impervious_soil",
+    20: "water",
+    21: "building",
+}
 
 
 def test_load_gridnethd_data_shapes(datasets_dir: Path) -> None:
@@ -64,12 +88,20 @@ def test_gridnethd_dataset_reads_the_zones_of_the_split(datasets_dir: Path, spli
     assert [dataset[i][DataKeys.NAME] for i in range(len(dataset))] == SPLIT[split]
 
 
-def test_gridnethd_dataset_segment_ids_grouped(datasets_dir: Path) -> None:
-    """Segment ids are the 11 benchmark classes, with the ignore index for the unassigned points."""
-    segment = GridNetHD(root=datasets_dir, split="val")[0][DataKeys.SEGMENT]
-    labels = set(segment.unique().tolist())
+def test_gridnethd_dataset_segment_is_the_release_group_of_each_point(datasets_dir: Path) -> None:
+    """Each point's `segment` is the class the release card groups its annotated `ground_truth` id into."""
+    laspy = pytest.importorskip("laspy")
+    las = laspy.read((datasets_dir / "GridNetHD" / "raw" / "t1z8" / "lidar" / "t1z8.las").as_posix())
+    ground_truth = las["ground_truth"].tolist()
+    expected = [
+        GRIDNETHD_CLASSES.index(RELEASE_GROUPS[label]) if label in RELEASE_GROUPS else GRIDNETHD_IGNORE_IDX
+        for label in ground_truth
+    ]
 
-    assert labels == set(range(len(GRIDNETHD_CLASSES))) | {GRIDNETHD_IGNORE_IDX}
+    segment = GridNetHD(root=datasets_dir, split="val")[0][DataKeys.SEGMENT]
+
+    assert set(RELEASE_GROUPS) <= set(ground_truth)
+    assert segment.tolist() == expected
 
 
 def test_gridnethd_label_groups_cover_the_benchmark_classes() -> None:
