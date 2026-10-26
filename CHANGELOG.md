@@ -35,6 +35,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `instance-segmentation` task with SPFormer (`spformer.scannet.jiahao-sun`), its loss and its ScanNet benchmark and train scripts.
 - Added `ops.superpoint`, the dice losses and the `RandomLinearJitter` transform.
 - Fixed `instance_matches` to count the points without an instance as void.
+- Added a `batch` argument to `instance_matches` to score a packed batch in one call.
 
 ## 0.0.18 (2026-10-20)
 

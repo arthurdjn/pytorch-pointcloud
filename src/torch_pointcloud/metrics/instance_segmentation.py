@@ -9,11 +9,11 @@ from torch import Tensor
 
 
 class InstanceMatches(TypedDict):
-    r"""One scene of predicted instance masks reduced against its ground truth (the output of `instance_matches`).
+    r"""Predicted instance masks of a scene or a packed batch reduced against the ground truth (`instance_matches`).
 
     Holds per-instance counts and pairwise intersections only, nothing mask-sized: $K$ predictions, $I$
-    ground-truth instances (ordered by ascending id) and $M$ same-class (prediction, instance) pairs with a
-    nonzero intersection.
+    ground-truth instances (ordered by scene, then ascending id) and $M$ same-class (prediction, instance) pairs
+    with a nonzero intersection.
 
     Attributes:
         pred_labels: Per-prediction class, shape $(K,)$.
@@ -45,9 +45,10 @@ def instance_matches(
     gt_instance: Tensor,
     gt_label: Tensor,
     *,
+    batch: Optional[Tensor] = None,
     ignore_index: int = -1,
 ) -> InstanceMatches:
-    r"""Reduce one scene's instance predictions to the compact match record scored by `instance_average_precision`.
+    r"""Reduce the predictions of a scene or a packed batch to the record scored by `instance_average_precision`.
 
     Predicted masks are dense $(K, N)$ booleans: a few hundred masks over a $\sim 50\text{k}$-point scene
     is only tens of MB and intersections reduce to bincounts, while index lists would be ragged and no
@@ -59,12 +60,17 @@ def instance_matches(
     and predictions overlapping them are excused accordingly during scoring. Each instance must carry a single
     semantic label. Intersections are recorded for same-class (prediction, instance) pairs only.
 
+    With `batch`, the points are a packed batch of scenes and instances are keyed by (scene, id), so ids may repeat
+    across scenes. Each predicted mask must then be false outside its own scene, as in a model's `decode` output, and
+    one call gives the record of the whole batch.
+
     Args:
         pred_masks: Per-instance point masks, shape $(K, N)$ bool.
         pred_labels: Per-instance class indices, shape $(K,)$.
         pred_scores: Per-instance confidences, shape $(K,)$.
         gt_instance: Per-point ground-truth instance ids, shape $(N,)$; negative marks no instance.
         gt_label: Per-point semantic labels in the instance-class space, shape $(N,)$.
+        batch: Per-point scene index of a packed batch, shape $(N,)$. `None` scores the points as one scene.
         ignore_index: Semantic label marking void points.
 
     Returns:
@@ -88,7 +94,8 @@ def instance_matches(
 
     valid = (gt_label != ignore_index) & (gt_instance >= 0)
     void = (gt_label == ignore_index) | (gt_instance < 0)
-    inverse = torch.unique(gt_instance[valid], return_inverse=True)[1]
+    ids = gt_instance[valid] if batch is None else torch.stack([batch.long()[valid], gt_instance[valid]], dim=1)
+    inverse = torch.unique(ids, dim=0, return_inverse=True)[1]
     num_instances = int(inverse.max().item()) + 1 if inverse.numel() else 0
     gt_counts = torch.bincount(inverse, minlength=num_instances)
     gt_labels = gt_label.new_zeros(num_instances).scatter_(0, inverse, gt_label[valid])

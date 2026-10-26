@@ -32,6 +32,39 @@ def test_instance_matches_record_hand_checked() -> None:
     assert match["pair_inter"].tolist() == [2, 2]
 
 
+def test_instance_matches_packed_batch_equals_per_scene_records() -> None:
+    """One call over a packed batch with `batch` scores like one call per scene, with ids repeating across scenes."""
+    generator = torch.Generator().manual_seed(0)
+    sizes = [60, 40]
+    scenes = []
+    for size in sizes:
+        gt_instance = torch.randint(-1, 4, (size,), generator=generator)
+        gt_label = torch.where(gt_instance >= 0, gt_instance % 2, -1)
+        masks = torch.rand(6, size, generator=generator) > 0.6
+        scenes.append((masks, torch.randint(0, 2, (6,), generator=generator), torch.rand(6, generator=generator)))
+        scenes[-1] += (gt_instance, gt_label)
+    per_scene = [instance_matches(*scene) for scene in scenes]
+
+    masks = torch.block_diag(*(scene[0].int() for scene in scenes)).bool()
+    labels, scores, gt_instance, gt_label = (torch.cat([scene[i] for scene in scenes]) for i in range(1, 5))
+    batch = torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes))
+    packed = instance_matches(masks, labels, scores, gt_instance, gt_label, batch=batch)
+
+    assert packed["gt_counts"].tolist() == torch.cat([match["gt_counts"] for match in per_scene]).tolist()
+    assert (
+        instance_matches(masks, labels, scores, gt_instance, gt_label)["gt_counts"].numel()
+        < packed["gt_counts"].numel()
+    )
+    for iou_threshold in ((0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95), 0.5, 0.25):
+        expected = instance_average_precision(per_scene, iou_threshold=iou_threshold, num_classes=2, min_points=1)
+        assert instance_average_precision(
+            [packed],
+            iou_threshold=iou_threshold,
+            num_classes=2,
+            min_points=1,
+        ) == pytest.approx(expected)
+
+
 def test_instance_average_precision_perfect_two_scenes() -> None:
     """Exact predictions over two scenes score 1.0 at every threshold, with named per-class keys."""
     matches = []
