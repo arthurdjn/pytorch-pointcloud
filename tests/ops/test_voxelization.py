@@ -8,6 +8,7 @@ from torch_pointcloud.ops.voxelization import (
     hard_voxelize,
     sparse_voxelize,
     trilinear_dense_devoxelize,
+    trilinear_sparse_devoxelize,
     voxel_grid_fnv,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
@@ -63,6 +64,51 @@ def test_trilinear_devoxelize_inverts_dense_voxelize_at_grid_points() -> None:
     x_voxel = dense_voxelize(x, pos, batch, resolution=2)
     out = trilinear_dense_devoxelize(x_voxel, pos, batch, resolution=2)
     assert out[:, 0].tolist() == [2.0, 2.0, 5.0]
+
+
+def test_trilinear_sparse_devoxelize_matches_dense_on_a_full_grid() -> None:
+    torch.manual_seed(0)
+    x_voxel = torch.randn(1, 2, 3, 3, 3)
+    pos_x = torch.stack(torch.meshgrid(torch.arange(3), torch.arange(3), torch.arange(3), indexing="ij"), -1)
+    pos_x = pos_x.reshape(-1, 3)
+    x = x_voxel[0].permute(1, 2, 3, 0).reshape(-1, 2)
+    pos_y = torch.rand(50, 3) * 2
+    expected = trilinear_dense_devoxelize(x_voxel, pos_y, torch.zeros(50, dtype=torch.long), resolution=3)
+    perm = torch.randperm(27)
+    out = trilinear_sparse_devoxelize(x[perm], pos_x[perm], pos_y)
+    torch.testing.assert_close(out, expected)
+
+
+def test_trilinear_sparse_devoxelize_renormalizes_over_occupied_corners() -> None:
+    x = torch.tensor([[2.0], [6.0]])
+    pos_x = torch.tensor([[0, 0, 0], [1, 1, 1]])
+    pos_y = torch.tensor([[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.0, 0.0], [5.0, 5.0, 5.0]])
+    out = trilinear_sparse_devoxelize(x, pos_x, pos_y)
+    torch.testing.assert_close(out[:, 0], torch.tensor([2.0, 4.0, 2.0, 0.0]))
+
+
+def test_trilinear_sparse_devoxelize_separates_batches() -> None:
+    x = torch.tensor([[1.0], [10.0]])
+    pos_x = torch.tensor([[0, 0, 0], [0, 0, 0]])
+    batch_x = torch.tensor([0, 1])
+    pos_y = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    out = trilinear_sparse_devoxelize(x, pos_x, pos_y, batch_x, torch.tensor([1, 0]))
+    assert out[:, 0].tolist() == pytest.approx([10.0, 1.0])
+
+
+def test_trilinear_sparse_devoxelize_backpropagates_to_the_voxels() -> None:
+    x = torch.tensor([[1.0], [3.0]], requires_grad=True)
+    pos_x = torch.tensor([[0, 0, 0], [1, 0, 0]])
+    trilinear_sparse_devoxelize(x, pos_x, torch.tensor([[0.25, 0.0, 0.0]])).sum().backward()
+    assert x.grad is not None
+    torch.testing.assert_close(x.grad[:, 0], torch.tensor([0.75, 0.25]))
+
+
+def test_trilinear_sparse_devoxelize_empty_inputs() -> None:
+    out = trilinear_sparse_devoxelize(torch.zeros(0, 4), torch.zeros(0, 3, dtype=torch.long), torch.rand(5, 3))
+    assert out.shape == (5, 4)
+    assert not out.any()
+    assert trilinear_sparse_devoxelize(torch.rand(2, 4), torch.zeros(2, 3), torch.zeros(0, 3)).shape == (0, 4)
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
