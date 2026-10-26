@@ -255,7 +255,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
     ),
     transform=T.Compose(
         [
-            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=255, allow_missing_keys=True),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=-1, allow_missing_keys=True),
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
         ]
     ),
@@ -284,7 +284,7 @@ def cylinder3d_semantickitti_mmdet3d(**hparams: Any) -> Cylinder3DSegmentation:
     ),
     transform=T.Compose(
         [
-            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=255, allow_missing_keys=True),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=-1, allow_missing_keys=True),
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
         ]
     ),
@@ -313,7 +313,7 @@ def cylinder3d_laser_polar_mix_semantickitti_mmdet3d(**hparams: Any) -> Cylinder
     ),
     transform=T.Compose(
         [
-            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=255, allow_missing_keys=True),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=-1, allow_missing_keys=True),
             T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
         ]
     ),

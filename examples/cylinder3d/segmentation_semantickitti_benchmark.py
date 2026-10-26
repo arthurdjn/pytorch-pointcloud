@@ -32,7 +32,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
-IGNORE_INDEX = 255
+IGNORE_INDEX = -1
 
 
 def main() -> None:

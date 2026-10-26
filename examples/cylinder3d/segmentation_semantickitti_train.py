@@ -29,7 +29,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 MODELS = ["cylinder3d.semantickitti.mmdet3d"]
 NUM_CLASSES = 19
-IGNORE_INDEX = 255
+IGNORE_INDEX = -1
 TRANSLATION_STD = 0.1
 POINT_KEYS = [DataKeys.POS, DataKeys.INTENSITY, DataKeys.SEGMENT]
 
