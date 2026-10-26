@@ -59,6 +59,8 @@ class DataKeys(StrEnum):
     BATCH_BOX = "batch_box"
     REF_X = "ref_x"
     REF_POS = "ref_pos"
+    REF_NORMAL = "ref_normal"
+    REF_FRAME = "ref_frame"
     BATCH_REF_POS = "batch_ref_pos"
     TRANSFORM = "transform"
     INFORMATION = "information"

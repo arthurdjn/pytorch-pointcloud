@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40Registration
+from torch_pointcloud.datasets.modelnet import MODELNET40_SEEN_CLASSES, MODELNET40_UNSEEN_CLASSES
 from torch_pointcloud.metrics import alignment_error, rotation_error, translation_error
 from torch_pointcloud.models import GeoTransformerRegistration, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -54,7 +55,8 @@ def parse_args() -> Namespace:
 
 def configure_dataset(args: Namespace) -> Dataset:
     dataset: Dataset
-    dataset = ModelNet40Registration(root=args.root, train=False, classes=args.classes, download=args.download)
+    classes = {"all": "all", "seen": MODELNET40_SEEN_CLASSES, "unseen": MODELNET40_UNSEEN_CLASSES}[args.classes]
+    dataset = ModelNet40Registration(root=args.root, train=False, classes=classes, download=args.download)
     if args.limit is not None:
         n = min(int(args.limit), len(dataset))
         dataset = Subset(dataset, range(n))

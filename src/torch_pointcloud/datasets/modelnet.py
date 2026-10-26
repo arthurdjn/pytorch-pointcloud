@@ -696,7 +696,9 @@ MODELNET40_ASYMMETRIC_LABELS = (
     0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 38, 39
 )  # fmt: skip
 
-ModelNet40RegistrationClasses = Literal["all", "seen", "unseen"]
+# The classes of the RPM-Net seen / unseen category split: the first 20 and the last 20 labels.
+MODELNET40_SEEN_CLASSES = MODELNET40_CLASSES[:20]
+MODELNET40_UNSEEN_CLASSES = MODELNET40_CLASSES[20:]
 
 
 def _euler_zyx_rotation(angles: np.ndarray) -> np.ndarray:
@@ -717,8 +719,10 @@ class ModelNet40Registration(ModelNet40Hdf5):
     Every sample pairs two partial views of one `ModelNet40Hdf5` shape: the shape is centered in the unit sphere,
     a random rigid transform (Euler angles up to `rotation_magnitude` degrees about each axis, a translation up to
     `translation_magnitude`) separates the two copies, each copy is cropped by a random plane keeping `keep_ratio`
-    of its points, randomly subsampled to `num_points`, jittered by Gaussian noise of standard deviation 0.01 clipped
-    at `noise_magnitude`, and shuffled. The 8 rotationally symmetric classes are left out when `asymmetric` is set.
+    of its points, randomly subsampled to `num_points`, jittered by Gaussian noise of standard deviation `noise_std`
+    clipped at `noise_magnitude`, and shuffled; the normals follow their points and the rotation, without noise.
+    The 8 rotationally symmetric classes are left out when `asymmetric` is set. `MODELNET40_SEEN_CLASSES` and
+    `MODELNET40_UNSEEN_CLASSES` are the two halves of the benchmark's category split.
 
     The draws come from NumPy: with `deterministic` (the default on the test set) the generator of sample $i$ is
     seeded with $i$, so a pair is the same every time it is read and matches the published evaluation protocol;
@@ -727,21 +731,24 @@ class ModelNet40Registration(ModelNet40Hdf5):
 
     | Key         | Shape      | Dtype   | Description                                  |
     | ----------- | ---------- | ------- | -------------------------------------------- |
-    | `pos`       | $(N, 3)$   | float32 | Source view                                  |
-    | `ref_pos`   | $(M, 3)$   | float32 | Reference view                               |
-    | `transform` | $(4, 4)$   | float32 | Transform of the source onto the reference   |
-    | `label`     | scalar     | int64   | Class index (40 classes)                     |
+    | `pos`        | $(N, 3)$ | float32 | Source view                                   |
+    | `normal`     | $(N, 3)$ | float32 | Source normals                                |
+    | `ref_pos`    | $(M, 3)$ | float32 | Reference view                                |
+    | `ref_normal` | $(M, 3)$ | float32 | Reference normals                             |
+    | `transform`  | $(4, 4)$ | float32 | Transform of the source onto the reference    |
+    | `label`      | scalar   | int64   | Index of the class in `classes`               |
 
     Args:
         root: Root directory where the dataset should be stored.
         train: If `True`, pairs the training shapes, otherwise the test shapes.
-        classes: `"all"` (every class), `"seen"` (the first 20 classes) or `"unseen"` (the last 20 classes).
+        classes: The class names to include in the dataset. If `"all"`, all classes are included.
         asymmetric: Whether the rotationally symmetric classes are dropped.
         num_points: Number of points $N$ of each view.
         rotation_magnitude: Maximum Euler angle about each axis, in degrees.
         translation_magnitude: Maximum translation along each axis.
         keep_ratio: Fraction of the shape points each view keeps.
         noise_magnitude: Clipping value of the Gaussian jitter; `None` adds no noise.
+        noise_std: Standard deviation of the Gaussian jitter.
         deterministic: Whether sample $i$ is drawn from a generator seeded with $i$; defaults to `not train`.
         transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
         download: If `True`, downloads the dataset from the internet and puts it in `root`.
@@ -764,13 +771,14 @@ class ModelNet40Registration(ModelNet40Hdf5):
         root: PathLike,
         *,
         train: bool = True,
-        classes: ModelNet40RegistrationClasses = "all",
+        classes: Union[str, Sequence[str]] = "all",
         asymmetric: bool = True,
         num_points: int = 717,
         rotation_magnitude: float = 45.0,
         translation_magnitude: float = 0.5,
         keep_ratio: float = 0.7,
         noise_magnitude: Optional[float] = 0.05,
+        noise_std: float = 0.01,
         deterministic: Optional[bool] = None,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,
@@ -778,8 +786,10 @@ class ModelNet40Registration(ModelNet40Hdf5):
         force_process: bool = False,
         show_progress: bool = True,
     ) -> None:
-        if classes not in ("all", "seen", "unseen"):
-            raise ValueError(f"Unknown classes {classes!r}. Expected 'all', 'seen' or 'unseen'.")
+        names = MODELNET40_CLASSES if classes == "all" else ensure_tuple(classes)
+        unknown = sorted(set(names) - set(MODELNET40_CLASSES))
+        if unknown:
+            raise ValueError(f"Unknown ModelNet40 classes {unknown}.")
 
         super().__init__(
             root,
@@ -795,9 +805,11 @@ class ModelNet40Registration(ModelNet40Hdf5):
         self.translation_magnitude = translation_magnitude
         self.keep_ratio = keep_ratio
         self.noise_magnitude = noise_magnitude
+        self.noise_std = noise_std
         self.deterministic = (not train) if deterministic is None else deterministic
+        self.classes = tuple(sorted(names))
 
-        labels = {"all": range(40), "seen": range(20), "unseen": range(20, 40)}[classes]
+        labels = [MODELNET40_CLASSES.index(name) for name in self.classes]
         kept = [label for label in labels if not asymmetric or label in MODELNET40_ASYMMETRIC_LABELS]
         self.indices = np.flatnonzero(np.isin(self.labels, kept))
 
@@ -806,8 +818,14 @@ class ModelNet40Registration(ModelNet40Hdf5):
         """The pairs are drawn from the `ModelNet40Hdf5` shards, so the two datasets share their directory."""
         return ModelNet40Hdf5.__name__
 
-    def sample_pair(self, points: np.ndarray, rng: np.random.RandomState) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        r"""Two partial views of a shape and the transform of the source onto the reference."""
+    def sample_pair(
+        self, points: np.ndarray, normals: np.ndarray, rng: np.random.RandomState
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        r"""Two partial views of a shape with their normals, and the transform of the source onto the reference.
+
+        Returns:
+            The source points and normals, the reference points and normals, and the $(4, 4)$ transform.
+        """
         points = points - points.mean(axis=0)
         ref_points = points / np.max(np.linalg.norm(points, axis=1))
 
@@ -817,33 +835,50 @@ class ModelNet40Registration(ModelNet40Hdf5):
         transform[:3, :3] = _euler_zyx_rotation(angles)
         transform[:3, 3] = translation
         src_points = (ref_points - translation) @ transform[:3, :3]
+        src_normals = normals @ transform[:3, :3]
 
         views = []
-        for view in (ref_points, src_points):
+        for view, view_normals in ((ref_points, normals), (src_points, src_normals)):
             num_kept = int(np.floor(view.shape[0] * self.keep_ratio + 0.5))
             phi, theta = rng.uniform(0.0, 2 * np.pi), rng.uniform(0.0, np.pi)
-            normal = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
-            views.append(view[np.argsort(-(view @ normal))[:num_kept]])
-        views = [view[rng.permutation(view.shape[0])[: self.num_points]] for view in views]
+            plane = np.array([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
+            kept = np.argsort(-(view @ plane))[:num_kept]
+            views.append((view[kept], view_normals[kept]))
+        subsets = [rng.permutation(view.shape[0])[: self.num_points] for view, _ in views]
+        views = [(view[subset], view_normals[subset]) for (view, view_normals), subset in zip(views, subsets)]
         if self.noise_magnitude is not None:
             views = [
-                view + np.clip(rng.normal(scale=0.01, size=view.shape), -self.noise_magnitude, self.noise_magnitude)
-                for view in views
+                (
+                    view
+                    + np.clip(
+                        rng.normal(scale=self.noise_std, size=view.shape), -self.noise_magnitude, self.noise_magnitude
+                    ),
+                    view_normals,
+                )
+                for view, view_normals in views
             ]
-        views = [view[rng.permutation(view.shape[0])] for view in views]
-        return views[1], views[0], transform
+        orders = [rng.permutation(view.shape[0]) for view, _ in views]
+        (ref_view, ref_normals), (src_view, src_view_normals) = [
+            (view[order], view_normals[order]) for (view, view_normals), order in zip(views, orders)
+        ]
+        return src_view, src_view_normals, ref_view, ref_normals, transform
 
     @override
     def __getitem__(self, index: int) -> Dict[str, Any]:
         shape_index = int(self.indices[index])
         seed = index if self.deterministic else int(torch.randint(0, 2**31 - 1, (1,)).item())
         rng = np.random.RandomState(seed)
-        src_points, ref_points, transform = self.sample_pair(self.pos[shape_index].astype(np.float64), rng)
+        src_points, src_normals, ref_points, ref_normals, transform = self.sample_pair(
+            self.pos[shape_index].astype(np.float64), self.normal[shape_index].astype(np.float64), rng
+        )
+        label = self.classes.index(MODELNET40_CLASSES[int(self.labels[shape_index])])
         data: Dict[str, Any] = {
             DataKeys.POS: torch.from_numpy(src_points.astype(np.float32)),
+            DataKeys.NORMAL: torch.from_numpy(src_normals.astype(np.float32)),
             DataKeys.REF_POS: torch.from_numpy(ref_points.astype(np.float32)),
+            DataKeys.REF_NORMAL: torch.from_numpy(ref_normals.astype(np.float32)),
             DataKeys.TRANSFORM: torch.from_numpy(transform.astype(np.float32)),
-            DataKeys.LABEL: torch.tensor(int(self.labels[shape_index]), dtype=torch.long),
+            DataKeys.LABEL: torch.tensor(label, dtype=torch.long),
         }
         if self.transform is not None:
             data = self.transform(data)
