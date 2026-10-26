@@ -27,6 +27,7 @@ def dice_loss(logits: Tensor, targets: Tensor, *, smooth: float = 1.0) -> Tensor
 
     Example:
         ```pycon
+        >>> import torch
         >>> logits = torch.tensor([[10.0, 10.0, -10.0], [-10.0, -10.0, 10.0]])
         >>> targets = torch.tensor([[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
         >>> dice_loss(logits, targets).round(decimals=2).tolist()
@@ -80,6 +81,7 @@ def pairwise_dice_loss(logits: Tensor, targets: Tensor, *, smooth: float = 1.0) 
 
     Example:
         ```pycon
+        >>> import torch
         >>> logits = torch.tensor([[10.0, 10.0, -10.0], [-10.0, -10.0, 10.0]])
         >>> targets = torch.tensor([[1.0, 1.0, 0.0]])
         >>> pairwise_dice_loss(logits, targets).round(decimals=2).tolist()
@@ -113,10 +115,12 @@ def pairwise_binary_cross_entropy_with_logits(logits: Tensor, targets: Tensor) -
 
     Example:
         ```pycon
+        >>> import torch
         >>> logits = torch.tensor([[0.0, 0.0], [10.0, -10.0]])
         >>> targets = torch.tensor([[1.0, 0.0]])
-        >>> pairwise_binary_cross_entropy_with_logits(logits, targets).round(decimals=4).tolist()
-        [[0.6931], [0.0]]
+        >>> pairwise_binary_cross_entropy_with_logits(logits, targets).round(decimals=4)
+        tensor([[0.6931],
+                [0.0000]])
 
         ```
     """
