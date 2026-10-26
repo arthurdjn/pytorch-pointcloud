@@ -4,6 +4,7 @@ from .concat import ConcatDataset, SingleDatasetBatchSampler
 from .dales import DALES
 from .fractal import FRACTAL
 from .kitti import KITTI
+from .kittiodometry import KITTIOdometry
 from .mix import MixDataset
 from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNet40Registration, ModelNetNormalResampled
 from .nuscenes import NuScenes, NuScenesMini
@@ -26,6 +27,7 @@ __all__ = [
     "DALES",
     "FRACTAL",
     "KITTI",
+    "KITTIOdometry",
     "MixDataset",
     "ModelNet10",
     "ModelNet40",

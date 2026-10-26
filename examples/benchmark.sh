@@ -169,5 +169,8 @@ $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model ut
 $RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DMatch
 $RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DLoMatch
 
+# Registration (KITTI odometry)
+$RUN examples/geotransformer/registration_kitti_benchmark.py --root "$ROOT" --model geotransformer.kitti.zheng-qin
+
 # Registration (ModelNet40 pairs)
 $RUN examples/geotransformer/registration_modelnet40_benchmark.py --root "$ROOT" --model geotransformer.modelnet40.zheng-qin

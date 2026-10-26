@@ -1079,13 +1079,14 @@ def geotransformer_3dmatch(**hparams: Any) -> GeoTransformerRegistration:
     input_keys=_REGISTRATION_INPUT_KEYS,
     transform=T.Compose(
         [
-            T.Voxelize(pos_key=DataKeys.POS, pos_reduce="mean", size=0.3, method="grid"),
-            T.Voxelize(pos_key=DataKeys.REF_POS, pos_reduce="mean", size=0.3, method="grid"),
+            T.Voxelize(pos_key=DataKeys.POS, pos_reduce="mean", size=0.3, origin="min"),
+            T.Voxelize(pos_key=DataKeys.REF_POS, pos_reduce="mean", size=0.3, origin="min"),
         ]
     ),
     weights=WeightsDict(
         url="hf://torch-pointcloud/geotransformer.kitti.zheng-qin/resolve/087d8f64d8e29990f4d2b6ece451134223dc483a/model.safetensors",
         dataset="kitti",
+        metrics={"RR": 99.82, "RRE": 0.236, "RTE": 6.33},
         author="zheng-qin",
         license="MIT",
     ),

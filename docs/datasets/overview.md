@@ -99,6 +99,7 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 | Dataset | Pairs | Benchmarks |
 | --- | ---: | ---: |
 | [ThreeDMatch](../api/datasets/threedmatch.md)<br><span class="tp-index__detail">:arxiv: [3DMatch: Learning Local Geometric Descriptors from RGB-D Reconstructions](https://arxiv.org/abs/1603.08182)</span> | 20.6k train / 1.6k + 1.8k test | 3DMatch, 3DLoMatch |
+| [KITTIOdometry](../api/datasets/kittiodometry.md)<br><span class="tp-index__detail">:arxiv: [PREDATOR: Registration of 3D Point Clouds with Low Overlap](https://arxiv.org/abs/2011.13005)</span> | 1.4k train / 555 test | KITTI |
 
 </div>
 

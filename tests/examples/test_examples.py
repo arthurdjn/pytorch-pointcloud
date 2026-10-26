@@ -178,6 +178,12 @@ BENCHMARKS = [
         id="geotransformer/modelnet40",
     ),
     pytest.param(
+        "geotransformer/registration_kitti_benchmark.py",
+        ("--limit", "2"),
+        marks=_CLUSTER,
+        id="geotransformer/kitti",
+    ),
+    pytest.param(
         "dgcnn/segmentation_s3dis_benchmark.py",
         ("--model", "dgcnn.s3dis-area5.an-tao", "--limit", "4"),
         marks=_CLUSTER,

@@ -134,6 +134,7 @@ nav = [
             { "dales" = "api/datasets/dales.md" },
             { "fractal" = "api/datasets/fractal.md" },
             { "kitti" = "api/datasets/kitti.md" },
+            { "kittiodometry" = "api/datasets/kittiodometry.md" },
             { "mix" = "api/datasets/mix.md" },
             { "modelnet" = "api/datasets/modelnet.md" },
             { "nuscenes" = "api/datasets/nuscenes.md" },

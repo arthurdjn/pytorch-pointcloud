@@ -4,7 +4,6 @@
 """
 
 import json
-import pickle
 import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
@@ -14,6 +13,7 @@ import torch
 from typing_extensions import override
 
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.io import ArrayUnpickler, load_pickle
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
@@ -22,30 +22,6 @@ from .utils import download_url, extract_zip
 
 ThreeDMatchSplit = Literal["train", "val", "test"]
 ThreeDMatchBenchmark = Literal["3DMatch", "3DLoMatch"]
-
-# The fragment files and the pair lists are NumPy arrays pickled by `torch.save` and `pickle`; only what rebuilds
-# an array is allowed through, every other global is refused.
-_ALLOWED_PICKLE_GLOBALS = {
-    ("numpy.core.multiarray", "_reconstruct"),
-    ("numpy._core.multiarray", "_reconstruct"),
-    ("numpy.core.multiarray", "scalar"),
-    ("numpy._core.multiarray", "scalar"),
-    ("numpy", "ndarray"),
-    ("numpy", "dtype"),
-    ("_codecs", "encode"),
-}
-
-
-class _ArrayUnpickler(pickle.Unpickler):
-    def find_class(self, module: str, name: str) -> Any:
-        if (module, name) in _ALLOWED_PICKLE_GLOBALS:
-            return super().find_class(module, name)
-        raise pickle.UnpicklingError(
-            f"Refusing to unpickle the global {module}.{name}: only NumPy arrays are expected."
-        )
-
-    def persistent_load(self, pid: Any) -> Any:
-        raise pickle.UnpicklingError("Refusing a pickle with persistent ids: only NumPy arrays are expected.")
 
 
 def load_threedmatch_fragment(path: PathLike) -> np.ndarray:
@@ -69,8 +45,8 @@ def load_threedmatch_fragment(path: PathLike) -> np.ndarray:
     """
     with open(path, "rb") as f:
         for _ in range(3):
-            _ArrayUnpickler(f).load()
-        points = _ArrayUnpickler(f).load()
+            ArrayUnpickler(f).load()
+        points = ArrayUnpickler(f).load()
     if not isinstance(points, np.ndarray) or points.ndim != 2 or points.shape[1] != 3:
         raise ValueError(f"Expected an (N, 3) array in {Path(path).as_posix()!r}, got {type(points).__name__}.")
     return np.ascontiguousarray(points, dtype=np.float32)
@@ -271,8 +247,7 @@ class ThreeDMatch(PointCloudDataset):
 
     def read_pairs_pickle(self) -> List[Dict[str, Any]]:
         """The train or val pairs of the PREDATOR split, read from the GeoTransformer pair list."""
-        with open(Path(self.metadata_dir, f"{self.split}.pkl"), "rb") as f:
-            records = _ArrayUnpickler(f).load()
+        records = load_pickle(Path(self.metadata_dir, f"{self.split}.pkl"))
 
         pairs = []
         for record in records:
