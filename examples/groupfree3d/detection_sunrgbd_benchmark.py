@@ -1,4 +1,9 @@
-"""Benchmark Group-Free 3D on SUN RGB-D with its evaluation protocol."""
+"""Benchmark Group-Free 3D on SUN RGB-D with its evaluation protocol.
+
+NOTE: the reference evaluation (`eval_avg.py --size_cls_agnostic` at zeliu98/Group-Free-3D ef8b7bb) scores against
+ground-truth boxes whose size is the axis-aligned extent of the oriented box (`size_gts`, also the training target of
+the size head), turned by the box heading. This script scores against the same boxes, not the dataset's oriented ones.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -14,7 +19,7 @@ from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import GroupFree3DDetection, create_model, model_info
-from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d
+from torch_pointcloud.ops.box3d import box_corners, count_points_in_boxes, nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 from torch_pointcloud.utils.types import Boxes3D, Detection3D
@@ -131,8 +136,11 @@ def evaluate(
             "labels": torch.arange(num_classes, device=device).repeat(keep.numel()),
             "batch": det_batch[keep].repeat_interleave(num_classes),
         }
+        gt_boxes = data[DataKeys.BOX]
+        gt_corners = box_corners(gt_boxes)
+        gt_extent = gt_corners.amax(dim=1) - gt_corners.amin(dim=1)
         target: Boxes3D = {
-            "boxes": data[DataKeys.BOX],
+            "boxes": torch.cat([gt_boxes[:, :3], gt_extent, gt_boxes[:, 6:]], dim=1),
             "labels": data[DataKeys.LABEL],
             "batch": data[DataKeys.BATCH_BOX],
         }
