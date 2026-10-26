@@ -126,6 +126,24 @@ BENCHMARKS = [
         id="ptv3/nuscenes-simple",
     ),
     pytest.param(
+        "litept/segmentation_scannet_benchmark.py",
+        ("--model", "litept-small.scannet20.prs-eth", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-large.nuscenes.prs-eth", "--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes-simple",
+    ),
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,

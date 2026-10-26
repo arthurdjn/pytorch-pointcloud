@@ -11,8 +11,8 @@ selector writes the commands.
 | Dependency    | Needed by                                                                                                                              |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `pyg-lib`     | FPS, kNN and radius search: nearly every point-based model                                                                             |
-| `spconv`      | Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION              |
-| `flash-attn`  | Point Transformer V3, Sonata, Concerto, Utonia (`use_flash_attn=False` runs the dense attention instead)                               |
+| `spconv`      | Point Transformer V3, Sonata, Concerto, Utonia, LitePT, SpUNet, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION      |
+| `flash-attn`  | Point Transformer V3, Sonata, Concerto, Utonia, LitePT (`use_flash_attn=False` runs the dense attention instead)                       |
 | `mamba`       | PointMamba, Voxel-Mamba, LION (`mamba-ssm` and `causal-conv1d`)                                                                        |
 | `ocnn`        | OctFormer and the octree transforms, with `dwconv` for its depthwise convolutions                                                      |
 | `torchsparse` | SPVCNN (built from source, needs `libsparsehash-dev`)                                                                                  |
@@ -70,8 +70,8 @@ uv pip install pyg-lib \
 - Python 3.10+ and `torch>=2.8`. CI runs the tests on CPU with `torch==2.8.0`; the benchmarks use `torch==2.10.0`
   with CUDA 12.8.
 - The point-based families (PointNet, PointNet++, DGCNN, PointNeXt, RandLA-Net, ...) run on CPU. The sparse-voxel and
-  flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, the voxel-based
-  detectors) need a CUDA device.
+  flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, LitePT, SpUNet, SPVCNN, OctFormer, the
+  voxel-based detectors) need a CUDA device.
 
 To work on the library itself, see
 [`CONTRIBUTING.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CONTRIBUTING.md).

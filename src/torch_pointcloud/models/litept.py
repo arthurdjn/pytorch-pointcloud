@@ -12,7 +12,7 @@ from torch import Tensor
 from typing_extensions import NotRequired
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
@@ -196,7 +196,8 @@ class LitePTBlock(nn.Module):
     ) -> Tuple[Tensor, Any]:
         if self.use_conv:
             x_sparse = self.cpe_conv(x_sparse)
-            x = x + self.cpe_norm(self.cpe_proj(x_sparse.features))
+            x_conv = self.cpe_proj(x_sparse.features)
+            x = x + self.cpe_norm(x_conv)
         else:
             x = self.norm0(x)
 
@@ -209,7 +210,7 @@ class LitePTBlock(nn.Module):
                 batch,
                 serialized_order=serialized_order,
                 serialized_inverse=serialized_inverse,
-                pos=pos_grid.to(x.dtype),
+                pos=pos_grid.float(),
                 patch_layout=patch_layout,
             )
             x = shortcut + self.drop_path(x)
@@ -1174,31 +1175,9 @@ def _litept_indoor_transforms(relabel_labels: Optional[Sequence[int]] = None) ->
 
 _LITEPT_NUSCENES_TRANSFORM = T.Compose(
     [
-        # Raw lidarseg category ids onto the 16 benchmark classes.
         T.Relabel(
             keys=DataKeys.SEGMENT,
-            labels={
-                9: 0,
-                14: 1,
-                15: 2,
-                16: 2,
-                17: 3,
-                18: 4,
-                21: 5,
-                2: 6,
-                3: 6,
-                4: 6,
-                6: 6,
-                12: 7,
-                22: 8,
-                23: 9,
-                24: 10,
-                25: 11,
-                26: 12,
-                27: 13,
-                28: 14,
-                30: 15,
-            },
+            labels=NUSCENES_LIDARSEG_LEARNING_MAP,
             default=-1,
             allow_missing_keys=True,
         ),

@@ -36,6 +36,7 @@ MODEL_LABELS = {
     "dgcnn": "DGCNN",
     "kpconv": "KPConv",
     "lion": "LION",
+    "litept": "LitePT",
     "octformer": "OctFormer",
     "point_bert": "Point-BERT",
     "point_m2ae": "Point-M2AE",
