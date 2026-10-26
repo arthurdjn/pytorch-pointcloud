@@ -93,6 +93,7 @@ DATASET_LABELS = {
     "fractal": "FRACTAL",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
+    "structured3d": "Structured3D",
     "scannet": "ScanNet",
     "sunrgbd": "SUN RGB-D",
     "shapenet55": "ShapeNet55",
