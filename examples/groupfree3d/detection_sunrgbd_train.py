@@ -212,7 +212,7 @@ def evaluate(model: GroupFree3DDetection, loader: DataLoader, device: str) -> di
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         pos, batch = data[DataKeys.POS], data[DataKeys.BATCH]
-        det = model.decode(model(None, pos, batch), stages=range(model.num_decoder_layers + 1))
+        det = model.decode(model(None, pos, batch))
         boxes, scores, labels, det_batch = det["boxes"], det["scores"], det["labels"], det["batch"]
         counts = count_points_in_boxes(pos, boxes, pos_batch=batch, box_batch=det_batch)
         cand = (counts >= MIN_POINTS).nonzero(as_tuple=False).squeeze(-1)

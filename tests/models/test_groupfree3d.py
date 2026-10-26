@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import pytest
 import torch
@@ -233,6 +233,31 @@ def test_groupfree3d_decode_ensembles_stages_scene_by_scene() -> None:
     centers = det["boxes"][:, :3].view(b, 2, q, 3)
     assert torch.equal(centers[:, 0], out["center"][-1])
     assert torch.equal(centers[:, 1], out["center"][0])
+
+
+@requires_pyg_lib
+def test_groupfree3d_decode_defaults_to_the_decode_stages() -> None:
+    model = _create_groupfree3d(decode_stages=[-1, 0]).to(DEVICE).eval()
+    data = _make_inputs()
+    with torch.no_grad():
+        out = model(None, data["pos"], data["batch"])
+    default, explicit = model.decode(out), model.decode(out, stages=[-1, 0])
+    for key in ("boxes", "scores", "labels", "batch", "class_probs"):
+        assert torch.equal(default[key], explicit[key]), key
+
+
+@pytest.mark.parametrize(
+    ("name", "stages"),
+    [
+        pytest.param("groupfree3d-l6-o256.scannet.ze-liu", (-1, -2, -3), id="scannet"),
+        pytest.param("groupfree3d-w2x-l12-o512.scannet.mmdet3d", (-1, -2, -3), id="scannet-mmdet3d"),
+        pytest.param("groupfree3d-l6-o256.sunrgbd.ze-liu", (0, 1, 2, 3, 4, 5, 6), id="sunrgbd"),
+    ],
+)
+def test_groupfree3d_registered_decode_stages_are_the_scored_ones(name: str, stages: Tuple[int, ...]) -> None:
+    model = create_model(name, task="detection")
+    assert isinstance(model, GroupFree3DDetection)
+    assert model.decode_stages == stages
 
 
 @requires_pyg_lib

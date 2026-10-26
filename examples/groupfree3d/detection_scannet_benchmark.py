@@ -7,7 +7,7 @@ the best validation epoch of the training run.
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import cast
+from typing import Optional, cast
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -62,10 +62,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
     parser.add_argument(
         "--stages",
-        default=[-1, -2, -3],
+        default=None,
         type=int,
         nargs="+",
-        help="Decoder stages whose boxes are merged before NMS (default: the last three).",
+        help="Decoder stages whose boxes are merged before NMS (default: the model's `decode_stages`).",
     )
     return parser.parse_args()
 
@@ -119,7 +119,7 @@ def configure_model(args: Namespace) -> GroupFree3DDetection:
 def evaluate(
     model: GroupFree3DDetection,
     dataloader: DataLoader,
-    stages: list[int],
+    stages: Optional[list[int]],
     device: str,
 ) -> dict[str, float]:
     model.to(device).eval()

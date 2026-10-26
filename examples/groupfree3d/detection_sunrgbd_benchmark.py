@@ -7,7 +7,7 @@ the size head), turned by the box heading. This script scores against the same b
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import cast
+from typing import Optional, cast
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -44,8 +44,7 @@ def main() -> None:
     dataloader = configure_dataloader(args)
 
     print(f"Test set: {len(dataloader.dataset)} scenes")  # type: ignore[arg-type]
-    stages = args.stages if args.stages is not None else list(range(model.num_decoder_layers + 1))
-    metrics = evaluate(model, dataloader, stages, args.device)
+    metrics = evaluate(model, dataloader, args.stages, args.device)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value * 100:.2f}")
@@ -65,7 +64,7 @@ def parse_args() -> Namespace:
         default=None,
         type=int,
         nargs="+",
-        help="Decoder stages whose boxes are merged before NMS (default: every stage).",
+        help="Decoder stages whose boxes are merged before NMS (default: the model's `decode_stages`).",
     )
     parser.add_argument("--download", action="store_true", help="Download SUN RGB-D if missing.")
     return parser.parse_args()
@@ -113,7 +112,7 @@ def configure_model(args: Namespace) -> GroupFree3DDetection:
 def evaluate(
     model: GroupFree3DDetection,
     dataloader: DataLoader,
-    stages: list[int],
+    stages: Optional[list[int]],
     device: str,
 ) -> dict[str, float]:
     model.to(device).eval()

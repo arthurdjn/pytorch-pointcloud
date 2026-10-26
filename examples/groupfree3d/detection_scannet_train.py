@@ -35,7 +35,6 @@ NUM_POINTS = 50000
 NMS_IOU = 0.25
 MIN_POINTS = 5
 IOU_THRESHOLDS = [0.25, 0.5]
-STAGES = [-1, -2, -3]
 DECODER_KEYWORDS = ["decoder", "query_proj", "key_proj", "pos_embeds"]
 
 
@@ -227,7 +226,7 @@ def evaluate(model: GroupFree3DDetection, loader: DataLoader, device: str) -> di
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         pos, batch = data[DataKeys.POS], data[DataKeys.BATCH]
-        det = model.decode(model(None, pos, batch), stages=STAGES)
+        det = model.decode(model(None, pos, batch))
         boxes, scores, labels, det_batch = det["boxes"], det["scores"], det["labels"], det["batch"]
         counts = count_points_in_boxes(pos, boxes, pos_batch=batch, box_batch=det_batch)
         cand = (counts >= MIN_POINTS).nonzero(as_tuple=False).squeeze(-1)

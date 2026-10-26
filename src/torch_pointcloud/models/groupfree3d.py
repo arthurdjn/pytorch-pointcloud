@@ -180,6 +180,7 @@ class GroupFree3DDetection(DetectionModel):
         num_heads: Number of attention heads.
         mlp_dim: Hidden width of the decoder feed-forward blocks.
         dropout: Dropout probability of the decoder layers.
+        decode_stages: Stages that `decode` ensembles by default.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable of the backbone, sampler, position embeddings and heads.
@@ -205,6 +206,7 @@ class GroupFree3DDetection(DetectionModel):
         num_heads: int,
         mlp_dim: int,
         dropout: float,
+        decode_stages: Sequence[int] = (-1,),
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -218,6 +220,7 @@ class GroupFree3DDetection(DetectionModel):
         self.num_heading_bins = num_heading_bins
         self.num_proposals = num_proposals
         self.num_decoder_layers = num_decoder_layers
+        self.decode_stages = tuple(decode_stages)
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
@@ -363,7 +366,7 @@ class GroupFree3DDetection(DetectionModel):
         return self.forward_head(x_seed, pos_seed, batch_seed, seed_indices)
 
     @torch.no_grad()
-    def decode(self, out: GroupFree3DOutput, stages: Sequence[int] = (-1,)) -> Detection3D:
+    def decode(self, out: GroupFree3DOutput, stages: Optional[Sequence[int]] = None) -> Detection3D:
         r"""Decode the predictions of the selected stages into raw per-candidate detections (no NMS or filtering).
 
         Builds one oriented box per candidate and stage, scores it by the sigmoid objectness, and labels it by the
@@ -376,7 +379,7 @@ class GroupFree3DDetection(DetectionModel):
 
         Args:
             out: A `GroupFree3DOutput` from `forward`.
-            stages: Indices of the stages to decode, in output order; `(-1,)` keeps the last decoder layer.
+            stages: Indices of the stages to decode, in output order; `None` decodes the model's `decode_stages`.
 
         Returns:
             Packed candidates `{"boxes", "scores", "labels", "batch", "class_probs"}` (PyG layout), where the
@@ -392,6 +395,7 @@ class GroupFree3DDetection(DetectionModel):
             - class_probs: $(B \cdot T \cdot Q, C)$
         """
         num_total, batch_size, num_proposals, _ = out["center"].shape
+        stages = self.decode_stages if stages is None else stages
         positions = [stage + num_total if stage < 0 else stage for stage in stages]
         if not positions or any(not 0 <= position < num_total for position in positions):
             raise IndexError(f"`stages` must index the {num_total} stages of the output, got {list(stages)}.")
@@ -478,6 +482,7 @@ _SUNRGBD_TRANSFORM = T.Compose(
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_l6_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
@@ -511,6 +516,7 @@ def groupfree3d_l6_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
@@ -544,6 +550,7 @@ def groupfree3d_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_w2x_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
@@ -577,6 +584,7 @@ def groupfree3d_w2x_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetect
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_w2x_l12_o512_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
@@ -610,6 +618,7 @@ def groupfree3d_w2x_l12_o512_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetect
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[0, 1, 2, 3, 4, 5, 6],
     ),
 )
 def groupfree3d_l6_o256_sunrgbd_ze_liu(**hparams: Any) -> GroupFree3DDetection:
@@ -643,6 +652,7 @@ def groupfree3d_l6_o256_sunrgbd_ze_liu(**hparams: Any) -> GroupFree3DDetection:
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_l6_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
@@ -676,6 +686,7 @@ def groupfree3d_l6_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
@@ -709,6 +720,7 @@ def groupfree3d_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_w2x_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
@@ -742,6 +754,7 @@ def groupfree3d_w2x_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetec
         num_heads=8,
         mlp_dim=2048,
         dropout=0.1,
+        decode_stages=[-1, -2, -3],
     ),
 )
 def groupfree3d_w2x_l12_o512_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
