@@ -17,9 +17,9 @@ from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.conditional_heads import ConditionalLinear, CosineSimilarityHead
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
-from torch_pointcloud.layers.language_guided_head import LanguageGuidedHead
 from torch_pointcloud.layers.linear_blocks import LinearBlock
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.serialized_attention import (
@@ -1360,7 +1360,7 @@ class PointTransformerV3Classification(ClassificationModel):
         batch: Tensor,
         return_intermediates: Literal[True],
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
@@ -1371,7 +1371,7 @@ class PointTransformerV3Classification(ClassificationModel):
         batch: Tensor,
         return_intermediates: Literal[False] = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1381,7 +1381,7 @@ class PointTransformerV3Classification(ClassificationModel):
         batch: Tensor,
         return_intermediates: bool = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Any:
         condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if return_intermediates:
@@ -1443,9 +1443,9 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
 
     Multi-dataset checkpoints condition the model on the dataset of each batch, as in :arxiv: [Point Prompt
     Training](https://arxiv.org/abs/2308.09718): `pdnorm_conditions` gives every norm one set of statistics per dataset,
-    and `num_classes` with one count per condition gives one head per dataset, both selected by the `condition`
-    argument of `forward`. `text_embed_dim` and `text_scale` replace the linear heads by a `LanguageGuidedHead`, whose
-    class weights are fixed text embeddings of the class names.
+    and `num_classes` with one count per entry of `pdnorm_conditions` gives one head per dataset (`ConditionalLinear`),
+    both selected by the `condition` argument of `forward`. `text_embed_dim` and `text_scale` replace the linear heads
+    by a `CosineSimilarityHead`, whose class weights are fixed text embeddings of the class names.
 
     Args:
         in_channels: Number of input channels.
@@ -1489,8 +1489,8 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             structure some released checkpoints were trained with.
         pdnorm_conditions: Ordered condition names; when given, every norm holds one inner norm per condition.
         condition: Default condition used when `forward` receives none.
-        text_embed_dim: Width of the text-embedding space of a `LanguageGuidedHead`. `None` builds linear heads.
-        text_scale: Scale of the cosine similarities of the `LanguageGuidedHead`; required with `text_embed_dim`.
+        text_embed_dim: Width of the text-embedding space of a `CosineSimilarityHead`. `None` builds linear heads.
+        text_scale: Scale of the cosine similarities of the `CosineSimilarityHead`; required with `text_embed_dim`.
     """
 
     def __init__(
@@ -1650,17 +1650,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             if self.num_classes == 0:
                 return nn.Identity()
             if self.text_embed_dim is not None and self.text_scale is not None:
-                return LanguageGuidedHead(self.num_features, self.text_embed_dim, self.num_classes, self.text_scale)
+                return CosineSimilarityHead(self.num_features, self.text_embed_dim, self.num_classes, self.text_scale)
             return nn.Linear(self.num_features, self.num_classes)
+        assert self.pdnorm_conditions is not None
         if self.text_embed_dim is not None and self.text_scale is not None:
-            return LanguageGuidedHead(
+            return CosineSimilarityHead(
                 self.num_features,
                 self.text_embed_dim,
                 self.num_classes_per_condition,
                 self.text_scale,
                 conditions=self.pdnorm_conditions,
             )
-        return nn.ModuleList([nn.Linear(self.num_features, k) for k in self.num_classes_per_condition])
+        return ConditionalLinear(self.num_features, self.num_classes_per_condition, self.pdnorm_conditions)
 
     def reset_classifier(self, num_classes: Union[int, Sequence[int]], **kwargs: Any) -> None:
         """Resets the segmentation head with new parameters.
@@ -1685,7 +1686,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         batch: Tensor,
         return_intermediates: Literal[True],
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
@@ -1696,7 +1697,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         batch: Tensor,
         return_intermediates: Literal[False] = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1706,7 +1707,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         batch: Tensor,
         return_intermediates: bool = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Any:
         condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if return_intermediates:
@@ -1717,21 +1718,23 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         self,
         x: Tensor,
         intermediates: List[SerializedFeaturesDict],
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         return self.decoder.forward(x, intermediates, condition=condition)
 
-    def forward_head(self, x: Tensor, pre_logits: bool = False, condition: Optional[str] = None) -> Tensor:
+    def forward_head(
+        self,
+        x: Tensor,
+        pre_logits: bool = False,
+        condition: Union[str, Sequence[str], None] = None,
+    ) -> Tensor:
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         if pre_logits:
             return x
-        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
-        if isinstance(self.head, nn.ModuleList):
-            assert self.pdnorm_conditions is not None and condition is not None
-            return self.head[list(self.pdnorm_conditions).index(condition)](x)
-        if isinstance(self.head, LanguageGuidedHead):
+        if isinstance(self.head, (ConditionalLinear, CosineSimilarityHead)):
+            condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
             return self.head(x, condition=condition)
         return self.head(x)
 

@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor, nn
 
-from torch_pointcloud.layers.language_guided_head import LanguageGuidedHead
+from torch_pointcloud.layers.conditional_heads import ConditionalLinear, CosineSimilarityHead
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Segmentation,
@@ -15,6 +15,7 @@ from torch_pointcloud.models.point_transformer_v3 import (
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 requires_gpu = pytest.mark.skipif(not (_CUDA_AVAILABLE and _SPCONV_AVAILABLE), reason="CUDA and spconv are required")
+requires_spconv = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 
 
 @pytest.fixture
@@ -99,7 +100,7 @@ def model_seg() -> PointTransformerV3Segmentation:
         stem_type="sparse_conv",
         act_kwargs=None,
         norm_kwargs=None,
-    ).cuda()
+    )
 
 
 @pytest.fixture
@@ -138,7 +139,7 @@ def model_seg_per_condition() -> PointTransformerV3Segmentation:
         use_flash_attn=False,
         pdnorm_conditions=("ScanNet", "S3DIS"),
         condition="ScanNet",
-    ).cuda()
+    )
 
 
 @pytest.fixture
@@ -160,7 +161,7 @@ def model_seg_language() -> PointTransformerV3Segmentation:
         condition="S3DIS",
         text_embed_dim=8,
         text_scale=10.0,
-    ).cuda()
+    )
 
 
 @requires_gpu
@@ -193,6 +194,7 @@ def test_pt_v3_classification_forward_features_and_head(
 
 @requires_gpu
 def test_pt_v3_segmentation_forward(model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]) -> None:
+    model_seg.cuda()
     logits = model_seg(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
 
@@ -202,6 +204,7 @@ def test_pt_v3_segmentation_forward_features_decoder_head(
     model_seg: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
 ) -> None:
+    model_seg.cuda()
     x, _, _, intermediates = model_seg.forward_features(
         data["x"], data["pos_grid"], data["batch"], return_intermediates=True
     )
@@ -227,6 +230,7 @@ def test_pt_v3_condition_without_pdnorm_conditions_raises(
     model_seg: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
 ) -> None:
+    model_seg.cuda()
     with pytest.raises(ValueError, match="without conditional norms"):
         model_seg(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
 
@@ -254,18 +258,11 @@ def test_pt_v3_segmentation_one_head_per_condition(
     model_seg_per_condition: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
 ) -> None:
-    assert isinstance(model_seg_per_condition.head, nn.ModuleList)
-    assert model_seg_per_condition.num_classes == 10
+    model_seg_per_condition.cuda()
     logits = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["x"].shape[0], 10)
     logits = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"], condition="S3DIS")
     assert logits.shape == (data["x"].shape[0], 4)
-
-    model_seg_per_condition.reset_classifier(num_classes=3)
-    model_seg_per_condition.cuda()
-    assert isinstance(model_seg_per_condition.head, nn.Linear)
-    logits = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"], condition="S3DIS")
-    assert logits.shape == (data["x"].shape[0], 3)
 
 
 @requires_gpu
@@ -273,7 +270,7 @@ def test_pt_v3_segmentation_stages_default_to_the_model_condition(
     model_seg_per_condition: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
 ) -> None:
-    model_seg_per_condition.eval()
+    model_seg_per_condition.cuda().eval()
     with torch.no_grad():
         x, _, _, intermediates = model_seg_per_condition.forward_features(
             data["x"], data["pos_grid"], data["batch"], return_intermediates=True
@@ -284,12 +281,11 @@ def test_pt_v3_segmentation_stages_default_to_the_model_condition(
 
 
 @requires_gpu
-def test_pt_v3_segmentation_language_guided_head(
+def test_pt_v3_segmentation_cosine_similarity_head(
     model_seg_language: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
 ) -> None:
-    assert isinstance(model_seg_language.head, LanguageGuidedHead)
-    assert model_seg_language.num_classes == 4
+    model_seg_language.cuda()
     logits = model_seg_language(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["x"].shape[0], 4)
     assert logits.abs().max() <= 10.0 + 1e-4
@@ -302,6 +298,34 @@ def test_pt_v3_segmentation_language_guided_head(
     x, _, _ = model_seg_language.forward_decoder(x, intermediates, condition="S3DIS")
     features = model_seg_language.forward_head(x, pre_logits=True)
     assert features.shape == (data["x"].shape[0], model_seg_language.num_features)
+
+
+@requires_spconv
+def test_pt_v3_segmentation_one_head_per_condition_routes_the_condition(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+) -> None:
+    head = model_seg_per_condition.head
+    assert isinstance(head, ConditionalLinear)
+    assert head.conditions == ("ScanNet", "S3DIS")
+    assert model_seg_per_condition.num_classes == 10
+    features = torch.randn(7, model_seg_per_condition.num_features)
+    assert torch.equal(model_seg_per_condition.forward_head(features), head[0](features))
+    assert torch.equal(model_seg_per_condition.forward_head(features, condition="S3DIS"), head[1](features))
+    assert torch.equal(model_seg_per_condition.forward_head(features, condition=["S3DIS", "S3DIS"]), head[1](features))
+
+
+@requires_spconv
+def test_pt_v3_segmentation_cosine_similarity_head_routes_the_condition(
+    model_seg_language: PointTransformerV3Segmentation,
+) -> None:
+    head = model_seg_language.head
+    assert isinstance(head, CosineSimilarityHead)
+    assert head.conditions == ("ScanNet", "S3DIS")
+    assert model_seg_language.num_classes == 4
+    features = torch.randn(7, model_seg_language.num_features)
+    assert torch.equal(model_seg_language.forward_head(features), head(features, condition="S3DIS"))
+    assert model_seg_language.forward_head(features, condition="ScanNet").shape == (7, 10)
+    assert torch.equal(model_seg_language.forward_head(features, pre_logits=True), features)
 
 
 @pytest.mark.parametrize(
@@ -421,7 +445,7 @@ _RELEASED_SEGMENTATION_KEYS = {
 }
 
 
-@requires_gpu
+@requires_spconv
 def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_order(
     model_seg: PointTransformerV3Segmentation,
 ) -> None:

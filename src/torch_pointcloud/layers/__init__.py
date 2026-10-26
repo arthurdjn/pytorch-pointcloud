@@ -19,6 +19,7 @@ from .anchors import (
 )
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
+from .conditional_heads import ConditionalLinear, CosineSimilarityHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
@@ -33,7 +34,6 @@ from .geometric_affine import GeometricAffineConv, NormalizeType
 from .grid_pool import GridPool
 from .grouped_vector_attention import GroupedVectorAttention
 from .kpconv_blocks import KPConv, KPConvBlock, KPResidualBlock, create_kernel_points
-from .language_guided_head import LanguageGuidedHead
 from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
@@ -129,6 +129,8 @@ __all__ = [
     "CenterHead",
     "CenterHeadOutput",
     "SeparateHead",
+    "ConditionalLinear",
+    "CosineSimilarityHead",
     "Conv2dBlock",
     "Conv3dBlock",
     "DropoutLike",
@@ -145,7 +147,6 @@ __all__ = [
     "KPConvBlock",
     "KPResidualBlock",
     "create_kernel_points",
-    "LanguageGuidedHead",
     "LinearBlock",
     "create_norm",
     "OctreeAttention",
