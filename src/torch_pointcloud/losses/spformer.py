@@ -164,7 +164,7 @@ class SPFormerLoss(nn.Module):
                         + self.dice_cost * pairwise_dice_loss(logits, target)
                     )
                 query, instance = hungarian_match(cost)
-                class_target[scene, query] = target_labels[instance]
+                class_target[scene, query] = target_labels[instance].long()
                 matched, target = logits[query], target[instance]
                 mask_loss = mask_loss + F.binary_cross_entropy_with_logits(matched, target)
                 dice = dice + dice_loss(matched, target).mean()

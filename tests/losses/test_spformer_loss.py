@@ -57,3 +57,11 @@ def test_spformer_loss_perfect_prediction() -> None:
     assert losses["mask_loss"] < 1e-6
     assert losses["dice_loss"] < 1e-6
     torch.testing.assert_close(losses["score_loss"], torch.tensor(0.5))
+
+
+def test_spformer_loss_int32_labels() -> None:
+    torch.manual_seed(0)
+    output = _output(torch.randn(3, 5), torch.randn(2, 3, 3))
+    data = {key: value.int() for key, value in _data().items()}
+    expected = SPFormerLoss(num_classes=2)(output, _data())
+    torch.testing.assert_close(SPFormerLoss(num_classes=2)(output, data), expected)
