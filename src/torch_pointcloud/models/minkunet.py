@@ -379,11 +379,12 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
                 stage = maps[i]
                 features.append(
                     trilinear_sparse_devoxelize(
-                        stage.features,
-                        stage.indices[:, 1:],
-                        pos_grid / stride,
-                        stage.indices[:, 0],
-                        batch,
+                        x_voxel=stage.features,
+                        pos_voxel=stage.indices[:, 1:],
+                        batch_voxel=stage.indices[:, 0],
+                        pos=pos_grid / stride,
+                        batch=batch,
+                        normalize=True,
                     )
                 )
         return torch.cat(features, dim=1)

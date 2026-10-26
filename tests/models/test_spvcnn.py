@@ -13,7 +13,9 @@ from torch_pointcloud.models.spvcnn import (
     SPVCNNSegmentation,
     _spvcnn_semantickitti_transforms,
     point_to_voxel,
+    voxel_to_point,
 )
+from torch_pointcloud.ops.voxelization import trilinear_sparse_devoxelize
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _TORCHSPARSE_AVAILABLE
 
@@ -226,3 +228,26 @@ def test_spvcnn_point_to_voxel_masks_out_of_grid_points() -> None:
     assert out.F[0].item() == 3.0
     assert out.F[1].item() == 0.0
     assert int(x_points._caches.idx_query[x_voxels.s].min()) == -1
+
+
+def test_spvcnn_voxel_to_point_matches_trilinear_sparse_devoxelize() -> None:
+    from torchsparse.tensor import SparseTensor
+
+    torch.manual_seed(0)
+    coords = torch.unique(torch.cat([torch.randint(0, 2, (80, 1)), torch.randint(0, 6, (80, 3))], dim=1), dim=0)
+    x_voxel = torch.randn(coords.shape[0], 4)
+    pos = torch.rand(200, 3) * 5
+    batch = torch.randint(0, 2, (200,))
+    x_voxels = SparseTensor(feats=x_voxel.cuda(), coords=coords.int().cuda(), stride=1)
+    x_points = PointTensor(feats=torch.zeros(200, 1).cuda(), coords=torch.cat([batch[:, None].float(), pos], 1).cuda())
+
+    out = voxel_to_point(x_voxels, x_points)
+    expected = trilinear_sparse_devoxelize(
+        x_voxel=x_voxel.cuda(),
+        pos_voxel=coords[:, 1:].cuda(),
+        batch_voxel=coords[:, 0].cuda(),
+        pos=pos.cuda(),
+        batch=batch.cuda(),
+        normalize=True,
+    )
+    torch.testing.assert_close(out.F, expected)
