@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.pointnet2 import (
     PointNet2Classification,
     PointNet2Encoder,
@@ -302,3 +303,16 @@ def test_pointnet2_part_segmentation_reset_classifier(
     assert isinstance(model_part.head, nn.Identity)
     features = model_part(data["x"], data["pos"], data["batch"], category)
     assert features.shape == (data["pos"].shape[0], model_part.num_features)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("pointnet2-ssg.shapenetpart.mit-han-lab", id="ssg"),
+        pytest.param("pointnet2-msg.shapenetpart.mit-han-lab", id="msg"),
+    ],
+)
+def test_pointnet2_shapenetpart_hparams_set_the_reference_neighbor_ops(name: str) -> None:
+    model = PointNet2PartSegmentation(**model_info(name)["hparams"])
+    assert all(sa.sort_neighbors for sa in model.encoder.sa_blocks)
+    assert all(fp.eps == 1e-10 for fp in model.decoder.fp_blocks)

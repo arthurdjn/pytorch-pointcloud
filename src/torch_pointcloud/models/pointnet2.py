@@ -792,6 +792,9 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         use_category: Concatenate the one-hot `category` to the finest skip. When `False`, `forward` still takes
             `category` but the prediction does not depend on it.
         fp_k: Number of neighbors for the kNN interpolation of the FP blocks (see `PointNet2Decoder`).
+        sort_neighbors: Keep the smallest source indices when a ball holds more than `num_neighbors` points, as the
+            reference `query_ball_point` does.
+        fp_eps: Numerical stability term added to the interpolation distances of the FP blocks.
     """
 
     def __init__(
@@ -824,6 +827,8 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         dropout: float = 0.0,
         use_category: bool = True,
         fp_k: Optional[Union[int, Sequence[int]]] = None,
+        sort_neighbors: bool = False,
+        fp_eps: float = 1e-16,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
         self.stem_channels = stem_channels
@@ -850,6 +855,8 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         self.dropout = dropout
         self.use_category = use_category
         self.fp_k = fp_k
+        self.sort_neighbors = sort_neighbors
+        self.fp_eps = fp_eps
 
         self.encoder = self.configure_encoder()
         self.global_sa = self.configure_global_sa()
@@ -876,6 +883,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
             use_pos=self.use_pos,
             normalize_pos=self.normalize_pos,
             aggr=self.sa_aggr,
+            sort_neighbors=self.sort_neighbors,
         )
 
     def configure_global_sa(self) -> PointNet2GlobalSetAbstraction:
@@ -910,6 +918,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             k=self.fp_k,
+            eps=self.fp_eps,
         )
 
     @property
@@ -1389,17 +1398,6 @@ _MIT_HAN_LAB_SHAPENETPART_TRANSFORM = T.Compose(
 )
 
 
-def _pointnet2_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmentation:
-    model = PointNet2PartSegmentation(**hparams)
-    for sa in model.encoder.sa_blocks:
-        assert isinstance(sa, PointNet2SetAbstraction)
-        sa.sort_neighbors = True
-    for fp in model.decoder.fp_blocks:
-        assert isinstance(fp, PointNet2FeaturePropagation)
-        fp.eps = 1e-10
-    return model
-
-
 @register_model(
     "pointnet2-ssg.shapenetpart.mit-han-lab",
     task="part-segmentation",
@@ -1427,11 +1425,13 @@ def _pointnet2_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmenta
         bias=True,
         dropout=0.5,
         use_category=False,
+        sort_neighbors=True,
+        fp_eps=1e-10,
     ),
     transform=_MIT_HAN_LAB_SHAPENETPART_TRANSFORM,
 )
 def pointnet2_ssg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmentation:
-    return _pointnet2_mit_han_lab_shapenetpart(**hparams)
+    return PointNet2PartSegmentation(**hparams)
 
 
 @register_model(
@@ -1464,8 +1464,10 @@ def pointnet2_ssg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegme
         bias=True,
         dropout=0.5,
         use_category=True,
+        sort_neighbors=True,
+        fp_eps=1e-10,
     ),
     transform=_MIT_HAN_LAB_SHAPENETPART_TRANSFORM,
 )
 def pointnet2_msg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmentation:
-    return _pointnet2_mit_han_lab_shapenetpart(**hparams)
+    return PointNet2PartSegmentation(**hparams)
