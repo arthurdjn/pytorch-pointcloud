@@ -30,8 +30,6 @@ SEED = 42
 NUM_POINTS = 2048
 NUM_VOTES = 10
 SW_BATCH_SIZE = 8
-# The registered transform rescales every shape into the unit ball, so one block holds the whole shape.
-BLOCK_SIZE = 4.0
 
 
 def main() -> None:
@@ -100,11 +98,10 @@ def configure_inferer_transform(args: Namespace) -> T.Compose:
 
 def configure_inferer(args: Namespace) -> Inferer:
     chunks = SlidingWindowInferer(
-        block_size=BLOCK_SIZE,
+        block_size=None,
         roi_num_points=args.num_points,
         sw_batch_size=args.sw_batch_size,
         softmax=True,
-        aggregate="max",
         transform=configure_inferer_transform(args),
         inverse_key=DataKeys.INVERSE,
     )

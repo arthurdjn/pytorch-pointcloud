@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -209,6 +209,45 @@ def test_sliding_window_aggregate_max_restricted_argmax_follows_the_most_confide
 
     out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="max")
     assert int(out[1, :2].argmax()) == 0
+
+
+@pytest.mark.parametrize(
+    "roi_num_points, sizes",
+    [
+        pytest.param(None, [4, 6], id="whole_cloud"),
+        pytest.param(2, [2, 2, 2, 2, 2], id="chunks"),
+    ],
+)
+def test_sliding_window_without_block_size_takes_each_cloud_as_one_block(
+    roi_num_points: Optional[int], sizes: List[int]
+) -> None:
+    """`block_size=None` gives the predictor each cloud whole, however large, or its `roi_num_points` chunks; every
+    point is predicted exactly once."""
+    pos = torch.rand(10, 3) * 100.0
+    batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+    blocks: List[Tensor] = []
+    calls: List[int] = []
+
+    def transform(window: Dict[str, Any]) -> Dict[str, Any]:
+        blocks.append(window[DataKeys.BLOCK_BBOX])
+        return window
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        calls.append(window[DataKeys.POS].size(0))
+        return window[DataKeys.POS][:, :2]
+
+    out = sliding_window_inference(
+        {DataKeys.POS: pos, DataKeys.BATCH: batch},
+        predictor=predictor,
+        block_size=None,
+        roi_num_points=roi_num_points,
+        transform=transform,
+        seed=0,
+    )
+    assert torch.allclose(out, pos[:, :2])
+    assert calls == sizes
+    assert len(blocks) == 2
+    assert torch.equal(blocks[1], torch.cat([pos[4:].amin(dim=0), pos[4:].amax(dim=0)]))
 
 
 def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:

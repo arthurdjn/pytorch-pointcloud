@@ -227,7 +227,7 @@ def sliding_window_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
-    block_size: float,
+    block_size: Optional[float],
     overlap: float = 0.0,
     mode: WindowMode = "constant",
     sigma_scale: float = 0.125,
@@ -254,7 +254,9 @@ def sliding_window_inference(
     maximum of the probabilities (`"max"`), or a count of hard votes (`"vote"`).
 
     With `overlap=0` and `mode="constant"`, each point lands in exactly one
-    block and the weight division is a no-op.
+    block and the weight division is a no-op. With `block_size=None`, each cloud
+    is one block, which `roi_num_points` splits into random chunks: the protocol
+    of object-level models trained on a fixed number of points.
 
     Args:
         data: Dict of per-point tensors. Must contain `pos` (shape $(N, D)$)
@@ -266,7 +268,8 @@ def sliding_window_inference(
             the block. The output channel count $C_\text{out}$ is inferred from
             the first call.
         block_size: Side length of each cubic block, in the same units as
-            `data[pos_key]`.
+            `data[pos_key]`. `None` makes every cloud a single block, so
+            `overlap`, `mode`, `sigma_scale`, `dims` and `padding` have no effect.
         overlap: Fraction of `block_size` shared between adjacent blocks, in
             $[0, 1)$. `0.0` gives a strict non-overlapping partition;
             `0.5` means adjacent block centers are spaced half a block apart.
@@ -348,8 +351,8 @@ def sliding_window_inference(
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
 
-    if block_size <= 0.0:
-        raise ValueError(f"`block_size` must be > 0, got {block_size}.")
+    if block_size is not None and block_size <= 0.0:
+        raise ValueError(f"`block_size` must be > 0 or None, got {block_size}.")
 
     if not 0.0 <= overlap < 1.0:
         raise ValueError(f"`overlap` must be in [0, 1), got {overlap}.")
@@ -388,15 +391,20 @@ def sliding_window_inference(
         pos_b = pos[idx_b]
         data_b = index_select_dict(data, idx_b, n_total)
 
-        point_groups, weight_groups, bbox_groups = _assign_point_blocks(
-            pos_b,
-            block_size=block_size,
-            overlap=overlap,
-            mode=mode,
-            sigma_scale=sigma_scale,
-            dims=dims,
-            padding=padding,
-        )
+        if block_size is None:
+            point_groups = [torch.arange(n_b, device=device)]
+            weight_groups = [torch.ones(n_b, device=device, dtype=torch.float32)]
+            bbox_groups = [torch.cat([pos_b.amin(dim=0), pos_b.amax(dim=0)])]
+        else:
+            point_groups, weight_groups, bbox_groups = _assign_point_blocks(
+                pos_b,
+                block_size=block_size,
+                overlap=overlap,
+                mode=mode,
+                sigma_scale=sigma_scale,
+                dims=dims,
+                padding=padding,
+            )
 
         scores_b: Optional[Tensor] = None
         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
@@ -519,7 +527,7 @@ class SlidingWindowInferer(Inferer):
 
     def __init__(
         self,
-        block_size: float,
+        block_size: Optional[float],
         overlap: float = 0.0,
         mode: WindowMode = "constant",
         sigma_scale: float = 0.125,
