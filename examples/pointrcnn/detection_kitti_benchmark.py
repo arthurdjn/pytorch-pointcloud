@@ -1,4 +1,10 @@
-"""Benchmark PointRCNN on KITTI with its evaluation protocol."""
+"""Benchmark PointRCNN on KITTI with its evaluation protocol.
+
+NOTE: `pointrcnn-iou.kitti.openpcdet` reaches 68.44 mAP (Pedestrian 54.99) against the 69.47 (Pedestrian 58.32) of the
+OpenPCDet model zoo. Its outputs equal those of OpenPCDet `pointrcnn_iou.yaml` at commit 233f849 on the same input
+points (logits within 2.6e-4, identical detections on two val frames). This script feeds every frame the registered
+random sample of 16 384 points (seed 42); we did not run OpenPCDet's `tools/test.py` on the val split.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace
