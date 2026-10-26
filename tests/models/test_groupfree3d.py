@@ -10,9 +10,7 @@ from torch_pointcloud.models.groupfree3d import GroupFree3DDetection, GroupFree3
 from torch_pointcloud.ops.box3d import class_to_angle
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
-pytestmark = [
-    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
-]
+requires_pyg_lib = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -59,6 +57,7 @@ def _assert_stage_shapes(out: Dict[str, Tensor], stages: int, batch_size: int, q
     assert out["query_indices"].shape == (batch_size, q)
 
 
+@requires_pyg_lib
 def test_groupfree3d_scannet_forward_shapes() -> None:
     model = create_model("groupfree3d-l6-o256.scannet.ze-liu", task="detection").to(DEVICE).eval()
     data = _make_inputs()
@@ -76,6 +75,7 @@ def test_groupfree3d_scannet_forward_shapes() -> None:
     assert torch.isfinite(out["center"]).all()
 
 
+@requires_pyg_lib
 def test_groupfree3d_sunrgbd_forward_shapes() -> None:
     # SUN RGB-D uses 12 heading bins, 10 classes and a class-agnostic size head.
     model = create_model("groupfree3d-l6-o256.sunrgbd.ze-liu", task="detection").to(DEVICE).eval()
@@ -87,6 +87,7 @@ def test_groupfree3d_sunrgbd_forward_shapes() -> None:
     assert model.mean_sizes is None
 
 
+@requires_pyg_lib
 def test_groupfree3d_candidates_are_the_top_scoring_seeds() -> None:
     model = _create_groupfree3d().to(DEVICE).eval()
     data = _make_inputs()
@@ -98,6 +99,7 @@ def test_groupfree3d_candidates_are_the_top_scoring_seeds() -> None:
     assert torch.equal(out["query_indices"].sort(dim=1).values, expected.sort(dim=1).values)
 
 
+@requires_pyg_lib
 def test_groupfree3d_eval_is_deterministic() -> None:
     model = _create_groupfree3d().to(DEVICE).eval()
     data = _make_inputs()
@@ -111,6 +113,7 @@ def test_groupfree3d_eval_is_deterministic() -> None:
             assert torch.allclose(a[key], b[key], atol=1e-5), f"{key} drifted beyond float-atomics on CUDA"
 
 
+@requires_pyg_lib
 def test_groupfree3d_train_mode_backward() -> None:
     model = _create_groupfree3d().to(DEVICE).train()
     data = _make_inputs()
@@ -123,6 +126,7 @@ def test_groupfree3d_train_mode_backward() -> None:
     assert layer.linear1.weight.grad is not None
 
 
+@requires_pyg_lib
 def test_groupfree3d_reset_classifier() -> None:
     model = _create_groupfree3d()
     model.reset_classifier(num_classes=5)
@@ -173,6 +177,7 @@ def test_groupfree3d_prediction_head_class_aware_size() -> None:
     assert torch.allclose(out["size_residuals"], out["size_residuals_normalized"] * mean_sizes)
 
 
+@requires_pyg_lib
 def test_groupfree3d_decode_uses_last_stage_and_negates_heading() -> None:
     torch.manual_seed(0)
     model = _create_groupfree3d(num_heading_bins=12).to(DEVICE).eval()
@@ -194,6 +199,7 @@ def test_groupfree3d_decode_uses_last_stage_and_negates_heading() -> None:
     assert torch.equal(det["batch"], torch.arange(b, device=DEVICE).repeat_interleave(q))
 
 
+@requires_pyg_lib
 def test_groupfree3d_decode_ensembles_stages_scene_by_scene() -> None:
     model = _create_groupfree3d().to(DEVICE).eval()
     data = _make_inputs()
@@ -209,6 +215,7 @@ def test_groupfree3d_decode_ensembles_stages_scene_by_scene() -> None:
     assert torch.equal(centers[:, 1], out["center"][0])
 
 
+@requires_pyg_lib
 def test_groupfree3d_decode_rejects_unknown_stages() -> None:
     model = _create_groupfree3d().to(DEVICE).eval()
     data = _make_inputs()
