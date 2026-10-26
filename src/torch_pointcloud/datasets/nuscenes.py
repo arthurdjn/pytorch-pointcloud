@@ -324,32 +324,6 @@ NUSCENES_LIDARSEG_CLASSES = (
     "vegetation",
 )
 
-# Raw lidarseg category id to 16-class index, the nuScenes-lidarseg benchmark learning map: the pedestrian
-# subcategories merge, as do both buses. Noise, animal, debris, the other categories and the ego vehicle are absent, so
-# a `Relabel` with this map sends them to its `default`.
-NUSCENES_LIDARSEG_LEARNING_MAP: Dict[int, int] = {
-    9: 0,  # movable_object.barrier
-    14: 1,  # vehicle.bicycle
-    15: 2,  # vehicle.bus.bendy
-    16: 2,  # vehicle.bus.rigid
-    17: 3,  # vehicle.car
-    18: 4,  # vehicle.construction
-    21: 5,  # vehicle.motorcycle
-    2: 6,  # human.pedestrian.adult
-    3: 6,  # human.pedestrian.child
-    4: 6,  # human.pedestrian.construction_worker
-    6: 6,  # human.pedestrian.police_officer
-    12: 7,  # movable_object.trafficcone
-    22: 8,  # vehicle.trailer
-    23: 9,  # vehicle.truck
-    24: 10,  # flat.driveable_surface
-    25: 11,  # flat.other
-    26: 12,  # flat.sidewalk
-    27: 13,  # flat.terrain
-    28: 14,  # static.manmade
-    30: 15,  # static.vegetation
-}
-
 
 def _quaternion_to_rotation(quaternion: Sequence[float]) -> np.ndarray:
     """Rotation matrix $(3, 3)$ from a Hamilton `[w, x, y, z]` quaternion."""
