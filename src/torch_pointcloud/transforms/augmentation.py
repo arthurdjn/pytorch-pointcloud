@@ -22,6 +22,7 @@ __all__ = [
     "RandomElasticDistortion",
     "RandomFlip",
     "RandomJitter",
+    "RandomLinearJitter",
     "RandomRotate",
     "RandomRotateChoice",
     "RandomScale",
@@ -309,6 +310,63 @@ class RandomScale(DictTransform, Randomizable):
                 )
 
             data[dst_key] = x * factor
+        return data
+
+
+class RandomLinearJitter(DictTransform, Randomizable):
+    r"""Multiply one or more keys by a random linear map close to the identity.
+
+    Sampling is done once per call: every listed key is multiplied on the right by the same $3 \times 3$ matrix
+    $M = I + E$, where every entry of $E$ is drawn from $\mathcal{N}(0, \sigma^2)$, i.e. a small random anisotropic
+    scale and shear. The map is linear, so it acts about the origin: center the positions first.
+
+    List only point-like keys. Do not list direction vectors such as `normal`, which a non-orthogonal map does not
+    keep unit length.
+
+    Args:
+        keys: Keys to transform, shape $(N, 3)$.
+        sigma: Standard deviation $\sigma$ of the perturbation of each matrix entry.
+        p: Probability of applying the transform.
+        dst_keys: Where to store the transformed tensors. Defaults to `keys` (in-place).
+        seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        ```pycon
+        >>> import torch_pointcloud.transforms as T
+        >>> out = T.RandomLinearJitter(keys="pos", sigma=0.1, seed=0)({"pos": torch.eye(3)})
+        >>> out["pos"].shape
+        torch.Size([3, 3])
+
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        sigma: float,
+        p: float = 1.0,
+        dst_keys: Optional[KeyCollection] = None,
+        seed: Optional[int] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        if not 0.0 <= p <= 1.0:
+            raise ValueError(f"p must be in [0, 1]; got {p}.")
+
+        super().__init__(keys, allow_missing_keys)
+        self.sigma = sigma
+        self.p = p
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.set_random_state(seed)
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        if torch.rand(1, generator=self.R).item() >= self.p:
+            return data
+
+        matrix = torch.eye(3) + torch.randn(3, 3, generator=self.R) * self.sigma
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = data[key] @ matrix.to(data[key])
         return data
 
 

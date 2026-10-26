@@ -25,6 +25,22 @@ def test_random_rotate_p_zero_is_noop() -> None:
     assert torch.equal(out["pos"], pos)
 
 
+def test_random_linear_jitter_applies_one_matrix_to_every_key() -> None:
+    pos = torch.randn(50, 3)
+    out = T.RandomLinearJitter(keys=("pos", "pos_copy"), sigma=0.1, seed=0)({"pos": pos, "pos_copy": pos.clone()})
+    matrix = torch.linalg.lstsq(pos, out["pos"]).solution
+    torch.testing.assert_close(out["pos"], out["pos_copy"])
+    torch.testing.assert_close(pos @ matrix, out["pos"])
+    assert not torch.allclose(matrix, torch.eye(3))
+    assert (matrix - torch.eye(3)).abs().max() < 0.6
+
+
+def test_random_linear_jitter_zero_sigma_and_probability_keep_the_input() -> None:
+    pos = torch.randn(10, 3)
+    torch.testing.assert_close(T.RandomLinearJitter(keys="pos", sigma=0.0)({"pos": pos})["pos"], pos)
+    assert T.RandomLinearJitter(keys="pos", sigma=0.1, p=0.0)({"pos": pos})["pos"] is pos
+
+
 def test_random_scale_same_factor_across_keys() -> None:
     """Same factor applies to every point-like key. Direction vectors (e.g. `normal`) must not be listed."""
     pos = torch.tensor([[1.0, 2.0, 3.0]])
