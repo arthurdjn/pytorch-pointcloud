@@ -506,3 +506,42 @@ def test_box3d_overlap_aligned_gradients_are_finite_for_parallel_edges() -> None
 def test_box3d_overlap_aligned_rejects_unpaired_sets() -> None:
     with pytest.raises(ValueError, match="as many boxes"):
         box3d_overlap(torch.zeros(2, 8, 3), torch.zeros(3, 8, 3), aligned=True)
+
+
+def _greedy_nms(
+    boxes: Tensor, scores: Tensor, threshold: float, labels: Tensor, batch: Tensor, rotated: bool
+) -> List[int]:
+    """Greedy NMS written out: per scene, by decreasing score, a box survives unless a kept box of its class overlaps it."""
+    if rotated:
+        iou = boxes_iou_bev(boxes, boxes)
+    else:
+        corners = box_corners(boxes)
+        lo, hi = corners.amin(dim=1), corners.amax(dim=1)
+        inter = (torch.minimum(hi[:, None], hi[None]) - torch.maximum(lo[:, None], lo[None])).clamp_min(0).prod(-1)
+        volume = (hi - lo).prod(-1)
+        iou = inter / (volume[:, None] + volume[None] - inter)
+    keep = []
+    for scene in torch.unique(batch):
+        members = (batch == scene).nonzero().squeeze(1)
+        kept: List[int] = []
+        for i in members[scores[members].argsort(descending=True)].tolist():
+            if all(labels[i] != labels[k] or iou[k, i] <= threshold for k in kept):
+                kept.append(i)
+        keep += kept
+    return keep
+
+
+@pytest.mark.parametrize("rotated", [False, True])
+def test_nms3d_matches_a_brute_force_greedy_loop(rotated: bool) -> None:
+    torch.manual_seed(0)
+    boxes = torch.cat([torch.rand(120, 3) * 4.0, torch.rand(120, 3) * 1.5 + 0.2, torch.rand(120, 1) * 6.28], dim=1)
+    scores = (torch.rand(120) * 10).round() / 10  # ties
+    labels = torch.randint(0, 3, (120,))
+    batch = torch.randint(0, 3, (120,)) * 2 + 1  # unsorted, with gaps
+    expected = _greedy_nms(boxes, scores, 0.2, labels, batch, rotated)
+
+    keep = nms3d(boxes, scores, 0.2, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == expected
+    capped = nms3d(boxes, scores, 0.2, labels=labels, batch=batch, rotated=rotated, max_keep=4)
+    assert capped.tolist() == [i for scene in (1, 3, 5) for i in [k for k in expected if batch[k] == scene][:4]]
+
