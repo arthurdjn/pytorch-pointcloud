@@ -661,6 +661,30 @@ TRAININGS = [
         id="point_mae/modelnet40",
     ),
     pytest.param(
+        "recon/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="recon/modelnet40",
+    ),
+    pytest.param(
+        "act/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="act/modelnet40",
+    ),
+    pytest.param(
+        "pcp_mae/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pcp_mae/modelnet40",
+    ),
+    pytest.param(
+        "point2vec/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point2vec/modelnet40",
+    ),
+    pytest.param(
         "point_mamba/classification_modelnet40_train.py",
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_GPU_MAMBA,
@@ -737,6 +761,18 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
         id="point_mae/shapenetpart-train",
+    ),
+    pytest.param(
+        "recon/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="recon/shapenetpart-train",
+    ),
+    pytest.param(
+        "point2vec/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point2vec/shapenetpart-train",
     ),
     pytest.param(
         "point_m2ae/part_segmentation_shapenetpart_train.py",
