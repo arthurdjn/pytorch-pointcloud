@@ -134,9 +134,9 @@ $RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --
 $RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-spconv-amp.semantickitti.mmdet3d
 $RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-minkowski.semantickitti.mmdet3d
 $RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34v2-w32.semantickitti.mmdet3d
-$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet-29gmacs.semantickitti.mit-han-lab
-$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet-46gmacs.semantickitti.mit-han-lab
-$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet-114gmacs.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w16.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w20.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w32.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-119gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-47gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-30gmacs.semantickitti.mit-han-lab

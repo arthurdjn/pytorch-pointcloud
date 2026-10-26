@@ -681,11 +681,11 @@ def minkunet34v2_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentati
 
 
 @register_model(
-    "minkunet-29gmacs.semantickitti.mit-han-lab",
+    "minkunet18-w16.semantickitti.mit-han-lab",
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet-29gmacs.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w16.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 58.90, "OA": 91.73},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -703,16 +703,16 @@ def minkunet34v2_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentati
         decoder_depths=(2, 2, 2, 2),
     ),
 )
-def minkunet_29gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmentation:
+def minkunet18_w16_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmentation:
     return MinkUNetSegmentation(**hparams)
 
 
 @register_model(
-    "minkunet-46gmacs.semantickitti.mit-han-lab",
+    "minkunet18-w20.semantickitti.mit-han-lab",
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet-46gmacs.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w20.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 60.26, "OA": 91.94},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -730,16 +730,16 @@ def minkunet_29gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmen
         decoder_depths=(2, 2, 2, 2),
     ),
 )
-def minkunet_46gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmentation:
+def minkunet18_w20_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmentation:
     return MinkUNetSegmentation(**hparams)
 
 
 @register_model(
-    "minkunet-114gmacs.semantickitti.mit-han-lab",
+    "minkunet18-w32.semantickitti.mit-han-lab",
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet-114gmacs.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w32.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 61.06, "OA": 91.64},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -757,5 +757,5 @@ def minkunet_46gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmen
         decoder_depths=(2, 2, 2, 2),
     ),
 )
-def minkunet_114gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmentation:
+def minkunet18_w32_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmentation:
     return MinkUNetSegmentation(**hparams)

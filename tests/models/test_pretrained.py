@@ -146,9 +146,9 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("utonia-base.pretrain.pointcept", "pretraining", "scannet20"),
     # SemanticKITTI based models
     ("randlanet.semantickitti.tsung-han-wu", "semantic-segmentation", "semantickitti"),
-    ("minkunet-29gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
-    ("minkunet-46gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
-    ("minkunet-114gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w16.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w20.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w32.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("minkunet18-w16.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
     ("minkunet18-w20.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
     ("minkunet18-w32.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
