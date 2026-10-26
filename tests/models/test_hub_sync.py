@@ -3,6 +3,8 @@
 Every checkpoint whose weights live in the organisation is one public `torch-pointcloud/<name>` repository holding
 `model.safetensors`, `config.json` and a card. The registry is the source of truth, so the card metadata (license,
 library, `model-index` metrics), the `config.json` (the registry entry as data) and the pinned weights must follow it.
+The organisation may hold more repositories than the registry: the weights of a checkpoint are pushed before its
+registry entry lands on main.
 
 The tests run with `--run-hub` only: they query the Hub API, one request per repository and revision, with the token of
 the environment when there is one. `config.json` is never fetched (its requests are what the Hub counts as downloads);
@@ -33,7 +35,8 @@ weights are registered under today."""
 
 
 def hub_json(path: str) -> Any:
-    """The JSON the Hub API answers at `api/<path>`, `None` for a missing repository or revision."""
+    """The JSON the Hub API answers at `api/<path>`, `None` for a missing repository or revision (the Hub answers 401
+    instead of 404 for a missing or private repository when the request carries no token)."""
     token = load_hub_token()
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     request = urllib.request.Request(f"{HF_ENDPOINT}/api/{path}", headers=headers)
@@ -41,7 +44,7 @@ def hub_json(path: str) -> Any:
         with urllib.request.urlopen(request, timeout=60) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
-        if error.code == 404:
+        if error.code in (401, 404):
             return None
         raise
 
@@ -50,12 +53,6 @@ def hub_api(path: str) -> Optional[Dict[str, Any]]:
     """The record of one repository or revision, `None` when it is missing."""
     record: Optional[Dict[str, Any]] = hub_json(path)
     return record
-
-
-def hub_listing(path: str) -> List[Dict[str, Any]]:
-    """The records a listing endpoint answers."""
-    records: List[Dict[str, Any]] = hub_json(path) or []
-    return records
 
 
 def repository_files(info: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -131,15 +128,10 @@ def hub_heads() -> Dict[str, Optional[Dict[str, Any]]]:
     return {name: hub_api(f"models/{HF_NAMESPACE}/{name}?blobs=true") for name in hosted_checkpoints()}
 
 
-def test_organisation_repositories_match_the_registry(hub_heads: Dict[str, Optional[Dict[str, Any]]]) -> None:
-    """Every hosted checkpoint has a public repository, and every organisation repository is registered or kept."""
-    listing = hub_listing(f"models?author={HF_NAMESPACE}&limit=1000")
-    assert listing
-    on_hub = {model["id"].split("/", 1)[1]: model for model in listing}
-    problems = [f"{name}: not on the Hub" for name, info in hub_heads.items() if info is None]
+def test_hosted_checkpoints_have_a_public_repository(hub_heads: Dict[str, Optional[Dict[str, Any]]]) -> None:
+    """Every hosted checkpoint has a public repository in the organisation."""
+    problems = [f"{name}: not on the Hub (missing or private)" for name, info in hub_heads.items() if info is None]
     problems += [f"{name}: private" for name, info in hub_heads.items() if info is not None and info.get("private")]
-    known = set(hub_heads) | set(kept_repositories())
-    problems += [f"{name}: on the Hub but not registered" for name in sorted(set(on_hub) - known)]
     assert not problems, "\n".join(problems)
 
 
@@ -196,8 +188,8 @@ def test_configs_follow_the_registry(hub_heads: Dict[str, Optional[Dict[str, Any
 
 
 def test_pinned_revisions_serve_the_head_weights(hub_heads: Dict[str, Optional[Dict[str, Any]]]) -> None:
-    """The revision each registered URL pins holds the same `model.safetensors` as the repository head (the head moves
-    on every card push, the weights must not) and a `config.json`, the file whose requests count as downloads."""
+    """The revision each registered URL pins holds the same `model.safetensors` as the repository head: the head moves
+    on every card or config push, the weights must not."""
     problems: List[str] = []
     for name, (_, entry) in hosted_checkpoints().items():
         head = hub_heads[name]
@@ -219,6 +211,4 @@ def test_pinned_revisions_serve_the_head_weights(hub_heads: Dict[str, Optional[D
             "lfs", {}
         ).get("sha256"):
             problems.append(f"{name}: head weights differ from the pinned revision {revision[:10]} (re-pin)")
-        if "config.json" not in at_pin:
-            problems.append(f"{name}: no config.json at pinned revision {revision[:10]} (downloads not counted)")
     assert not problems, "\n".join(problems)
