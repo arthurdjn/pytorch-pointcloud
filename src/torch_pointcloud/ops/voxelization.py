@@ -197,12 +197,17 @@ def trilinear_sparse_devoxelize(
     batch_voxel: Tensor,
     pos: Tensor,
     batch: Tensor,
+    *,
+    normalize: bool = False,
+    eps: float = 1e-8,
 ) -> Tensor:
     r"""Interpolate sparse voxel features at continuous grid positions, trilinearly.
 
     A position $p$ reads the $8$ voxels around it, $\lfloor p \rfloor + \{0, 1\}^3$, each weighted by
-    $\prod_d (1 - |p_d - c_d|)$. A voxel absent from `pos_voxel` contributes nothing and the weights of the others are
-    not renormalized, so a position far from every voxel reads zeros. A position on the grid reads its own voxel.
+    $\prod_d (1 - |p_d - c_d|)$. A voxel absent from `pos_voxel` contributes nothing. Without `normalize` the weights
+    of the others are kept as they are; with it they are divided by their sum, so the result is a weighted mean of the
+    occupied corners. Either way a position on a voxel reads that voxel and a position with no occupied corner reads
+    zeros. To read a grid of stride $s$ at full-resolution coordinates, pass $p / s$.
 
     Args:
         x_voxel: Voxel features $(V, C)$.
@@ -210,6 +215,8 @@ def trilinear_sparse_devoxelize(
         batch_voxel: Per-voxel batch index $(V,)$.
         pos: Query positions in voxel units $(N, 3)$.
         batch: Per-query batch index $(N,)$.
+        normalize: Divide the weights of the occupied corners by their sum.
+        eps: Added to the sum of the weights before dividing, with `normalize`.
 
     Returns:
         The interpolated features $(N, C)$.
@@ -230,12 +237,19 @@ def trilinear_sparse_devoxelize(
         >>> pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
         >>> batch_voxel = torch.zeros(2, dtype=torch.long)
         >>> pos = torch.tensor([[0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
-        >>> trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, torch.zeros(2, dtype=torch.long))
+        >>> batch = torch.zeros(2, dtype=torch.long)
+        >>> trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, batch)
         tensor([[2.0000],
                 [0.5000]])
+        >>> trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, batch, normalize=True)
+        tensor([[2.],
+                [1.]])
 
         ```
     """
+    if pos_voxel.shape[0] == 0 or pos.shape[0] == 0:
+        return x_voxel.new_zeros(pos.shape[0], x_voxel.shape[1])
+
     lower = torch.floor(pos)
     frac = pos - lower
     corner_offsets = torch.tensor(
@@ -251,6 +265,8 @@ def trilinear_sparse_devoxelize(
 
     gathered = x_voxel[index.clamp(min=0)]  # (N, 8, C)
     weights = weights * (index >= 0)
+    if normalize:
+        weights = weights / (weights.sum(dim=1, keepdim=True) + eps)
     return (gathered * weights.unsqueeze(2).to(x_voxel.dtype)).sum(1)
 
 

@@ -271,6 +271,53 @@ def test_trilinear_sparse_devoxelize_matches_dense_on_a_full_grid() -> None:
     sparse = trilinear_sparse_devoxelize(x_voxel, pos_voxel, torch.zeros(64, dtype=torch.long), pos, batch)
     dense = trilinear_dense_devoxelize(grid, pos, batch, resolution=4)
     torch.testing.assert_close(sparse, dense)
+    # Every corner is occupied, so renormalizing changes nothing.
+    normalized = trilinear_sparse_devoxelize(
+        x_voxel,
+        pos_voxel,
+        torch.zeros(64, dtype=torch.long),
+        pos,
+        batch,
+        normalize=True,
+    )
+    torch.testing.assert_close(normalized, dense)
+
+
+def test_trilinear_sparse_devoxelize_normalize_averages_the_occupied_corners() -> None:
+    x_voxel = torch.tensor([[2.0], [6.0], [9.0]])
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0], [0, 0, 0]])
+    batch_voxel = torch.tensor([0, 0, 1])
+    pos = torch.tensor([[0.25, 0.5, 0.0], [0.0, 0.0, 0.0], [5.0, 5.0, 5.0], [0.5, 0.5, 0.5]])
+    batch = torch.tensor([0, 0, 0, 1])
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, batch, normalize=True)
+
+    # Weights 0.375 and 0.125 on the two occupied corners, divided by their sum; scene 1 reads only its own voxel.
+    assert out.view(-1).tolist() == pytest.approx([3.0, 2.0, 0.0, 9.0])
+
+
+def test_trilinear_sparse_devoxelize_backward_reaches_the_voxels() -> None:
+    x_voxel = torch.tensor([[1.0], [3.0]], requires_grad=True)
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
+    pos = torch.tensor([[0.25, 0.0, 0.0], [0.5, 0.5, 0.0]])
+    for normalize in (False, True):
+        out = trilinear_sparse_devoxelize(
+            x_voxel,
+            pos_voxel,
+            torch.zeros(2, dtype=torch.long),
+            pos,
+            torch.zeros(2, dtype=torch.long),
+            normalize=normalize,
+        )
+        (grad,) = torch.autograd.grad(out.sum(), x_voxel)
+        assert torch.isfinite(grad).all() and (grad > 0).all()
+
+
+def test_trilinear_sparse_devoxelize_empty_inputs() -> None:
+    empty = torch.empty(0, dtype=torch.long)
+    out = trilinear_sparse_devoxelize(torch.empty(0, 2), torch.empty(0, 3), empty, torch.rand(3, 3), empty.new_zeros(3))
+    assert out.shape == (3, 2) and not out.any()
+    out = trilinear_sparse_devoxelize(torch.rand(2, 2), torch.zeros(2, 3), empty.new_zeros(2), torch.empty(0, 3), empty)
+    assert out.shape == (0, 2)
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
