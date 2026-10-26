@@ -391,7 +391,7 @@ class PointNet2DecomposedQuerySetAbstraction(nn.Module):
             self.out_mlps,
         ):
             row, col = radius(pos, pos_query, r, batch, batch_query, max_num_neighbors=k, sort=True)
-            # An empty ball gets one source on the query itself with zero features: its message is all zeros.
+            # An empty ball gets one virtual source on the query itself, with zero encoded features and a zero offset.
             empty = (torch.bincount(row, minlength=num_queries) == 0).nonzero().view(-1)
             x_source = feature_mlp(x)
             x_source = torch.cat([x_source, x_source.new_zeros(empty.numel(), x_source.size(1))], dim=0)
