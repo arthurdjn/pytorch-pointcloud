@@ -1,9 +1,6 @@
 r"""Group-Free 3D: transformer object detection over sampled object candidates.
 
 {{ paper("2104.00678") }}
-
-Reference: :arxiv: [Group-Free 3D Object Detection via Transformers](https://arxiv.org/abs/2104.00678) (Liu et al., 2021).
-Reference implementation: :github: [zeliu98/Group-Free-3D](https://github.com/zeliu98/Group-Free-3D).
 """
 
 import math
@@ -47,13 +44,25 @@ class _GroupFree3DOutput(TypedDict):
 class GroupFree3DOutput(_GroupFree3DOutput, total=False):
     r"""Predictions of every stage (the proposal head, then each decoder layer) for $B$ scenes with $Q$ candidates.
 
-    The stage tensors stack the $L + 1$ stages along the first axis: `objectness_scores` $(L + 1, B, Q, 1)$, `center`
-    and `size` $(L + 1, B, Q, 3)$, `heading_scores`, `heading_residuals_normalized` and `heading_residuals`
-    $(L + 1, B, Q, H)$, `sem_cls_scores` $(L + 1, B, Q, C)$; a class-aware size head adds `size_scores`
-    $(L + 1, B, Q, S)$, `size_residuals_normalized` and `size_residuals` $(L + 1, B, Q, S, 3)$. `query_pos` $(B, Q, 3)$
-    is the candidate positions and `query_indices` $(B, Q)$ their indices into the packed seeds, whose objectness
-    logits `seed_objectness_logits` $(N_s,)$, positions `pos_seed` $(N_s, 3)$, scene indices `batch_seed` $(N_s,)$ and
-    input indices `seed_indices` $(N_s,)$ complete the output.
+    The stage tensors stack the $L + 1$ stages along their first axis.
+
+    Attributes:
+        objectness_scores: Objectness logits, shape $(L + 1, B, Q, 1)$.
+        center: Box centers, shape $(L + 1, B, Q, 3)$.
+        heading_scores: Heading bin logits, shape $(L + 1, B, Q, H)$.
+        heading_residuals_normalized: Heading residuals in units of the bin half-width, shape $(L + 1, B, Q, H)$.
+        heading_residuals: Heading residuals in radians, shape $(L + 1, B, Q, H)$.
+        size: Box sizes $(d_x, d_y, d_z)$, shape $(L + 1, B, Q, 3)$.
+        sem_cls_scores: Semantic class logits, shape $(L + 1, B, Q, C)$.
+        pos_query: Candidate positions, shape $(B, Q, 3)$.
+        query_indices: Candidate indices into the packed seeds, shape $(B, Q)$.
+        seed_objectness_logits: Seed objectness logits of the candidate sampling, shape $(N_s,)$.
+        pos_seed: Seed positions, shape $(N_s, 3)$.
+        batch_seed: Per-seed scene index, shape $(N_s,)$.
+        seed_indices: Seed indices into the packed input points, shape $(N_s,)$.
+        size_scores: Size template logits of a class-aware size head, shape $(L + 1, B, Q, S)$.
+        size_residuals_normalized: Size residuals relative to the templates, shape $(L + 1, B, Q, S, 3)$.
+        size_residuals: Size residuals, shape $(L + 1, B, Q, S, 3)$.
     """
 
     size_scores: Tensor
@@ -185,6 +194,18 @@ class GroupFree3DDetection(DetectionModel):
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable of the backbone, sampler, position embeddings and heads.
         norm_kwargs: Extra normalization arguments.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models import create_model
+
+        model = create_model("groupfree3d-l6-o256.scannet.ze-liu", task="detection", pretrained=True).eval()
+        pos = torch.rand(50000, 3) * 4
+        batch = torch.zeros(50000, dtype=torch.long)
+        with torch.no_grad():
+            detections = model.decode(model(None, pos, batch))
+        ```
     """
 
     mean_sizes: OptTensor  # registered as a non-persistent buffer in __init__
@@ -314,11 +335,33 @@ class GroupFree3DDetection(DetectionModel):
         return self.backbone.out_channels
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        r"""Extract the seed points with the PointNet++ backbone.
+
+        Args:
+            x: Point features $(N, C_\text{in})$, or `None` when the model takes positions only.
+            pos: Point positions $(N, 3)$.
+            batch: Per-point scene index $(N,)$.
+
+        Returns:
+            The seed features $(N_s, C)$, positions $(N_s, 3)$, scene indices $(N_s,)$ and indices into the input
+            points $(N_s,)$.
+        """
         if x is None:
             x = pos.new_zeros((pos.size(0), 0))
         return self.backbone(x, pos, batch)
 
     def forward_head(self, x: Tensor, pos: Tensor, batch: Tensor, seed_indices: Tensor) -> GroupFree3DOutput:
+        r"""Sample the object candidates among the seeds and predict their boxes at every stage.
+
+        Args:
+            x: Seed features $(N_s, C)$ from `forward_features`.
+            pos: Seed positions $(N_s, 3)$.
+            batch: Per-seed scene index $(N_s,)$.
+            seed_indices: Seed indices into the input points $(N_s,)$.
+
+        Returns:
+            The predictions of the proposal head and of every decoder layer.
+        """
         seed_logits = self.seed_objectness(x).squeeze(-1)  # (N_s,)
         x_dense, mask = to_dense_batch(x, batch)  # (B, S, C)
         batch_size, num_seeds = mask.shape

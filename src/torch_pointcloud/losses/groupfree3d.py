@@ -54,6 +54,35 @@ class GroupFree3DLoss(nn.Module):
         box_weight: Weight of the box term.
         sem_cls_weight: Weight of the semantic-class term.
         loss_weight: Global multiplier applied to the summed loss.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.losses import GroupFree3DLoss
+        from torch_pointcloud.models import create_model
+        from torch_pointcloud.utils.data import DataKeys
+
+        model = create_model("groupfree3d-l6-o256.sunrgbd.ze-liu", task="detection").train()
+        criterion = GroupFree3DLoss(
+            model.num_classes,
+            num_heading_bins=model.num_heading_bins,
+            mean_sizes=model.mean_sizes,
+            sampling_weight=0.2,
+            objectness_weight=0.4,
+            center_delta=0.111111111111,
+            size_delta=0.0625,
+            heading_delta=0.04,
+        )
+        pos = torch.rand(20000, 3) * 4
+        batch = torch.zeros(20000, dtype=torch.long)
+        data = {
+            DataKeys.BOX: torch.tensor([[1.0, 1.0, 0.5, 0.8, 0.6, 1.0, 0.3]]),
+            DataKeys.LABEL: torch.tensor([2]),
+            DataKeys.BATCH_BOX: torch.tensor([0]),
+        }
+        losses = criterion(model(None, pos, batch), data)
+        losses["loss"].backward()
+        ```
     """
 
     mean_sizes: Optional[Tensor]
