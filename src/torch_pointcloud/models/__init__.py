@@ -21,11 +21,13 @@ from ._registry import (
 )
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
+from .curvenet import CurveNetClassification, CurveNetPartSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
+from .pct import PCTClassification
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
 from .point_m2ae import PointM2AEClassification, PointM2AEPartSegmentation, PointM2AEPretraining
 from .point_mae import PointMAEClassification, PointMAEPartSegmentation, PointMAEPretraining
@@ -78,6 +80,8 @@ __all__ = [
     "CenterPointDetection",
     "CenterPointPillarsDetection",
     "ConcertoSegmentation",
+    "CurveNetClassification",
+    "CurveNetPartSegmentation",
     "DGCNNClassification",
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
@@ -86,6 +90,7 @@ __all__ = [
     "LIONDetection",
     "OctFormerClassification",
     "OctFormerSegmentation",
+    "PCTClassification",
     "PointBERTClassification",
     "PointBERTDiscreteVAE",
     "PointBERTPretraining",

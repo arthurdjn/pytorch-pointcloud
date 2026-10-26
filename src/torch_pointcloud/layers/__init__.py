@@ -21,6 +21,18 @@ from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
+from .curvenet_blocks import (
+    AttentionGate,
+    CurveAggregation,
+    CurveGrouping,
+    CurveInterventionConv,
+    CurveNetFeaturePropagation,
+    CurveWalk,
+    LocalPointFeatureAggregation,
+    RadiusMaxPool,
+    crossover_suppression,
+    hard_softmax,
+)
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -37,6 +49,7 @@ from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .offset_attention import OffsetAttention
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -130,6 +143,16 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
+    "AttentionGate",
+    "CurveAggregation",
+    "CurveGrouping",
+    "CurveInterventionConv",
+    "CurveNetFeaturePropagation",
+    "CurveWalk",
+    "LocalPointFeatureAggregation",
+    "RadiusMaxPool",
+    "crossover_suppression",
+    "hard_softmax",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -151,6 +174,7 @@ __all__ = [
     "OctreeT",
     "OctreeConvBlock",
     "OctreeDeconvBlock",
+    "OffsetAttention",
     "PDNorm",
     "PointPatchEmbed",
     "PointTransformerConv",
