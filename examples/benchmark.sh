@@ -162,7 +162,7 @@ $RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT
 $RUN examples/point_transformer_v3/segmentation_nuscenes_benchmark.py --root "$ROOT" --model ptv3-base.nuscenes.pointcept --sw-batch-size 8
 $RUN examples/litept/segmentation_scannet_benchmark.py --root "$ROOT" --model litept-small.scannet20.prs-eth --sw-batch-size 8
 $RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-small.nuscenes.prs-eth --sw-batch-size 8
-$RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-large.nuscenes.prs-eth --sw-batch-size 8
+$RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-large.nuscenes.prs-eth --simple
 $RUN examples/sonata/segmentation_scannet_benchmark.py --root "$ROOT" --model sonata-base-lp.scannet20.fair --sw-batch-size 4
 $RUN examples/point_transformer_v3/segmentation_dales_benchmark.py --root "$ROOT" --model ptv3.dales.jayakumar-pujar --sw-batch-size 2
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
