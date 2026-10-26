@@ -476,63 +476,17 @@ class VoxelRCNNDetection(DetectionModel):
         stage_batch = [stage["batch"] for stage in stages]
         return self.roi_head(rois, roi_batch, stage_features, stage_pos, stage_batch)
 
-    def forward_rois(
-        self,
-        out: AnchorHeadOutput,
-        stages: List[FeaturesDict],
-        gt_boxes: OptTensor = None,
-        gt_labels: OptTensor = None,
-        gt_batch: OptTensor = None,
-    ) -> Union[VoxelRCNNOutput, VoxelRCNNTrainOutput]:
+    def forward_rois(self, out: AnchorHeadOutput, stages: List[FeaturesDict]) -> VoxelRCNNOutput:
         r"""Select the RoIs of the anchor head output and refine them.
-
-        In training the ground truth drives the sampling of the RoIs that are refined
-        ([`sample_rois`][torch_pointcloud.ops.roi.sample_rois]).
 
         Args:
             out: The anchor head output (see `forward_head`).
             stages: The strided sparse stages (see `encode`).
-            gt_boxes: Ground-truth boxes $(K, 7)$, required in training.
-            gt_labels: Ground-truth $0$-based classes, shape $(K,)$, required in training.
-            gt_batch: Scene index of every box, shape $(K,)$, required in training.
 
         Returns:
-            A `VoxelRCNNTrainOutput` in training, otherwise a `VoxelRCNNOutput`.
+            The refined RoIs.
         """
-        if self.training and (gt_boxes is None or gt_labels is None or gt_batch is None):
-            raise ValueError("Training needs `gt_boxes`, `gt_labels` and `gt_batch` to sample the RoIs.")
-
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
-        if self.training:
-            assert gt_boxes is not None and gt_labels is not None and gt_batch is not None
-            samples = sample_rois(
-                rois,
-                gt_boxes,
-                roi_labels=roi_labels,
-                box_labels=gt_labels,
-                roi_batch=roi_batch,
-                box_batch=gt_batch,
-                num_samples=self.roi_num_samples,
-                foreground_ratio=self.roi_foreground_ratio,
-                foreground_threshold=self.roi_foreground_threshold,
-                hard_background_threshold=self.roi_hard_background_threshold,
-                hard_background_ratio=self.roi_hard_background_ratio,
-            )
-            rois, roi_batch = rois[samples["index"]], roi_batch[samples["index"]]
-            matched = samples["target_index"] >= 0
-            target_boxes = torch.zeros_like(rois)
-            target_boxes[matched] = gt_boxes[samples["target_index"][matched]]
-            rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stages)
-            return {
-                **out,
-                "rcnn_cls": rcnn_cls,
-                "rcnn_reg": rcnn_reg,
-                "rois": rois,
-                "roi_batch": roi_batch,
-                "roi_iou": samples["iou"],
-                "roi_target_boxes": target_boxes,
-            }
-
         rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stages)
         return {
             "rcnn_cls": rcnn_cls,
@@ -540,6 +494,58 @@ class VoxelRCNNDetection(DetectionModel):
             "roi_labels": roi_labels,
             "roi_scores": roi_scores,
             "batch": roi_batch,
+        }
+
+    def forward_train_rois(
+        self,
+        out: AnchorHeadOutput,
+        stages: List[FeaturesDict],
+        gt_boxes: Tensor,
+        gt_labels: Tensor,
+        gt_batch: Tensor,
+    ) -> VoxelRCNNTrainOutput:
+        r"""Select the RoIs of the anchor head output, sample them against the ground truth and refine the samples.
+
+        The sampling is [`sample_rois`][torch_pointcloud.ops.roi.sample_rois]; every sampled RoI carries its matched
+        box, zeros when it matches none.
+
+        Args:
+            out: The anchor head output (see `forward_head`).
+            stages: The strided sparse stages (see `encode`).
+            gt_boxes: Ground-truth boxes, shape $(K, 7)$.
+            gt_labels: Ground-truth $0$-based classes, shape $(K,)$.
+            gt_batch: Scene index of every box, shape $(K,)$.
+
+        Returns:
+            The anchor head output with the refinement of the sampled RoIs.
+        """
+        rois, _, roi_labels, roi_batch = self.proposals(out)
+        samples = sample_rois(
+            rois,
+            gt_boxes,
+            roi_labels=roi_labels,
+            box_labels=gt_labels,
+            roi_batch=roi_batch,
+            box_batch=gt_batch,
+            num_samples=self.roi_num_samples,
+            foreground_ratio=self.roi_foreground_ratio,
+            foreground_threshold=self.roi_foreground_threshold,
+            hard_background_threshold=self.roi_hard_background_threshold,
+            hard_background_ratio=self.roi_hard_background_ratio,
+        )
+        rois, roi_batch = rois[samples["index"]], roi_batch[samples["index"]]
+        matched = samples["target_index"] >= 0
+        target_boxes = torch.zeros_like(rois)
+        target_boxes[matched] = gt_boxes[samples["target_index"][matched]]
+        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stages)
+        return {
+            **out,
+            "rcnn_cls": rcnn_cls,
+            "rcnn_reg": rcnn_reg,
+            "rois": rois,
+            "roi_batch": roi_batch,
+            "roi_iou": samples["iou"],
+            "roi_target_boxes": target_boxes,
         }
 
     def forward(
@@ -566,9 +572,15 @@ class VoxelRCNNDetection(DetectionModel):
         Returns:
             A `VoxelRCNNTrainOutput` in training, otherwise a `VoxelRCNNOutput`.
         """
+        if self.training and (gt_boxes is None or gt_labels is None or gt_batch is None):
+            raise ValueError("Training needs `gt_boxes`, `gt_labels` and `gt_batch` to sample the RoIs.")
+
         features, stages = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
         out = self.forward_head(features)
-        return self.forward_rois(out, stages, gt_boxes, gt_labels, gt_batch)
+        if self.training:
+            assert gt_boxes is not None and gt_labels is not None and gt_batch is not None
+            return self.forward_train_rois(out, stages, gt_boxes, gt_labels, gt_batch)
+        return self.forward_rois(out, stages)
 
     @torch.no_grad()
     def decode(self, out: VoxelRCNNOutput) -> Detection3D:

@@ -123,22 +123,19 @@ def test_voxel_rcnn_trains_the_roi_head_on_a_bev_map() -> None:
     stages = _make_strided_stages(model)
 
     with torch.no_grad():
-        out = model.eval().forward_rois(model.forward_head(features), stages)
-        det = model.decode(out)
+        eval_out = model.eval().forward_rois(model.forward_head(features), stages)
+        det = model.decode(eval_out)
     assert 0 < det["boxes"].shape[0] <= 2 * 8 and torch.bincount(det["batch"]).max() <= 8
 
     model.train()
     out = model.forward_head(features)
     rois, _, _, roi_batch = model.proposals(out)
     assert torch.bincount(roi_batch).max() <= 24
-    with pytest.raises(ValueError, match="gt_boxes"):
-        model.forward_rois(out, stages)
 
     gt_index = torch.stack([(roi_batch == b).nonzero()[0, 0] for b in range(2)])
     gt_boxes = rois[gt_index] + torch.tensor([0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     gt_labels, gt_batch = torch.zeros(2, dtype=torch.long), torch.tensor([0, 1])
-    train_out = model.forward_rois(out, stages, gt_boxes, gt_labels, gt_batch)
-    assert isinstance(train_out, dict) and "roi_target_boxes" in train_out
+    train_out = model.forward_train_rois(out, stages, gt_boxes, gt_labels, gt_batch)
     assert train_out["rois"].shape == (32, 7) and train_out["roi_batch"].tolist() == [0] * 16 + [1] * 16
     matched = train_out["roi_iou"] > 0
     assert matched.any()
