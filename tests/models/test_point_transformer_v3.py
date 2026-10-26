@@ -2,9 +2,11 @@ from typing import Dict, Optional, Tuple, Union
 
 import pytest
 import torch
+import torch.nn.functional as F
 from torch import Tensor, nn
 
 from torch_pointcloud.layers.conditional_heads import ConditionalLinear, CosineSimilarityHead
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Segmentation,
@@ -12,6 +14,7 @@ from torch_pointcloud.models.point_transformer_v3 import (
     segmentation_checkpoint_filter_fn,
     serialize,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 requires_gpu = pytest.mark.skipif(not (_CUDA_AVAILABLE and _SPCONV_AVAILABLE), reason="CUDA and spconv are required")
@@ -481,3 +484,25 @@ def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_orde
         "encoder.stem.stem.weight",
         "head.weight",
     ]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("ptv3-base.scannet20.pointcept"),
+        pytest.param("ptv3-base.scannet200.pointcept"),
+        pytest.param("ptv3-base.s3dis-area5.pointcept"),
+    ],
+)
+def test_ptv3_registered_transform_runs_without_labels(name: str) -> None:
+    torch.manual_seed(0)
+    sample = {
+        DataKeys.POS: torch.rand(256, 3) * 4.0,
+        DataKeys.COLOR: torch.randint(0, 256, (256, 3)).float(),
+        DataKeys.NORMAL: F.normalize(torch.randn(256, 3), dim=1),
+    }
+    transform = model_info(name)["transform"]
+    assert transform is not None
+    out = transform(sample)
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].shape == (out[DataKeys.POS_GRID].shape[0], 6)
