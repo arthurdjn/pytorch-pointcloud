@@ -151,7 +151,10 @@ class StridedSparseConv3d(SparseConv3d):
         out = super().forward(input, add_input)
         index = lookup_coordinates(out.indices, parents)
         features = out.features[index.clamp(min=0)] * (index >= 0).unsqueeze(1).to(out.features.dtype)
-        return spconv.SparseConvTensor(features, parents.int().contiguous(), out.spatial_shape, out.batch_size)
+        # `replace_feature` carries the index cache of the earlier layers and the algorithm settings over.
+        out = out.replace_feature(features)
+        out.indices = parents.int().contiguous()
+        return out
 
 
 class SparseConvBlock(SparseSequential):

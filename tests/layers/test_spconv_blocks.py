@@ -152,6 +152,17 @@ def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child(de
 
 
 @DEVICES
+def test_strided_sparse_conv3d_keeps_the_index_cache_and_settings(device: str) -> None:
+    x = _random_sparse_tensor(device=device)
+    x.force_algo = ConvAlgo.Native
+    x = _to_device(spconv.SparseConv3d(3, 3, 3, stride=2, padding=1, indice_key="down"), device)(x)
+    out = _to_device(StridedSparseConv3d(3, 4, kernel_size=3, stride=2), device)(x)
+
+    assert "down" in out.indice_dict
+    assert out.force_algo == ConvAlgo.Native
+
+
+@DEVICES
 def test_sparse_basic_block_stride_two_halves_the_resolution(device: str) -> None:
     x = _random_sparse_tensor(channels=8, device=device)
     block = _to_device(SparseBasicBlock(8, 16, stride=2, indice_key="subm"), device).eval()

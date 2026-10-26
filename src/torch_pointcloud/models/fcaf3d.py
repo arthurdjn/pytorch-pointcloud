@@ -256,7 +256,11 @@ class FCAF3DHead(nn.Module):
             keep = topk(score.view(-1), self.prune_threshold, indices[:, 0])
             mask = torch.zeros(len(indices), dtype=torch.bool, device=indices.device)
             mask[keep] = True
-        return spconv.SparseConvTensor(x.features[mask], x.indices[mask], x.spatial_shape, x.batch_size)
+        pruned = x.replace_feature(x.features[mask])
+        pruned.indices = x.indices[mask]
+        # The cached index pairs describe the voxels before pruning (as in spconv's `select_by_index`).
+        pruned.indice_dict = {}
+        return pruned
 
     def forward(self, stages: Sequence["SparseConvTensor"]) -> Dict[str, Tensor]:
         """Predict at every pyramid level.

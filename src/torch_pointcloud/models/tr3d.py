@@ -112,8 +112,8 @@ class TR3DNeck(nn.Module):
         x = stages[-1]
         levels = []
         for i in reversed(range(len(stages) - 1)):
-            x = self.up_blocks[i](x)
-            x = spconv.SparseConvTensor(x.features, x.indices, stages[i].spatial_shape, x.batch_size)
+            x = self.up_blocks[i](x).shadow_copy()
+            x.spatial_shape = stages[i].spatial_shape
             x = sparse_add(stages[i], x)
             x = self.lateral_blocks[i](x)
             levels.append(self.out_blocks[i](x))
