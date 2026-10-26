@@ -4,12 +4,14 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.sphereformer import (
     SphereFormerSegmentation,
     SphereFormerUBlock,
     WindowedRelPosAttention,
     exponential_split,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _SPCONV_AVAILABLE,
@@ -179,3 +181,16 @@ def test_windowed_attention_without_sptr_raises_import_error() -> None:
             quant_size=window / 24,
             quant_size_sphere=window / 24,
         )
+
+
+def test_sphereformer_nuscenes_transform_runs_without_labels() -> None:
+    transform = model_info("sphereformer.nuscenes")["transform"]
+    assert transform is not None
+    num_points = 500
+    data = {DataKeys.POS: torch.rand(num_points, 3) * 40 - 20, DataKeys.INTENSITY: torch.rand(num_points, 1)}
+
+    out = transform(data)
+
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].shape[1] == 4
+    assert out[DataKeys.INVERSE].shape == (num_points,)

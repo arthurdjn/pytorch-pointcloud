@@ -828,6 +828,7 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
                 keys=DataKeys.SEGMENT,
                 labels=NUSCENES_LIDARSEG_LEARNING_MAP,
                 default=255,
+                allow_missing_keys=True,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.CopyItems(
