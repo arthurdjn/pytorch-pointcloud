@@ -51,6 +51,7 @@ class DataKeys(StrEnum):
     LABEL = "label"
     BATCH = "batch"
     INVERSE = "inverse"
+    BATCH_INVERSE = "batch_inverse"
     INDEX = "index"
     ORIGIN_POS = "origin_pos"
     ORIGIN_SEGMENT = "origin_segment"

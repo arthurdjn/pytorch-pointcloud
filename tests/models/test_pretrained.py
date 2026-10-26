@@ -27,7 +27,7 @@ from torch_pointcloud.models import create_model
 from torch_pointcloud.models.parta2 import PartA2Detection
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
-from torch_pointcloud.utils.data import DataKeys, collate, offset_index, select_inputs
+from torch_pointcloud.utils.data import DataKeys, collate, select_inputs
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -750,7 +750,8 @@ def test_pretrained_spformer(
     models_dir_factory: Callable[..., Path],
 ) -> None:
     """SPFormer reads per-point superpoints and the point-to-voxel `inverse` map, so the two scenes are collated with
-    `inverse` offset to the packed voxel rows. The snapshot is the last layer's class logits, scores and mask logits.
+    `cat_keys=[DataKeys.INVERSE]` for the point batch. The snapshot is the last layer's class logits, scores and mask
+    logits.
     """
     if not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
@@ -762,9 +763,6 @@ def test_pretrained_spformer(
 
     dataset = dataset_factory("scannet20_superpoint", transform=info["transform"])
     data = collate([dataset[0], dataset[1]], cat_keys=[DataKeys.INVERSE])
-    data[DataKeys.INVERSE] = offset_index(
-        data[DataKeys.INVERSE], data[f"batch_{DataKeys.INVERSE}"], data[DataKeys.BATCH]
-    )
     data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
     with torch.no_grad():
         output = model(*select_inputs(data, info["input_keys"]))

@@ -1,10 +1,12 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pytest
 import torch
+from torch import Tensor
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.spformer import SPFormerInstanceSegmentation, SPFormerOutput, SPFormerQueryDecoder
-from torch_pointcloud.utils.data import offset_index
+from torch_pointcloud.utils.data import DataKeys, collate, select_inputs
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 _REQUIRES_SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
@@ -31,6 +33,28 @@ def _model(**kwargs: Any) -> SPFormerInstanceSegmentation:
     )
     hparams.update(kwargs)
     return SPFormerInstanceSegmentation(6, 3, **hparams).eval()
+
+
+def _scenes() -> List[Dict[str, Tensor]]:
+    """Two voxelized scenes sharing the grid corner (7, 7, 7), so they get one spatial shape alone or collated."""
+    torch.manual_seed(0)
+    scenes = []
+    for num_voxels, num_points in ((40, 70), (60, 90)):
+        flat = torch.cat([torch.randperm(8**3 - 1)[: num_voxels - 1], torch.tensor([8**3 - 1])])
+        scene = {
+            DataKeys.X: torch.randn(num_voxels, 6),
+            DataKeys.POS_GRID: torch.stack([flat // 64, flat // 8 % 8, flat % 8], dim=1),
+            DataKeys.SUPERPOINT: torch.randint(0, 9, (num_points,)),
+            DataKeys.INVERSE: torch.randint(0, num_voxels, (num_points,)),
+        }
+        scenes.append(scene)
+    return scenes
+
+
+def _inputs(scenes: List[Dict[str, Tensor]]) -> List[Tensor]:
+    data = collate(scenes, batch_from=DataKeys.POS_GRID, cat_keys=[DataKeys.INVERSE])
+    input_keys = model_info("spformer.scannet.jiahao-sun", task="instance-segmentation")["input_keys"]
+    return [value.cuda() for value in select_inputs(data, input_keys)]
 
 
 def test_query_decoder_predicts_after_every_layer() -> None:
@@ -101,18 +125,9 @@ def test_reset_classifier_rebuilds_the_class_head_only() -> None:
 @_REQUIRES_CUDA
 def test_forward_and_decode() -> None:
     model = _model().cuda()
-    torch.manual_seed(0)
-    voxels, points = [40, 60], [70, 90]
-    pos_grid = torch.cat([torch.randperm(8**3)[:n] for n in voxels])
-    pos_grid = torch.stack([pos_grid // 64, pos_grid // 8 % 8, pos_grid % 8], dim=1)
-    batch = torch.repeat_interleave(torch.arange(2), torch.tensor(voxels))
-    inverse = torch.cat([torch.randint(0, v, (p,)) for v, p in zip(voxels, points)])
-    batch_inverse = torch.repeat_interleave(torch.arange(2), torch.tensor(points))
-    inverse = offset_index(inverse, batch_inverse, batch)
-    superpoint = torch.cat([torch.randint(0, 9, (p,)) for p in points])
-    data = [t.cuda() for t in (torch.randn(sum(voxels), 6), pos_grid, batch, superpoint, inverse)]
+    points = [70, 90]
     with torch.no_grad():
-        output = model(*data)
+        output = model(*_inputs(_scenes()))
         instances = model.decode(output)
 
     num_superpoints = output["superpoint_batch"].shape[0]
@@ -122,3 +137,18 @@ def test_forward_and_decode() -> None:
     assert len(output["aux_outputs"]) == 1
     assert instances["masks"].shape == (10, sum(points))
     assert not instances["masks"][instances["batch"] == 0, points[0] :].any()
+
+
+@_REQUIRES_SPCONV
+@_REQUIRES_CUDA
+def test_forward_scenes_are_independent() -> None:
+    """Collated through the registered input keys, a scene predicts what it predicts alone."""
+    model = _model().cuda()
+    scenes = _scenes()
+    with torch.no_grad():
+        together = model(*_inputs(scenes))
+        alone = model(*_inputs(scenes[1:]))
+    num_superpoints = int((together["superpoint_batch"] == 0).sum())
+    torch.testing.assert_close(together["class_logits"][1:], alone["class_logits"], atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(together["scores"][1:], alone["scores"], atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(together["mask_logits"][:, num_superpoints:], alone["mask_logits"], atol=1e-4, rtol=1e-4)

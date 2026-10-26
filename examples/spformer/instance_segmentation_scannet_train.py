@@ -20,7 +20,7 @@ from torch_pointcloud.losses import SPFormerLoss
 from torch_pointcloud.metrics import instance_average_precision, instance_matches
 from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
 from torch_pointcloud.models import SPFormerInstanceSegmentation, create_model, model_info
-from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, offset_index
+from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
 CPU_COUNT = os.cpu_count()
@@ -143,7 +143,13 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
         num_workers=args.num_workers,
         cat_keys=[DataKeys.INVERSE],
     )
-    val_loader = PointCloudDataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.num_workers)
+    val_loader = PointCloudDataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=args.num_workers,
+        cat_keys=[DataKeys.INVERSE],
+    )
 
     return train_loader, val_loader
 
@@ -176,13 +182,13 @@ def train_one_epoch(
     totals: Dict[str, float] = {}
     for data in tqdm(loader, desc="Training", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
-        inverse = offset_index(data[DataKeys.INVERSE], data[f"batch_{DataKeys.INVERSE}"], data[DataKeys.BATCH])
         output = model(
             data[DataKeys.X],
             data[DataKeys.POS_GRID],
             data[DataKeys.BATCH],
             data[DataKeys.SUPERPOINT],
-            inverse,
+            data[DataKeys.INVERSE],
+            data[DataKeys.BATCH_INVERSE],
         )
         losses = criterion(output, data)
 
@@ -207,6 +213,7 @@ def evaluate(model: SPFormerInstanceSegmentation, loader: DataLoader, device: st
             data[DataKeys.BATCH],
             data[DataKeys.SUPERPOINT],
             data[DataKeys.INVERSE],
+            data[DataKeys.BATCH_INVERSE],
         )
         instances = model.decode(output)
         masks, labels, scores = instances["masks"], instances["labels"], instances["scores"]
@@ -217,6 +224,7 @@ def evaluate(model: SPFormerInstanceSegmentation, loader: DataLoader, device: st
             scores[keep],
             data[DataKeys.ORIGIN_INSTANCE],
             data[DataKeys.ORIGIN_SEGMENT],
+            batch=data[DataKeys.BATCH_INVERSE],
         )
         matches.append(match)
 

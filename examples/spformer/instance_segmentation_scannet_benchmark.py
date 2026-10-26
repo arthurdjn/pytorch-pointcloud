@@ -75,7 +75,13 @@ def configure_dataset(args: Namespace) -> Dataset:
 
 def configure_dataloader(args: Namespace) -> DataLoader:
     dataset = configure_dataset(args)
-    return PointCloudDataLoader(dataset, batch_size=1, shuffle=False, num_workers=args.num_workers)
+    return PointCloudDataLoader(
+        dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=args.num_workers,
+        cat_keys=[DataKeys.INVERSE],
+    )
 
 
 def configure_model(args: Namespace) -> SPFormerInstanceSegmentation:
@@ -97,6 +103,7 @@ def evaluate(model: SPFormerInstanceSegmentation, dataloader: DataLoader, device
             data[DataKeys.BATCH],
             data[DataKeys.SUPERPOINT],
             data[DataKeys.INVERSE],
+            data[DataKeys.BATCH_INVERSE],
         )
         instances = model.decode(output)
         masks, labels, scores = instances["masks"], instances["labels"], instances["scores"]
@@ -107,6 +114,7 @@ def evaluate(model: SPFormerInstanceSegmentation, dataloader: DataLoader, device
             scores[keep],
             data[DataKeys.ORIGIN_INSTANCE],
             data[DataKeys.ORIGIN_SEGMENT],
+            batch=data[DataKeys.BATCH_INVERSE],
         )
         matches.append(match)
 

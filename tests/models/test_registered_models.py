@@ -626,8 +626,9 @@ def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, 
     """Synthetic sparse-voxel inputs for spconv / superpoint models.
 
     `pos_grid` holds unique integer voxel coords per scene (no duplicates, so submanifold
-    convs are well defined); each point is its own voxel (`inverse`) and superpoint, re-based
-    per scene so ids are globally disjoint. Point-based models ignore these keys.
+    convs are well defined); each point is its own voxel (`inverse`, per scene, with its scene index
+    `batch_inverse`) and superpoint, re-based per scene so ids are globally disjoint. Point-based models
+    ignore these keys.
     """
     gen = torch.Generator().manual_seed(42)
     grid_parts: List[torch.Tensor] = []
@@ -641,7 +642,8 @@ def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, 
     return {
         "pos_grid": torch.cat(grid_parts).long(),
         "superpoint": torch.cat(superpoint_parts).long(),
-        "inverse": torch.arange(int(lengths.sum())),
+        "inverse": torch.cat([torch.arange(length) for length in lengths.tolist()]),
+        "batch_inverse": torch.repeat_interleave(torch.arange(len(lengths)), lengths),
     }
 
 

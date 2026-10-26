@@ -17,7 +17,7 @@ from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder
 from torch_pointcloud.ops.superpoint import superpoint_pool
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.data import DataKeys, offset_index
 from torch_pointcloud.utils.types import InstanceSegmentation3D
 
 if TYPE_CHECKING:
@@ -207,9 +207,10 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
     superpoints. `decode` keeps the `num_instances` best (query, class) pairs of every scene and expands their masks
     to the points.
 
-    `forward` takes the voxelized scene and two per-point maps: `inverse`, the packed voxel row of every point (offset
-    with `offset_index` when several scenes are collated), and `superpoint`, the superpoint id of every point within
-    its scene (any integer ids).
+    `forward` takes the voxelized scenes (`x`, `pos_grid` and the voxel `batch`) and three per-point tensors:
+    `superpoint`, the superpoint id of every point within its scene (any integer ids), `inverse`, the voxel row of
+    every point within its scene, and `batch_inverse`, the scene of every point. Collating with
+    `cat_keys=[DataKeys.INVERSE]` produces `batch_inverse`.
 
     Args:
         in_channels: Number of input voxel feature channels.
@@ -233,7 +234,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
 
     Shape:
         - Input: voxel features $(V, \text{in\_channels})$, voxel grid coordinates $(V, 3)$, voxel batch $(V,)$,
-          point superpoint ids $(N,)$ and point-to-voxel `inverse` $(N,)$.
+          point superpoint ids $(N,)$, point-to-voxel `inverse` $(N,)$ and point batch $(N,)$.
         - Output: `SPFormerOutput`, decoded by `decode` into $(K, N)$ instance masks.
     """
 
@@ -337,6 +338,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
         batch: Tensor,
         superpoint: Tensor,
         inverse: Tensor,
+        batch_inverse: Tensor,
     ) -> Tuple[Tensor, Tensor, Tensor]:
         r"""Encode the voxels and average their features over each superpoint.
 
@@ -345,7 +347,8 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
             pos_grid: Voxel grid coordinates, shape $(V, 3)$.
             batch: Voxel batch index, shape $(V,)$.
             superpoint: Superpoint id of every point within its scene, shape $(N,)$.
-            inverse: Packed voxel row of every point, shape $(N,)$.
+            inverse: Voxel row of every point within its scene, shape $(N,)$.
+            batch_inverse: Scene index of every point, shape $(N,)$.
 
         Returns:
             The superpoint features $(S, C)$, the packed superpoint index of every point $(N,)$ and the scene index
@@ -353,7 +356,8 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
         """
         bottleneck, skips = self.encoder(x, pos_grid, batch, return_intermediates=True)
         sparse_x: "SparseConvTensor" = self.decoder(bottleneck, skips)
-        return superpoint_pool(sparse_x.features[inverse], superpoint, batch[inverse])
+        inverse = offset_index(inverse, batch_inverse, batch)
+        return superpoint_pool(sparse_x.features[inverse], superpoint, batch_inverse)
 
     def forward_head(self, x: Tensor, superpoint: Tensor, superpoint_batch: Tensor) -> SPFormerOutput:
         r"""Predict the instance candidates of every scene from its superpoint features.
@@ -383,8 +387,16 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
         batch: Tensor,
         superpoint: Tensor,
         inverse: Tensor,
+        batch_inverse: Tensor,
     ) -> SPFormerOutput:
-        features, superpoint, superpoint_batch = self.forward_features(x, pos_grid, batch, superpoint, inverse)
+        features, superpoint, superpoint_batch = self.forward_features(
+            x,
+            pos_grid,
+            batch,
+            superpoint,
+            inverse,
+            batch_inverse,
+        )
         return self.forward_head(features, superpoint, superpoint_batch)
 
     @torch.no_grad()
@@ -399,7 +411,8 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
             output: The `forward` output.
 
         Returns:
-            The packed instances: `masks` $(K, N)$ over the input points, `labels`, `scores` and `batch` $(K,)$.
+            The packed instances: `masks` $(K, N)$ over the points of the batch (false outside the instance's scene),
+            `labels`, `scores` and `batch` $(K,)$.
         """
         class_scores = output["class_logits"].softmax(dim=-1)[..., :-1] * output["scores"][..., None]
         superpoint_batch = output["superpoint_batch"]
@@ -429,7 +442,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
 @register_model(
     "spformer.scannet.jiahao-sun",
     task="instance-segmentation",
-    input_keys=("x", "pos_grid", "batch", "superpoint", "inverse"),
+    input_keys=("x", "pos_grid", "batch", "superpoint", "inverse", "batch_inverse"),
     weights=WeightsDict(
         url="hf://torch-pointcloud/spformer.scannet.jiahao-sun/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet",
