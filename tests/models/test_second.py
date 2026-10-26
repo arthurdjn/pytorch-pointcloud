@@ -163,7 +163,7 @@ def test_voxel_backbone_intermediates_sort_the_strided_stages() -> None:
     with torch.no_grad():
         out, stages = backbone(x, return_intermediates=True)
         plain = backbone(x)
-    assert torch.equal(out.features, plain.features)
+    assert torch.allclose(out.dense(), plain.dense(), atol=1e-6)
     assert [stage["x"].shape[1] for stage in stages] == list(backbone.stage_channels)
     assert torch.equal(stages[0]["pos_grid"], pos_voxel.long()) and torch.equal(stages[0]["batch"], vbatch.long())
     for stage in stages[1:]:

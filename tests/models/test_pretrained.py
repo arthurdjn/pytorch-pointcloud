@@ -697,14 +697,9 @@ def test_pretrained_pv_rcnn(
         model.in_channels
     )
     with torch.no_grad():
-        features, bev, stage_features, stage_indices = model.encode(
-            voxels,
-            pos_voxel,
-            num_points,
-            batch_voxel,
-        )
+        features, bev, stages = model.encode(voxels, pos_voxel, num_points, batch_voxel)
         out = model.forward_head(features)
-        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, x, pos, batch, stage_features, stage_indices, bev)
+        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, x, pos, batch, stages, bev)
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
@@ -728,9 +723,9 @@ def test_pretrained_voxel_rcnn(
 
     voxels, pos_voxel, num_points, batch_voxel, _, _, _, rois, roi_batch = _kitti_two_stage_inputs(model.in_channels)
     with torch.no_grad():
-        features, stage_features, stage_indices = model.encode(voxels, pos_voxel, num_points, batch_voxel)
+        features, stages = model.encode(voxels, pos_voxel, num_points, batch_voxel)
         out = model.forward_head(features)
-        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, stage_features, stage_indices)
+        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, stages)
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
