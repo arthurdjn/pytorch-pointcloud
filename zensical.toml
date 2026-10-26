@@ -286,6 +286,7 @@ nav = [
             { "hilbert" = "api/ops/hilbert.md" },
             { "math" = "api/ops/math.md" },
             { "octree" = "api/ops/octree.md" },
+            { "roi" = "api/ops/roi.md" },
             { "serialization" = "api/ops/serialization.md" },
             { "voxelization" = "api/ops/voxelization.md" },
         ] },

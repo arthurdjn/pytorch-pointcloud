@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.losses import RoIHeadLoss, roi_head_loss
-from torch_pointcloud.ops.box3d import encode_roi_residuals
+from torch_pointcloud.ops.roi import encode_roi_residuals
 from torch_pointcloud.utils.data import DataKeys
 
 CLS_FOREGROUND, CLS_BACKGROUND, REG_FOREGROUND = 0.75, 0.25, 0.55

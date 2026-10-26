@@ -15,7 +15,8 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadOutput
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock
-from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d, roi_aware_pool3d
+from torch_pointcloud.ops.box3d import nms3d
+from torch_pointcloud.ops.roi import decode_roi_residuals, roi_aware_pool3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D
@@ -269,7 +270,7 @@ class PartA2Detection(DetectionModel):
     [`SECONDDetection`][torch_pointcloud.models.second.SECONDDetection] whose best anchors after rotated NMS become
     the RoIs, with a [`SparseUNetDecoder`][torch_pointcloud.models.parta2.SparseUNetDecoder] that decodes the sparse
     stages back to the input voxels. Every voxel predicts a foreground score and its intra-object part location;
-    both are pooled inside every RoI by [`roi_aware_pool3d`][torch_pointcloud.ops.box3d.roi_aware_pool3d] and
+    both are pooled inside every RoI by [`roi_aware_pool3d`][torch_pointcloud.ops.roi.roi_aware_pool3d] and
     aggregated by [`PartA2BoxHead`][torch_pointcloud.models.parta2.PartA2BoxHead].
 
     Args:

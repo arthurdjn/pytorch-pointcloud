@@ -14,8 +14,9 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadOutput
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2QuerySetAbstraction
-from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d, roi_grid_points
+from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.ops.cluster import fps
+from torch_pointcloud.ops.roi import decode_roi_residuals, roi_grid_points
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D

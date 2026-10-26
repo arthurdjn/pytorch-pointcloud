@@ -1,6 +1,6 @@
 r"""Loss of the RoI refinement heads of the two-stage detectors.
 
-The RoIs are sampled and matched to the ground truth by [`sample_rois`][torch_pointcloud.ops.box3d.sample_rois]
+The RoIs are sampled and matched to the ground truth by [`sample_rois`][torch_pointcloud.ops.roi.sample_rois]
 during the training forward; [`roi_head_loss`][torch_pointcloud.losses.roi_head.roi_head_loss] then supervises
 the confidence logit and the box residuals of every sampled RoI:
 
@@ -31,7 +31,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from torch_pointcloud.losses.corner import corner_loss
-from torch_pointcloud.ops.box3d import decode_roi_residuals, encode_roi_residuals
+from torch_pointcloud.ops.roi import decode_roi_residuals, encode_roi_residuals
 from torch_pointcloud.utils.data import DataKeys
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ def roi_head_loss(
     `[cls_background_threshold, cls_foreground_threshold]` onto $[0, 1]$ and clamped; the binary cross-entropy is
     averaged over the RoIs. The RoIs whose IoU exceeds `reg_foreground_threshold` regress their matched box: the
     code-weighted smooth-$L_1$ of the residuals against
-    [`encode_roi_residuals`][torch_pointcloud.ops.box3d.encode_roi_residuals] is summed over the codes and averaged
+    [`encode_roi_residuals`][torch_pointcloud.ops.roi.encode_roi_residuals] is summed over the codes and averaged
     over these RoIs, and the [`corner_loss`][torch_pointcloud.losses.corner.corner_loss] of the decoded boxes is
     averaged over them.
 

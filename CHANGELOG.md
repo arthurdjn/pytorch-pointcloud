@@ -31,9 +31,9 @@ All notable changes to this project are documented in this file. The format is b
 - `read_state_dict` reads the objects of a checkpoint other than tensors (training hyperparameters, optimizer configurations) as inert placeholders, so Lightning checkpoints that pickle them load with `weights_only=True`.
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
-- Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added `ops.roi.roi_aware_pool3d`, `ops.roi.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark and training scripts.
-- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `ops.box3d.sample_rois` and `nms3d(max_candidates=...)`.
+- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `nms3d(max_candidates=...)`.
 - Added `datasets.kitti.kitti_difficulty`.
 
 ## 0.0.18 (2026-10-20)
