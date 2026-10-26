@@ -72,7 +72,7 @@ class CurveNetEncoder(nn.Module):
         self.channels = ensure_list(channels)
         self.stages = nn.ModuleList()
         for i, out_channels in enumerate(self.channels):
-            num_curves, curve_length = curves[i] if curves[i] is not None else (None, None)  # type: ignore[misc]
+            num_curves, curve_length = curves[i] or (None, None)
             stage = nn.ModuleList()
             for j in range(blocks[i]):
                 block = CurveInterventionConv(
@@ -656,7 +656,10 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         stages = intermediates[len(intermediates) - len(self.global_embed) + 1 :] + [
             FeaturesDict(x=x, pos=pos, batch=batch)
         ]
-        embeddings = [global_max_pool(mlp(stage["x"]), stage["batch"]) for mlp, stage in zip(self.global_embed, stages)]
+        embeddings = [
+            global_max_pool(mlp(stage["x"]), stage["batch"], size=category.size(0))
+            for mlp, stage in zip(self.global_embed, stages)
+        ]
         embedding = torch.cat(embeddings + [category], dim=1)  # (B, sum(global_channels) + num_categories)
 
         x, pos, batch = self.decoder(x, pos, batch, intermediates)

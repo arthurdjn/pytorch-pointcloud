@@ -552,7 +552,8 @@ class CurveInterventionConv(nn.Module):
 
         shortcut = x
         x = self.conv1(x)
-        # The point itself heads every row: the local aggregation keeps it, the curve walk steps past it.
+        # The point itself (or a point at the same position) heads every row: the local aggregation keeps it, the curve
+        # walk steps past it.
         table = knn_table(pos, pos, self.num_neighbors + 1, batch_x=batch, batch_y=batch)
         if self.curve_grouping is not None and self.curve_aggregation is not None:
             curves = self.curve_grouping(x, batch, table[:, 1:])

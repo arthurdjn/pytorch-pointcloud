@@ -131,8 +131,8 @@ def knn_graph(
 def knn_table(x: Tensor, y: Tensor, k: int, batch_x: OptTensor = None, batch_y: OptTensor = None) -> Tensor:
     r"""The $k$ nearest neighbors in $x$ of every point of $y$ as a $(M, k)$ index table, closest first.
 
-    Wraps `knn`. When a point of $y$ coincides with a point of $x$ (`knn_table(pos, pos, k)`), that point is its own
-    first neighbor.
+    Wraps `knn`. In `knn_table(pos, pos, k)`, every point heads its own row unless other points share its position:
+    the order among equal distances is unspecified.
 
     Args:
         x: Source positions, shape $(N, d)$.
