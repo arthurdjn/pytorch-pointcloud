@@ -341,7 +341,11 @@ class SparseBasicBlock(SparseModule):
             )
         else:
             self.conv1 = StridedSparseConv3d(
-                in_channels, out_channels, kernel_size=kernel_size, stride=stride, bias=bias
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                bias=bias,
             )
         self.norm1 = create_norm(norm, out_channels, **norm_kwargs) or nn.Identity()
         self.conv2 = spconv.SubMConv3d(

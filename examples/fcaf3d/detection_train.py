@@ -119,7 +119,8 @@ def configure_train_transform(args: Namespace) -> T.Transform:
     steps = [
         T.Relabel(keys=DataKeys.SEGMENT, labels=labels, default=-1),
         T.RandomSample(
-            keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE], num_samples=NUM_POINTS
+            keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
+            num_samples=NUM_POINTS,
         ),
         T.RandomFlip(keys=DataKeys.POS, axes=(0,), p=0.5),
         T.RandomFlip(keys=DataKeys.POS, axes=(1,), p=0.5),
