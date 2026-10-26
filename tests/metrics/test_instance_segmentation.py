@@ -79,25 +79,29 @@ def test_instance_average_precision_hand_scenario() -> None:
 
 
 def test_instance_average_precision_void_overlap_excused() -> None:
-    """An unmatched prediction on void points is excused; on valid non-instance points it is a false positive.
+    """An unmatched prediction on void points is excused; on another class's instance it is a false positive.
 
-    With the second mask fully on void points the metric stays 1.0. Relabeling that region to a valid
-    class (still without an instance) turns the same mask into a false positive above the true
-    positive: precision at full recall is 0.5 and the centered-step integral drops to 0.25.
+    Void points carry the ignore label or no instance (a valid label without an instance is void too, as in the
+    ScanNet evaluation). With the second mask fully on void points the metric stays 1.0. Moving that region onto an
+    instance of another class turns the same mask into a false positive above the true positive: precision at full
+    recall is 0.5 and the centered-step integral drops to 0.25.
     """
-    gt_instance = torch.tensor([0] * 10 + [-1] * 10)
     masks = torch.stack([_mask(20, list(range(0, 10))), _mask(20, list(range(10, 20)))])
     labels = torch.tensor([0, 0])
     scores = torch.tensor([0.9, 0.95])
 
-    gt_void = torch.tensor([0] * 10 + [-1] * 10)
-    match = instance_matches(masks, labels, scores, gt_instance, gt_void)
-    assert instance_average_precision([match], num_classes=1, min_points=1) == pytest.approx(1.0)
+    gt_instance = torch.tensor([0] * 10 + [-1] * 10)
+    for gt_label in (torch.tensor([0] * 10 + [-1] * 10), torch.tensor([0] * 20)):
+        match = instance_matches(masks, labels, scores, gt_instance, gt_label)
+        assert match["pred_void"].tolist() == [0, 10]
+        assert instance_average_precision([match], num_classes=1, min_points=1) == pytest.approx(1.0)
 
-    gt_valid = torch.tensor([0] * 20)
-    match = instance_matches(masks, labels, scores, gt_instance, gt_valid)
-    assert instance_average_precision([match], num_classes=1, min_points=1) == pytest.approx(0.25)
-    assert instance_average_precision([match], iou_threshold=0.25, min_points=1) == pytest.approx(0.25)
+    gt_instance = torch.tensor([0] * 10 + [1] * 10)
+    gt_label = torch.tensor([0] * 10 + [1] * 10)
+    match = instance_matches(masks, labels, scores, gt_instance, gt_label)
+    assert instance_average_precision([match], average="none", num_classes=2, min_points=1)[0] == pytest.approx(0.25)
+    per_class = instance_average_precision([match], iou_threshold=0.25, average="none", num_classes=2, min_points=1)
+    assert per_class[0] == pytest.approx(0.25)
 
 
 def test_instance_average_precision_min_points_gates() -> None:

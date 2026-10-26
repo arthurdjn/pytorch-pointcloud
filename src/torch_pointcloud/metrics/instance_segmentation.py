@@ -55,9 +55,9 @@ def instance_matches(
     mask-sized outlives the call and a whole validation split can be accumulated scene by scene.
 
     Ground truth instances are the unique `gt_instance` ids among points with a non-negative id and a
-    valid semantic label; points whose `gt_label` equals `ignore_index` are void, and predictions
-    overlapping them are excused accordingly during scoring. Each instance must carry a single semantic
-    label. Intersections are recorded for same-class (prediction, instance) pairs only.
+    valid semantic label; points whose `gt_label` equals `ignore_index` or that belong to no instance are void,
+    and predictions overlapping them are excused accordingly during scoring. Each instance must carry a single
+    semantic label. Intersections are recorded for same-class (prediction, instance) pairs only.
 
     Args:
         pred_masks: Per-instance point masks, shape $(K, N)$ bool.
@@ -87,7 +87,7 @@ def instance_matches(
     gt_label = gt_label.long()
 
     valid = (gt_label != ignore_index) & (gt_instance >= 0)
-    void = gt_label == ignore_index
+    void = (gt_label == ignore_index) | (gt_instance < 0)
     inverse = torch.unique(gt_instance[valid], return_inverse=True)[1]
     num_instances = int(inverse.max().item()) + 1 if inverse.numel() else 0
     gt_counts = torch.bincount(inverse, minlength=num_instances)
