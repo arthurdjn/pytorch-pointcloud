@@ -59,7 +59,7 @@ class FCAF3DOutput(TypedDict):
     level: Tensor
 
 
-class SparseResNetEncoder(nn.Module):
+class FCAF3DEncoder(nn.Module):
     r"""Residual encoder over sparse voxels: a strided stem and stages of residual blocks, each halving the resolution.
 
     The stem is a strided $3 \times 3 \times 3$ convolution, a normalization, an activation and a $2 \times 2 \times 2$
@@ -83,9 +83,9 @@ class SparseResNetEncoder(nn.Module):
         ```python
         import spconv.pytorch as spconv
         import torch
-        from torch_pointcloud.models.fcaf3d import SparseResNetEncoder
+        from torch_pointcloud.models.fcaf3d import FCAF3DEncoder
 
-        encoder = SparseResNetEncoder(3, 64, channels=(64, 128), depths=(2, 2)).cuda()
+        encoder = FCAF3DEncoder(3, 64, channels=(64, 128), depths=(2, 2)).cuda()
         indices = torch.randint(0, 64, (1000, 4), dtype=torch.int32, device="cuda")
         indices[:, 0] = 0
         indices = torch.unique(indices, dim=0)
@@ -315,7 +315,7 @@ class FCAF3DDetection(DetectionModel):
     (Rukhovich et al., 2022).
 
     The points are voxelized at `voxel_size` (the first point of a voxel gives its features) and encoded by a
-    [`SparseResNetEncoder`][torch_pointcloud.models.fcaf3d.SparseResNetEncoder] into four stages of strides $8$ to
+    [`FCAF3DEncoder`][torch_pointcloud.models.fcaf3d.FCAF3DEncoder] into four stages of strides $8$ to
     $64$, which [`FCAF3DHead`][torch_pointcloud.models.fcaf3d.FCAF3DHead] turns into a pruned pyramid of per-voxel
     predictions. Every voxel regresses the distances to the faces of its box, and for oriented boxes a heading code
     of its aspect ratio that a quarter turn leaves invariant.
@@ -381,9 +381,9 @@ class FCAF3DDetection(DetectionModel):
         self.encoder = self.configure_encoder()
         self.head = self.configure_head()
 
-    def configure_encoder(self) -> SparseResNetEncoder:
+    def configure_encoder(self) -> FCAF3DEncoder:
         """Build the sparse residual encoder."""
-        return SparseResNetEncoder(
+        return FCAF3DEncoder(
             self.in_channels,
             self.stem_channels,
             channels=self.encoder_channels,

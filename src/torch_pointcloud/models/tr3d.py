@@ -22,7 +22,7 @@ from torch_pointcloud.utils.types import Detection3D
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
-from .fcaf3d import SparseResNetEncoder
+from .fcaf3d import FCAF3DEncoder
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -127,7 +127,7 @@ class TR3DDetection(DetectionModel):
     (Rukhovich et al., 2023).
 
     The points are voxelized at `voxel_size` (the first point of a voxel gives its features) and encoded by a
-    [`SparseResNetEncoder`][torch_pointcloud.models.fcaf3d.SparseResNetEncoder] into four stages of strides $8$ to
+    [`FCAF3DEncoder`][torch_pointcloud.models.fcaf3d.FCAF3DEncoder] into four stages of strides $8$ to
     $64$. A [`TR3DNeck`][torch_pointcloud.models.tr3d.TR3DNeck] over the last three stages yields two levels, of
     strides $16$ and $32$, where every voxel predicts class logits, the offset to its box center and the box size,
     and for oriented boxes a heading code of its aspect ratio that a quarter turn leaves invariant.
@@ -193,9 +193,9 @@ class TR3DDetection(DetectionModel):
         self.cls = self.configure_head()
         nn.init.normal_(self.box.weight, std=0.01)
 
-    def configure_encoder(self) -> SparseResNetEncoder:
+    def configure_encoder(self) -> FCAF3DEncoder:
         """Build the sparse residual encoder."""
-        return SparseResNetEncoder(
+        return FCAF3DEncoder(
             self.in_channels,
             self.stem_channels,
             channels=self.encoder_channels,
