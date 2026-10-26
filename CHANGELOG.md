@@ -36,6 +36,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added SECOND-IoU (`SECONDIoUDetection`) with `second-iou.kitti.openpcdet`, and the checkpoints `pointrcnn-iou.kitti.openpcdet` and `3detr-m.sunrgbd.fair`.
 - Added `PointPillarsFPNDetection`, the `BEVPyramidBackbone` layer and `MultiLevelAnchorHead`.
 - `AnchorHead` takes anchor templates shared by all classes, an `anchor_range`, `align_center` and a `code_size` carrying velocity.
+- `AnchorHeadLoss` takes the `anchor_range` and `align_center` of its head. Omitting `dir_offset` from `AnchorHead` or `AnchorHeadLoss` warns, and is an error from 0.0.20.
 - Added `ops.voxelization.dynamic_voxelize` and the `DynamicVoxelize` transform.
 
 ## 0.0.18 (2026-10-20)

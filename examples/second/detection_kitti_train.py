@@ -42,6 +42,7 @@ SAMPLES_PER_CLASS = {0: 20, 1: 15, 2: 15}
 MIN_OBJECT_POINTS = 5
 MATCHED_THRESHOLDS = (0.6, 0.5, 0.5)
 UNMATCHED_THRESHOLDS = (0.45, 0.35, 0.35)
+DIR_OFFSET = 0.78539
 GRAD_CLIP_NORM = 10.0
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.01
@@ -243,6 +244,7 @@ def configure_criterion(args: Namespace) -> AnchorHeadLoss:
         cls_weight=1.0,
         loc_weight=2.0,
         dir_weight=0.2,
+        dir_offset=DIR_OFFSET,
     ).to(args.device)
 
 
