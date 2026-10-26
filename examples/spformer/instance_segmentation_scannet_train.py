@@ -27,7 +27,8 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 MODEL = "spformer.scannet.jiahao-sun"
-NUM_CLASSES = 18
+SCORE_THRESHOLD = 0.0
+MIN_POINTS = 100
 POINT_KEYS = [DataKeys.X, DataKeys.SEGMENT, DataKeys.INSTANCE, DataKeys.SUPERPOINT]
 
 TRAIN_TRANSFORM = T.Compose(
@@ -71,7 +72,7 @@ def main() -> None:
 
     train_loader, val_loader = configure_dataloaders(args)
     model = configure_model(args)
-    criterion = configure_criterion(args)
+    criterion = configure_criterion(args, model)
     optimizer, scheduler = configure_optimizers(args, model)
 
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
@@ -167,8 +168,8 @@ def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, 
     return optimizer, scheduler
 
 
-def configure_criterion(args: Namespace) -> nn.Module:
-    return SPFormerLoss(num_classes=NUM_CLASSES).to(args.device)
+def configure_criterion(args: Namespace, model: SPFormerInstanceSegmentation) -> nn.Module:
+    return SPFormerLoss(num_classes=model.num_classes).to(args.device)
 
 
 def train_one_epoch(
@@ -217,7 +218,7 @@ def evaluate(model: SPFormerInstanceSegmentation, loader: DataLoader, device: st
         )
         instances = model.decode(output)
         masks, labels, scores = instances["masks"], instances["labels"], instances["scores"]
-        keep = (scores > 0) & (masks.sum(dim=1) > 100)
+        keep = (scores > SCORE_THRESHOLD) & (masks.sum(dim=1) > MIN_POINTS)
         match = instance_matches(
             masks[keep],
             labels[keep],
@@ -228,10 +229,21 @@ def evaluate(model: SPFormerInstanceSegmentation, loader: DataLoader, device: st
         )
         matches.append(match)
 
+    num_classes = model.num_classes
     return {
-        "mAP": instance_average_precision(matches, num_classes=NUM_CLASSES),
-        "mAP@0.5": instance_average_precision(matches, iou_threshold=0.5, num_classes=NUM_CLASSES),
-        "mAP@0.25": instance_average_precision(matches, iou_threshold=0.25, num_classes=NUM_CLASSES),
+        "mAP": instance_average_precision(matches, num_classes=num_classes, min_points=MIN_POINTS),
+        "mAP@0.5": instance_average_precision(
+            matches,
+            iou_threshold=0.5,
+            num_classes=num_classes,
+            min_points=MIN_POINTS,
+        ),
+        "mAP@0.25": instance_average_precision(
+            matches,
+            iou_threshold=0.25,
+            num_classes=num_classes,
+            min_points=MIN_POINTS,
+        ),
     }
 
 

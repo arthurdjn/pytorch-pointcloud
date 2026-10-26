@@ -107,6 +107,7 @@ def evaluate(model: SPFormerInstanceSegmentation, dataloader: DataLoader, device
         )
         instances = model.decode(output)
         masks, labels, scores = instances["masks"], instances["labels"], instances["scores"]
+        # SPFormer keeps masks of more than MIN_POINTS points, the protocol scores instances of at least MIN_POINTS.
         keep = (scores > SCORE_THRESHOLD) & (masks.sum(dim=1) > MIN_POINTS)
         match = instance_matches(
             masks[keep],
@@ -118,10 +119,21 @@ def evaluate(model: SPFormerInstanceSegmentation, dataloader: DataLoader, device
         )
         matches.append(match)
 
+    num_classes = model.num_classes
     return {
-        "mAP": instance_average_precision(matches, num_classes=model.num_classes),
-        "mAP@0.5": instance_average_precision(matches, iou_threshold=0.5, num_classes=model.num_classes),
-        "mAP@0.25": instance_average_precision(matches, iou_threshold=0.25, num_classes=model.num_classes),
+        "mAP": instance_average_precision(matches, num_classes=num_classes, min_points=MIN_POINTS),
+        "mAP@0.5": instance_average_precision(
+            matches,
+            iou_threshold=0.5,
+            num_classes=num_classes,
+            min_points=MIN_POINTS,
+        ),
+        "mAP@0.25": instance_average_precision(
+            matches,
+            iou_threshold=0.25,
+            num_classes=num_classes,
+            min_points=MIN_POINTS,
+        ),
     }
 
 
