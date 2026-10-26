@@ -1,0 +1,46 @@
+name: Hub Sync
+
+# The Hub mirrors the registry: the cards, configs and pinned weights are pushed after a change lands on main, so
+# this check runs after such a push and every night, never as a pull request gate.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/torch_pointcloud/models/**"
+      - "tests/models/test_hub_sync.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  audit:
+    name: Compare the Hub with the registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install all dependencies
+        run: uv sync --dev --frozen
+
+      - name: Compare the cards, configs and pinned weights with the registry
+        # An HF_TOKEN secret only raises the API rate limit; the repositories are public.
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run --frozen pytest tests/models/test_hub_sync.py --run-hub -vv
