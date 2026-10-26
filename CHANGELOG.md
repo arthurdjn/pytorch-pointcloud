@@ -35,7 +35,6 @@ All notable changes to this project are documented in this file. The format is b
 - Added Volt (`VoltSegmentation`) with the authors' ScanNet, ScanNet200, nuScenes and SemanticKITTI checkpoints, and their benchmark scripts.
 - Added the `PackedTransformerBlock`, `AxialRoPE` and voxel patch layers, `ops.voxelization.voxel_patch_partition` and the `ClampNorm` transform.
 - Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
-- `read_state_dict` loads the EMA weights of a checkpoint that stores them.
 
 ## 0.0.18 (2026-10-20)
 

@@ -35,13 +35,12 @@ class _PickledObject:
 def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
-    Supports `.safetensors` and `torch.save` files, unwrapping an `ema_state_dict`, `state_dict` or
-    `model_state_dict` key if present, in that order: a training checkpoint that stores an exponential moving average
-    of the weights yields the averaged weights. Lightning checkpoints (identified by their `pytorch-lightning_version`
-    key) are reduced to the wrapped network: only `model.`-prefixed keys are kept, with the prefix stripped.
-    `torch.save` files load with `weights_only=True`; the objects of a zip checkpoint that pickle their class and state
-    (training hyperparameters, optimizer and scheduler configurations) are read as inert placeholders, so their classes
-    are neither imported nor called.
+    Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
+    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped
+    network: only `model.`-prefixed keys are kept, with the prefix stripped. `torch.save` files load with
+    `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
+    optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported
+    nor called.
 
     Args:
         path: Checkpoint file to read.
@@ -70,10 +69,7 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         data = torch.load(path, weights_only=True, map_location="cpu")
 
     state_dict = (
-        next(
-            (data[key] for key in ("ema_state_dict", "state_dict", "model_state_dict") if data.get(key) is not None),
-            data,
-        )
+        next((data[key] for key in ("state_dict", "model_state_dict") if key in data), data)
         if isinstance(data, dict)
         else data
     )
