@@ -382,18 +382,25 @@ class InstanceSegmentationModel(nn.Module, metaclass=ABCMeta):
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         r"""Run the model and return its raw prediction output.
 
-        Canonical signature: `forward(x, pos, batch, superpoint)` with features `x` $(N, C)$, positions `pos`
-        $(N, 3)$, batch index `batch` $(N,)$ and, for superpoint models, the per-point superpoint id `superpoint`
-        $(N,)$ (voxel models take their voxelized layout instead), returning the prediction dict consumed by the
-        training criterion and by `decode`.
+        Canonical signature of point models: `forward(x, pos, batch, superpoint)` with features `x` $(N, C)$,
+        positions `pos` $(N, 3)$, batch index `batch` $(N,)$ and, for superpoint models, the superpoint id of every
+        point within its scene `superpoint` $(N,)$.
+
+        Canonical signature of voxel models: `forward(x, pos_grid, batch, superpoint, inverse, batch_inverse)` with
+        voxel features `x` $(V, C)$, integer voxel coordinates `pos_grid` $(V, 3)$ and voxel batch index `batch`
+        $(V,)$, then per point $(N,)$ the superpoint id `superpoint` and the voxel row `inverse`, both within the
+        point's scene, and the point batch index `batch_inverse` (what `collate` emits for
+        `cat_keys=[DataKeys.INVERSE]`).
+
+        Both return the prediction dict consumed by the training criterion and by `decode`.
         """
 
     @abstractmethod
     def forward_features(self, *args: Any, **kwargs: Any) -> Any:
         r"""Run the backbone on the packed input.
 
-        Canonical signature: `forward_features(x, pos, batch, superpoint)`, returning the features the head
-        predicts over (per point, voxel or superpoint) with the index tensors that place them in the batch.
+        Canonical signature: the inputs of `forward`, returning the features the head predicts over (per point,
+        voxel or superpoint) with the index tensors that place them in the batch.
         """
 
     @abstractmethod
@@ -408,6 +415,7 @@ class InstanceSegmentationModel(nn.Module, metaclass=ABCMeta):
         r"""Decode the raw `forward` output into per-instance point masks.
 
         Canonical signature: `decode(output)`, returning an `InstanceSegmentation3D` with boolean `masks` $(K, N)$
-        over the points of the batch, `labels` $(K,)$, `scores` $(K,)$ and `batch` $(K,)$: the inputs of
-        `metrics.instance_matches`. The decode is raw: no score threshold and no minimum mask size.
+        over the points of the batch, false outside the instance's scene, `labels` $(K,)$, `scores` $(K,)$ and
+        `batch` $(K,)$. `metrics.instance_matches(masks, labels, scores, instance, segment, batch=point_batch)`
+        scores the whole batch in one call. The decode is raw: no score threshold and no minimum mask size.
         """
