@@ -39,11 +39,12 @@ class CurveNetEncoder(nn.Module):
     Args:
         in_channels: Number of input channels.
         channels: Output channels of every stage.
-        blocks: Number of blocks of every stage.
+        depths: Number of blocks of every stage.
         num_points: Points per sample after every stage's subsampling, `None` to keep the points.
-        radius: Ball radius of every stage's subsampling, `None` with `num_points`.
+        radii: Ball radius of every stage's subsampling, `None` with `num_points`.
         num_neighbors: Number of neighbors of every stage.
-        curves: `(num_curves, curve_length)` of every stage, `None` for stages without curves.
+        num_curves: Number of curves per sample of every stage, `None` for stages without curves.
+        curve_lengths: Number of points on the curves of every stage, `None` for stages without curves.
         num_layers: Depth of the local aggregation MLP.
         spatial_dim: Dimension $d$ of the positions.
         act: Activation function.
@@ -56,11 +57,12 @@ class CurveNetEncoder(nn.Module):
         self,
         in_channels: int,
         channels: Sequence[int],
-        blocks: Sequence[int],
+        depths: Sequence[int],
         num_points: Sequence[Optional[int]],
-        radius: Sequence[Optional[float]],
+        radii: Sequence[Optional[float]],
         num_neighbors: Sequence[int],
-        curves: Sequence[Optional[Sequence[int]]],
+        num_curves: Sequence[Optional[int]],
+        curve_lengths: Sequence[Optional[int]],
         num_layers: int = 2,
         spatial_dim: int = 3,
         act: Union[str, Callable, None] = "relu",
@@ -72,9 +74,8 @@ class CurveNetEncoder(nn.Module):
         self.channels = ensure_list(channels)
         self.stages = nn.ModuleList()
         for i, out_channels in enumerate(self.channels):
-            num_curves, curve_length = curves[i] or (None, None)
             stage = nn.ModuleList()
-            for j in range(blocks[i]):
+            for j in range(depths[i]):
                 block = CurveInterventionConv(
                     in_channels=in_channels if j == 0 else out_channels,
                     out_channels=out_channels,
@@ -82,9 +83,9 @@ class CurveNetEncoder(nn.Module):
                     bottleneck_ratio=2 if j == 0 else 4,
                     num_layers=num_layers,
                     num_points=num_points[i] if j == 0 else None,
-                    radius=radius[i] if j == 0 else None,
-                    num_curves=num_curves,
-                    curve_length=curve_length,
+                    radius=radii[i] if j == 0 else None,
+                    num_curves=num_curves[i],
+                    curve_length=curve_lengths[i],
                     spatial_dim=spatial_dim,
                     act=act,
                     act_kwargs=act_kwargs,
@@ -223,11 +224,12 @@ class CurveNetClassification(ClassificationModel):
         embed_channels: Width of the input `LocalPointFeatureAggregation` MLP.
         embed_num_layers: Depth of the input `LocalPointFeatureAggregation` MLP.
         channels: Output channels of every encoder stage.
-        blocks: Number of blocks of every encoder stage.
+        depths: Number of blocks of every encoder stage.
         num_points: Points per sample after every stage's subsampling, `None` to keep the points.
-        radius: Ball radius of every stage's subsampling, `None` with `num_points`.
+        radii: Ball radius of every stage's subsampling, `None` with `num_points`.
         num_neighbors: Number of neighbors of every stage; the input embedding uses the first.
-        curves: `(num_curves, curve_length)` of every stage, `None` for stages without curves.
+        num_curves: Number of curves per sample of every stage, `None` for stages without curves.
+        curve_lengths: Number of points on the curves of every stage, `None` for stages without curves.
         num_layers: Depth of the local aggregation MLP of the encoder blocks.
         proj_channels: Width of the projection applied before pooling.
         head_channels: Hidden channels of the classification head.
@@ -251,11 +253,12 @@ class CurveNetClassification(ClassificationModel):
         embed_channels: int,
         embed_num_layers: int = 1,
         channels: Sequence[int],
-        blocks: Union[int, Sequence[int]],
+        depths: Union[int, Sequence[int]],
         num_points: Sequence[Optional[int]],
-        radius: Sequence[Optional[float]],
+        radii: Sequence[Optional[float]],
         num_neighbors: Union[int, Sequence[int]],
-        curves: Sequence[Optional[Sequence[int]]],
+        num_curves: Sequence[Optional[int]],
+        curve_lengths: Sequence[Optional[int]],
         num_layers: int = 2,
         proj_channels: int,
         head_channels: Optional[Union[int, Sequence[int]]] = None,
@@ -274,11 +277,12 @@ class CurveNetClassification(ClassificationModel):
         self.embed_channels = embed_channels
         self.embed_num_layers = embed_num_layers
         self.channels = ensure_list(channels)
-        self.blocks = ensure_list_size(blocks, size=len(self.channels))
+        self.depths = ensure_list_size(depths, size=len(self.channels))
         self.num_points = ensure_list_size(num_points, size=len(self.channels))
-        self.radius = ensure_list_size(radius, size=len(self.channels))
+        self.radii = ensure_list_size(radii, size=len(self.channels))
         self.num_neighbors = ensure_list_size(num_neighbors, size=len(self.channels))
-        self.curves = ensure_list_size(curves, size=len(self.channels))
+        self.num_curves = ensure_list_size(num_curves, size=len(self.channels))
+        self.curve_lengths = ensure_list_size(curve_lengths, size=len(self.channels))
         self.num_layers = num_layers
         self.proj_channels = proj_channels
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
@@ -316,11 +320,12 @@ class CurveNetClassification(ClassificationModel):
         return CurveNetEncoder(
             in_channels=self.embed_channels,
             channels=self.channels,
-            blocks=self.blocks,
+            depths=self.depths,
             num_points=self.num_points,
-            radius=self.radius,
+            radii=self.radii,
             num_neighbors=self.num_neighbors,
-            curves=self.curves,
+            num_curves=self.num_curves,
+            curve_lengths=self.curve_lengths,
             num_layers=self.num_layers,
             spatial_dim=self.spatial_dim,
             act=self.act,
@@ -412,11 +417,13 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         embed_channels: Width of the input `LocalPointFeatureAggregation` MLP.
         embed_num_layers: Depth of the input `LocalPointFeatureAggregation` MLP.
         channels: Output channels of every encoder stage.
-        blocks: Number of blocks of every encoder stage.
+        depths: Number of blocks of every encoder stage.
         num_points: Points per sample after every stage's subsampling, `None` to keep the points.
-        radius: Ball radius of every stage's subsampling, `None` with `num_points`.
-        num_neighbors: Number of neighbors of every stage; the input embedding uses the first.
-        curves: `(num_curves, curve_length)` of every stage, `None` for stages without curves.
+        radii: Ball radius of every stage's subsampling, `None` with `num_points`.
+        num_neighbors: Number of neighbors of every encoder stage. The input embedding and the fuse blocks use the
+            first, and every decoder level uses the one of the encoder stage it restores.
+        num_curves: Number of curves per sample of every stage, `None` for stages without curves.
+        curve_lengths: Number of points on the curves of every stage, `None` for stages without curves.
         num_layers: Depth of the local aggregation MLP of the encoder and decoder blocks.
         decoder_channels: Output channels of every decoder level, coarse to fine.
         gate_channels: Attention gate width of every decoder level.
@@ -442,11 +449,12 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         embed_channels: int,
         embed_num_layers: int = 1,
         channels: Sequence[int],
-        blocks: Union[int, Sequence[int]],
+        depths: Union[int, Sequence[int]],
         num_points: Sequence[Optional[int]],
-        radius: Sequence[Optional[float]],
+        radii: Sequence[Optional[float]],
         num_neighbors: Union[int, Sequence[int]],
-        curves: Sequence[Optional[Sequence[int]]],
+        num_curves: Sequence[Optional[int]],
+        curve_lengths: Sequence[Optional[int]],
         num_layers: int = 2,
         decoder_channels: Sequence[int],
         gate_channels: Sequence[int],
@@ -471,11 +479,12 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         self.embed_channels = embed_channels
         self.embed_num_layers = embed_num_layers
         self.channels = ensure_list(channels)
-        self.blocks = ensure_list_size(blocks, size=len(self.channels))
+        self.depths = ensure_list_size(depths, size=len(self.channels))
         self.num_points = ensure_list_size(num_points, size=len(self.channels))
-        self.radius = ensure_list_size(radius, size=len(self.channels))
+        self.radii = ensure_list_size(radii, size=len(self.channels))
         self.num_neighbors = ensure_list_size(num_neighbors, size=len(self.channels))
-        self.curves = ensure_list_size(curves, size=len(self.channels))
+        self.num_curves = ensure_list_size(num_curves, size=len(self.channels))
+        self.curve_lengths = ensure_list_size(curve_lengths, size=len(self.channels))
         self.num_layers = num_layers
         self.decoder_channels = ensure_list(decoder_channels)
         self.gate_channels = ensure_list_size(gate_channels, size=len(self.decoder_channels))
@@ -518,11 +527,12 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         return CurveNetEncoder(
             in_channels=self.embed_channels,
             channels=self.channels,
-            blocks=self.blocks,
+            depths=self.depths,
             num_points=self.num_points,
-            radius=self.radius,
+            radii=self.radii,
             num_neighbors=self.num_neighbors,
-            curves=self.curves,
+            num_curves=self.num_curves,
+            curve_lengths=self.curve_lengths,
             num_layers=self.num_layers,
             spatial_dim=self.spatial_dim,
             act=self.act,
@@ -705,11 +715,12 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         embed_channels=32,
         embed_num_layers=1,
         channels=[64, 128, 256, 512],
-        blocks=2,
+        depths=2,
         num_points=[None, None, 256, 64],
-        radius=[None, None, 0.1, 0.2],
+        radii=[None, None, 0.1, 0.2],
         num_neighbors=20,
-        curves=[[100, 5], [100, 5], None, None],
+        num_curves=[100, 100, None, None],
+        curve_lengths=[5, 5, None, None],
         num_layers=1,
         proj_channels=1024,
         head_channels=512,
@@ -758,11 +769,12 @@ def curvenet_tiange_xiang_modelnet40_cls(**hparams: Any) -> CurveNetClassificati
         embed_channels=32,
         embed_num_layers=1,
         channels=[64, 128, 256, 512, 1024],
-        blocks=[2, 2, 2, 2, 3],
+        depths=[2, 2, 2, 2, 3],
         num_points=[None, 512, 128, 32, 8],
-        radius=[None, 0.4, 0.8, 1.2, 2.0],
+        radii=[None, 0.4, 0.8, 1.2, 2.0],
         num_neighbors=[32, 32, 32, 31, 7],
-        curves=[[100, 5], [100, 5], None, None, None],
+        num_curves=[100, 100, None, None, None],
+        curve_lengths=[5, 5, None, None, None],
         num_layers=2,
         decoder_channels=[512, 256, 128, 64],
         gate_channels=[256, 128, 64, 32],
