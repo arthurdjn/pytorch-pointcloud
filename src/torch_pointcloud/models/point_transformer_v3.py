@@ -2031,6 +2031,7 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
                 keys=DataKeys.SEGMENT,
                 labels=NUSCENES_LIDARSEG_LEARNING_MAP,
                 default=-1,
+                allow_missing_keys=True,
             ),
             # The released weights were trained on intensities in $[0, 1]$.
             T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),

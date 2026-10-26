@@ -4,6 +4,7 @@ import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Segmentation,
@@ -11,6 +12,7 @@ from torch_pointcloud.models.point_transformer_v3 import (
     segmentation_checkpoint_filter_fn,
     serialize,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -300,3 +302,20 @@ def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_orde
         "encoder.stem.stem.weight",
         "head.weight",
     ]
+
+
+def test_nuscenes_registered_transform_runs_without_labels() -> None:
+    """The registered nuScenes transform runs on an unlabeled scan, as at inference."""
+    transform = model_info("ptv3-base.nuscenes.pointcept")["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    data = {
+        DataKeys.POS: torch.rand(500, 3) * 50.0,
+        DataKeys.INTENSITY: torch.randint(0, 256, (500, 1)).float(),
+    }
+
+    out = transform(data)
+
+    assert DataKeys.SEGMENT not in out
+    assert out[DataKeys.X].size(0) == out[DataKeys.POS_GRID].size(0)
+    assert out[DataKeys.INVERSE].shape == (500,)
