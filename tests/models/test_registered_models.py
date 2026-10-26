@@ -875,8 +875,6 @@ def test_registered_weights_classes_match_num_classes() -> None:
             num_classes = entry["hparams"].get("num_classes")
             if isinstance(num_classes, int):
                 assert len(weights["classes"]) == num_classes, name
-            elif num_classes is not None:
-                assert len(weights["classes"]) == create_model(name).num_classes, name
 
 
 def test_registered_input_keys_fill_the_forward_arguments() -> None:

@@ -511,3 +511,21 @@ def test_ptv3_registered_transform_runs_without_labels(name: str) -> None:
     out = transform(sample)
     assert DataKeys.SEGMENT not in out
     assert out[DataKeys.X].shape == (out[DataKeys.POS_GRID].shape[0], 6)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("ptv3-ppt.scannet20.pointcept"),
+        pytest.param("ptv3-ppt.s3dis-area5.pointcept"),
+        pytest.param("ptv3-ppt.scannet20.labelmaker"),
+        pytest.param("ptv3-ppt.scannet200.labelmaker"),
+    ],
+)
+def test_ptv3_per_condition_registration_lists_the_default_condition_classes(name: str) -> None:
+    info = model_info(name)
+    hparams = info["hparams"]
+    weights = info["weights"]
+    assert weights is not None and "classes" in weights
+    index = list(hparams["pdnorm_conditions"]).index(hparams["condition"])
+    assert len(weights["classes"]) == hparams["num_classes"][index]
