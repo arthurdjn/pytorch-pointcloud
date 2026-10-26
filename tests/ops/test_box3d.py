@@ -20,6 +20,7 @@ from torch_pointcloud.ops.box3d import (
     points_in_boxes,
     projected_ignore_mask,
     roi_aware_pool3d,
+    roi_grid_points,
 )
 
 
@@ -338,6 +339,22 @@ def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None
     )
 
 
+def test_nms3d_pre_max_keep_suppresses_among_the_top_scores_only() -> None:
+    boxes = _boxes(
+        [
+            [0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [0.5, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [10.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+            [20.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0],
+        ]
+    )
+    scores = torch.tensor([0.9, 0.8, 0.7, 0.6])
+    batch = torch.tensor([0, 0, 0, 1])
+    assert nms3d(boxes, scores, 0.3, rotated=True).tolist() == [0, 2, 3]
+    assert nms3d(boxes, scores, 0.3, rotated=True, pre_max_keep=2).tolist() == [0]
+    assert nms3d(boxes, scores, 0.3, batch=batch, rotated=True, pre_max_keep=1).tolist() == [0, 3]
+
+
 def test_angle_to_class_roundtrip() -> None:
     angles = torch.tensor([0.0, 0.6, 2.5, math.pi])
     cls, residual = angle_to_class(angles, 12)
@@ -458,3 +475,20 @@ def test_decode_roi_residuals_in_the_roi_frame() -> None:
     # One length unit ahead of a quarter-turned RoI is one unit along +y; z moves by half the RoI height.
     expected = torch.tensor([[10.0, 6.0, 2.0, 8.0, 2.0, 2.0, math.pi / 2 + 0.1]])
     assert torch.allclose(boxes, expected, atol=1e-5)
+
+
+def test_roi_grid_points_fill_the_box_cells() -> None:
+    rois = torch.tensor([[1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 0.0]])
+    grid = roi_grid_points(rois, 2)
+    assert grid.shape == (1, 8, 3)
+    # x varies slowest, z fastest.
+    assert grid[0, 0].tolist() == [0.5, 1.0, 1.5]
+    assert grid[0, 1].tolist() == [0.5, 1.0, 4.5]
+    assert grid[0, 7].tolist() == [1.5, 3.0, 4.5]
+
+
+def test_roi_grid_points_rotate_with_the_heading() -> None:
+    rois = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, math.pi / 2]])
+    grid = roi_grid_points(rois, 2)
+    # The local (+0.5, -0.5) corner of the cells lands at (+0.5, +0.5) after a quarter turn.
+    assert torch.allclose(grid[0, 4], torch.tensor([0.5, 0.5, -0.5]), atol=1e-6)

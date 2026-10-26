@@ -272,6 +272,7 @@ nav = [
             { "utonia" = "api/models/utonia.md" },
             { "votenet" = "api/models/votenet.md" },
             { "voxel_mamba" = "api/models/voxel_mamba.md" },
+            { "voxel_rcnn" = "api/models/voxel_rcnn.md" },
             { "voxelnext" = "api/models/voxelnext.md" },
         ] },
         { Ops = [

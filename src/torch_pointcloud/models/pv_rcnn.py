@@ -14,7 +14,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadOutput
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2QuerySetAbstraction
-from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d
+from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d, roi_grid_points
 from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
@@ -78,29 +78,6 @@ def bilinear_interpolate(image: Tensor, x: Tensor, y: Tensor) -> Tensor:
         + image[y0, x1] * wc.unsqueeze(1)
         + image[y1, x1] * wd.unsqueeze(1)
     )
-
-
-def roi_grid_points(rois: Tensor, grid_size: int) -> Tensor:
-    r"""Place a regular $G \times G \times G$ grid of points inside every oriented box.
-
-    The points sit at the cell centers of the box, enumerated with $x$ slowest and $z$ fastest.
-
-    Args:
-        rois: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
-        grid_size: Points per box side $G$.
-
-    Returns:
-        The grid points, shape $(R, G^3, 3)$.
-    """
-    steps = (torch.arange(grid_size, device=rois.device, dtype=rois.dtype) + 0.5) / grid_size - 0.5
-    local = torch.stack(torch.meshgrid(steps, steps, steps, indexing="ij"), dim=-1).view(1, -1, 3)
-    local = local * rois[:, None, 3:6]
-
-    cos, sin = torch.cos(rois[:, 6:7]), torch.sin(rois[:, 6:7])
-    x = local[..., 0] * cos - local[..., 1] * sin
-    y = local[..., 0] * sin + local[..., 1] * cos
-    points = torch.stack([x, y, local[..., 2]], dim=-1)
-    return points + rois[:, None, 0:3]
 
 
 class VoxelSetAbstraction(nn.Module):

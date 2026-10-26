@@ -129,6 +129,38 @@ def decode_roi_residuals(encodings: Tensor, rois: Tensor) -> Tensor:
     return torch.cat([center, boxes[:, 3:]], dim=1)
 
 
+def roi_grid_points(rois: Tensor, grid_size: int) -> Tensor:
+    r"""Place a regular $G \times G \times G$ grid of points inside every oriented box.
+
+    The points sit at the cell centers of the box, enumerated with $x$ slowest and $z$ fastest.
+
+    Args:
+        rois: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
+        grid_size: Points per box side $G$.
+
+    Returns:
+        The grid points, shape $(R, G^3, 3)$.
+
+    Example:
+        ```pycon
+        >>> rois = torch.tensor([[1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 0.0]])
+        >>> roi_grid_points(rois, 2)[0, :2]
+        tensor([[0.5000, 1.0000, 1.5000],
+                [0.5000, 1.0000, 4.5000]])
+
+        ```
+    """
+    steps = (torch.arange(grid_size, device=rois.device, dtype=rois.dtype) + 0.5) / grid_size - 0.5
+    local = torch.stack(torch.meshgrid(steps, steps, steps, indexing="ij"), dim=-1).view(1, -1, 3)
+    local = local * rois[:, None, 3:6]
+
+    cos, sin = torch.cos(rois[:, 6:7]), torch.sin(rois[:, 6:7])
+    x = local[..., 0] * cos - local[..., 1] * sin
+    y = local[..., 0] * sin + local[..., 1] * cos
+    points = torch.stack([x, y, local[..., 2]], dim=-1)
+    return points + rois[:, None, 0:3]
+
+
 def encode_box_residuals(boxes: Tensor, anchors: Tensor, *, angle_by_sincos: bool = False) -> Tensor:
     r"""Encode ground-truth boxes into anchor-relative residuals (inverse of `decode_box_residuals`).
 
@@ -647,6 +679,7 @@ def _nms3d_single(
     labels: OptTensor,
     iou_threshold: float,
     rotated: bool,
+    pre_max_keep: Optional[int],
     max_keep: Optional[int],
 ) -> Tensor:
     """Greedy 3D NMS within a single scene; see `nms3d`."""
@@ -657,7 +690,7 @@ def _nms3d_single(
         # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
         boxes_bev = boxes.clone()
         boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        order = scores.argsort(descending=True)
+        order = scores.argsort(descending=True)[:pre_max_keep]
         keep: List[Tensor] = []
 
         # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
@@ -678,7 +711,7 @@ def _nms3d_single(
     # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
     hi = torch.maximum(hi, lo + 1e-2)
     volume = (hi - lo).prod(dim=-1)
-    order = scores.argsort(descending=True)
+    order = scores.argsort(descending=True)[:pre_max_keep]
     keep = []
 
     while order.numel() > 0 and len(keep) < limit:
@@ -705,6 +738,7 @@ def nms3d(
     labels: OptTensor = None,
     batch: OptTensor = None,
     rotated: bool = False,
+    pre_max_keep: Optional[int] = None,
     max_keep: Optional[int] = None,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
@@ -724,6 +758,8 @@ def nms3d(
         labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
         batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
+        pre_max_keep: Optional cap on the highest-scoring boxes per scene that enter the suppression; the others
+            are dropped.
         max_keep: Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
             equals the first `max_keep` entries of the uncapped result.
 
@@ -738,13 +774,22 @@ def nms3d(
         return boxes.new_zeros((0,), dtype=torch.long)
 
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep)
+        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, pre_max_keep, max_keep)
 
     keep = []
     for b in torch.unique(batch):
         scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
         scene_labels = None if labels is None else labels[scene]
-        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated, max_keep)])
+        kept = _nms3d_single(
+            boxes[scene],
+            scores[scene],
+            scene_labels,
+            iou_threshold,
+            rotated,
+            pre_max_keep,
+            max_keep,
+        )
+        keep.append(scene[kept])
 
     return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
 

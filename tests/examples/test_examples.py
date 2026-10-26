@@ -306,6 +306,12 @@ BENCHMARKS = [
         id="pv_rcnn/kitti",
     ),
     pytest.param(
+        "voxel_rcnn/detection_kitti_benchmark.py",
+        ("--model", "voxel-rcnn.kitti-car.openpcdet", "--limit", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="voxel_rcnn/kitti-car",
+    ),
+    pytest.param(
         "voxelnext/detection_nuscenes_benchmark.py",
         ("--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,

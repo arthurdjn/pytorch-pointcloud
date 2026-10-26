@@ -30,7 +30,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added Voxel R-CNN with its KITTI checkpoint, and its benchmark script.
+- Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark script.
+- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `ops.box3d.roi_grid_points` and `nms3d(pre_max_keep=...)`.
 
 ## 0.0.18 (2026-10-20)
 
