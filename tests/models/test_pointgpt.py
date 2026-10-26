@@ -207,34 +207,32 @@ def _uniform_batch(num_points: int = 2048) -> tuple[torch.Tensor, torch.Tensor, 
 
 
 @pytest.mark.parametrize(
-    ("embed_dim", "num_heads", "depth", "propagation_channels", "head_channels"),
+    ("depth", "fetch_idx"),
     [
-        pytest.param(384, 6, 12, (1536, 1024), (512, 256), id="s"),
-        pytest.param(768, 12, 12, (3072, 2048), (1024, 512), id="b"),
-        pytest.param(1024, 16, 24, (4096, 2048), (1024, 512), id="l"),
+        pytest.param(12, (3, 7, 11), id="three-blocks"),
+        pytest.param(6, (1, 5), id="two-blocks"),
     ],
 )
-def test_pointgpt_part_segmentation_basic(
-    embed_dim: int, num_heads: int, depth: int, propagation_channels: tuple, head_channels: tuple
-) -> None:
+def test_pointgpt_part_segmentation_basic(depth: int, fetch_idx: tuple) -> None:
     model = PointGPTPartSegmentation(
         in_channels=0,
         num_classes=50,
         num_categories=16,
-        embed_dim=embed_dim,
+        embed_dim=96,
         depth=depth,
-        num_heads=num_heads,
-        num_groups=128,
-        group_size=32,
-        propagation_channels=propagation_channels,
-        head_channels=head_channels,
+        num_heads=2,
+        num_groups=16,
+        group_size=8,
+        fetch_idx=fetch_idx,
+        propagation_channels=(64, 32),
+        head_channels=(32, 16),
     )
     model.eval()
-    pos, batch, category = _uniform_batch()
+    pos, batch, category = _uniform_batch(256)
     out = model(None, pos, batch, category)
-    assert out.shape == (4096, 50)
-    assert model.num_features == propagation_channels[-1] + 6 * embed_dim + 64
-    assert model.head.channel_list == [model.num_features, *head_channels, 50]
+    assert out.shape == (512, 50)
+    assert model.num_features == 32 + 2 * len(fetch_idx) * 96 + 64
+    assert model.head.channel_list == [model.num_features, 32, 16, 50]
 
 
 def test_pointgpt_part_segmentation_every_parameter_gets_a_gradient() -> None:
