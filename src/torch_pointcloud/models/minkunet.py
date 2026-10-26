@@ -10,8 +10,12 @@ import torch.nn as nn
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES, SEMANTIC_KITTI_LEARNING_MAP
-from torch_pointcloud.layers import SparseBasicBlock, SparseConvBlock
+from torch_pointcloud.datasets.semantickitti import (
+    SEMANTIC_KITTI_CLASSES,
+    SEMANTIC_KITTI_LEARNING_MAP,
+    SEMANTIC_KITTI_UNMERGED_LEARNING_MAP,
+)
+from torch_pointcloud.layers import SparseBasicStage, SparseConvBlock
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.spunet import SparseUNetDecoder
@@ -106,22 +110,19 @@ class MinkUNetEncoder(nn.Module):
                     act_kwargs=act_kwargs,
                 )
             )
-            blocks = spconv.SparseSequential()
-            for i in range(self.depths[s]):
-                blocks.add_module(
-                    f"block{i}",
-                    SparseBasicBlock(
-                        enc_channels if i == 0 else self.channels[s],
-                        self.channels[s],
-                        kernel_size=kernel_size,
-                        indice_key=f"subm{s + 1}",
-                        act=act,
-                        act_kwargs=act_kwargs,
-                        norm=norm,
-                        norm_kwargs=norm_kwargs,
-                    ),
+            self.enc.append(
+                SparseBasicStage(
+                    enc_channels,
+                    self.channels[s],
+                    self.depths[s],
+                    indice_key=f"subm{s + 1}",
+                    kernel_size=kernel_size,
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
                 )
-            self.enc.append(blocks)
+            )
             enc_channels = self.channels[s]
 
     @overload
@@ -179,11 +180,19 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
     :arxiv: [4D Spatio-Temporal ConvNets: Minkowski Convolutional Neural Networks](https://arxiv.org/abs/1904.08755)
     by Christopher Choy, JunYoung Gwak, Silvio Savarese.
 
+    Reference implementations: :github: [open-mmlab/mmdetection3d](https://github.com/open-mmlab/mmdetection3d) and
+    :github: [mit-han-lab/spvnas](https://github.com/mit-han-lab/spvnas).
+
     A sparse residual U-Net over voxelized scans: a two-convolution submanifold stem, stages of strided convolution and
     residual blocks, and a mirrored decoder of inverse convolutions whose stages concatenate the encoder skips. A linear
     head classifies the full-resolution decoder features, whose rows stay aligned with the input voxels. With
     `head_stages`, the head reads the concatenation of several decoding stages instead, the coarser ones interpolated
     trilinearly at the input voxels.
+
+    The `-torchsparse`, `-spconv` and `-minkowski` checkpoint names give the sparse convolution library the
+    MMDetection3D model was trained with; every checkpoint runs on spconv. The `mit-han-lab` checkpoints are trained and
+    scored with bus, on-rails and lane marking ignored instead of merged (`SEMANTIC_KITTI_UNMERGED_LEARNING_MAP`), so
+    their mIoU is not comparable with the `mmdet3d` ones.
 
     Args:
         in_channels: Number of input feature channels. Positions are used as features when `x` is `None`.
@@ -363,20 +372,24 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
             return out.features
 
         out, stages = self.decoder(x, skips, return_intermediates=True)
-        maps = [x, *stages]
-        pos_grid, batch = out.indices[:, 1:], out.indices[:, 0]
+        x_bottleneck, pos_grid_bottleneck, batch_bottleneck = convert_from_spconv_tensor(x)
+        x_out, pos_grid, batch = convert_from_spconv_tensor(out)
+        maps: List[FeaturesDict] = [
+            {"x": x_bottleneck, "pos_grid": pos_grid_bottleneck, "batch": batch_bottleneck},
+            *stages,
+            {"x": x_out, "pos_grid": pos_grid, "batch": batch},
+        ]
         features = []
         for i in self.head_stages:
             stride = 2 ** (len(maps) - 1 - i)
             if stride == 1:
-                features.append(maps[i].features)
+                features.append(maps[i]["x"])
             else:
-                stage = maps[i]
                 features.append(
                     trilinear_sparse_devoxelize(
-                        x_voxel=stage.features,
-                        pos_voxel=stage.indices[:, 1:],
-                        batch_voxel=stage.indices[:, 0],
+                        x_voxel=maps[i]["x"],
+                        pos_voxel=maps[i]["pos_grid"],
+                        batch_voxel=maps[i]["batch"],
                         pos=pos_grid / stride,
                         batch=batch,
                         normalize=True,
@@ -421,10 +434,6 @@ def _semantickitti_transform(learning_map: Dict[int, int]) -> T.Compose:
             ),
         ]
     )
-
-
-# The mit-han-lab checkpoints were trained with bus, on-rails and lane marking ignored instead of merged.
-_MIT_HAN_LAB_LEARNING_MAP = {k: v for k, v in SEMANTIC_KITTI_LEARNING_MAP.items() if k not in (13, 16, 60, 256, 257)}
 
 
 @register_model(
@@ -683,7 +692,7 @@ def minkunet34v2_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentati
         author="mit-han-lab",
         license="MIT",
     ),
-    transform=_semantickitti_transform(_MIT_HAN_LAB_LEARNING_MAP),
+    transform=_semantickitti_transform(SEMANTIC_KITTI_UNMERGED_LEARNING_MAP),
     hparams=dict(
         in_channels=4,
         num_classes=19,
@@ -710,7 +719,7 @@ def minkunet_29gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmen
         author="mit-han-lab",
         license="MIT",
     ),
-    transform=_semantickitti_transform(_MIT_HAN_LAB_LEARNING_MAP),
+    transform=_semantickitti_transform(SEMANTIC_KITTI_UNMERGED_LEARNING_MAP),
     hparams=dict(
         in_channels=4,
         num_classes=19,
@@ -737,7 +746,7 @@ def minkunet_46gmacs_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmen
         author="mit-han-lab",
         license="MIT",
     ),
-    transform=_semantickitti_transform(_MIT_HAN_LAB_LEARNING_MAP),
+    transform=_semantickitti_transform(SEMANTIC_KITTI_UNMERGED_LEARNING_MAP),
     hparams=dict(
         in_channels=4,
         num_classes=19,

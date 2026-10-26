@@ -84,8 +84,10 @@ def test_spunet_segmentation_forward_features_decoder_head(
 def test_spunet_decoder_returns_the_stage_outputs(model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]) -> None:
     sparse_x, skips = model_seg.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     out, stages = model_seg.decoder(sparse_x, skips, return_intermediates=True)
-    assert [stage.features.shape[1] for stage in stages] == list(model_seg.decoder_channels)
-    assert stages[-1] is out
+    assert [stage["x"].shape[1] for stage in stages] == list(model_seg.decoder_channels[:-1])
+    assert [stage["pos_grid"].shape[0] for stage in stages] == [skip["x"].shape[0] for skip in skips[:0:-1]]
+    assert stages[-1]["batch"].shape[0] == stages[-1]["x"].shape[0]
+    assert out.features.shape == (data["pos_grid"].shape[0], model_seg.decoder_channels[-1])
 
 
 def test_spunet_forward_head_pre_logits(model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]) -> None:

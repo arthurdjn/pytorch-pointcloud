@@ -1,3 +1,4 @@
+import math
 from typing import Dict
 
 import pytest
@@ -8,6 +9,7 @@ from torch_pointcloud.models.minkunet import MinkUNetSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+spconv = pytest.importorskip("spconv.pytorch")
 _REQUIRES_CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="spconv convolutions need CUDA")
 
 
@@ -31,7 +33,7 @@ def data() -> Dict[str, Tensor]:
     pos_grid = torch.randint(0, 64, (int(lengths.sum()), 3))
     x = torch.randn(int(lengths.sum()), 4)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
-    return dict(x=x.cuda(), pos_grid=pos_grid.cuda(), batch=batch.cuda())
+    return dict(x=x, pos_grid=pos_grid, batch=batch)
 
 
 def test_minkunet_stage_layout(model: MinkUNetSegmentation) -> None:
@@ -45,6 +47,15 @@ def test_minkunet_stage_layout(model: MinkUNetSegmentation) -> None:
     assert "encoder.enc.1.block2.conv1.weight" not in shapes
     assert shapes["decoder.up.0.0.weight"] == (16, 2, 2, 2, 16)
     assert shapes["decoder.dec.0.block0.conv1.weight"] == (16, 3, 3, 3, 16 + 8)
+
+
+def test_minkunet_keeps_the_default_initialization(model: MinkUNetSegmentation) -> None:
+    # spconv draws its kernels from a Kaiming uniform bounded by 1 / sqrt(fan_in).
+    convs = [m for m in model.modules() if isinstance(m, spconv.SubMConv3d)]
+    assert convs
+    for conv in convs:
+        fan_in = conv.in_channels * math.prod(conv.kernel_size)
+        assert conv.weight.abs().max() <= 1 / math.sqrt(fan_in)
 
 
 def test_minkunet_head(model: MinkUNetSegmentation) -> None:
@@ -70,6 +81,7 @@ def test_minkunet_rejects_mismatched_stages() -> None:
 
 @_REQUIRES_CUDA
 def test_minkunet_forward(model: MinkUNetSegmentation, data: Dict[str, Tensor]) -> None:
+    data = {key: value.cuda() for key, value in data.items()}
     model = model.cuda()
     logits = model(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 10)
@@ -78,6 +90,7 @@ def test_minkunet_forward(model: MinkUNetSegmentation, data: Dict[str, Tensor]) 
 
 @_REQUIRES_CUDA
 def test_minkunet_forward_without_features(data: Dict[str, Tensor]) -> None:
+    data = {key: value.cuda() for key, value in data.items()}
     model = MinkUNetSegmentation(in_channels=3, num_classes=2, encoder_depths=(1, 1, 1, 1)).cuda()
     logits = model(None, data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 2)
@@ -85,6 +98,7 @@ def test_minkunet_forward_without_features(data: Dict[str, Tensor]) -> None:
 
 @_REQUIRES_CUDA
 def test_minkunet_rows_follow_the_input(model: MinkUNetSegmentation, data: Dict[str, Tensor]) -> None:
+    data = {key: value.cuda() for key, value in data.items()}
     model = model.cuda().eval()
     perm = torch.randperm(data["pos_grid"].shape[0], device="cuda")
     with torch.no_grad():
@@ -95,6 +109,7 @@ def test_minkunet_rows_follow_the_input(model: MinkUNetSegmentation, data: Dict[
 
 @_REQUIRES_CUDA
 def test_minkunet_features_decoder_head(model: MinkUNetSegmentation, data: Dict[str, Tensor]) -> None:
+    data = {key: value.cuda() for key, value in data.items()}
     model = model.cuda()
     sparse_x, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     assert len(skips) == 4
@@ -119,6 +134,7 @@ def test_minkunet_rejects_unknown_head_stages() -> None:
 
 @_REQUIRES_CUDA
 def test_minkunet_head_stages_concatenate_the_decoding_stages(data: Dict[str, Tensor]) -> None:
+    data = {key: value.cuda() for key, value in data.items()}
     torch.manual_seed(0)
     plain = MinkUNetSegmentation(in_channels=4, num_classes=0, encoder_depths=(1, 1, 1, 1)).cuda().eval()
     multiscale = (
@@ -136,6 +152,7 @@ def test_minkunet_head_stages_concatenate_the_decoding_stages(data: Dict[str, Te
 
 @_REQUIRES_CUDA
 def test_minkunet_headless(data: Dict[str, Tensor]) -> None:
+    data = {key: value.cuda() for key, value in data.items()}
     model = MinkUNetSegmentation(in_channels=4, num_classes=0).cuda()
     features = model(data["x"], data["pos_grid"], data["batch"])
     assert features.shape == (data["pos_grid"].shape[0], model.num_features)
