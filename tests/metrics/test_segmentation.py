@@ -9,8 +9,9 @@ from torch_pointcloud.metrics import (
     intersection_over_union,
     part_intersection_over_union,
     part_mean_intersection_over_union,
+    part_predictions,
 )
-from torch_pointcloud.metrics.segmentation import compute_intersection_union, part_predictions
+from torch_pointcloud.metrics.segmentation import compute_intersection_union
 
 
 @pytest.fixture

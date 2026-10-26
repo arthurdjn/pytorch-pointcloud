@@ -36,7 +36,6 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `CrossAttention` layer and the `bias` option of `PointPatchEmbed`.
 - Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1).
 - `read_state_dict` reads Lightning checkpoints whose module is the network itself.
-- Added `metrics.segmentation.part_predictions`, the argmax over the parts of each shape's category.
 
 ## 0.0.18 (2026-10-20)
 

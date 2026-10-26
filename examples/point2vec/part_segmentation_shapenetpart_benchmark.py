@@ -18,8 +18,11 @@ from tqdm import tqdm
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ShapeNetPart
 from torch_pointcloud.inferers import Inferer, SimpleInferer
-from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
-from torch_pointcloud.metrics.segmentation import part_predictions
+from torch_pointcloud.metrics import (
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
+    part_predictions,
+)
 from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism

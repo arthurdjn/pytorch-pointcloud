@@ -15,8 +15,11 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ConcatDataset, ShapeNetPart
-from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
-from torch_pointcloud.metrics.segmentation import part_predictions
+from torch_pointcloud.metrics import (
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
+    part_predictions,
+)
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
