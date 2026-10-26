@@ -269,6 +269,12 @@ BENCHMARKS = [
         id="groupfree3d/scannet",
     ),
     pytest.param(
+        "groupfree3d/detection_sunrgbd_benchmark.py",
+        ("--model", "groupfree3d-l6-o256.sunrgbd.ze-liu", "--limit", "2"),
+        marks=_CLUSTER,
+        id="groupfree3d/sunrgbd",
+    ),
+    pytest.param(
         "second/detection_kitti_benchmark.py",
         ("--model", "second.kitti.openpcdet", "--limit", "2"),
         marks=_GPU_SPCONV,
@@ -760,7 +766,6 @@ def test_every_script_has_a_row() -> None:
     """Every example script is exercised by at least one row, or is named here with the reason it is not."""
     without_dummy_data = {
         "dgcnn/classification_modelnet40_benchmark.py",
-        "groupfree3d/detection_sunrgbd_benchmark.py",
         "octformer/segmentation_scannet200_benchmark.py",
         "point_transformer_v3/segmentation_s3dis_benchmark.py",
         "point_transformer_v3/segmentation_scannet200_benchmark.py",
