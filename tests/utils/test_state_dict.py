@@ -326,3 +326,23 @@ def test_read_state_dict_reads_other_objects_as_inert_placeholders(tmp_path: Pat
     result = read_state_dict(path)
     assert list(result.keys()) == ["lin.weight"]
     assert torch.equal(result["lin.weight"], torch.ones(2, 2))
+
+
+def test_read_state_dict_prefers_ema_state_dict(tmp_path: Path) -> None:
+    path = tmp_path / "training.pth"
+    ema = {"lin.weight": torch.ones(2, 2)}
+    torch.save({"epoch": 3, "state_dict": {"lin.weight": torch.zeros(2, 2)}, "ema_state_dict": ema}, path)
+
+    result = read_state_dict(path)
+
+    torch.testing.assert_close(result["lin.weight"], ema["lin.weight"])
+
+
+def test_read_state_dict_skips_empty_ema_state_dict(tmp_path: Path) -> None:
+    path = tmp_path / "training.pth"
+    weights = {"lin.weight": torch.zeros(2, 2)}
+    torch.save({"epoch": 3, "state_dict": weights, "ema_state_dict": None}, path)
+
+    result = read_state_dict(path)
+
+    torch.testing.assert_close(result["lin.weight"], weights["lin.weight"])
