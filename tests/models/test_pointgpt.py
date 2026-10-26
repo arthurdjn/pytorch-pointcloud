@@ -2,6 +2,7 @@ import pytest
 import torch
 from torch_geometric.nn import MLP
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.pointgpt import (
     PointGPTClassification,
     PointGPTExtractor,
@@ -9,6 +10,7 @@ from torch_pointcloud.models.pointgpt import (
     PointGPTPretraining,
     morton_sort,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _PYG_LIB_AVAILABLE,
@@ -237,6 +239,7 @@ def test_pointgpt_part_segmentation_num_classes_zero_returns_features() -> None:
     model = PointGPTPartSegmentation(
         in_channels=0,
         num_classes=0,
+        num_categories=16,
         embed_dim=96,
         depth=12,
         num_heads=2,
@@ -255,6 +258,7 @@ def test_pointgpt_part_segmentation_ragged_batch_raises() -> None:
     model = PointGPTPartSegmentation(
         in_channels=0,
         num_classes=5,
+        num_categories=16,
         embed_dim=96,
         num_heads=2,
         num_groups=8,
@@ -271,7 +275,7 @@ def test_pointgpt_part_segmentation_ragged_batch_raises() -> None:
 
 def test_pointgpt_part_segmentation_validates_fetch_idx_against_depth() -> None:
     with pytest.raises(ValueError, match="fetch_idx"):
-        PointGPTPartSegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)
+        PointGPTPartSegmentation(in_channels=0, num_classes=5, num_categories=16, depth=6, embed_dim=96, num_heads=2)
 
 
 def test_pointgpt_part_segmentation_accepts_features() -> None:
@@ -279,6 +283,7 @@ def test_pointgpt_part_segmentation_accepts_features() -> None:
     model = PointGPTPartSegmentation(
         in_channels=in_channels,
         num_classes=50,
+        num_categories=16,
         embed_dim=96,
         depth=12,
         num_heads=2,
@@ -306,3 +311,13 @@ def test_pointgpt_extractor_fetch_idx_returns_hidden_states() -> None:
     features = extractor(tokens, pos, mask, fetch_idx=(1, 3))
     assert [tuple(feat.shape) for feat in features] == [(2, 6, 32), (2, 6, 32)]
     assert torch.allclose(extractor.ln_f(features[-1]), extractor(tokens, pos, mask))
+
+
+def test_pointgpt_shapenetpart_transform_runs_without_labels() -> None:
+    transform = model_info("pointgpt-s.shapenetpart.guangyan-chen", task="part-segmentation")["transform"]
+    assert transform is not None
+    sample = {DataKeys.POS: torch.randn(3000, 3), DataKeys.CATEGORY: torch.tensor(4)}
+    out = transform(sample)
+    assert out[DataKeys.POS].shape == (2048, 3)
+    assert out[DataKeys.CATEGORY].shape[-1] == 16
+    assert DataKeys.SEGMENT not in out

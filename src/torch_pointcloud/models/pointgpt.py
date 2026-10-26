@@ -619,7 +619,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         in_channels: int,
         num_classes: int,
         *,
-        num_categories: int = 16,
+        num_categories: int,
         embed_dim: int = 384,
         depth: int = 12,
         num_heads: int = 6,
@@ -1036,17 +1036,34 @@ def _scanobjectnn_transforms() -> T.Compose:
     )
 
 
+def _labeled_hybrid_transforms() -> T.Compose:
+    return T.Compose(
+        [
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(
+                pos_key=DataKeys.POS,
+                num_samples=1024,
+                random_start=False,
+                dst_index_key=DataKeys.INDEX,
+            ),
+        ]
+    )
+
+
 def _shapenetpart_transforms() -> T.Compose:
     return T.Compose(
         [
             T.Rescale(keys=DataKeys.POS, method="centroid"),
-            T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+            T.CopyItems(keys=DataKeys.SEGMENT, dst_keys=DataKeys.ORIGIN_SEGMENT, allow_missing_keys=True),
             T.FarthestPointSample(
                 pos_key=DataKeys.POS,
                 keys=[DataKeys.NORMAL, DataKeys.SEGMENT],
                 num_samples=2048,
                 random_start=False,
                 dst_index_key=DataKeys.INDEX,
+                allow_missing_keys=True,
             ),
             T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
         ]
@@ -1335,6 +1352,7 @@ def pointgpt_l_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
         author="guangyan-chen",
         license="MIT",
     ),
+    transform=_labeled_hybrid_transforms(),
     hparams=dict(
         in_channels=0,
         num_classes=87,
@@ -1365,6 +1383,7 @@ def pointgpt_b_post_pretrain(**kwargs: Any) -> PointGPTClassification:
         author="guangyan-chen",
         license="MIT",
     ),
+    transform=_labeled_hybrid_transforms(),
     hparams=dict(
         in_channels=0,
         num_classes=87,
