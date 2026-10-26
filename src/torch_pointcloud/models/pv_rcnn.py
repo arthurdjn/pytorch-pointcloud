@@ -649,25 +649,16 @@ class PVRCNNDetection(DetectionModel):
             `(rois, roi_scores, roi_labels, roi_batch)` of shapes $(R, 7)$, $(R,)$, $(R,)$ and $(R,)$.
         """
         det = self.head.decode(out)
-        rois, scores, labels, batch = [], [], [], []
-        for b in range(int(det["batch"].max().item()) + 1):
-            scene = (det["batch"] == b).nonzero().view(-1)
-            top_scores, top = det["scores"][scene].topk(min(self.proposal_pre_maxsize, scene.numel()))
-            top = scene[top]
-            keep = top[
-                nms3d(
-                    det["boxes"][top],
-                    top_scores,
-                    self.proposal_nms_thresh,
-                    rotated=True,
-                    max_keep=self.proposal_post_maxsize,
-                )
-            ]
-            rois.append(det["boxes"][keep])
-            scores.append(det["scores"][keep])
-            labels.append(det["labels"][keep])
-            batch.append(det["batch"][keep])
-        return torch.cat(rois), torch.cat(scores), torch.cat(labels), torch.cat(batch)
+        keep = nms3d(
+            det["boxes"],
+            det["scores"],
+            self.proposal_nms_thresh,
+            batch=det["batch"],
+            rotated=True,
+            max_keep=self.proposal_post_maxsize,
+            max_candidates=self.proposal_pre_maxsize,
+        )
+        return det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
 
     def refine(
         self,

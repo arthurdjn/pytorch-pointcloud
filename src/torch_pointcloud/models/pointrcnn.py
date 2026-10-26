@@ -857,44 +857,16 @@ class PointRCNNDetection(DetectionModel):
         scores = torch.sigmoid(cls_preds)
         roi_score, roi_label = scores.max(dim=1)
 
-        batch_size = int(batch.max().item()) + 1 if batch.numel() else 0
-        rois_list, score_list, label_list, batch_list = [], [], [], []
-        for b in range(batch_size):
-            mask = batch == b
-            scene_boxes = boxes[mask]
-            scene_scores = roi_score[mask]
-            scene_labels = roi_label[mask]
-            keep = self._nms_single(scene_boxes, scene_scores, post, iou)
-            rois_list.append(scene_boxes[keep])
-            score_list.append(scene_scores[keep])
-            label_list.append(scene_labels[keep] + 1)
-            batch_list.append(torch.full((keep.numel(),), b, dtype=torch.long, device=boxes.device))
-        return (
-            torch.cat(rois_list),
-            torch.cat(score_list),
-            torch.cat(label_list),
-            torch.cat(batch_list),
+        keep = nms3d(
+            boxes,
+            roi_score,
+            iou,
+            batch=batch,
+            rotated=self.proposal_nms_rotated,
+            max_keep=post,
+            max_candidates=self.proposal_pre_maxsize,
         )
-
-    def _nms_single(self, boxes: Tensor, scores: Tensor, post_maxsize: int, thresh: float) -> Tensor:
-        r"""Class-agnostic BEV NMS keeping the top proposals (`class_agnostic_nms`).
-
-        Args:
-            boxes: Boxes $(N, 7)$.
-            scores: Per-box score $(N,)$.
-            post_maxsize: Maximum number of boxes to keep.
-            thresh: NMS IoU threshold.
-
-        Returns:
-            Kept indices into `boxes`, shape $(K,)$ with $K \le$ `post_maxsize`.
-        """
-        if boxes.numel() == 0:
-            return boxes.new_zeros((0,), dtype=torch.long)
-
-        topk = min(self.proposal_pre_maxsize, scores.shape[0])
-        top_scores, top_idx = torch.topk(scores, k=topk)
-        keep = nms3d(boxes[top_idx], top_scores, thresh, rotated=self.proposal_nms_rotated, max_keep=post_maxsize)
-        return top_idx[keep]
+        return boxes[keep], roi_score[keep], roi_label[keep] + 1, batch[keep]
 
     def _sample_proposals(
         self,

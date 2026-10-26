@@ -501,20 +501,15 @@ class PartA2Detection(DetectionModel):
         """
         det = self.head.decode(out)
         class_scores = out["batch_cls"].sigmoid().reshape(-1, self.num_classes)
-        keep_all = []
-        for b in range(int(det["batch"].max().item()) + 1):
-            scene = (det["batch"] == b).nonzero().view(-1)
-            top_scores, top = det["scores"][scene].topk(min(self.proposal_pre_maxsize, scene.numel()))
-            top = scene[top]
-            keep = nms3d(
-                det["boxes"][top],
-                top_scores,
-                self.proposal_nms_thresh,
-                rotated=True,
-                max_keep=self.proposal_post_maxsize,
-            )
-            keep_all.append(top[keep])
-        keep = torch.cat(keep_all)
+        keep = nms3d(
+            det["boxes"],
+            det["scores"],
+            self.proposal_nms_thresh,
+            batch=det["batch"],
+            rotated=True,
+            max_keep=self.proposal_post_maxsize,
+            max_candidates=self.proposal_pre_maxsize,
+        )
         return det["boxes"][keep], det["scores"][keep], det["labels"][keep], class_scores[keep], det["batch"][keep]
 
     def refine(
