@@ -1,8 +1,12 @@
 """Benchmark Group-Free 3D on SUN RGB-D with its evaluation protocol.
 
-NOTE: the reference evaluation (`eval_avg.py --size_cls_agnostic` at zeliu98/Group-Free-3D ef8b7bb) scores against
-ground-truth boxes whose size is the axis-aligned extent of the oriented box (`size_gts`, also the training target of
-the size head), turned by the box heading. This script scores against the same boxes, not the dataset's oriented ones.
+NOTE: as in the reference evaluation, the ground-truth boxes are sized by the axis-aligned extent of the oriented box.
+
+```bash
+# zeliu98/Group-Free-3D at ef8b7bb
+python eval_avg.py --num_point 20000 --num_decoder_layers 6 --size_cls_agnostic \
+    --checkpoint_path <checkpoint> --avg_times 5 --dataset sunrgbd --data_root <data directory>
+```
 """
 
 import os

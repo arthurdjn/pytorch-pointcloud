@@ -1,8 +1,12 @@
 """Benchmark Group-Free 3D on ScanNet with its evaluation protocol.
 
-NOTE: one run draws 50 000 random points per scene, so its score moves with the seed. The authors' references are the
-average of five evaluations (`eval_avg.py --avg_times 5` at zeliu98/Group-Free-3D ef8b7bb), the MMDetection3D ones
-the best validation epoch of the training run.
+NOTE: a run draws 50 000 random points per scene; the authors' references average five (MMDetection3D's: best epoch).
+
+```bash
+# zeliu98/Group-Free-3D at ef8b7bb
+python eval_avg.py --num_point 50000 --num_decoder_layers {6,12} [--width 2] [--num_target 512] \
+    --checkpoint_path <checkpoint> --avg_times 5 --dataset scannet --data_root <data directory>
+```
 """
 
 import os
