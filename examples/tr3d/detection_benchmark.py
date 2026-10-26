@@ -98,7 +98,7 @@ def configure_dataset(args: Namespace) -> Dataset:
     if args.dataset == "scannet":
         dataset = ScanNet(root=args.root, split="val", transform=transform)
     elif args.dataset == "s3dis":
-        dataset = S3DIS(root=args.root, areas=["Area_5"], aligned=False, transform=transform)
+        dataset = S3DIS(root=args.root, areas=["Area_5"], transform=transform)
     else:
         dataset = SunRGBD(root=args.root, train=False, transform=transform)
 

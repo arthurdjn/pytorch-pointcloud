@@ -178,8 +178,8 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
         val_dataset = ScanNet(root=args.root, split="val", transform=val_transform)
     elif args.dataset == "s3dis":
         train_areas: List[S3DISArea] = ["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"]
-        train_dataset = S3DIS(root=args.root, areas=train_areas, aligned=False, transform=train_transform)
-        val_dataset = S3DIS(root=args.root, areas=["Area_5"], aligned=False, transform=val_transform)
+        train_dataset = S3DIS(root=args.root, areas=train_areas, transform=train_transform)
+        val_dataset = S3DIS(root=args.root, areas=["Area_5"], transform=val_transform)
     else:
         train_dataset = SunRGBD(root=args.root, train=True, transform=train_transform)
         val_dataset = SunRGBD(root=args.root, train=False, transform=val_transform)
