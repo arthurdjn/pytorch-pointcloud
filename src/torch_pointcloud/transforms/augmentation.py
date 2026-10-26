@@ -539,7 +539,10 @@ def translate_boxes(boxes: Tensor, translation: Tensor) -> Tensor:
 
 
 class RandomTranslate(DictTransform, Randomizable):
-    """Translate listed keys (and optionally oriented boxes) by a uniformly random vector.
+    """Translate listed keys (and optionally oriented boxes) by a random vector.
+
+    Every axis of the vector is drawn uniformly from `translation_range`, or from a centered normal distribution of
+    standard deviation `std` when it is given.
 
     Sampling is done once per call: all listed keys and the optional box are shifted by the same
     translation vector. Pass `box_key` to also translate a $(K, 7)$ oriented-box tensor (centers only;
@@ -568,6 +571,7 @@ class RandomTranslate(DictTransform, Randomizable):
         dst_box_key: Where to store the shifted boxes. Defaults to `box_key` (in-place).
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
         allow_missing_keys: If `True`, silently skip absent keys.
+        std: Standard deviation of a normal per-axis translation, used instead of `translation_range` when given.
     """
 
     def __init__(
@@ -580,12 +584,16 @@ class RandomTranslate(DictTransform, Randomizable):
         dst_box_key: Optional[str] = None,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
+        std: Optional[float] = None,
     ) -> None:
         if not 0.0 <= p <= 1.0:
             raise ValueError(f"p must be in [0, 1]; got {p}.")
+        if std is not None and std < 0:
+            raise ValueError(f"std must be non-negative; got {std}.")
 
         super().__init__(keys, allow_missing_keys)
         self.translation_range = translation_range
+        self.std = std
         self.p = p
         self.box_key = box_key
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
@@ -605,7 +613,10 @@ class RandomTranslate(DictTransform, Randomizable):
             return data
 
         d = data[first_key].shape[-1] if first_key is not None else 3
-        translation = torch.empty(d).uniform_(lo, hi, generator=self.R)
+        if self.std is not None:
+            translation = torch.randn(d, generator=self.R) * self.std
+        else:
+            translation = torch.empty(d).uniform_(lo, hi, generator=self.R)
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
             data[self.dst_box_key] = translate_boxes(data[box_key], translation[:3])

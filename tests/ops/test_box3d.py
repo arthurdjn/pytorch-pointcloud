@@ -458,3 +458,27 @@ def test_decode_roi_residuals_in_the_roi_frame() -> None:
     # One length unit ahead of a quarter-turned RoI is one unit along +y; z moves by half the RoI height.
     expected = torch.tensor([[10.0, 6.0, 2.0, 8.0, 2.0, 2.0, math.pi / 2 + 0.1]])
     assert torch.allclose(boxes, expected, atol=1e-5)
+
+
+def test_box3d_overlap_aligned_is_the_pairwise_diagonal() -> None:
+    generator = torch.Generator().manual_seed(0)
+    a = torch.rand(20, 7, generator=generator) + torch.tensor([0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.0])
+    b = a + torch.randn(20, 7, generator=generator) * 0.3
+    b[:, 3:6] = b[:, 3:6].abs() + 0.1
+    inter, iou = box3d_overlap(box_corners(a), box_corners(b), aligned=True)
+    pairwise_inter, pairwise_iou = box3d_overlap(box_corners(a), box_corners(b))
+    torch.testing.assert_close(inter, pairwise_inter.diagonal())
+    torch.testing.assert_close(iou, pairwise_iou.diagonal())
+
+
+def test_box3d_overlap_aligned_gradients_are_finite_for_parallel_edges() -> None:
+    a = torch.tensor([[0.0, 0.0, 0.0, 2.0, 1.0, 1.0, 0.4]], requires_grad=True)
+    b = torch.tensor([[0.5, 0.2, 0.0, 2.0, 1.0, 1.0, 0.4]])
+    _, iou = box3d_overlap(box_corners(a), box_corners(b), aligned=True)
+    iou.sum().backward()
+    assert a.grad is not None and torch.isfinite(a.grad).all()
+
+
+def test_box3d_overlap_aligned_rejects_unpaired_sets() -> None:
+    with pytest.raises(ValueError, match="as many boxes"):
+        box3d_overlap(torch.zeros(2, 8, 3), torch.zeros(3, 8, 3), aligned=True)

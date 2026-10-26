@@ -139,6 +139,11 @@
     "date": "November 2021",
     "title": "Point-BERT: Pre-training 3D Point Cloud Transformers with Masked Point Modeling"
   },
+  "2112.00322": {
+    "crop": 0.47,
+    "date": "December 2021",
+    "title": "FCAF3D: Fully Convolutional Anchor-Free 3D Object Detection"
+  },
   "2202.07123": {
     "crop": 0.47,
     "date": "February 2022",
@@ -168,6 +173,11 @@
     "crop": 0.47,
     "date": "November 2022",
     "title": "Superpoint Transformer for 3D Scene Instance Segmentation"
+  },
+  "2302.02858": {
+    "crop": 0.47,
+    "date": "February 2023",
+    "title": "TR3D: Towards Real-Time Indoor 3D Object Detection"
   },
   "2303.11301": {
     "crop": 0.47,

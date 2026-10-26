@@ -741,3 +741,45 @@ def test_pretrained_parta2(
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        pytest.param("fcaf3d.scannet.mmdet3d", id="fcaf3d.scannet.mmdet3d"),
+        pytest.param("fcaf3d.sunrgbd.mmdet3d", id="fcaf3d.sunrgbd.mmdet3d"),
+        pytest.param("fcaf3d.s3dis-area5.mmdet3d", id="fcaf3d.s3dis-area5.mmdet3d"),
+        pytest.param("tr3d.scannet.mmdet3d", id="tr3d.scannet.mmdet3d"),
+        pytest.param("tr3d.sunrgbd.mmdet3d", id="tr3d.sunrgbd.mmdet3d"),
+        pytest.param("tr3d.s3dis-area5.mmdet3d", id="tr3d.s3dis-area5.mmdet3d"),
+    ],
+)
+def test_pretrained_sparse_indoor_detection(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FCAF3D / TR3D: a strided sample of the per-location class logits and box regression on two synthetic rooms."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("FCAF3D and TR3D need spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+
+    # Seed after `create_model`, whose random initialization consumes the generator.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 20000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3) * torch.tensor([4.0, 4.0, 2.5])
+    pos[0::3, 2] = 0.0
+    pos[1::3, 0] = 0.0
+    x = torch.rand(n_per_scene * batch_size, model.in_channels)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene)
+    with torch.no_grad():
+        out = model(x.to(DEVICE), pos.to(DEVICE), batch.to(DEVICE))
+
+    _check_output(
+        torch.cat([out["cls"].reshape(-1)[::97], out["boxes"].reshape(-1)[::97]]), model_name, force_regen, models_dir
+    )

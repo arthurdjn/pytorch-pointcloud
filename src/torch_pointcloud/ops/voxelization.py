@@ -1,4 +1,5 @@
-"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization."""
+"""Dense and sparse voxelization, FNV voxel hashing, coordinate lookup, the first point per voxel, and trilinear
+devoxelization."""
 
 import functools
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
@@ -10,9 +11,11 @@ from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
 
+from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 
 if TYPE_CHECKING:
+    from spconv.pytorch import SparseConvTensor
     from spconv.pytorch.utils import PointToVoxel
 else:
     PointToVoxel, _ = optional_import("spconv.pytorch.utils", "PointToVoxel", url=_SPCONV_GITHUB_URL)
@@ -137,6 +140,118 @@ def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, reso
     x_out = (gathered_features * weights_expanded).sum(dim=1)  # (N, C)
 
     return x_out
+
+
+def lookup_coordinates(coordinates: Tensor, query: Tensor) -> Tensor:
+    r"""Row of `coordinates` equal to each row of `query`, or $-1$ where there is none.
+
+    Rows are integer coordinates of any width, e.g. the `[batch, x, y, z]` indices of a sparse voxel tensor. Both
+    sets are ranked on one mixed-radix key, so a lookup is a sort and a binary search, without host synchronization.
+
+    Args:
+        coordinates: Integer coordinates with unique rows, $(N, D)$.
+        query: Integer coordinates to look up, $(Q, D)$.
+
+    Returns:
+        The row of `coordinates` matching each query row, $-1$ when absent, as a long tensor $(Q,)$.
+
+    Shape:
+        - coordinates: $(N, D)$
+        - query: $(Q, D)$
+        - output: $(Q,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.voxelization import lookup_coordinates
+        >>> coordinates = torch.tensor([[0, 1, 2], [0, 0, 0], [1, 1, 2]])
+        >>> lookup_coordinates(coordinates, torch.tensor([[1, 1, 2], [0, 5, 5], [0, 0, 0]]))
+        tensor([ 2, -1,  1])
+
+        ```
+    """
+    if coordinates.shape[1] != query.shape[1]:
+        raise ValueError(
+            f"query and coordinates must have the same width, got {query.shape[1]} and {coordinates.shape[1]}."
+        )
+
+    if query.shape[0] == 0 or coordinates.shape[0] == 0:
+        return torch.full((query.shape[0],), -1, dtype=torch.long, device=query.device)
+
+    query, coordinates = query.long(), coordinates.long()
+    low = torch.minimum(query.min(0).values, coordinates.min(0).values)
+    extent = torch.maximum(query.max(0).values, coordinates.max(0).values) - low + 1
+    radix = torch.cat([extent.flip(0).cumprod(0).flip(0)[1:], extent.new_ones(1)])
+    query_key = ((query - low) * radix).sum(1)
+    key = ((coordinates - low) * radix).sum(1)
+
+    sorted_key, order = key.sort()
+    position = torch.searchsorted(sorted_key, query_key).clamp(max=key.numel() - 1)
+    found = sorted_key[position] == query_key
+    return torch.where(found, order[position], torch.full_like(position, -1))
+
+
+def trilinear_sparse_devoxelize(
+    x_voxel: Tensor,
+    pos_voxel: Tensor,
+    batch_voxel: Tensor,
+    pos: Tensor,
+    batch: Tensor,
+) -> Tensor:
+    r"""Interpolate sparse voxel features at continuous grid positions, trilinearly.
+
+    A position $p$ reads the $8$ voxels around it, $\lfloor p \rfloor + \{0, 1\}^3$, each weighted by
+    $\prod_d (1 - |p_d - c_d|)$. A voxel absent from `pos_voxel` contributes nothing and the weights of the others are
+    not renormalized, so a position far from every voxel reads zeros. A position on the grid reads its own voxel.
+
+    Args:
+        x_voxel: Voxel features $(V, C)$.
+        pos_voxel: Integer voxel coordinates $(V, 3)$, unique within a scene.
+        batch_voxel: Per-voxel batch index $(V,)$.
+        pos: Query positions in voxel units $(N, 3)$.
+        batch: Per-query batch index $(N,)$.
+
+    Returns:
+        The interpolated features $(N, C)$.
+
+    Shape:
+        - x_voxel: $(V, C)$
+        - pos_voxel: $(V, 3)$
+        - batch_voxel: $(V,)$
+        - pos: $(N, 3)$
+        - batch: $(N,)$
+        - output: $(N, C)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.voxelization import trilinear_sparse_devoxelize
+        >>> x_voxel = torch.tensor([[1.0], [3.0]])
+        >>> pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
+        >>> batch_voxel = torch.zeros(2, dtype=torch.long)
+        >>> pos = torch.tensor([[0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
+        >>> trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, torch.zeros(2, dtype=torch.long))
+        tensor([[2.0000],
+                [0.5000]])
+
+        ```
+    """
+    lower = torch.floor(pos)
+    frac = pos - lower
+    corner_offsets = torch.tensor(
+        [[i, j, k] for i in (0, 1) for j in (0, 1) for k in (0, 1)],
+        device=pos.device,
+    )  # (8, 3)
+    corners = lower.long().unsqueeze(1) + corner_offsets  # (N, 8, 3)
+    weights = torch.where(corner_offsets.bool(), frac.unsqueeze(1), 1.0 - frac.unsqueeze(1)).prod(2)  # (N, 8)
+
+    query = torch.cat([batch.view(-1, 1, 1).expand(-1, 8, 1), corners], dim=2).view(-1, 4)
+    voxels = torch.cat([batch_voxel.view(-1, 1), pos_voxel.long()], dim=1)
+    index = lookup_coordinates(voxels, query).view(-1, 8)
+
+    gathered = x_voxel[index.clamp(min=0)]  # (N, 8, C)
+    weights = weights * (index >= 0)
+    return (gathered * weights.unsqueeze(2).to(x_voxel.dtype)).sum(1)
 
 
 @overload
@@ -396,3 +511,56 @@ def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Te
     perm = torch.arange(n, device=cluster.device)
     first = torch.full((num_clusters,), n, dtype=torch.long, device=cluster.device)
     return first.scatter_reduce_(0, cluster, perm, reduce="amin")
+
+
+def voxelize_to_spconv_tensor(
+    x: Tensor,
+    pos: Tensor,
+    batch: Tensor,
+    voxel_size: float,
+    alignment: int = 1,
+) -> Tuple["SparseConvTensor", Tensor]:
+    r"""Voxelize packed points into a `spconv.SparseConvTensor`, the first point of a voxel giving its features.
+
+    Voxels are the cells $\lfloor p / \text{voxel\_size} \rfloor$ of the grid through the origin of `pos`. Their
+    indices are shifted by `origin`, a multiple of `alignment` chosen so that `alignment` empty voxels border the
+    occupied ones on every side: strided layers of total stride up to `alignment` then group the same voxels as on
+    the unshifted grid, and transposed ones never step outside the spatial shape.
+
+    Args:
+        x: Point features $(N, C)$.
+        pos: Point positions $(N, 3)$.
+        batch: Per-point batch index $(N,)$.
+        voxel_size: Voxel edge length, in the units of `pos`.
+        alignment: Multiple of the index shift, and voxel margin around the occupied voxels.
+
+    Returns:
+        The sparse tensor, with `[batch, i, j, k]` indices and a spatial shape that is a multiple of `alignment`, and
+        the integer `origin` $(3,)$: voxel $v$ holds the points of cell $v + \text{origin}$.
+
+    Shape:
+        - x: $(N, C)$
+        - pos: $(N, 3)$
+        - batch: $(N,)$
+        - origin: $(3,)$
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.ops.voxelization import voxelize_to_spconv_tensor
+
+        pos = torch.tensor([[0.01, 0.0, 0.0], [0.02, 0.0, 0.0], [-0.5, 0.2, 0.1]])
+        sparse, origin = voxelize_to_spconv_tensor(torch.rand(3, 3), pos, torch.zeros(3, dtype=torch.long), 0.1, 4)
+        sparse.indices  # 2 voxels
+        origin  # tensor([-12, -4, -4])
+        ```
+    """
+    pos_grid = torch.floor(pos / voxel_size).long()
+    voxels, cluster = torch.unique(torch.cat([batch.view(-1, 1), pos_grid], dim=1), dim=0, return_inverse=True)
+    x_voxel = x[first_permutation(cluster, len(voxels))]
+
+    origin = torch.div(voxels[:, 1:].min(0).values, alignment, rounding_mode="floor") * alignment - alignment
+    pos_voxel = voxels[:, 1:] - origin
+    spatial_shape = torch.div(pos_voxel.max(0).values + 2 * alignment, alignment, rounding_mode="floor") * alignment
+    sparse = convert_to_spconv_tensor(x_voxel, pos_voxel, voxels[:, 0], spatial_shape=spatial_shape.tolist())
+    return sparse, origin

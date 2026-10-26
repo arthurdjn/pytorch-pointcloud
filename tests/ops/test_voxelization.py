@@ -6,9 +6,12 @@ from torch_pointcloud.ops.voxelization import (
     dense_voxelize,
     first_permutation,
     hard_voxelize,
+    lookup_coordinates,
     sparse_voxelize,
     trilinear_dense_devoxelize,
+    trilinear_sparse_devoxelize,
     voxel_grid_fnv,
+    voxelize_to_spconv_tensor,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -210,3 +213,78 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_lookup_coordinates_finds_rows_and_flags_missing() -> None:
+    coordinates = torch.tensor([[0, 1, 2], [0, -3, 0], [1, 1, 2], [0, 0, 7]])
+    query = torch.tensor([[1, 1, 2], [0, 1, 3], [0, -3, 0], [0, 0, 7], [2, 1, 2]])
+    assert lookup_coordinates(coordinates, query).tolist() == [2, -1, 1, 3, -1]
+
+
+def test_lookup_coordinates_matches_brute_force() -> None:
+    generator = torch.Generator().manual_seed(0)
+    coordinates = torch.unique(torch.randint(-20, 20, (300, 4), generator=generator), dim=0)
+    query = torch.randint(-20, 20, (500, 4), generator=generator)
+    expected = [next((j for j, row in enumerate(coordinates.tolist()) if row == q), -1) for q in query.tolist()]
+    assert lookup_coordinates(coordinates, query).tolist() == expected
+
+
+def test_lookup_coordinates_empty_inputs() -> None:
+    assert lookup_coordinates(torch.zeros(0, 4, dtype=torch.long), torch.zeros(3, 4, dtype=torch.long)).tolist() == [
+        -1,
+        -1,
+        -1,
+    ]
+    assert lookup_coordinates(torch.zeros(2, 4, dtype=torch.long), torch.zeros(0, 4, dtype=torch.long)).shape == (0,)
+
+
+def test_lookup_coordinates_rejects_width_mismatch() -> None:
+    with pytest.raises(ValueError, match="same width"):
+        lookup_coordinates(torch.zeros(1, 4, dtype=torch.long), torch.zeros(1, 3, dtype=torch.long))
+
+
+def test_trilinear_sparse_devoxelize_reads_voxels_on_the_grid() -> None:
+    x_voxel = torch.tensor([[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]])
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0], [0, 0, 0]])
+    batch_voxel = torch.tensor([0, 0, 1])
+    pos = torch.tensor([[1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, torch.tensor([0, 1, 0]))
+    assert out.tolist() == [[2.0, 20.0], [3.0, 30.0], [1.0, 10.0]]
+
+
+def test_trilinear_sparse_devoxelize_missing_voxels_count_as_zero() -> None:
+    x_voxel = torch.tensor([[4.0]])
+    pos_voxel = torch.tensor([[0, 0, 0]])
+    batch_voxel = torch.tensor([0])
+    pos = torch.tensor([[0.5, 0.5, 0.5], [0.25, 0.0, 0.0], [5.0, 5.0, 5.0]])
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, torch.zeros(3, dtype=torch.long))
+    assert out.view(-1).tolist() == pytest.approx([0.5, 3.0, 0.0])
+
+
+def test_trilinear_sparse_devoxelize_matches_dense_on_a_full_grid() -> None:
+    generator = torch.Generator().manual_seed(0)
+    grid = torch.rand(1, 2, 4, 4, 4, generator=generator)
+    pos_voxel = torch.stack(torch.meshgrid(*[torch.arange(4)] * 3, indexing="ij"), -1).view(-1, 3)
+    x_voxel = grid[0].permute(1, 2, 3, 0).reshape(-1, 2)
+    pos = torch.rand(50, 3, generator=generator) * 3
+    batch = torch.zeros(50, dtype=torch.long)
+    sparse = trilinear_sparse_devoxelize(x_voxel, pos_voxel, torch.zeros(64, dtype=torch.long), pos, batch)
+    dense = trilinear_dense_devoxelize(grid, pos, batch, resolution=4)
+    torch.testing.assert_close(sparse, dense)
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_voxelize_to_spconv_tensor_keeps_first_point_and_aligns_origin() -> None:
+    pos = torch.tensor([[0.01, 0.0, 0.0], [0.02, 0.0, 0.0], [-0.55, 0.21, 0.1], [0.0, 0.0, 0.0]])
+    x = torch.tensor([[1.0], [2.0], [3.0], [4.0]])
+    batch = torch.tensor([0, 0, 0, 1])
+    sparse, origin = voxelize_to_spconv_tensor(x, pos, batch, voxel_size=0.1, alignment=4)
+
+    assert origin.tolist() == [-12, -4, -4]
+    assert (origin % 4 == 0).all()
+    cells = torch.cat([sparse.indices[:, :1].long(), sparse.indices[:, 1:].long() + origin], 1)
+    rows = {tuple(row): feature for row, feature in zip(cells.tolist(), sparse.features.view(-1).tolist())}
+    assert rows == {(0, 0, 0, 0): 1.0, (0, -6, 2, 1): 3.0, (1, 0, 0, 0): 4.0}
+    assert sparse.indices[:, 1:].min() >= 4
+    shape = torch.tensor(sparse.spatial_shape)
+    assert (shape % 4 == 0).all() and (sparse.indices[:, 1:].max(0).values + 4 < shape).all()

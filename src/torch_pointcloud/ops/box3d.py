@@ -327,41 +327,53 @@ def _quad_rings_intersection_area(a: Tensor, b: Tensor, eps: float = 1e-6) -> Te
     return torch.where(count >= 3, 0.5 * terms.sum(dim=-1).abs(), terms.new_zeros(lead))
 
 
-def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
+def box3d_overlap(boxes1: Tensor, boxes2: Tensor, *, aligned: bool = False) -> Tuple[Tensor, Tensor]:
     r"""Pairwise 3D intersection volume and IoU of two sets of boxes given as corners.
 
     Signature-compatible with `pytorch3d.ops.box3d_overlap`, so the exact CUDA implementation can be
     swapped in behind this interface. Boxes are assumed gravity-aligned (as produced by `box_corners`):
     the bird's-eye polygons are intersected exactly (corner containment plus edge crossings) and scaled
-    by the vertical overlap, entirely on the input device.
+    by the vertical overlap, entirely on the input device. The result is differentiable with respect to the
+    corners, so it can drive an IoU loss.
 
     Args:
         boxes1: Corners of the first set, shape $(M, 8, 3)$ (see `box_corners`).
         boxes2: Corners of the second set, shape $(N, 8, 3)$.
+        aligned: With `True`, `boxes1` and `boxes2` pair up row by row ($M = N$) and the results are $(M,)$.
 
     Returns:
-        A tuple `(intersection_vol, iou)`, each shape $(M, N)$.
+        A tuple `(intersection_vol, iou)`, each shape $(M, N)$, or $(M,)$ with `aligned`.
 
     Shape:
         - boxes1: $(M, 8, 3)$
         - boxes2: $(N, 8, 3)$
         - output: $(M, N)$, $(M, N)$
     """
+    if aligned and boxes1.shape[0] != boxes2.shape[0]:
+        raise ValueError(f"`aligned` needs as many boxes on both sides, got {boxes1.shape[0]} and {boxes2.shape[0]}.")
+
     m, n = boxes1.shape[0], boxes2.shape[0]
     if m == 0 or n == 0:
-        return boxes1.new_zeros(m, n), boxes1.new_zeros(m, n)
+        shape = (m,) if aligned else (m, n)
+        return boxes1.new_zeros(shape), boxes1.new_zeros(shape)
 
     ring1 = _sort_ring_ccw(boxes1[:, :4, :2])
     ring2 = _sort_ring_ccw(boxes2[:, :4, :2])
     area1, area2 = _ring_area(ring1), _ring_area(ring2)
     top1, bot1 = boxes1[..., 2].amax(dim=-1), boxes1[..., 2].amin(dim=-1)
     top2, bot2 = boxes2[..., 2].amax(dim=-1), boxes2[..., 2].amin(dim=-1)
+    vol1 = area1 * (top1 - bot1)
+    vol2 = area2 * (top2 - bot2)
+
+    if aligned:
+        bev = _quad_rings_intersection_area(ring1, ring2)
+        height = (torch.minimum(top1, top2) - torch.maximum(bot1, bot2)).clamp_min(0)
+        inter = bev * height
+        return inter, inter / (vol1 + vol2 - inter).clamp_min(1e-8)
 
     bev = _convex_quad_intersection_area(ring1, ring2)
     height = (torch.minimum(top1[:, None], top2[None, :]) - torch.maximum(bot1[:, None], bot2[None, :])).clamp_min(0)
     inter = bev * height
-    vol1 = area1 * (top1 - bot1)
-    vol2 = area2 * (top2 - bot2)
     iou = inter / (vol1[:, None] + vol2[None, :] - inter).clamp_min(1e-8)
     return inter, iou
 

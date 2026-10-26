@@ -1,9 +1,19 @@
+from typing import Any
+
 import pytest
 import torch
+import torch.nn.functional as F
 
-from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock, SubMConv3dBlock
+from torch_pointcloud.layers.spconv_blocks import (
+    SparseBasicBlock,
+    SparseConvBlock,
+    StridedSparseConv3d,
+    SubMConv3dBlock,
+)
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
-from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE, _SPCONV_GITHUB_URL, optional_import
+
+spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = [
@@ -84,3 +94,63 @@ def test_sparse_basic_block_projects_skip() -> None:
     same = SparseBasicBlock(8, 8, bias=True, indice_key="res").cuda()
     assert not any(p.numel() for p in same.proj.parameters())
     assert same(x_sparse).features.shape == (20, 8)
+
+
+def _random_sparse_tensor(size: int = 12, channels: int = 3, seed: int = 0) -> Any:
+    generator = torch.Generator().manual_seed(seed)
+    voxels = (torch.rand(size, size, size, generator=generator) < 0.2).nonzero().int()
+    indices = torch.cat([torch.zeros(len(voxels), 1, dtype=torch.int32), voxels], 1).contiguous().cuda()
+    features = torch.randn(len(voxels), channels, generator=generator).cuda()
+    return spconv.SparseConvTensor(features, indices, [size, size, size], 1)
+
+
+def test_strided_sparse_conv3d_outputs_the_parent_voxels() -> None:
+    x = _random_sparse_tensor()
+    out = StridedSparseConv3d(3, 4, kernel_size=3, stride=2).cuda()(x)
+
+    parents = torch.unique(torch.cat([x.indices[:, :1], x.indices[:, 1:] // 2], 1), dim=0)
+    assert torch.equal(out.indices, parents.int())
+    assert out.spatial_shape == [6, 6, 6]
+
+
+def test_strided_sparse_conv3d_matches_a_dense_convolution() -> None:
+    x = _random_sparse_tensor()
+    conv = StridedSparseConv3d(3, 4, kernel_size=3, stride=2).cuda()
+    out = conv(x)
+
+    dense = F.conv3d(x.dense(), conv.weight.permute(0, 4, 1, 2, 3), stride=2, padding=1)
+    index = out.indices.long()
+    expected = dense[0, :, index[:, 1], index[:, 2], index[:, 3]].T
+    torch.testing.assert_close(out.features, expected, atol=1e-4, rtol=1e-4)
+
+
+def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child() -> None:
+    indices = torch.tensor([[0, 0, 0, 0], [0, 3, 1, 1]], dtype=torch.int32).cuda()
+    x = spconv.SparseConvTensor(torch.ones(2, 2).cuda(), indices, [4, 4, 4], 1)
+    conv = StridedSparseConv3d(2, 1, kernel_size=1, stride=2).cuda()
+    out = conv(x)
+
+    assert out.indices.tolist() == [[0, 0, 0, 0], [0, 1, 0, 0]]
+    assert out.features[0].item() == pytest.approx(conv.weight.sum().item(), rel=1e-5)
+    assert out.features[1].item() == 0.0
+
+
+def test_sparse_basic_block_stride_two_halves_the_resolution() -> None:
+    x = _random_sparse_tensor(channels=8)
+    block = SparseBasicBlock(8, 16, stride=2, indice_key="subm").cuda().eval()
+    out = block(x)
+
+    parents = torch.unique(torch.cat([x.indices[:, :1], x.indices[:, 1:] // 2], 1), dim=0)
+    assert torch.equal(out.indices, parents.int())
+    assert out.features.shape == (len(parents), 16)
+    assert set(block.state_dict()) >= {"conv1.weight", "proj.0.weight", "proj.1.module.weight", "conv2.weight"}
+
+
+def test_sparse_conv_block_transposeconv_generates_children() -> None:
+    x = _random_sparse_tensor(size=6, channels=4)
+    block = SparseConvBlock(4, 2, 2, stride=2, indice_key=None, conv_type="transposeconv").cuda().eval()
+    out = block(x)
+
+    children = (x.indices[:, None, 1:] * 2 + torch.cartesian_prod(*[torch.arange(2)] * 3).int().cuda()).view(-1, 3)
+    assert len(out.indices) == len(children)
+    assert out.spatial_shape == [12, 12, 12]

@@ -66,12 +66,18 @@ $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROO
 $RUN examples/point_mae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-mae-base.shapenetpart.yatian-pang
 $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-m2ae-base.shapenetpart.renrui-zhang
 
-# Indoor detection (SUN RGB-D, ScanNet)
+# Indoor detection (SUN RGB-D, ScanNet, S3DIS)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
 $RUN examples/votenet/detection_scannet_benchmark.py --root "$ROOT" --model votenet.scannet.fair
 $RUN examples/threedetr/detection_sunrgbd_benchmark.py --root "$ROOT" --model 3detr.sunrgbd.fair
 $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3detr.scannet.fair
 $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3detr-m.scannet.fair
+$RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset scannet --model fcaf3d.scannet.mmdet3d
+$RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset sunrgbd --model fcaf3d.sunrgbd.mmdet3d
+$RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset s3dis --model fcaf3d.s3dis-area5.mmdet3d
+$RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset scannet --model tr3d.scannet.mmdet3d
+$RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset sunrgbd --model tr3d.sunrgbd.mmdet3d
+$RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset s3dis --model tr3d.s3dis-area5.mmdet3d
 
 # Outdoor detection (KITTI, nuScenes)
 $RUN examples/pointpillars/detection_kitti_benchmark.py --root "$ROOT" --model pointpillars.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"

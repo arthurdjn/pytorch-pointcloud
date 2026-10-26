@@ -257,6 +257,42 @@ BENCHMARKS = [
         id="votenet/scannet",
     ),
     pytest.param(
+        "fcaf3d/detection_benchmark.py",
+        ("--dataset", "scannet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="fcaf3d/scannet",
+    ),
+    pytest.param(
+        "fcaf3d/detection_benchmark.py",
+        ("--dataset", "sunrgbd", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="fcaf3d/sunrgbd",
+    ),
+    pytest.param(
+        "fcaf3d/detection_benchmark.py",
+        ("--dataset", "s3dis", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="fcaf3d/s3dis",
+    ),
+    pytest.param(
+        "tr3d/detection_benchmark.py",
+        ("--dataset", "scannet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="tr3d/scannet",
+    ),
+    pytest.param(
+        "tr3d/detection_benchmark.py",
+        ("--dataset", "sunrgbd", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="tr3d/sunrgbd",
+    ),
+    pytest.param(
+        "tr3d/detection_benchmark.py",
+        ("--dataset", "s3dis", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="tr3d/s3dis",
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
@@ -665,6 +701,30 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
         id="point_m2ae/shapenetpart-train",
+    ),
+    pytest.param(
+        "fcaf3d/detection_train.py",
+        (*_SMOKE_RECIPE, "--dataset", "scannet", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="fcaf3d/scannet-train",
+    ),
+    pytest.param(
+        "fcaf3d/detection_train.py",
+        (*_SMOKE_RECIPE, "--dataset", "sunrgbd", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="fcaf3d/sunrgbd-train",
+    ),
+    pytest.param(
+        "tr3d/detection_train.py",
+        (*_SMOKE_RECIPE, "--dataset", "s3dis", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="tr3d/s3dis-train",
+    ),
+    pytest.param(
+        "tr3d/detection_train.py",
+        (*_SMOKE_RECIPE, "--dataset", "sunrgbd", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="tr3d/sunrgbd-train",
     ),
     pytest.param(
         "second/detection_kitti_train.py",

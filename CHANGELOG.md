@@ -32,7 +32,11 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added the FCAF3D and TR3D detectors with their ScanNet, SUN RGB-D and S3DIS checkpoints, and their benchmark scripts.
+- Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, their losses, and their benchmark and training scripts.
+- Added `StridedSparseConv3d`, a `stride` option of `SparseBasicBlock` and the `transposeconv` type of `SparseConvBlock`.
+- Added `lookup_coordinates`, `trilinear_sparse_devoxelize` and `voxelize_to_spconv_tensor` to `ops.voxelization`.
+- Added `box_iou_loss`, its distance-IoU form, and the `aligned` option of `box3d_overlap`.
+- Added the `std` option of `RandomTranslate` and the S3DIS detection classes.
 
 ## 0.0.18 (2026-10-20)
 
