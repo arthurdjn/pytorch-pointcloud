@@ -123,6 +123,8 @@ def test_anchor_head_shares_templates_across_classes_and_decodes_velocity() -> N
     det = head.decode(out)
     assert out["batch_cls"].shape == (2, 64, 3) and out["batch_box"].shape == (2, 64, 9)
     assert torch.equal(det["velocity"], out["batch_box"][..., 7:9].reshape(-1, 2))
+    assert torch.equal(det["class_probs"], out["batch_cls"].sigmoid().reshape(-1, 3))
+    assert torch.equal(det["scores"], det["class_probs"].max(dim=1).values)
 
 
 def test_anchor_head_needs_one_bottom_height_per_size() -> None:
@@ -160,7 +162,9 @@ def test_multi_level_anchor_head_scales_the_templates_of_every_level() -> None:
     assert [tuple(c.shape) for c in out["cls"]] == [(2, 8, 8, 12), (2, 4, 4, 12)]
     assert out["batch_cls"].shape == (2, fine + coarse, 3)
     assert out["batch_box"].shape == (2, fine + coarse, 9)
-    assert head.decode(out)["boxes"].shape == (2 * (fine + coarse), 7)
+    det = head.decode(out)
+    assert det["boxes"].shape == (2 * (fine + coarse), 7)
+    assert torch.equal(det["class_probs"], out["batch_cls"].sigmoid().reshape(-1, 3))
 
 
 def test_multi_level_anchor_head_with_one_level_matches_the_anchor_head() -> None:

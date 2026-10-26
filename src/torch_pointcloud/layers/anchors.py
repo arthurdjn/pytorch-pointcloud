@@ -37,7 +37,8 @@ def _snap_heading(
 
 def _anchor_detections(batch_cls: Tensor, batch_box: Tensor) -> Detection3D:
     """Score every anchor by its top sigmoid class probability; velocity comes along when the box code holds it."""
-    scores, labels = batch_cls.sigmoid().max(dim=-1)
+    class_probs = batch_cls.sigmoid()
+    scores, labels = class_probs.max(dim=-1)
     batch_size, num_anchors = scores.shape
     batch = torch.arange(batch_size, device=scores.device).repeat_interleave(num_anchors)
     det: Detection3D = {
@@ -45,6 +46,7 @@ def _anchor_detections(batch_cls: Tensor, batch_box: Tensor) -> Detection3D:
         "scores": scores.reshape(-1),
         "labels": labels.reshape(-1),
         "batch": batch,
+        "class_probs": class_probs.reshape(batch_size * num_anchors, -1),
     }
     if batch_box.shape[-1] >= 9:
         det["velocity"] = batch_box[..., 7:9].reshape(-1, 2)
@@ -210,7 +212,8 @@ class AnchorHead(nn.Module):
 
         Returns:
             Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
-            "batch": (B * A,)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the box code carries it.
+            "batch": (B * A,), "class_probs": (B * A, C)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the
+            box code carries it.
         """
         return _anchor_detections(out["batch_cls"], out["batch_box"])
 
@@ -359,7 +362,8 @@ class MultiLevelAnchorHead(nn.Module):
 
         Returns:
             Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
-            "batch": (B * A,)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the box code carries it.
+            "batch": (B * A,), "class_probs": (B * A, C)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the
+            box code carries it.
         """
         return _anchor_detections(out["batch_cls"], out["batch_box"])
 
