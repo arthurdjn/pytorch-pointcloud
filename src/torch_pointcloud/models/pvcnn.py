@@ -656,7 +656,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
             return x, intermediates
         return x
 
-    def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[FeaturesDict], category: Tensor) -> Tensor:
+    def forward_decoder(self, x: Tensor, batch: Tensor, category: Tensor, intermediates: List[FeaturesDict]) -> Tensor:
         x_global = self.global_pool(x, batch)
         if self.global_mlp:
             x_global = self.global_mlp(x_global)
@@ -670,7 +670,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
-        x = self.forward_decoder(x, batch, intermediates, category)
+        x = self.forward_decoder(x, batch, category, intermediates)
         x = self.forward_head(x)
         return x
 

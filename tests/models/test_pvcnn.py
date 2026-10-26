@@ -233,7 +233,7 @@ def test_pvcnn_part_segmentation_forward_features_decoder_head(
 ) -> None:
     x, intermediates = model_part.forward_features(data["x"], data["pos"], data["batch"], return_intermediates=True)
     assert len(intermediates) == 3
-    x = model_part.forward_decoder(x, data["batch"], intermediates, category)
+    x = model_part.forward_decoder(x, data["batch"], category, intermediates)
     assert x.shape == (data["pos"].shape[0], model_part.num_features)
     assert model_part.num_features == 32 + 64 + 128 + 128 + 4
     assert torch.equal(x[:, -4:], category[data["batch"]])

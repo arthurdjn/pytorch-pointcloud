@@ -986,8 +986,8 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         x: Tensor,
         pos: Tensor,
         batch: Tensor,
-        intermediates: List[FeaturesDict],
         category: Tensor,
+        intermediates: List[FeaturesDict],
     ) -> Tensor:
         x_in, pos_in, batch_in = intermediates[0]["x"], intermediates[0]["pos"], intermediates[0]["batch"]
         skip = [x_in, pos_in, category[batch_in]] if self.use_category else [x_in, pos_in]
@@ -1002,7 +1002,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
-        x = self.forward_decoder(x, pos, batch, intermediates, category)
+        x = self.forward_decoder(x, pos, batch, category, intermediates)
         return self.forward_head(x)
 
 

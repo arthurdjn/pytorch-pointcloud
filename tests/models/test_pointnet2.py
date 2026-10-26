@@ -244,7 +244,7 @@ def test_pointnet2_part_segmentation_forward_features_decoder_head(
     assert torch.equal(batch, torch.arange(2))
     assert [skip["x"].shape[1] for skip in intermediates] == [6, 64, 128]
     assert [skip["pos"].shape[0] for skip in intermediates] == [data["pos"].shape[0], 128, 32]
-    x = model_part.forward_decoder(x, pos, batch, intermediates, category)
+    x = model_part.forward_decoder(x, pos, batch, category, intermediates)
     assert x.shape == (data["pos"].shape[0], model_part.num_features)
     assert torch.equal(model_part.forward_head(x, pre_logits=True), x)
     logits = model_part.forward_head(x)
