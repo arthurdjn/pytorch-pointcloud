@@ -38,6 +38,7 @@ neither are marked as such.
 | IGNF/myria3d                                    | `ignf`           | Etalab-2.0   | 1     | Copyright (c) 2021, Institut National de l'Information Géographique et Forestière                                          |
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
+| sunjiahao1999/SPFormer                          | `jiahao-sun`     | MIT          | 1     | Copyright (c) 2022 Jiahao Sun                                                                                              |
 
 ## Training data
 
@@ -49,7 +50,7 @@ Licenses of the datasets the checkpoints were trained on.
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
-| ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
+| ScanNet                                         | terms of use, non-commercial research and educational use | 13          |
 | SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
@@ -77,7 +78,7 @@ Files adapted from other implementations, with the copyright notice each source 
 | happinesslz/LION                  | Apache-2.0 | `models/lion.py`                                                                                                    | not stated upstream                                                           |
 | gwenzhang/Voxel-Mamba             | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py`                                                                            | not stated upstream                                                           |
 | JIA-Lab-research/VoxelNeXt        | Apache-2.0 | `models/voxelnext.py`                                                                                               | not stated upstream                                                           |
-| sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`                                                                                           | Copyright (c) 2022 Jiahao Sun                                                 |
+| sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`, `models/spformer.py`, `layers/masked_query_decoder_layer.py`, `losses/spformer.py`       | Copyright (c) 2022 Jiahao Sun                                                 |
 | Julie-tang00/Point-BERT           | MIT        | `models/point_bert.py`                                                                                              | Copyright (c) 2021 Xumin Yu                                                   |
 | Pang-Yatian/Point-MAE             | MIT        | `models/point_mae.py`                                                                                               | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
 | ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                              | Copyright (c) 2022 Renrui Zhang                                               |
