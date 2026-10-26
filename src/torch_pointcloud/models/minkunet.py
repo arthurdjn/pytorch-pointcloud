@@ -42,7 +42,6 @@ class MinkUNetEncoder(nn.Module):
         stem_channels: int = 32,
         channels: Sequence[int] = (32, 64, 128, 256),
         depths: Sequence[int] = (2, 2, 2, 2),
-        stem_kernel_size: int = 3,
         kernel_size: int = 3,
         spatial_padding: int = 96,
         act: Union[str, Callable, None] = "relu",
@@ -67,7 +66,7 @@ class MinkUNetEncoder(nn.Module):
             SparseConvBlock(
                 in_channels,
                 stem_channels,
-                kernel_size=stem_kernel_size,
+                kernel_size=kernel_size,
                 indice_key="subm0",
                 conv_type="subm",
                 norm=norm,
@@ -78,7 +77,7 @@ class MinkUNetEncoder(nn.Module):
             SparseConvBlock(
                 stem_channels,
                 stem_channels,
-                kernel_size=stem_kernel_size,
+                kernel_size=kernel_size,
                 indice_key="subm0",
                 conv_type="subm",
                 norm=norm,
@@ -196,8 +195,7 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
         decoder_depths: Number of residual blocks per decoder stage, aligned with `decoder_channels`.
         head_stages: Feature maps concatenated as the head input, in decoding order: $0$ is the encoder bottleneck and
             $i \geq 1$ the output of the $i$-th decoder stage. `None` uses the last decoder stage alone.
-        stem_kernel_size: Kernel size of the two stem convolutions.
-        kernel_size: Kernel size of the residual convolutions.
+        kernel_size: Kernel size of the submanifold convolutions, the stem included.
         spatial_padding: Padding added to the sparse spatial shape, so that voxel indices stay in range.
         act: Activation function.
         act_kwargs: Keyword arguments for the activation function.
@@ -232,7 +230,6 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
         encoder_depths: Sequence[int] = (2, 2, 2, 2),
         decoder_depths: Sequence[int] = (2, 2, 2, 2),
         head_stages: Optional[Sequence[int]] = None,
-        stem_kernel_size: int = 3,
         kernel_size: int = 3,
         spatial_padding: int = 96,
         act: Union[str, Callable, None] = "relu",
@@ -271,7 +268,6 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
         self.encoder_depths = tuple(encoder_depths)
         self.decoder_depths = tuple(decoder_depths)
         self.head_stages = None if head_stages is None else tuple(head_stages)
-        self.stem_kernel_size = stem_kernel_size
         self.kernel_size = kernel_size
         self.spatial_padding = spatial_padding
         self.act = act
@@ -290,7 +286,6 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
             stem_channels=self.stem_channels,
             channels=self.encoder_channels,
             depths=self.encoder_depths,
-            stem_kernel_size=self.stem_kernel_size,
             kernel_size=self.kernel_size,
             spatial_padding=self.spatial_padding,
             act=self.act,
