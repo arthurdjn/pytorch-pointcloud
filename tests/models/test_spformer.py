@@ -7,10 +7,11 @@ from torch import Tensor
 from torch_pointcloud.models import model_info
 from torch_pointcloud.models.spformer import SPFormerInstanceSegmentation, SPFormerOutput, SPFormerQueryDecoder
 from torch_pointcloud.utils.data import DataKeys, collate, select_inputs
-from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
 _REQUIRES_SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 _REQUIRES_CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
+_REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 
 
 def _decoder() -> SPFormerQueryDecoder:
@@ -102,6 +103,7 @@ def test_query_decoder_unblocks_fully_masked_rows() -> None:
     assert not attn_masks[0][0].any()
 
 
+@_REQUIRES_PYG_LIB
 def test_registered_transform_runs_without_labels() -> None:
     """The checkpoint's transform voxelizes a scene that carries no `segment` or `instance`."""
     transform = model_info("spformer.scannet.jiahao-sun", task="instance-segmentation")["transform"]
