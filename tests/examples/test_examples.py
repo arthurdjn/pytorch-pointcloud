@@ -154,6 +154,12 @@ BENCHMARKS = [
         id="volt/semantickitti",
     ),
     pytest.param(
+        "volt/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/semantickitti-simple",
+    ),
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,
