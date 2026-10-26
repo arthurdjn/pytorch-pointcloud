@@ -439,13 +439,13 @@ def majority_label(
     votes = labels if ignore_index is None else labels.masked_fill(labels == ignore_index, num_classes)
     num_votes = num_classes if ignore_index is None else num_classes + 1
     counts = scatter(
-        torch.nn.functional.one_hot(votes, num_votes),
-        cluster,
+        torch.ones_like(votes),
+        cluster * num_votes + votes,
         dim=0,
-        dim_size=num_clusters,
+        dim_size=num_clusters * num_votes,
         reduce="sum",
     )
-    majority = counts.argmax(dim=1)
+    majority = counts.view(num_clusters, num_votes).argmax(dim=1)
     if ignore_index is None:
         return majority
     return majority.masked_fill(majority == num_classes, ignore_index)
