@@ -715,7 +715,7 @@ def pointnet_shapenetpart(**hparams: Any) -> PointNetSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet.modelnet40.jiawei-ren/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 0.0, "mAcc": 0.0},
+        metrics={"OA": 90.68, "mAcc": 86.54},
         classes=MODELNET40_CLASSES,
         author="jiawei-ren",
         license="Apache-2.0",
@@ -744,7 +744,7 @@ def pointnet_jiawei_ren_modelnet40(**hparams: Any) -> PointNetClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet.scanobjectnn-hardest.openpoints/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scanobjectnn-hardest",
-        metrics={"OA": 0.0, "mAcc": 0.0},
+        metrics={"OA": 75.16, "mAcc": 71.44},
         classes=SCANOBJECTNN_CLASSES,
         author="openpoints",
         license="MIT",
@@ -780,7 +780,7 @@ def pointnet_openpoints_scanobjectnn(**hparams: Any) -> PointNetClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet.s3dis-area5.xu-yan/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 0.0, "OA": 0.0},
+        metrics={"mIoU": 43.88, "OA": 79.39},
         classes=S3DIS_CLASSES,
         author="xu-yan",
         license="MIT",
