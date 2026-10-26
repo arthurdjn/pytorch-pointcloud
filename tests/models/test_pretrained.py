@@ -780,6 +780,5 @@ def test_pretrained_sparse_indoor_detection(
     with torch.no_grad():
         out = model(x.to(DEVICE), pos.to(DEVICE), batch.to(DEVICE))
 
-    _check_output(
-        torch.cat([out["cls"].reshape(-1)[::97], out["boxes"].reshape(-1)[::97]]), model_name, force_regen, models_dir
-    )
+    parts = [out["cls"].reshape(-1)[::97], out["boxes"].reshape(-1)[::97]]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
