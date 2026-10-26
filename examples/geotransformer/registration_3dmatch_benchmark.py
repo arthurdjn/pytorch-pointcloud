@@ -91,7 +91,7 @@ def configure_dataloader(args: Namespace) -> DataLoader:
         shuffle=False,
         num_workers=args.num_workers,
         cat_keys=[DataKeys.REF_POS],
-        stack_keys=[DataKeys.TRANSFORM, DataKeys.INFORMATION, DataKeys.FRAME],
+        stack_keys=[DataKeys.TRANSFORM, DataKeys.INFORMATION],
     )
 
 
@@ -138,7 +138,7 @@ def evaluate(model: GeoTransformerRegistration, dataloader: DataLoader, device: 
             )
         )
 
-        ref_frame, src_frame = data[DataKeys.FRAME][0].tolist()
+        src_frame, ref_frame = int(data[DataKeys.FRAME][0]), int(data[DataKeys.REF_FRAME][0])
         if src_frame > ref_frame + 1:
             rmse = root_mean_square_alignment_error(transform, target, data[DataKeys.INFORMATION])
             scene_rmse[scene].append(rmse)

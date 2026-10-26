@@ -89,7 +89,7 @@ def configure_dataloader(args: Namespace) -> DataLoader:
         shuffle=False,
         num_workers=args.num_workers,
         cat_keys=[DataKeys.REF_POS],
-        stack_keys=[DataKeys.TRANSFORM, DataKeys.FRAME],
+        stack_keys=[DataKeys.TRANSFORM],
     )
 
 

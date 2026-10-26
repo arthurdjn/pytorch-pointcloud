@@ -118,7 +118,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
         shuffle=True,
         num_workers=args.num_workers,
         cat_keys=[DataKeys.REF_POS],
-        stack_keys=[DataKeys.TRANSFORM, DataKeys.FRAME],
+        stack_keys=[DataKeys.TRANSFORM],
     )
     val_loader = PointCloudDataLoader(
         val_dataset,
@@ -126,7 +126,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
         shuffle=False,
         num_workers=args.num_workers,
         cat_keys=[DataKeys.REF_POS],
-        stack_keys=[DataKeys.TRANSFORM, DataKeys.FRAME],
+        stack_keys=[DataKeys.TRANSFORM],
     )
     return train_loader, val_loader
 

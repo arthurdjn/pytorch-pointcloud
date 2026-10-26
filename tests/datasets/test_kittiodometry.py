@@ -42,7 +42,7 @@ def test_kittiodometry_splits(
     assert sample[DataKeys.REF_POS].ndim == 2 and sample[DataKeys.REF_POS].shape[1] == 3
     assert sample[DataKeys.POS].dtype == torch.float32
     assert sample[DataKeys.TRANSFORM].shape == (4, 4)
-    assert sample[DataKeys.FRAME].tolist() == [0, 1]
+    assert (int(sample[DataKeys.FRAME]), int(sample[DataKeys.REF_FRAME])) == (1, 0)
     assert sample[DataKeys.SEQUENCE] == sequence
 
 
@@ -91,11 +91,11 @@ def test_kittiodometry_collate(datasets_dir_factory: Callable[..., Path]) -> Non
         dataset,
         batch_size=2,
         cat_keys=[DataKeys.REF_POS],
-        stack_keys=[DataKeys.TRANSFORM, DataKeys.FRAME],
+        stack_keys=[DataKeys.TRANSFORM],
     )
     batch = next(iter(loader))
     assert batch[DataKeys.TRANSFORM].shape == (2, 4, 4)
-    assert batch[DataKeys.FRAME].shape == (2, 2)
+    assert batch[DataKeys.FRAME].shape == (2,) and batch[DataKeys.REF_FRAME].shape == (2,)
     assert batch[DataKeys.BATCH].max().item() == 1
     assert batch[DataKeys.BATCH_REF_POS].size(0) == batch[DataKeys.REF_POS].size(0)
     assert batch[DataKeys.SEQUENCE] == ["08", "08"]
