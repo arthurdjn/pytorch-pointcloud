@@ -8,7 +8,7 @@ from .focal import gaussian_focal_loss, one_hot_foreground, poly1_focal_loss, si
 from .kpconv import kpconv_deform_regularizer
 from .lovasz import lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched
-from .roi_head import roi_head_loss
+from .roi_head import roi_box_loss, roi_head_loss
 from .tnet import tnet_orthogonality_regularizer
 
 __all__ = [
@@ -23,6 +23,7 @@ __all__ = [
     "lovasz_softmax",
     "one_hot_foreground",
     "poly1_focal_loss",
+    "roi_box_loss",
     "roi_head_loss",
     "sigmoid_focal_loss",
     "tnet_orthogonality_regularizer",

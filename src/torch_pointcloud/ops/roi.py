@@ -5,7 +5,7 @@ $+z$ from $+x$, as in [`box3d`][torch_pointcloud.ops.box3d].
 """
 
 import math
-from typing import Literal, TypedDict
+from typing import Literal, Optional, TypedDict
 
 import torch
 from torch import Tensor
@@ -48,27 +48,29 @@ def decode_roi_residuals(encodings: Tensor, rois: Tensor) -> Tensor:
     return torch.cat([center, boxes[:, 3:]], dim=1)
 
 
-def encode_roi_residuals(boxes: Tensor, rois: Tensor) -> Tensor:
-    r"""Encode boxes as residuals in the frame of their RoI (inverse of `decode_roi_residuals`).
+def roi_frame_boxes(boxes: Tensor, rois: Tensor) -> Tensor:
+    r"""Express every box in the frame of its RoI: center at the origin, heading along $+x$.
 
-    Every box is moved into the frame of its RoI (center at the origin, heading along $+x$), its heading is folded
-    into $[-\pi/2, \pi/2]$ by a half turn when it faces away from the RoI, and the result is encoded by
-    [`encode_box_residuals`][torch_pointcloud.ops.box3d.encode_box_residuals] against the RoI extents. Decoding the
-    residuals returns the box, up to that half turn of the heading.
+    The heading is then folded into $[-\pi/2, \pi/2]$ by a half turn when the box faces away from its RoI, which leaves
+    the box itself unchanged.
 
     Args:
         boxes: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
         rois: RoIs in the same layout, shape $(R, 7)$.
 
     Returns:
-        The residuals $(x_t, y_t, z_t, d_{x,t}, d_{y,t}, d_{z,t}, \theta_t)$, shape $(R, 7)$.
+        The boxes in the frame of their RoI, shape $(R, 7)$.
+
+    Shape:
+        - boxes, rois: $(R, 7)$
+        - output: $(R, 7)$
 
     Example:
         ```pycon
-        >>> rois = torch.tensor([[10.0, 5.0, 0.0, 4.0, 2.0, 1.5, math.pi / 2]])
-        >>> boxes = torch.tensor([[10.0, 5.4472, 0.0, 4.0, 2.0, 1.5, math.pi / 2]])
-        >>> encode_roi_residuals(boxes, rois)[0, 0]
-        tensor(0.1000)
+        >>> rois = torch.tensor([[10.0, 5.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+        >>> facing_away = torch.tensor([[11.0, 5.0, 0.0, 4.0, 2.0, 1.5, math.pi]])
+        >>> roi_frame_boxes(facing_away, rois)[0, [0, 1, 6]]
+        tensor([1., 0., 0.])
 
         ```
     """
@@ -83,10 +85,38 @@ def encode_roi_residuals(boxes: Tensor, rois: Tensor) -> Tensor:
     local_heading = torch.where(opposite, (local_heading + math.pi) % (2 * math.pi), local_heading)
     local_heading = torch.where(local_heading > math.pi, local_heading - 2 * math.pi, local_heading)
     local_heading = local_heading.clamp(-math.pi / 2, math.pi / 2)
+    return torch.cat([torch.stack([x, y, offset[:, 2]], dim=1), boxes[:, 3:6], local_heading[:, None]], dim=1)
 
-    local = torch.cat([torch.stack([x, y, offset[:, 2]], dim=1), boxes[:, 3:6], local_heading[:, None]], dim=1)
+
+def encode_roi_residuals(boxes: Tensor, rois: Tensor) -> Tensor:
+    r"""Encode boxes as residuals in the frame of their RoI (inverse of `decode_roi_residuals`).
+
+    The boxes are moved into the frame of their RoI by [`roi_frame_boxes`][torch_pointcloud.ops.roi.roi_frame_boxes]
+    and encoded by [`encode_box_residuals`][torch_pointcloud.ops.box3d.encode_box_residuals] against the RoI
+    extents. Decoding the residuals returns the box, up to the half turn of the heading `roi_frame_boxes` may apply.
+
+    Args:
+        boxes: Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
+        rois: RoIs in the same layout, shape $(R, 7)$.
+
+    Returns:
+        The residuals $(x_t, y_t, z_t, d_{x,t}, d_{y,t}, d_{z,t}, \theta_t)$, shape $(R, 7)$.
+
+    Shape:
+        - boxes, rois: $(R, 7)$
+        - output: $(R, 7)$
+
+    Example:
+        ```pycon
+        >>> rois = torch.tensor([[10.0, 5.0, 0.0, 4.0, 2.0, 1.5, math.pi / 2]])
+        >>> boxes = torch.tensor([[10.0, 5.4472, 0.0, 4.0, 2.0, 1.5, math.pi / 2]])
+        >>> encode_roi_residuals(boxes, rois)[0, 0]
+        tensor(0.1000)
+
+        ```
+    """
     anchors = torch.cat([torch.zeros_like(rois[:, 0:3]), rois[:, 3:6], torch.zeros_like(rois[:, 6:7])], dim=1)
-    return encode_box_residuals(local, anchors)
+    return encode_box_residuals(roi_frame_boxes(boxes, rois), anchors)
 
 
 def roi_grid_points(rois: Tensor, grid_size: int) -> Tensor:
@@ -100,6 +130,10 @@ def roi_grid_points(rois: Tensor, grid_size: int) -> Tensor:
 
     Returns:
         The grid points, shape $(R, G^3, 3)$.
+
+    Shape:
+        - rois: $(R, 7)$
+        - output: $(R, G^3, 3)$
 
     Example:
         ```pycon
@@ -233,32 +267,39 @@ class RoISamples(TypedDict):
     iou: Tensor
 
 
-def _sample_background(hard: Tensor, easy: Tensor, num_samples: int, hard_ratio: float) -> Tensor:
+def _sample_background(
+    hard: Tensor,
+    easy: Tensor,
+    num_samples: int,
+    hard_ratio: float,
+    generator: Optional[torch.Generator],
+) -> Tensor:
     """Draw `num_samples` background RoIs with replacement, `hard_ratio` of them among the hard ones when both exist."""
     if hard.numel() > 0 and easy.numel() > 0:
         num_hard = min(int(num_samples * hard_ratio), hard.numel())
-        hard = hard[torch.randint(hard.numel(), (num_hard,), device=hard.device)]
-        easy = easy[torch.randint(easy.numel(), (num_samples - num_hard,), device=easy.device)]
+        hard = hard[torch.randint(hard.numel(), (num_hard,), device=hard.device, generator=generator)]
+        easy = easy[torch.randint(easy.numel(), (num_samples - num_hard,), device=easy.device, generator=generator)]
         return torch.cat([hard, easy])
 
     pool = hard if hard.numel() > 0 else easy
-    return pool[torch.randint(pool.numel(), (num_samples,), device=pool.device)]
+    return pool[torch.randint(pool.numel(), (num_samples,), device=pool.device, generator=generator)]
 
 
 @torch.no_grad()
 def sample_rois(
     rois: Tensor,
-    roi_labels: Tensor,
-    roi_batch: Tensor,
     boxes: Tensor,
-    labels: Tensor,
-    batch: Tensor,
     *,
+    roi_labels: Tensor,
+    box_labels: Tensor,
+    roi_batch: Tensor,
+    box_batch: Tensor,
     num_samples: int,
     foreground_ratio: float,
     foreground_threshold: float,
     hard_background_threshold: float,
     hard_background_ratio: float,
+    generator: Optional[torch.Generator] = None,
 ) -> RoISamples:
     r"""Sample a fixed number of RoIs per scene and match each one to a ground-truth box of its class.
 
@@ -270,16 +311,17 @@ def sample_rois(
 
     Args:
         rois: RoIs $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
-        roi_labels: Class of every RoI, shape $(R,)$.
-        roi_batch: Scene index of every RoI, shape $(R,)$.
         boxes: Ground-truth boxes in the same layout, shape $(K, 7)$.
-        labels: Class of every box, shape $(K,)$.
-        batch: Scene index of every box, shape $(K,)$.
+        roi_labels: Class of every RoI, shape $(R,)$.
+        box_labels: Class of every box, shape $(K,)$.
+        roi_batch: Scene index of every RoI, shape $(R,)$.
+        box_batch: Scene index of every box, shape $(K,)$.
         num_samples: RoIs drawn per scene $S$.
         foreground_ratio: Largest share of foreground RoIs among the samples of a scene.
         foreground_threshold: IoU at or above which a RoI is foreground.
         hard_background_threshold: IoU at or above which a background RoI is hard.
         hard_background_ratio: Share of hard RoIs among the background samples, when the scene has both kinds.
+        generator: Optional random generator of the draws.
 
     Returns:
         The sampled RoIs, their matched boxes and IoUs, ordered by scene.
@@ -296,11 +338,11 @@ def sample_rois(
         >>> zero = torch.zeros(2, dtype=torch.long)
         >>> samples = sample_rois(
         ...     rois,
-        ...     zero,
-        ...     zero,
         ...     boxes,
-        ...     zero[:1],
-        ...     zero[:1],
+        ...     roi_labels=zero,
+        ...     box_labels=zero[:1],
+        ...     roi_batch=zero,
+        ...     box_batch=zero[:1],
         ...     num_samples=2,
         ...     foreground_ratio=0.5,
         ...     foreground_threshold=0.55,
@@ -316,24 +358,25 @@ def sample_rois(
     index, target_index, ious = [], [], []
     for b in torch.unique(roi_batch):
         scene = (roi_batch == b).nonzero().view(-1)
-        targets = (batch == b).nonzero().view(-1)
+        targets = (box_batch == b).nonzero().view(-1)
         iou = rois.new_zeros(scene.numel())
         target = scene.new_full((scene.numel(),), -1)
         if targets.numel() > 0:
             overlaps = boxes_iou3d(rois[scene], boxes[targets])
-            overlaps = overlaps * (roi_labels[scene, None] == labels[None, targets])
+            overlaps = overlaps * (roi_labels[scene, None] == box_labels[None, targets])
             iou, best = overlaps.max(dim=1)
             target = torch.where(iou > 0, targets[best], target)
 
         foreground = (iou >= foreground_threshold).nonzero().view(-1)
         hard = ((iou < foreground_threshold) & (iou >= hard_background_threshold)).nonzero().view(-1)
         easy = (iou < hard_background_threshold).nonzero().view(-1)
+        device = foreground.device
         if hard.numel() + easy.numel() == 0:
-            sampled = foreground[torch.randint(foreground.numel(), (num_samples,), device=foreground.device)]
+            sampled = foreground[torch.randint(foreground.numel(), (num_samples,), device=device, generator=generator)]
         else:
             take = min(num_foreground, foreground.numel())
-            foreground = foreground[torch.randperm(foreground.numel(), device=foreground.device)[:take]]
-            background = _sample_background(hard, easy, num_samples - take, hard_background_ratio)
+            foreground = foreground[torch.randperm(foreground.numel(), device=device, generator=generator)[:take]]
+            background = _sample_background(hard, easy, num_samples - take, hard_background_ratio, generator)
             sampled = torch.cat([foreground, background])
 
         index.append(scene[sampled])

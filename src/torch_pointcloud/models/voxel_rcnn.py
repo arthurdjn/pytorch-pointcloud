@@ -57,7 +57,7 @@ class VoxelRCNNTrainOutput(AnchorHeadOutput):
         rois: Sampled RoIs, shape $(R, 7)$.
         roi_batch: Scene index of every sampled RoI, shape $(R,)$.
         roi_iou: 3D IoU of every sampled RoI with its matched box, shape $(R,)$.
-        roi_target_index: Index of the matched box into the packed ground truth, $-1$ when unmatched, shape $(R,)$.
+        roi_target_boxes: Matched ground-truth box of every sampled RoI, zeros when unmatched, shape $(R, 7)$.
     """
 
     rcnn_cls: Tensor
@@ -65,7 +65,7 @@ class VoxelRCNNTrainOutput(AnchorHeadOutput):
     rois: Tensor
     roi_batch: Tensor
     roi_iou: Tensor
-    roi_target_index: Tensor
+    roi_target_boxes: Tensor
 
 
 class VoxelRCNNBoxHead(nn.Module):
@@ -533,11 +533,11 @@ class VoxelRCNNDetection(DetectionModel):
             assert gt_boxes is not None and gt_labels is not None and gt_batch is not None
             samples = sample_rois(
                 rois,
-                roi_labels,
-                roi_batch,
                 gt_boxes,
-                gt_labels,
-                gt_batch,
+                roi_labels=roi_labels,
+                box_labels=gt_labels,
+                roi_batch=roi_batch,
+                box_batch=gt_batch,
                 num_samples=self.roi_num_samples,
                 foreground_ratio=self.roi_foreground_ratio,
                 foreground_threshold=self.roi_foreground_threshold,
@@ -545,6 +545,9 @@ class VoxelRCNNDetection(DetectionModel):
                 hard_background_ratio=self.roi_hard_background_ratio,
             )
             rois, roi_batch = rois[samples["index"]], roi_batch[samples["index"]]
+            matched = samples["target_index"] >= 0
+            target_boxes = torch.zeros_like(rois)
+            target_boxes[matched] = gt_boxes[samples["target_index"][matched]]
             rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)
             return {
                 **out,
@@ -553,7 +556,7 @@ class VoxelRCNNDetection(DetectionModel):
                 "rois": rois,
                 "roi_batch": roi_batch,
                 "roi_iou": samples["iou"],
-                "roi_target_index": samples["target_index"],
+                "roi_target_boxes": target_boxes,
             }
 
         rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)

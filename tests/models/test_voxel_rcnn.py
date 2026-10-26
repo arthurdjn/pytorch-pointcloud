@@ -148,7 +148,10 @@ def test_voxel_rcnn_training_forward_samples_rois_and_backpropagates() -> None:
         reg_foreground_threshold=0.55,
     ).cuda()
     target = {DataKeys.BOX: gt_boxes, DataKeys.LABEL: gt_labels, DataKeys.BATCH_BOX: gt_batch}
-    loss = anchor_loss(out, target)["loss"] + roi_loss(out, target)["loss"]
+    roi_losses = roi_loss(
+        out["rcnn_cls"].view(-1), out["rcnn_reg"], out["rois"], out["roi_target_boxes"], out["roi_iou"]
+    )
+    loss = anchor_loss(out, target)["loss"] + roi_losses["loss"]
     loss.backward()
     assert torch.isfinite(loss)
     assert model.roi_head.shared.lins[0].weight.grad is not None

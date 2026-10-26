@@ -328,7 +328,14 @@ def train_one_epoch(
     for data in tqdm(loader, desc="Training", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         output = forward_train(model, data)
-        loss = criterion(output, data)["loss"] + roi_criterion(output, data)["loss"]
+        roi_loss = roi_criterion(
+            output["rcnn_cls"].view(-1),
+            output["rcnn_reg"],
+            output["rois"],
+            output["roi_target_boxes"],
+            output["roi_iou"],
+        )
+        loss = criterion(output, data)["loss"] + roi_loss["loss"]
 
         optimizer.zero_grad(set_to_none=True)
         loss.backward()

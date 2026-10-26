@@ -3,9 +3,8 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from torch_pointcloud.losses import RoIHeadLoss, roi_head_loss
+from torch_pointcloud.losses import RoIHeadLoss, roi_box_loss, roi_head_loss
 from torch_pointcloud.ops.roi import encode_roi_residuals
-from torch_pointcloud.utils.data import DataKeys
 
 CLS_FOREGROUND, CLS_BACKGROUND, REG_FOREGROUND = 0.75, 0.25, 0.55
 
@@ -82,7 +81,23 @@ def test_roi_head_loss_regresses_only_the_foreground() -> None:
     assert torch.equal(reference[1], background_changed[1]) and torch.equal(reference[2], background_changed[2])
 
 
-def test_roi_head_loss_module_gathers_the_matched_boxes() -> None:
+def test_roi_box_loss_reads_only_the_foreground() -> None:
+    rois = _rois()
+    targets = rois + 0.2
+    foreground = torch.tensor([True, False, True])
+    codes = torch.zeros(3, 7)
+    reference = roi_box_loss(codes, rois, targets, foreground)
+    codes[1] = 5.0
+    targets[1] = 100.0
+    assert all(torch.equal(a, b) for a, b in zip(reference, roi_box_loss(codes, rois, targets, foreground)))
+
+
+def test_roi_box_loss_without_foreground_is_zero() -> None:
+    box_loss, corner = roi_box_loss(torch.randn(3, 7), _rois(), _rois(), torch.zeros(3, dtype=torch.bool))
+    assert box_loss.item() == 0.0 and corner.item() == 0.0
+
+
+def test_roi_head_loss_module_weights_the_terms() -> None:
     criterion = RoIHeadLoss(
         cls_foreground_threshold=CLS_FOREGROUND,
         cls_background_threshold=CLS_BACKGROUND,
@@ -90,21 +105,17 @@ def test_roi_head_loss_module_gathers_the_matched_boxes() -> None:
         corner_weight=0.5,
     )
     rois = _rois()
-    gt = rois[[2, 0]] + 0.1
-    output = {
-        "rcnn_cls": torch.zeros(3, 1, requires_grad=True),
-        "rcnn_reg": torch.zeros(3, 7, requires_grad=True),
-        "rois": rois,
-        "roi_iou": torch.tensor([0.8, 0.0, 0.7]),
-        "roi_target_index": torch.tensor([1, -1, 0]),
-    }
-    losses = criterion(output, {DataKeys.BOX: gt})
+    targets = rois + 0.1
+    cls_logits = torch.zeros(3, requires_grad=True)
+    box_codes = torch.zeros(3, 7, requires_grad=True)
+    iou = torch.tensor([0.8, 0.0, 0.7])
+    losses = criterion(cls_logits, box_codes, rois, targets, iou)
     cls_loss, box_loss, corner = roi_head_loss(
-        output["rcnn_cls"].view(-1),
-        output["rcnn_reg"],
+        cls_logits,
+        box_codes,
         rois,
-        gt[[1, 0, 0]],
-        output["roi_iou"],
+        targets,
+        iou,
         cls_foreground_threshold=CLS_FOREGROUND,
         cls_background_threshold=CLS_BACKGROUND,
         reg_foreground_threshold=REG_FOREGROUND,
@@ -112,25 +123,7 @@ def test_roi_head_loss_module_gathers_the_matched_boxes() -> None:
     assert torch.allclose(losses["loss"], cls_loss + box_loss + 0.5 * corner)
     assert set(losses) == {"loss", "rcnn_cls_loss", "rcnn_box_loss", "rcnn_corner_loss"}
     losses["loss"].backward()
-    assert output["rcnn_reg"].grad is not None and output["rcnn_reg"].grad[1].abs().sum() == 0
-
-
-def test_roi_head_loss_module_without_ground_truth() -> None:
-    criterion = RoIHeadLoss(
-        cls_foreground_threshold=CLS_FOREGROUND,
-        cls_background_threshold=CLS_BACKGROUND,
-        reg_foreground_threshold=REG_FOREGROUND,
-    )
-    output = {
-        "rcnn_cls": torch.zeros(3, 1),
-        "rcnn_reg": torch.zeros(3, 7),
-        "rois": _rois(),
-        "roi_iou": torch.zeros(3),
-        "roi_target_index": torch.full((3,), -1),
-    }
-    losses = criterion(output, {DataKeys.BOX: torch.zeros(0, 7)})
-    assert losses["rcnn_box_loss"].item() == 0.0 and losses["rcnn_corner_loss"].item() == 0.0
-    assert torch.isfinite(losses["loss"])
+    assert box_codes.grad is not None and box_codes.grad[1].abs().sum() == 0
 
 
 def test_roi_head_loss_module_rejects_inverted_thresholds() -> None:

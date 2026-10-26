@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Optional
 
 import pytest
 import torch
@@ -11,6 +11,7 @@ from torch_pointcloud.ops.roi import (
     decode_roi_residuals,
     encode_roi_residuals,
     roi_aware_pool3d,
+    roi_frame_boxes,
     roi_grid_points,
     sample_rois,
 )
@@ -112,20 +113,27 @@ def test_encode_roi_residuals_folds_an_opposite_heading_by_a_half_turn() -> None
 
 
 def _sample(
-    rois: Tensor, roi_labels: Tensor, roi_batch: Tensor, boxes: Tensor, labels: Tensor, batch: Tensor
+    rois: Tensor,
+    roi_labels: Tensor,
+    roi_batch: Tensor,
+    boxes: Tensor,
+    labels: Tensor,
+    batch: Tensor,
+    generator: Optional[torch.Generator] = None,
 ) -> RoISamples:
     return sample_rois(
         rois,
-        roi_labels,
-        roi_batch,
         boxes,
-        labels,
-        batch,
+        roi_labels=roi_labels,
+        box_labels=labels,
+        roi_batch=roi_batch,
+        box_batch=batch,
         num_samples=8,
         foreground_ratio=0.5,
         foreground_threshold=0.55,
         hard_background_threshold=0.1,
         hard_background_ratio=0.8,
+        generator=generator,
     )
 
 
@@ -172,3 +180,19 @@ def test_sample_rois_scene_without_boxes_is_all_background() -> None:
     samples = _sample(rois, zero, zero, rois[:0], zero[:0], zero[:0])
     assert samples["iou"].tolist() == [0.0] * 8
     assert samples["target_index"].tolist() == [-1] * 8
+
+
+def test_sample_rois_draws_the_same_samples_from_the_same_generator() -> None:
+    boxes = _boxes([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+    rois = boxes + torch.rand(40, 7) * torch.tensor([3.0, 3.0, 0.5, 0.0, 0.0, 0.0, 0.5])
+    zeros = torch.zeros(40, dtype=torch.long)
+    first = _sample(rois, zeros, zeros, boxes, zeros[:1], zeros[:1], torch.Generator().manual_seed(3))
+    second = _sample(rois, zeros, zeros, boxes, zeros[:1], zeros[:1], torch.Generator().manual_seed(3))
+    assert torch.equal(first["index"], second["index"])
+
+
+def test_roi_frame_boxes_moves_the_boxes_into_the_roi_frame() -> None:
+    rois = _boxes([[10.0, 5.0, 1.0, 4.0, 2.0, 1.5, math.pi / 2]])
+    boxes = _boxes([[10.0, 7.0, 1.5, 3.0, 1.0, 1.0, math.pi / 2 + 0.2]])
+    expected = _boxes([[2.0, 0.0, 0.5, 3.0, 1.0, 1.0, 0.2]])
+    assert torch.allclose(roi_frame_boxes(boxes, rois), expected, atol=1e-5)
