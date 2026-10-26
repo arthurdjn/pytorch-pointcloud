@@ -691,6 +691,12 @@ TRAININGS = [
         id="pointrcnn/kitti-train",
     ),
     pytest.param(
+        "voxel_rcnn/detection_kitti_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="voxel_rcnn/kitti-train",
+    ),
+    pytest.param(
         "second/detection_nuscenes_train.py",
         (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
         marks=_GPU_SPCONV,

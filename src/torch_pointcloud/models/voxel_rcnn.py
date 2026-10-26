@@ -14,10 +14,10 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadOutput
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2DecomposedQuerySetAbstraction
-from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d, roi_grid_points
+from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d, roi_grid_points, sample_rois
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import Detection3D
+from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
@@ -47,6 +47,26 @@ class VoxelRCNNOutput(TypedDict):
     batch: Tensor
 
 
+class VoxelRCNNTrainOutput(AnchorHeadOutput):
+    r"""Voxel R-CNN training output: the anchor head maps and the refinement of the sampled RoIs.
+
+    Attributes:
+        rcnn_cls: Second-stage confidence logit per sampled RoI, shape $(R, 1)$.
+        rcnn_reg: Second-stage box residuals per sampled RoI, shape $(R, 7)$.
+        rois: Sampled RoIs, shape $(R, 7)$.
+        roi_batch: Scene index of every sampled RoI, shape $(R,)$.
+        roi_iou: 3D IoU of every sampled RoI with its matched box, shape $(R,)$.
+        roi_target_index: Index of the matched box into the packed ground truth, $-1$ when unmatched, shape $(R,)$.
+    """
+
+    rcnn_cls: Tensor
+    rcnn_reg: Tensor
+    rois: Tensor
+    roi_batch: Tensor
+    roi_iou: Tensor
+    roi_target_index: Tensor
+
+
 class VoxelRCNNBoxHead(nn.Module):
     r"""Voxel R-CNN refinement head: voxel RoI pooling of the sparse stages, then a confidence and a box branch.
 
@@ -59,7 +79,7 @@ class VoxelRCNNBoxHead(nn.Module):
     Args:
         in_channels: Feature channels of every pooled stage.
         grid_size: Grid points per RoI side $G$.
-        pool_channels: Per-stage, per-scale `(hidden, out)` channels of the voxel pooling.
+        pool_channels: Per-stage, per-scale MLP channels of the voxel pooling.
         pool_radii: Per-stage, per-scale ball radius of the voxel pooling.
         pool_num_neighbors: Per-stage, per-scale neighbor count of the voxel pooling.
         shared_channels: Channels of the shared fully connected layers.
@@ -183,8 +203,16 @@ class VoxelRCNNDetection(DetectionModel):
         proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
         proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
         proposal_nms_thresh: Rotated BEV IoU threshold of the proposal NMS.
+        train_proposal_pre_maxsize: `proposal_pre_maxsize` in training.
+        train_proposal_post_maxsize: `proposal_post_maxsize` in training, before the RoI sampling.
+        train_proposal_nms_thresh: `proposal_nms_thresh` in training.
+        roi_num_samples: RoIs sampled per scene in training.
+        roi_foreground_ratio: Largest share of foreground RoIs among the samples of a scene.
+        roi_foreground_threshold: IoU at or above which a proposal is a foreground RoI.
+        roi_hard_background_threshold: IoU at or above which a background RoI is hard.
+        roi_hard_background_ratio: Share of hard RoIs among the background samples.
         grid_size: Grid points per RoI side.
-        pool_channels: Per-stage, per-scale `(hidden, out)` channels of the voxel RoI pooling.
+        pool_channels: Per-stage, per-scale MLP channels of the voxel RoI pooling.
         pool_radii: Per-stage, per-scale ball radius of the voxel RoI pooling.
         pool_num_neighbors: Per-stage, per-scale neighbor count of the voxel RoI pooling.
         shared_channels: Channels of the shared fully connected layers of the refinement head.
@@ -219,6 +247,14 @@ class VoxelRCNNDetection(DetectionModel):
         proposal_pre_maxsize: int = 2048,
         proposal_post_maxsize: int = 100,
         proposal_nms_thresh: float = 0.7,
+        train_proposal_pre_maxsize: int = 9000,
+        train_proposal_post_maxsize: int = 512,
+        train_proposal_nms_thresh: float = 0.8,
+        roi_num_samples: int = 128,
+        roi_foreground_ratio: float = 0.5,
+        roi_foreground_threshold: float = 0.55,
+        roi_hard_background_threshold: float = 0.1,
+        roi_hard_background_ratio: float = 0.8,
         grid_size: int = 6,
         pool_channels: Sequence[Sequence[Sequence[int]]] = (((32, 32),), ((32, 32),), ((32, 32),)),
         pool_radii: Sequence[Sequence[float]] = ((0.4,), (0.8,), (1.6,)),
@@ -250,6 +286,14 @@ class VoxelRCNNDetection(DetectionModel):
         self.proposal_pre_maxsize = proposal_pre_maxsize
         self.proposal_post_maxsize = proposal_post_maxsize
         self.proposal_nms_thresh = proposal_nms_thresh
+        self.train_proposal_pre_maxsize = train_proposal_pre_maxsize
+        self.train_proposal_post_maxsize = train_proposal_post_maxsize
+        self.train_proposal_nms_thresh = train_proposal_nms_thresh
+        self.roi_num_samples = roi_num_samples
+        self.roi_foreground_ratio = roi_foreground_ratio
+        self.roi_foreground_threshold = roi_foreground_threshold
+        self.roi_hard_background_threshold = roi_hard_background_threshold
+        self.roi_hard_background_ratio = roi_hard_background_ratio
         self.grid_size = grid_size
         self.pool_channels = pool_channels
         self.pool_radii = pool_radii
@@ -408,7 +452,8 @@ class VoxelRCNNDetection(DetectionModel):
         r"""Select the RoIs of every scene from the anchor head output.
 
         The `proposal_pre_maxsize` best anchors of every scene (by their top class score) go through a class-agnostic
-        rotated BEV NMS, which keeps at most `proposal_post_maxsize` of them.
+        rotated BEV NMS, which keeps at most `proposal_post_maxsize` of them; training uses the `train_proposal_*`
+        settings.
 
         Returns:
             `(rois, roi_scores, roi_labels, roi_batch)` of shapes $(R, 7)$, $(R,)$, $(R,)$ and $(R,)$.
@@ -417,11 +462,11 @@ class VoxelRCNNDetection(DetectionModel):
         keep = nms3d(
             det["boxes"],
             det["scores"],
-            self.proposal_nms_thresh,
+            self.train_proposal_nms_thresh if self.training else self.proposal_nms_thresh,
             batch=det["batch"],
             rotated=True,
-            pre_max_keep=self.proposal_pre_maxsize,
-            max_keep=self.proposal_post_maxsize,
+            pre_max_keep=self.train_proposal_pre_maxsize if self.training else self.proposal_pre_maxsize,
+            max_keep=self.train_proposal_post_maxsize if self.training else self.proposal_post_maxsize,
         )
         return det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
 
@@ -458,12 +503,59 @@ class VoxelRCNNDetection(DetectionModel):
         pos_voxel: Tensor,
         voxel_num_points: Tensor,
         batch_voxel: Tensor,
-    ) -> VoxelRCNNOutput:
+        gt_boxes: OptTensor = None,
+        gt_labels: OptTensor = None,
+        gt_batch: OptTensor = None,
+    ) -> Union[VoxelRCNNOutput, VoxelRCNNTrainOutput]:
+        r"""Run both stages; in training the ground truth drives the sampling of the RoIs that are refined.
+
+        Args:
+            voxels: Points of every voxel, shape $(V, P, C)$.
+            pos_voxel: Voxel coordinates $(z, y, x)$, shape $(V, 3)$.
+            voxel_num_points: Points per voxel, shape $(V,)$.
+            batch_voxel: Scene index of every voxel, shape $(V,)$.
+            gt_boxes: Ground-truth boxes $(K, 7)$, required in training.
+            gt_labels: Ground-truth $0$-based classes, shape $(K,)$, required in training.
+            gt_batch: Scene index of every box, shape $(K,)$, required in training.
+
+        Returns:
+            A `VoxelRCNNTrainOutput` in training, otherwise a `VoxelRCNNOutput`.
+        """
+        if self.training and (gt_boxes is None or gt_labels is None or gt_batch is None):
+            raise ValueError("Training needs `gt_boxes`, `gt_labels` and `gt_batch` to sample the RoIs.")
+
         features, stage_features, stage_indices = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
         out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
-        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)
 
+        if self.training:
+            assert gt_boxes is not None and gt_labels is not None and gt_batch is not None
+            samples = sample_rois(
+                rois,
+                roi_labels,
+                roi_batch,
+                gt_boxes,
+                gt_labels,
+                gt_batch,
+                num_samples=self.roi_num_samples,
+                foreground_ratio=self.roi_foreground_ratio,
+                foreground_threshold=self.roi_foreground_threshold,
+                hard_background_threshold=self.roi_hard_background_threshold,
+                hard_background_ratio=self.roi_hard_background_ratio,
+            )
+            rois, roi_batch = rois[samples["index"]], roi_batch[samples["index"]]
+            rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)
+            return {
+                **out,
+                "rcnn_cls": rcnn_cls,
+                "rcnn_reg": rcnn_reg,
+                "rois": rois,
+                "roi_batch": roi_batch,
+                "roi_iou": samples["iou"],
+                "roi_target_index": samples["target_index"],
+            }
+
+        rcnn_cls, rcnn_reg = self.refine(rois, roi_batch, stage_features, stage_indices)
         return {
             "rcnn_cls": rcnn_cls,
             "boxes": decode_roi_residuals(rcnn_reg, rois),
@@ -522,6 +614,7 @@ class VoxelRCNNDetection(DetectionModel):
         point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
         anchor_sizes=[[3.9, 1.6, 1.56]],
         anchor_bottom_heights=[-1.78],
+        feature_map_stride=8,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )

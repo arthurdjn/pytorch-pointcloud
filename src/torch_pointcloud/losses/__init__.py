@@ -25,6 +25,7 @@ from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched
 from .pointrcnn import PointRCNNLoss
+from .roi_head import RoIHeadLoss, roi_head_loss
 from .sum import SumLoss
 from .threedetr import ThreeDETRLoss
 from .tnet import TNetOrthogonalityRegularizer, tnet_orthogonality_regularizer
@@ -42,6 +43,7 @@ __all__ = [
     "LovaszLoss",
     "MultiGroupAnchorHeadLoss",
     "PointRCNNLoss",
+    "RoIHeadLoss",
     "SigmoidFocalLoss",
     "SumLoss",
     "TNetOrthogonalityRegularizer",
@@ -61,6 +63,7 @@ __all__ = [
     "lovasz_softmax",
     "one_hot_foreground",
     "poly1_focal_loss",
+    "roi_head_loss",
     "sigmoid_focal_loss",
     "tnet_orthogonality_regularizer",
 ]
