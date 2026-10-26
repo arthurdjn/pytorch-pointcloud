@@ -1,0 +1,1214 @@
+{
+  "num_params": 85854178,
+  "state_dict": {
+    "encoder.stem.stem.weight": [
+      72,
+      5,
+      5,
+      5,
+      3
+    ],
+    "encoder.stem.norm.module.weight": [
+      72
+    ],
+    "encoder.stem.norm.module.bias": [
+      72
+    ],
+    "encoder.stem.norm.module.running_mean": [
+      72
+    ],
+    "encoder.stem.norm.module.running_var": [
+      72
+    ],
+    "encoder.stem.norm.module.num_batches_tracked": [],
+    "encoder.blocks.0.blocks.0.cpe_conv.weight": [
+      72,
+      3,
+      3,
+      3,
+      72
+    ],
+    "encoder.blocks.0.blocks.0.cpe_conv.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.0.cpe_proj.weight": [
+      72,
+      72
+    ],
+    "encoder.blocks.0.blocks.0.cpe_proj.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.0.cpe_norm.weight": [
+      72
+    ],
+    "encoder.blocks.0.blocks.0.cpe_norm.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.1.cpe_conv.weight": [
+      72,
+      3,
+      3,
+      3,
+      72
+    ],
+    "encoder.blocks.0.blocks.1.cpe_conv.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.1.cpe_proj.weight": [
+      72,
+      72
+    ],
+    "encoder.blocks.0.blocks.1.cpe_proj.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.1.cpe_norm.weight": [
+      72
+    ],
+    "encoder.blocks.0.blocks.1.cpe_norm.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.2.cpe_conv.weight": [
+      72,
+      3,
+      3,
+      3,
+      72
+    ],
+    "encoder.blocks.0.blocks.2.cpe_conv.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.2.cpe_proj.weight": [
+      72,
+      72
+    ],
+    "encoder.blocks.0.blocks.2.cpe_proj.bias": [
+      72
+    ],
+    "encoder.blocks.0.blocks.2.cpe_norm.weight": [
+      72
+    ],
+    "encoder.blocks.0.blocks.2.cpe_norm.bias": [
+      72
+    ],
+    "encoder.blocks.1.downsample.proj.weight": [
+      144,
+      72
+    ],
+    "encoder.blocks.1.downsample.proj.bias": [
+      144
+    ],
+    "encoder.blocks.1.downsample.norm.module.weight": [
+      144
+    ],
+    "encoder.blocks.1.downsample.norm.module.bias": [
+      144
+    ],
+    "encoder.blocks.1.downsample.norm.module.running_mean": [
+      144
+    ],
+    "encoder.blocks.1.downsample.norm.module.running_var": [
+      144
+    ],
+    "encoder.blocks.1.downsample.norm.module.num_batches_tracked": [],
+    "encoder.blocks.1.blocks.0.cpe_conv.weight": [
+      144,
+      3,
+      3,
+      3,
+      144
+    ],
+    "encoder.blocks.1.blocks.0.cpe_conv.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.0.cpe_proj.weight": [
+      144,
+      144
+    ],
+    "encoder.blocks.1.blocks.0.cpe_proj.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.0.cpe_norm.weight": [
+      144
+    ],
+    "encoder.blocks.1.blocks.0.cpe_norm.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.1.cpe_conv.weight": [
+      144,
+      3,
+      3,
+      3,
+      144
+    ],
+    "encoder.blocks.1.blocks.1.cpe_conv.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.1.cpe_proj.weight": [
+      144,
+      144
+    ],
+    "encoder.blocks.1.blocks.1.cpe_proj.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.1.cpe_norm.weight": [
+      144
+    ],
+    "encoder.blocks.1.blocks.1.cpe_norm.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.2.cpe_conv.weight": [
+      144,
+      3,
+      3,
+      3,
+      144
+    ],
+    "encoder.blocks.1.blocks.2.cpe_conv.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.2.cpe_proj.weight": [
+      144,
+      144
+    ],
+    "encoder.blocks.1.blocks.2.cpe_proj.bias": [
+      144
+    ],
+    "encoder.blocks.1.blocks.2.cpe_norm.weight": [
+      144
+    ],
+    "encoder.blocks.1.blocks.2.cpe_norm.bias": [
+      144
+    ],
+    "encoder.blocks.2.downsample.proj.weight": [
+      288,
+      144
+    ],
+    "encoder.blocks.2.downsample.proj.bias": [
+      288
+    ],
+    "encoder.blocks.2.downsample.norm.module.weight": [
+      288
+    ],
+    "encoder.blocks.2.downsample.norm.module.bias": [
+      288
+    ],
+    "encoder.blocks.2.downsample.norm.module.running_mean": [
+      288
+    ],
+    "encoder.blocks.2.downsample.norm.module.running_var": [
+      288
+    ],
+    "encoder.blocks.2.downsample.norm.module.num_batches_tracked": [],
+    "encoder.blocks.2.blocks.0.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "encoder.blocks.2.blocks.0.cpe_conv.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.0.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "encoder.blocks.2.blocks.0.cpe_proj.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.0.cpe_norm.weight": [
+      288
+    ],
+    "encoder.blocks.2.blocks.0.cpe_norm.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.1.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "encoder.blocks.2.blocks.1.cpe_conv.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.1.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "encoder.blocks.2.blocks.1.cpe_proj.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.1.cpe_norm.weight": [
+      288
+    ],
+    "encoder.blocks.2.blocks.1.cpe_norm.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.2.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "encoder.blocks.2.blocks.2.cpe_conv.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.2.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "encoder.blocks.2.blocks.2.cpe_proj.bias": [
+      288
+    ],
+    "encoder.blocks.2.blocks.2.cpe_norm.weight": [
+      288
+    ],
+    "encoder.blocks.2.blocks.2.cpe_norm.bias": [
+      288
+    ],
+    "encoder.blocks.3.downsample.proj.weight": [
+      576,
+      288
+    ],
+    "encoder.blocks.3.downsample.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.downsample.norm.module.weight": [
+      576
+    ],
+    "encoder.blocks.3.downsample.norm.module.bias": [
+      576
+    ],
+    "encoder.blocks.3.downsample.norm.module.running_mean": [
+      576
+    ],
+    "encoder.blocks.3.downsample.norm.module.running_var": [
+      576
+    ],
+    "encoder.blocks.3.downsample.norm.module.num_batches_tracked": [],
+    "encoder.blocks.3.blocks.0.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.0.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.0.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.0.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.0.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.0.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.0.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.0.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.0.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.1.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.1.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.1.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.1.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.1.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.1.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.1.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.1.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.2.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.2.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.2.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.2.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.2.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.2.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.2.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.2.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.3.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.3.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.3.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.3.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.3.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.3.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.3.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.3.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.4.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.4.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.4.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.4.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.4.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.4.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.4.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.4.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.5.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.5.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.5.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.5.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.5.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.5.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.5.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.5.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.6.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.6.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.6.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.6.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.6.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.6.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.6.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.6.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.7.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.7.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.7.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.7.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.7.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.7.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.7.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.7.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.8.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.8.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.8.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.8.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.8.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.8.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.8.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.8.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.9.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.9.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.9.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.9.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.9.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.9.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.9.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.9.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.10.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.10.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.10.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.10.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.10.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.10.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.10.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.10.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.norm0.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.norm0.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.norm1.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.norm1.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.attn.qkv.weight": [
+      1728,
+      576
+    ],
+    "encoder.blocks.3.blocks.11.attn.qkv.bias": [
+      1728
+    ],
+    "encoder.blocks.3.blocks.11.attn.proj.weight": [
+      576,
+      576
+    ],
+    "encoder.blocks.3.blocks.11.attn.proj.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.3.blocks.11.norm2.weight": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.norm2.bias": [
+      576
+    ],
+    "encoder.blocks.3.blocks.11.mlp.0.weight": [
+      2304,
+      576
+    ],
+    "encoder.blocks.3.blocks.11.mlp.0.bias": [
+      2304
+    ],
+    "encoder.blocks.3.blocks.11.mlp.3.weight": [
+      576,
+      2304
+    ],
+    "encoder.blocks.3.blocks.11.mlp.3.bias": [
+      576
+    ],
+    "encoder.blocks.4.downsample.proj.weight": [
+      864,
+      576
+    ],
+    "encoder.blocks.4.downsample.proj.bias": [
+      864
+    ],
+    "encoder.blocks.4.downsample.norm.module.weight": [
+      864
+    ],
+    "encoder.blocks.4.downsample.norm.module.bias": [
+      864
+    ],
+    "encoder.blocks.4.downsample.norm.module.running_mean": [
+      864
+    ],
+    "encoder.blocks.4.downsample.norm.module.running_var": [
+      864
+    ],
+    "encoder.blocks.4.downsample.norm.module.num_batches_tracked": [],
+    "encoder.blocks.4.blocks.0.norm0.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.norm0.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.norm1.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.norm1.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.attn.qkv.weight": [
+      2592,
+      864
+    ],
+    "encoder.blocks.4.blocks.0.attn.qkv.bias": [
+      2592
+    ],
+    "encoder.blocks.4.blocks.0.attn.proj.weight": [
+      864,
+      864
+    ],
+    "encoder.blocks.4.blocks.0.attn.proj.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.4.blocks.0.norm2.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.norm2.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.0.mlp.0.weight": [
+      3456,
+      864
+    ],
+    "encoder.blocks.4.blocks.0.mlp.0.bias": [
+      3456
+    ],
+    "encoder.blocks.4.blocks.0.mlp.3.weight": [
+      864,
+      3456
+    ],
+    "encoder.blocks.4.blocks.0.mlp.3.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.norm0.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.norm0.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.norm1.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.norm1.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.attn.qkv.weight": [
+      2592,
+      864
+    ],
+    "encoder.blocks.4.blocks.1.attn.qkv.bias": [
+      2592
+    ],
+    "encoder.blocks.4.blocks.1.attn.proj.weight": [
+      864,
+      864
+    ],
+    "encoder.blocks.4.blocks.1.attn.proj.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.4.blocks.1.norm2.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.norm2.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.1.mlp.0.weight": [
+      3456,
+      864
+    ],
+    "encoder.blocks.4.blocks.1.mlp.0.bias": [
+      3456
+    ],
+    "encoder.blocks.4.blocks.1.mlp.3.weight": [
+      864,
+      3456
+    ],
+    "encoder.blocks.4.blocks.1.mlp.3.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.norm0.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.norm0.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.norm1.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.norm1.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.attn.qkv.weight": [
+      2592,
+      864
+    ],
+    "encoder.blocks.4.blocks.2.attn.qkv.bias": [
+      2592
+    ],
+    "encoder.blocks.4.blocks.2.attn.proj.weight": [
+      864,
+      864
+    ],
+    "encoder.blocks.4.blocks.2.attn.proj.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.attn.rope.inv_freq": [
+      3
+    ],
+    "encoder.blocks.4.blocks.2.norm2.weight": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.norm2.bias": [
+      864
+    ],
+    "encoder.blocks.4.blocks.2.mlp.0.weight": [
+      3456,
+      864
+    ],
+    "encoder.blocks.4.blocks.2.mlp.0.bias": [
+      3456
+    ],
+    "encoder.blocks.4.blocks.2.mlp.3.weight": [
+      864,
+      3456
+    ],
+    "encoder.blocks.4.blocks.2.mlp.3.bias": [
+      864
+    ],
+    "decoder.blocks.0.upsample.proj.weight": [
+      576,
+      864
+    ],
+    "decoder.blocks.0.upsample.proj.bias": [
+      576
+    ],
+    "decoder.blocks.0.upsample.proj_skip.weight": [
+      576,
+      576
+    ],
+    "decoder.blocks.0.upsample.proj_skip.bias": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm.module.weight": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm.module.bias": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm.module.running_mean": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm.module.running_var": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm.module.num_batches_tracked": [],
+    "decoder.blocks.0.upsample.norm_skip.module.weight": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm_skip.module.bias": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm_skip.module.running_mean": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm_skip.module.running_var": [
+      576
+    ],
+    "decoder.blocks.0.upsample.norm_skip.module.num_batches_tracked": [],
+    "decoder.blocks.1.upsample.proj.weight": [
+      288,
+      576
+    ],
+    "decoder.blocks.1.upsample.proj.bias": [
+      288
+    ],
+    "decoder.blocks.1.upsample.proj_skip.weight": [
+      288,
+      288
+    ],
+    "decoder.blocks.1.upsample.proj_skip.bias": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm.module.weight": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm.module.bias": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm.module.running_mean": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm.module.running_var": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm.module.num_batches_tracked": [],
+    "decoder.blocks.1.upsample.norm_skip.module.weight": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm_skip.module.bias": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm_skip.module.running_mean": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm_skip.module.running_var": [
+      288
+    ],
+    "decoder.blocks.1.upsample.norm_skip.module.num_batches_tracked": [],
+    "decoder.blocks.2.upsample.proj.weight": [
+      144,
+      288
+    ],
+    "decoder.blocks.2.upsample.proj.bias": [
+      144
+    ],
+    "decoder.blocks.2.upsample.proj_skip.weight": [
+      144,
+      144
+    ],
+    "decoder.blocks.2.upsample.proj_skip.bias": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm.module.weight": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm.module.bias": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm.module.running_mean": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm.module.running_var": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm.module.num_batches_tracked": [],
+    "decoder.blocks.2.upsample.norm_skip.module.weight": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm_skip.module.bias": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm_skip.module.running_mean": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm_skip.module.running_var": [
+      144
+    ],
+    "decoder.blocks.2.upsample.norm_skip.module.num_batches_tracked": [],
+    "decoder.blocks.3.upsample.proj.weight": [
+      72,
+      144
+    ],
+    "decoder.blocks.3.upsample.proj.bias": [
+      72
+    ],
+    "decoder.blocks.3.upsample.proj_skip.weight": [
+      72,
+      72
+    ],
+    "decoder.blocks.3.upsample.proj_skip.bias": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm.module.weight": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm.module.bias": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm.module.running_mean": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm.module.running_var": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm.module.num_batches_tracked": [],
+    "decoder.blocks.3.upsample.norm_skip.module.weight": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm_skip.module.bias": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm_skip.module.running_mean": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm_skip.module.running_var": [
+      72
+    ],
+    "decoder.blocks.3.upsample.norm_skip.module.num_batches_tracked": [],
+    "head.weight": [
+      10,
+      72
+    ],
+    "head.bias": [
+      10
+    ]
+  }
+}

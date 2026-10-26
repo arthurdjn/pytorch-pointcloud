@@ -23,6 +23,7 @@ from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
+from .litept import LitePTSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
@@ -84,6 +85,7 @@ __all__ = [
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
+    "LitePTSegmentation",
     "OctFormerClassification",
     "OctFormerSegmentation",
     "PointBERTClassification",

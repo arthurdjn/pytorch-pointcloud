@@ -157,6 +157,12 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3-base.s3dis-area5.pointcept",
     "ptv3.dales.jayakumar-pujar",
     "ptv3-base.nuscenes.pointcept",
+    "litept-small.scannet20.prs-eth",
+    "litept-small.nuscenes.prs-eth",
+    "litept-large.nuscenes.prs-eth",
+    "litept-small.structured3d.prs-eth",
+    "litept-base.structured3d.prs-eth",
+    "litept-large.structured3d.prs-eth",
     "pvcnn.s3dis-area5.mit-han-lab",
     "pvcnn-c0p25.s3dis-area5.mit-han-lab",
     "pvcnn-c0p125.s3dis-area5.mit-han-lab",
@@ -261,7 +267,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -295,7 +301,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3", "litept"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
@@ -303,7 +309,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
         if not torch.cuda.is_available():
             pytest.skip(f"{model_name} requires CUDA, none available")
         pytest.importorskip("sptr")
-    if model_name.startswith("ptv3") and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("ptv3", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
