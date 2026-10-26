@@ -37,31 +37,6 @@ VOXEL_SIZE = 0.05
 MAX_VOXELS = 80_000
 
 
-TRAIN_TRANSFORM = T.Compose(
-    [
-        T.KeepItems(keys=[DataKeys.POS, DataKeys.INTENSITY, DataKeys.SEGMENT]),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=IGNORE_INDEX),
-        T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(0.0, 360.0)),
-        T.RandomScale(keys=DataKeys.POS, scale_range=(0.95, 1.05)),
-        T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),  # the augmented coordinates
-        T.Translate(keys=DataKeys.POS, offset=VOXEL_SIZE / 2),  # round to the grid instead of flooring
-        T.Voxelize(
-            pos_key=DataKeys.POS,
-            pos_reduce="first",
-            dst_pos_grid_key=DataKeys.POS_GRID,
-            keys=[DataKeys.X, DataKeys.SEGMENT],
-            reduce="first",
-            size=VOXEL_SIZE,
-        ),
-        T.RandomSample(
-            keys=[DataKeys.POS_GRID, DataKeys.X, DataKeys.SEGMENT],
-            num_samples=MAX_VOXELS,
-            allow_fewer=True,
-        ),
-    ]
-)
-
-
 def main() -> None:
     args = parse_args()
     seed_everything(args.seed)
@@ -111,6 +86,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--weight-decay", default=1e-4, type=float)
     parser.add_argument("--warmup-iters", default=125, type=int)
     parser.add_argument("--warmup-factor", default=0.008, type=float, help="Learning-rate factor of the first step.")
+    parser.add_argument("--max-voxels", default=MAX_VOXELS, type=int, help="Voxels kept per training scan.")
     parser.add_argument("--no-amp", action="store_true", help="Disable the float16 autocast of the reference.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--eval-every", default=1, type=int, help="Validate every this many epochs.")
@@ -119,12 +95,38 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
+def configure_train_transform(args: Namespace) -> T.Transform:
+    return T.Compose(
+        [
+            T.KeepItems(keys=[DataKeys.POS, DataKeys.INTENSITY, DataKeys.SEGMENT]),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=IGNORE_INDEX),
+            T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(0.0, 360.0)),
+            T.RandomScale(keys=DataKeys.POS, scale_range=(0.95, 1.05)),
+            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),  # the augmented coordinates
+            T.Translate(keys=DataKeys.POS, offset=VOXEL_SIZE / 2),  # round to the grid instead of flooring
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT],
+                reduce="first",
+                size=VOXEL_SIZE,
+            ),
+            T.RandomSample(
+                keys=[DataKeys.POS, DataKeys.POS_GRID, DataKeys.X, DataKeys.SEGMENT],
+                num_samples=args.max_voxels,
+                allow_fewer=True,
+            ),
+        ]
+    )
+
+
 def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_dataset: Dataset
     val_dataset: Dataset
     val_transform = model_info(args.model, task="semantic-segmentation")["transform"]
     train_dataset = SemanticKITTI(
-        root=args.root, split="train", sequences=args.train_sequences, transform=TRAIN_TRANSFORM
+        root=args.root, split="train", sequences=args.train_sequences, transform=configure_train_transform(args)
     )
     val_dataset = SemanticKITTI(root=args.root, split="val", sequences=args.val_sequences, transform=val_transform)
 

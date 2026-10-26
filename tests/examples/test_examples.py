@@ -552,6 +552,8 @@ TRAININGS = [
             "2",
             "--warmup-iters",
             "1",
+            "--max-voxels",
+            "256",
         ),
         marks=_GPU_SPCONV,
         id="minkunet/semantickitti",
