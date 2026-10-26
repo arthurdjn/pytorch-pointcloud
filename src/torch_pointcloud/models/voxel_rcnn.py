@@ -476,23 +476,22 @@ class VoxelRCNNDetection(DetectionModel):
         stage_batch = [stage["batch"] for stage in stages]
         return self.roi_head(rois, roi_batch, stage_features, stage_pos, stage_batch)
 
-    def forward(
+    def forward_rois(
         self,
-        voxels: Tensor,
-        pos_voxel: Tensor,
-        voxel_num_points: Tensor,
-        batch_voxel: Tensor,
+        out: AnchorHeadOutput,
+        stages: List[FeaturesDict],
         gt_boxes: OptTensor = None,
         gt_labels: OptTensor = None,
         gt_batch: OptTensor = None,
     ) -> Union[VoxelRCNNOutput, VoxelRCNNTrainOutput]:
-        r"""Run both stages; in training the ground truth drives the sampling of the RoIs that are refined.
+        r"""Select the RoIs of the anchor head output and refine them.
+
+        In training the ground truth drives the sampling of the RoIs that are refined
+        ([`sample_rois`][torch_pointcloud.ops.roi.sample_rois]).
 
         Args:
-            voxels: Points of every voxel, shape $(V, P, C)$.
-            pos_voxel: Voxel coordinates $(z, y, x)$, shape $(V, 3)$.
-            voxel_num_points: Points per voxel, shape $(V,)$.
-            batch_voxel: Scene index of every voxel, shape $(V,)$.
+            out: The anchor head output (see `forward_head`).
+            stages: The strided sparse stages (see `encode`).
             gt_boxes: Ground-truth boxes $(K, 7)$, required in training.
             gt_labels: Ground-truth $0$-based classes, shape $(K,)$, required in training.
             gt_batch: Scene index of every box, shape $(K,)$, required in training.
@@ -503,10 +502,7 @@ class VoxelRCNNDetection(DetectionModel):
         if self.training and (gt_boxes is None or gt_labels is None or gt_batch is None):
             raise ValueError("Training needs `gt_boxes`, `gt_labels` and `gt_batch` to sample the RoIs.")
 
-        features, stages = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
-        out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)
-
         if self.training:
             assert gt_boxes is not None and gt_labels is not None and gt_batch is not None
             samples = sample_rois(
@@ -545,6 +541,34 @@ class VoxelRCNNDetection(DetectionModel):
             "roi_scores": roi_scores,
             "batch": roi_batch,
         }
+
+    def forward(
+        self,
+        voxels: Tensor,
+        pos_voxel: Tensor,
+        voxel_num_points: Tensor,
+        batch_voxel: Tensor,
+        gt_boxes: OptTensor = None,
+        gt_labels: OptTensor = None,
+        gt_batch: OptTensor = None,
+    ) -> Union[VoxelRCNNOutput, VoxelRCNNTrainOutput]:
+        r"""Run both stages; in training the ground truth drives the sampling of the RoIs that are refined.
+
+        Args:
+            voxels: Points of every voxel, shape $(V, P, C)$.
+            pos_voxel: Voxel coordinates $(z, y, x)$, shape $(V, 3)$.
+            voxel_num_points: Points per voxel, shape $(V,)$.
+            batch_voxel: Scene index of every voxel, shape $(V,)$.
+            gt_boxes: Ground-truth boxes $(K, 7)$, required in training.
+            gt_labels: Ground-truth $0$-based classes, shape $(K,)$, required in training.
+            gt_batch: Scene index of every box, shape $(K,)$, required in training.
+
+        Returns:
+            A `VoxelRCNNTrainOutput` in training, otherwise a `VoxelRCNNOutput`.
+        """
+        features, stages = self.encode(voxels, pos_voxel, voxel_num_points, batch_voxel)
+        out = self.forward_head(features)
+        return self.forward_rois(out, stages, gt_boxes, gt_labels, gt_batch)
 
     @torch.no_grad()
     def decode(self, out: VoxelRCNNOutput) -> Detection3D:
