@@ -52,7 +52,7 @@ TRANSFORM = T.Compose(
     ]
 )
 # Each chunk is sampled to one point per 2.5 cm voxel, so a 5 cm voxel-partition fragment holds up to eight of them.
-CHUNK_TRANSFORM = T.Voxelize(
+CHUNK_INFERER_TRANSFORM = T.Voxelize(
     pos_key=DataKeys.POS,
     pos_reduce="first",
     keys=[DataKeys.COLOR],
@@ -62,7 +62,7 @@ CHUNK_TRANSFORM = T.Voxelize(
     dst_inverse_key=DataKeys.INVERSE,
 )
 # Each fragment is fed the colour, with its grid coordinates.
-FRAGMENT_TRANSFORM = T.Compose(
+FRAGMENT_INFERER_TRANSFORM = T.Compose(
     [
         T.Cat(keys=[DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
         T.Voxelize(
@@ -88,11 +88,11 @@ def main() -> None:
     dataloader = configure_dataloader(args)
     model = configure_model(args)
     inferer = configure_inferer(args)
-    chunk_inferer = configure_chunk_inferer(args)
+    fragment_inferer = configure_fragment_inferer(args)
 
     num_zones = len(dataloader.dataset)  # type: ignore[arg-type]
     print(f"Validation set: {num_zones} zones  (overlapping {CHUNK_SIZE:g} m chunks, scored at full resolution)")
-    metrics = evaluate(model, dataloader, inferer, chunk_inferer, args.device, NUM_CLASSES)
+    metrics = evaluate(model, dataloader, inferer, fragment_inferer, args.device, NUM_CLASSES)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<32} {value:.4f}")
@@ -135,17 +135,17 @@ def configure_inferer(args: Namespace) -> Inferer:
         block_size=CHUNK_SIZE,
         overlap=CHUNK_OVERLAP,
         dims=(0, 1),
-        transform=CHUNK_TRANSFORM,
+        transform=CHUNK_INFERER_TRANSFORM,
         inverse_key=DataKeys.INVERSE,
         seed=args.seed,
         progress=True,
     )
 
 
-def configure_chunk_inferer(args: Namespace) -> Inferer:
+def configure_fragment_inferer(args: Namespace) -> Inferer:
     return VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
-        transform=FRAGMENT_TRANSFORM,
+        transform=FRAGMENT_INFERER_TRANSFORM,
         softmax=True,
         sw_batch_size=args.sw_batch_size,
         inverse_key=DataKeys.INVERSE,
@@ -158,7 +158,7 @@ def evaluate(
     model: Module,
     dataloader: DataLoader,
     inferer: Inferer,
-    chunk_inferer: Inferer,
+    fragment_inferer: Inferer,
     device: str,
     num_classes: int,
 ) -> Dict[str, Any]:
@@ -176,7 +176,7 @@ def evaluate(
         # Only the model inputs travel through the chunks: the labels and the full-resolution keys stay behind for the
         # scoring. The zone stays on the host: its chunks are predicted fragment by fragment on the device.
         inputs: Dict[str, Any] = {key: data[key] for key in (DataKeys.POS, DataKeys.COLOR, DataKeys.BATCH)}
-        probs = inferer(inputs, predictor=lambda chunk: chunk_inferer(chunk, predictor=predict_fragment))
+        probs = inferer(inputs, predictor=lambda chunk: fragment_inferer(chunk, predictor=predict_fragment))
         preds = probs.argmax(dim=1)[data[DataKeys.INVERSE]]
         cm += confusion_matrix(preds, data[DataKeys.ORIGIN_SEGMENT], num_classes, ignore_index=GRIDNETHD_IGNORE_IDX)
         oa = accuracy(cm)
