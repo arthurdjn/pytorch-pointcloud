@@ -19,6 +19,7 @@ from ._registry import (
     model_info,
     register_model,
 )
+from .act import ACTDiscreteVAE, ACTPretraining
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
@@ -26,6 +27,8 @@ from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
+from .pcp_mae import PCPMAEClassification, PCPMAEPretraining
+from .point2vec import Point2VecClassification, Point2VecPartSegmentation, Point2VecPretraining
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
 from .point_m2ae import PointM2AEClassification, PointM2AEPartSegmentation, PointM2AEPretraining
 from .point_mae import PointMAEClassification, PointMAEPartSegmentation, PointMAEPretraining
@@ -46,6 +49,7 @@ from .pv_rcnn import PVRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
+from .recon import ReConClassification, ReConPartSegmentation, ReConPretraining
 from .second import SECONDDetection, SECONDMultiHeadDetection
 from .sonata import SonataSegmentation
 from .spformer_unet import SPFormerUNetSegmentation
@@ -93,6 +97,16 @@ __all__ = [
     "PointM2AEPartSegmentation",
     "PointM2AEPretraining",
     "PointMAEClassification",
+    "ACTDiscreteVAE",
+    "ACTPretraining",
+    "PCPMAEClassification",
+    "PCPMAEPretraining",
+    "Point2VecClassification",
+    "Point2VecPartSegmentation",
+    "Point2VecPretraining",
+    "ReConClassification",
+    "ReConPartSegmentation",
+    "ReConPretraining",
     "PointMAEPartSegmentation",
     "PointMAEPretraining",
     "PointMambaClassification",
