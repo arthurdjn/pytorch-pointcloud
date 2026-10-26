@@ -246,7 +246,7 @@ class PCTClassification(ClassificationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pct.modelnet40.strawberry-eat-mango/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.2},
+        metrics={"OA": 93.27, "mAcc": 89.99},
         classes=MODELNET40_CLASSES,
         author="strawberry-eat-mango",
         license="MIT",

@@ -687,7 +687,7 @@ class CurveNetPartSegmentation(PartSegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/curvenet.modelnet40.tiange-xiang/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.8},
+        metrics={"OA": 93.84, "mAcc": 91.14},
         classes=MODELNET40_CLASSES,
         author="tiange-xiang",
         license="MIT",
@@ -739,7 +739,7 @@ def curvenet_tiange_xiang_modelnet40_cls(**hparams: Any) -> CurveNetClassificati
     weights=WeightsDict(
         url="hf://torch-pointcloud/curvenet.shapenetpart.tiange-xiang/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.6},
+        metrics={"ins_mIoU": 86.67, "cls_mIoU": 83.79},
         author="tiange-xiang",
         license="MIT",
     ),
