@@ -8,9 +8,10 @@ in any right-handed frame.
 """
 
 import math
-from typing import List, Literal, Optional, Tuple
+from typing import List, Literal, Optional, Sequence, Tuple
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.utils import scatter
 
@@ -648,16 +649,17 @@ def _nms3d_single(
     iou_threshold: float,
     rotated: bool,
     max_keep: Optional[int],
+    max_candidates: Optional[int],
 ) -> Tensor:
     """Greedy 3D NMS within a single scene; see `nms3d`."""
     limit = boxes.shape[0] if max_keep is None else max_keep
+    order = scores.argsort(descending=True)[:max_candidates]
     if rotated:
         # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
         # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
         # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
         boxes_bev = boxes.clone()
         boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        order = scores.argsort(descending=True)
         keep: List[Tensor] = []
 
         # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
@@ -678,7 +680,6 @@ def _nms3d_single(
     # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
     hi = torch.maximum(hi, lo + 1e-2)
     volume = (hi - lo).prod(dim=-1)
-    order = scores.argsort(descending=True)
     keep = []
 
     while order.numel() > 0 and len(keep) < limit:
@@ -706,6 +707,7 @@ def nms3d(
     batch: OptTensor = None,
     rotated: bool = False,
     max_keep: Optional[int] = None,
+    max_candidates: Optional[int] = None,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
 
@@ -726,6 +728,8 @@ def nms3d(
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
         max_keep: Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
             equals the first `max_keep` entries of the uncapped result.
+        max_candidates: Optional cap on the boxes considered per scene: only the `max_candidates` highest-scoring
+            boxes enter the suppression, the others are dropped.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
@@ -738,13 +742,22 @@ def nms3d(
         return boxes.new_zeros((0,), dtype=torch.long)
 
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep)
+        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep, max_candidates)
 
     keep = []
     for b in torch.unique(batch):
         scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
         scene_labels = None if labels is None else labels[scene]
-        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated, max_keep)])
+        scene_keep = _nms3d_single(
+            boxes[scene],
+            scores[scene],
+            scene_labels,
+            iou_threshold,
+            rotated,
+            max_keep,
+            max_candidates,
+        )
+        keep.append(scene[scene_keep])
 
     return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
 
@@ -939,6 +952,80 @@ def roi_aware_pool3d(
             out[index] = pooled.view(index.numel(), num_cells, x.shape[1])
 
     return out.view(boxes.shape[0], out_size, out_size, out_size, x.shape[1])
+
+
+def roi_grid_sample_bev(
+    features: Tensor,
+    boxes: Tensor,
+    out_size: int,
+    origin: Sequence[float],
+    cell_size: Sequence[float],
+    *,
+    box_batch: OptTensor = None,
+) -> Tensor:
+    r"""Bilinearly sample an $S \times S$ grid of a bird's-eye-view feature map inside every oriented box.
+
+    Map pixel $(i, j)$ sits at $(x_0 + j\,s_x,\; y_0 + i\,s_y)$. The unit grid $(u, v) \in [-1, 1]^2$ is rotated by
+    the box heading and then scaled by the half box extents along the map axes, so a grid point lands at
+    $c_x + \tfrac{d_x}{2}(u \cos\theta - v \sin\theta)$ and $c_y + \tfrac{d_y}{2}(u \sin\theta + v \cos\theta)$
+    (exactly the box footprint when $\theta = 0$). Samples outside the map are zero. Boxes are
+    $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
+
+    Args:
+        features: Bird's-eye-view feature maps, shape $(B, C, H, W)$.
+        boxes: Boxes, shape $(K, 7)$.
+        out_size: Grid points per box side $S$.
+        origin: Map position $(x_0, y_0)$ of pixel $(0, 0)$.
+        cell_size: Map extent $(s_x, s_y)$ of one pixel.
+        box_batch: Optional per-box map index, shape $(K,)$; all boxes sample map 0 when omitted.
+
+    Returns:
+        The sampled features, shape $(K, C, S, S)$, indexed $(v, u)$.
+
+    Shape:
+        - features: $(B, C, H, W)$
+        - boxes: $(K, 7)$
+        - output: $(K, C, S, S)$
+
+    Example:
+        ```pycon
+        >>> features = torch.arange(16.0).view(1, 1, 4, 4)
+        >>> boxes = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]])
+        >>> roi_grid_sample_bev(features, boxes, 2, (0.0, 0.0), (1.0, 1.0))[0, 0].tolist()
+        [[0.0, 3.0], [12.0, 15.0]]
+
+        ```
+    """
+    if box_batch is None:
+        box_batch = boxes.new_zeros(boxes.shape[0], dtype=torch.long)
+
+    height, width = features.shape[2:]
+    x1 = (boxes[:, 0] - boxes[:, 3] / 2 - origin[0]) / cell_size[0]
+    x2 = (boxes[:, 0] + boxes[:, 3] / 2 - origin[0]) / cell_size[0]
+    y1 = (boxes[:, 1] - boxes[:, 4] / 2 - origin[1]) / cell_size[1]
+    y2 = (boxes[:, 1] + boxes[:, 4] / 2 - origin[1]) / cell_size[1]
+    cos, sin = torch.cos(boxes[:, 6]), torch.sin(boxes[:, 6])
+    theta = torch.stack(
+        [
+            (x2 - x1) / (width - 1) * cos,
+            (x2 - x1) / (width - 1) * -sin,
+            (x1 + x2 - width + 1) / (width - 1),
+            (y2 - y1) / (height - 1) * sin,
+            (y2 - y1) / (height - 1) * cos,
+            (y1 + y2 - height + 1) / (height - 1),
+        ],
+        dim=1,
+    ).view(-1, 2, 3)
+
+    out = features.new_zeros(boxes.shape[0], features.shape[1], out_size, out_size)
+    for scene in box_batch.unique().tolist():
+        index = (box_batch == scene).nonzero(as_tuple=False).squeeze(-1)
+        size = (index.numel(), features.shape[1], out_size, out_size)
+        grid = F.affine_grid(theta[index], list(size), align_corners=True)
+        # The map is broadcast to every box of the scene, a stride-0 view rather than a copy.
+        scene_features = features[scene].unsqueeze(0).expand(index.numel(), -1, -1, -1)
+        out[index] = F.grid_sample(scene_features, grid, align_corners=True)
+    return out
 
 
 def projected_ignore_mask(
