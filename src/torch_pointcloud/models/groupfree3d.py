@@ -36,7 +36,7 @@ class _GroupFree3DOutput(TypedDict):
     heading_residuals: Tensor
     size: Tensor
     sem_cls_scores: Tensor
-    query_pos: Tensor
+    pos_query: Tensor
     query_indices: Tensor
     seed_objectness_logits: Tensor
     pos_seed: Tensor
@@ -353,7 +353,7 @@ class GroupFree3DDetection(DetectionModel):
         stacked = {name: torch.stack([stage[name] for stage in stages]) for name in stages[0]}
         return {
             **stacked,  # type: ignore[typeddict-item]
-            "query_pos": pos_query,
+            "pos_query": pos_query,
             "query_indices": query_indices,
             "seed_objectness_logits": seed_logits,
             "pos_seed": pos,

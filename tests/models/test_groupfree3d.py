@@ -53,7 +53,7 @@ def _assert_stage_shapes(out: Dict[str, Tensor], stages: int, batch_size: int, q
     assert out["heading_residuals"].shape == (stages, batch_size, q, nh)
     assert out["size"].shape == (stages, batch_size, q, 3)
     assert out["sem_cls_scores"].shape == (stages, batch_size, q, nc)
-    assert out["query_pos"].shape == (batch_size, q, 3)
+    assert out["pos_query"].shape == (batch_size, q, 3)
     assert out["query_indices"].shape == (batch_size, q)
 
 
@@ -71,7 +71,7 @@ def test_groupfree3d_scannet_forward_shapes() -> None:
     # Seeds are the 1024 SA2 points per scene; every candidate is one of its scene's seeds.
     assert out["pos_seed"].shape == (2 * 1024, 3)
     assert out["seed_objectness_logits"].shape == (2 * 1024,)
-    assert torch.equal(out["pos_seed"][out["query_indices"]], out["query_pos"])
+    assert torch.equal(out["pos_seed"][out["query_indices"]], out["pos_query"])
     assert torch.isfinite(out["center"]).all()
 
 
