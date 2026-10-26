@@ -230,6 +230,19 @@ def test_majority_label(labels: list, cluster: list, ignore_index: Optional[int]
     assert torch.equal(result, torch.tensor(expected))
 
 
-def test_majority_label_keeps_empty_clusters_at_the_first_class() -> None:
-    result = majority_label(torch.tensor([1, 1]), torch.tensor([0, 0]), num_classes=3, num_clusters=2)
-    assert torch.equal(result, torch.tensor([1, 0]))
+@pytest.mark.parametrize(
+    "ignore_index, expected",
+    [
+        pytest.param(None, [0, 1, 0], id="first-class"),
+        pytest.param(255, [255, 1, 255], id="ignore-index"),
+    ],
+)
+def test_majority_label_empty_clusters(ignore_index: Optional[int], expected: list) -> None:
+    result = majority_label(
+        torch.tensor([1]),
+        torch.tensor([1]),
+        num_classes=3,
+        num_clusters=3,
+        ignore_index=ignore_index,
+    )
+    assert torch.equal(result, torch.tensor(expected))

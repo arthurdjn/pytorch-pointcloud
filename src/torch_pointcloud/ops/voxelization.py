@@ -409,7 +409,8 @@ def majority_label(
     r"""Most frequent label of each cluster, e.g. the label of each voxel from the labels of its points.
 
     Ties go to the lowest class index. With `ignore_index`, the labels equal to it vote as an extra class ranked after
-    the others: a cluster where they are the most frequent gets `ignore_index`.
+    the others: a cluster where they are the most frequent gets `ignore_index`. A cluster without points gets
+    `ignore_index`, or class $0$ when `ignore_index` is `None`.
 
     Args:
         labels: Per-point labels in $[0, C)$, or equal to `ignore_index`.
@@ -444,8 +445,8 @@ def majority_label(
         dim=0,
         dim_size=num_clusters * num_votes,
         reduce="sum",
-    )
-    majority = counts.view(num_clusters, num_votes).argmax(dim=1)
+    ).view(num_clusters, num_votes)
+    majority = counts.argmax(dim=1)
     if ignore_index is None:
         return majority
-    return majority.masked_fill(majority == num_classes, ignore_index)
+    return majority.masked_fill((majority == num_classes) | (counts.sum(dim=1) == 0), ignore_index)
