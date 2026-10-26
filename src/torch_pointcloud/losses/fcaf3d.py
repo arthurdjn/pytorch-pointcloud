@@ -123,10 +123,17 @@ class FCAF3DLoss(nn.Module):
         return centerness[rows, box], boxes[box], cls_targets
 
     def forward(self, output: "FCAF3DOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
-        """Compute the loss of a forward output against the packed `box` / `label` / `batch_box` ground truth.
+        r"""Compute the FCAF3D loss and its terms.
+
+        Args:
+            output: The model's raw output: the packed locations `pos` $(P, 3)$, `batch` $(P,)$ and `level` $(P,)$,
+                their class logits `cls` $(P, \text{num\_classes})$, centerness logits `center` $(P, 1)$ and decoded
+                `boxes` $(P, 7)$.
+            data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise headings,
+                `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
 
         Returns:
-            The scalar `loss` and its detached terms `cls_loss`, `center_loss` and `box_loss`.
+            A dict with the scalar `loss` and detached `cls_loss`, `center_loss` and `box_loss`.
         """
         gt_boxes, gt_labels, gt_batch = data[DataKeys.BOX], data[DataKeys.LABEL], data[DataKeys.BATCH_BOX]
         num_levels = int(output["level"].max()) + 1

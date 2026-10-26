@@ -90,10 +90,16 @@ class TR3DLoss(nn.Module):
         return boxes[box], cls_targets
 
     def forward(self, output: "TR3DOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
-        """Compute the loss of a forward output against the packed `box` / `label` / `batch_box` ground truth.
+        r"""Compute the TR3D loss and its terms.
+
+        Args:
+            output: The model's raw output: the packed locations `pos` $(P, 3)$, `batch` $(P,)$ and `level` $(P,)$,
+                their class logits `cls` $(P, \text{num\_classes})$ and decoded `boxes` $(P, 7)$.
+            data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise headings,
+                `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
 
         Returns:
-            The scalar `loss` and its detached terms `cls_loss` and `box_loss`.
+            A dict with the scalar `loss` and detached `cls_loss` and `box_loss`.
         """
         gt_boxes, gt_labels, gt_batch = data[DataKeys.BOX], data[DataKeys.LABEL], data[DataKeys.BATCH_BOX]
         box_targets = output["boxes"].new_zeros(output["boxes"].shape)

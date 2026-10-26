@@ -261,6 +261,9 @@ class FCAF3DHead(nn.Module):
     def forward(self, stages: Sequence["SparseConvTensor"]) -> Dict[str, Tensor]:
         """Predict at every pyramid level.
 
+        Args:
+            stages: Encoder stages, from the finest, with the channels of `in_channels`.
+
         Returns:
             The packed `cls`, `center` and `box` predictions, the `[batch, x, y, z]` voxel `indices` of each level's
             grid and the `level` of every row, from the finest level.
