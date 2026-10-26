@@ -1,13 +1,13 @@
 r"""SPFormer set-prediction loss: Hungarian query-to-instance matching over superpoint masks, with per-layer terms."""
 
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from torch_pointcloud.losses.mask import dice_loss, pairwise_binary_cross_entropy_with_logits, pairwise_dice_loss
-from torch_pointcloud.losses.matching import hungarian_match
+from torch_pointcloud.losses.mask import dice_loss, mask_matching_cost
+from torch_pointcloud.losses.matching import hungarian_match_batched
 from torch_pointcloud.ops.superpoint import superpoint_instance_masks
 from torch_pointcloud.utils.data import DataKeys
 
@@ -17,6 +17,13 @@ if TYPE_CHECKING:
 __all__ = ["SPFormerLoss"]
 
 
+class _SceneTarget(NamedTuple):
+    scene: int
+    superpoints: slice
+    masks: Tensor  # (I_b, S_b) float
+    labels: Tensor  # (I_b,)
+
+
 class SPFormerLoss(nn.Module):
     r"""SPFormer set-prediction instance segmentation loss.
 
@@ -24,8 +31,9 @@ class SPFormerLoss(nn.Module):
     (Sun et al., 2023).
 
     The ground-truth instances of each scene become superpoint masks (`superpoint_instance_masks`). Every decoder
-    layer's queries are matched one-to-one to them by a Hungarian assignment whose cost sums the negative class
-    probability, the mask binary cross-entropy and the mask dice loss, each weighted. Each layer is then supervised
+    layer's queries are matched one-to-one to them by a Hungarian assignment whose cost (`mask_matching_cost`) sums
+    the negative class probability, the mask binary cross-entropy and the mask dice loss, each weighted. The
+    assignments of every layer and scene are solved after a single device transfer. Each layer is then supervised
     with:
 
     - **Class:** weighted cross-entropy over the $C + 1$ class logits of every query, the unmatched ones assigned the
@@ -35,7 +43,8 @@ class SPFormerLoss(nn.Module):
       their instances, over the pairs whose IoU exceeds `score_iou_threshold`.
 
     The mask and score terms are averaged over the scenes of the batch, except the last layer's dice term, which is
-    summed over them. The layer losses are summed. Ground truth is read from the batch at the resolution of
+    summed over them. `loss` sums the terms of every layer, while the returned `class_loss`, `mask_loss`, `dice_loss`
+    and `score_loss` are the last layer's (detached). Ground truth is read from the batch at the resolution of
     `output["superpoint"]`: the instance id and the class of every point (`ignore_index` for no instance class).
 
     Args:
@@ -98,85 +107,103 @@ class SPFormerLoss(nn.Module):
             output["superpoint_batch"],
             ignore_index=self.ignore_index,
         )
+        num_scenes = output["class_logits"].shape[0]
+        sizes = torch.bincount(output["superpoint_batch"], minlength=num_scenes).tolist()
+        counts = torch.bincount(batch, minlength=num_scenes).tolist()
+        targets = self._scene_targets(masks, labels, sizes, counts)
         layers: List["SPFormerPrediction"] = [*output["aux_outputs"], output]
+        matches = self._match(layers, targets)
+
         total = output["class_logits"].new_zeros(())
-        for index, layer in enumerate(layers):
-            terms = self.layer_loss(
-                layer["class_logits"],
-                layer["scores"],
-                layer["mask_logits"],
-                output["superpoint_batch"],
-                masks,
-                labels,
-                batch,
-                sum_dice=index == len(layers) - 1,
-            )
+        for index, (layer, layer_matches) in enumerate(zip(layers, matches)):
+            terms = self._layer_loss(layer, targets, layer_matches, sum_dice=index == len(layers) - 1)
             for value in terms.values():
                 total = total + value
         result = {"loss": total}
         result.update({name: value.detach() for name, value in terms.items()})
         return result
 
-    def layer_loss(
+    @staticmethod
+    def _scene_targets(masks: Tensor, labels: Tensor, sizes: List[int], counts: List[int]) -> List[_SceneTarget]:
+        r"""Split the instance masks $(I, S)$ and classes $(I,)$ by scene, keeping the scenes with an instance."""
+        targets = []
+        start, first = 0, 0
+        for scene, (size, count) in enumerate(zip(sizes, counts)):
+            if count > 0:
+                target = _SceneTarget(
+                    scene,
+                    slice(start, start + size),
+                    masks[first : first + count, start : start + size].float(),
+                    labels[first : first + count],
+                )
+                targets.append(target)
+            start += size
+            first += count
+        return targets
+
+    @torch.no_grad()
+    def _match(
         self,
-        class_logits: Tensor,
-        scores: Tensor,
-        mask_logits: Tensor,
-        superpoint_batch: Tensor,
-        masks: Tensor,
-        labels: Tensor,
-        batch: Tensor,
-        *,
-        sum_dice: bool = False,
-    ) -> Dict[str, Tensor]:
-        r"""Weighted loss terms of one decoder layer.
+        layers: List["SPFormerPrediction"],
+        targets: List[_SceneTarget],
+    ) -> List[List[Tuple[Tensor, Tensor]]]:
+        r"""Hungarian assignment of the queries of every decoder layer and scene to the ground-truth instances.
 
-        Args:
-            class_logits: Per-query class logits, shape $(B, Q, C + 1)$.
-            scores: Per-query mask quality scores, shape $(B, Q)$.
-            mask_logits: Per-query mask logits over the superpoints of its scene, shape $(Q, S)$.
-            superpoint_batch: Scene index of every superpoint, shape $(S,)$, sorted.
-            masks: Ground-truth instance masks over the superpoints, shape $(I, S)$.
-            labels: Ground-truth instance classes, shape $(I,)$.
-            batch: Scene index of every instance, shape $(I,)$.
-            sum_dice: Sum the dice term over the scenes instead of averaging it.
-
-        Returns:
-            The weighted `class_loss`, `mask_loss`, `dice_loss` and `score_loss` terms.
+        The cost matrices of all layers and scenes are padded and solved after one device transfer, and the matched
+        pairs come back in one. Returns, per layer and per scene of `targets`, the matched query indices (ascending)
+        and their instance indices.
         """
+        if not targets:
+            return [[] for _ in layers]
+
+        num_queries = layers[0]["class_logits"].shape[1]
+        num_instances = [target.labels.shape[0] for target in targets]
+        cost = layers[0]["class_logits"].new_zeros(len(layers), len(targets), num_queries, max(num_instances))
+        for index, layer in enumerate(layers):
+            for position, target in enumerate(targets):
+                cost[index, position, :, : num_instances[position]] = mask_matching_cost(
+                    layer["class_logits"][target.scene].softmax(dim=-1),
+                    layer["mask_logits"][:, target.superpoints],
+                    target.masks,
+                    target.labels,
+                    class_weight=self.class_cost,
+                    mask_weight=self.mask_cost,
+                    dice_weight=self.dice_cost,
+                )
+
+        assignment = hungarian_match_batched(cost.flatten(0, 1).cpu(), num_instances * len(layers))
+        matched = assignment >= 0
+        pairs = torch.stack([matched.nonzero(as_tuple=True)[1], assignment[matched]]).to(cost.device)
+        scene_pairs = [(query, instance) for query, instance in pairs.split(matched.sum(dim=1).tolist(), dim=1)]
+        return [scene_pairs[index * len(targets) : (index + 1) * len(targets)] for index in range(len(layers))]
+
+    def _layer_loss(
+        self,
+        layer: "SPFormerPrediction",
+        targets: List[_SceneTarget],
+        matches: List[Tuple[Tensor, Tensor]],
+        *,
+        sum_dice: bool,
+    ) -> Dict[str, Tensor]:
+        r"""Weighted `class_loss`, `mask_loss`, `dice_loss` and `score_loss` of one decoder layer."""
+        class_logits, scores, mask_logits = layer["class_logits"], layer["scores"], layer["mask_logits"]
         num_scenes = class_logits.shape[0]
-        sizes = torch.bincount(superpoint_batch, minlength=num_scenes).tolist()
-        instance_counts = torch.bincount(batch, minlength=num_scenes).tolist()
         class_target = torch.full(class_logits.shape[:2], self.num_classes, device=class_logits.device)
         mask_loss = class_logits.new_zeros(())
         dice = class_logits.new_zeros(())
         score_loss = class_logits.new_zeros(())
-        start, first = 0, 0
-        for scene, (size, count) in enumerate(zip(sizes, instance_counts)):
-            if count > 0:
-                logits = mask_logits[:, start : start + size]
-                target = masks[first : first + count, start : start + size].float()
-                target_labels = labels[first : first + count]
-                with torch.no_grad():
-                    cost = (
-                        -self.class_cost * class_logits[scene].softmax(dim=-1)[:, target_labels]
-                        + self.mask_cost * pairwise_binary_cross_entropy_with_logits(logits, target)
-                        + self.dice_cost * pairwise_dice_loss(logits, target)
-                    )
-                query, instance = hungarian_match(cost)
-                class_target[scene, query] = target_labels[instance].long()
-                matched, target = logits[query], target[instance]
-                mask_loss = mask_loss + F.binary_cross_entropy_with_logits(matched, target)
-                dice = dice + dice_loss(matched, target).mean()
-                with torch.no_grad():
-                    binary = (matched.sigmoid() >= 0.5).float()
-                    intersection = (binary * target).sum(dim=-1)
-                    iou = intersection / (binary.sum(dim=-1) + target.sum(dim=-1) - intersection + 1e-6)
-                keep = iou > self.score_iou_threshold
-                if keep.any():
-                    score_loss = score_loss + F.mse_loss(scores[scene, query][keep], iou[keep])
-            start += size
-            first += count
+        for target, (query, instance) in zip(targets, matches):
+            class_target[target.scene, query] = target.labels[instance].long()
+            matched, matched_masks = mask_logits[:, target.superpoints][query], target.masks[instance]
+            mask_loss = mask_loss + F.binary_cross_entropy_with_logits(matched, matched_masks)
+            dice = dice + dice_loss(matched, matched_masks).mean()
+            with torch.no_grad():
+                binary = (matched.sigmoid() >= 0.5).float()
+                intersection = (binary * matched_masks).sum(dim=-1)
+                iou = intersection / (binary.sum(dim=-1) + matched_masks.sum(dim=-1) - intersection + 1e-6)
+            keep = (iou > self.score_iou_threshold).float()
+            squared_error = (scores[target.scene, query] - iou).square()
+            score_loss = score_loss + (squared_error * keep).sum() / keep.sum().clamp(min=1)
 
         class_loss = F.cross_entropy(class_logits.transpose(1, 2), class_target, self.class_weights)
         return {
