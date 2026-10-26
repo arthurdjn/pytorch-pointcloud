@@ -304,10 +304,9 @@ NUSCENES_LIDARSEG_LABEL_NAMES: Dict[int, str] = {
     31: "vehicle.ego",
 }
 
-# Raw lidarseg label id to 16-class index, the learning map of the lidarseg benchmark: the pedestrian kinds merge, both
-# buses merge. Noise, animals, debris, pushable objects, bicycle racks, personal mobility, strollers, wheelchairs,
-# emergency vehicles, `static.other` and the ego vehicle are absent, so a `Relabel` with this map sends them to its
-# `default`.
+# Raw lidarseg label id to 16-class index, the learning map of the lidarseg benchmark: the pedestrian kinds merge, so do
+# the two buses. Noise, animal, the rare movable and static objects, the emergency vehicles, `static.other` and the ego
+# vehicle are absent, so a `Relabel` with this map sends them to its `default`.
 NUSCENES_LIDARSEG_LEARNING_MAP: Dict[int, int] = {
     9: 0,  # barrier
     14: 1,  # bicycle
@@ -605,10 +604,10 @@ class NuScenes(PointCloudDataset):
         and `raw/lidarseg/<version>/` exist.
 
     Note:
-        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose a
-        `torch_pointcloud.transforms.Relabel` to project them onto the 16 benchmark classes
-        (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that mapping in their
-        transform.
+        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose
+        `Relabel(keys="segment", labels=NUSCENES_LIDARSEG_LEARNING_MAP, default=-1)` to project them onto the 16
+        benchmark classes (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that
+        mapping in their transform.
 
     Tip:
         The processed cache is keyed by `version`, `split` and `max_sweeps`, so different sweep counts coexist.

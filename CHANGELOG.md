@@ -33,7 +33,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added LitePT (`LitePTSegmentation`) with six ScanNet, nuScenes and Structured3D checkpoints (`litept-*.prs-eth`), and its ScanNet and nuScenes benchmark scripts.
-- Added `NUSCENES_LIDARSEG_LEARNING_MAP`, the nuScenes-lidarseg learning map onto the 16 benchmark classes.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
 
 ## 0.0.18 (2026-10-20)
 
