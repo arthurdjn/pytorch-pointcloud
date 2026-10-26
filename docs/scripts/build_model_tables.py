@@ -56,9 +56,13 @@ DEFAULT_METRIC: Dict[Task, str] = {
 }
 
 
+# Datasets whose benchmark reports another headline metric than the task's.
+DATASET_METRIC: Dict[Tuple[Task, str], str] = {("registration", "modelnet40"): "RRE"}
+
+
 def metric_name(task: Task, dataset: str) -> str:
-    """The catalog keeps one metric name per task; the paper refines it per dataset (instance mIoU, KITTI R11)."""
-    return DEFAULT_METRIC[task]
+    """The catalog keeps one metric name per task and dataset; the paper refines it further (instance mIoU, R11)."""
+    return DATASET_METRIC.get((task, dataset), DEFAULT_METRIC[task])
 
 
 def param_count(name: str, task: Task) -> str:
