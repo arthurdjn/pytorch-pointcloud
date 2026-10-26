@@ -508,11 +508,14 @@ def sliding_window_inference(
         if scores_b is None:
             continue
 
+        # Uncovered points keep their zero scores: their weight becomes one before the division.
+        scores_b /= weights_b.masked_fill_(weights_b == 0, 1.0).unsqueeze(-1)
+        if n_b == n_total:
+            output = scores_b
+            continue
+
         if output is None:
             output = torch.zeros(n_total, int(scores_b.size(1)), device=device, dtype=torch.float32)
-
-        covered = weights_b > 0
-        scores_b[covered] = scores_b[covered] / weights_b[covered].unsqueeze(-1)
         output[idx_b] = scores_b
 
     if output is None:

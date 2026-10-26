@@ -13,7 +13,8 @@ All notable changes to this project are documented in this file. The format is b
 - Dataset `process` methods share one signature; the per-dataset work moved to `write_processed_files`.
 - Added the Point Transformer V3 GridNet-HD checkpoint `ptv3.gridnet-hd.heig-vd-geo` (MIT) and its benchmark on the GridNet-HD validation zones.
 - Added the `GridNetHD` dataset, downloaded from the Hub.
-- `SlidingWindowInferer` assigns points to blocks with a fraction of the host memory it used, so zones of tens of millions of points fit.
+- `SlidingWindowInferer` assigns points to blocks and blends their predictions with a fraction of the host memory it used.
+- Fixed `SlidingWindowInferer` failing on float64 positions with `mode="gaussian"`.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
