@@ -1383,6 +1383,7 @@ class PointTransformerV3Classification(ClassificationModel):
         pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Any:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if return_intermediates:
             return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition)
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
@@ -1707,6 +1708,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         pos: OptTensor = None,
         condition: Optional[str] = None,
     ) -> Any:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if return_intermediates:
             return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition)
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
@@ -1717,6 +1719,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         intermediates: List[SerializedFeaturesDict],
         condition: Optional[str] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         return self.decoder.forward(x, intermediates, condition=condition)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False, condition: Optional[str] = None) -> Tensor:

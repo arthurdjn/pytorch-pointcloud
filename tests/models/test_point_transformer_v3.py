@@ -269,6 +269,21 @@ def test_pt_v3_segmentation_one_head_per_condition(
 
 
 @requires_gpu
+def test_pt_v3_segmentation_stages_default_to_the_model_condition(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
+) -> None:
+    model_seg_per_condition.eval()
+    with torch.no_grad():
+        x, _, _, intermediates = model_seg_per_condition.forward_features(
+            data["x"], data["pos_grid"], data["batch"], return_intermediates=True
+        )
+        x, _, _ = model_seg_per_condition.forward_decoder(x, intermediates)
+        expected = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
+    assert torch.allclose(model_seg_per_condition.forward_head(x), expected)
+
+
+@requires_gpu
 def test_pt_v3_segmentation_language_guided_head(
     model_seg_language: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
