@@ -2,3 +2,4 @@
 set -euo pipefail
 
 uv run --no-sync python scripts/generate.py raw ./raw
+uv run --no-sync python scripts/generate.py process ./raw

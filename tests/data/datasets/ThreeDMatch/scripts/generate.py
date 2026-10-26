@@ -4,12 +4,14 @@
     raw/indoor/train/<scene>/cloud_bin_{i}.pth
     raw/metadata/{train,val}.pkl                        # list of pair records (rotation, translation, overlap, ...)
     raw/metadata/benchmarks/{3DMatch,3DLoMatch}/<scene>/{gt.log,gt.info,gt_overlap.log}
+    processed/                                          # the test-split cache `ThreeDMatch` builds from `raw/`
 
 No file of the real release is read. Every scene is a seeded room (a floor and two walls) and every fragment a
 rigidly moved, cropped copy of it, so the written transforms align the fragments exactly.
 
 Usage:
     uv run --no-sync python scripts/generate.py raw ./raw
+    uv run --no-sync python scripts/generate.py process ./raw
 """
 
 import pickle
@@ -21,6 +23,8 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
+from torch_pointcloud.datasets import ThreeDMatch
+
 TEST_SCENES = ("7-scenes-redkitchen", "sun3d-hotel_umd-maryland_hotel3")
 TRAIN_SCENES = ("7-scenes-chess",)
 NUM_FRAGMENTS = 3
@@ -30,6 +34,8 @@ def main() -> None:
     args = parse_args()
     if args.command == "raw":
         generate_raw(args)
+    elif args.command == "process":
+        generate_processed(args)
 
 
 def parse_args() -> Namespace:
@@ -40,6 +46,9 @@ def parse_args() -> Namespace:
     raw_parser.add_argument("dst_dir", type=str, help="Path to output raw directory.")
     raw_parser.add_argument("--num-points", type=int, default=1200, help="Points sampled per surface of a scene.")
     raw_parser.add_argument("--seed", type=int, default=42, help="Random seed.")
+
+    process_parser = subparsers.add_parser("process", help="Build the processed test-split cache from raw data")
+    process_parser.add_argument("raw_dir", type=str, help="Path to the raw directory.")
     return parser.parse_args()
 
 
@@ -140,6 +149,14 @@ def generate_raw(args: Namespace) -> None:
         metadata.mkdir(parents=True, exist_ok=True)
         with open(metadata / f"{split}.pkl", "wb") as f:
             pickle.dump(records, f)
+
+
+def generate_processed(args: Namespace) -> None:
+    raw_dir = Path(args.raw_dir).resolve()
+    dataset = ThreeDMatch(root=raw_dir.parent.parent, split="test", show_progress=False, force_process=True)
+    # The committed cache stays without metadata: the tests read it as a cache from before metadata existed.
+    for meta_path in Path(dataset.processed_dir).glob("*.meta.json"):
+        meta_path.unlink()
 
 
 if __name__ == "__main__":

@@ -95,13 +95,14 @@ class ThreeDMatch(PointCloudDataset):
     | `frame`       | $(2,)$     | int64   | Fragment ids `(reference, source)`                                    |
     | `scene`       | str        |         | Scene name                                                            |
 
-    The fragments are downloaded from the PREDATOR release and the pair lists from the GeoTransformer repository
-    (both MIT); the first use converts the fragments to a `float32` cache under `processed/`.
+    The fragments are downloaded from the PREDATOR release and the pair lists from the GeoTransformer repository;
+    the code of both is MIT and the fragments keep the terms of the 3DMatch scenes they come from. The first use
+    converts the fragments of the split, with every pair list reading them, to a `float32` cache under `processed/`.
 
     Args:
         root: Root directory where the dataset is stored or will be downloaded.
         split: `"train"`, `"val"` or `"test"`.
-        benchmark: Pairing of the test split, `"3DMatch"` or `"3DLoMatch"`; ignored by the other splits.
+        benchmark: Pairing of the test split, `"3DMatch"` or `"3DLoMatch"`; the other splits take `"3DMatch"`.
         transform: A callable that transforms the data when retrieved from the dataset.
         download: Whether to download the missing raw files.
         force_download: Whether to force the download of the raw data.
@@ -141,6 +142,8 @@ class ThreeDMatch(PointCloudDataset):
             raise ValueError(f"Unknown split {split!r}. Expected 'train', 'val' or 'test'.")
         if benchmark not in ("3DMatch", "3DLoMatch"):
             raise ValueError(f"Unknown benchmark {benchmark!r}. Expected '3DMatch' or '3DLoMatch'.")
+        if split != "test" and benchmark != "3DMatch":
+            raise ValueError(f"The {split!r} split has a single pairing; `benchmark` selects the pairs of 'test'.")
 
         self.split = split
         self.benchmark = benchmark
@@ -159,6 +162,11 @@ class ThreeDMatch(PointCloudDataset):
         return self.benchmark if self.split == "test" else self.split
 
     @property
+    def pair_lists(self) -> Tuple[str, ...]:
+        """Names of the pair lists reading the fragments of the split: both benchmarks, or the train and val pairs."""
+        return ("3DMatch", "3DLoMatch") if self.split == "test" else ("train", "val")
+
+    @property
     def fragments_split(self) -> str:
         """Fragment directory the pairs read from, `train` for the train and val splits and `test` otherwise."""
         return "test" if self.split == "test" else "train"
@@ -174,18 +182,19 @@ class ThreeDMatch(PointCloudDataset):
             return False
 
         if self.split == "test":
-            return Path(self.metadata_dir, "benchmarks", self.benchmark).is_dir()
-        return Path(self.metadata_dir, f"{self.split}.pkl").exists()
+            return all(Path(self.metadata_dir, "benchmarks", name).is_dir() for name in self.pair_lists)
+        return all(Path(self.metadata_dir, f"{name}.pkl").exists() for name in self.pair_lists)
 
     @property
     @override
     def cache_meta_paths(self) -> List[str]:
-        return [Path(self.processed_dir, "pairs", f"{self.pairs_name}.meta.json").as_posix()]
+        return [Path(self.processed_dir, f"{self.fragments_split}.meta.json").as_posix()]
 
     @override
     def processed_files_exist(self) -> bool:
-        pairs_path = Path(self.processed_dir, "pairs", f"{self.pairs_name}.json")
-        return pairs_path.exists() and Path(self.processed_dir, self.fragments_split).is_dir()
+        pairs_dir = Path(self.processed_dir, "pairs")
+        pairs_exist = all(Path(pairs_dir, f"{name}.json").exists() for name in self.pair_lists)
+        return pairs_exist and Path(self.processed_dir, self.fragments_split).is_dir()
 
     def download(self, force: bool = False) -> None:
         if self.raw_files_exist() and not force:
@@ -221,21 +230,21 @@ class ThreeDMatch(PointCloudDataset):
             )
 
         self.process_fragments(num_workers=num_workers, show_progress=show_progress)
-        pairs = self.read_test_pairs() if self.split == "test" else self.read_pairs_pickle()
         pairs_dir = Path(self.processed_dir, "pairs")
         pairs_dir.mkdir(parents=True, exist_ok=True)
-        tmp_path = pairs_dir / f"{self.pairs_name}.json.tmp"
-        tmp_path.write_text(json.dumps(pairs))
-        tmp_path.replace(pairs_dir / f"{self.pairs_name}.json")
+        for name in self.pair_lists:
+            pairs = self.read_test_pairs(name) if self.split == "test" else self.read_pairs_pickle(name)
+            tmp_path = pairs_dir / f"{name}.json.tmp"
+            tmp_path.write_text(json.dumps(pairs))
+            tmp_path.replace(pairs_dir / f"{name}.json")
         return True
 
     def process_fragments(self, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        """Convert the fragments of the split to `float32` `.npy` files, skipping the ones already converted."""
+        """Convert every fragment of the split to a `float32` `.npy` file, replacing the previous cache."""
         src_dir = Path(self.raw_dir, "indoor", self.fragments_split)
         dst_dir = Path(self.processed_dir, self.fragments_split)
         paths = sorted(src_dir.glob("*/cloud_bin_*.pth"))
         records = [(p, dst_dir / p.parent.name / f"{p.stem}.npy") for p in paths]
-        records = [(src, dst) for src, dst in records if not dst.exists()]
         parallel_map(
             _convert_fragment,
             records,
@@ -245,9 +254,9 @@ class ThreeDMatch(PointCloudDataset):
             show_progress=show_progress,
         )
 
-    def read_pairs_pickle(self) -> List[Dict[str, Any]]:
-        """The train or val pairs of the PREDATOR split, read from the GeoTransformer pair list."""
-        records = load_pickle(Path(self.metadata_dir, f"{self.split}.pkl"))
+    def read_pairs_pickle(self, name: str) -> List[Dict[str, Any]]:
+        """The `"train"` or `"val"` pairs of the PREDATOR split, read from the GeoTransformer pair list."""
+        records = load_pickle(Path(self.metadata_dir, f"{name}.pkl"))
 
         pairs = []
         for record in records:
@@ -265,10 +274,10 @@ class ThreeDMatch(PointCloudDataset):
             )
         return pairs
 
-    def read_test_pairs(self) -> List[Dict[str, Any]]:
-        """The pairs of the test benchmark, with the ground truth of `gt.log`, `gt.info` and `gt_overlap.log`."""
+    def read_test_pairs(self, benchmark: str) -> List[Dict[str, Any]]:
+        """The pairs of a test benchmark, with the ground truth of `gt.log`, `gt.info` and `gt_overlap.log`."""
         pairs = []
-        scene_dirs = sorted(p for p in Path(self.metadata_dir, "benchmarks", self.benchmark).iterdir() if p.is_dir())
+        scene_dirs = sorted(p for p in Path(self.metadata_dir, "benchmarks", benchmark).iterdir() if p.is_dir())
         for scene_dir in scene_dirs:
             scene = scene_dir.name
             transforms = _read_log_matrices(scene_dir / "gt.log", rows=4)
@@ -315,7 +324,7 @@ class ThreeDMatch(PointCloudDataset):
         return data
 
     def extra_repr(self) -> str:
-        return f"Split: {self.split}\nBenchmark: {self.pairs_name}"
+        return f"Split: {self.split}" + (f"\nBenchmark: {self.benchmark}" if self.split == "test" else "")
 
 
 def _convert_fragment(record: Tuple[Path, Path]) -> None:

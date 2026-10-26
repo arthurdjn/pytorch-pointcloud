@@ -1,7 +1,8 @@
 import json
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 
+import numpy as np
 import pytest
 import torch
 
@@ -62,28 +63,69 @@ def test_threedmatch_splits(
     assert nearest.median().item() < 1e-4
 
 
-def test_threedmatch_processed_cache_is_reused(datasets_dir_factory: Callable[..., Path]) -> None:
+@pytest.mark.parametrize(
+    "split, benchmark, fragments, pair_lists",
+    [
+        pytest.param("test", "3DMatch", "test", ("3DMatch", "3DLoMatch"), id="test"),
+        pytest.param("val", "3DMatch", "train", ("train", "val"), id="val"),
+    ],
+)
+def test_threedmatch_process_stamps_the_fragments_with_their_pair_lists(
+    datasets_dir_factory: Callable[..., Path], split: str, benchmark: str, fragments: str, pair_lists: Tuple[str, ...]
+) -> None:
+    """One build converts the fragments of the split and writes every pair list reading them, under one stamp."""
     datasets_dir = datasets_dir_factory("ThreeDMatch/**/*")
-    first = ThreeDMatch(root=datasets_dir, split="test", show_progress=False)
-    pairs_file = Path(first.processed_dir, "pairs", "3DMatch.json")
-    assert pairs_file.exists()
-    stamp = pairs_file.stat().st_mtime_ns
-    second = ThreeDMatch(root=datasets_dir, split="test", show_progress=False)
-    assert pairs_file.stat().st_mtime_ns == stamp
-    assert len(second) == len(first)
+    dataset = ThreeDMatch(
+        root=datasets_dir,
+        split=split,  # type: ignore[arg-type]
+        benchmark=benchmark,  # type: ignore[arg-type]
+        show_progress=False,
+        force_process=True,
+    )
+    assert json.loads(Path(dataset.processed_dir, f"{fragments}.meta.json").read_text()) == dataset.cache_meta
+    assert all(Path(dataset.processed_dir, "pairs", f"{name}.json").exists() for name in pair_lists)
 
 
-def test_threedmatch_process_stamps_each_pair_list(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Each pair list gets its own `cache_meta` stamp, so the 3DMatch cache does not stand in for the 3DLoMatch one."""
+def test_threedmatch_other_benchmark_reuses_the_cache(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("ThreeDMatch/**/*")
+    first = ThreeDMatch(root=datasets_dir, split="test", show_progress=False, force_process=True)
+    fragment = first.fragment_path("7-scenes-redkitchen", 0)
+    pairs_file = Path(first.processed_dir, "pairs", "3DLoMatch.json")
+    stamps = fragment.stat().st_mtime_ns, pairs_file.stat().st_mtime_ns
+
+    second = ThreeDMatch(root=datasets_dir, split="test", benchmark="3DLoMatch", show_progress=False)
+    assert (fragment.stat().st_mtime_ns, pairs_file.stat().st_mtime_ns) == stamps
+    assert len(second) == 2
+
+
+def test_threedmatch_force_process_rebuilds_stale_fragments(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A stale stamp raises until a forced rebuild, which rewrites the fragments instead of keeping the old files."""
     datasets_dir = datasets_dir_factory("ThreeDMatch/**/*")
     dataset = ThreeDMatch(root=datasets_dir, split="test", show_progress=False, force_process=True)
-    meta_path = Path(dataset.processed_dir, "pairs", "3DMatch.meta.json")
-    assert json.loads(meta_path.read_text()) == dataset.cache_meta
-    assert not Path(dataset.processed_dir, "pairs", "3DLoMatch.meta.json").exists()
+    fragment = dataset.fragment_path("7-scenes-redkitchen", 0)
+    expected = np.load(fragment)
+    np.save(fragment, np.zeros((3, 3), dtype=np.float32))
+    meta_path = Path(dataset.processed_dir, "test.meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
 
-    lomatch = ThreeDMatch(root=datasets_dir, split="test", benchmark="3DLoMatch", show_progress=False)
-    assert Path(lomatch.processed_dir, "pairs", "3DLoMatch.json").exists()
-    assert Path(lomatch.processed_dir, "pairs", "3DLoMatch.meta.json").exists()
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        ThreeDMatch(root=datasets_dir, split="test", benchmark="3DLoMatch", show_progress=False)
+
+    ThreeDMatch(root=datasets_dir, split="test", benchmark="3DLoMatch", show_progress=False, force_process=True)
+    assert np.array_equal(np.load(fragment), expected)
+    assert json.loads(meta_path.read_text()) == dataset.cache_meta
+
+
+def test_threedmatch_benchmark_belongs_to_the_test_split(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("ThreeDMatch/**/*")
+    with pytest.raises(ValueError, match="benchmark"):
+        ThreeDMatch(root=datasets_dir, split="train", benchmark="3DLoMatch", show_progress=False)
+    assert "Benchmark" not in repr(ThreeDMatch(root=datasets_dir, split="val", show_progress=False))
+    assert "Benchmark: 3DLoMatch" in repr(
+        ThreeDMatch(root=datasets_dir, split="test", benchmark="3DLoMatch", show_progress=False)
+    )
 
 
 def test_threedmatch_collate(datasets_dir_factory: Callable[..., Path]) -> None:
