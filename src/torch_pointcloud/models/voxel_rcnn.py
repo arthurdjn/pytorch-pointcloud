@@ -104,7 +104,7 @@ class VoxelRCNNBoxHead(nn.Module):
         shared_channels: Sequence[int],
         cls_channels: Sequence[int],
         reg_channels: Sequence[int],
-        dropout: float = 0.3,
+        dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -191,19 +191,20 @@ class VoxelRCNNDetection(DetectionModel):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, one row per class.
         anchor_bottom_heights: Per-class anchor bottom $z$, one per class.
-        anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the anchor head.
+        dir_offset: Direction-classifier angle offset.
+        proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
+        proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
+        proposal_nms_thresh: Rotated BEV IoU threshold of the proposal NMS.
+        roi_pool_radii: Per-stage, per-scale ball radius of the voxel RoI pooling.
+        anchor_rotations: Yaw angles (radians) shared by all classes.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
         num_filters: 2D backbone channel widths per level.
         upsample_strides: 2D backbone upsample strides per level.
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the anchor head.
-        dir_offset: Direction-classifier angle offset.
         dir_limit_offset: Heading wrap offset used during decoding.
-        proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
-        proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
-        proposal_nms_thresh: Rotated BEV IoU threshold of the proposal NMS.
         train_proposal_pre_maxsize: `proposal_pre_maxsize` in training.
         train_proposal_post_maxsize: `proposal_post_maxsize` in training, before the RoI sampling.
         train_proposal_nms_thresh: `proposal_nms_thresh` in training.
@@ -212,14 +213,13 @@ class VoxelRCNNDetection(DetectionModel):
         roi_foreground_threshold: IoU at or above which a proposal is a foreground RoI.
         roi_hard_background_threshold: IoU at or above which a background RoI is hard.
         roi_hard_background_ratio: Share of hard RoIs among the background samples.
-        grid_size: Grid points per RoI side.
-        pool_channels: Per-stage, per-scale MLP channels of the voxel RoI pooling.
-        pool_radii: Per-stage, per-scale ball radius of the voxel RoI pooling.
-        pool_num_neighbors: Per-stage, per-scale neighbor count of the voxel RoI pooling.
-        shared_channels: Channels of the shared fully connected layers of the refinement head.
-        cls_channels: Hidden channels of the refinement confidence branch.
-        reg_channels: Hidden channels of the refinement box branch.
-        dropout: Dropout of the refinement head.
+        roi_grid_size: Grid points per RoI side.
+        roi_pool_channels: Per-stage, per-scale MLP channels of the voxel RoI pooling.
+        roi_pool_num_neighbors: Per-stage, per-scale neighbor count of the voxel RoI pooling.
+        roi_shared_channels: Channels of the shared fully connected layers of the refinement head.
+        roi_cls_channels: Hidden channels of the refinement confidence branch.
+        roi_reg_channels: Hidden channels of the refinement box branch.
+        roi_dropout: Dropout of the refinement head.
         act: Activation type or callable.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable.
@@ -235,19 +235,20 @@ class VoxelRCNNDetection(DetectionModel):
         point_cloud_range: Sequence[float],
         anchor_sizes: Sequence[Sequence[float]],
         anchor_bottom_heights: Sequence[float],
+        feature_map_stride: int,
+        dir_offset: float,
+        proposal_pre_maxsize: int,
+        proposal_post_maxsize: int,
+        proposal_nms_thresh: float,
+        roi_pool_radii: Sequence[Sequence[float]],
         anchor_rotations: Sequence[float] = (0.0, 1.57),
-        feature_map_stride: int = 8,
         layer_nums: Sequence[int] = (5, 5),
         layer_strides: Sequence[int] = (1, 2),
         num_filters: Sequence[int] = (64, 128),
         upsample_strides: Sequence[int] = (1, 2),
         num_upsample_filters: Sequence[int] = (128, 128),
         num_dir_bins: int = 2,
-        dir_offset: float = 0.78539,
         dir_limit_offset: float = 0.0,
-        proposal_pre_maxsize: int = 2048,
-        proposal_post_maxsize: int = 100,
-        proposal_nms_thresh: float = 0.7,
         train_proposal_pre_maxsize: int = 9000,
         train_proposal_post_maxsize: int = 512,
         train_proposal_nms_thresh: float = 0.8,
@@ -256,14 +257,13 @@ class VoxelRCNNDetection(DetectionModel):
         roi_foreground_threshold: float = 0.55,
         roi_hard_background_threshold: float = 0.1,
         roi_hard_background_ratio: float = 0.8,
-        grid_size: int = 6,
-        pool_channels: Sequence[Sequence[Sequence[int]]] = (((32, 32),), ((32, 32),), ((32, 32),)),
-        pool_radii: Sequence[Sequence[float]] = ((0.4,), (0.8,), (1.6,)),
-        pool_num_neighbors: Sequence[Sequence[int]] = ((16,), (16,), (16,)),
-        shared_channels: Sequence[int] = (256, 256),
-        cls_channels: Sequence[int] = (256, 256),
-        reg_channels: Sequence[int] = (256, 256),
-        dropout: float = 0.3,
+        roi_grid_size: int = 6,
+        roi_pool_channels: Sequence[Sequence[Sequence[int]]] = (((32, 32),), ((32, 32),), ((32, 32),)),
+        roi_pool_num_neighbors: Sequence[Sequence[int]] = ((16,), (16,), (16,)),
+        roi_shared_channels: Sequence[int] = (256, 256),
+        roi_cls_channels: Sequence[int] = (256, 256),
+        roi_reg_channels: Sequence[int] = (256, 256),
+        roi_dropout: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -295,21 +295,21 @@ class VoxelRCNNDetection(DetectionModel):
         self.roi_foreground_threshold = roi_foreground_threshold
         self.roi_hard_background_threshold = roi_hard_background_threshold
         self.roi_hard_background_ratio = roi_hard_background_ratio
-        self.grid_size = grid_size
-        self.pool_channels = pool_channels
-        self.pool_radii = pool_radii
-        self.pool_num_neighbors = pool_num_neighbors
-        self.shared_channels = shared_channels
-        self.cls_channels = cls_channels
-        self.reg_channels = reg_channels
-        self.dropout = dropout
+        self.roi_grid_size = roi_grid_size
+        self.roi_pool_channels = roi_pool_channels
+        self.roi_pool_radii = roi_pool_radii
+        self.roi_pool_num_neighbors = roi_pool_num_neighbors
+        self.roi_shared_channels = roi_shared_channels
+        self.roi_cls_channels = roi_cls_channels
+        self.roi_reg_channels = roi_reg_channels
+        self.roi_dropout = roi_dropout
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
         self.norm_kwargs = norm_kwargs
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
-        self.grid_size_3d: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
+        self.grid_size: Tuple[int, int, int] = (grid[0], grid[1], grid[2])
         # spconv spatial shape is (z, y, x) with an extra +1 on z.
         self.sparse_shape: List[int] = [grid[2] + 1, grid[1], grid[0]]
 
@@ -355,7 +355,7 @@ class VoxelRCNNDetection(DetectionModel):
         return AnchorHead(
             self.backbone.num_bev_features,
             self.num_classes,
-            (self.grid_size_3d[0], self.grid_size_3d[1]),
+            (self.grid_size[0], self.grid_size[1]),
             self.point_cloud_range,
             anchor_sizes=self.anchor_sizes,
             anchor_bottom_heights=self.anchor_bottom_heights,
@@ -372,14 +372,14 @@ class VoxelRCNNDetection(DetectionModel):
         # threaded into it.
         return VoxelRCNNBoxHead(
             self.backbone_3d.stage_channels[1:],
-            grid_size=self.grid_size,
-            pool_channels=self.pool_channels,
-            pool_radii=self.pool_radii,
-            pool_num_neighbors=self.pool_num_neighbors,
-            shared_channels=self.shared_channels,
-            cls_channels=self.cls_channels,
-            reg_channels=self.reg_channels,
-            dropout=self.dropout,
+            grid_size=self.roi_grid_size,
+            pool_channels=self.roi_pool_channels,
+            pool_radii=self.roi_pool_radii,
+            pool_num_neighbors=self.roi_pool_num_neighbors,
+            shared_channels=self.roi_shared_channels,
+            cls_channels=self.roi_cls_channels,
+            reg_channels=self.roi_reg_channels,
+            dropout=self.roi_dropout,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -597,6 +597,12 @@ class VoxelRCNNDetection(DetectionModel):
         anchor_sizes=[[3.9, 1.6, 1.56]],
         anchor_bottom_heights=[-1.78],
         feature_map_stride=8,
+        dir_offset=0.78539,
+        proposal_pre_maxsize=2048,
+        proposal_post_maxsize=100,
+        proposal_nms_thresh=0.7,
+        roi_pool_radii=((0.4,), (0.8,), (1.6,)),
+        roi_dropout=0.3,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
