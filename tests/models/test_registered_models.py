@@ -161,6 +161,10 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3-base.s3dis-area5.pointcept",
     "ptv3.dales.jayakumar-pujar",
     "ptv3-base.nuscenes.pointcept",
+    "ptv3-ppt.scannet20.pointcept",
+    "ptv3-ppt.s3dis-area5.pointcept",
+    "ptv3-ppt.scannet20.labelmaker",
+    "ptv3-ppt.scannet200.labelmaker",
     "pvcnn.s3dis-area5.mit-han-lab",
     "pvcnn-c0p25.s3dis-area5.mit-han-lab",
     "pvcnn-c0p125.s3dis-area5.mit-han-lab",
@@ -869,8 +873,10 @@ def test_registered_weights_classes_match_num_classes() -> None:
                 continue
 
             num_classes = entry["hparams"].get("num_classes")
-            if num_classes is not None:
+            if isinstance(num_classes, int):
                 assert len(weights["classes"]) == num_classes, name
+            elif num_classes is not None:
+                assert len(weights["classes"]) == create_model(name).num_classes, name
 
 
 def test_registered_input_keys_fill_the_forward_arguments() -> None:

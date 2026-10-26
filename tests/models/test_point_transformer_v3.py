@@ -492,6 +492,10 @@ def test_segmentation_checkpoint_filter_fn_numbers_the_decoder_in_execution_orde
         pytest.param("ptv3-base.scannet20.pointcept"),
         pytest.param("ptv3-base.scannet200.pointcept"),
         pytest.param("ptv3-base.s3dis-area5.pointcept"),
+        pytest.param("ptv3-ppt.scannet20.pointcept"),
+        pytest.param("ptv3-ppt.s3dis-area5.pointcept"),
+        pytest.param("ptv3-ppt.scannet20.labelmaker"),
+        pytest.param("ptv3-ppt.scannet200.labelmaker"),
     ],
 )
 def test_ptv3_registered_transform_runs_without_labels(name: str) -> None:

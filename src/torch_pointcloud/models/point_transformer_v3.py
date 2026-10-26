@@ -2173,3 +2173,178 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
 )
 def ptv3_base_nuscenes(**hparams: Any) -> PointTransformerV3Segmentation:
     return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.scannet20.pointcept",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.scannet20.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet20",
+        classes=SCANNET20_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(range(1, 21)),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 25),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 6, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(3, 3, 3, 3),
+        decoder_channels=(384, 192, 96, 64),
+        decoder_num_heads=(24, 12, 6, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        legacy=True,
+        pdnorm_conditions=("ScanNet", "Structured3D"),
+        condition="ScanNet",
+        text_embed_dim=512,
+        text_scale=100.0,
+    ),
+)
+def ptv3_ppt_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.s3dis-area5.pointcept",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.s3dis-area5.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        classes=S3DIS_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(None, estimate_normals=True),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 13, 25),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(32, 64, 128, 256, 384),
+        encoder_num_heads=(2, 4, 8, 16, 24),
+        encoder_patch_size=(128, 128, 128, 128, 128),
+        decoder_depths=(2, 2, 2, 2),
+        decoder_channels=(256, 128, 64, 64),
+        decoder_num_heads=(16, 8, 4, 4),
+        decoder_patch_size=(128, 128, 128, 128),
+        mlp_ratio=4,
+        drop_path=0.3,
+        attn_kind="rpe",
+        use_flash_attn=False,
+        upcast_attn=True,
+        upcast_softmax=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        legacy=True,
+        pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
+        condition="S3DIS",
+        text_embed_dim=512,
+        text_scale=100.0,
+    ),
+)
+def ptv3_ppt_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.scannet20.labelmaker",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.scannet20.labelmaker/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet20",
+        classes=SCANNET20_CLASSES,
+        author="labelmaker",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(range(1, 21)),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 200, 100, 25, 185),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 6, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(3, 3, 3, 3),
+        decoder_channels=(384, 192, 96, 64),
+        decoder_num_heads=(24, 12, 6, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        pdnorm_conditions=("ScanNet", "ScanNet200", "ScanNet++", "Structured3D", "ALC"),
+        condition="ScanNet",
+    ),
+)
+def ptv3_ppt_scannet20_labelmaker(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+# Trained on the ScanNet train and val scenes with their 20-class labels and on the ScanNet200 train scenes, so the
+# ScanNet200 val scenes are not held out.
+@register_model(
+    "ptv3-ppt.scannet200.labelmaker",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.scannet200.labelmaker/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet200",
+        classes=SCANNET200_CLASSES,
+        author="labelmaker",
+        license="MIT",
+    ),
+    transform=_ptv3_seg_transforms(range(1, 201)),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 200, 100, 25, 185),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 6, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(3, 3, 3, 3),
+        decoder_channels=(384, 192, 96, 64),
+        decoder_num_heads=(24, 12, 6, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        pdnorm_conditions=("ScanNet", "ScanNet200", "ScanNet++", "Structured3D", "ALC"),
+        condition="ScanNet200",
+    ),
+)
+def ptv3_ppt_scannet200_labelmaker(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)

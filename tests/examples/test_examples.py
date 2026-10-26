@@ -108,6 +108,18 @@ BENCHMARKS = [
         id="ptv3/scannet",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_scannet_benchmark.py",
+        ("--model", "ptv3-ppt.scannet20.pointcept", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="ptv3-ppt/scannet",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_scannet_benchmark.py",
+        ("--model", "ptv3-ppt.scannet20.labelmaker", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="ptv3-ppt-labelmaker/scannet",
+    ),
+    pytest.param(
         "point_transformer_v3/segmentation_dales_benchmark.py",
         ("--model", "ptv3.dales.jayakumar-pujar", "--limit", "1"),
         marks=_GPU_SPCONV,
