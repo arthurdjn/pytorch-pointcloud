@@ -1,4 +1,9 @@
-"""Benchmark TR3D on ScanNet, SUN RGB-D or S3DIS Area 5 with its evaluation protocol."""
+"""Benchmark TR3D on ScanNet, SUN RGB-D or S3DIS Area 5 with its evaluation protocol.
+
+NOTE: the S3DIS reference 72.25 / 51.66 mAP@0.25 / 0.5 is the last validation of the checkpoint's training log. We ran
+the checkpoint through mmdet3d v1.4.0's own TR3D model, `predict_by_feat` and `indoor_eval` (MinkowskiEngine 0.5.4 on
+CPU, mmcv's NMS on GPU) on the Area 5 rooms of its `data/s3dis/indoor3d_util.py` export, seed 42: 71.70 / 45.69.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace

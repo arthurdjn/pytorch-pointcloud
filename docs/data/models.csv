@@ -160,9 +160,9 @@ pointnext-sm.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,tr
 centerpoint-pillar02.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,5.98,mAP,49.1,49.12,mAP 49.12 · NDS 59.04
 centerpoint-voxel0075.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,57.6,57.06,mAP 57.06 · NDS 65.04
 centerpoint-voxel01.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,56.1,56.71,mAP 56.71 · NDS 64.60
-fcaf3d.s3dis-area5.mmdet3d,fcaf3d,detection,s3dis-area5,true,Apache-2.0,70.48,mAP,,,
-fcaf3d.scannet.mmdet3d,fcaf3d,detection,scannet,true,Apache-2.0,70.48,mAP,,,
-fcaf3d.sunrgbd.mmdet3d,fcaf3d,detection,sunrgbd,true,Apache-2.0,70.48,mAP,,,
+fcaf3d.s3dis-area5.mmdet3d,fcaf3d,detection,s3dis-area5,true,Apache-2.0,70.48,mAP,67.36,66.31,mAP@0.25 66.31 · mAP@0.5 46.71
+fcaf3d.scannet.mmdet3d,fcaf3d,detection,scannet,true,Apache-2.0,70.48,mAP,69.72,69.57,mAP@0.25 69.57 · mAP@0.5 55.09
+fcaf3d.sunrgbd.mmdet3d,fcaf3d,detection,sunrgbd,true,Apache-2.0,70.48,mAP,64.75,64.70,mAP@0.25 64.70 · mAP@0.5 47.93
 lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,68.82,mAP 68.82 · NDS 72.33
 part-a2.kitti-car.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.86,mAP,79.08,79.08,mAP 79.08 · AP/Car 79.08
 part-a2.kitti.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.89,mAP,68.33,68.34,mAP 68.34 · AP/Car 79.03 · AP/Pedestrian 55.28 · AP/Cyclist 70.70
@@ -172,9 +172,9 @@ pointrcnn.kitti.openpcdet,pointrcnn,detection,kitti,true,Apache-2.0,4.04,mAP,68.
 pv-rcnn.kitti.mmdet3d,pv_rcnn,detection,kitti,true,Apache-2.0,13.12,mAP,72.14,72.16,mAP 72.16 · AP/Car 83.54 · AP/Pedestrian 59.73 · AP/Cyclist 73.20
 second-multihead.nuscenes.openpcdet,second,detection,nuscenes,true,Apache-2.0,9.04,mAP,50.59,50.76,mAP 50.76 · NDS 61.85
 second.kitti.openpcdet,second,detection,kitti,true,Apache-2.0,5.33,mAP,66.25,66.26,mAP 66.26 · AP/Car 78.63 · AP/Pedestrian 52.98 · AP/Cyclist 67.16
-tr3d.s3dis-area5.mmdet3d,tr3d,detection,s3dis-area5,true,Apache-2.0,14.66,mAP,,,
-tr3d.scannet.mmdet3d,tr3d,detection,scannet,true,Apache-2.0,14.66,mAP,,,
-tr3d.sunrgbd.mmdet3d,tr3d,detection,sunrgbd,true,Apache-2.0,14.66,mAP,,,
+tr3d.s3dis-area5.mmdet3d,tr3d,detection,s3dis-area5,true,Apache-2.0,14.66,mAP,72.25,71.26,mAP@0.25 71.26 · mAP@0.5 48.29
+tr3d.scannet.mmdet3d,tr3d,detection,scannet,true,Apache-2.0,14.66,mAP,71.99,71.99,mAP@0.25 71.99 · mAP@0.5 58.56
+tr3d.sunrgbd.mmdet3d,tr3d,detection,sunrgbd,true,Apache-2.0,14.66,mAP,66.90,66.67,mAP@0.25 66.67 · mAP@0.5 50.37
 votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@0.25 57.65 · mAP@0.5 34.10
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
