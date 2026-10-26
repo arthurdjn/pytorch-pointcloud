@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 
 import pytest
 import torch
@@ -10,7 +10,10 @@ from torch_pointcloud.layers.cylinder3d_blocks import (
 )
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE, optional_import
 
-spconv, _ = optional_import("spconv.pytorch")
+if TYPE_CHECKING:
+    import spconv.pytorch as spconv
+else:
+    spconv, _ = optional_import("spconv.pytorch")
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = [

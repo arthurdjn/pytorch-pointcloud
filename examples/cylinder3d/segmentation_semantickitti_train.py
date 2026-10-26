@@ -19,7 +19,7 @@ from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_LEARNING_MAP
 from torch_pointcloud.losses import LovaszLoss, SumLoss
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
-from torch_pointcloud.models import Cylinder3DSegmentation, create_model
+from torch_pointcloud.models import SemanticSegmentationModel, create_model
 from torch_pointcloud.ops.voxelization import majority_label
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -151,7 +151,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     return train_loader, val_loader
 
 
-def configure_model(args: Namespace) -> Cylinder3DSegmentation:
+def configure_model(args: Namespace) -> SemanticSegmentationModel:
     return create_model(args.model, task="semantic-segmentation", pretrained=False).to(args.device)
 
 
@@ -173,7 +173,7 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 
 def train_one_epoch(
-    model: Cylinder3DSegmentation,
+    model: SemanticSegmentationModel,
     criterion: nn.Module,
     optimizer: Optimizer,
     scheduler: LRScheduler,

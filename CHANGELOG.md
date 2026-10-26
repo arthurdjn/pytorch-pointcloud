@@ -32,7 +32,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Added Cylinder3D with its SemanticKITTI checkpoints, and its benchmark script.
+- Added Cylinder3D (`Cylinder3DSegmentation`) with the SemanticKITTI checkpoints `cylinder3d.semantickitti.mmdet3d` and `cylinder3d-laser-polar-mix.semantickitti.mmdet3d`, the nuScenes checkpoint `cylinder3d-0p5x.nuscenes.yuenan-hou`, and their benchmark and training scripts.
+- Added `ops.geometry.cartesian_to_cylindrical`, `ops.voxelization.majority_label`, the `DynamicMaxVFE` layer and `NUSCENES_LIDARSEG_LEARNING_MAP`.
 
 ## 0.0.18 (2026-10-20)
 
