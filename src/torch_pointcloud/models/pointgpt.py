@@ -199,7 +199,8 @@ class PointGPTExtractor(nn.Module):
     token is prepended to the patch-token sequence, a stack of causally-masked `PointGPTBlock` layers
     consumes the tokens plus their positional embedding, and a final layer normalization produces the
     encoded points. This is the backbone reused for downstream classification and part segmentation;
-    `fetch_idx` returns the hidden states after the given blocks instead, before the final normalization.
+    `fetch_idx` returns the hidden states after the given blocks instead, before the final normalization, and
+    `attn_mask=None` lets every token attend to the whole sequence.
 
     Args:
         embed_dim: The token dimension $C$.
@@ -209,7 +210,7 @@ class PointGPTExtractor(nn.Module):
         act_kwargs: Keyword arguments for the activation.
 
     Shape:
-        - Input: $(B, L, C)$ tokens, $(B, L + 1, C)$ positions, and an $(L + 1, L + 1)$ mask.
+        - Input: $(B, L, C)$ tokens, $(B, L + 1, C)$ positions, and an optional $(L + 1, L + 1)$ mask.
         - Output: $(B, L + 1, C)$ encoded points, or one $(B, L + 1, C)$ hidden state per index of `fetch_idx`.
 
     Example:
@@ -248,19 +249,19 @@ class PointGPTExtractor(nn.Module):
 
     @overload
     def forward(
-        self, x: Tensor, pos: Tensor, attn_mask: Tensor, shift: bool = ..., *, fetch_idx: Sequence[int]
+        self, x: Tensor, pos: Tensor, attn_mask: OptTensor, shift: bool = ..., *, fetch_idx: Sequence[int]
     ) -> List[Tensor]: ...
 
     @overload
     def forward(
-        self, x: Tensor, pos: Tensor, attn_mask: Tensor, shift: bool = ..., *, fetch_idx: None = None
+        self, x: Tensor, pos: Tensor, attn_mask: OptTensor, shift: bool = ..., *, fetch_idx: None = None
     ) -> Tensor: ...
 
     def forward(
         self,
         x: Tensor,
         pos: Tensor,
-        attn_mask: Tensor,
+        attn_mask: OptTensor,
         shift: bool = False,
         *,
         fetch_idx: Optional[Sequence[int]] = None,
@@ -567,9 +568,9 @@ class PointGPTPartSegmentation(PartSegmentationModel):
     Generative Pre-training from Point Clouds](https://arxiv.org/abs/2305.11487), adapted from
     :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT). Patches are tokenized
     with a mini-PointNet, ordered by a greedy nearest-neighbor ("simplified Morton") traversal of the
-    centers, and consumed by the causally-masked GPT extractor with a start-of-sequence and a class token.
-    The normalized hidden states of three extractor blocks are concatenated per patch and propagated back to
-    every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`); a
+    centers, and consumed by the GPT extractor (causally masked unless `causal=False`) with a start-of-sequence
+    and a class token. The normalized hidden states of three extractor blocks are concatenated per patch and
+    propagated back to every point with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`); a
     category-conditioned global branch (max- and mean-pooled patch features plus the embedded category
     one-hot) is fused before the per-point classifier. Every sample in the packed batch must contain the
     same number of points; a ragged batch raises `ValueError`.
@@ -590,6 +591,8 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         propagation_channels: Widths of the feature-propagation MLP, the last one being its output width.
         head_channels: Hidden widths of the per-point classifier.
         dropout: The dropout rate after the first layer of the per-point classifier.
+        causal: Whether each token attends only to the tokens before it (the extractor's causal mask); `False`
+            lets every token attend to the whole sequence.
         act: The activation of the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
         spatial_dim: The spatial dimension of the input point cloud.
@@ -631,6 +634,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         propagation_channels: Sequence[int] = (1536, 1024),
         head_channels: Sequence[int] = (512, 256),
         dropout: float = 0.5,
+        causal: bool = True,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
@@ -652,6 +656,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         self.propagation_channels = propagation_channels
         self.head_channels = head_channels
         self.dropout = dropout
+        self.causal = causal
         self.act = act
         self.act_kwargs = act_kwargs
         self.spatial_dim = spatial_dim
@@ -686,7 +691,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         return PositionEmbeddingSine(self.spatial_dim, self.embed_dim, temperature=1.0)
 
     def configure_blocks(self) -> PointGPTExtractor:
-        """Build the causally-masked GPT extractor."""
+        """Build the GPT extractor."""
         return PointGPTExtractor(self.embed_dim, self.num_heads, self.depth, act=self.act, act_kwargs=self.act_kwargs)
 
     def configure_generator_blocks(self) -> PointGPTGenerator:
@@ -788,7 +793,9 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         x_seq = torch.cat([cls_tokens, tokens], dim=1)
         pos_seq = torch.cat([cls_pos, pos_seq], dim=1)
 
-        attn_mask = torch.triu(torch.ones(L + 2, L + 2, dtype=torch.bool, device=tokens.device), diagonal=1)
+        attn_mask = None
+        if self.causal:
+            attn_mask = torch.triu(torch.ones(L + 2, L + 2, dtype=torch.bool, device=tokens.device), diagonal=1)
         feature_list = self.blocks(x_seq, pos_seq, attn_mask, fetch_idx=self.fetch_idx)
         feature_list = [self.norm(feat[:, 2:]).transpose(-1, -2).contiguous() for feat in feature_list]
         x_feat = torch.cat([feature_list[0], feature_list[1], feature_list[2]], dim=1)
@@ -1267,6 +1274,7 @@ for _size in ("s", "b", "l"):
         propagation_channels=(1536, 1024),
         head_channels=(512, 256),
         dropout=0.5,
+        causal=False,  # the released weights expect bidirectional attention
         act="gelu",
         spatial_dim=3,
     ),
@@ -1301,6 +1309,7 @@ def pointgpt_s_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
         propagation_channels=(3072, 2048),
         head_channels=(1024, 512),
         dropout=0.5,
+        causal=False,  # the released weights expect bidirectional attention
         act="gelu",
         spatial_dim=3,
     ),
@@ -1335,6 +1344,7 @@ def pointgpt_b_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
         propagation_channels=(4096, 2048),
         head_channels=(1024, 512),
         dropout=0.5,
+        causal=False,  # the released weights expect bidirectional attention
         act="gelu",
         spatial_dim=3,
     ),

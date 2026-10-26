@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import pytest
 import torch
 from torch_geometric.nn import MLP
@@ -321,3 +323,26 @@ def test_pointgpt_shapenetpart_transform_runs_without_labels() -> None:
     assert out[DataKeys.POS].shape == (2048, 3)
     assert out[DataKeys.CATEGORY].shape[-1] == 16
     assert DataKeys.SEGMENT not in out
+
+
+def test_pointgpt_part_segmentation_causal_mask_changes_the_output() -> None:
+    kwargs: Dict[str, Any] = dict(
+        in_channels=0,
+        num_classes=5,
+        num_categories=16,
+        embed_dim=96,
+        depth=12,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+        propagation_channels=(64, 32),
+    )
+    causal = PointGPTPartSegmentation(**kwargs, causal=True).eval()
+    bidirectional = PointGPTPartSegmentation(**kwargs, causal=False).eval()
+    bidirectional.load_state_dict(causal.state_dict())
+    pos, batch, category = _uniform_batch(128)
+    with torch.no_grad():
+        out_causal = causal(None, pos, batch, category)
+        out_bidirectional = bidirectional(None, pos, batch, category)
+    assert out_causal.shape == out_bidirectional.shape == (256, 5)
+    assert not torch.allclose(out_causal, out_bidirectional)
