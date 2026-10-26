@@ -5,6 +5,7 @@ coarse grid of potentials; each sphere's softmax predictions are blended into th
 an exponential moving average until every region has been covered about `num_votes` times.
 """
 
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
@@ -306,3 +307,27 @@ class PotentialSphereSegmentationInferer(SegmentationInferer):
             progress=self.progress,
             seed=seed,
         )
+
+
+def potential_sphere_inference(*args: Any, **kwargs: Any) -> Tensor:
+    """Deprecated alias of `potential_sphere_segmentation_inference`."""
+    warnings.warn(
+        "`potential_sphere_inference` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
+        "`potential_sphere_segmentation_inference` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return potential_sphere_segmentation_inference(*args, **kwargs)
+
+
+class PotentialSphereInferer(PotentialSphereSegmentationInferer):
+    """Deprecated alias of `PotentialSphereSegmentationInferer`."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "`PotentialSphereInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
+            "`PotentialSphereSegmentationInferer` instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

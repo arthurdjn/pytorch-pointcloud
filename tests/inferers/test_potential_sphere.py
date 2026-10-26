@@ -5,7 +5,12 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.inferers import PotentialSphereSegmentationInferer, potential_sphere_segmentation_inference
+from torch_pointcloud.inferers import (
+    PotentialSphereInferer,
+    PotentialSphereSegmentationInferer,
+    potential_sphere_inference,
+    potential_sphere_segmentation_inference,
+)
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -205,3 +210,18 @@ def test_potential_sphere_unreachable_batch_element_raises() -> None:
         potential_sphere_segmentation_inference(
             data, predictor=_left_right_predictor, radius=1.5, num_votes=2.0, seed=0
         )
+
+
+def test_potential_sphere_inference_is_deprecated() -> None:
+    data = _room(n=500)
+    kwargs: Dict[str, Any] = dict(predictor=_left_right_predictor, radius=1.5, num_votes=1.0, seed=0)
+    expected = potential_sphere_segmentation_inference(data, **kwargs)
+    with pytest.warns(FutureWarning, match="potential_sphere_segmentation_inference"):
+        actual = potential_sphere_inference(data, **kwargs)
+    assert torch.equal(actual, expected)
+
+
+def test_potential_sphere_inferer_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="PotentialSphereSegmentationInferer"):
+        inferer = PotentialSphereInferer(radius=1.5)
+    assert isinstance(inferer, PotentialSphereSegmentationInferer)

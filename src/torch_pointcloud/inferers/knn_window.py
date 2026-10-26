@@ -389,3 +389,27 @@ class KNNWindowSegmentationInferer(SegmentationInferer):
             progress=self.progress,
             seed=seed,
         )
+
+
+def knn_window_inference(*args: Any, **kwargs: Any) -> Tensor:
+    """Deprecated alias of `knn_window_segmentation_inference`."""
+    warnings.warn(
+        "`knn_window_inference` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
+        "`knn_window_segmentation_inference` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return knn_window_segmentation_inference(*args, **kwargs)
+
+
+class KNNWindowInferer(KNNWindowSegmentationInferer):
+    """Deprecated alias of `KNNWindowSegmentationInferer`."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "`KNNWindowInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
+            "`KNNWindowSegmentationInferer` instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

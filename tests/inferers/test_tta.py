@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.inferers import SimpleInferer, TTADetectionInferer, TTASegmentationInferer
+from torch_pointcloud.inferers import SimpleInferer, TTADetectionInferer, TTAInferer, TTASegmentationInferer
 from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import Detection3D
@@ -423,3 +423,9 @@ def test_tta_detection_unknown_predictor_key_raises() -> None:
 def test_tta_detection_invalid_arguments_raise(kwargs: Dict[str, Any], match: str) -> None:
     with pytest.raises(ValueError, match=match):
         TTADetectionInferer(**kwargs)
+
+
+def test_tta_inferer_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="TTASegmentationInferer"):
+        inferer = TTAInferer(base=SimpleInferer(), transforms=Compose([]), num_passes=1)
+    assert isinstance(inferer, TTASegmentationInferer)

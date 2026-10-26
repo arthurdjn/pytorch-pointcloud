@@ -5,7 +5,12 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.inferers import KNNWindowSegmentationInferer, knn_window_segmentation_inference
+from torch_pointcloud.inferers import (
+    KNNWindowInferer,
+    KNNWindowSegmentationInferer,
+    knn_window_inference,
+    knn_window_segmentation_inference,
+)
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -338,3 +343,22 @@ def test_knn_window_with_divisible_pad_matches_unpadded_scores() -> None:
     )
     assert all(torch.equal(batch, torch.arange(3).repeat_interleave(32)) for batch in batches_seen)
     assert torch.equal(out_pad, out)
+
+
+def test_knn_window_inference_is_deprecated() -> None:
+    torch.manual_seed(0)
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(256, 3) * 3,
+        DataKeys.BATCH: torch.zeros(256, dtype=torch.long),
+    }
+    predictor, _ = _identity_predictor(num_classes=3)
+    expected = knn_window_segmentation_inference(data, predictor=predictor, roi_num_points=64, seed=5)
+    with pytest.warns(FutureWarning, match="knn_window_segmentation_inference"):
+        actual = knn_window_inference(data, predictor=predictor, roi_num_points=64, seed=5)
+    assert torch.equal(actual, expected)
+
+
+def test_knn_window_inferer_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="KNNWindowSegmentationInferer"):
+        inferer = KNNWindowInferer(roi_num_points=64)
+    assert isinstance(inferer, KNNWindowSegmentationInferer)

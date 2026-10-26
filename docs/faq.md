@@ -103,9 +103,10 @@
 
 ??? faq "How do I run a model on a scene that does not fit in memory?"
 
-    With an [inferer](inferers/overview.md). `SlidingWindowSegmentationInferer` and `KNNWindowSegmentationInferer` predict blocks,
-    `VoxelPartitionSegmentationInferer` one point per voxel per pass, and `PotentialSphereSegmentationInferer` spheres until every point is
-    covered. Each returns one prediction per input point.
+    With an [inferer](inferers/overview.md). `SlidingWindowSegmentationInferer` and
+    `KNNWindowSegmentationInferer` predict blocks, `VoxelPartitionSegmentationInferer` one point per voxel per pass, and
+    `PotentialSphereSegmentationInferer` spheres until every point is covered. Each returns one prediction per input
+    point.
 
 ## Data
 

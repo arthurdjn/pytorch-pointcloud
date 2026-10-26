@@ -32,7 +32,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
-- Renamed the segmentation inferers to `SlidingWindowSegmentationInferer`, `KNNWindowSegmentationInferer`, `PotentialSphereSegmentationInferer`, `VoxelPartitionSegmentationInferer` and `TTASegmentationInferer`, and their functions to `*_segmentation_inference`; they derive from the new `SegmentationInferer` base.
+- Renamed `SlidingWindowInferer`, `KNNWindowInferer`, `PotentialSphereInferer`, `VoxelPartitionInferer` and `TTAInferer` to `SlidingWindowSegmentationInferer`, `KNNWindowSegmentationInferer`, `PotentialSphereSegmentationInferer`, `VoxelPartitionSegmentationInferer` and `TTASegmentationInferer`, and `sliding_window_inference`, `knn_window_inference` and `potential_sphere_inference` to `*_segmentation_inference`; they derive from the new `SegmentationInferer` base, and the former names still work until 0.0.20, with a `FutureWarning`.
 - Added `TTADetectionInferer` and the `DetectionInferer` base; `LitDetectionModel` runs its `inferer` on test batches.
 
 ## 0.0.18 (2026-10-20)

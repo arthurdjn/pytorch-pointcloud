@@ -1,6 +1,7 @@
 r"""K-pass voxel-partition inferer with per-point scatter-back aggregation."""
 
 import math
+import warnings
 from typing import Any, Callable, Dict, List, Literal, Optional
 
 import torch
@@ -203,3 +204,16 @@ class VoxelPartitionSegmentationInferer(SegmentationInferer):
         if self.aggregate == "sum":
             return logits_sum.to(out_dtype)
         return (logits_sum / counts.clamp_min(1).unsqueeze(-1)).to(out_dtype)
+
+
+class VoxelPartitionInferer(VoxelPartitionSegmentationInferer):
+    """Deprecated alias of `VoxelPartitionSegmentationInferer`."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "`VoxelPartitionInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
+            "`VoxelPartitionSegmentationInferer` instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

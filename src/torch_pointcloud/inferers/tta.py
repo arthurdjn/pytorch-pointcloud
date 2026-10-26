@@ -501,3 +501,16 @@ class TTADetectionInferer(DetectionInferer):
                 if key in view:
                     view[key] = view[key] * scale
         return view
+
+
+class TTAInferer(TTASegmentationInferer):
+    """Deprecated alias of `TTASegmentationInferer`."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "`TTAInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
+            "`TTASegmentationInferer` instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.inferers import VoxelPartitionSegmentationInferer
+from torch_pointcloud.inferers import VoxelPartitionInferer, VoxelPartitionSegmentationInferer
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -238,3 +238,9 @@ def test_voxel_partition_misaligned_batch_key_raises() -> None:
     data: Dict[str, Any] = {DataKeys.POS: torch.rand(4, 3), DataKeys.BATCH: torch.zeros(2, dtype=torch.long)}
     with pytest.raises(ValueError, match="aligned to the positions"):
         VoxelPartitionSegmentationInferer(voxel_size=1.0)(data, predictor=lambda d: torch.zeros(4, 1))
+
+
+def test_voxel_partition_inferer_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="VoxelPartitionSegmentationInferer"):
+        inferer = VoxelPartitionInferer(voxel_size=1.0)
+    assert isinstance(inferer, VoxelPartitionSegmentationInferer)

@@ -7,7 +7,12 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.inferers import SlidingWindowSegmentationInferer, sliding_window_segmentation_inference
+from torch_pointcloud.inferers import (
+    SlidingWindowInferer,
+    SlidingWindowSegmentationInferer,
+    sliding_window_inference,
+    sliding_window_segmentation_inference,
+)
 from torch_pointcloud.inferers.sliding_window import _assign_point_blocks
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -625,3 +630,18 @@ def test_sliding_window_non_representable_grid_covers_every_point_exactly_once()
     out = sliding_window_segmentation_inference(data, predictor=predictor, block_size=1.0, overlap=0.0, softmax=False)
     assert torch.allclose(out, torch.ones_like(out))
     assert torch.equal(counts, torch.ones_like(counts))
+
+
+def test_sliding_window_inference_is_deprecated() -> None:
+    data = _grid_data(steps=4)
+    pred = _constant_predictor(2.0, num_classes=3)
+    expected = sliding_window_segmentation_inference(data, predictor=pred, block_size=2.0, overlap=0.5, seed=7)
+    with pytest.warns(FutureWarning, match="sliding_window_segmentation_inference"):
+        actual = sliding_window_inference(data, predictor=pred, block_size=2.0, overlap=0.5, seed=7)
+    assert torch.equal(actual, expected)
+
+
+def test_sliding_window_inferer_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="SlidingWindowSegmentationInferer"):
+        inferer = SlidingWindowInferer(block_size=2.0)
+    assert isinstance(inferer, SlidingWindowSegmentationInferer)
