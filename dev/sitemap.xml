@@ -94,6 +94,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/datasets/fractal/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/gridnethd/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/datasets/kitti/</loc>
       </url>
       <url>
