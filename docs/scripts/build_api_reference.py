@@ -65,6 +65,7 @@ DISPLAY_TITLES = {
     "utonia": "Utonia",
     "dales": "DALES",
     "fractal": "FRACTAL",
+    "gridnethd": "GridNet-HD",
     "modelnet": "ModelNet",
     "scannet": "ScanNet",
     "s3dis": "S3DIS",
