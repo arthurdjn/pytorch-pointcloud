@@ -66,14 +66,14 @@ def weighted_procrustes(
     its determinant.
 
     Args:
-        src_points: Source correspondences, shape $(N, 3)$ or $(B, N, 3)$.
+        src_points: Source correspondences, shape $(\ldots, N, 3)$.
         ref_points: Reference correspondences aligned to `src_points`, same shape.
-        weights: Per-correspondence weights, shape $(N,)$ or $(B, N)$; `None` weights every pair equally.
+        weights: Per-correspondence weights, shape $(\ldots, N)$; `None` weights every pair equally.
         weight_threshold: Weights strictly below it are ignored.
         eps: Added to the weight normalizer.
 
     Returns:
-        The transforms mapping the source onto the reference, shape $(4, 4)$ or $(B, 4, 4)$.
+        The transforms mapping the source onto the reference, shape $(\ldots, 4, 4)$.
 
     Example:
         ```pycon
@@ -86,12 +86,11 @@ def weighted_procrustes(
 
         ```
     """
-    squeeze = src_points.ndim == 2
-    if squeeze:
-        src_points = src_points.unsqueeze(0)
-        ref_points = ref_points.unsqueeze(0)
-        if weights is not None:
-            weights = weights.unsqueeze(0)
+    batch_shape, num_points = src_points.shape[:-2], src_points.size(-2)
+    src_points = src_points.reshape(-1, num_points, 3)
+    ref_points = ref_points.reshape(-1, num_points, 3)
+    if weights is not None:
+        weights = weights.reshape(-1, num_points)
 
     if weights is None:
         weights = torch.ones_like(src_points[:, :, 0])
@@ -116,7 +115,7 @@ def weighted_procrustes(
     transform = torch.eye(4, dtype=covariance.dtype, device=covariance.device).repeat(covariance.size(0), 1, 1)
     transform[:, :3, :3] = rotation
     transform[:, :3, 3] = translation.squeeze(2)
-    return transform.squeeze(0) if squeeze else transform
+    return transform.reshape(*batch_shape, 4, 4)
 
 
 def mutual_topk_correspondences(

@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
-from torch_geometric.utils import scatter, segment
+from torch_geometric.utils import scatter
 
 
 class VoxelGridPool(nn.Module):
@@ -78,8 +78,7 @@ class VoxelGridPool(nn.Module):
         batch: Tensor,
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
-        ptr = torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)])
-        start = segment(pos, ptr, reduce="min")
+        start = scatter(pos, batch, dim=0, reduce="min")
         if self.origin == "grid":
             start = torch.floor(start / self.grid_size) * self.grid_size
         cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)

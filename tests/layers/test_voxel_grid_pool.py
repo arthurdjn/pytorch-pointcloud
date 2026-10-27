@@ -42,6 +42,20 @@ def test_voxel_grid_pool_grid_origin_is_extent_independent() -> None:
     assert torch.equal(inverse, inverse_shifted)
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize("origin", ["grid", "min"])
+def test_voxel_grid_pool_accepts_an_unsorted_batch(origin: Literal["grid", "min"]) -> None:
+    torch.manual_seed(0)
+    x, pos = torch.randn(200, 8), torch.rand(200, 3) * 4.0
+    batch = torch.cat([torch.zeros(80), torch.ones(120)]).long()
+    pool = VoxelGridPool(grid_size=1.0, reduce="max", origin=origin)
+    order = torch.randperm(200)
+    x_sorted, pos_sorted, batch_sorted = pool(x, pos, batch)
+    x_shuffled, pos_shuffled, batch_shuffled = pool(x[order], pos[order], batch[order])
+    assert torch.equal(x_shuffled, x_sorted) and torch.equal(batch_shuffled, batch_sorted)
+    assert torch.allclose(pos_shuffled, pos_sorted, atol=1e-6)
+
+
 def test_voxel_grid_pool_rejects_bad_arguments() -> None:
     with pytest.raises(ValueError, match="reduce"):
         VoxelGridPool(grid_size=1.0, reduce="median")

@@ -80,6 +80,16 @@ def test_weighted_procrustes_batched_matches_single() -> None:
     assert torch.allclose(batched[1], weighted_procrustes(src[1], ref[1]), atol=1e-6)
 
 
+def test_weighted_procrustes_broadcasts_leading_dimensions() -> None:
+    torch.manual_seed(0)
+    src = torch.rand(2, 3, 10, 3)
+    ref = src + torch.tensor([0.1, 0.2, 0.3])
+    weights = torch.rand(2, 3, 10)
+    transforms = weighted_procrustes(src, ref, weights)
+    assert transforms.shape == (2, 3, 4, 4)
+    assert torch.allclose(transforms[1, 2], weighted_procrustes(src[1, 2], ref[1, 2], weights[1, 2]), atol=1e-6)
+
+
 def test_point_to_node_partition_pads_small_patches() -> None:
     points = torch.tensor([[0.0, 0, 0], [0.1, 0, 0], [0.2, 0, 0], [5.0, 0, 0]])
     nodes = torch.tensor([[0.0, 0, 0], [5.0, 0, 0], [20.0, 0, 0]])
