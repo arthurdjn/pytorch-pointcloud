@@ -13,6 +13,11 @@ All notable changes to this project are documented in this file. The format is b
 - Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
 - Added `format_version`, `cache_meta`, `cache_meta_paths` and `process` to `PointCloudDataset`: every processed cache is stamped with `meta.json` and a stale stamp raises.
 - Dataset `process` methods share one signature; the per-dataset work moved to `write_processed_files`.
+- Added the Point Transformer V3 GridNet-HD checkpoint `ptv3.gridnet-hd.heig-vd-geo` (MIT) and its benchmark on the GridNet-HD validation zones.
+- Added the `GridNetHD` dataset, downloaded from the Hub.
+- `SlidingWindowInferer` assigns points to blocks and blends their predictions with a fraction of the host memory it used.
+- Fixed `SlidingWindowInferer` failing on float64 positions with `mode="gaussian"`.
+- Fixed the registered transforms of the PTv3 ScanNet and nuScenes checkpoints failing on clouds without labels.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
