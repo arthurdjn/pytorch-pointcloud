@@ -1082,7 +1082,7 @@ def test_model_pre_logits_matches_headless_forward(
 
 @pytest.mark.parametrize("model_name", OPEN_VOCABULARY_SEGMENTATION_MODELS)
 def test_open_vocabulary_model_forward(model_name: str, data_factory: Callable) -> None:
-    """`forward` returns one embedding per point in the text space, `(N, embed_dim)`."""
+    """`forward` returns one unit-length embedding per point in the text space, `(N, embed_dim)`."""
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = create_model(model_name, task="open-vocabulary-segmentation", in_channels=3).to(device).eval()
@@ -1096,6 +1096,8 @@ def test_open_vocabulary_model_forward(model_name: str, data_factory: Callable) 
         expected_shape=(pos_grid.shape[0], model.embed_dim),
         allow_nonfinite=False,
     )
+    norms = embeddings.norm(dim=1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5), f"{model_name}: embeddings are not unit length"
     if device == "cuda":
         torch.cuda.empty_cache()
 

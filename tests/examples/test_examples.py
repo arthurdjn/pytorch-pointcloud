@@ -57,6 +57,24 @@ BENCHMARKS = [
         marks=(*_GPU_SPCONV, _REQUIRES_TRANSFORMERS),
         id="openscene/scannet",
     ),
+    pytest.param(
+        "openscene/open_vocabulary_segmentation_scannet_benchmark.py",
+        ("--limit", "1", "--simple"),
+        marks=(*_GPU_SPCONV, _REQUIRES_TRANSFORMERS),
+        id="openscene/scannet-simple",
+    ),
+    pytest.param(
+        "openscene/open_vocabulary_segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1"),
+        marks=(*_GPU_SPCONV, _REQUIRES_TRANSFORMERS),
+        id="openscene/nuscenes",
+    ),
+    pytest.param(
+        "openscene/open_vocabulary_segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1", "--simple"),
+        marks=(*_GPU_SPCONV, _REQUIRES_TRANSFORMERS),
+        id="openscene/nuscenes-simple",
+    ),
     pytest.param("kpconv/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
     pytest.param(
         "kpconv/segmentation_semantickitti_benchmark.py",

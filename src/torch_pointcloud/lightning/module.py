@@ -33,7 +33,7 @@ class LitModel(LightningModule):
     Args:
         name: Registered model name; built via `create_model(name, task=...)`.
         task: Registry of the model (`"classification"`, `"semantic-segmentation"`, `"part-segmentation"`,
-            `"open-vocabulary-segmentation"`, `"detection"`); set by the subclass.
+            `"detection"`); set by the subclass.
         optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.

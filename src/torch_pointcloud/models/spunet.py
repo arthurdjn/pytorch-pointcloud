@@ -92,7 +92,9 @@ def _make_block_seq(
 class SparseUNetEncoder(nn.Module):
     """Sparse convolutional stem followed by stages that halve the resolution and run `SparseBasicBlock` blocks.
 
-    The stem output and every stage output but the last are returned as decoder skips.
+    The stride-2 convolution of stage $s$ outputs `down_channels[s]` channels (`channels[s]` by default) and the first
+    residual block of the stage maps them to `channels[s]`. The stem output and every stage output but the last are
+    returned as decoder skips.
     """
 
     def __init__(
@@ -108,6 +110,7 @@ class SparseUNetEncoder(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        down_channels: Optional[Sequence[int]] = None,
     ) -> None:
         super().__init__()
         if len(depths) != len(channels):
@@ -115,10 +118,17 @@ class SparseUNetEncoder(nn.Module):
                 f"`depths` and `channels` must have the same length, got {len(depths)} and {len(channels)}."
             )
 
+        if down_channels is not None and len(down_channels) != len(channels):
+            raise ValueError(
+                f"`down_channels` and `channels` must have the same length, "
+                f"got {len(down_channels)} and {len(channels)}."
+            )
+
         self.in_channels = in_channels
         self.stem_channels = stem_channels
         self.channels = tuple(channels)
         self.depths = tuple(depths)
+        self.down_channels = tuple(down_channels) if down_channels is not None else self.channels
         self.num_stages = len(self.depths)
         self.spatial_padding = spatial_padding
 
@@ -147,13 +157,13 @@ class SparseUNetEncoder(nn.Module):
                 spconv.SparseSequential(
                     spconv.SparseConv3d(
                         enc_channels,
-                        self.channels[s],
+                        self.down_channels[s],
                         kernel_size=2,
                         stride=2,
                         bias=False,
                         indice_key=f"spconv{s + 1}",
                     ),
-                    create_norm(norm, self.channels[s], **norm_kwargs) or nn.Identity(),
+                    create_norm(norm, self.down_channels[s], **norm_kwargs) or nn.Identity(),
                     create_act(act, **act_kwargs) or nn.Identity(),
                 )
             )
@@ -163,6 +173,7 @@ class SparseUNetEncoder(nn.Module):
                     out_channels=self.channels[s],
                     depth=self.depths[s],
                     indice_key=f"subm{s + 1}",
+                    first_in_channels=self.down_channels[s],
                     kernel_size=kernel_size,
                     act=act,
                     act_kwargs=act_kwargs,

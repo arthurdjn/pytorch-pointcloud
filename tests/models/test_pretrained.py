@@ -23,7 +23,7 @@ from safetensors.torch import load_file, save_file
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-from torch_pointcloud.models import create_model
+from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.models.parta2 import PartA2Detection
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
@@ -413,6 +413,25 @@ def test_pretrained_openscene_nuscenes(
         output = model(*select_inputs(data, info["input_keys"]))
 
     _check_output(output, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "openscene-openseg.scannet20.songyou-peng",
+        "openscene-lseg.scannet20.songyou-peng",
+        "openscene-openseg.nuscenes.songyou-peng",
+    ],
+)
+def test_pretrained_open_vocabulary_text_model_matches_embed_dim(model_name: str) -> None:
+    """The registered text encoder projects prompts into the width of the point embeddings."""
+    transformers = pytest.importorskip("transformers")
+    info = model_info(model_name, task="open-vocabulary-segmentation")
+    weights = info["weights"]
+    assert weights is not None
+    config = transformers.CLIPTextConfig.from_pretrained(weights["text_model"])
+    assert config.projection_dim == info["hparams"]["embed_dim"]
 
 
 @pytest.mark.pretrained

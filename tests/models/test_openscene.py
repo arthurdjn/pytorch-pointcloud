@@ -4,15 +4,20 @@ import pytest
 import torch
 from torch import Tensor, nn
 
-from torch_pointcloud.models.openscene import OpenSceneSegmentation
-from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
+from torch_pointcloud.models import model_info
+from torch_pointcloud.models.openscene import OpenSceneOpenVocabularySegmentation
+from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
-# See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
-    pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed"),
+_REQUIRES_CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
+_REQUIRES_SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+_REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+
+REGISTERED_MODELS = [
+    pytest.param("openscene-openseg.scannet20.songyou-peng", id="openseg-scannet20"),
+    pytest.param("openscene-lseg.scannet20.songyou-peng", id="lseg-scannet20"),
+    pytest.param("openscene-openseg.nuscenes.songyou-peng", id="openseg-nuscenes"),
 ]
-spconv = pytest.importorskip("spconv.pytorch")
 
 
 @pytest.fixture
@@ -31,11 +36,10 @@ def data() -> Dict[str, Tensor]:
 
 
 @pytest.fixture
-def model() -> OpenSceneSegmentation:
-    return OpenSceneSegmentation(
+def model() -> OpenSceneOpenVocabularySegmentation:
+    return OpenSceneOpenVocabularySegmentation(
         in_channels=3,
         embed_dim=32,
-        text_model="openai/clip-vit-base-patch32",
         stem_channels=8,
         encoder_channels=(8, 16, 32, 64),
         decoder_channels=(32, 32, 16, 16),
@@ -47,13 +51,21 @@ def model() -> OpenSceneSegmentation:
     ).cuda()
 
 
-def test_openscene_forward(model: OpenSceneSegmentation, data: Dict[str, Tensor]) -> None:
+@_REQUIRES_CUDA
+@_REQUIRES_SPCONV
+def test_openscene_forward_returns_unit_embeddings(
+    model: OpenSceneOpenVocabularySegmentation, data: Dict[str, Tensor]
+) -> None:
     embeddings = model(data["x"], data["pos_grid"], data["batch"])
     assert embeddings.shape == (data["pos_grid"].shape[0], model.embed_dim)
-    assert model.text_model == "openai/clip-vit-base-patch32"
+    assert torch.allclose(embeddings.norm(dim=1), torch.ones(embeddings.shape[0], device="cuda"), atol=1e-5)
 
 
-def test_openscene_forward_without_features_feeds_ones(model: OpenSceneSegmentation, data: Dict[str, Tensor]) -> None:
+@_REQUIRES_CUDA
+@_REQUIRES_SPCONV
+def test_openscene_forward_without_features_feeds_ones(
+    model: OpenSceneOpenVocabularySegmentation, data: Dict[str, Tensor]
+) -> None:
     model.eval()
     ones = torch.ones(data["pos_grid"].shape[0], model.in_channels, device="cuda")
     with torch.no_grad():
@@ -62,7 +74,21 @@ def test_openscene_forward_without_features_feeds_ones(model: OpenSceneSegmentat
     assert torch.equal(from_none, from_ones)
 
 
-def test_openscene_forward_features_decoder_head(model: OpenSceneSegmentation, data: Dict[str, Tensor]) -> None:
+@_REQUIRES_CUDA
+@_REQUIRES_SPCONV
+def test_openscene_stride_two_convolutions_keep_the_stage_width(model: OpenSceneOpenVocabularySegmentation) -> None:
+    state = model.state_dict()
+    widths = [model.stem_channels, *model.encoder_channels[:-1]]
+    for s, (width, channels) in enumerate(zip(widths, model.encoder_channels)):
+        assert state[f"encoder.down.{s}.0.weight"].shape == (width, 2, 2, 2, width)  # (out, 2, 2, 2, in)
+        assert state[f"encoder.enc.{s}.block0.conv1.weight"].shape == (channels, 3, 3, 3, width)
+
+
+@_REQUIRES_CUDA
+@_REQUIRES_SPCONV
+def test_openscene_forward_features_decoder_head(
+    model: OpenSceneOpenVocabularySegmentation, data: Dict[str, Tensor]
+) -> None:
     sparse_x, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     assert len(skips) == 4
     assert [skip["x"].shape[1] for skip in skips] == [8, 8, 16, 32]
@@ -71,7 +97,9 @@ def test_openscene_forward_features_decoder_head(model: OpenSceneSegmentation, d
     assert embeddings.shape == (data["pos_grid"].shape[0], model.embed_dim)
 
 
-def test_openscene_forward_head_pre_logits(model: OpenSceneSegmentation, data: Dict[str, Tensor]) -> None:
+@_REQUIRES_CUDA
+@_REQUIRES_SPCONV
+def test_openscene_forward_head_pre_logits(model: OpenSceneOpenVocabularySegmentation, data: Dict[str, Tensor]) -> None:
     sparse_x, skips = model.forward_features(data["x"], data["pos_grid"], data["batch"], return_intermediates=True)
     sparse_x = model.forward_decoder(sparse_x, skips)
     feats = model.forward_head(sparse_x, pre_logits=True)
@@ -79,7 +107,9 @@ def test_openscene_forward_head_pre_logits(model: OpenSceneSegmentation, data: D
     assert feats.shape[1] == model.num_features == model.decoder_channels[-1]
 
 
-def test_openscene_head_projects_into_the_text_space(model: OpenSceneSegmentation) -> None:
+@_REQUIRES_CUDA
+@_REQUIRES_SPCONV
+def test_openscene_head_projects_into_the_text_space(model: OpenSceneOpenVocabularySegmentation) -> None:
     assert isinstance(model.head, nn.Linear)
     assert model.head.bias is None
     assert (model.head.in_features, model.head.out_features) == (model.num_features, model.embed_dim)
@@ -95,4 +125,27 @@ def test_openscene_head_projects_into_the_text_space(model: OpenSceneSegmentatio
 )
 def test_openscene_rejects_mismatched_stage_counts(kwargs: Dict[str, Any]) -> None:
     with pytest.raises(ValueError, match="must have the same length"):
-        OpenSceneSegmentation(in_channels=3, embed_dim=32, text_model="openai/clip-vit-base-patch32", **kwargs)
+        OpenSceneOpenVocabularySegmentation(in_channels=3, embed_dim=32, **kwargs)
+
+
+@_REQUIRES_PYG_LIB
+@pytest.mark.parametrize("name", REGISTERED_MODELS)
+def test_openscene_registered_transform_runs_without_labels(name: str) -> None:
+    torch.manual_seed(0)
+    pos = torch.rand(2000, 3) * 4.0
+    transform = model_info(name, task="open-vocabulary-segmentation")["transform"]
+    assert transform is not None
+    data = transform({DataKeys.POS: pos})
+    num_voxels = data[DataKeys.POS_GRID].shape[0]
+    assert DataKeys.SEGMENT not in data and DataKeys.ORIGIN_SEGMENT not in data
+    assert torch.equal(data[DataKeys.ORIGIN_POS], pos)
+    assert data[DataKeys.INVERSE].shape == (2000,)
+    assert int(data[DataKeys.INVERSE].max()) == num_voxels - 1
+
+
+@pytest.mark.parametrize("name", REGISTERED_MODELS)
+def test_openscene_registered_weights_name_their_text_space(name: str) -> None:
+    weights = model_info(name, task="open-vocabulary-segmentation")["weights"]
+    assert weights is not None
+    assert weights["text_model"].startswith("openai/clip-vit-")
+    assert weights["prompt_template"].format("chair") == "a chair in a scene"

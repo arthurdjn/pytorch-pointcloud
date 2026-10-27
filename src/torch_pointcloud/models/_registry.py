@@ -57,6 +57,10 @@ class WeightsDict(TypedDict):
         metrics: Scores measured with this package's benchmark scripts, keyed by metric name
             (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
         classes: Label names in prediction-channel order, so `classes[i]` names class $i$ of the head.
+        text_model: Hub id of the text encoder the embeddings of an open-vocabulary checkpoint are aligned with
+            (e.g. `openai/clip-vit-large-patch14-336`, read by `layers.CLIPTextEncoder`).
+        prompt_template: Prompt an open-vocabulary checkpoint was scored with, `{}` standing for the class name
+            (e.g. `a {} in a scene`).
         author: Tag identifying who trained the original checkpoint (e.g. `openpcdet`, `fair`).
         license: License of the weight file (e.g. `CC-BY-NC-4.0`), when the source repository declares one.
     """
@@ -66,6 +70,8 @@ class WeightsDict(TypedDict):
     dataset: NotRequired[str]
     metrics: NotRequired[Dict[str, float]]
     classes: NotRequired[Sequence[str]]
+    text_model: NotRequired[str]
+    prompt_template: NotRequired[str]
     author: NotRequired[str]
     license: NotRequired[str]
 
@@ -818,7 +824,7 @@ def create_model(
     # Registered weights load into the registered head; an overridden `num_classes` rebuilds it afterwards.
     rebuild_head = (
         pretrained
-        and task not in ("detection", "pretraining", "open-vocabulary-segmentation")
+        and task in ("classification", "semantic-segmentation", "part-segmentation")
         and "num_classes" in kwargs
     )
     overrides = {key: value for key, value in kwargs.items() if key != "num_classes"} if rebuild_head else kwargs

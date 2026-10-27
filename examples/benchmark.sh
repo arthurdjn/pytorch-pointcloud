@@ -168,3 +168,4 @@ $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model ut
 # Open-vocabulary segmentation (ScanNet, zero-shot)
 $RUN examples/openscene/open_vocabulary_segmentation_scannet_benchmark.py --root "$ROOT" --model openscene-openseg.scannet20.songyou-peng
 $RUN examples/openscene/open_vocabulary_segmentation_scannet_benchmark.py --root "$ROOT" --model openscene-lseg.scannet20.songyou-peng
+$RUN examples/openscene/open_vocabulary_segmentation_nuscenes_benchmark.py --root "$ROOT" --model openscene-openseg.nuscenes.songyou-peng

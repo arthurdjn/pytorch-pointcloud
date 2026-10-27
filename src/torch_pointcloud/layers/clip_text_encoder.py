@@ -21,19 +21,19 @@ class CLIPTextEncoder(nn.Module):
     r"""Frozen CLIP text tower embedding prompts into the space an open-vocabulary model is aligned with.
 
     The text model and its projection are read from the Hugging Face Hub through `transformers` (the vision tower is
-    not instantiated) and frozen. Prompts are tokenized, encoded and projected, and the embeddings are normalized to
-    unit length, so their dot product with normalized point embeddings is a cosine similarity.
+    not instantiated) and frozen. Prompts are tokenized, truncated to the context length of the model, encoded and
+    projected, and the embeddings are normalized to unit length, so their product with unit point embeddings is a
+    cosine similarity.
 
     Args:
-        name: Hub id of a CLIP checkpoint, e.g. `openai/clip-vit-large-patch14-336` (what OpenSeg and the OpenScene
-            `openseg` weights use) or `openai/clip-vit-base-patch32` (LSeg).
+        name: Hub id of a CLIP checkpoint (e.g. `openai/clip-vit-large-patch14-336`).
 
     Example:
         ```{.python notest}
         from torch_pointcloud.layers import CLIPTextEncoder
 
         text_encoder = CLIPTextEncoder("openai/clip-vit-large-patch14-336")
-        text = text_encoder(["a chair in a scene", "a table in a scene"])  # (2, 768), unit norm
+        text = text_encoder(["a chair", "a table"])  # (2, 768), unit norm
         ```
     """
 
@@ -62,7 +62,17 @@ class CLIPTextEncoder(nn.Module):
         return self._embed_dim
 
     def forward(self, texts: Sequence[str]) -> Tensor:
-        r"""Embed `texts` into unit vectors of shape $(K, D)$, truncating prompts longer than the context of CLIP."""
+        r"""Embed prompts into unit vectors.
+
+        Args:
+            texts: $K$ prompts. A prompt longer than the context length of the model is truncated.
+
+        Returns:
+            The unit-length text embeddings.
+
+        Shape:
+            - Output: $(K, D)$ where $D$ = `embed_dim`.
+        """
         tokens = self.tokenizer(list(texts), padding=True, truncation=True, return_tensors="pt").to(self.model.device)
         embeddings = self.model(**tokens).text_embeds
         return F.normalize(embeddings, dim=-1)

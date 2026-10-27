@@ -15,13 +15,12 @@ class PretrainingModel(nn.Module, metaclass=ABCMeta):
     stores `in_channels`; each subclass defines its own `forward` signature.
 
     Models with a task head inherit from one of the task ABCs instead: `ClassificationModel`,
-    `SemanticSegmentationModel`, `PartSegmentationModel`, `OpenVocabularySegmentationModel` or `DetectionModel`. The classification and segmentation
-    ABCs require the
-    split into `forward_features` (encoder), `forward_decoder` (segmentation only, optional) and
-    `forward_head` (logits), plus `configure_head` / `reset_classifier` for building the head and
-    the read-only `num_features` property for the width of the features entering it. Detection models
-    split into `forward_features` (backbone), `forward_head` (raw predictions) and `decode` (boxes), and
-    expose `num_features` as the backbone output width.
+    `SemanticSegmentationModel`, `PartSegmentationModel`, `OpenVocabularySegmentationModel` or `DetectionModel`.
+    The classification and segmentation ABCs require the split into `forward_features` (encoder), `forward_decoder`
+    (segmentation only, optional) and `forward_head` (logits or embeddings), plus `configure_head` for building the
+    head, `reset_classifier` where the class count can change, and the read-only `num_features` property for the
+    width of the features entering the head. Detection models split into `forward_features` (backbone),
+    `forward_head` (raw predictions) and `decode` (boxes), and expose `num_features` as the backbone output width.
 
     Args:
         in_channels: Number of input feature channels.
@@ -347,9 +346,11 @@ class OpenVocabularySegmentationModel(nn.Module, metaclass=ABCMeta):
     r"""Base class for open-vocabulary point cloud segmentation models, registered under the
     `"open-vocabulary-segmentation"` task.
 
-    These models have no class list. `forward` returns one embedding per point, $(N, \text{embed\_dim})$, in the
-    space of a pretrained text encoder, so a point is labelled by the prompt whose text embedding is nearest by
-    cosine similarity, and the vocabulary is a list of prompts chosen at inference time.
+    These models have no class list. `forward` returns one unit-length embedding per point, $(N, \text{embed\_dim})$,
+    in the space of a pretrained text encoder, so its product with unit text embeddings is a cosine similarity, a
+    point is labelled by the nearest prompt, and the vocabulary is a list of prompts chosen at inference time. The
+    text encoder and prompt template of a checkpoint are registered with its weights (`weights["text_model"]`,
+    `weights["prompt_template"]`).
 
     Subclasses implement `forward_features` (encoder, keeping the skip intermediates), `forward_head` (the
     projection into the text space) and `configure_head`, and compose them in `forward`, usually through
@@ -359,15 +360,12 @@ class OpenVocabularySegmentationModel(nn.Module, metaclass=ABCMeta):
     Args:
         in_channels: Number of input feature channels.
         embed_dim: Width $D$ of the text space the per-point embeddings live in.
-        text_model: Name of the pretrained text encoder the embeddings are aligned with, e.g.
-            `openai/clip-vit-large-patch14-336` (see `layers.CLIPTextEncoder`).
     """
 
-    def __init__(self, in_channels: int, embed_dim: int, text_model: str) -> None:
+    def __init__(self, in_channels: int, embed_dim: int) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.embed_dim = embed_dim
-        self.text_model = text_model
 
     @property
     @abstractmethod
@@ -390,8 +388,8 @@ class OpenVocabularySegmentationModel(nn.Module, metaclass=ABCMeta):
         r"""Run the model on a packed point cloud.
 
         Canonical signature: `forward(x, pos, batch)` with features `x` $(N, C)$ (or `None`), positions
-        `pos` $(N, 3)$ and batch index `batch` $(N,)$, returning per-point embeddings $(N, \text{embed\_dim})$
-        to compare by cosine similarity with text embeddings.
+        `pos` $(N, 3)$ and batch index `batch` $(N,)$, returning unit-length per-point embeddings
+        $(N, \text{embed\_dim})$.
         """
 
     @abstractmethod
@@ -416,6 +414,6 @@ class OpenVocabularySegmentationModel(nn.Module, metaclass=ABCMeta):
     def forward_head(self, *args: Any, **kwargs: Any) -> Any:
         r"""Project per-point features into the text space.
 
-        Canonical signature: `forward_head(x, pre_logits=False)`, returning embeddings $(N, \text{embed\_dim})$,
-        or the per-point features $(N, \text{num\_features})$ when `pre_logits=True`.
+        Canonical signature: `forward_head(x, pre_logits=False)`, returning unit-length embeddings
+        $(N, \text{embed\_dim})$, or the per-point features $(N, \text{num\_features})$ when `pre_logits=True`.
         """

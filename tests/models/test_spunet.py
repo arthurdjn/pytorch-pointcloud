@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.models.spunet import SparseUNetSegmentation
+from torch_pointcloud.models.spunet import SparseUNetEncoder, SparseUNetSegmentation
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -87,3 +87,8 @@ def test_spunet_forward_head_pre_logits(model_seg: SparseUNetSegmentation, data:
     feats = model_seg.forward_head(sparse_x, pre_logits=True)
     assert torch.equal(feats, sparse_x.features)
     assert feats.shape[1] == model_seg.decoder_channels[-1]
+
+
+def test_sparse_unet_encoder_rejects_mismatched_down_channels() -> None:
+    with pytest.raises(ValueError, match="`down_channels` and `channels` must have the same length"):
+        SparseUNetEncoder(in_channels=3, channels=(8, 16), depths=(1, 1), down_channels=(8,))
