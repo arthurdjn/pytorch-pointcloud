@@ -36,6 +36,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.superpoint`, the dice losses, `mask_matching_cost`, the `MaskedQueryDecoderLayer` layer and the `RandomLinearJitter` transform.
 - Fixed `instance_matches` to count the points without an instance as void.
 - Added a `batch` argument to `instance_matches` to score a packed batch in one call.
+- Sped up `instance_matches` by counting the overlaps of every prediction in one pass.
 - Added a `std` option to `RandomColorShift` for normal per-channel offsets.
 
 ## 0.0.18 (2026-10-20)

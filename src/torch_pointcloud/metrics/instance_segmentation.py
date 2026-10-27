@@ -93,39 +93,37 @@ def instance_matches(
     gt_label = gt_label.long()
 
     valid = (gt_label != ignore_index) & (gt_instance >= 0)
-    void = (gt_label == ignore_index) | (gt_instance < 0)
-    ids = gt_instance[valid] if batch is None else torch.stack([batch.long()[valid], gt_instance[valid]], dim=1)
-    inverse = torch.unique(ids, dim=0, return_inverse=True)[1]
-    num_instances = int(inverse.max().item()) + 1 if inverse.numel() else 0
+    ids = gt_instance[valid]
+    if batch is not None:
+        # One integer key per (scene, id rank), ordered like the (scene, id) pairs.
+        ids = batch.long()[valid] * ids.numel() + torch.unique(ids, return_inverse=True)[1]
+    keys, inverse = torch.unique(ids, return_inverse=True)
+    num_instances = keys.numel()
     gt_counts = torch.bincount(inverse, minlength=num_instances)
     gt_labels = gt_label.new_zeros(num_instances).scatter_(0, inverse, gt_label[valid])
     point_instance = torch.full_like(gt_instance, -1)
     point_instance[valid] = inverse
 
-    empty = gt_instance.new_zeros(0)
-    pair_pred, pair_gt, pair_inter = [empty], [empty], [empty]
-    pred_counts = gt_instance.new_zeros(pred_masks.shape[0])
-    pred_void = gt_instance.new_zeros(pred_masks.shape[0])
-    for index in range(pred_masks.shape[0]):
-        pred_counts[index] = pred_masks[index].sum()
-        pred_void[index] = (pred_masks[index] & void).sum()
-        hits = point_instance[pred_masks[index]]
-        inter = torch.bincount(hits[hits >= 0], minlength=num_instances)
-        gt_index = ((inter > 0) & (gt_labels == pred_labels[index])).nonzero(as_tuple=True)[0]
-        pair_pred.append(torch.full_like(gt_index, index))
-        pair_gt.append(gt_index)
-        pair_inter.append(inter[gt_index])
+    # Column 0 counts the void points of each prediction, column i + 1 its intersection with instance i.
+    num_preds = pred_masks.shape[0]
+    pred, point = pred_masks.nonzero(as_tuple=True)
+    counts = torch.bincount(
+        pred * (num_instances + 1) + point_instance[point] + 1,
+        minlength=num_preds * (num_instances + 1),
+    ).view(num_preds, num_instances + 1)
+    inter = counts[:, 1:]
+    pair_pred, pair_gt = ((inter > 0) & (gt_labels == pred_labels[:, None])).nonzero(as_tuple=True)
 
     return {
         "pred_labels": pred_labels.detach().cpu(),
         "pred_scores": pred_scores.detach().cpu(),
-        "pred_counts": pred_counts.cpu(),
-        "pred_void": pred_void.cpu(),
+        "pred_counts": counts.sum(dim=1).cpu(),
+        "pred_void": counts[:, 0].contiguous().cpu(),
         "gt_labels": gt_labels.cpu(),
         "gt_counts": gt_counts.cpu(),
-        "pair_pred": torch.cat(pair_pred).cpu(),
-        "pair_gt": torch.cat(pair_gt).cpu(),
-        "pair_inter": torch.cat(pair_inter).cpu(),
+        "pair_pred": pair_pred.cpu(),
+        "pair_gt": pair_gt.cpu(),
+        "pair_inter": inter[pair_pred, pair_gt].cpu(),
     }
 
 

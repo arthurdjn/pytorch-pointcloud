@@ -1,4 +1,5 @@
 import math
+from typing import Any, Optional
 
 import pytest
 import torch
@@ -11,6 +12,124 @@ def _mask(num_points: int, indices: list[int]) -> Tensor:
     out = torch.zeros(num_points, dtype=torch.bool)
     out[torch.tensor(indices)] = True
     return out
+
+
+def _random_inputs(
+    sizes: list[int],
+    num_instances: int,
+    num_preds: int,
+    *,
+    ignore_index: int = -1,
+    tie_scores: bool = False,
+    score_dtype: torch.dtype = torch.float32,
+    shuffle: bool = False,
+    with_batch: bool = True,
+) -> dict[str, Any]:
+    generator = torch.Generator().manual_seed(0)
+    masks, gt_instance, gt_label = [], [], []
+    for size in sizes:
+        owner = torch.randint(-1, num_instances, (size,), generator=generator)
+        classes = torch.randint(0, 3, (max(num_instances, 1),), generator=generator)
+        classes[torch.rand(classes.shape, generator=generator) < 0.2] = ignore_index
+        void_label = torch.tensor([ignore_index, 0, 1, 2])[torch.randint(0, 4, (size,), generator=generator)]
+        gt_instance.append(torch.where(owner >= 0, owner * 1000 + 7, -1))
+        gt_label.append(torch.where(owner >= 0, classes[owner.clamp(min=0)], void_label))
+        picked = torch.randint(0, max(num_instances, 1), (num_preds,), generator=generator)
+        noise = torch.rand(num_preds, size, generator=generator)
+        masks.append(((owner[None] == picked[:, None]) & (noise > 0.2)) | (noise < 0.1))
+    if tie_scores:
+        scores = torch.tensor([0.25, 0.5])[torch.randint(0, 2, (num_preds * len(sizes),), generator=generator)]
+    else:
+        scores = torch.rand(num_preds * len(sizes), generator=generator)
+    inputs = {
+        "pred_masks": torch.block_diag(*(mask.int() for mask in masks)).bool(),
+        "pred_labels": torch.randint(0, 3, (num_preds * len(sizes),), generator=generator),
+        "pred_scores": scores.to(score_dtype),
+        "gt_instance": torch.cat(gt_instance),
+        "gt_label": torch.cat(gt_label),
+        "batch": torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes)) if with_batch else None,
+        "ignore_index": ignore_index,
+    }
+    if shuffle:
+        perm = torch.randperm(sum(sizes), generator=generator)
+        inputs["pred_masks"] = inputs["pred_masks"][:, perm]
+        for key in ("gt_instance", "gt_label", "batch"):
+            inputs[key] = inputs[key][perm]
+    return inputs
+
+
+def _brute_force_matches(
+    pred_masks: Tensor,
+    pred_labels: Tensor,
+    pred_scores: Tensor,
+    gt_instance: Tensor,
+    gt_label: Tensor,
+    batch: Optional[Tensor],
+    ignore_index: int,
+) -> dict[str, list]:
+    scenes = [0] * gt_instance.numel() if batch is None else batch.tolist()
+    points: dict[tuple[int, int], set[int]] = {}
+    for point, (scene, instance, label) in enumerate(zip(scenes, gt_instance.tolist(), gt_label.tolist())):
+        if instance >= 0 and label != ignore_index:
+            points.setdefault((scene, instance), set()).add(point)
+    keys = sorted(points)
+    gt_labels = [int(gt_label[min(points[key])]) for key in keys]
+    valid = set().union(*points.values())
+    record: dict[str, list] = {"pred_counts": [], "pred_void": [], "pair_pred": [], "pair_gt": [], "pair_inter": []}
+    for pred, (mask, label) in enumerate(zip(pred_masks, pred_labels.tolist())):
+        inside = set(mask.nonzero().flatten().tolist())
+        record["pred_counts"].append(len(inside))
+        record["pred_void"].append(len(inside - valid))
+        for gt, key in enumerate(keys):
+            inter = len(inside & points[key])
+            if inter > 0 and gt_labels[gt] == label:
+                record["pair_pred"].append(pred)
+                record["pair_gt"].append(gt)
+                record["pair_inter"].append(inter)
+    record["pred_labels"] = pred_labels.tolist()
+    record["pred_scores"] = pred_scores.tolist()
+    record["gt_labels"] = gt_labels
+    record["gt_counts"] = [len(points[key]) for key in keys]
+    return record
+
+
+def _assert_matches_brute_force(inputs: dict[str, Any]) -> None:
+    match = {key: value for key, value in instance_matches(**inputs).items() if isinstance(value, Tensor)}
+    assert {key: value.tolist() for key, value in match.items()} == _brute_force_matches(**inputs)
+    assert all(value.device.type == "cpu" for value in match.values())
+    assert match["pred_scores"].dtype == inputs["pred_scores"].dtype
+    assert all(value.dtype == torch.long for key, value in match.items() if key != "pred_scores")
+
+
+MATCH_CASES = [
+    pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 10}, id="one-scene"),
+    pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 10, "with_batch": False}, id="no-batch"),
+    pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 12, "tie_scores": True}, id="score-ties"),
+    pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 0}, id="no-predictions"),
+    pytest.param({"sizes": [200], "num_instances": 0, "num_preds": 8}, id="no-instances"),
+    pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 8, "ignore_index": 255}, id="ignored-class"),
+    pytest.param({"sizes": [1], "num_instances": 2, "num_preds": 4}, id="one-point"),
+    pytest.param({"sizes": [400], "num_instances": 150, "num_preds": 30}, id="many-small-instances"),
+    pytest.param({"sizes": [200], "num_instances": 3, "num_preds": 20}, id="overlapping-predictions"),
+    pytest.param({"sizes": [120, 80, 50], "num_instances": 5, "num_preds": 6}, id="packed-batch"),
+    pytest.param({"sizes": [120, 80, 50], "num_instances": 5, "num_preds": 6, "shuffle": True}, id="unsorted-batch"),
+    pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 10, "score_dtype": torch.float16}, id="float16"),
+]
+
+
+@pytest.mark.parametrize("case", MATCH_CASES)
+def test_instance_matches_equals_brute_force(case: dict[str, Any]) -> None:
+    """Every field of the record equals a per-prediction, per-instance count over Python sets."""
+    _assert_matches_brute_force(_random_inputs(**case))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+@pytest.mark.parametrize("case", MATCH_CASES)
+def test_instance_matches_equals_brute_force_cuda(case: dict[str, Any]) -> None:
+    inputs = _random_inputs(**case)
+    _assert_matches_brute_force(
+        {key: value.cuda() if torch.is_tensor(value) else value for key, value in inputs.items()}
+    )
 
 
 def test_instance_matches_record_hand_checked() -> None:
