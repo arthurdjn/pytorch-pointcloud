@@ -17,7 +17,7 @@ from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
-_REQUIRES_CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
+requires_cuda = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
 
 
@@ -162,13 +162,13 @@ def model_seg_pdnorm() -> PointTransformerV3Segmentation:
     ).to(DEVICE)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_classification_forward(model_clf: PointTransformerV3Classification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_classification_reset_classifier(
     model_clf: PointTransformerV3Classification,
     data: Dict[str, Tensor],
@@ -179,7 +179,7 @@ def test_pt_v3_classification_reset_classifier(
     assert logits.shape == (int(data["batch"].max()) + 1, 42)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_classification_forward_features_and_head(
     model_clf: PointTransformerV3Classification,
     data: Dict[str, Tensor],
@@ -190,13 +190,13 @@ def test_pt_v3_classification_forward_features_and_head(
     assert logits.shape == (int(data["batch"].max()) + 1, model_clf.num_classes)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_segmentation_forward(model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]) -> None:
     logits = model_seg(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_segmentation_forward_features_decoder_head(
     model_seg: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
@@ -210,7 +210,7 @@ def test_pt_v3_segmentation_forward_features_decoder_head(
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_segmentation_reset_classifier(
     model_seg: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
@@ -237,7 +237,7 @@ def test_pt_v3_pdnorm_conditions_without_condition_raises(
         model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"])
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_pdnorm_forward_with_condition(
     model_seg_pdnorm: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
@@ -246,7 +246,7 @@ def test_pt_v3_pdnorm_forward_with_condition(
     assert logits.shape == (data["pos_grid"].shape[0], model_seg_pdnorm.num_classes)
 
 
-@_REQUIRES_CUDA
+@requires_cuda
 def test_pt_v3_segmentation_grid_pooling_feeds_the_summed_upsampling_to_cpe(data: Dict[str, Tensor]) -> None:
     model = PointTransformerV3Segmentation(
         in_channels=6,
