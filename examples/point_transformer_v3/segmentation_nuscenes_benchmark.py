@@ -12,6 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.inferers import Inferer, SimpleInferer, TTAInferer, VoxelPartitionInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model, model_info
@@ -40,28 +41,7 @@ TRANSFORM = T.Compose(
         T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
         T.Relabel(
             keys=DataKeys.SEGMENT,
-            labels={
-                9: 0,
-                14: 1,
-                15: 2,
-                16: 2,
-                17: 3,
-                18: 4,
-                21: 5,
-                2: 6,
-                3: 6,
-                4: 6,
-                6: 6,
-                12: 7,
-                22: 8,
-                23: 9,
-                24: 10,
-                25: 11,
-                26: 12,
-                27: 13,
-                28: 14,
-                30: 15,
-            },
+            labels=NUSCENES_LIDARSEG_LEARNING_MAP,
             default=-1,
         ),
         # The authors' test pipeline first samples one point per 2.5 cm voxel, then scores every raw point.
