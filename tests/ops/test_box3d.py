@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Optional, Tuple
 
 import pytest
 import torch
@@ -336,6 +336,249 @@ def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None
     assert torch.equal(
         nms3d(boxes, scores, 0.2, rotated=rotated)[:7], nms3d(boxes, scores, 0.2, rotated=rotated, max_keep=7)
     )
+
+
+def _nms3d_iou_matrix(boxes: Tensor, rotated: bool) -> Tensor:
+    if rotated:
+        footprint = boxes.clone()
+        footprint[:, 3:5] = footprint[:, 3:5].clamp_min(1e-2)
+        return boxes_iou_bev(footprint, footprint)
+
+    corners = box_corners(boxes)
+    lo, hi = corners.amin(dim=1), corners.amax(dim=1)
+    hi = torch.maximum(hi, lo + 1e-2)
+    inter = (torch.minimum(hi[:, None], hi[None]) - torch.maximum(lo[:, None], lo[None])).clamp_min(0).prod(dim=-1)
+    volume = (hi - lo).prod(dim=-1)
+    return inter / (volume[:, None] + volume[None] - inter).clamp_min(1e-6)
+
+
+def _greedy_nms3d(
+    boxes: Tensor,
+    scores: Tensor,
+    iou_threshold: float,
+    labels: Optional[Tensor] = None,
+    batch: Optional[Tensor] = None,
+    rotated: bool = False,
+    max_keep: Optional[int] = None,
+    max_candidates: Optional[int] = None,
+) -> List[int]:
+    batch = torch.zeros_like(scores, dtype=torch.long) if batch is None else batch
+    keep: List[int] = []
+    for scene in torch.unique(batch).tolist():
+        index = (batch == scene).nonzero().squeeze(-1)
+        order = index[scores[index].argsort(descending=True)][:max_candidates]
+        iou = _nms3d_iou_matrix(boxes[order], rotated)
+        same_class = torch.ones_like(iou, dtype=torch.bool)
+        if labels is not None:
+            same_class = labels[order][:, None] == labels[order][None]
+        suppressed = torch.zeros(len(order), dtype=torch.bool, device=boxes.device)
+        scene_keep: List[int] = []
+        for i in range(len(order)):
+            if max_keep is not None and len(scene_keep) == max_keep:
+                break
+            if not suppressed[i]:
+                scene_keep.append(int(order[i]))
+                suppressed |= (iou[i] > iou_threshold) & same_class[i]
+        keep += scene_keep
+    return keep
+
+
+def _nms3d_inputs(dtype: torch.dtype = torch.float32, device: str = "cpu") -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    """Clustered boxes with duplicates, zero-size boxes and tied scores, in the unsorted scenes 5, 0 and 2."""
+    generator = torch.Generator().manual_seed(0)
+    centers = torch.rand(8, 3, generator=generator) * 6
+    boxes = torch.cat(
+        [
+            centers[torch.randint(8, (120,), generator=generator)] + 0.4 * torch.randn(120, 3, generator=generator),
+            torch.rand(120, 3, generator=generator) * 2 + 0.2,
+            torch.rand(120, 1, generator=generator) * 6.28,
+        ],
+        dim=1,
+    )
+    boxes[:30, 6] = 0.0
+    boxes[90:100] = boxes[80:90]
+    boxes[100:, 3:6] = 0.0
+    boxes[110:] = boxes[100:110]
+    scores = torch.randint(0, 8, (120,), generator=generator) / 8
+    labels = torch.randint(0, 3, (120,), generator=generator)
+    batch = torch.tensor([5, 0, 2])[torch.randint(0, 3, (120,), generator=generator)]
+    return boxes.to(device, dtype), scores.to(device, dtype), labels.to(device), batch.to(device)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    "iou_threshold",
+    [pytest.param(0.0, id="iou-0"), pytest.param(0.5, id="iou-0.5"), pytest.param(1.0, id="iou-1")],
+)
+@pytest.mark.parametrize("per_class", [pytest.param(False, id="class-agnostic"), pytest.param(True, id="per-class")])
+@pytest.mark.parametrize("batched", [pytest.param(False, id="one-scene"), pytest.param(True, id="three-scenes")])
+@pytest.mark.parametrize(
+    "dtype",
+    [pytest.param(torch.float32, id="float32"), pytest.param(torch.float64, id="float64")],
+)
+def test_nms3d_matches_greedy_reference(
+    rotated: bool,
+    iou_threshold: float,
+    per_class: bool,
+    batched: bool,
+    dtype: torch.dtype,
+) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs(dtype)
+    scene_labels = labels if per_class else None
+    scene_batch = batch if batched else None
+    keep = nms3d(boxes, scores, iou_threshold, labels=scene_labels, batch=scene_batch, rotated=rotated)
+    expected = _greedy_nms3d(boxes, scores, iou_threshold, labels=scene_labels, batch=scene_batch, rotated=rotated)
+    assert keep.dtype == torch.long
+    assert keep.tolist() == expected
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    ("max_keep", "max_candidates"),
+    [
+        pytest.param(0, None, id="keep-0"),
+        pytest.param(1, None, id="keep-1"),
+        pytest.param(3, None, id="keep-3"),
+        pytest.param(10, None, id="keep-10"),
+        pytest.param(None, 0, id="candidates-0"),
+        pytest.param(None, 1, id="candidates-1"),
+        pytest.param(None, 12, id="candidates-12"),
+        pytest.param(3, 12, id="keep-3-candidates-12"),
+    ],
+)
+def test_nms3d_caps_match_greedy_reference(
+    rotated: bool,
+    max_keep: Optional[int],
+    max_candidates: Optional[int],
+) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    keep = nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=batch,
+        rotated=rotated,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+    )
+    expected = _greedy_nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=batch,
+        rotated=rotated,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+    )
+    assert keep.dtype == torch.long
+    assert keep.tolist() == expected
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    ("chunk_pairs", "clip_pairs"),
+    [
+        pytest.param(1, 1, id="one-row"),
+        pytest.param(50, 3, id="50-pairs"),
+        pytest.param(2000, 100, id="2000-pairs"),
+    ],
+)
+def test_nms3d_chunked_masks_match_greedy_reference(
+    monkeypatch: pytest.MonkeyPatch,
+    rotated: bool,
+    chunk_pairs: int,
+    clip_pairs: int,
+) -> None:
+    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CHUNK_PAIRS", chunk_pairs)
+    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CLIP_PAIRS", clip_pairs)
+    boxes, scores, labels, batch = _nms3d_inputs()
+    assert nms3d(boxes, scores, 0.3, rotated=rotated).tolist() == _greedy_nms3d(boxes, scores, 0.3, rotated=rotated)
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    "iou_threshold",
+    [pytest.param(0.0, id="iou-0"), pytest.param(0.5, id="iou-0.5"), pytest.param(1.0, id="iou-1")],
+)
+def test_nms3d_identical_boxes_match_greedy_reference(rotated: bool, iou_threshold: float) -> None:
+    boxes = _boxes([[1.0, 2, 0, 2, 1, 1, 0.3]] * 5)
+    scores = torch.tensor([0.5, 0.9, 0.5, 0.9, 0.1])
+    keep = nms3d(boxes, scores, iou_threshold, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, iou_threshold, rotated=rotated)
+    if iou_threshold < 1.0:
+        assert len(keep) == 1
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_one_box_is_kept(rotated: bool) -> None:
+    boxes = _boxes([[1.0, 2, 0, 2, 1, 1, 0.3]])
+    scores = torch.tensor([0.4])
+    assert nms3d(boxes, scores, 0.0, rotated=rotated).tolist() == [0]
+    assert nms3d(boxes, scores, 0.5, batch=torch.tensor([3]), labels=torch.tensor([1]), rotated=rotated).tolist() == [0]
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_tied_scores_match_greedy_reference(rotated: bool) -> None:
+    boxes, _, labels, batch = _nms3d_inputs()
+    scores = torch.full((len(boxes),), 0.5)
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+def test_nms3d_non_contiguous_inputs_match_contiguous_ones() -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    strided = [torch.stack([t, t], dim=1)[:, 1] for t in (boxes, scores, labels, batch)]
+    assert not any(t.is_contiguous() for t in strided)
+    keep = nms3d(strided[0], strided[1], 0.3, labels=strided[2], batch=strided[3], rotated=True)
+    assert torch.equal(keep, nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=True))
+
+
+def test_nms3d_returns_the_scenes_in_increasing_id_order() -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch)
+    assert torch.equal(batch[keep], batch[keep].sort(stable=True).values)
+    assert batch[keep].unique().tolist() == [0, 2, 5]
+
+
+def test_nms3d_without_candidates_returns_empty_long_indices() -> None:
+    boxes, scores, _, batch = _nms3d_inputs()
+    keep = nms3d(boxes, scores, 0.3, batch=batch, max_candidates=0)
+    assert keep.dtype == torch.long and keep.numel() == 0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    ("chunk_pairs", "clip_pairs"),
+    [pytest.param(50, 3, id="50-pairs"), pytest.param(1 << 20, 1 << 16, id="whole-groups")],
+)
+def test_nms3d_matches_greedy_reference_on_cuda(
+    monkeypatch: pytest.MonkeyPatch,
+    rotated: bool,
+    chunk_pairs: int,
+    clip_pairs: int,
+) -> None:
+    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CHUNK_PAIRS", chunk_pairs)
+    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CLIP_PAIRS", clip_pairs)
+    boxes, scores, labels, batch = _nms3d_inputs(device="cuda")
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10, max_candidates=30)
+    expected = _greedy_nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=batch,
+        rotated=rotated,
+        max_keep=10,
+        max_candidates=30,
+    )
+    assert keep.device.type == "cuda"
+    assert keep.tolist() == expected
+    assert nms3d(boxes, scores, 0.0, rotated=rotated).tolist() == _greedy_nms3d(boxes, scores, 0.0, rotated=rotated)
 
 
 def test_angle_to_class_roundtrip() -> None:

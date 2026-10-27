@@ -8,8 +8,9 @@ in any right-handed frame.
 """
 
 import math
-from typing import List, Literal, Optional, Tuple
+from typing import Callable, List, Literal, Optional, Tuple
 
+import numpy as np
 import torch
 from torch import Tensor
 from torch_geometric.utils import scatter
@@ -641,35 +642,35 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
-def _nms3d_single(
-    boxes: Tensor,
-    scores: Tensor,
-    labels: OptTensor,
-    iou_threshold: float,
-    rotated: bool,
-    max_keep: Optional[int],
-) -> Tensor:
-    """Greedy 3D NMS within a single scene; see `nms3d`."""
-    limit = boxes.shape[0] if max_keep is None else max_keep
+# Box pairs whose suppression mask one step of `nms3d` computes, over all its groups at once.
+_NMS3D_CHUNK_PAIRS = 1 << 19
+# Overlapping box pairs whose rotated footprints `nms3d` clips at once: about 120 MiB in float32, twice in float64.
+_NMS3D_CLIP_PAIRS = 1 << 16
+
+
+def _nms3d_iou(boxes: Tensor, rotated: bool) -> Callable[[Tensor, Tensor], Tensor]:
+    r"""Suppression IoU of `nms3d` between the boxes of the index pairs `(i, j)`, $(P,), (P,) \to (P,)$."""
     if rotated:
         # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
         # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
         # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
-        boxes_bev = boxes.clone()
-        boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        order = scores.argsort(descending=True)
-        keep: List[Tensor] = []
+        footprint = boxes.clone()
+        footprint[:, 3:5] = footprint[:, 3:5].clamp_min(1e-2)
+        corners = _bev_corners(footprint)
+        half_x, half_y = _bev_half_extents(footprint)
+        area = footprint[:, 3] * footprint[:, 4]
 
-        # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
-        while order.numel() > 0 and len(keep) < limit:
-            i = order[0]
-            keep.append(i)
-            rest = order[1:]
-            suppress = boxes_iou_bev(boxes_bev[i : i + 1], boxes_bev[rest])[0] > iou_threshold
-            if labels is not None:
-                suppress = suppress & (labels[rest] == labels[i])
-            order = rest[~suppress]
-        return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+        def rotated_iou(i: Tensor, j: Tensor) -> Tensor:
+            # As in `boxes_iou_bev`, only the pairs whose rotated bounds meet are clipped.
+            meet_x = (footprint[i, 0] - footprint[j, 0]).abs() <= half_x[i] + half_x[j] + _BEV_MARGIN
+            meet_y = (footprint[i, 1] - footprint[j, 1]).abs() <= half_y[i] + half_y[j] + _BEV_MARGIN
+            inter = footprint.new_zeros(len(i))
+            for pairs in (meet_x & meet_y).nonzero().squeeze(-1).split(_NMS3D_CLIP_PAIRS):
+                a, b = i[pairs], j[pairs]
+                inter[pairs] = _quad_overlap(corners[a], corners[b], footprint[a], footprint[b])
+            return inter / (area[i] + area[j] - inter).clamp(min=1e-8)
+
+        return rotated_iou
 
     corners = box_corners(boxes)
     lo, hi = corners.amin(dim=1), corners.amax(dim=1)
@@ -678,23 +679,72 @@ def _nms3d_single(
     # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
     hi = torch.maximum(hi, lo + 1e-2)
     volume = (hi - lo).prod(dim=-1)
-    order = scores.argsort(descending=True)
-    keep = []
 
-    while order.numel() > 0 and len(keep) < limit:
-        i = order[0]
-        keep.append(i)
-        rest = order[1:]
-        inter_lo = torch.maximum(lo[i], lo[rest])
-        inter_hi = torch.minimum(hi[i], hi[rest])
-        inter = (inter_hi - inter_lo).clamp_min(0).prod(dim=-1)
-        iou = inter / (volume[i] + volume[rest] - inter).clamp_min(1e-6)
-        suppress = iou > iou_threshold
-        if labels is not None:
-            suppress = suppress & (labels[rest] == labels[i])
-        order = rest[~suppress]
+    def axis_aligned_iou(i: Tensor, j: Tensor) -> Tensor:
+        inter = (torch.minimum(hi[i], hi[j]) - torch.maximum(lo[i], lo[j])).clamp_min(0).prod(dim=-1)
+        return inter / (volume[i] + volume[j] - inter).clamp_min(1e-6)
 
-    return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+    return axis_aligned_iou
+
+
+def _greedy_keep(
+    iou: Callable[[Tensor, Tensor], Tensor],
+    index: Tensor,
+    sizes: List[int],
+    iou_threshold: float,
+    limit: int,
+) -> np.ndarray:
+    """Positions in `index` that greedy suppression keeps, at most `limit` per group.
+
+    `index` holds groups of `sizes` boxes, each by decreasing score. A step takes the first boxes still alive in every
+    group, pairs each of them with the alive boxes of its group that follow it, computes the suppression mask of all
+    these pairs on the device in one pass and runs the greedy pass over them on the host.
+    """
+    bounds = np.cumsum([0, *sizes])
+    alive = [np.arange(start, end) for start, end in zip(bounds[:-1], bounds[1:])]
+    keep: List[List[int]] = [[] for _ in sizes]
+    while True:
+        step: List[Tuple[int, int]] = []
+        num_pairs = 0
+        for group, positions in enumerate(alive):
+            if positions.size == 0 or len(keep[group]) >= limit:
+                continue
+            rows = min(positions.size, max(1, _NMS3D_CHUNK_PAIRS // positions.size))
+            pairs = rows * positions.size - rows * (rows + 1) // 2
+            if step and num_pairs + pairs > _NMS3D_CHUNK_PAIRS:
+                continue
+            step.append((group, rows))
+            num_pairs += pairs
+        if not step:
+            break
+
+        step_boxes = index[torch.from_numpy(np.concatenate([alive[group] for group, _ in step])).to(index.device)]
+        first: List[Tensor] = []
+        second: List[Tensor] = []
+        for (group, rows), group_boxes in zip(step, step_boxes.split([alive[group].size for group, _ in step])):
+            row, col = torch.triu_indices(rows, len(group_boxes), offset=1, device=index.device)
+            first.append(group_boxes[row])
+            second.append(group_boxes[col])
+        mask = (iou(torch.cat(first), torch.cat(second)) > iou_threshold).cpu().numpy()
+
+        # Row `k` of a group holds the pairs of its box with the `size - k - 1` alive boxes after it.
+        start = 0
+        for group, rows in step:
+            positions = alive[group]
+            size = positions.size
+            removed = np.zeros(size, dtype=bool)
+            for k in range(rows):
+                if removed[k]:
+                    continue
+                keep[group].append(int(positions[k]))
+                if len(keep[group]) == limit:
+                    break
+                row_start = start + k * size - k * (k + 1) // 2
+                removed[k + 1 :] |= mask[row_start : row_start + size - k - 1]
+            start += rows * size - rows * (rows + 1) // 2
+            alive[group] = positions[rows:][~removed[rows:]]
+
+    return np.asarray([position for group_keep in keep for position in group_keep], dtype=np.int64)
 
 
 def nms3d(
@@ -706,6 +756,7 @@ def nms3d(
     batch: OptTensor = None,
     rotated: bool = False,
     max_keep: Optional[int] = None,
+    max_candidates: Optional[int] = None,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
 
@@ -717,6 +768,11 @@ def nms3d(
     scene and return a single index tensor over the concatenated input. The heading is counter-clockwise
     about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
 
+    The boxes that can suppress each other form a group (a scene, or a class of a scene with `labels`). The
+    suppression masks of all the groups are computed together on the input device, a bounded number of box pairs at
+    a time, and the greedy pass reads them on the host, so a call waits on the device a few times per step of pairs
+    rather than once per kept box.
+
     Args:
         boxes: Boxes $(N, 7)$ (see `box_corners`).
         scores: Per-box confidence, shape $(N,)$.
@@ -726,6 +782,8 @@ def nms3d(
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
         max_keep: Optional cap on the boxes kept per scene; suppression stops once it is reached, so the kept set
             equals the first `max_keep` entries of the uncapped result.
+        max_candidates: Optional cap on the boxes considered per scene: only the `max_candidates` highest-scoring
+            boxes enter the suppression, the others are dropped.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
@@ -733,20 +791,45 @@ def nms3d(
     Shape:
         - boxes: $(N, 7)$
         - output: $(K,)$
+
+    Example:
+        ```pycon
+        >>> boxes = torch.tensor([[0.0, 0, 0, 2, 2, 2, 0], [0.1, 0, 0, 2, 2, 2, 0], [5.0, 0, 0, 2, 2, 2, 0]])
+        >>> scores = torch.tensor([0.9, 0.8, 0.7])
+        >>> nms3d(boxes, scores, 0.5).tolist()
+        [0, 2]
+
+        ```
     """
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
 
+    # Each scene sorts its own scores, so tied boxes rank as they would in a call on that scene alone.
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep)
+        scene = boxes.new_zeros(len(boxes), dtype=torch.long)
+        orders = [scores.argsort(descending=True)[:max_candidates]]
+    else:
+        _, scene, counts = torch.unique(batch, return_inverse=True, return_counts=True)
+        members = scene.argsort(stable=True).split(counts.tolist())
+        orders = [index[scores[index].argsort(descending=True)][:max_candidates] for index in members]
+    order = torch.cat(orders)
+    if order.numel() == 0:
+        return order
 
-    keep = []
-    for b in torch.unique(batch):
-        scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
-        scene_labels = None if labels is None else labels[scene]
-        keep.append(scene[_nms3d_single(boxes[scene], scores[scene], scene_labels, iou_threshold, rotated, max_keep)])
+    key = scene[order]
+    if labels is not None:
+        classes, label = torch.unique(labels[order], return_inverse=True)
+        key = key * len(classes) + label
+    _, group, sizes = torch.unique(key, return_inverse=True, return_counts=True)
+    ranks = group.argsort(stable=True)
+    limit = len(order) if max_keep is None else max_keep
+    kept = _greedy_keep(_nms3d_iou(boxes, rotated), order[ranks], sizes.tolist(), iou_threshold, limit)
 
-    return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+    # A scene keeps its first `max_keep` boxes by rank: the ranks run scene by scene, by decreasing score.
+    kept_ranks = np.sort(ranks.cpu().numpy()[kept])
+    bounds = np.searchsorted(kept_ranks, np.cumsum([0, *map(len, orders)]))
+    kept_ranks = np.concatenate([kept_ranks[start:end][:max_keep] for start, end in zip(bounds[:-1], bounds[1:])])
+    return order[torch.from_numpy(kept_ranks).to(order.device)]
 
 
 def points_in_boxes(pos: Tensor, boxes: Tensor) -> Tensor:
