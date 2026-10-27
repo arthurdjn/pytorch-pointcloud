@@ -11,7 +11,6 @@ from torch_pointcloud.models.geotransformer import (
     GeometricTransformer,
     GeoTransformerRegistration,
     KPConvFPN,
-    LogOptimalTransport,
     sinusoidal_embedding,
 )
 from torch_pointcloud.utils.data import DataKeys
@@ -118,22 +117,6 @@ def test_geometric_transformer_shapes() -> None:
     ref_feats, src_feats = transformer(ref, src, torch.randn(1, 10, 24), torch.randn(1, 12, 24))
     assert ref_feats.shape == (1, 10, 16)
     assert src_feats.shape == (1, 12, 16)
-
-
-def test_log_optimal_transport_is_doubly_stochastic_on_valid_entries() -> None:
-    torch.manual_seed(0)
-    ot = LogOptimalTransport(num_iterations=50)
-    scores = torch.randn(2, 5, 6)
-    row_masks = torch.ones(2, 5, dtype=torch.bool)
-    col_masks = torch.ones(2, 6, dtype=torch.bool)
-    col_masks[1, -1] = False
-    out = ot(scores, row_masks, col_masks)
-    assert out.shape == (2, 6, 7)
-    probs = out.exp()
-    # Every valid point row sums to one over the valid columns and the dustbin.
-    assert torch.allclose(probs[0, :5].sum(dim=1), torch.ones(5), atol=1e-3)
-    assert torch.allclose(probs[1, :5, :5].sum(dim=1) + probs[1, :5, 6], torch.ones(5), atol=1e-3)
-    assert torch.all(probs[1, :, 5] == 0)
 
 
 def test_kpconv_fpn_rejects_inconsistent_configs() -> None:

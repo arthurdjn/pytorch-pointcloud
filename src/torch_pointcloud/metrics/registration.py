@@ -65,7 +65,7 @@ def translation_error(transform: Tensor, target: Tensor) -> Tensor:
 
 def root_mean_square_alignment_error(transform: Tensor, target: Tensor, information: Tensor) -> Tensor:
     r"""Root mean square displacement of the overlapping points under the residual transform, read through the
-    information matrix of the ground truth (the RMSE of the 3DMatch benchmark).
+    information matrix of the ground truth.
 
     The error of the residual transform $\bar{T}^{-1} T$ is read through the information matrix $\Omega$ the
     benchmark ships with every ground-truth pair: with $\xi = (t, q_x, q_y, q_z)$ its translation and the vector
@@ -141,9 +141,8 @@ def alignment_error(
     target: Tensor,
     batch: Tensor,
 ) -> Tensor:
-    r"""Mean distance between the source points moved by the estimated transform and by the ground truth.
-
-    The alignment error of the ModelNet registration benchmark (its "RMSE" column), in the unit of the coordinates.
+    r"""Mean distance between the source points moved by the estimated transform and by the ground truth, in the unit
+    of the coordinates.
 
     Args:
         src_points: Source points, shape $(N, 3)$.

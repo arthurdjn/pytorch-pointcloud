@@ -502,8 +502,7 @@ class KPResidualBlock(nn.Module):
 
 
 class LinearGroupNormBlock(nn.Module):
-    r"""Linear layer followed by a `GroupNorm` and an optional LeakyReLU, the unary block of the KPConv-FPN
-    registration backbones.
+    r"""Linear layer followed by a `GroupNorm` and an optional LeakyReLU.
 
     Args:
         in_channels: Number of input channels.
@@ -536,8 +535,8 @@ class LinearGroupNormBlock(nn.Module):
 
 
 class KPResidualGroupNormBlock(nn.Module):
-    r"""Bottleneck residual block of the KPConv-FPN registration backbones: a channel-reducing
-    `LinearGroupNormBlock`, a group-normalized `KPConvBlock` and a channel-restoring `LinearGroupNormBlock`.
+    r"""Bottleneck residual block with group normalizations: a channel-reducing `LinearGroupNormBlock`, a
+    group-normalized `KPConvBlock` and a channel-restoring `LinearGroupNormBlock`.
 
     The bottleneck width is a quarter of `out_channels`, and the first unary block is skipped when the input already
     has that width. A strided block maps a support cloud onto a coarser query cloud; its skip connection is the

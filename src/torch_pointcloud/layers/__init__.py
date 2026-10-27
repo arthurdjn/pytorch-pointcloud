@@ -44,6 +44,7 @@ from .linear_blocks import LinearBlock
 from .norms import GroupNorm, create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .optimal_transport import LogOptimalTransport
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -154,6 +155,7 @@ __all__ = [
     "LinearGroupNormBlock",
     "create_kernel_points",
     "LinearBlock",
+    "LogOptimalTransport",
     "GroupNorm",
     "create_norm",
     "OctreeAttention",
