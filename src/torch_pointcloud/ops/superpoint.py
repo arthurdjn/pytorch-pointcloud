@@ -39,9 +39,11 @@ def superpoint_pool(x: Tensor, superpoint: Tensor, batch: Tensor) -> Tuple[Tenso
 
         ```
     """
-    keys, index = torch.unique(torch.stack([batch, superpoint]), dim=1, return_inverse=True)
-    features = scatter(x, index, dim=0, dim_size=keys.shape[1], reduce="mean")
-    return features, index, keys[0]
+    # One integer key per (scene, id rank): a 1-D unique sorts far faster than the row-wise `unique(dim=1)`.
+    key = batch.long() * superpoint.numel() + torch.unique(superpoint, return_inverse=True)[1]
+    keys, index = torch.unique(key, return_inverse=True)
+    features = scatter(x, index, dim=0, dim_size=keys.numel(), reduce="mean")
+    return features, index, keys // superpoint.numel()
 
 
 def superpoint_instance_masks(
@@ -92,12 +94,13 @@ def superpoint_instance_masks(
         ```
     """
     valid = (instance >= 0) & (label != ignore_index)
-    point_batch = superpoint_batch[superpoint]
-    keys, index = torch.unique(torch.stack([point_batch[valid], instance[valid]]), dim=1, return_inverse=True)
-    num_instances, num_superpoints = keys.shape[1], superpoint_batch.shape[0]
+    ids = instance[valid]
+    key = superpoint_batch[superpoint[valid]] * ids.numel() + torch.unique(ids, return_inverse=True)[1]
+    keys, index = torch.unique(key, return_inverse=True)
+    num_instances, num_superpoints = keys.numel(), superpoint_batch.shape[0]
     labels = scatter(label[valid], index, dim=0, dim_size=num_instances, reduce="max")
     counts = torch.zeros(num_instances * num_superpoints, device=instance.device)
     counts.index_add_(0, index * num_superpoints + superpoint[valid], torch.ones_like(index, dtype=counts.dtype))
     sizes = torch.bincount(superpoint, minlength=num_superpoints)
     masks = counts.view(num_instances, num_superpoints) / sizes.clamp(min=1) > threshold
-    return masks, labels, keys[0]
+    return masks, labels, keys // ids.numel()
