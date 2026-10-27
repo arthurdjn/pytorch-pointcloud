@@ -16,12 +16,15 @@ ReduceOp = Literal["min", "max", "mean", "sum"]
 
 __all__ = [
     "Abs",
+    "Add",
     "Cat",
     "Clamp",
     "CopyItems",
     "Divide",
     "DivideItems",
     "KeepItems",
+    "Log",
+    "NormalizedDifference",
     "OneHot",
     "OnesLike",
     "Reduce",
@@ -622,6 +625,31 @@ class KeepItems(DictTransform):
         return {key: data[key] for key in self.iter_keys(data)}
 
 
+class Add(DictTransform):
+    """Add a value to dictionary tensor entries.
+
+    Args:
+        keys: The keys to add to.
+        value: The value(s) to add, one per key or one for all.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        value: float | Sequence[float],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.value = ensure_tuple_size(value, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, value in self.iter_keys(data, self.value):
+            data[key] = data[key] + value
+        return data
+
+
 class Scale(DictTransform):
     """Multiply dictionary tensor entries by a scale factor.
 
@@ -770,6 +798,50 @@ class SubtractItems(DictTransform):
         return data
 
 
+class NormalizedDifference(DictTransform):
+    r"""Normalized difference of two entries, $(a - b) / (a + b + \epsilon)$.
+
+    Computes `data[dst_key] = (data[key] - data[sub_key]) / (data[key] + data[sub_key] + eps)` for each key.
+
+    Args:
+        keys: Keys of the first operand $a$.
+        sub_keys: Keys of the second operand $b$, one per key.
+        dst_keys: Where to store results. Defaults to `keys`.
+        eps: Added to the denominator, $\epsilon$.
+        allow_missing_keys: If `True`, silently skip absent target keys.
+
+    Example:
+        ```python
+        import torch
+
+        from torch_pointcloud.transforms import NormalizedDifference
+
+        data = {"a": torch.tensor([[0.6], [0.1]]), "b": torch.tensor([[0.2], [0.3]])}
+        data = NormalizedDifference(keys="a", sub_keys="b", dst_keys="difference")(data)
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        sub_keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        eps: float = 1e-6,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sub_keys = ensure_tuple_size(sub_keys, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.eps = eps
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, sub_key, dst_key in self.iter_keys(data, self.sub_keys, self.dst_keys):
+            a, b = data[key], data[sub_key]
+            data[dst_key] = (a - b) / (a + b + self.eps)
+        return data
+
+
 def absolute(x: Tensor, inplace: bool = False) -> Tensor:
     """Make the input tensor absolute.
 
@@ -822,6 +894,32 @@ class Abs(DictTransform):
         for key in self.iter_keys(d):
             d[key] = absolute(d[key])
         return d
+
+
+class Log(DictTransform):
+    r"""Map tensor entries to their natural logarithm (a thin wrapper over `torch.log`). Integer inputs give
+    `float32`.
+
+    Args:
+        keys: Keys to transform.
+        dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = torch.log(data[key])
+        return data
 
 
 class Clamp(DictTransform):

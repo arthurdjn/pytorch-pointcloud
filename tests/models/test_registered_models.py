@@ -1,6 +1,9 @@
 import inspect
 import json
 import re
+import shutil
+import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -28,6 +31,7 @@ from torch_pointcloud.utils.imports import (
 )
 
 SNAPSHOTS_DIR = Path(__file__).resolve().parents[1] / "data" / "models"
+REPO_DIR = Path(__file__).resolve().parents[2]
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 FORMER_NAMES: list[tuple[str, str, str]] = []
 
@@ -189,6 +193,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area3.openpoints",
     "pointnext-xl.s3dis-area4.openpoints",
     "pointnext-xl.s3dis-area5.openpoints",
+    "randlanet.fractal.ignf",
     "randlanet.semantickitti.tsung-han-wu",
     "randlanet.semantickitti.open3d",
     "randlanet.s3dis-area3.open3d",
@@ -223,10 +228,16 @@ DETECTION_MODELS = [
     "3detr-m.scannet.fair",
     "3detr.scannet.fair",
     "3detr.sunrgbd.fair",
+    "centerpoint-pillar02.nuscenes.mmdet3d",
+    "centerpoint-voxel0075.nuscenes.mmdet3d",
+    "centerpoint-voxel01.nuscenes.mmdet3d",
     "lion-mamba.nuscenes.zhe-liu",
+    "part-a2.kitti-car.mmdet3d",
+    "part-a2.kitti.mmdet3d",
     "pointpillars-multihead.nuscenes.openpcdet",
     "pointpillars.kitti.openpcdet",
     "pointrcnn.kitti.openpcdet",
+    "pv-rcnn.kitti.mmdet3d",
     "second-multihead.nuscenes.openpcdet",
     "second.kitti.openpcdet",
     "votenet.scannet.fair",
@@ -266,11 +277,14 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("torchsparse is not installed")
     if model_name.startswith(("spunet", "spformer", "openscene")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
-    if model_name.startswith(("second", "voxelnext", "voxel-mamba")) and not _SPCONV_AVAILABLE:
+    if (
+        model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn"))
+        and not _SPCONV_AVAILABLE
+    ):
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
@@ -918,8 +932,21 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
                 assert match is not None and re.fullmatch(r"[0-9a-f]{40}", match["revision"]), (name, url)
                 if match["namespace"] == "torch-pointcloud":
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
-            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
+            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
             assert weights["author"], name
+
+
+def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
+    """`docs/data/models.csv` is what `docs/scripts/build_model_tables.py` renders from the registry today: rebuilding it
+    on a copy (which keeps the measured columns) changes nothing."""
+    committed = REPO_DIR / "docs" / "data" / "models.csv"
+    rebuilt = shutil.copy(committed, tmp_path / "models.csv")
+    subprocess.run(
+        [sys.executable, (REPO_DIR / "docs" / "scripts" / "build_model_tables.py").as_posix(), "--csv", rebuilt],
+        check=True,
+        capture_output=True,
+    )
+    assert Path(rebuilt).read_text() == committed.read_text(), "run docs/scripts/build_model_tables.py"
 
 
 def test_registered_weights_urls_exist_on_the_hub() -> None:

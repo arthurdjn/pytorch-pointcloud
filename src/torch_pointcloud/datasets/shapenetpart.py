@@ -153,8 +153,6 @@ class ShapeNetPart(PointCloudDataset):
         self.split = split
         self.categories = ensure_tuple(categories or self.category_ids.keys())
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         for category in self.categories:
             if category not in self.category_ids:
@@ -206,6 +204,11 @@ class ShapeNetPart(PointCloudDataset):
 
         return True
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self.split, "meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
@@ -225,10 +228,7 @@ class ShapeNetPart(PointCloudDataset):
             f"benchmark data from {self.data_url!r} and extract it under {self.raw_dir!r}."
         )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if self.processed_files_exist() and not force:
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -273,6 +273,7 @@ class ShapeNetPart(PointCloudDataset):
         if split_dir.exists():
             shutil.rmtree(split_dir)
         tmp_dir.replace(split_dir)
+        return True
 
     def _load_raw_file(self, file_name: str) -> Optional[Dict[str, Any]]:
         file_path = Path(self.raw_dir, file_name.removeprefix("shape_data/")).with_suffix(".txt")

@@ -11,6 +11,7 @@ import pytest
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _DWCONV_AVAILABLE,
+    _LASPY_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
     _PYG_LIB_AVAILABLE,
@@ -30,6 +31,7 @@ _REQUIRES_OCNN = pytest.mark.skipif(not _OCNN_AVAILABLE, reason="ocnn is not ins
 _REQUIRES_DWCONV = pytest.mark.skipif(not _DWCONV_AVAILABLE, reason="dwconv is not installed")
 _REQUIRES_MAMBA = pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba-ssm is not installed")
 _REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+_REQUIRES_LASPY = pytest.mark.skipif(not _LASPY_AVAILABLE, reason="laspy is not installed")
 _REQUIRES_TRANSFORMERS = pytest.mark.skipif(not _TRANSFORMERS_AVAILABLE, reason="transformers is not installed")
 
 _CLUSTER = (_REQUIRES_PYG_LIB,)
@@ -136,6 +138,12 @@ BENCHMARKS = [
         ("--limit", "1"),
         marks=_CLUSTER,
         id="point_transformer/s3dis",
+    ),
+    pytest.param(
+        "randlanet/segmentation_fractal_benchmark.py",
+        ("--limit", "2"),
+        marks=(_REQUIRES_PYG_LIB, _REQUIRES_LASPY),
+        id="randlanet/fractal",
     ),
     pytest.param(
         "randlanet/segmentation_semantickitti_benchmark.py",
@@ -288,10 +296,40 @@ BENCHMARKS = [
     ),
     pytest.param("pointrcnn/detection_kitti_benchmark.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
     pytest.param(
+        "parta2/detection_kitti_benchmark.py",
+        ("--model", "part-a2.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="parta2/kitti",
+    ),
+    pytest.param(
+        "parta2/detection_kitti_benchmark.py",
+        ("--model", "part-a2.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="parta2/kitti-car",
+    ),
+    pytest.param(
+        "pv_rcnn/detection_kitti_benchmark.py",
+        ("--model", "pv-rcnn.kitti.mmdet3d", "--limit", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="pv_rcnn/kitti",
+    ),
+    pytest.param(
         "voxelnext/detection_nuscenes_benchmark.py",
         ("--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
         id="voxelnext/nuscenes",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_benchmark.py",
+        ("--model", "centerpoint-voxel01.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint/nuscenes",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_benchmark.py",
+        ("--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint-pillars/nuscenes",
     ),
     pytest.param(
         "lion/detection_nuscenes_benchmark.py",
@@ -671,6 +709,18 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
         marks=_GPU_SPCONV,
         id="voxelnext/nuscenes-train",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--model", "centerpoint-voxel01.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint/nuscenes-train",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint-pillars/nuscenes-train",
     ),
     pytest.param(
         "lion/detection_nuscenes_train.py",

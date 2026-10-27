@@ -24,6 +24,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from torch_pointcloud.models import create_model
+from torch_pointcloud.models.parta2 import PartA2Detection
+from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.data import collate, select_inputs
 from torch_pointcloud.utils.imports import (
@@ -492,7 +494,7 @@ def test_seeded_voxel_mamba(
     with torch.no_grad():
         out = model(x, pos, batch)
 
-    reduced = torch.cat([out[k].reshape(-1) for k in ("center", "center_z", "dim", "rot", "iou", "heatmap")])
+    reduced = torch.cat([out[k][0].reshape(-1) for k in ("center", "center_z", "dim", "rot", "iou", "heatmap")])
     _check_output(reduced, model_name, force_regen, models_dir)
 
 
@@ -544,6 +546,65 @@ def test_pretrained_voxelnext(
     parts = [bev[order].reshape(-1).float()]
     for key in ("hm", "center", "center_z", "dim", "rot", "vel"):
         parts += [t[order].reshape(-1) for t in out[key]]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+CENTERPOINT_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
+    ("centerpoint-voxel01.nuscenes.mmdet3d", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 120000),
+    ("centerpoint-voxel0075.nuscenes.mmdet3d", (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0), (0.075, 0.075, 0.2), 10, 120000),
+    ("centerpoint-pillar02.nuscenes.mmdet3d", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 40000),
+]
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize("model_name,pc_range,voxel_size,max_num_points,max_num_voxels", CENTERPOINT_MODELS)
+def test_pretrained_centerpoint(
+    model_name: str,
+    pc_range: Tuple[float, ...],
+    voxel_size: Tuple[float, ...],
+    max_num_points: int,
+    max_num_voxels: int,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CenterPoint returns dense per-group head maps, so it needs its own snapshot test.
+
+    There is no in-repo nuScenes *detection* fixture, so a fixed synthetic cloud inside the model's point-cloud
+    range is hard-voxelized exactly as the registered transform would. The snapshot concatenates the raw maps of
+    every group (heatmap logits and the continuous regression maps, no decoded heading whose `atan2` would flip
+    under float noise). TF32 is disabled: the sparse backbone's rounding differs across processes with it on.
+    """
+    if not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+    if model_name.startswith("centerpoint-voxel") and not torch.cuda.is_available():
+        pytest.skip(f"{model_name} requires CUDA, none available")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n = 8000
+    pos = torch.rand(n, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n, model.in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.zeros(n, dtype=torch.long, device=DEVICE)
+
+    points = torch.cat([pos, x], dim=1)
+    voxels, voxel_indices, num_points = hard_voxelize(
+        points, batch, voxel_size, pc_range, max_num_points, max_num_voxels
+    )
+    with torch.no_grad():
+        out = model(voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
+
+    parts = [t.reshape(-1) for key in ("heatmap", "center", "center_z", "dim", "rot", "vel") for t in out[key]]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
@@ -609,4 +670,105 @@ def test_pretrained_anchor_detection(
     for key in ("cls", "box"):
         value = out[key]
         parts += [t.reshape(-1) for t in value] if isinstance(value, (list, tuple)) else [value.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+KITTI_RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
+# Fixed RoIs (four per scene) so the second stage is pinned without depending on the proposal NMS, whose near-ties
+# flip under float noise on a random cloud.
+KITTI_ROIS = [
+    [10.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.0],
+    [20.0, 5.0, -1.0, 3.9, 1.6, 1.56, 0.8],
+    [30.0, -8.0, -0.8, 0.8, 0.6, 1.73, -0.4],
+    [45.0, 12.0, -0.8, 1.76, 0.6, 1.73, 1.57],
+]
+
+
+def _kitti_two_stage_inputs(in_channels: int) -> Tuple[Tensor, ...]:
+    """A fixed synthetic two-scene cloud inside the KITTI range, hard-voxelized as the registered transform does."""
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 8000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (KITTI_RANGE[d + 3] - KITTI_RANGE[d]) + KITTI_RANGE[d]
+    x = torch.rand(n_per_scene * batch_size, in_channels - 3)
+    pos, x = pos.to(DEVICE), x.to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+    voxels, voxel_indices, num_points = hard_voxelize(
+        torch.cat([pos, x], dim=1),
+        batch,
+        (0.05, 0.05, 0.1),
+        KITTI_RANGE,
+        5,
+        40000,
+    )
+    rois = torch.tensor(KITTI_ROIS * batch_size, device=DEVICE)
+    roi_batch = torch.arange(batch_size, device=DEVICE).repeat_interleave(len(KITTI_ROIS))
+    return voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0], x, pos, batch, rois, roi_batch
+
+
+@pytest.mark.pretrained
+def test_pretrained_pv_rcnn(
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PV-RCNN: a strided sample of the anchor head maps and the second stage on fixed RoIs."""
+    if not (_SPCONV_AVAILABLE and _PYG_LIB_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("PV-RCNN needs spconv, pyg-lib and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "pv-rcnn.kitti.mmdet3d"
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+    assert isinstance(model, PVRCNNDetection)
+
+    voxels, pos_voxel, num_points, batch_voxel, x, pos, batch, rois, roi_batch = _kitti_two_stage_inputs(
+        model.in_channels
+    )
+    with torch.no_grad():
+        features, bev, stage_features, stage_indices = model.encode(
+            voxels,
+            pos_voxel,
+            num_points,
+            batch_voxel,
+        )
+        out = model.forward_head(features)
+        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, x, pos, batch, stage_features, stage_indices, bev)
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        pytest.param("part-a2.kitti.mmdet3d", id="part-a2.kitti.mmdet3d"),
+        pytest.param("part-a2.kitti-car.mmdet3d", id="part-a2.kitti-car.mmdet3d"),
+    ],
+)
+def test_pretrained_parta2(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Part-A2: a strided sample of the anchor head maps and the second stage on fixed RoIs."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("Part-A2 needs spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+    assert isinstance(model, PartA2Detection)
+
+    voxels, pos_voxel, num_points, batch_voxel, _, _, _, rois, roi_batch = _kitti_two_stage_inputs(model.in_channels)
+    with torch.no_grad():
+        features, stages = model.encode(voxels, pos_voxel, num_points, batch_voxel)
+        voxel_features = model.decoder(stages)
+        out = model.forward_head(features)
+        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, voxel_features, pos_voxel, batch_voxel)
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)

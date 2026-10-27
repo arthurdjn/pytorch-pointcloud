@@ -1,5 +1,8 @@
+import functools
+import pickle
 from collections import OrderedDict
 from pathlib import Path
+from typing import Any, Callable, Dict, Tuple, Type
 from unittest.mock import Mock, call, sentinel
 
 import pytest
@@ -220,11 +223,65 @@ def test_load_state_dict_strict_false_warm_starts_from_partial_checkpoint() -> N
     assert torch.equal(model.state_dict()["head.weight"], head_weight)
 
 
-def test_read_state_dict_non_mapping_checkpoint_raises(tmp_path: Path) -> None:
-    path = tmp_path / "raw.pt"
-    torch.save(torch.zeros(3), path)
+class _FailsIfRestored:
+    def __init__(self) -> None:
+        self.saved = True
 
-    with pytest.raises(ValueError, match="not a state dict"):
+    def __setstate__(self, state: Dict[str, bool]) -> None:
+        pytest.fail("unpickling restored an object of the checkpoint")
+
+
+class _RestoredByCallingAnObject:
+    def __reduce__(self) -> Tuple[Callable[[], Dict[Any, Any]], Tuple[()]]:
+        return functools.partial(dict), ()
+
+
+@pytest.mark.parametrize(
+    ("checkpoint", "zip_format", "error", "match"),
+    [
+        pytest.param(torch.zeros(3), True, ValueError, "not a state dict", id="tensor"),
+        pytest.param(nn.Linear(2, 2), True, ValueError, "got torch.nn.modules.linear.Linear", id="pickled-module"),
+        pytest.param(
+            {"state_dict": nn.Linear(2, 2)},
+            True,
+            ValueError,
+            "got torch.nn.modules.linear.Linear",
+            id="pickled-module-under-state-dict",
+        ),
+        pytest.param(
+            {"model": nn.Linear(2, 2), "epoch": 3},
+            True,
+            ValueError,
+            r"'model' \(torch.nn.modules.linear.Linear\)",
+            id="pickled-module-among-parameters",
+        ),
+        pytest.param(
+            {"lin.weight": torch.ones(2, 2), "optimizer": functools.partial(torch.optim.Adam, lr=0.01)},
+            False,
+            pickle.UnpicklingError,
+            "Weights only load failed",
+            id="legacy-format-with-objects",
+        ),
+        pytest.param(
+            {"lin.weight": torch.ones(2, 2), "hook": _RestoredByCallingAnObject()},
+            True,
+            pickle.UnpicklingError,
+            "Weights only load failed",
+            id="restored-by-calling-an-object",
+        ),
+    ],
+)
+def test_read_state_dict_unreadable_checkpoint_raises(
+    tmp_path: Path,
+    checkpoint: Any,
+    zip_format: bool,
+    error: Type[Exception],
+    match: str,
+) -> None:
+    path = tmp_path / "model.pt"
+    torch.save(checkpoint, path, _use_new_zipfile_serialization=zip_format)
+
+    with pytest.raises(error, match=match):
         read_state_dict(path)
 
 
@@ -252,3 +309,20 @@ def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path
     result = read_state_dict(path)
 
     assert list(result.keys()) == ["lin.weight"]
+
+
+def test_read_state_dict_reads_other_objects_as_inert_placeholders(tmp_path: Path) -> None:
+    path = tmp_path / "lit.ckpt"
+    checkpoint = {
+        "pytorch-lightning_version": "2.0",
+        "state_dict": {"model.lin.weight": torch.ones(2, 2)},
+        "hyper_parameters": {"optimizer": functools.partial(torch.optim.Adam, lr=0.01), "hook": _FailsIfRestored()},
+    }
+    torch.save(checkpoint, path)
+
+    with pytest.raises(pytest.fail.Exception, match="restored"):
+        torch.load(path, weights_only=False)
+
+    result = read_state_dict(path)
+    assert list(result.keys()) == ["lin.weight"]
+    assert torch.equal(result["lin.weight"], torch.ones(2, 2))

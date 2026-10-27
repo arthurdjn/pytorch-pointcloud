@@ -2,6 +2,7 @@
 
 import re
 import warnings
+import zipfile
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Set
@@ -16,12 +17,30 @@ from .types import PathLike
 _PLACEHOLDER_RE = re.compile(r"^\s*(\w+)\s*(?:([+-])\s*(\d+))?\s*$")
 
 
+class _PickledObject:
+    """Stand-in for a pickled object that is not a tensor or a container, keeping its arguments and state without
+    importing or calling the class it was saved from. Each global is read through a subclass named after it."""
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "_PickledObject":
+        return super().__new__(cls)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.args = args
+        self.kwargs = kwargs
+
+    def __setstate__(self, state: Any) -> None:
+        self.state = state
+
+
 def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
     Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
-    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped network:
-    only `model.`-prefixed keys are kept, with the prefix stripped.
+    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped
+    network: only `model.`-prefixed keys are kept, with the prefix stripped. `torch.save` files load with
+    `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
+    optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported
+    nor called.
 
     Args:
         path: Checkpoint file to read.
@@ -30,8 +49,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         The flat parameter-name to tensor mapping.
 
     Raises:
-        ValueError: If the checkpoint is not a mapping, or if a Lightning checkpoint has no
-            `model.`-prefixed key to extract.
+        ValueError: If the checkpoint, or its `state_dict` entry, is not a mapping, if it holds such an object among
+            the parameters (e.g. a whole module), or if a Lightning checkpoint has no `model.`-prefixed key to
+            extract.
 
     Example:
         ```{.python notest}
@@ -44,14 +64,21 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     if path.suffix == ".safetensors":
         return dict(load_file(path.as_posix()))
 
-    data = torch.load(path, weights_only=True, map_location="cpu")
-    if not isinstance(data, dict):
+    unsafe_globals = torch.serialization.get_unsafe_globals_in_checkpoint(path) if zipfile.is_zipfile(path) else []
+    with torch.serialization.safe_globals([(type(name, (_PickledObject,), {}), name) for name in unsafe_globals]):
+        data = torch.load(path, weights_only=True, map_location="cpu")
+
+    state_dict = (
+        next((data[key] for key in ("state_dict", "model_state_dict") if key in data), data)
+        if isinstance(data, dict)
+        else data
+    )
+    if not isinstance(state_dict, dict):
         raise ValueError(
             f"Checkpoint {path.as_posix()!r} is not a state dict: expected a mapping of parameter names to "
-            f"tensors, got {type(data).__name__}."
+            f"tensors, got {type(state_dict).__name__}."
         )
 
-    state_dict = next((data[key] for key in ("state_dict", "model_state_dict") if key in data), data)
     if "pytorch-lightning_version" in data:
         extracted = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
         if state_dict and not extracted:
@@ -62,6 +89,15 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
             )
 
         state_dict = extracted
+
+    pickled = [
+        f"{key!r} ({type(value).__name__})" for key, value in state_dict.items() if isinstance(value, _PickledObject)
+    ]
+    if pickled:
+        raise ValueError(
+            f"Checkpoint {path.as_posix()!r} holds objects other than tensors among its parameters: "
+            f"{', '.join(pickled[:5])}; save the `state_dict()` of the module instead."
+        )
 
     return state_dict
 

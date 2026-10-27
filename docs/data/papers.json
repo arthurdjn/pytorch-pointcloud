@@ -79,6 +79,11 @@
     "date": "April 2019",
     "title": "Deep Hough Voting for 3D Object Detection in Point Clouds"
   },
+  "1907.03670": {
+    "crop": 0.47,
+    "date": "July 2019",
+    "title": "From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network"
+  },
   "1907.03739": {
     "crop": 0.47,
     "date": "July 2019",
@@ -94,6 +99,11 @@
     "date": "November 2019",
     "title": "RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds"
   },
+  "1912.13192": {
+    "crop": 0.47,
+    "date": "December 2019",
+    "title": "PV-RCNN: Point-Voxel Feature Set Abstraction for 3D Object Detection"
+  },
   "2003.08284": {
     "crop": 0.47,
     "date": "March 2020",
@@ -103,6 +113,11 @@
     "crop": 0.47,
     "date": "April 2020",
     "title": "DALES: A Large-scale Aerial LiDAR Data Set for Semantic Segmentation"
+  },
+  "2006.11275": {
+    "crop": 0.47,
+    "date": "June 2020",
+    "title": "Center-based 3D Object Detection and Tracking"
   },
   "2007.16100": {
     "crop": 0.47,
@@ -188,6 +203,11 @@
     "crop": 0.47,
     "date": "February 2024",
     "title": "PointMamba: A Simple State Space Model for Point Cloud Analysis"
+  },
+  "2405.04634": {
+    "crop": 0.47,
+    "date": "May 2024",
+    "title": "FRACTAL: An Ultra-Large-Scale Aerial Lidar Dataset for 3D Semantic Segmentation of Diverse Landscapes"
   },
   "2406.10700": {
     "crop": 0.47,

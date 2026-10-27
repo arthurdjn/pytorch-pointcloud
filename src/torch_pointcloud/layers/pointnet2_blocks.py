@@ -219,6 +219,89 @@ class PointNet2SetAbstraction(nn.Module):
         return torch.cat(out, dim=1), pos_dst, batch_dst
 
 
+class PointNet2QuerySetAbstraction(nn.Module):
+    r"""Multi-scale set abstraction at given query points.
+
+    Unlike [`PointNet2SetAbstraction`][torch_pointcloud.layers.pointnet2_blocks.PointNet2SetAbstraction], the
+    centroids are not sampled from the source points: every query point pools, per scale, the first
+    `num_neighbors` source points (in index order) inside its ball with a
+    [`PointNet2Conv`][torch_pointcloud.layers.pointnet2_blocks.PointNet2Conv] whose messages are the relative
+    position $p_j - p_i$ followed by the source features $x_j$, and the per-scale outputs are concatenated. A ball
+    holding no source point pools a single all-zero message, so an empty neighborhood maps to the MLP response to
+    zero rather than to the reduction identity.
+
+    Args:
+        in_channels: Number of source feature channels.
+        channels: Per-scale MLP channel sizes, one sequence per scale.
+        radii: Ball radius per scale.
+        num_neighbors: Maximum number of neighbors per scale.
+        spatial_dim: Dimension of point coordinates.
+        act: Activation of the MLP layers.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization of the MLP layers.
+        norm_kwargs: Extra normalization arguments.
+        bias: Whether the MLP linear layers use a bias.
+
+    Shape:
+        - x: $(N, C_\text{in})$
+        - pos, pos_query: $(N, D)$, $(M, D)$
+        - batch, batch_query: $(N,)$, $(M,)$, both sorted
+        - output: $(M, \sum_s C_s)$
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        channels: Sequence[Sequence[int]],
+        *,
+        radii: Sequence[float],
+        num_neighbors: Sequence[int],
+        spatial_dim: int = 3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
+    ) -> None:
+        if not len(channels) == len(radii) == len(num_neighbors):
+            raise ValueError(
+                f"`channels`, `radii` and `num_neighbors` need one entry per scale, got {len(channels)}, "
+                f"{len(radii)} and {len(num_neighbors)}."
+            )
+
+        super().__init__()
+        self.radii = tuple(radii)
+        self.num_neighbors = tuple(num_neighbors)
+        self.out_channels = sum(scale_channels[-1] for scale_channels in channels)
+        self.convs = nn.ModuleList()
+        for scale_channels in channels:
+            local_nn = MLP(
+                [in_channels + spatial_dim, *scale_channels],
+                act=act,
+                act_kwargs=act_kwargs,
+                norm=norm,
+                norm_kwargs=norm_kwargs,
+                bias=bias,
+                plain_last=False,
+            )
+            self.convs.append(PointNet2Conv(local_nn, add_self_loops=False, pos_first=True, aggr="max"))
+
+    def forward(self, x: Tensor, pos: Tensor, batch: Tensor, pos_query: Tensor, batch_query: Tensor) -> Tensor:
+        num_sources = pos.size(0)
+        out = []
+        for r, k, conv in zip(self.radii, self.num_neighbors, self.convs):
+            row, col = radius(pos, pos_query, r, batch, batch_query, max_num_neighbors=k, sort=True)
+            # An empty ball gets one source on the query itself with zero features: its message is all zeros.
+            empty = (torch.bincount(row, minlength=pos_query.size(0)) == 0).nonzero().view(-1)
+            x_source = torch.cat([x, x.new_zeros(empty.numel(), x.size(1))], dim=0)
+            pos_source = torch.cat([pos, pos_query[empty]], dim=0)
+            virtual = num_sources + torch.arange(empty.numel(), device=row.device)
+            edge_index = torch.stack([torch.cat([col, virtual]), torch.cat([row, empty])], dim=0)
+            out.append(conv((x_source, None), (pos_source, pos_query), edge_index))
+
+        return torch.cat(out, dim=1)
+
+
 class PointNet2GlobalSetAbstraction(nn.Module):
     r"""Global set-abstraction block: a shared MLP followed by a pool over each batch element.
 
