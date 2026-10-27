@@ -9,6 +9,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets import KITTIOdometry
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def test_kittiodometry_dataset_not_found() -> None:
@@ -56,6 +57,7 @@ def test_kittiodometry_transform_aligns_the_pair(datasets_dir_factory: Callable[
     assert nearest.median().item() < 1e-3
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_kittiodometry_voxelize_transform(datasets_dir_factory: Callable[..., Path]) -> None:
     datasets_dir = datasets_dir_factory("KITTIOdometry/**/*")
     transform = T.Compose(

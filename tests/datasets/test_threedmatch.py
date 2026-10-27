@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Any, Callable, Tuple
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -149,3 +150,24 @@ def test_threedmatch_collate(datasets_dir_factory: Callable[..., Path]) -> None:
     assert data[DataKeys.INFORMATION].shape == (2, 6, 6)
     assert data[DataKeys.FRAME].shape == (2,) and data[DataKeys.REF_FRAME].shape == (2,)
     assert len(data[DataKeys.SCENE]) == 2
+
+
+def test_threedmatch_download_fetches_the_fragments_and_the_pair_lists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from torch_pointcloud.datasets import threedmatch
+
+    def fake_download(url: str, path: Path, **kwargs: Any) -> None:
+        Path(path).write_bytes(b"")
+
+    download, extract = Mock(side_effect=fake_download), Mock()
+    monkeypatch.setattr(threedmatch, "download_url", download)
+    monkeypatch.setattr(threedmatch, "extract_zip", extract)
+    monkeypatch.setattr(ThreeDMatch, "process", Mock())
+    monkeypatch.setattr(ThreeDMatch, "load_pairs", Mock(return_value=[]))
+
+    dataset = ThreeDMatch(root=tmp_path, split="test", download=True, show_progress=False)
+    assert [call.args[0] for call in download.call_args_list] == [ThreeDMatch.data_url, ThreeDMatch.metadata_url]
+    assert extract.call_args_list[0].kwargs["prefix"] == "data/indoor"
+    assert extract.call_args_list[1].kwargs["prefix"] == ThreeDMatch.metadata_prefix
+    assert not any(Path(dataset.raw_dir).glob("*.zip"))
