@@ -131,11 +131,7 @@ class SPFormerQueryDecoder(nn.Module):
         """
         queries = self.norm(queries)
         mask_logits = [torch.einsum("nd,md->nm", query, features) for query, features in zip(queries, mask_features)]
-        attn_masks = []
-        for logits in mask_logits:
-            attn_mask = logits.detach().sigmoid() < 0.5
-            attn_mask[attn_mask.all(dim=-1)] = False
-            attn_masks.append(attn_mask)
+        attn_masks = [logits.detach().sigmoid() < 0.5 for logits in mask_logits]
         prediction: SPFormerPrediction = {
             "class_logits": self.class_head(queries),
             "scores": self.score_head(queries).squeeze(-1),

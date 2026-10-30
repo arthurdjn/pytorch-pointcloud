@@ -92,17 +92,6 @@ def test_query_decoder_scenes_are_independent() -> None:
     torch.testing.assert_close(together["mask_logits"][:, 7:], alone["mask_logits"])
 
 
-def test_query_decoder_unblocks_fully_masked_rows() -> None:
-    """A query whose mask covers no superpoint attends to all of them rather than to none."""
-    decoder = _decoder()
-    queries = torch.randn(1, 5, 16)
-    with torch.no_grad():
-        normed = decoder.norm(queries)[0, 0]
-        prediction, attn_masks = decoder.predict(queries, [-normed.expand(6, 16)])
-    assert (prediction["mask_logits"][0] < 0).all()
-    assert not attn_masks[0][0].any()
-
-
 @_REQUIRES_PYG_LIB
 def test_registered_transform_runs_without_labels() -> None:
     """The checkpoint's transform voxelizes a scene that carries no `segment` or `instance`."""

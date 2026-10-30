@@ -12,9 +12,9 @@ class MaskedQueryDecoderLayer(nn.Module):
     r"""Query decoder layer: masked cross-attention, self-attention and a feed-forward block, each a residual.
 
     The queries of each scene attend to that scene's sources (e.g. superpoint features), restricted by an attention
-    mask to the sources their current mask prediction covers. Self-attention among the queries of a scene and the
-    feed-forward block follow. Every residual is post-normalized, except the cross-attention one when
-    `cross_attn_norm=False`.
+    mask to the sources their current mask prediction covers; a query whose mask blocks every source attends to all of
+    them. Self-attention among the queries of a scene and the feed-forward block follow. Every residual is
+    post-normalized, except the cross-attention one when `cross_attn_norm=False`.
 
     Args:
         embed_dim: Query and source embedding dimension.
@@ -65,6 +65,8 @@ class MaskedQueryDecoderLayer(nn.Module):
     def forward(self, queries: Tensor, sources: Sequence[Tensor], attn_masks: Sequence[Tensor]) -> Tensor:
         attended = []
         for query, source, attn_mask in zip(queries, sources, attn_masks):
+            # A fully blocked row would make the attention NaN, and self-attention would spread it to every query.
+            attn_mask = attn_mask & ~attn_mask.all(dim=-1, keepdim=True)
             out = self.cross_attn(query[None], source[None], source[None], attn_mask=attn_mask)[0]
             attended.append(self.norm0(out[0] + query))
         queries = torch.stack(attended)
