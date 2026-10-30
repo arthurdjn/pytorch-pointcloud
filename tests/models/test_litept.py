@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -40,7 +40,7 @@ RELEASED_KEYS = {
 }
 
 
-def _litept(decoder_depths: Tuple[int, ...], use_flash_attn: bool = False) -> LitePTSegmentation:
+def _litept(decoder_depths: Tuple[int, ...], use_flash_attn: bool = False, **kwargs: Any) -> LitePTSegmentation:
     return LitePTSegmentation(
         in_channels=6,
         num_classes=10,
@@ -58,6 +58,7 @@ def _litept(decoder_depths: Tuple[int, ...], use_flash_attn: bool = False) -> Li
         decoder_conv=(False, True),
         decoder_attention=(True, False),
         use_flash_attn=use_flash_attn,
+        **kwargs,
     )
 
 
@@ -130,6 +131,30 @@ def test_litept_segmentation_headless() -> None:
     model.reset_classifier(num_classes=0)
     assert isinstance(model.head, nn.Identity)
     assert model.num_features == 12
+
+
+@requires_spconv
+@pytest.mark.parametrize(
+    "norm_kwargs,eps,momentum",
+    [
+        pytest.param(None, 1e-3, 0.01, id="default"),
+        pytest.param({}, 1e-5, 0.1, id="torch-defaults"),
+    ],
+)
+def test_litept_segmentation_batch_norm_kwargs(
+    norm_kwargs: Optional[Dict[str, Any]],
+    eps: float,
+    momentum: float,
+) -> None:
+    norms = [m for m in _litept((1, 1), norm_kwargs=norm_kwargs).modules() if isinstance(m, nn.BatchNorm1d)]
+    assert len(norms) == 7
+    assert all(m.eps == eps and m.momentum == momentum for m in norms)
+
+
+@requires_spconv
+def test_litept_segmentation_layer_norm_builds_without_batch_norm_kwargs() -> None:
+    model = _litept((1, 1), norm="layer_norm")
+    assert not any(isinstance(m, nn.BatchNorm1d) for m in model.modules())
 
 
 def test_litept_block_requires_conv_or_attention() -> None:

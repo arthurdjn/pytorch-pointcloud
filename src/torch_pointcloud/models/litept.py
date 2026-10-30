@@ -450,7 +450,8 @@ class LitePTEncoder(nn.Module):
         norm: Normalization of the stem and poolings, passed to `create_norm`.
         act: Activation, passed to `create_act`.
         act_kwargs: Extra keyword arguments for the activation.
-        norm_kwargs: Extra keyword arguments for the normalization.
+        norm_kwargs: Extra keyword arguments for the normalization; `None` gives `"batch_norm"` the authors'
+            `eps=1e-3` and `momentum=0.01`.
         mlp_ratio: Hidden-to-input width ratio of the block MLPs.
         qkv_bias: Whether the QKV projections have a bias.
         qk_scale: Attention logit scale; `None` uses $1 / \sqrt{\text{head\_dim}}$.
@@ -496,6 +497,8 @@ class LitePTEncoder(nn.Module):
         upcast_softmax: bool = False,
     ) -> None:
         super().__init__()
+        if norm_kwargs is None and norm == "batch_norm":
+            norm_kwargs = {"eps": 1e-3, "momentum": 0.01}
         depths = ensure_tuple(encoder_depths)
         n = len(depths)
         channels = ensure_tuple_size(encoder_channels, size=n)
@@ -635,7 +638,8 @@ class LitePTDecoder(nn.Module):
         norm: Normalization of the unpooling projections, passed to `create_norm`.
         act: Activation, passed to `create_act`.
         act_kwargs: Extra keyword arguments for the activation.
-        norm_kwargs: Extra keyword arguments for the normalization.
+        norm_kwargs: Extra keyword arguments for the normalization; `None` gives `"batch_norm"` the authors'
+            `eps=1e-3` and `momentum=0.01`.
         mlp_ratio: Hidden-to-input width ratio of the block MLPs.
         qkv_bias: Whether the QKV projections have a bias.
         qk_scale: Attention logit scale; `None` uses $1 / \sqrt{\text{head\_dim}}$.
@@ -679,6 +683,8 @@ class LitePTDecoder(nn.Module):
         upcast_softmax: bool = False,
     ) -> None:
         super().__init__()
+        if norm_kwargs is None and norm == "batch_norm":
+            norm_kwargs = {"eps": 1e-3, "momentum": 0.01}
         depths = ensure_tuple(decoder_depths)
         n = len(depths)
         encoder_channels = ensure_tuple_size(encoder_channels, size=n + 1)
@@ -794,7 +800,8 @@ class LitePTSegmentation(SemanticSegmentationModel):
         upcast_softmax: Whether the manual attention path computes the softmax in fp32.
         dropout: Dropout on the per-point features entering the head.
         act_kwargs: Extra keyword arguments for the activation.
-        norm_kwargs: Extra keyword arguments for the normalization.
+        norm_kwargs: Extra keyword arguments for the normalization; `None` gives `"batch_norm"` the authors'
+            `eps=1e-3` and `momentum=0.01`.
 
     Shape:
         - x: $(N, \text{in\_channels})$ point features.
