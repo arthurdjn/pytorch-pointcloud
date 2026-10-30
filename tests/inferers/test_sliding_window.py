@@ -250,6 +250,35 @@ def test_sliding_window_without_block_size_takes_each_cloud_as_one_block(
     assert torch.equal(blocks[1], torch.cat([pos[4:].amin(dim=0), pos[4:].amax(dim=0)]))
 
 
+@pytest.mark.parametrize(
+    "block_size, roi_num_points, sw_batch_size",
+    [
+        pytest.param(None, None, 1, id="whole_cloud"),
+        pytest.param(None, None, 4, id="whole_cloud_packed"),
+        pytest.param(None, 2, 8, id="chunks_packed"),
+        pytest.param(0.5, None, 4, id="blocks_packed"),
+    ],
+)
+def test_sliding_window_cloud_keys_give_each_element_its_own_cloud_row(
+    block_size: Optional[float], roi_num_points: Optional[int], sw_batch_size: int
+) -> None:
+    """A per-cloud key reaches every block, chunk and pack with the row of the cloud the points come from."""
+    batch = torch.tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1])
+    category = torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(12, 3), DataKeys.BATCH: batch, DataKeys.CATEGORY: category}
+
+    out = sliding_window_inference(
+        data,
+        predictor=lambda d: d[DataKeys.CATEGORY][d[DataKeys.BATCH]],
+        block_size=block_size,
+        roi_num_points=roi_num_points,
+        sw_batch_size=sw_batch_size,
+        cloud_keys=DataKeys.CATEGORY,
+        seed=0,
+    )
+    assert torch.equal(out, category[batch])
+
+
 def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:
     """`aggregate="vote"` casts one argmax vote per covering block: the output holds vote fractions, so a
     point covered by two blocks that disagree ends up at 0.5 / 0.5 while unanimous points are one-hot."""
@@ -523,6 +552,10 @@ def test_sliding_window_validates_args() -> None:
         sliding_window_inference({DataKeys.POS: pos}, predictor=fake, block_size=1.0)
     with pytest.raises(ValueError, match="`block_size`"):
         sliding_window_inference(data, predictor=fake, block_size=0.0)
+    with pytest.raises(ValueError, match="need a `block_size`"):
+        sliding_window_inference(data, predictor=fake, block_size=None, overlap=0.5)
+    with pytest.raises(ValueError, match="need a `block_size`"):
+        sliding_window_inference(data, predictor=fake, block_size=None, dims=(0, 1))
     with pytest.raises(ValueError, match="`overlap`"):
         sliding_window_inference(data, predictor=fake, block_size=1.0, overlap=1.0)
     with pytest.raises(ValueError, match="`mode`"):
