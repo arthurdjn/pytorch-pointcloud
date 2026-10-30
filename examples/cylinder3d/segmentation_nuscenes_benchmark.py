@@ -11,6 +11,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
+from torch_pointcloud.inferers import Inferer, SimpleInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -32,11 +33,12 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on nuScenes-lidarseg!")
     model = configure_model(args)
     num_classes = int(model.num_classes)
+    inferer = configure_inferer(args)
     dataloader = configure_dataloader(args)
 
     num_scenes = len(dataloader.dataset)  # type: ignore[arg-type]
     print(f"Test set: {num_scenes} scans  (single pass, scored on every point)")
-    metrics = evaluate(model, dataloader, args.device, num_classes)
+    metrics = evaluate(model, dataloader, inferer, args.device, num_classes)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -99,16 +101,22 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
     return create_model(args.model, task="semantic-segmentation", pretrained=True)
 
 
+def configure_inferer(args: Namespace) -> Inferer:
+    return SimpleInferer()
+
+
 @torch.no_grad()
-def evaluate(model: SemanticSegmentationModel, dataloader: DataLoader, device: str, num_classes: int) -> dict[str, Any]:
+def evaluate(
+    model: SemanticSegmentationModel, dataloader: DataLoader, inferer: Inferer, device: str, num_classes: int
+) -> dict[str, Any]:
     model.to(device).eval()
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        logits = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
-        preds = logits.argmax(dim=1)
+        scores = inferer(data, predictor=lambda d: model(d[DataKeys.X], d[DataKeys.POS], d[DataKeys.BATCH]))
+        preds = scores.argmax(dim=1)
         cm += confusion_matrix(preds.cpu(), data[DataKeys.SEGMENT].cpu(), num_classes, ignore_index=IGNORE_INDEX)
         pbar.set_postfix({"oa": f"{accuracy(cm):.4f}"})
 
