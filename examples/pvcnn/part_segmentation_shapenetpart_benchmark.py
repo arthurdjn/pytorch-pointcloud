@@ -29,6 +29,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 NUM_POINTS = 2048
 NUM_VOTES = 10
+BATCH_SIZE = 1
 SW_BATCH_SIZE = 8
 
 
@@ -58,6 +59,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--num-points", default=NUM_POINTS, type=int, help="Points per chunk.")
     parser.add_argument("--num-votes", default=NUM_VOTES, type=int, help="Random chunkings of each shape.")
+    parser.add_argument("--batch-size", default=BATCH_SIZE, type=int, help="Shapes per inferer call.")
     parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Chunks per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many shapes.")
@@ -79,7 +81,7 @@ def configure_dataset(args: Namespace) -> Dataset:
 
 def configure_dataloader(args: Namespace) -> DataLoader:
     dataset = configure_dataset(args)
-    return PointCloudDataLoader(dataset, batch_size=1, shuffle=False, num_workers=args.num_workers)
+    return PointCloudDataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
 
 def configure_model(args: Namespace) -> PartSegmentationModel:
@@ -101,6 +103,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         sw_batch_size=args.sw_batch_size,
         softmax=True,
         transform=configure_inferer_transform(args),
+        cloud_keys=DataKeys.CATEGORY,
         inverse_key=DataKeys.INVERSE,
     )
     return TTAInferer(base=chunks, num_passes=args.num_votes, aggregate="max")
