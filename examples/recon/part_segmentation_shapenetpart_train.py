@@ -172,15 +172,17 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    # The decoder (category embedding, propagation and head) trains at ten times the learning rate, with weight decay
-    # on every parameter.
+    # The category embedding and the linear layers of the propagation and the head train at ten times the learning
+    # rate, with weight decay on every parameter; the other norms keep the base rate and no decay.
     groups = generate_param_groups(
         model,
         weight_decay=args.weight_decay,
         no_decay=["token"],
         overrides=[
             dict(
-                match=lambda name, _: name.startswith(("label_conv.", "propagation_0.", "head.")),
+                match=lambda name, _: name.startswith(
+                    ("decoder.category_embed.", "decoder.propagation.mlp.lins.", "head.lins.")
+                ),
                 lr=args.lr * HEAD_LR_SCALE,
                 weight_decay=args.weight_decay,
             )
