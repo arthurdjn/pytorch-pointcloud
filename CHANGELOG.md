@@ -37,6 +37,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added LitePT (`LitePTSegmentation`) with six ScanNet, nuScenes and Structured3D checkpoints (`litept-*.prs-eth`), its ScanNet training script and its ScanNet and nuScenes benchmark scripts.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
+- Fixed Point Transformer V3 inference under `torch.autocast` failing in the sparse convolutions.
 
 ## 0.0.18 (2026-10-20)
 

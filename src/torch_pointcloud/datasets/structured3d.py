@@ -1,0 +1,30 @@
+"""Structured3D, a photo-realistic synthetic dataset of indoor scenes."""
+
+# 25-class semantic segmentation taxonomy: `STRUCTURED3D_CLASSES[i]` names label i.
+STRUCTURED3D_CLASSES = (
+    "wall",
+    "floor",
+    "cabinet",
+    "bed",
+    "chair",
+    "sofa",
+    "table",
+    "door",
+    "window",
+    "picture",
+    "desk",
+    "shelves",
+    "curtain",
+    "dresser",
+    "pillow",
+    "mirror",
+    "ceiling",
+    "refrigerator",
+    "television",
+    "nightstand",
+    "sink",
+    "lamp",
+    "otherstructure",
+    "otherfurniture",
+    "otherprop",
+)

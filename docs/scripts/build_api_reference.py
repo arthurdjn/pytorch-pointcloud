@@ -39,6 +39,7 @@ DISPLAY_TITLES = {
     "point_mamba": "Point-Mamba",
     "octformer": "OctFormer",
     "kpconv": "KPConv",
+    "litept": "LitePT",
     "randlanet": "RandLA-Net",
     "spvcnn": "SPVCNN",
     "spunet": "SpUNet",
@@ -78,6 +79,7 @@ DISPLAY_TITLES = {
     "sunrgbd": "SUN RGB-D",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
+    "structured3d": "Structured3D",
 }
 
 

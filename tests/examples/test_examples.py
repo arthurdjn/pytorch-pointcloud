@@ -132,6 +132,24 @@ BENCHMARKS = [
         id="ptv3/gridnethd",
     ),
     pytest.param(
+        "litept/segmentation_scannet_benchmark.py",
+        ("--model", "litept-small.scannet20.prs-eth", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes-simple",
+    ),
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,
@@ -511,6 +529,12 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2"),
         marks=_GPU_SPCONV,
         id="point_transformer_v3/s3dis",
+    ),
+    pytest.param(
+        "litept/segmentation_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet-train",
     ),
     pytest.param(
         "pvcnn/segmentation_s3dis_train.py",
