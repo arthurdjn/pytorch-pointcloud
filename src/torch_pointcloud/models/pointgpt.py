@@ -253,7 +253,7 @@ class PointGPTExtractor(nn.Module):
         self,
         x: Tensor,
         pos: Tensor,
-        attn_mask: OptTensor,
+        attn_mask: OptTensor = ...,
         shift: bool = ...,
         *,
         fetch_idx: Sequence[int],
@@ -264,7 +264,7 @@ class PointGPTExtractor(nn.Module):
         self,
         x: Tensor,
         pos: Tensor,
-        attn_mask: OptTensor,
+        attn_mask: OptTensor = ...,
         shift: bool = ...,
         *,
         fetch_idx: None = None,
@@ -274,11 +274,11 @@ class PointGPTExtractor(nn.Module):
         self,
         x: Tensor,
         pos: Tensor,
-        attn_mask: OptTensor,
+        attn_mask: OptTensor = None,
         shift: bool = False,
         *,
         fetch_idx: Optional[Sequence[int]] = None,
-    ) -> Any:
+    ) -> Union[Tensor, List[Tensor]]:
         batch = x.size(0)
         x = x.transpose(0, 1)
         pos = pos.transpose(0, 1)

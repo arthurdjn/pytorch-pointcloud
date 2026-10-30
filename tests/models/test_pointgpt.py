@@ -331,6 +331,7 @@ def test_pointgpt_extractor_fetch_idx_returns_hidden_states() -> None:
     features = extractor(tokens, pos, mask, fetch_idx=(1, 3))
     assert [tuple(feat.shape) for feat in features] == [(2, 6, 32), (2, 6, 32)]
     assert torch.allclose(features[-1], extractor(tokens, pos, mask))
+    assert torch.equal(extractor(tokens, pos), extractor(tokens, pos, None))
 
 
 def test_pointgpt_extractor_fetch_idx_skips_the_later_blocks() -> None:

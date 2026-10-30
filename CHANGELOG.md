@@ -39,7 +39,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added `PointGPTPartSegmentation` with the ShapeNetPart checkpoints `pointgpt-s.shapenetpart.guangyan-chen`, `pointgpt-b.shapenetpart.guangyan-chen` and `pointgpt-l.shapenetpart.guangyan-chen`, their benchmark and training scripts, and the `PartSegmentationDecoder` layer.
 - Added the PointGPT post-pre-training checkpoints `pointgpt-b.post-pretrain.guangyan-chen` and `pointgpt-l.post-pretrain.guangyan-chen`.
-- `PointGPTExtractor.forward` takes `fetch_idx` and accepts `attn_mask=None`.
+- `PointGPTExtractor.forward` takes `fetch_idx`, and its `attn_mask` defaults to `None`.
 
 ## 0.0.18 (2026-10-20)
 
