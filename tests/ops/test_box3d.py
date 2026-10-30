@@ -6,6 +6,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.ops.box3d import (
+    _overlapping_pairs,
     angle_to_class,
     box3d_overlap,
     box_corners,
@@ -433,6 +434,7 @@ def test_nms3d_matches_greedy_reference(
 
 
 @pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize("batched", [pytest.param(False, id="one-scene"), pytest.param(True, id="three-scenes")])
 @pytest.mark.parametrize(
     ("max_keep", "max_candidates"),
     [
@@ -448,16 +450,18 @@ def test_nms3d_matches_greedy_reference(
 )
 def test_nms3d_caps_match_greedy_reference(
     rotated: bool,
+    batched: bool,
     max_keep: Optional[int],
     max_candidates: Optional[int],
 ) -> None:
     boxes, scores, labels, batch = _nms3d_inputs()
+    scene_batch = batch if batched else None
     keep = nms3d(
         boxes,
         scores,
         0.3,
         labels=labels,
-        batch=batch,
+        batch=scene_batch,
         rotated=rotated,
         max_keep=max_keep,
         max_candidates=max_candidates,
@@ -467,36 +471,13 @@ def test_nms3d_caps_match_greedy_reference(
         scores,
         0.3,
         labels=labels,
-        batch=batch,
+        batch=scene_batch,
         rotated=rotated,
         max_keep=max_keep,
         max_candidates=max_candidates,
     )
     assert keep.dtype == torch.long
     assert keep.tolist() == expected
-
-
-@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
-@pytest.mark.parametrize(
-    ("chunk_pairs", "clip_pairs"),
-    [
-        pytest.param(1, 1, id="one-row"),
-        pytest.param(50, 3, id="50-pairs"),
-        pytest.param(2000, 100, id="2000-pairs"),
-    ],
-)
-def test_nms3d_chunked_masks_match_greedy_reference(
-    monkeypatch: pytest.MonkeyPatch,
-    rotated: bool,
-    chunk_pairs: int,
-    clip_pairs: int,
-) -> None:
-    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CHUNK_PAIRS", chunk_pairs)
-    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CLIP_PAIRS", clip_pairs)
-    boxes, scores, labels, batch = _nms3d_inputs()
-    assert nms3d(boxes, scores, 0.3, rotated=rotated).tolist() == _greedy_nms3d(boxes, scores, 0.3, rotated=rotated)
-    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10)
-    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10)
 
 
 @pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
@@ -529,6 +510,25 @@ def test_nms3d_tied_scores_match_greedy_reference(rotated: bool) -> None:
     assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
 
 
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize("max_keep", [pytest.param(None, id="uncapped"), pytest.param(2, id="keep-2")])
+def test_nms3d_chain_of_overlapping_boxes_matches_greedy_reference(rotated: bool, max_keep: Optional[int]) -> None:
+    # Neighbors overlap with an IoU of 1/7, below the threshold, so each decision waits on the box before it.
+    boxes = _boxes([[1.5 * k, 0, 0, 2, 2, 2, 0] for k in range(12)])
+    scores = torch.linspace(1.0, 0.1, 12)
+    keep = nms3d(boxes, scores, 0.5, rotated=rotated, max_keep=max_keep)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.5, rotated=rotated, max_keep=max_keep)
+    assert keep.tolist() == list(range(12))[:max_keep]
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_nan_boxes_match_greedy_reference(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    boxes[::7] = float("nan")
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
 def test_nms3d_non_contiguous_inputs_match_contiguous_ones() -> None:
     boxes, scores, labels, batch = _nms3d_inputs()
     strided = [torch.stack([t, t], dim=1)[:, 1] for t in (boxes, scores, labels, batch)]
@@ -550,20 +550,42 @@ def test_nms3d_without_candidates_returns_empty_long_indices() -> None:
     assert keep.dtype == torch.long and keep.numel() == 0
 
 
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_keeps_boxes_that_require_grad_out_of_the_autograd_graph(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    boxes.requires_grad_()
+    saved: List[Tensor] = []
+
+    def pack(tensor: Tensor) -> Tensor:
+        saved.append(tensor)
+        return tensor
+
+    with torch.autograd.graph.saved_tensors_hooks(pack, lambda tensor: tensor):
+        keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert saved == []
+    assert keep.tolist() == _greedy_nms3d(boxes.detach(), scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+@pytest.mark.parametrize("seed", [pytest.param(0, id="seed-0"), pytest.param(1, id="seed-1")])
+def test_overlapping_pairs_matches_brute_force(seed: int) -> None:
+    generator = torch.Generator().manual_seed(seed)
+    lo = torch.randint(0, 20, (60,), generator=generator).float() / 2
+    hi = lo + torch.randint(0, 6, (60,), generator=generator).float() / 2
+    group = torch.randint(0, 3, (60,), generator=generator).sort().values
+    first, second = _overlapping_pairs(lo, hi, group)
+    found = sorted(zip(first.tolist(), second.tolist()))
+    expected = [
+        (i, j)
+        for i in range(60)
+        for j in range(i + 1, 60)
+        if group[i] == group[j] and bool(lo[i] <= hi[j]) and bool(lo[j] <= hi[i])
+    ]
+    assert found == expected
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 @pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
-@pytest.mark.parametrize(
-    ("chunk_pairs", "clip_pairs"),
-    [pytest.param(50, 3, id="50-pairs"), pytest.param(1 << 20, 1 << 16, id="whole-groups")],
-)
-def test_nms3d_matches_greedy_reference_on_cuda(
-    monkeypatch: pytest.MonkeyPatch,
-    rotated: bool,
-    chunk_pairs: int,
-    clip_pairs: int,
-) -> None:
-    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CHUNK_PAIRS", chunk_pairs)
-    monkeypatch.setattr("torch_pointcloud.ops.box3d._NMS3D_CLIP_PAIRS", clip_pairs)
+def test_nms3d_matches_greedy_reference_on_cuda(rotated: bool) -> None:
     boxes, scores, labels, batch = _nms3d_inputs(device="cuda")
     keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10, max_candidates=30)
     expected = _greedy_nms3d(

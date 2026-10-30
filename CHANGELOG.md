@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Sped up `nms3d`: one suppression mask per step on the device instead of a host sync per kept box; added its `max_candidates` cap.
+- Sped up `nms3d` and added its `max_candidates` cap.
 - Added the Hub sync tests (`pytest tests/models/test_hub_sync.py --run-hub`, nightly in CI): the card metrics, `config.json` and pinned weights of every published repository follow the registry.
 - Added a test that `docs/data/models.csv` is what `build_model_tables.py` renders from the registry.
 - Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.

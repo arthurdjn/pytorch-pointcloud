@@ -8,9 +8,8 @@ in any right-handed frame.
 """
 
 import math
-from typing import Callable, List, Literal, Optional, Tuple
+from typing import Callable, Literal, Optional, Tuple
 
-import numpy as np
 import torch
 from torch import Tensor
 from torch_geometric.utils import scatter
@@ -642,109 +641,93 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
-# Box pairs whose suppression mask one step of `nms3d` computes, over all its groups at once.
-_NMS3D_CHUNK_PAIRS = 1 << 19
-# Overlapping box pairs whose rotated footprints `nms3d` clips at once: about 120 MiB in float32, twice in float64.
-_NMS3D_CLIP_PAIRS = 1 << 16
+def _overlapping_pairs(lo: Tensor, hi: Tensor, group: Tensor) -> Tuple[Tensor, Tensor]:
+    r"""Pairs $(i, j)$, $i < j$, of intervals $[lo, hi]$ of the same group that overlap or touch, by sort and sweep.
 
-
-def _nms3d_iou(boxes: Tensor, rotated: bool) -> Callable[[Tensor, Tensor], Tensor]:
-    r"""Suppression IoU of `nms3d` between the boxes of the index pairs `(i, j)`, $(P,), (P,) \to (P,)$."""
-    if rotated:
-        # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
-        # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
-        # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
-        footprint = boxes.clone()
-        footprint[:, 3:5] = footprint[:, 3:5].clamp_min(1e-2)
-        corners = _bev_corners(footprint)
-        half_x, half_y = _bev_half_extents(footprint)
-        area = footprint[:, 3] * footprint[:, 4]
-
-        def rotated_iou(i: Tensor, j: Tensor) -> Tensor:
-            # As in `boxes_iou_bev`, only the pairs whose rotated bounds meet are clipped.
-            meet_x = (footprint[i, 0] - footprint[j, 0]).abs() <= half_x[i] + half_x[j] + _BEV_MARGIN
-            meet_y = (footprint[i, 1] - footprint[j, 1]).abs() <= half_y[i] + half_y[j] + _BEV_MARGIN
-            inter = footprint.new_zeros(len(i))
-            for pairs in (meet_x & meet_y).nonzero().squeeze(-1).split(_NMS3D_CLIP_PAIRS):
-                a, b = i[pairs], j[pairs]
-                inter[pairs] = _quad_overlap(corners[a], corners[b], footprint[a], footprint[b])
-            return inter / (area[i] + area[j] - inter).clamp(min=1e-8)
-
-        return rotated_iou
-
-    corners = box_corners(boxes)
-    lo, hi = corners.amin(dim=1), corners.amax(dim=1)
-    # Floor degenerate (zero-extent) sides so flat boxes still produce a nonzero self-overlap and
-    # coincident duplicates suppress: 1e-2 per side keeps the floored volume (1e-6) at or above the
-    # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
-    hi = torch.maximum(hi, lo + 1e-2)
-    volume = (hi - lo).prod(dim=-1)
-
-    def axis_aligned_iou(i: Tensor, j: Tensor) -> Tensor:
-        inter = (torch.minimum(hi[i], hi[j]) - torch.maximum(lo[i], lo[j])).clamp_min(0).prod(dim=-1)
-        return inter / (volume[i] + volume[j] - inter).clamp_min(1e-6)
-
-    return axis_aligned_iou
-
-
-def _greedy_keep(
-    iou: Callable[[Tensor, Tensor], Tensor],
-    index: Tensor,
-    sizes: List[int],
-    iou_threshold: float,
-    limit: int,
-) -> np.ndarray:
-    """Positions in `index` that greedy suppression keeps, at most `limit` per group.
-
-    `index` holds groups of `sizes` boxes, each by decreasing score. A step takes the first boxes still alive in every
-    group, pairs each of them with the alive boxes of its group that follow it, computes the suppression mask of all
-    these pairs on the device in one pass and runs the greedy pass over them on the host.
+    The starts and ends of the intervals are sorted together by group then value, starts first on ties, and each
+    interval pairs with the intervals that start between its own start and end.
     """
-    bounds = np.cumsum([0, *sizes])
-    alive = [np.arange(start, end) for start, end in zip(bounds[:-1], bounds[1:])]
-    keep: List[List[int]] = [[] for _ in sizes]
+    n = len(lo)
+    values = torch.cat([lo, hi])
+    events = values.argsort(stable=True)
+    event_groups = group.repeat(2)[events]
+    events = events[event_groups.argsort(stable=True)]
+    slots = torch.empty_like(events)
+    slots[events] = torch.arange(2 * n, device=lo.device)
+    starts = (events < n).cumsum(0)
+    first, last = starts[slots[:n]], starts[slots[n:]]
+    count = (last - first).clamp_min(0)
+    total = int(count.sum())
+    # The pair lists hold box indices and pair positions: 32 bits are exact below 2**31 and halve their memory.
+    index = torch.int32 if max(n, total) < 2**31 else torch.int64
+    boxes = torch.arange(n, dtype=index, device=lo.device)
+    i = torch.repeat_interleave(boxes, count, output_size=total)
+    run_start = (count.cumsum(0) - count).to(index)
+    offset = torch.arange(total, dtype=index, device=lo.device) - run_start[i]
+    by_start = torch.empty_like(boxes)
+    by_start[first - 1] = boxes
+    j = by_start[first.to(index)[i] + offset]
+    return torch.minimum(i, j), torch.maximum(i, j)
+
+
+def _greedy_suppression(
+    first: Tensor,
+    second: Tensor,
+    group: Tensor,
+    sizes: Tensor,
+    suppresses: Optional[Callable[[Tensor, Tensor], Tensor]],
+    max_keep: Optional[int],
+) -> Tensor:
+    r"""Mask of the boxes that greedy suppression keeps, from the pairs of boxes that can suppress each other.
+
+    The boxes run group by group (`group`, `sizes` boxes each), each group by decreasing score, and box `first[k]` ranks
+    above box `second[k]` in their group. A round keeps every undecided box that no undecided box of its pairs ranks
+    above, and removes the boxes they suppress: all their pairs, or those where `suppresses(first, second)` holds. Each
+    round decides at least the first undecided box of every group. A pair is evaluated once its first box is kept, or
+    earlier when it is the last pair that can suppress its second box.
+    With `max_keep`, a group stops once `max_keep` of its boxes are kept before its first undecided box.
+    """
+    n = len(group)
+    positions = torch.arange(n, device=group.device)
+    end = sizes.cumsum(0)
+    start = end - sizes
+    undecided = torch.ones(n, dtype=torch.bool, device=group.device)
+    kept = torch.zeros(n, dtype=torch.bool, device=group.device)
     while True:
-        step: List[Tuple[int, int]] = []
-        num_pairs = 0
-        for group, positions in enumerate(alive):
-            if positions.size == 0 or len(keep[group]) >= limit:
-                continue
-            rows = min(positions.size, max(1, _NMS3D_CHUNK_PAIRS // positions.size))
-            pairs = rows * positions.size - rows * (rows + 1) // 2
-            if step and num_pairs + pairs > _NMS3D_CHUNK_PAIRS:
-                continue
-            step.append((group, rows))
-            num_pairs += pairs
-        if not step:
-            break
+        blocked = torch.zeros_like(undecided)
+        blocked[second] = True
+        new = undecided & ~blocked
+        kept |= new
+        undecided &= ~new
 
-        step_boxes = index[torch.from_numpy(np.concatenate([alive[group] for group, _ in step])).to(index.device)]
-        first: List[Tensor] = []
-        second: List[Tensor] = []
-        for (group, rows), group_boxes in zip(step, step_boxes.split([alive[group].size for group, _ in step])):
-            row, col = torch.triu_indices(rows, len(group_boxes), offset=1, device=index.device)
-            first.append(group_boxes[row])
-            second.append(group_boxes[col])
-        mask = (iou(torch.cat(first), torch.cat(second)) > iou_threshold).cpu().numpy()
+        # Besides the pairs of the kept boxes, the pair of a box that a single undecided box can still suppress is
+        # evaluated early: if it does not suppress, the box is free next round instead of waiting on that box.
+        from_kept = new[first]
+        parents = torch.zeros(n, dtype=second.dtype, device=group.device).index_add_(0, second, torch.ones_like(second))
+        evaluated = (from_kept | (parents[second] == 1)).nonzero().squeeze(-1)
+        source, target, from_kept = first[evaluated], second[evaluated], from_kept[evaluated]
+        suppressed = torch.ones_like(target, dtype=torch.bool) if suppresses is None else suppresses(source, target)
+        suppressors = torch.zeros(n, dtype=torch.long, device=group.device).index_put_(
+            (target,),
+            (suppressed & from_kept).long(),
+            accumulate=True,
+        )
+        undecided &= suppressors == 0
 
-        # Row `k` of a group holds the pairs of its box with the `size - k - 1` alive boxes after it.
-        start = 0
-        for group, rows in step:
-            positions = alive[group]
-            size = positions.size
-            removed = np.zeros(size, dtype=bool)
-            for k in range(rows):
-                if removed[k]:
-                    continue
-                keep[group].append(int(positions[k]))
-                if len(keep[group]) == limit:
-                    break
-                row_start = start + k * size - k * (k + 1) // 2
-                removed[k + 1 :] |= mask[row_start : row_start + size - k - 1]
-            start += rows * size - rows * (rows + 1) // 2
-            alive[group] = positions[rows:][~removed[rows:]]
+        if max_keep is not None:
+            first_undecided = torch.where(undecided, positions, n)
+            prefix_end = end.scatter_reduce(0, group, first_undecided, "amin")
+            kept_before = torch.cat([kept.new_zeros(1, dtype=torch.long), kept.cumsum(0)])
+            finished = kept_before[prefix_end] - kept_before[start] >= max_keep
+            undecided &= ~finished[group]
 
-    return np.asarray([position for group_keep in keep for position in group_keep], dtype=np.int64)
+        # The pairs of kept boxes are done, and so are the early pairs that do not suppress.
+        pending = undecided[first] & undecided[second]
+        pending.index_fill_(0, evaluated[from_kept | ~suppressed], False)
+        remaining = pending.nonzero().squeeze(-1)
+        first, second = first[remaining], second[remaining]
+        if first.numel() == 0:
+            return kept | undecided
 
 
 def nms3d(
@@ -768,10 +751,9 @@ def nms3d(
     scene and return a single index tensor over the concatenated input. The heading is counter-clockwise
     about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
 
-    The boxes that can suppress each other form a group (a scene, or a class of a scene with `labels`). The
-    suppression masks of all the groups are computed together on the input device, a bounded number of box pairs at
-    a time, and the greedy pass reads them on the host, so a call waits on the device a few times per step of pairs
-    rather than once per kept box.
+    Only boxes whose bounds meet can suppress each other: a sort and sweep finds these pairs for all the scenes and
+    classes at once, so memory grows with the number of overlapping boxes. A rotated IoU is computed only for a pair
+    that can still decide whether a box is kept.
 
     Args:
         boxes: Boxes $(N, 7)$ (see `box_corners`).
@@ -822,14 +804,52 @@ def nms3d(
         key = key * len(classes) + label
     _, group, sizes = torch.unique(key, return_inverse=True, return_counts=True)
     ranks = group.argsort(stable=True)
-    limit = len(order) if max_keep is None else max_keep
-    kept = _greedy_keep(_nms3d_iou(boxes, rotated), order[ranks], sizes.tolist(), iou_threshold, limit)
+    group = group[ranks]
+    # Only indices come out: detached boxes keep the IoU of every compared pair out of the autograd graph.
+    ranked = boxes.detach()[order[ranks]]
+
+    if rotated:
+        # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
+        # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
+        # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
+        ranked[:, 3:5] = ranked[:, 3:5].clamp_min(1e-2)
+        half_x, half_y = _bev_half_extents(ranked)
+        # The sweep bounds carry the margin of the meeting test on both sides, so rounding cannot drop a pair.
+        reach = half_x + _BEV_MARGIN
+        first, second = _overlapping_pairs(ranked[:, 0] - reach, ranked[:, 0] + reach, group)
+        # As in `boxes_iou_bev`, only the pairs whose rotated bounds meet can overlap.
+        meet_x = (ranked[first, 0] - ranked[second, 0]).abs() <= half_x[first] + half_x[second] + _BEV_MARGIN
+        meet_y = (ranked[first, 1] - ranked[second, 1]).abs() <= half_y[first] + half_y[second] + _BEV_MARGIN
+        candidates = meet_x & meet_y
+
+        def suppresses(source: Tensor, target: Tensor) -> Tensor:
+            return boxes_iou_bev(ranked[source], ranked[target], aligned=True) > iou_threshold
+
+        suppression: Optional[Callable[[Tensor, Tensor], Tensor]] = suppresses
+    else:
+        corners = box_corners(ranked)
+        lo, hi = corners.amin(dim=1), corners.amax(dim=1)
+        # Floor each AABB extent so zero-size boxes keep a positive volume above the union clamp below, so a
+        # coincident duplicate reaches IoU 1 instead of ~1e-12.
+        hi = torch.maximum(hi, lo + 1e-2)
+        volume = (hi - lo).prod(dim=-1)
+        first, second = _overlapping_pairs(lo[:, 0], hi[:, 0], group)
+        inter = (torch.minimum(hi[first], hi[second]) - torch.maximum(lo[first], lo[second])).clamp_min(0).prod(dim=-1)
+        iou = inter / (volume[first] + volume[second] - inter).clamp_min(1e-6)
+        # The axis-aligned IoU is cheap enough to evaluate on every overlapping pair up front.
+        candidates = iou > iou_threshold
+        suppression = None
+    candidate = candidates.nonzero().squeeze(-1)
+    kept = _greedy_suppression(first[candidate], second[candidate], group, sizes, suppression, max_keep)
 
     # A scene keeps its first `max_keep` boxes by rank: the ranks run scene by scene, by decreasing score.
-    kept_ranks = np.sort(ranks.cpu().numpy()[kept])
-    bounds = np.searchsorted(kept_ranks, np.cumsum([0, *map(len, orders)]))
-    kept_ranks = np.concatenate([kept_ranks[start:end][:max_keep] for start, end in zip(bounds[:-1], bounds[1:])])
-    return order[torch.from_numpy(kept_ranks).to(order.device)]
+    kept_ranks = ranks[kept].sort().values
+    if max_keep is not None:
+        kept_scene = scene[order[kept_ranks]]
+        scene_start = torch.searchsorted(kept_scene, kept_scene)
+        rank_in_scene = torch.arange(len(kept_ranks), device=kept_ranks.device) - scene_start
+        kept_ranks = kept_ranks[rank_in_scene < max_keep]
+    return order[kept_ranks]
 
 
 def points_in_boxes(pos: Tensor, boxes: Tensor) -> Tensor:
