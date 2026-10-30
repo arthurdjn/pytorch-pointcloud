@@ -1,4 +1,5 @@
-"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization."""
+"""Dense and sparse voxelization, FNV voxel hashing, coordinate lookup, the first point per voxel, and trilinear
+devoxelization."""
 
 import functools
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
@@ -137,6 +138,55 @@ def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, reso
     x_out = (gathered_features * weights_expanded).sum(dim=1)  # (N, C)
 
     return x_out
+
+
+def lookup_coordinates(coordinates: Tensor, query: Tensor) -> Tensor:
+    r"""Row of `coordinates` equal to each row of `query`, or $-1$ where there is none.
+
+    Rows are integer coordinates of any width, e.g. the `[batch, x, y, z]` indices of a sparse voxel tensor. Both
+    sets are ranked on one mixed-radix key, so a lookup is a sort and a binary search, without host synchronization.
+
+    Args:
+        coordinates: Integer coordinates with unique rows, $(N, D)$.
+        query: Integer coordinates to look up, $(Q, D)$.
+
+    Returns:
+        The row of `coordinates` matching each query row, $-1$ when absent, as a long tensor $(Q,)$.
+
+    Shape:
+        - coordinates: $(N, D)$
+        - query: $(Q, D)$
+        - output: $(Q,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.voxelization import lookup_coordinates
+        >>> coordinates = torch.tensor([[0, 1, 2], [0, 0, 0], [1, 1, 2]])
+        >>> lookup_coordinates(coordinates, torch.tensor([[1, 1, 2], [0, 5, 5], [0, 0, 0]]))
+        tensor([ 2, -1,  1])
+
+        ```
+    """
+    if coordinates.shape[1] != query.shape[1]:
+        raise ValueError(
+            f"query and coordinates must have the same width, got {query.shape[1]} and {coordinates.shape[1]}."
+        )
+
+    if query.shape[0] == 0 or coordinates.shape[0] == 0:
+        return torch.full((query.shape[0],), -1, dtype=torch.long, device=query.device)
+
+    query, coordinates = query.long(), coordinates.long()
+    low = torch.minimum(query.min(0).values, coordinates.min(0).values)
+    extent = torch.maximum(query.max(0).values, coordinates.max(0).values) - low + 1
+    radix = torch.cat([extent.flip(0).cumprod(0).flip(0)[1:], extent.new_ones(1)])
+    query_key = ((query - low) * radix).sum(1)
+    key = ((coordinates - low) * radix).sum(1)
+
+    sorted_key, order = key.sort()
+    position = torch.searchsorted(sorted_key, query_key).clamp(max=key.numel() - 1)
+    found = sorted_key[position] == query_key
+    return torch.where(found, order[position], torch.full_like(position, -1))
 
 
 @overload
