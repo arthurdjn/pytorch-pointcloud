@@ -99,6 +99,22 @@ def test_groupfree3d_candidates_are_the_top_scoring_seeds() -> None:
     assert torch.equal(out["query_indices"].sort(dim=1).values, expected.sort(dim=1).values)
 
 
+def test_groupfree3d_forward_head_pads_scenes_of_different_seed_counts() -> None:
+    model = _create_groupfree3d().eval()
+    torch.manual_seed(0)
+    x = torch.randn(300, model.num_features)
+    pos = torch.rand(300, 3) * 4.0
+    batch = torch.cat([torch.zeros(100, dtype=torch.long), torch.ones(200, dtype=torch.long)])
+    seed_indices = torch.arange(300)
+    with torch.no_grad():
+        both = model.forward_head(x, pos, batch, seed_indices)
+        alone = model.forward_head(x[:100], pos[:100], batch[:100], seed_indices[:100])
+    assert torch.equal(both["pos_query"], pos[both["query_indices"]])
+    assert torch.equal(batch[both["query_indices"]], torch.arange(2).unsqueeze(1).expand(-1, model.num_proposals))
+    for key in ("center", "objectness_scores", "size", "sem_cls_scores"):
+        assert torch.allclose(both[key][:, 0], alone[key][:, 0], atol=1e-5), key
+
+
 @requires_pyg_lib
 def test_groupfree3d_eval_is_deterministic() -> None:
     model = _create_groupfree3d().to(DEVICE).eval()

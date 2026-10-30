@@ -368,19 +368,15 @@ class GroupFree3DDetection(DetectionModel):
         seed_logits = self.seed_objectness(x).squeeze(-1)  # (N_s,)
         x_dense, mask = to_dense_batch(x, batch)  # (B, S, C)
         batch_size, num_seeds = mask.shape
-        pos_dense, _ = to_dense_batch(pos, batch, batch_size=batch_size, max_num_nodes=num_seeds)  # (B, S, 3)
+        counts = mask.sum(dim=1)
+        start = counts.cumsum(0) - counts
+        dense_index = torch.arange(batch.numel(), device=batch.device) - start[batch] + batch * num_seeds  # (N_s,)
+        pos_dense = _to_dense(pos, dense_index, batch_size, num_seeds)  # (B, S, 3)
         # Ranked by logit: the sigmoid saturates to exactly 1 in float32 and would leave the top seeds tied.
-        logits_dense, _ = to_dense_batch(
-            seed_logits,
-            batch,
-            fill_value=-math.inf,
-            batch_size=batch_size,
-            max_num_nodes=num_seeds,
-        )  # (B, S)
+        logits_dense = _to_dense(seed_logits, dense_index, batch_size, num_seeds, fill_value=-math.inf)  # (B, S)
 
         topk = logits_dense.topk(self.num_proposals, dim=1).indices  # (B, Q)
-        counts = mask.sum(dim=1)
-        query_indices = topk + (counts.cumsum(0) - counts).unsqueeze(1)
+        query_indices = topk + start.unsqueeze(1)
         x_query = x_dense.gather(1, topk.unsqueeze(-1).expand(-1, -1, x_dense.size(-1)))  # (B, Q, C)
         pos_query = pos_dense.gather(1, topk.unsqueeze(-1).expand(-1, -1, 3))  # (B, Q, 3)
 
@@ -392,7 +388,7 @@ class GroupFree3DDetection(DetectionModel):
         ):
             box = torch.cat([stages[-1]["center"], stages[-1]["size"]], dim=-1).detach()  # (B, Q, 6)
             query_pos = query_pos_embed(box.view(-1, 6)).view(batch_size, -1, query.size(-1)).transpose(0, 1)
-            key_pos, _ = to_dense_batch(key_pos_embed(pos), batch, batch_size=batch_size, max_num_nodes=num_seeds)
+            key_pos = _to_dense(key_pos_embed(pos), dense_index, batch_size, num_seeds)  # (B, S, C)
             query = layer(query, key, pos=key_pos.transpose(0, 1), query_pos=query_pos, memory_key_padding_mask=~mask)
             stages.append(head(query.transpose(0, 1), pos_query, self.mean_sizes))
 
@@ -468,6 +464,12 @@ class GroupFree3DDetection(DetectionModel):
             "batch": batch,
             "class_probs": class_probs.reshape(-1, class_probs.size(-1)),
         }
+
+
+def _to_dense(value: Tensor, index: Tensor, batch_size: int, num_seeds: int, fill_value: float = 0.0) -> Tensor:
+    r"""Place packed $(N_s, \ldots)$ seed values at their `index` slots of a `fill_value` $(B, S, \ldots)$ tensor."""
+    out = value.new_full((batch_size * num_seeds, *value.shape[1:]), fill_value)
+    return out.index_copy(0, index, value).view(batch_size, num_seeds, *value.shape[1:])
 
 
 def _select_stages(value: Tensor, index: Tensor) -> Tensor:
