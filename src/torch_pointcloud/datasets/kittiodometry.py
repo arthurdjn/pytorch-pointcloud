@@ -43,8 +43,8 @@ class KITTIOdometry(PointCloudDataset):
     | `pos`       | $(N, 3)$ | float32 | Source scan points                         |
     | `ref_pos`   | $(M, 3)$ | float32 | Reference scan points                      |
     | `transform` | $(4, 4)$ | float32 | Transform of the source onto the reference |
-    | `frame`     | scalar   | int64   | Source scan id                             |
-    | `ref_frame` | scalar   | int64   | Reference scan id                          |
+    | `frame`     | str      |         | Source scan id, its file stem (`000123`)   |
+    | `ref_frame` | str      |         | Reference scan id                          |
     | `sequence`  | str      |         | Sequence name                              |
 
     The scans are read as released, about 120k points each; the benchmark protocol averages them in 30 cm voxels,
@@ -222,8 +222,8 @@ class KITTIOdometry(PointCloudDataset):
             DataKeys.POS: pos,
             DataKeys.REF_POS: ref_pos,
             DataKeys.TRANSFORM: torch.tensor(pair["transform"], dtype=torch.float32),
-            DataKeys.FRAME: torch.tensor(pair["src_frame"], dtype=torch.long),
-            DataKeys.REF_FRAME: torch.tensor(pair["ref_frame"], dtype=torch.long),
+            DataKeys.FRAME: f"{pair['src_frame']:06d}",
+            DataKeys.REF_FRAME: f"{pair['ref_frame']:06d}",
             DataKeys.SEQUENCE: pair["sequence"],
         }
         if self.transform is not None:

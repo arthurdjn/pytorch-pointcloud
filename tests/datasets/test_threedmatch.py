@@ -54,8 +54,8 @@ def test_threedmatch_splits(
     assert sample[DataKeys.REF_POS].ndim == 2 and sample[DataKeys.REF_POS].shape[1] == 3
     assert sample[DataKeys.POS].dtype == torch.float32
     assert sample[DataKeys.TRANSFORM].shape == (4, 4)
-    assert (int(sample[DataKeys.FRAME]), int(sample[DataKeys.REF_FRAME])) == (
-        (1, 0) if benchmark == "3DMatch" else (2, 0)
+    assert (sample[DataKeys.FRAME], sample[DataKeys.REF_FRAME]) == (
+        ("1", "0") if benchmark == "3DMatch" else ("2", "0")
     )
     assert isinstance(sample[DataKeys.SCENE], str)
     assert (DataKeys.INFORMATION in sample) == (split == "test")
@@ -148,7 +148,8 @@ def test_threedmatch_collate(datasets_dir_factory: Callable[..., Path]) -> None:
     assert data[DataKeys.BATCH_REF_POS].tolist() == [0] * num_ref[0] + [1] * num_ref[1]
     assert data[DataKeys.TRANSFORM].shape == (2, 4, 4)
     assert data[DataKeys.INFORMATION].shape == (2, 6, 6)
-    assert data[DataKeys.FRAME].shape == (2,) and data[DataKeys.REF_FRAME].shape == (2,)
+    assert data[DataKeys.FRAME] == [dataset[i][DataKeys.FRAME] for i in range(2)]
+    assert data[DataKeys.REF_FRAME] == [dataset[i][DataKeys.REF_FRAME] for i in range(2)]
     assert len(data[DataKeys.SCENE]) == 2
 
 

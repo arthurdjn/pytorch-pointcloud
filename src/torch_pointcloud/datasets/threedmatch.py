@@ -92,8 +92,8 @@ class ThreeDMatch(PointCloudDataset):
     | `transform`   | $(4, 4)$   | float32 | Transform of the source onto the reference                            |
     | `overlap`     | scalar     | float32 | Overlap ratio of the pair                                             |
     | `information` | $(6, 6)$   | float32 | Information matrix of the ground truth, test split only               |
-    | `frame`       | scalar     | int64   | Source fragment id                                                    |
-    | `ref_frame`   | scalar     | int64   | Reference fragment id                                                 |
+    | `frame`       | str        |         | Source fragment id, the index of its `cloud_bin_<id>` file            |
+    | `ref_frame`   | str        |         | Reference fragment id                                                 |
     | `scene`       | str        |         | Scene name                                                            |
 
     The fragments are downloaded from the PREDATOR release and the pair lists from the GeoTransformer repository;
@@ -315,8 +315,8 @@ class ThreeDMatch(PointCloudDataset):
             DataKeys.REF_POS: torch.from_numpy(np.load(self.fragment_path(pair["scene"], pair["ref_frame"]))),
             DataKeys.TRANSFORM: torch.tensor(pair["transform"], dtype=torch.float32),
             DataKeys.OVERLAP: torch.tensor(pair["overlap"], dtype=torch.float32),
-            DataKeys.FRAME: torch.tensor(pair["src_frame"], dtype=torch.long),
-            DataKeys.REF_FRAME: torch.tensor(pair["ref_frame"], dtype=torch.long),
+            DataKeys.FRAME: str(pair["src_frame"]),
+            DataKeys.REF_FRAME: str(pair["ref_frame"]),
             DataKeys.SCENE: pair["scene"],
         }
         if "information" in pair:
