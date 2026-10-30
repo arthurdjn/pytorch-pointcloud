@@ -338,6 +338,10 @@ class FCAF3DDetection(DetectionModel):
     predictions. Every voxel regresses the distances to the faces of its box, and for oriented boxes a heading code
     of its aspect ratio that a quarter turn leaves invariant.
 
+    !!! note
+        Run the model in float32, or in float16 after `model.half()` with float16 features `x`. Under
+        `torch.autocast`, the sparse convolutions of the encoder fail in spconv's kernel tuner.
+
     Args:
         in_channels: Number of point feature channels (e.g. $3$ for RGB).
         num_classes: Number of object classes.

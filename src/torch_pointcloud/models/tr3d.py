@@ -149,6 +149,10 @@ class TR3DDetection(DetectionModel):
     strides $16$ and $32$, where every voxel predicts class logits, the offset to its box center and the box size,
     and for oriented boxes a heading code of its aspect ratio that a quarter turn leaves invariant.
 
+    !!! note
+        Run the model in float32, or in float16 after `model.half()` with float16 features `x`. Under
+        `torch.autocast`, the sparse convolutions of the encoder fail in spconv's kernel tuner.
+
     Args:
         in_channels: Number of point feature channels (e.g. $3$ for RGB).
         num_classes: Number of object classes.
