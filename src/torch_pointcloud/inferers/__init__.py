@@ -1,6 +1,7 @@
 """Inference strategies for scenes larger than one forward pass: tiling, windows, and refinement."""
 
-from .inferer import Inferer
+from .cylinder import CylinderInstanceSegmentationInferer, cylinder_centers
+from .inferer import DetectionInferer, Inferer, SegmentationInferer
 from .knn_window import KNNWindowInferer, knn_window_inference
 from .part_refinement import PartRefinementInferer, part_refinement_inference
 from .potential_sphere import PotentialSphereInferer, potential_sphere_inference
@@ -10,6 +11,9 @@ from .tta import TTAInferer, simple_tta_transforms
 from .voxel_partition import VoxelPartitionInferer
 
 __all__ = [
+    "CylinderInstanceSegmentationInferer",
+    "cylinder_centers",
+    "DetectionInferer",
     "Inferer",
     "KNNWindowInferer",
     "knn_window_inference",
@@ -17,6 +21,7 @@ __all__ = [
     "part_refinement_inference",
     "PotentialSphereInferer",
     "potential_sphere_inference",
+    "SegmentationInferer",
     "SimpleInferer",
     "SlidingWindowInferer",
     "sliding_window_inference",
