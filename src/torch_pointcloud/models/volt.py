@@ -537,7 +537,7 @@ def volt_s_scannet20(**hparams: Any) -> VoltSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/volt-s.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet200",
-        metrics={"simple/mIoU": 35.36, "simple/OA": 83.32},
+        metrics={"mIoU": 36.14, "OA": 83.85, "simple/mIoU": 35.36, "simple/OA": 83.32},
         classes=SCANNET200_CLASSES,
         author="kadir-yilmaz",
         license="MIT",
@@ -707,7 +707,7 @@ def volt_s_joint_scannet200(**hparams: Any) -> VoltSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/volt-b-joint.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet20",
-        metrics={"simple/mIoU": 79.69, "simple/OA": 92.78},
+        metrics={"mIoU": 80.45, "OA": 93.13, "simple/mIoU": 79.69, "simple/OA": 92.78},
         classes=SCANNET20_CLASSES,
         author="kadir-yilmaz",
         license="MIT",
@@ -741,7 +741,7 @@ def volt_b_joint_scannet20(**hparams: Any) -> VoltSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/volt-b-joint.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet200",
-        metrics={"simple/mIoU": 39.47, "simple/OA": 85.01},
+        metrics={"mIoU": 40.06, "OA": 85.29, "simple/mIoU": 39.47, "simple/OA": 85.01},
         classes=SCANNET200_CLASSES,
         author="kadir-yilmaz",
         license="MIT",

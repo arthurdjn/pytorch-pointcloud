@@ -148,13 +148,13 @@ spvcnn-119gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantick
 spvcnn-30gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,5.45,mIoU,60.7,60.70,mIoU 60.70 · OA 91.94
 spvcnn-47gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,8.79,mIoU,61.4,61.59,mIoU 61.59 · OA 92.22
 utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,137.28,mIoU,77.7,77.70,mIoU 77.70 · OA 91.88
-volt-b-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,94.03,mIoU,80.45,,simple/mIoU 79.69 · simple/OA 92.78
-volt-b-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,94.08,mIoU,40.08,,simple/mIoU 39.47 · simple/OA 85.01
+volt-b-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,94.03,mIoU,80.45,80.45,mIoU 80.45 · OA 93.13 · simple/mIoU 79.69 · simple/OA 92.78
+volt-b-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,94.08,mIoU,40.08,40.06,mIoU 40.06 · OA 85.29 · simple/mIoU 39.47 · simple/OA 85.01
 volt-s-joint.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,80.18,80.18,mIoU 80.18 · OA 92.81 · simple/mIoU 79.50 · simple/OA 92.45
 volt-s-joint.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,38.54,38.53,mIoU 38.53 · OA 84.79 · simple/mIoU 37.91 · simple/OA 84.27
 volt-s.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,23.59,mIoU,81.11,,simple/mIoU 80.57 · simple/OA 94.54
 volt-s.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,77.28,77.27,mIoU 77.27 · OA 91.77 · simple/mIoU 76.38 · simple/OA 91.36
-volt-s.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,36.15,,simple/mIoU 35.36 · simple/OA 83.32
+volt-s.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,36.15,36.14,mIoU 36.14 · OA 83.85 · simple/mIoU 35.36 · simple/OA 83.32
 volt-s.semantickitti.kadir-yilmaz,volt,semantic-segmentation,semantickitti,true,MIT,23.59,mIoU,70.30,,simple/mIoU 69.42 · simple/OA 92.64
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
