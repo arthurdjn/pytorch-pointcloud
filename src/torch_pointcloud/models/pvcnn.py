@@ -840,7 +840,7 @@ _PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn.shapenetpart.mit-han-lab/resolve/38616ac13c591763f0f2e1cc44995f2c68115908/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.88, "cls_mIoU": 84.14},
         author="mit-han-lab",
@@ -874,7 +874,7 @@ def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn-c0p5.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn-c0p5.shapenetpart.mit-han-lab/resolve/da761507636bbb47be6918bb06221307167b8a29/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.46, "cls_mIoU": 83.37},
         author="mit-han-lab",
@@ -908,7 +908,7 @@ def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn-c0p25.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn-c0p25.shapenetpart.mit-han-lab/resolve/3d5245c85856ffe723c28624bfbba47ffbd39424/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 84.85, "cls_mIoU": 81.65},
         author="mit-han-lab",
@@ -942,7 +942,7 @@ def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentatio
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn-dml.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn-dml.shapenetpart.mit-han-lab/resolve/62fe31e5ed77bb76ca97f6e060a56abce72b3708/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.01, "cls_mIoU": 84.44},
         author="mit-han-lab",
@@ -976,7 +976,7 @@ def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn-c0p25-dml.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn-c0p25-dml.shapenetpart.mit-han-lab/resolve/dec6e4a3df4d2f44dd6232ad9705df72ed373933/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.10, "cls_mIoU": 82.12},
         author="mit-han-lab",

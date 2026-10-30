@@ -1410,7 +1410,7 @@ _MIT_HAN_LAB_SHAPENETPART_TRANSFORM = T.Compose(
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2-ssg.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2-ssg.shapenetpart.mit-han-lab/resolve/56289f82c4606f83ee72f60cb2e7579e37328040/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.04, "cls_mIoU": 82.64},
         author="mit-han-lab",
@@ -1446,7 +1446,7 @@ def pointnet2_ssg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegme
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet2-msg.shapenetpart.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointnet2-msg.shapenetpart.mit-han-lab/resolve/617b17ec15afc92481bcd3d24fad3104ac489d0f/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.24, "cls_mIoU": 82.84},
         author="mit-han-lab",
