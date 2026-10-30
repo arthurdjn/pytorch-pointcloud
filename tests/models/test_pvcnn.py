@@ -8,7 +8,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear as PyGLinear
 
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
-from torch_pointcloud.models import create_model
+from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNPartSegmentation, PVCNNSegmentation
 
 
@@ -154,26 +154,55 @@ def test_pvconv_voxel_branch_uses_generic_act_and_norm() -> None:
     assert isinstance(first.act, nn.ReLU)
 
 
-def test_pvcnn_mit_han_lab_factory_patches_voxel_branch_to_paper_recipe() -> None:
-    """The registered S3DIS Area-5 factory should patch every PVConv voxel branch
-    to upstream's LeakyReLU(0.1) + BN3d(eps=1e-4) recipe after construction,
-    while keeping the point branch on ReLU."""
+def test_pvconv_voxel_kwargs_set_the_voxel_branch_apart() -> None:
+    """`voxel_act`, `voxel_act_kwargs` and `voxel_norm_kwargs` reach the voxel convolutions only: the point MLP and
+    the squeeze-and-excitation gate keep `act` / `norm_kwargs`."""
     from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
-    from torch_pointcloud.models._registry import create_model
 
-    model = create_model("pvcnn.s3dis-area5.mit-han-lab", task="semantic-segmentation", pretrained=False)
-    pvconvs = [m for m in model.modules() if isinstance(m, PVConv)]
-    assert pvconvs, "Expected at least one PVConv in the factory-built model."
-    for pv in pvconvs:
-        for block in pv.voxel_layers:
-            if not isinstance(block, Conv3dBlock):
-                continue
+    pv = PVConv(
+        in_channels=4,
+        out_channels=8,
+        kernel_size=3,
+        resolution=4,
+        use_se=True,
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    )
+    blocks = [block for block in pv.voxel_layers if isinstance(block, Conv3dBlock)]
+    assert len(blocks) == 2
+    for block in blocks:
+        assert isinstance(block.act, nn.LeakyReLU)
+        assert block.act.negative_slope == 0.1
+        assert isinstance(block.norm, nn.BatchNorm3d)
+        assert block.norm.eps == 1e-4
+    assert isinstance(pv.voxel_layers[-1].act, nn.ReLU)
+    assert isinstance(pv.mlp.act, nn.ReLU)
+    assert pv.mlp.norms[0].module.eps == 1e-5
 
-            assert isinstance(block.norm, nn.BatchNorm3d)
-            assert block.norm.eps == 1e-4
-            assert isinstance(block.act, nn.LeakyReLU)
-            assert block.act.negative_slope == 0.1
-        assert pv.mlp.act.__class__.__name__ == "ReLU"
+
+@pytest.mark.parametrize(
+    "name, model_cls",
+    [
+        pytest.param("pvcnn.s3dis-area5.mit-han-lab", PVCNNSegmentation, id="s3dis"),
+        pytest.param("pvcnn-c0p25.shapenetpart.mit-han-lab", PVCNNPartSegmentation, id="shapenetpart"),
+    ],
+)
+def test_pvcnn_mit_han_lab_hparams_rebuild_the_registered_model(name: str, model_cls: type) -> None:
+    """The registered hparams alone build upstream's voxel branch (`LeakyReLU(0.1)`, `BatchNorm3d` with eps
+    1e-4), so the class called on them is the registered model."""
+    from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
+
+    model = create_model(name)
+    rebuilt = model_cls(**model_info(name)["hparams"])
+    assert repr(rebuilt) == repr(model)
+    blocks = [block for block in rebuilt.modules() if isinstance(block, Conv3dBlock)]
+    assert blocks
+    for block in blocks:
+        assert isinstance(block.act, nn.LeakyReLU)
+        assert isinstance(block.norm, nn.BatchNorm3d)
+        assert block.norm.eps == 1e-4
 
 
 def test_pvcnn_segmentation_with_head_channels_creates_mlp_head() -> None:

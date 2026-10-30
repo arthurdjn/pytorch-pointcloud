@@ -14,7 +14,6 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
-from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
@@ -27,7 +26,8 @@ from ._registry import WeightsDict, register_model
 class PVConvBlock(nn.Module):
     """Stack of `depth` point-voxel convolutions, all at the same voxel resolution.
 
-    A `resolution` of $0$ or `None` disables voxelization and falls back to per-point MLP layers.
+    A `resolution` of $0$ or `None` disables voxelization and falls back to per-point MLP layers. `voxel_act`,
+    `voxel_act_kwargs` and `voxel_norm_kwargs` set the voxel convolutions of `PVConv` apart from its point MLP.
     """
 
     def __init__(
@@ -44,6 +44,9 @@ class PVConvBlock(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -69,6 +72,9 @@ class PVConvBlock(nn.Module):
                     resolution=resolution,
                     use_se=use_se,
                     normalize=normalize,
+                    voxel_act=voxel_act,
+                    voxel_act_kwargs=voxel_act_kwargs,
+                    voxel_norm_kwargs=voxel_norm_kwargs,
                     **kwargs,  # type: ignore[arg-type]
                 )
 
@@ -130,6 +136,10 @@ class PVCNNClassification(ClassificationModel):
         act_first: Apply the activation before the normalization.
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Keyword arguments for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Keyword arguments for the normalization of the voxel convolutions. `None` uses
+            `norm_kwargs`.
     """
 
     def __init__(
@@ -151,6 +161,9 @@ class PVCNNClassification(ClassificationModel):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 
@@ -167,6 +180,9 @@ class PVCNNClassification(ClassificationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.voxel_act = voxel_act
+        self.voxel_act_kwargs = voxel_act_kwargs
+        self.voxel_norm_kwargs = voxel_norm_kwargs
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -192,6 +208,9 @@ class PVCNNClassification(ClassificationModel):
                 act_first=self.act_first,
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
+                voxel_act=self.voxel_act,
+                voxel_act_kwargs=self.voxel_act_kwargs,
+                voxel_norm_kwargs=self.voxel_norm_kwargs,
             )
             blocks.append(block)
         return blocks
@@ -296,6 +315,10 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         act_first: Apply the activation before the normalization.
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Keyword arguments for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Keyword arguments for the normalization of the voxel convolutions. `None` uses
+            `norm_kwargs`.
         head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
         head_dropout: Dropout after each hidden head layer: one value for all of them, or one per `head_channels` entry.
     """
@@ -320,6 +343,9 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
         head_channels: Optional[Sequence[int]] = None,
         head_dropout: Union[float, Sequence[float]] = 0.0,
     ):
@@ -338,6 +364,9 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.voxel_act = voxel_act
+        self.voxel_act_kwargs = voxel_act_kwargs
+        self.voxel_norm_kwargs = voxel_norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
         self.head_dropout = ensure_tuple_size(head_dropout, size=len(self.head_channels))
 
@@ -365,6 +394,9 @@ class PVCNNSegmentation(SemanticSegmentationModel):
                 act_first=self.act_first,
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
+                voxel_act=self.voxel_act,
+                voxel_act_kwargs=self.voxel_act_kwargs,
+                voxel_norm_kwargs=self.voxel_norm_kwargs,
             )
             blocks.append(block)
         return blocks
@@ -493,6 +525,10 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         act_first: Apply the activation before the normalization.
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Keyword arguments for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Keyword arguments for the normalization of the voxel convolutions. `None` uses
+            `norm_kwargs`.
         head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
         head_dropout: Dropout after each hidden head layer: one value for all of them, or one per `head_channels` entry.
     """
@@ -518,6 +554,9 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
         head_channels: Optional[Sequence[int]] = None,
         head_dropout: Union[float, Sequence[float]] = 0.0,
     ):
@@ -540,6 +579,9 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.voxel_act = voxel_act
+        self.voxel_act_kwargs = voxel_act_kwargs
+        self.voxel_norm_kwargs = voxel_norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
         self.head_dropout = ensure_tuple_size(head_dropout, size=len(self.head_channels))
 
@@ -567,6 +609,9 @@ class PVCNNPartSegmentation(PartSegmentationModel):
                 act_first=self.act_first,
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
+                voxel_act=self.voxel_act,
+                voxel_act_kwargs=self.voxel_act_kwargs,
+                voxel_norm_kwargs=self.voxel_norm_kwargs,
             )
             blocks.append(block)
         return blocks
@@ -695,21 +740,10 @@ def _pvcnn_s3dis_hparams(
         head_channels=head_channels,
         head_dropout=0.3,
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     )
-
-
-def _patch_pvcnn_mit_han_lab(model: nn.Module) -> None:
-    """Give the voxel branch upstream's `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\\epsilon=10^{-4}$."""
-    for pv in model.modules():
-        if not isinstance(pv, PVConv):
-            continue
-
-        for block in pv.voxel_layers:
-            if isinstance(block, Conv3dBlock):
-                if isinstance(block.norm, nn.BatchNorm3d):
-                    block.norm.eps = 1e-4
-                if isinstance(block.act, nn.ReLU):
-                    block.act = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
 
 @register_model(
@@ -731,9 +765,7 @@ def _patch_pvcnn_mit_han_lab(model: nn.Module) -> None:
     transform=_PVCNN_S3DIS_TRANSFORMS,
 )
 def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    model = PVCNNSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNSegmentation(**hparams)
 
 
 @register_model(
@@ -755,9 +787,7 @@ def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     transform=_PVCNN_S3DIS_TRANSFORMS,
 )
 def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    model = PVCNNSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNSegmentation(**hparams)
 
 
 @register_model(
@@ -779,9 +809,7 @@ def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     transform=_PVCNN_S3DIS_TRANSFORMS,
 )
 def pvcnn_c0p125_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    model = PVCNNSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNSegmentation(**hparams)
 
 
 _PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
@@ -817,13 +845,14 @@ _PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
         head_channels=[256, 256, 128],
         head_dropout=[0.2, 0.2, 0.0],
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
-    model = PVCNNPartSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNPartSegmentation(**hparams)
 
 
 @register_model(
@@ -850,13 +879,14 @@ def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
         head_channels=[128, 128, 64],
         head_dropout=[0.2, 0.2, 0.0],
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
-    model = PVCNNPartSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNPartSegmentation(**hparams)
 
 
 @register_model(
@@ -883,13 +913,14 @@ def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation
         head_channels=[64, 64, 32],
         head_dropout=[0.2, 0.2, 0.0],
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
-    model = PVCNNPartSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNPartSegmentation(**hparams)
 
 
 @register_model(
@@ -916,13 +947,14 @@ def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentatio
         head_channels=[256, 256, 128],
         head_dropout=[0.2, 0.2, 0.0],
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
-    model = PVCNNPartSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNPartSegmentation(**hparams)
 
 
 @register_model(
@@ -949,10 +981,11 @@ def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
         head_channels=[64, 64, 32],
         head_dropout=[0.2, 0.2, 0.0],
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     ),
     transform=_PVCNN_SHAPENETPART_TRANSFORMS,
 )
 def pvcnn_c0p25_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
-    model = PVCNNPartSegmentation(**hparams)
-    _patch_pvcnn_mit_han_lab(model)
-    return model
+    return PVCNNPartSegmentation(**hparams)
