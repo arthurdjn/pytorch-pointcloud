@@ -401,14 +401,17 @@ class SECONDIoUHead(nn.Module):
             dim=1,
         ).view(-1, 2, 3)
 
-        out = features.new_zeros(rois.shape[0], features.shape[1], self.grid_size, self.grid_size)
-        for scene in roi_batch.unique().tolist():
+        channels = features.shape[1]
+        grid = F.affine_grid(theta, [rois.shape[0], channels, self.grid_size, self.grid_size], align_corners=True)
+        out = features.new_zeros(rois.shape[0], channels, self.grid_size, self.grid_size)
+        for scene in range(features.shape[0]):
             index = (roi_batch == scene).nonzero(as_tuple=False).squeeze(-1)
-            size = (index.numel(), features.shape[1], self.grid_size, self.grid_size)
-            grid = F.affine_grid(theta[index], list(size), align_corners=True)
-            # The map is broadcast to every RoI of the scene, a stride-0 view rather than a copy.
-            scene_features = features[scene].unsqueeze(0).expand(index.numel(), -1, -1, -1)
-            out[index] = F.grid_sample(scene_features, grid, align_corners=True)
+            if index.numel() == 0:
+                continue
+            # One sampling grid stacks the RoIs of the scene, so the map is read once instead of once per RoI.
+            scene_grid = grid[index].view(1, -1, self.grid_size, 2)  # (1, R_s * G, G, 2)
+            sampled = F.grid_sample(features[scene : scene + 1], scene_grid, align_corners=True)
+            out[index] = sampled.view(channels, -1, self.grid_size, self.grid_size).transpose(0, 1)
         return out
 
     def forward(self, rois: Tensor, roi_batch: Tensor, features: Tensor) -> Tensor:

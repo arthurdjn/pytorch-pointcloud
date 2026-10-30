@@ -181,6 +181,27 @@ def test_second_iou_head_pool_is_zero_outside_the_map() -> None:
     assert out.abs().max() == 0.0
 
 
+def test_second_iou_head_pool_skips_a_map_without_rois() -> None:
+    features = torch.stack([torch.zeros(2, 4, 4), torch.ones(2, 4, 4), 2 * torch.ones(2, 4, 4)])
+    rois = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]]).repeat(2, 1)
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.tensor([2, 0]), features)
+    assert out[:, 0].mean(dim=(1, 2)).tolist() == [2.0, 0.0]
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
+def test_second_iou_head_pool_reads_the_map_once_per_scene() -> None:
+    # cuDNN's grid sampler makes its input contiguous, so a map broadcast to every RoI is copied once per RoI.
+    features = torch.randn(1, 64, 200, 176, device="cuda")
+    rois = torch.tensor([[30.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.3]], device="cuda").repeat(40, 1)
+    head = SECONDIoUHead(64, 7, (0.0, -40.0), (0.4, 0.4), shared_channels=[16], cls_channels=[16]).cuda()
+    torch.cuda.synchronize()
+    torch.cuda.reset_peak_memory_stats()
+    start = torch.cuda.memory_allocated()
+    head.pool(rois, torch.zeros(40, dtype=torch.long, device="cuda"), features)
+    torch.cuda.synchronize()
+    assert torch.cuda.max_memory_allocated() - start < 2 * features.numel() * features.element_size()
+
+
 @SPCONV
 def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
     torch.manual_seed(0)
