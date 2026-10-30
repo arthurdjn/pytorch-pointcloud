@@ -162,10 +162,10 @@ class CurveNetDecoder(nn.Module):
     ) -> None:
         super().__init__()
         self.channels = ensure_list(channels)
-        self.fps = nn.ModuleList()
+        self.fp_blocks = nn.ModuleList()
         self.blocks = nn.ModuleList()
         for i, out_channels in enumerate(self.channels):
-            fp = CurveNetFeaturePropagation(
+            fp_block = CurveNetFeaturePropagation(
                 in_channels=in_channels,
                 skip_channels=skip_channels[i],
                 channels=[out_channels, out_channels],
@@ -175,7 +175,7 @@ class CurveNetDecoder(nn.Module):
                 norm=norm,
                 norm_kwargs=norm_kwargs,
             )
-            self.fps.append(fp)
+            self.fp_blocks.append(fp_block)
             if i < len(self.channels) - 1:
                 block = CurveInterventionConv(
                     in_channels=out_channels,
@@ -199,9 +199,9 @@ class CurveNetDecoder(nn.Module):
         batch: Tensor,
         intermediates: List[FeaturesDict],
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        for i, fp in enumerate(self.fps):
+        for i, fp_block in enumerate(self.fp_blocks):
             skip = intermediates[-1 - i]
-            x, pos, batch = fp(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
+            x, pos, batch = fp_block(x, pos, batch, skip["x"], skip["pos"], skip["batch"])
             if i < len(self.blocks):
                 x, pos, batch = self.blocks[i](x, pos, batch)
         return x, pos, batch

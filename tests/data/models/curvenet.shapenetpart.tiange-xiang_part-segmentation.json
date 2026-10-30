@@ -1371,406 +1371,406 @@
       1024
     ],
     "encoder.stages.4.2.conv2.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.0.gate.gate.lins.0.weight": [
+    "decoder.fp_blocks.0.gate.gate.lins.0.weight": [
       256,
       1024
     ],
-    "decoder.fps.0.gate.gate.lins.0.bias": [
+    "decoder.fp_blocks.0.gate.gate.lins.0.bias": [
       256
     ],
-    "decoder.fps.0.gate.gate.norms.0.module.weight": [
+    "decoder.fp_blocks.0.gate.gate.norms.0.module.weight": [
       256
     ],
-    "decoder.fps.0.gate.gate.norms.0.module.bias": [
+    "decoder.fp_blocks.0.gate.gate.norms.0.module.bias": [
       256
     ],
-    "decoder.fps.0.gate.gate.norms.0.module.running_mean": [
+    "decoder.fp_blocks.0.gate.gate.norms.0.module.running_mean": [
       256
     ],
-    "decoder.fps.0.gate.gate.norms.0.module.running_var": [
+    "decoder.fp_blocks.0.gate.gate.norms.0.module.running_var": [
       256
     ],
-    "decoder.fps.0.gate.gate.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.0.gate.skip.lins.0.weight": [
+    "decoder.fp_blocks.0.gate.gate.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.0.gate.skip.lins.0.weight": [
       256,
       512
     ],
-    "decoder.fps.0.gate.skip.lins.0.bias": [
+    "decoder.fp_blocks.0.gate.skip.lins.0.bias": [
       256
     ],
-    "decoder.fps.0.gate.skip.norms.0.module.weight": [
+    "decoder.fp_blocks.0.gate.skip.norms.0.module.weight": [
       256
     ],
-    "decoder.fps.0.gate.skip.norms.0.module.bias": [
+    "decoder.fp_blocks.0.gate.skip.norms.0.module.bias": [
       256
     ],
-    "decoder.fps.0.gate.skip.norms.0.module.running_mean": [
+    "decoder.fp_blocks.0.gate.skip.norms.0.module.running_mean": [
       256
     ],
-    "decoder.fps.0.gate.skip.norms.0.module.running_var": [
+    "decoder.fp_blocks.0.gate.skip.norms.0.module.running_var": [
       256
     ],
-    "decoder.fps.0.gate.skip.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.0.gate.psi.lins.0.weight": [
+    "decoder.fp_blocks.0.gate.skip.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.0.gate.psi.lins.0.weight": [
       1,
       256
     ],
-    "decoder.fps.0.gate.psi.lins.0.bias": [
+    "decoder.fp_blocks.0.gate.psi.lins.0.bias": [
       1
     ],
-    "decoder.fps.0.gate.psi.norms.0.module.weight": [
+    "decoder.fp_blocks.0.gate.psi.norms.0.module.weight": [
       1
     ],
-    "decoder.fps.0.gate.psi.norms.0.module.bias": [
+    "decoder.fp_blocks.0.gate.psi.norms.0.module.bias": [
       1
     ],
-    "decoder.fps.0.gate.psi.norms.0.module.running_mean": [
+    "decoder.fp_blocks.0.gate.psi.norms.0.module.running_mean": [
       1
     ],
-    "decoder.fps.0.gate.psi.norms.0.module.running_var": [
+    "decoder.fp_blocks.0.gate.psi.norms.0.module.running_var": [
       1
     ],
-    "decoder.fps.0.gate.psi.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.0.mlp.lins.0.weight": [
+    "decoder.fp_blocks.0.gate.psi.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.0.mlp.lins.0.weight": [
       512,
       1536
     ],
-    "decoder.fps.0.mlp.lins.0.bias": [
+    "decoder.fp_blocks.0.mlp.lins.0.bias": [
       512
     ],
-    "decoder.fps.0.mlp.lins.1.weight": [
+    "decoder.fp_blocks.0.mlp.lins.1.weight": [
       512,
       512
     ],
-    "decoder.fps.0.mlp.lins.1.bias": [
+    "decoder.fp_blocks.0.mlp.lins.1.bias": [
       512
     ],
-    "decoder.fps.0.mlp.norms.0.module.weight": [
+    "decoder.fp_blocks.0.mlp.norms.0.module.weight": [
       512
     ],
-    "decoder.fps.0.mlp.norms.0.module.bias": [
+    "decoder.fp_blocks.0.mlp.norms.0.module.bias": [
       512
     ],
-    "decoder.fps.0.mlp.norms.0.module.running_mean": [
+    "decoder.fp_blocks.0.mlp.norms.0.module.running_mean": [
       512
     ],
-    "decoder.fps.0.mlp.norms.0.module.running_var": [
+    "decoder.fp_blocks.0.mlp.norms.0.module.running_var": [
       512
     ],
-    "decoder.fps.0.mlp.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.0.mlp.norms.1.module.weight": [
+    "decoder.fp_blocks.0.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.0.mlp.norms.1.module.weight": [
       512
     ],
-    "decoder.fps.0.mlp.norms.1.module.bias": [
+    "decoder.fp_blocks.0.mlp.norms.1.module.bias": [
       512
     ],
-    "decoder.fps.0.mlp.norms.1.module.running_mean": [
+    "decoder.fp_blocks.0.mlp.norms.1.module.running_mean": [
       512
     ],
-    "decoder.fps.0.mlp.norms.1.module.running_var": [
+    "decoder.fp_blocks.0.mlp.norms.1.module.running_var": [
       512
     ],
-    "decoder.fps.0.mlp.norms.1.module.num_batches_tracked": [],
-    "decoder.fps.1.gate.gate.lins.0.weight": [
+    "decoder.fp_blocks.0.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.fp_blocks.1.gate.gate.lins.0.weight": [
       128,
       512
     ],
-    "decoder.fps.1.gate.gate.lins.0.bias": [
+    "decoder.fp_blocks.1.gate.gate.lins.0.bias": [
       128
     ],
-    "decoder.fps.1.gate.gate.norms.0.module.weight": [
+    "decoder.fp_blocks.1.gate.gate.norms.0.module.weight": [
       128
     ],
-    "decoder.fps.1.gate.gate.norms.0.module.bias": [
+    "decoder.fp_blocks.1.gate.gate.norms.0.module.bias": [
       128
     ],
-    "decoder.fps.1.gate.gate.norms.0.module.running_mean": [
+    "decoder.fp_blocks.1.gate.gate.norms.0.module.running_mean": [
       128
     ],
-    "decoder.fps.1.gate.gate.norms.0.module.running_var": [
+    "decoder.fp_blocks.1.gate.gate.norms.0.module.running_var": [
       128
     ],
-    "decoder.fps.1.gate.gate.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.1.gate.skip.lins.0.weight": [
+    "decoder.fp_blocks.1.gate.gate.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.1.gate.skip.lins.0.weight": [
       128,
       256
     ],
-    "decoder.fps.1.gate.skip.lins.0.bias": [
+    "decoder.fp_blocks.1.gate.skip.lins.0.bias": [
       128
     ],
-    "decoder.fps.1.gate.skip.norms.0.module.weight": [
+    "decoder.fp_blocks.1.gate.skip.norms.0.module.weight": [
       128
     ],
-    "decoder.fps.1.gate.skip.norms.0.module.bias": [
+    "decoder.fp_blocks.1.gate.skip.norms.0.module.bias": [
       128
     ],
-    "decoder.fps.1.gate.skip.norms.0.module.running_mean": [
+    "decoder.fp_blocks.1.gate.skip.norms.0.module.running_mean": [
       128
     ],
-    "decoder.fps.1.gate.skip.norms.0.module.running_var": [
+    "decoder.fp_blocks.1.gate.skip.norms.0.module.running_var": [
       128
     ],
-    "decoder.fps.1.gate.skip.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.1.gate.psi.lins.0.weight": [
+    "decoder.fp_blocks.1.gate.skip.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.1.gate.psi.lins.0.weight": [
       1,
       128
     ],
-    "decoder.fps.1.gate.psi.lins.0.bias": [
+    "decoder.fp_blocks.1.gate.psi.lins.0.bias": [
       1
     ],
-    "decoder.fps.1.gate.psi.norms.0.module.weight": [
+    "decoder.fp_blocks.1.gate.psi.norms.0.module.weight": [
       1
     ],
-    "decoder.fps.1.gate.psi.norms.0.module.bias": [
+    "decoder.fp_blocks.1.gate.psi.norms.0.module.bias": [
       1
     ],
-    "decoder.fps.1.gate.psi.norms.0.module.running_mean": [
+    "decoder.fp_blocks.1.gate.psi.norms.0.module.running_mean": [
       1
     ],
-    "decoder.fps.1.gate.psi.norms.0.module.running_var": [
+    "decoder.fp_blocks.1.gate.psi.norms.0.module.running_var": [
       1
     ],
-    "decoder.fps.1.gate.psi.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.1.mlp.lins.0.weight": [
+    "decoder.fp_blocks.1.gate.psi.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.1.mlp.lins.0.weight": [
       256,
       768
     ],
-    "decoder.fps.1.mlp.lins.0.bias": [
+    "decoder.fp_blocks.1.mlp.lins.0.bias": [
       256
     ],
-    "decoder.fps.1.mlp.lins.1.weight": [
+    "decoder.fp_blocks.1.mlp.lins.1.weight": [
       256,
       256
     ],
-    "decoder.fps.1.mlp.lins.1.bias": [
+    "decoder.fp_blocks.1.mlp.lins.1.bias": [
       256
     ],
-    "decoder.fps.1.mlp.norms.0.module.weight": [
+    "decoder.fp_blocks.1.mlp.norms.0.module.weight": [
       256
     ],
-    "decoder.fps.1.mlp.norms.0.module.bias": [
+    "decoder.fp_blocks.1.mlp.norms.0.module.bias": [
       256
     ],
-    "decoder.fps.1.mlp.norms.0.module.running_mean": [
+    "decoder.fp_blocks.1.mlp.norms.0.module.running_mean": [
       256
     ],
-    "decoder.fps.1.mlp.norms.0.module.running_var": [
+    "decoder.fp_blocks.1.mlp.norms.0.module.running_var": [
       256
     ],
-    "decoder.fps.1.mlp.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.1.mlp.norms.1.module.weight": [
+    "decoder.fp_blocks.1.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.1.mlp.norms.1.module.weight": [
       256
     ],
-    "decoder.fps.1.mlp.norms.1.module.bias": [
+    "decoder.fp_blocks.1.mlp.norms.1.module.bias": [
       256
     ],
-    "decoder.fps.1.mlp.norms.1.module.running_mean": [
+    "decoder.fp_blocks.1.mlp.norms.1.module.running_mean": [
       256
     ],
-    "decoder.fps.1.mlp.norms.1.module.running_var": [
+    "decoder.fp_blocks.1.mlp.norms.1.module.running_var": [
       256
     ],
-    "decoder.fps.1.mlp.norms.1.module.num_batches_tracked": [],
-    "decoder.fps.2.gate.gate.lins.0.weight": [
+    "decoder.fp_blocks.1.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.fp_blocks.2.gate.gate.lins.0.weight": [
       64,
       256
     ],
-    "decoder.fps.2.gate.gate.lins.0.bias": [
+    "decoder.fp_blocks.2.gate.gate.lins.0.bias": [
       64
     ],
-    "decoder.fps.2.gate.gate.norms.0.module.weight": [
+    "decoder.fp_blocks.2.gate.gate.norms.0.module.weight": [
       64
     ],
-    "decoder.fps.2.gate.gate.norms.0.module.bias": [
+    "decoder.fp_blocks.2.gate.gate.norms.0.module.bias": [
       64
     ],
-    "decoder.fps.2.gate.gate.norms.0.module.running_mean": [
+    "decoder.fp_blocks.2.gate.gate.norms.0.module.running_mean": [
       64
     ],
-    "decoder.fps.2.gate.gate.norms.0.module.running_var": [
+    "decoder.fp_blocks.2.gate.gate.norms.0.module.running_var": [
       64
     ],
-    "decoder.fps.2.gate.gate.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.2.gate.skip.lins.0.weight": [
+    "decoder.fp_blocks.2.gate.gate.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.2.gate.skip.lins.0.weight": [
       64,
       128
     ],
-    "decoder.fps.2.gate.skip.lins.0.bias": [
+    "decoder.fp_blocks.2.gate.skip.lins.0.bias": [
       64
     ],
-    "decoder.fps.2.gate.skip.norms.0.module.weight": [
+    "decoder.fp_blocks.2.gate.skip.norms.0.module.weight": [
       64
     ],
-    "decoder.fps.2.gate.skip.norms.0.module.bias": [
+    "decoder.fp_blocks.2.gate.skip.norms.0.module.bias": [
       64
     ],
-    "decoder.fps.2.gate.skip.norms.0.module.running_mean": [
+    "decoder.fp_blocks.2.gate.skip.norms.0.module.running_mean": [
       64
     ],
-    "decoder.fps.2.gate.skip.norms.0.module.running_var": [
+    "decoder.fp_blocks.2.gate.skip.norms.0.module.running_var": [
       64
     ],
-    "decoder.fps.2.gate.skip.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.2.gate.psi.lins.0.weight": [
+    "decoder.fp_blocks.2.gate.skip.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.2.gate.psi.lins.0.weight": [
       1,
       64
     ],
-    "decoder.fps.2.gate.psi.lins.0.bias": [
+    "decoder.fp_blocks.2.gate.psi.lins.0.bias": [
       1
     ],
-    "decoder.fps.2.gate.psi.norms.0.module.weight": [
+    "decoder.fp_blocks.2.gate.psi.norms.0.module.weight": [
       1
     ],
-    "decoder.fps.2.gate.psi.norms.0.module.bias": [
+    "decoder.fp_blocks.2.gate.psi.norms.0.module.bias": [
       1
     ],
-    "decoder.fps.2.gate.psi.norms.0.module.running_mean": [
+    "decoder.fp_blocks.2.gate.psi.norms.0.module.running_mean": [
       1
     ],
-    "decoder.fps.2.gate.psi.norms.0.module.running_var": [
+    "decoder.fp_blocks.2.gate.psi.norms.0.module.running_var": [
       1
     ],
-    "decoder.fps.2.gate.psi.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.2.mlp.lins.0.weight": [
+    "decoder.fp_blocks.2.gate.psi.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.2.mlp.lins.0.weight": [
       128,
       384
     ],
-    "decoder.fps.2.mlp.lins.0.bias": [
+    "decoder.fp_blocks.2.mlp.lins.0.bias": [
       128
     ],
-    "decoder.fps.2.mlp.lins.1.weight": [
+    "decoder.fp_blocks.2.mlp.lins.1.weight": [
       128,
       128
     ],
-    "decoder.fps.2.mlp.lins.1.bias": [
+    "decoder.fp_blocks.2.mlp.lins.1.bias": [
       128
     ],
-    "decoder.fps.2.mlp.norms.0.module.weight": [
+    "decoder.fp_blocks.2.mlp.norms.0.module.weight": [
       128
     ],
-    "decoder.fps.2.mlp.norms.0.module.bias": [
+    "decoder.fp_blocks.2.mlp.norms.0.module.bias": [
       128
     ],
-    "decoder.fps.2.mlp.norms.0.module.running_mean": [
+    "decoder.fp_blocks.2.mlp.norms.0.module.running_mean": [
       128
     ],
-    "decoder.fps.2.mlp.norms.0.module.running_var": [
+    "decoder.fp_blocks.2.mlp.norms.0.module.running_var": [
       128
     ],
-    "decoder.fps.2.mlp.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.2.mlp.norms.1.module.weight": [
+    "decoder.fp_blocks.2.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.2.mlp.norms.1.module.weight": [
       128
     ],
-    "decoder.fps.2.mlp.norms.1.module.bias": [
+    "decoder.fp_blocks.2.mlp.norms.1.module.bias": [
       128
     ],
-    "decoder.fps.2.mlp.norms.1.module.running_mean": [
+    "decoder.fp_blocks.2.mlp.norms.1.module.running_mean": [
       128
     ],
-    "decoder.fps.2.mlp.norms.1.module.running_var": [
+    "decoder.fp_blocks.2.mlp.norms.1.module.running_var": [
       128
     ],
-    "decoder.fps.2.mlp.norms.1.module.num_batches_tracked": [],
-    "decoder.fps.3.gate.gate.lins.0.weight": [
+    "decoder.fp_blocks.2.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.fp_blocks.3.gate.gate.lins.0.weight": [
       32,
       128
     ],
-    "decoder.fps.3.gate.gate.lins.0.bias": [
+    "decoder.fp_blocks.3.gate.gate.lins.0.bias": [
       32
     ],
-    "decoder.fps.3.gate.gate.norms.0.module.weight": [
+    "decoder.fp_blocks.3.gate.gate.norms.0.module.weight": [
       32
     ],
-    "decoder.fps.3.gate.gate.norms.0.module.bias": [
+    "decoder.fp_blocks.3.gate.gate.norms.0.module.bias": [
       32
     ],
-    "decoder.fps.3.gate.gate.norms.0.module.running_mean": [
+    "decoder.fp_blocks.3.gate.gate.norms.0.module.running_mean": [
       32
     ],
-    "decoder.fps.3.gate.gate.norms.0.module.running_var": [
+    "decoder.fp_blocks.3.gate.gate.norms.0.module.running_var": [
       32
     ],
-    "decoder.fps.3.gate.gate.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.3.gate.skip.lins.0.weight": [
+    "decoder.fp_blocks.3.gate.gate.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.3.gate.skip.lins.0.weight": [
       32,
       64
     ],
-    "decoder.fps.3.gate.skip.lins.0.bias": [
+    "decoder.fp_blocks.3.gate.skip.lins.0.bias": [
       32
     ],
-    "decoder.fps.3.gate.skip.norms.0.module.weight": [
+    "decoder.fp_blocks.3.gate.skip.norms.0.module.weight": [
       32
     ],
-    "decoder.fps.3.gate.skip.norms.0.module.bias": [
+    "decoder.fp_blocks.3.gate.skip.norms.0.module.bias": [
       32
     ],
-    "decoder.fps.3.gate.skip.norms.0.module.running_mean": [
+    "decoder.fp_blocks.3.gate.skip.norms.0.module.running_mean": [
       32
     ],
-    "decoder.fps.3.gate.skip.norms.0.module.running_var": [
+    "decoder.fp_blocks.3.gate.skip.norms.0.module.running_var": [
       32
     ],
-    "decoder.fps.3.gate.skip.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.3.gate.psi.lins.0.weight": [
+    "decoder.fp_blocks.3.gate.skip.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.3.gate.psi.lins.0.weight": [
       1,
       32
     ],
-    "decoder.fps.3.gate.psi.lins.0.bias": [
+    "decoder.fp_blocks.3.gate.psi.lins.0.bias": [
       1
     ],
-    "decoder.fps.3.gate.psi.norms.0.module.weight": [
+    "decoder.fp_blocks.3.gate.psi.norms.0.module.weight": [
       1
     ],
-    "decoder.fps.3.gate.psi.norms.0.module.bias": [
+    "decoder.fp_blocks.3.gate.psi.norms.0.module.bias": [
       1
     ],
-    "decoder.fps.3.gate.psi.norms.0.module.running_mean": [
+    "decoder.fp_blocks.3.gate.psi.norms.0.module.running_mean": [
       1
     ],
-    "decoder.fps.3.gate.psi.norms.0.module.running_var": [
+    "decoder.fp_blocks.3.gate.psi.norms.0.module.running_var": [
       1
     ],
-    "decoder.fps.3.gate.psi.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.3.mlp.lins.0.weight": [
+    "decoder.fp_blocks.3.gate.psi.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.3.mlp.lins.0.weight": [
       64,
       192
     ],
-    "decoder.fps.3.mlp.lins.0.bias": [
+    "decoder.fp_blocks.3.mlp.lins.0.bias": [
       64
     ],
-    "decoder.fps.3.mlp.lins.1.weight": [
+    "decoder.fp_blocks.3.mlp.lins.1.weight": [
       64,
       64
     ],
-    "decoder.fps.3.mlp.lins.1.bias": [
+    "decoder.fp_blocks.3.mlp.lins.1.bias": [
       64
     ],
-    "decoder.fps.3.mlp.norms.0.module.weight": [
+    "decoder.fp_blocks.3.mlp.norms.0.module.weight": [
       64
     ],
-    "decoder.fps.3.mlp.norms.0.module.bias": [
+    "decoder.fp_blocks.3.mlp.norms.0.module.bias": [
       64
     ],
-    "decoder.fps.3.mlp.norms.0.module.running_mean": [
+    "decoder.fp_blocks.3.mlp.norms.0.module.running_mean": [
       64
     ],
-    "decoder.fps.3.mlp.norms.0.module.running_var": [
+    "decoder.fp_blocks.3.mlp.norms.0.module.running_var": [
       64
     ],
-    "decoder.fps.3.mlp.norms.0.module.num_batches_tracked": [],
-    "decoder.fps.3.mlp.norms.1.module.weight": [
+    "decoder.fp_blocks.3.mlp.norms.0.module.num_batches_tracked": [],
+    "decoder.fp_blocks.3.mlp.norms.1.module.weight": [
       64
     ],
-    "decoder.fps.3.mlp.norms.1.module.bias": [
+    "decoder.fp_blocks.3.mlp.norms.1.module.bias": [
       64
     ],
-    "decoder.fps.3.mlp.norms.1.module.running_mean": [
+    "decoder.fp_blocks.3.mlp.norms.1.module.running_mean": [
       64
     ],
-    "decoder.fps.3.mlp.norms.1.module.running_var": [
+    "decoder.fp_blocks.3.mlp.norms.1.module.running_var": [
       64
     ],
-    "decoder.fps.3.mlp.norms.1.module.num_batches_tracked": [],
+    "decoder.fp_blocks.3.mlp.norms.1.module.num_batches_tracked": [],
     "decoder.blocks.0.conv1.lins.0.weight": [
       128,
       512
