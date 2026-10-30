@@ -137,6 +137,9 @@ class VoteNetBackbone(nn.Module):
         self.out_channels = in_channels
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        if pos.size(0) == 0:
+            raise ValueError("`pos` has no points: the backbone needs at least one point per scene.")
+
         # Sample the first two SA blocks here so the seed indices can be traced to the input
         # (`seed_indices = idx1[idx2]`); deeper blocks sample internally as their indices are unused.
         head_idx: List[Tensor] = []
