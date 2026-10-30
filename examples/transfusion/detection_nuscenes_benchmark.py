@@ -1,4 +1,11 @@
-"""Benchmark TransFusion-L on nuScenes with the official detection metrics."""
+"""Benchmark TransFusion-L on nuScenes with the official detection metrics.
+
+NOTE: OpenPCDet 233f849 `tools/test.py --cfg_file cfgs/nuscenes_models/transfusion_lidar.yaml --ckpt
+cbgs_transfusion_lidar.pth`, on 10-sweep infos from its `create_nuscenes_info` restricted to the 6019 val keyframes,
+gives 64.56 mAP / 69.43 NDS with the nuScenes devkit, and 65.41 / 69.88 when the devkit keeps ground-truth boxes by
+LiDAR points alone, as `nuscenes_detection_metrics` does with `num_points`; the devkit also keeps boxes hit by radar
+only.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace
