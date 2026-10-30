@@ -157,6 +157,21 @@ def test_groupfree3d_loss_sampling_stays_inside_an_object_with_few_seeds() -> No
     assert torch.allclose(out["sampling_loss"], expected)
 
 
+def test_groupfree3d_loss_accepts_half_precision_predictions() -> None:
+    loss_fn = _create_loss()
+    output, data = _create_data()
+    expected = loss_fn(output, data)["loss"]
+    half = {
+        key: value.bfloat16() if key != "pos_seed" and value.is_floating_point() else value
+        for key, value in output.items()
+    }
+    half["seed_objectness_logits"].requires_grad_(True)
+    loss = loss_fn(half, data)["loss"]
+    loss.backward()
+    assert torch.allclose(loss.float(), expected, rtol=2e-2)
+    assert half["seed_objectness_logits"].grad is not None
+
+
 def test_groupfree3d_loss_defaults_to_the_scannet_recipe() -> None:
     loss_fn = GroupFree3DLoss(18, num_heading_bins=1, mean_sizes=[[1.0, 1.0, 1.0]] * 18)
     recipe = (loss_fn.sampling_weight, loss_fn.objectness_weight, loss_fn.center_delta, loss_fn.heading_delta)

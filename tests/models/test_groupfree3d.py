@@ -127,6 +127,29 @@ def test_groupfree3d_train_mode_backward() -> None:
 
 
 @requires_pyg_lib
+def test_groupfree3d_trains_under_bfloat16_autocast() -> None:
+    model = _create_groupfree3d().to(DEVICE).train()
+    criterion = GroupFree3DLoss(
+        model.num_classes,
+        num_heading_bins=model.num_heading_bins,
+        mean_sizes=model.mean_sizes,
+    ).to(DEVICE)
+    data = _make_inputs()
+    target = {
+        DataKeys.BOX: torch.tensor([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0], [3.0, 3.0, 1.0, 1.0, 1.0, 1.0, 0.0]]),
+        DataKeys.LABEL: torch.tensor([3, 1]),
+        DataKeys.BATCH_BOX: torch.tensor([0, 1]),
+    }
+    with torch.autocast(DEVICE, dtype=torch.bfloat16):
+        out = model(None, data["pos"], data["batch"])
+        loss = criterion(out, {key: value.to(DEVICE) for key, value in target.items()})["loss"]
+    loss.backward()
+    assert out["seed_objectness_logits"].dtype == torch.bfloat16
+    assert torch.isfinite(loss)
+    assert all(param.grad is not None for param in model.seed_objectness.parameters())
+
+
+@requires_pyg_lib
 def test_groupfree3d_reset_classifier_trains_with_the_new_classes() -> None:
     model = _create_groupfree3d(num_heading_bins=12, mean_sizes=None)
     model.reset_classifier(num_classes=20)

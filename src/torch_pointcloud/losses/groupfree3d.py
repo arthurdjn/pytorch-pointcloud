@@ -262,6 +262,7 @@ class GroupFree3DLoss(nn.Module):
         batch_size: int,
     ) -> Tensor:
         r"""Focal loss of the seed objectness, positive on the seeds of each object closest to its center."""
+        logits = logits.float()  # half precision under autocast
         box = boxes[assignment]
         offset = (pos_seed - box[:, 0:3]) / (box[:, 3:6] + _EPS)
         distance = torch.where(has_box, (offset.pow(2).sum(dim=-1) + _EPS).sqrt(), math.inf)
