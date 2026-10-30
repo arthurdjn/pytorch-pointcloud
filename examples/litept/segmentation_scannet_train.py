@@ -19,7 +19,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
 from torch_pointcloud.losses import LovaszLoss, SumLoss
-from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
+from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -44,7 +44,8 @@ LITEPT_BLOCK = re.compile(r"\.blocks\.\d+\.blocks\.\d+\.")
 TRAIN_TRANSFORM = T.Compose(
     [
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, NUM_CLASSES + 1), default=-1),
-        T.Divide(keys=DataKeys.COLOR, divisor=255.0),  # colors in [0, 1]; the chromatic ratios below are relative to it
+        # Colors in [0, 1]: the chromatic ratios below are relative to it.
+        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # CenterShift(apply_z=True)
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
         T.RandomDropout(keys=POINT_KEYS, drop_ratio_range=(0.2, 0.2), p=0.2),
@@ -81,14 +82,14 @@ TRAIN_TRANSFORM = T.Compose(
             center="random_point",
         ),
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # CenterShift(apply_z=False)
-        # NormalizeColor is the division by 255 above: the released checkpoints were trained on colors in [0, 1].
+        # NormalizeColor is the normalization by 255 above: the released checkpoints were trained on colors in [0, 1].
         T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
     ]
 )
 VAL_TRANSFORM = T.Compose(
     [
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, NUM_CLASSES + 1), default=-1),
-        T.Divide(keys=DataKeys.COLOR, divisor=255.0),
+        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
         T.Voxelize(
@@ -279,19 +280,17 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         preds = model(data[DataKeys.X], data[DataKeys.POS_GRID], data[DataKeys.BATCH]).argmax(dim=1)
         target = data[DataKeys.SEGMENT]
-        confusion += confusion_matrix(preds, target, NUM_CLASSES, ignore_index=-1)
+        cm += confusion_matrix(preds, target, NUM_CLASSES, ignore_index=-1)
 
-    per_class = confusion.diagonal().float() / confusion.sum(dim=1).clamp(min=1).float()
-    present = confusion.sum(dim=1) > 0
     return {
-        "mIoU": float(intersection_over_union(confusion)),
-        "OA": float(confusion.diagonal().sum()) / float(confusion.sum().clamp(min=1)),
-        "mAcc": float(per_class[present].mean()),
+        "mIoU": float(intersection_over_union(cm)),
+        "OA": float(accuracy(cm)),
+        "mAcc": float(accuracy(cm, average="macro")),
     }
 
 
