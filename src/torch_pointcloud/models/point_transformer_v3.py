@@ -13,7 +13,7 @@ from torch import Tensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.dales import DALES_CLASSES
 from torch_pointcloud.datasets.gridnethd import GRIDNETHD_CLASSES
-from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
@@ -2043,7 +2043,28 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
             # Raw lidarseg category ids onto the 16 benchmark classes.
             T.Relabel(
                 keys=DataKeys.SEGMENT,
-                labels=NUSCENES_LIDARSEG_LEARNING_MAP,
+                labels={
+                    9: 0,
+                    14: 1,
+                    15: 2,
+                    16: 2,
+                    17: 3,
+                    18: 4,
+                    21: 5,
+                    2: 6,
+                    3: 6,
+                    4: 6,
+                    6: 6,
+                    12: 7,
+                    22: 8,
+                    23: 9,
+                    24: 10,
+                    25: 11,
+                    26: 12,
+                    27: 13,
+                    28: 14,
+                    30: 15,
+                },
                 default=-1,
                 allow_missing_keys=True,
             ),
