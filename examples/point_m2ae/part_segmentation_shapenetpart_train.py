@@ -15,7 +15,11 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ConcatDataset, ShapeNetPart
-from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
+from torch_pointcloud.metrics import (
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
+    part_predictions,
+)
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -27,7 +31,6 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 MODELS = ["point-m2ae-base.shapenetpart.renrui-zhang"]
 PRETRAIN = "point-m2ae-base.pretrain.renrui-zhang"
 NUM_CATEGORIES = 16
-NUM_PARTS = 50
 NUM_POINTS = 2048
 EPOCHS = 300
 BATCH_SIZE = 16
@@ -211,9 +214,6 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
     """Instance and class mIoU, each shape predicted among the parts of its own category as the reference does."""
     model.eval()
     part_ids = list(ShapeNetPart.seg_ids.values())
-    category_parts = torch.zeros(NUM_CATEGORIES, NUM_PARTS, dtype=torch.bool, device=device)
-    for index, parts in enumerate(part_ids):
-        category_parts[index, parts] = True
 
     ious: List[Tensor] = []
     categories: List[Tensor] = []
@@ -221,8 +221,7 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH], data[DataKeys.CATEGORY])
         category = data[DataKeys.CATEGORY].argmax(dim=1)
-        allowed = category_parts[category][data[DataKeys.BATCH]]
-        preds = logits.masked_fill(~allowed, float("-inf")).argmax(dim=1).cpu()
+        preds = part_predictions(logits, part_ids, category, data[DataKeys.BATCH]).cpu()
         ious.append(
             part_intersection_over_union(
                 preds, data[DataKeys.SEGMENT].cpu(), part_ids, category.cpu(), data[DataKeys.BATCH].cpu()

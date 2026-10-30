@@ -27,11 +27,13 @@ pointconv-density-base,pointconv,classification,,false,,,OA,,,
 pointconv-density-base.modelnet40.wenxuan-wu,pointconv,classification,modelnet40,true,MIT,19.57,OA,92.5,92.30,OA 92.30 · mAcc 89.50
 pointgpt-b.modelnet40-8k.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,120.39,OA,,94.25,OA 94.25 · mAcc 90.99
 pointgpt-b.modelnet40.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,120.39,OA,94.4,94.37,OA 94.37 · mAcc 91.65
+pointgpt-b.post-pretrain.guangyan-chen,pointgpt,classification,labeled-hybrid,true,MIT,120.41,OA,,,
 pointgpt-b.scanobjectnn-hardest.guangyan-chen,pointgpt,classification,scanobjectnn-hardest,true,MIT,120.39,OA,91.9,91.92,OA 91.92 · mAcc 90.80
 pointgpt-b.scanobjectnn-objbg.guangyan-chen,pointgpt,classification,scanobjectnn-objbg,true,MIT,120.39,OA,95.8,97.07,OA 97.07 · mAcc 96.19
 pointgpt-b.scanobjectnn-objonly.guangyan-chen,pointgpt,classification,scanobjectnn-objonly,true,MIT,120.39,OA,95.2,95.18,OA 95.18 · mAcc 94.91
 pointgpt-l.modelnet40-8k.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,360.37,OA,,93.92,OA 93.92 · mAcc 92.06
 pointgpt-l.modelnet40.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,360.37,OA,94.7,93.88,OA 93.88 · mAcc 92.05
+pointgpt-l.post-pretrain.guangyan-chen,pointgpt,classification,labeled-hybrid,true,MIT,360.38,OA,,,
 pointgpt-l.scanobjectnn-hardest.guangyan-chen,pointgpt,classification,scanobjectnn-hardest,true,MIT,360.36,OA,93.4,93.75,OA 93.75 · mAcc 93.66
 pointgpt-l.scanobjectnn-objbg.guangyan-chen,pointgpt,classification,scanobjectnn-objbg,true,MIT,360.36,OA,97.2,98.45,OA 98.45 · mAcc 98.19
 pointgpt-l.scanobjectnn-objonly.guangyan-chen,pointgpt,classification,scanobjectnn-objonly,true,MIT,360.36,OA,96.6,96.90,OA 96.90 · mAcc 96.56
@@ -150,8 +152,11 @@ spvcnn-30gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semanticki
 spvcnn-47gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,8.79,mIoU,61.4,61.59,mIoU 61.59 · OA 92.22
 utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,137.28,mIoU,77.7,77.70,mIoU 77.70 · OA 91.88
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
-point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
-point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.05,ins_mIoU 86.05 · cls_mIoU 84.12
+point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.20,ins_mIoU 86.20 · cls_mIoU 84.62
+point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.20,ins_mIoU 86.20 · cls_mIoU 84.22
+pointgpt-b.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,112.32,mIoU,86.5,85.91,ins_mIoU 85.91 · cls_mIoU 84.02
+pointgpt-l.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,188.13,mIoU,86.6,86.80,ins_mIoU 86.80 · cls_mIoU 84.36
+pointgpt-s.shapenetpart.guangyan-chen,pointgpt,part-segmentation,shapenetpart,true,MIT,27.03,mIoU,86.2,85.98,ins_mIoU 85.98 · cls_mIoU 84.58
 pointnext-sm-c160.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,22.52,mIoU,87.1,87.11,ins_mIoU 87.11 · cls_mIoU 85.25
 pointnext-sm-c64.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,3.73,mIoU,86.9,86.93,ins_mIoU 86.93 · cls_mIoU 85.24
 pointnext-sm.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,0.98,mIoU,86.7,86.88,ins_mIoU 86.88 · cls_mIoU 84.48

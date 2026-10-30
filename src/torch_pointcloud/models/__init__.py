@@ -35,7 +35,7 @@ from .point_transformer_v2 import PointTransformerV2Classification, PointTransfo
 from .point_transformer_v3 import PointTransformerV3Classification, PointTransformerV3Segmentation
 from .pointcnn import PointCNNClassification, PointCNNSegmentation
 from .pointconv import PointConvDensityClassification
-from .pointgpt import PointGPTClassification, PointGPTPretraining
+from .pointgpt import PointGPTClassification, PointGPTPartSegmentation, PointGPTPretraining
 from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Segmentation
@@ -107,6 +107,7 @@ __all__ = [
     "PointCNNSegmentation",
     "PointConvDensityClassification",
     "PointGPTClassification",
+    "PointGPTPartSegmentation",
     "PointGPTPretraining",
     "PointMLPClassification",
     "PointMLPSegmentation",

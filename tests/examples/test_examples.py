@@ -242,6 +242,12 @@ BENCHMARKS = [
         id="pointgpt/scanobjectnn",
     ),
     pytest.param(
+        "pointgpt/part_segmentation_shapenetpart_benchmark.py",
+        ("--model", "pointgpt-s.shapenetpart.guangyan-chen", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointgpt/shapenetpart",
+    ),
+    pytest.param(
         "point_mamba/classification_modelnet40_benchmark.py",
         ("--model", "point-mamba-base.modelnet40.dingkang-liang", "--limit", "8"),
         marks=_GPU_MAMBA,
@@ -391,6 +397,12 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointgpt/scanobjectnn",
+    ),
+    pytest.param(
+        "pointgpt/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointgpt/shapenetpart-train",
     ),
     pytest.param(
         "pointmlp/classification_scanobjectnn_train.py",
