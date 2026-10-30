@@ -1,6 +1,5 @@
 """Train Cylinder3D on SemanticKITTI following mmdet3d's `cylinder3d_4xb4-3x_semantickitti` config."""
 
-import math
 import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -40,10 +39,10 @@ TRAIN_TRANSFORM = T.Compose(
         T.RandomFlip(keys=DataKeys.POS, axes=(0, 1), p=0.5),
         T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(-45.0, 45.0)),
         T.RandomScale(keys=DataKeys.POS, scale_range=(0.95, 1.05)),
-        # The reference draws the shift of each axis from a Gaussian of standard deviation TRANSLATION_STD.
         T.RandomTranslate(
             keys=DataKeys.POS,
-            translation_range=(-TRANSLATION_STD * math.sqrt(3), TRANSLATION_STD * math.sqrt(3)),
+            translation_range=(-TRANSLATION_STD, TRANSLATION_STD),
+            distribution="normal",
         ),
         T.Cat(keys=[DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
     ]
