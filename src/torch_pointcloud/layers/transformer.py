@@ -6,12 +6,10 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
-from torch_geometric.utils import to_dense_batch
 
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
-from torch_pointcloud.utils.conversion import cu_seqlens_to_batch
 from torch_pointcloud.utils.imports import _FLASH_ATTN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -266,12 +264,17 @@ class PackedAttention(nn.Module):
             out = flash_attn.flash_attn_varlen_qkvpacked_func(qkv.half(), cu_seqlens, max_seqlen=max_seqlen)
             out = out.reshape(N, C).to(x.dtype)
         else:
-            batch = cu_seqlens_to_batch(cu_seqlens.long())
-            batch_size = cu_seqlens.numel() - 1
-            qkv, mask = to_dense_batch(qkv.flatten(1), batch, batch_size=batch_size, max_num_nodes=max_seqlen)
-            q, k, v = qkv.unflatten(-1, (3, self.num_heads, -1)).permute(2, 0, 3, 1, 4)  # (B, H, L, D)
+            # Index-based padding, sized from `x` and `max_seqlen`, keeps the fallback free of host synchronizations.
+            lengths = cu_seqlens.diff().long()
+            batch_size = lengths.numel()
+            batch = torch.repeat_interleave(torch.arange(batch_size, device=x.device), lengths, output_size=N)
+            index = torch.arange(N, device=x.device) - cu_seqlens.long()[batch] + batch * max_seqlen
+            padded = qkv.new_zeros(batch_size * max_seqlen, *qkv.shape[1:])
+            padded[index] = qkv
+            q, k, v = padded.view(batch_size, max_seqlen, *qkv.shape[1:]).permute(2, 0, 3, 1, 4)  # (B, H, L, D)
+            mask = torch.arange(max_seqlen, device=x.device) < lengths[:, None]
             out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None, None, :])
-            out = out.transpose(1, 2).flatten(2)[mask]
+            out = out.transpose(1, 2).flatten(0, 1).index_select(0, index).flatten(1)
 
         return self.proj(out)
 

@@ -146,6 +146,22 @@ def test_packed_attention_flash_on_cpu_tensors_names_the_fallback(monkeypatch: p
         attn(x, cu_seqlens, max_seqlen)
 
 
+@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="host synchronizations are only detected on CUDA")
+def test_packed_attention_fallback_does_not_synchronize() -> None:
+    torch.manual_seed(0)
+    attn = PackedAttention(32, 2, rope=AxialRoPE((3, 3, 2), base=100.0), use_flash_attn=False).cuda()
+    x, pos, cu_seqlens, max_seqlen = _packed_tokens((70, 120, 50), 32)
+    x, pos, cu_seqlens = x.cuda(), pos.cuda(), cu_seqlens.cuda()
+
+    torch.cuda.set_sync_debug_mode("error")
+    try:
+        out = attn(x, cu_seqlens, max_seqlen, pos=pos)
+    finally:
+        torch.cuda.set_sync_debug_mode("default")
+
+    assert out.shape == x.shape
+
+
 @pytest.mark.parametrize("norm", [pytest.param("layer_norm", id="string"), pytest.param(nn.LayerNorm, id="class")])
 def test_packed_transformer_block_keeps_samples_independent(norm: Any) -> None:
     torch.manual_seed(0)
