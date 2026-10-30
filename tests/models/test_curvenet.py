@@ -150,6 +150,14 @@ def test_curvenet_classification_rejects_missing_curve_starts(
         model_clf(None, pos, batch)
 
 
+def test_curvenet_classification_rejects_features_without_channels(
+    model_clf: CurveNetClassification,
+    data: Dict[str, Tensor],
+) -> None:
+    with pytest.raises(ValueError, match="in_channels"):
+        model_clf(data["pos"], data["pos"], data["batch"])
+
+
 def test_curvenet_part_segmentation_forward(
     model_partseg: CurveNetPartSegmentation,
     data: Dict[str, Tensor],

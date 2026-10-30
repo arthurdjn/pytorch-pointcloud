@@ -51,6 +51,20 @@ def test_lpfa_rejects_unknown_aggr() -> None:
         LocalPointFeatureAggregation(0, 8, aggr="sum")  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    "in_channels,with_features",
+    [
+        pytest.param(0, True, id="features-without-channels"),
+        pytest.param(16, False, id="channels-without-features"),
+    ],
+)
+def test_lpfa_rejects_features_not_matching_in_channels(in_channels: int, with_features: bool) -> None:
+    x, pos, _ = _cloud(num_points=32, batch_size=1)
+    block = LocalPointFeatureAggregation(in_channels, 8, num_layers=1).eval()
+    with pytest.raises(ValueError, match="in_channels"):
+        block(x if with_features else None, pos, _ring_table(32, 4))
+
+
 def test_curve_walk_visits_table_neighbors() -> None:
     torch.manual_seed(0)
     num_points, k = 20, 3

@@ -39,7 +39,7 @@ class LocalPointFeatureAggregation(nn.Module):
         norm_kwargs: Extra arguments for the normalization.
 
     Shape:
-        - Input: features $(N, C_\text{in})$ (or `None` when `in_channels=0`), positions $(N, d)$ and a
+        - Input: features $(N, C_\text{in})$ (`None` exactly when `in_channels=0`), positions $(N, d)$ and a
             `knn_table` of neighbor indices $(N, k)$.
         - Output: $(N, C_\text{out})$.
 
@@ -95,16 +95,21 @@ class LocalPointFeatureAggregation(nn.Module):
         )
 
     def forward(self, x: OptTensor, pos: Tensor, table: Tensor) -> Tensor:
+        if (x is None) != (self.in_channels == 0):
+            raise ValueError(
+                f"`x` must be `None` exactly when `in_channels` is 0, got `in_channels={self.in_channels}` and "
+                f"`x` {'None' if x is None else f'of shape {tuple(x.shape)}'}."
+            )
+
         num_points, k = table.shape
         # `index_select` rather than advanced indexing, whose backward walks the duplicate indices serially.
         index = table.reshape(-1)
         pos_i = pos.unsqueeze(1).expand(-1, k, -1).flatten(0, 1)
         pos_j = pos.index_select(0, index)
         geometry = torch.cat([pos_i, pos_j, pos_j - pos_i], dim=-1)  # (N k, 3 d)
-        if self.in_channels == 0:
+        if x is None:
             edge = geometry
         else:
-            assert x is not None
             x_i = x.unsqueeze(1).expand(-1, k, -1).flatten(0, 1)
             edge = self.act(x.index_select(0, index) - x_i + self.geometry(geometry))
         edge = self.mlp(edge).view(num_points, k, -1)
