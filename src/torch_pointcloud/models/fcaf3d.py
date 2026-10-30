@@ -349,7 +349,8 @@ class FCAF3DDetection(DetectionModel):
         encoder_depths: Number of residual blocks in every encoder stage.
         head_channels: Channels of the per-level features entering the predictions.
         stem_norm: Normalization of the encoder stem.
-        stem_norm_kwargs: Extra keyword arguments for the stem normalization.
+        stem_norm_kwargs: Extra keyword arguments for the stem normalization; `None` gives the affine instance norm
+            of the released weights, $\epsilon = 10^{-8}$.
         norm: Normalization of the encoder blocks and of the head.
         norm_kwargs: Extra keyword arguments for the normalization.
 
@@ -392,7 +393,7 @@ class FCAF3DDetection(DetectionModel):
         self.encoder_depths = tuple(encoder_depths)
         self.head_channels = head_channels
         self.stem_norm = stem_norm
-        self.stem_norm_kwargs = stem_norm_kwargs
+        self.stem_norm_kwargs = stem_norm_kwargs if stem_norm_kwargs is not None else {"eps": 1e-8, "affine": True}
         self.norm = norm
         self.norm_kwargs = norm_kwargs
 
@@ -561,8 +562,6 @@ class FCAF3DDetection(DetectionModel):
         voxel_size=0.01,
         oriented_boxes=False,
         max_voxels_per_scene=100000,
-        stem_norm="instance_norm",
-        stem_norm_kwargs={"eps": 1e-8, "affine": True},
     ),
 )
 def fcaf3d_scannet_mmdet3d(**hparams: Any) -> FCAF3DDetection:
@@ -597,8 +596,6 @@ def fcaf3d_scannet_mmdet3d(**hparams: Any) -> FCAF3DDetection:
         voxel_size=0.01,
         oriented_boxes=True,
         max_voxels_per_scene=100000,
-        stem_norm="instance_norm",
-        stem_norm_kwargs={"eps": 1e-8, "affine": True},
     ),
 )
 def fcaf3d_sunrgbd_mmdet3d(**hparams: Any) -> FCAF3DDetection:
@@ -633,8 +630,6 @@ def fcaf3d_sunrgbd_mmdet3d(**hparams: Any) -> FCAF3DDetection:
         voxel_size=0.01,
         oriented_boxes=False,
         max_voxels_per_scene=100000,
-        stem_norm="instance_norm",
-        stem_norm_kwargs={"eps": 1e-8, "affine": True},
     ),
 )
 def fcaf3d_s3dis_area5_mmdet3d(**hparams: Any) -> FCAF3DDetection:
