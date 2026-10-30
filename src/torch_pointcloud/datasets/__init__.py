@@ -3,6 +3,7 @@
 from .concat import ConcatDataset, SingleDatasetBatchSampler
 from .dales import DALES
 from .fractal import FRACTAL
+from .gridnethd import GridNetHD
 from .kitti import KITTI
 from .kittiodometry import KITTIOdometry
 from .mix import MixDataset
@@ -26,6 +27,7 @@ __all__ = [
     "SingleDatasetBatchSampler",
     "DALES",
     "FRACTAL",
+    "GridNetHD",
     "KITTI",
     "KITTIOdometry",
     "MixDataset",

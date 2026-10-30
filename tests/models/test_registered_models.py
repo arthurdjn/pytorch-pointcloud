@@ -161,6 +161,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3-base.s3dis-area5.pointcept",
     "ptv3.dales.jayakumar-pujar",
     "ptv3-base.nuscenes.pointcept",
+    "ptv3.gridnet-hd.heig-vd-geo",
     "pvcnn.s3dis-area5.mit-han-lab",
     "pvcnn-c0p25.s3dis-area5.mit-han-lab",
     "pvcnn-c0p125.s3dis-area5.mit-han-lab",
