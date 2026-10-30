@@ -133,7 +133,7 @@ def test_pointnet_encoder_act_last(act_last: bool, nonnegative: bool, data: Dict
 
 
 @pytest.mark.parametrize("act_first", [pytest.param(True, id="act-first"), pytest.param(False, id="norm-first")])
-def test_pointnet_encoder_act_first(act_first: bool) -> None:
+def test_pointnet_encoder_act_first_reaches_every_mlp(act_first: bool) -> None:
     encoder = PointNetEncoder(in_channels=6, act_first=act_first)
     assert encoder.stnet.local_nn.act_first is act_first
     assert encoder.ftnet is not None and encoder.ftnet.local_nn.act_first is act_first
