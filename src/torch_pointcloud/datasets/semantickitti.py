@@ -154,6 +154,12 @@ SEMANTIC_KITTI_LEARNING_MAP: Dict[int, int] = {
     81: 18,  # traffic-sign
 }
 
+# `SEMANTIC_KITTI_LEARNING_MAP` without its merges: bus, on-rails and lane marking (static or moving) are absent instead
+# of merged into other-vehicle and road, so a `Relabel` with this map sends them to its `default` as well.
+SEMANTIC_KITTI_UNMERGED_LEARNING_MAP: Dict[int, int] = {
+    raw: index for raw, index in SEMANTIC_KITTI_LEARNING_MAP.items() if raw not in (13, 16, 60, 256, 257)
+}
+
 
 def _check_sequences(sequences: Sequence[str]) -> None:
     for seq in sequences:

@@ -56,6 +56,7 @@ DISPLAY_TITLES = {
     "voxelnext": "VoxelNeXt",
     "voxel_mamba": "Voxel-Mamba",
     "lion": "LION",
+    "minkunet": "MinkUNet",
     "point_bert": "Point-BERT",
     "point_mae": "Point-MAE",
     "point_m2ae": "Point-M2AE",

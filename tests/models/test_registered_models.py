@@ -182,6 +182,18 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "pointnext-lg.s3dis-area5.openpoints",
     "pointnext-lg.s3dis-area6.openpoints",
     "pointnext-sm",
+    "minkunet18-w16.semantickitti.mit-han-lab",
+    "minkunet18-w20.semantickitti.mit-han-lab",
+    "minkunet18-w32.semantickitti.mit-han-lab",
+    "minkunet18-w16.semantickitti.mmdet3d",
+    "minkunet18-w20.semantickitti.mmdet3d",
+    "minkunet18-w32.semantickitti.mmdet3d",
+    "minkunet34-w32-minkowski.semantickitti.mmdet3d",
+    "minkunet34-w32-spconv.semantickitti.mmdet3d",
+    "minkunet34-w32-spconv-amp.semantickitti.mmdet3d",
+    "minkunet34-w32-torchsparse.semantickitti.mmdet3d",
+    "minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d",
+    "minkunet34v2-w32.semantickitti.mmdet3d",
     "pointnext-sm.s3dis-area1.openpoints",
     "pointnext-sm.s3dis-area2.openpoints",
     "pointnext-sm.s3dis-area3.openpoints",
@@ -270,7 +282,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "spformer", "minkunet")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn"))
@@ -300,7 +312,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "minkunet", "octformer", "ptv3"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")

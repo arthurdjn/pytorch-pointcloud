@@ -242,6 +242,7 @@ nav = [
             { "dgcnn" = "api/models/dgcnn.md" },
             { "kpconv" = "api/models/kpconv.md" },
             { "lion" = "api/models/lion.md" },
+            { "minkunet" = "api/models/minkunet.md" },
             { "octformer" = "api/models/octformer.md" },
             { "parta2" = "api/models/parta2.md" },
             { "point_bert" = "api/models/point_bert.md" },

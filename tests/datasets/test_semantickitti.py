@@ -9,7 +9,9 @@ import torch
 from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.datasets.semantickitti import (
     SEMANTIC_KITTI_LABEL_NAMES,
+    SEMANTIC_KITTI_LEARNING_MAP,
     SEMANTIC_KITTI_SEQUENCES_PER_SPLIT,
+    SEMANTIC_KITTI_UNMERGED_LEARNING_MAP,
     SemanticKittiSplit,
     load_semantickitti_labels,
     load_semantickitti_scan,
@@ -203,3 +205,15 @@ def test_semantickitti_dataset_download_unsupported(datasets_dir_factory: Callab
     dataset = SemanticKITTI(root=datasets_dir, split="train", sequences=("00",))
     with pytest.raises(RuntimeError, match="does not support automatic download"):
         dataset.download()
+
+
+def test_semantickitti_unmerged_learning_map_ignores_the_merged_labels() -> None:
+    merged = set(SEMANTIC_KITTI_LEARNING_MAP) - set(SEMANTIC_KITTI_UNMERGED_LEARNING_MAP)
+    assert {SEMANTIC_KITTI_LABEL_NAMES[raw] for raw in merged} == {
+        "bus",
+        "on-rails",
+        "lane-marking",
+        "moving-on-rails",
+        "moving-bus",
+    }
+    assert all(SEMANTIC_KITTI_LEARNING_MAP[raw] == index for raw, index in SEMANTIC_KITTI_UNMERGED_LEARNING_MAP.items())

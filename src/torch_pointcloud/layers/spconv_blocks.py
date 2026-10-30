@@ -1,5 +1,6 @@
 """Sparse convolution blocks: submanifold, strided, and residual variants."""
 
+from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import torch.nn as nn
@@ -273,6 +274,59 @@ class SparseBasicBlock(SparseModule):
         out = out.replace_feature(self.norm2(out.features))
         out = out.replace_feature(self.act(out.features + self.proj(residual).features))
         return out
+
+
+class SparseBasicStage(SparseSequential):
+    r"""`SparseBasicBlock` residual blocks at one resolution, sharing one spconv index key.
+
+    The first block maps `in_channels` to `out_channels`, projecting its skip connection when they differ; the others
+    keep `out_channels`. The blocks are the children `block0`, `block1`, ...
+
+    Args:
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        depth: Number of residual blocks, at least $1$.
+        indice_key: spconv index key shared by the submanifold convolutions of the stage.
+        kernel_size: Kernel size of the submanifold convolutions.
+        act: Activation passed to `create_act`.
+        act_kwargs: Extra keyword arguments for the activation.
+        norm: Normalization passed to `create_norm`.
+        norm_kwargs: Extra keyword arguments for the normalization.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        depth: int,
+        *,
+        indice_key: str,
+        kernel_size: int = 3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if depth < 1:
+            raise ValueError(f"`depth` must be at least 1, got {depth}.")
+
+        blocks = OrderedDict(
+            (
+                f"block{i}",
+                SparseBasicBlock(
+                    in_channels if i == 0 else out_channels,
+                    out_channels,
+                    kernel_size=kernel_size,
+                    indice_key=indice_key,
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                ),
+            )
+            for i in range(depth)
+        )
+        super().__init__(blocks)
 
 
 class SubMConv3dResidualBlock(SparseModule):

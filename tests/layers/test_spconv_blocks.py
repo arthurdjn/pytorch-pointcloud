@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock, SubMConv3dBlock
+from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseBasicStage, SparseConvBlock, SubMConv3dBlock
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -84,3 +84,30 @@ def test_sparse_basic_block_projects_skip() -> None:
     same = SparseBasicBlock(8, 8, bias=True, indice_key="res").cuda()
     assert not any(p.numel() for p in same.proj.parameters())
     assert same(x_sparse).features.shape == (20, 8)
+
+
+def test_sparse_basic_stage_widens_in_its_first_block() -> None:
+    stage = SparseBasicStage(8, 16, 2, indice_key="res")
+    blocks = dict(stage.named_children())
+    assert list(blocks) == ["block0", "block1"]
+    first, second = blocks["block0"], blocks["block1"]
+    assert isinstance(first, SparseBasicBlock) and isinstance(second, SparseBasicBlock)
+    assert any(p.numel() for p in first.proj.parameters())
+    assert not any(p.numel() for p in second.proj.parameters())
+
+
+def test_sparse_basic_stage_rejects_an_empty_stage() -> None:
+    with pytest.raises(ValueError, match="depth"):
+        SparseBasicStage(8, 16, 0, indice_key="res")
+
+
+def test_sparse_basic_stage_keeps_the_voxels() -> None:
+    torch.manual_seed(0)
+    x = torch.randn(20, 8).cuda()
+    pos = torch.randint(0, 32, (20, 3)).cuda()
+    batch = torch.cat([torch.zeros(8), torch.ones(12)]).long().cuda()
+    x_sparse = convert_to_spconv_tensor(x, pos, batch)
+
+    out = SparseBasicStage(8, 16, 2, indice_key="res").cuda()(x_sparse)
+    assert out.features.shape == (20, 16)
+    assert torch.equal(out.indices, x_sparse.indices)

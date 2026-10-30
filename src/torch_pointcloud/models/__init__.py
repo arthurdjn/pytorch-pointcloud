@@ -24,6 +24,7 @@ from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
+from .minkunet import MinkUNetSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
@@ -84,6 +85,7 @@ __all__ = [
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
+    "MinkUNetSegmentation",
     "OctFormerClassification",
     "OctFormerSegmentation",
     "PointBERTClassification",
