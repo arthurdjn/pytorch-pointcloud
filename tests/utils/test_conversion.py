@@ -293,6 +293,15 @@ def test_convert_to_spconv_tensor_explicit_batch_size_keeps_trailing_empty_scene
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_convert_to_spconv_tensor_empty_cloud_needs_a_spatial_shape() -> None:
+    x = torch.randn(0, 2)
+    pos = torch.zeros(0, 3, dtype=torch.long)
+    batch = torch.zeros(0, dtype=torch.long)
+    with pytest.raises(ValueError, match="spatial_shape"):
+        convert_to_spconv_tensor(x, pos, batch)
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 def test_convert_to_spconv_tensor_padding() -> None:
     x = torch.randn(2, 2)
     pos = torch.tensor([[1, 2, 3], [4, 5, 6]])
