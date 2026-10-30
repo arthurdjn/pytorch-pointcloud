@@ -301,7 +301,7 @@ def test_pvcnn_head_dropout_per_hidden_layer(model_cls: type) -> None:
 
     assert model_cls(**hparams, head_dropout=0.2).head.dropout == [0.2, 0.2, 0.0]
     assert model_cls(**hparams, head_dropout=[0.2, 0.0]).head.dropout == [0.2, 0.0, 0.0]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="`head_dropout` takes one value per `head_channels` entry"):
         model_cls(**hparams, head_dropout=[0.2, 0.2, 0.0])
 
 

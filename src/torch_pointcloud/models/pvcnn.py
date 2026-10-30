@@ -368,7 +368,11 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         self.voxel_act_kwargs = voxel_act_kwargs
         self.voxel_norm_kwargs = voxel_norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
-        self.head_dropout = ensure_tuple_size(head_dropout, size=len(self.head_channels))
+        self.head_dropout = ensure_tuple_size(
+            head_dropout,
+            size=len(self.head_channels),
+            extra_msg="`head_dropout` takes one value per `head_channels` entry.",
+        )
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -480,7 +484,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
 
     def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[FeaturesDict]) -> Tensor:
         x_global = self.global_pool(x, batch)
-        if self.global_mlp:
+        if self.global_mlp is not None:
             x_global = self.global_mlp(x_global)
 
         return torch.cat([*(skip["x"] for skip in intermediates), x_global[batch]], dim=1)
@@ -583,7 +587,11 @@ class PVCNNPartSegmentation(PartSegmentationModel):
         self.voxel_act_kwargs = voxel_act_kwargs
         self.voxel_norm_kwargs = voxel_norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
-        self.head_dropout = ensure_tuple_size(head_dropout, size=len(self.head_channels))
+        self.head_dropout = ensure_tuple_size(
+            head_dropout,
+            size=len(self.head_channels),
+            extra_msg="`head_dropout` takes one value per `head_channels` entry.",
+        )
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -698,7 +706,7 @@ class PVCNNPartSegmentation(PartSegmentationModel):
 
     def forward_decoder(self, x: Tensor, batch: Tensor, category: Tensor, intermediates: List[FeaturesDict]) -> Tensor:
         x_global = self.global_pool(x, batch)
-        if self.global_mlp:
+        if self.global_mlp is not None:
             x_global = self.global_mlp(x_global)
 
         return torch.cat([*(skip["x"] for skip in intermediates), x_global[batch], category[batch]], dim=1)
