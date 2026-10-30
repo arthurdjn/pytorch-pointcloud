@@ -168,6 +168,14 @@ def test_voxel_rcnn_trains_the_roi_head_on_a_bev_map() -> None:
     assert model.head.conv_cls.weight.grad is not None
 
 
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_voxel_rcnn_rejects_a_batch_without_voxels() -> None:
+    model = create_model("voxel-rcnn.kitti-car.openpcdet", task="detection").eval()
+    empty = torch.zeros(0, dtype=torch.long)
+    with pytest.raises(ValueError, match="no voxel"):
+        model(torch.zeros(0, 5, 4), torch.zeros(0, 3, dtype=torch.long), empty, empty)
+
+
 @pytest.mark.skipif(
     not (_SPCONV_AVAILABLE and _PYG_LIB_AVAILABLE and torch.cuda.is_available()),
     reason="the sparse backbone and the voxel RoI pooling need spconv, pyg-lib and CUDA",

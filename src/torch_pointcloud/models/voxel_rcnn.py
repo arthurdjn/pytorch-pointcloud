@@ -417,7 +417,13 @@ class VoxelRCNNDetection(DetectionModel):
         Returns:
             `(features, stages)`: the BEV features entering the anchor head and the three strided sparse stages
             (see `VoxelBackbone8x`).
+
+        Raises:
+            ValueError: If the batch holds no voxel.
         """
+        if batch_voxel.numel() == 0:
+            raise ValueError("The batch holds no voxel: no point falls inside `point_cloud_range`.")
+
         voxel_indices = torch.cat([batch_voxel.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
         batch_size = int(batch_voxel.max().item()) + 1
 
