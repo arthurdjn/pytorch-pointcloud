@@ -1,8 +1,9 @@
-from typing import Dict
+from typing import Any, Dict
 
 import pytest
 import torch
 from torch import Tensor, nn
+from torch_geometric.nn.norm import InstanceNorm
 
 from torch_pointcloud.models import model_info
 from torch_pointcloud.models.volt import VoltSegmentation
@@ -96,6 +97,38 @@ def test_volt_segmentation_defaults_to_the_authors_batch_norm() -> None:
 
     assert len(norms) == 3
     assert all(norm.eps == 1e-3 and norm.momentum == 0.01 for norm in norms)
+
+
+def test_volt_segmentation_keeps_the_defaults_of_other_norms() -> None:
+    model = VoltSegmentation(
+        6,
+        10,
+        embed_dim=48,
+        depth=1,
+        num_heads=2,
+        norm="instance_norm",
+        rope_frequencies=(4, 4, 4),
+        use_flash_attn=False,
+    )
+
+    norms = [module for module in model.decoder.modules() if isinstance(module, InstanceNorm)]
+
+    assert len(norms) == 3
+    assert all(norm.eps == 1e-5 for norm in norms)
+
+
+@pytest.mark.parametrize("norm", [pytest.param("layer_norm", id="string"), pytest.param(nn.LayerNorm, id="class")])
+def test_volt_segmentation_with_layer_norm_keeps_samples_independent(norm: Any, data: Dict[str, Tensor]) -> None:
+    torch.manual_seed(0)
+    model = VoltSegmentation(
+        6, 10, embed_dim=48, depth=1, num_heads=2, norm=norm, rope_frequencies=(4, 4, 4), use_flash_attn=False
+    ).eval()
+    first = data["batch"] == 0
+
+    logits = model(data["x"], data["pos_grid"], data["batch"])
+    alone = model(data["x"][first], data["pos_grid"][first], data["batch"][first])
+
+    torch.testing.assert_close(logits[first], alone)
 
 
 def test_volt_segmentation_rejects_mismatched_rope_frequencies() -> None:
