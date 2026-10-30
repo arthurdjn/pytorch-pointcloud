@@ -133,6 +133,22 @@ def test_point2vec_pretraining_regresses_the_frozen_teacher() -> None:
     )
 
 
+def test_point2vec_pretraining_update_teacher_moves_toward_the_student_blocks() -> None:
+    model = Point2VecPretraining(
+        in_channels=0, target_layers=(0, 1), embed_dim=48, encoder_depth=2, decoder_depth=1, num_heads=2
+    )
+    student = model.get_parameter("blocks.blocks.0.attn.qkv.weight")
+    teacher = model.get_parameter("teacher.blocks.0.attn.qkv.weight")
+    with torch.no_grad():
+        student.add_(1.0)
+    before = teacher.clone()
+
+    model.update_teacher(decay=0.75)
+
+    assert torch.allclose(teacher, 0.75 * before + 0.25 * student)
+    assert not teacher.requires_grad
+
+
 def test_point2vec_pretraining_validates_the_target_layers() -> None:
     with pytest.raises(ValueError, match="target_layers"):
         Point2VecPretraining(in_channels=0, target_layers=(2,), embed_dim=48, encoder_depth=2, num_heads=2)
