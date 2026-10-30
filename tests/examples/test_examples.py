@@ -263,6 +263,18 @@ BENCHMARKS = [
         id="votenet/scannet-mmdet3d",
     ),
     pytest.param(
+        "votenet/detection_sunrgbd_benchmark.py",
+        ("--model", "votenet.sunrgbd.mmdet3d", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/sunrgbd-mmdet3d",
+    ),
+    pytest.param(
+        "threedetr/detection_sunrgbd_benchmark.py",
+        ("--model", "3detr-m.sunrgbd.fair", "--limit", "2"),
+        marks=_CLUSTER,
+        id="3detr/sunrgbd",
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
@@ -889,8 +901,6 @@ def test_every_script_has_a_row() -> None:
         "pointmlp/classification_modelnet40_benchmark.py",
         "pointnext/classification_modelnet40_benchmark.py",
         "sphereformer/segmentation_semantickitti_benchmark.py",
-        "threedetr/detection_sunrgbd_benchmark.py",
-        "votenet/detection_sunrgbd_benchmark.py",
     }
     covered = {str(param.values[0]) for param in BENCHMARKS + TRAININGS}
     scripts = {path.relative_to(EXAMPLES_DIR).as_posix() for path in EXAMPLES_DIR.glob("*/*.py")}
