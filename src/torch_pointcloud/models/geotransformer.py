@@ -4,7 +4,6 @@
 """
 
 import math
-from collections import defaultdict
 from typing import Any, Dict, List, Optional, Sequence, Tuple, TypedDict
 
 import torch
@@ -12,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import MLP
-from torch_geometric.utils import mask_to_index
+from torch_geometric.utils import cumsum, degree, mask_to_index, to_dense_batch
 from typing_extensions import NotRequired
 
 import torch_pointcloud.transforms as T
@@ -120,7 +119,8 @@ class GeometricStructureEmbedding(nn.Module):
     distance $d_{ij} / \sigma_d$ and a projection of the sinusoidal embedding of the angles between
     $\vec{p_i p_j}$ and the vectors from $p_i$ to its $k$ nearest superpoints, scaled by $\sigma_a$ and reduced
     over the $k$ neighbors. A set of fewer than `angle_k + 1` superpoints measures the angles against all the
-    others, and a single superpoint has no angular term.
+    others, and a single superpoint has no angular term. Sets padded to a common size take a mask of their valid
+    superpoints, and the padding takes no part in the angles of the valid ones.
 
     Args:
         embed_dim: Embedding width $C$.
@@ -129,7 +129,7 @@ class GeometricStructureEmbedding(nn.Module):
         angle_k: Number of nearest superpoints $k$ the angles are measured against.
 
     Shape:
-        - Input: $(B, N, 3)$ superpoints.
+        - Input: $(B, N, 3)$ superpoints and an optional $(B, N)$ mask of the valid ones.
         - Output: $(B, N, N, C)$.
     """
 
@@ -149,14 +149,22 @@ class GeometricStructureEmbedding(nn.Module):
         self.proj_a = nn.Linear(embed_dim, embed_dim)
 
     @torch.no_grad()
-    def embedding_indices(self, points: Tensor) -> Tuple[Tensor, Tensor]:
-        r"""Distance indices $(B, N, N)$ and angular indices $(B, N, N, k)$ of a superpoint set."""
+    def embedding_indices(self, points: Tensor, masks: OptTensor = None) -> Tuple[Tensor, Tensor, Tensor]:
+        r"""Distance indices $(B, N, N)$ and angular indices $(B, N, N, k)$ of a superpoint set, and whether each set
+        has angle neighbors $(B,)$."""
         batch_size, num_points, _ = points.shape
         dist_map = torch.sqrt(pairwise_squared_distance(points, points))  # (B, N, N)
         d_indices = dist_map / self.sigma_d
 
         k = min(self.angle_k, num_points - 1)
-        knn_indices = dist_map.topk(k=k + 1, dim=2, largest=False)[1][:, :, 1:]  # (B, N, k)
+        knn_dist_map = dist_map if masks is None else dist_map.masked_fill(~masks.unsqueeze(1), float("inf"))
+        knn_indices = knn_dist_map.topk(k=k + 1, dim=2, largest=False)[1][:, :, 1:]  # (B, N, k)
+        has_neighbors = torch.full((batch_size,), k > 0, dtype=torch.bool, device=points.device)
+        if masks is not None and k > 0:
+            # A padded neighbor repeats the nearest one, which leaves the max over the neighbors unchanged.
+            knn_masks = torch.gather(masks.unsqueeze(1).expand(-1, num_points, -1), 2, knn_indices)
+            knn_indices = torch.where(knn_masks, knn_indices, knn_indices[:, :, :1])
+            has_neighbors = masks.sum(dim=1) > 1
         knn_indices = knn_indices.unsqueeze(3).expand(batch_size, num_points, k, 3)
         expanded_points = points.unsqueeze(1).expand(batch_size, num_points, num_points, 3)
         knn_points = torch.gather(expanded_points, dim=2, index=knn_indices)  # (B, N, k, 3)
@@ -167,15 +175,18 @@ class GeometricStructureEmbedding(nn.Module):
         sin_values = torch.linalg.norm(torch.cross(ref_vectors, anc_vectors, dim=-1), dim=-1)  # (B, N, N, k)
         cos_values = torch.sum(ref_vectors * anc_vectors, dim=-1)
         a_indices = torch.atan2(sin_values, cos_values) * self.factor_a
-        return d_indices, a_indices
+        return d_indices, a_indices, has_neighbors
 
-    def forward(self, points: Tensor) -> Tensor:
-        d_indices, a_indices = self.embedding_indices(points)
+    def forward(self, points: Tensor, masks: OptTensor = None) -> Tensor:
+        d_indices, a_indices, has_neighbors = self.embedding_indices(points, masks)
         d_embeddings = self.proj_d(sinusoidal_embedding(d_indices, self.embed_dim))
         if a_indices.size(3) == 0:
             return d_embeddings
         a_embeddings = self.proj_a(sinusoidal_embedding(a_indices, self.embed_dim)).amax(dim=3)
-        return d_embeddings + a_embeddings
+        if masks is None:
+            return d_embeddings + a_embeddings
+        # A padded set of a single superpoint has no angular term.
+        return torch.addcmul(d_embeddings, a_embeddings, has_neighbors.view(-1, 1, 1, 1).to(a_embeddings.dtype))
 
 
 class GeometricAttention(nn.Module):
@@ -183,7 +194,8 @@ class GeometricAttention(nn.Module):
 
     With `pos_embed`, the logits are $(q_i \cdot k_j + q_i \cdot p_{ij}) / \sqrt{d}$ where $p_{ij}$ is the
     projected pair-wise embedding, the geometric self-attention of GeoTransformer; without it the layer is plain
-    scaled dot-product cross-attention.
+    scaled dot-product cross-attention. A key mask leaves the padding of sets padded to a common size out of the
+    softmax.
 
     Args:
         embed_dim: Token width $C$, a multiple of `num_heads`.
@@ -191,7 +203,8 @@ class GeometricAttention(nn.Module):
         relative_pos: Whether the layer projects and attends to a pair-wise positional embedding.
 
     Shape:
-        - Input: $(B, N, C)$ queries, $(B, M, C)$ keys and values and an optional $(B, N, M, C)$ positional embedding.
+        - Input: $(B, N, C)$ queries, $(B, M, C)$ keys and values, an optional $(B, N, M, C)$ positional embedding
+          and an optional $(B, M)$ mask of the valid keys.
         - Output: $(B, N, C)$.
     """
 
@@ -214,6 +227,7 @@ class GeometricAttention(nn.Module):
         key: Tensor,
         value: Tensor,
         pos_embed: OptTensor = None,
+        key_mask: OptTensor = None,
     ) -> Tensor:
         batch_size, num_queries, _ = query.shape
         num_keys = key.size(1)
@@ -228,6 +242,8 @@ class GeometricAttention(nn.Module):
 
             p = self.proj_p(pos_embed).view(batch_size, num_queries, num_keys, self.num_heads, self.head_dim)
             scores = scores + torch.einsum("bhnc,bnmhc->bhnm", q, p)
+        if key_mask is not None:
+            scores = scores.masked_fill(~key_mask.view(batch_size, 1, 1, num_keys), float("-inf"))
         scores = F.softmax(scores / self.head_dim**0.5, dim=-1)
 
         out = torch.matmul(scores, v)  # (B, H, N, C / H)
@@ -244,7 +260,8 @@ class GeometricTransformerLayer(nn.Module):
         relative_pos: Whether the attention takes the pair-wise positional embedding (the self-attention layers).
 
     Shape:
-        - Input: $(B, N, C)$ tokens, $(B, M, C)$ memory tokens and an optional $(B, N, M, C)$ positional embedding.
+        - Input: $(B, N, C)$ tokens, $(B, M, C)$ memory tokens, an optional $(B, N, M, C)$ positional embedding and
+          an optional $(B, M)$ mask of the valid memory tokens.
         - Output: $(B, N, C)$.
     """
 
@@ -261,8 +278,9 @@ class GeometricTransformerLayer(nn.Module):
         x: Tensor,
         memory: Tensor,
         pos_embed: OptTensor = None,
+        memory_mask: OptTensor = None,
     ) -> Tensor:
-        hidden = self.attention(x, memory, memory, pos_embed=pos_embed)
+        hidden = self.attention(x, memory, memory, pos_embed=pos_embed, key_mask=memory_mask)
         x = self.norm1(x + self.linear(hidden))
         return self.norm2(x + self.mlp(x))
 
@@ -287,7 +305,8 @@ class GeometricTransformer(nn.Module):
 
     Shape:
         - Input: $(B, N, 3)$ source superpoints, $(B, M, 3)$ reference superpoints, $(B, N, C_\text{in})$ and
-          $(B, M, C_\text{in})$ features; the $B$ sets of a cloud have the same size.
+          $(B, M, C_\text{in})$ features, and optional $(B, N)$ and $(B, M)$ masks of the valid superpoints when the
+          sets of a cloud are padded to a common size.
         - Output: $(B, N, C_\text{out})$ source and $(B, M, C_\text{out})$ reference features.
     """
 
@@ -319,18 +338,20 @@ class GeometricTransformer(nn.Module):
         ref_points: Tensor,
         src_feats: Tensor,
         ref_feats: Tensor,
+        src_masks: OptTensor = None,
+        ref_masks: OptTensor = None,
     ) -> Tuple[Tensor, Tensor]:
-        ref_embeddings = self.embedding(ref_points)
-        src_embeddings = self.embedding(src_points)
+        ref_embeddings = self.embedding(ref_points, ref_masks)
+        src_embeddings = self.embedding(src_points, src_masks)
         ref_feats = self.in_proj(ref_feats)
         src_feats = self.in_proj(src_feats)
         for i, layer in enumerate(self.layers):
             if i % 2 == 0:
-                ref_feats = layer(ref_feats, ref_feats, pos_embed=ref_embeddings)
-                src_feats = layer(src_feats, src_feats, pos_embed=src_embeddings)
+                ref_feats = layer(ref_feats, ref_feats, pos_embed=ref_embeddings, memory_mask=ref_masks)
+                src_feats = layer(src_feats, src_feats, pos_embed=src_embeddings, memory_mask=src_masks)
             else:
-                ref_feats = layer(ref_feats, src_feats)
-                src_feats = layer(src_feats, ref_feats)
+                ref_feats = layer(ref_feats, src_feats, memory_mask=src_masks)
+                src_feats = layer(src_feats, ref_feats, memory_mask=ref_masks)
         return self.out_proj(src_feats), self.out_proj(ref_feats)
 
 
@@ -499,7 +520,7 @@ class KPConvFPN(nn.Module):
             assert isinstance(modules, nn.ModuleList)
             blocks = list(modules)
             if i > 0:
-                _, pos, cloud, inverse = self.pools[i - 1](pos, pos, cloud, return_inverse=True)
+                _, pos, cloud, inverse = self.pools[i - 1](pos, pos, cloud, return_inverse=True, batch_size=num_clouds)
                 batch = torch.zeros_like(cloud).scatter_(0, inverse, batch)
                 positions.append(pos)
                 clouds.append(cloud)
@@ -711,10 +732,10 @@ class GeoTransformerRegistration(RegistrationModel):
         Args:
             x: Source features of shape $(N, C)$; `None` uses a constant feature of `in_channels` ones.
             pos: Source coordinates of shape $(N, 3)$.
-            batch: Pair index of every source point, shape $(N,)$.
+            batch: Pair index of every source point, shape $(N,)$, sorted.
             ref_x: Reference features of shape $(M, C)$, or `None`.
             ref_pos: Reference coordinates of shape $(M, 3)$.
-            ref_batch: Pair index of every reference point, shape $(M,)$.
+            ref_batch: Pair index of every reference point, shape $(M,)$, sorted.
 
         Returns:
             The fine and the coarse `FeaturesDict` of the $2B$ clouds packed together, the sources first
@@ -737,22 +758,48 @@ class GeoTransformerRegistration(RegistrationModel):
         ref_feats: Tensor,
         src_masks: Tensor,
         ref_masks: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        r"""Top `num_correspondences` superpoint pairs by dual-normalized feature similarity, ignoring empty patches.
+        src_batch: Tensor,
+        ref_batch: Tensor,
+        batch_size: int,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        r"""Top `num_correspondences` superpoint pairs of every pair of clouds by dual-normalized feature similarity,
+        ignoring the superpoints with an empty patch.
+
+        Args:
+            src_feats: Unit-norm source superpoint features, shape $(M_s, C)$.
+            ref_feats: Unit-norm reference superpoint features, shape $(M_r, C)$.
+            src_masks: Source superpoints with a non-empty patch, shape $(M_s,)$.
+            ref_masks: Reference superpoints with a non-empty patch, shape $(M_r,)$.
+            src_batch: Pair of every source superpoint, shape $(M_s,)$, sorted.
+            ref_batch: Pair of every reference superpoint, shape $(M_r,)$, sorted.
+            batch_size: Number of pairs $B$.
 
         Returns:
-            The source and reference superpoint of every pair, shape $(P,)$ each, and its score, shape $(P,)$.
+            The source and the reference superpoint of every correspondence, indexed in `src_feats` and `ref_feats`,
+            its score and its pair, shape $(P,)$ each, ordered by pair then decreasing score.
         """
-        ref_indices = mask_to_index(ref_masks)
-        src_indices = mask_to_index(src_masks)
-        scores = torch.exp(-pairwise_squared_distance(ref_feats[ref_indices], src_feats[src_indices], normalized=True))
-        ref_scores = scores / scores.sum(dim=1, keepdim=True)
-        src_scores = scores / scores.sum(dim=0, keepdim=True)
-        scores = ref_scores * src_scores
-        num_correspondences = min(self.num_correspondences, scores.numel())
-        corr_scores, corr_indices = scores.view(-1).topk(k=num_correspondences, largest=True)
-        ref_corr_indices, src_corr_indices = torch.unravel_index(corr_indices, scores.shape)
-        return src_indices[src_corr_indices], ref_indices[ref_corr_indices], corr_scores
+        src_indices, ref_indices = mask_to_index(src_masks), mask_to_index(ref_masks)
+        src_feats, src_valid = to_dense_batch(src_feats[src_indices], src_batch[src_indices], batch_size=batch_size)
+        ref_feats, ref_valid = to_dense_batch(ref_feats[ref_indices], ref_batch[ref_indices], batch_size=batch_size)
+        src_indices, _ = to_dense_batch(src_indices, src_batch[src_indices], batch_size=batch_size)
+        ref_indices, _ = to_dense_batch(ref_indices, ref_batch[ref_indices], batch_size=batch_size)
+
+        valid = ref_valid.unsqueeze(2) & src_valid.unsqueeze(1)  # (B, N_r, N_s)
+        scores = torch.exp(-pairwise_squared_distance(ref_feats, src_feats, normalized=True)) * valid
+        ref_scores = scores / scores.sum(dim=2, keepdim=True)
+        src_scores = scores / scores.sum(dim=1, keepdim=True)
+        scores = torch.where(valid, ref_scores * src_scores, -1.0)
+        num_correspondences = min(self.num_correspondences, scores[0].numel())
+        corr_scores, corr_indices = scores.flatten(1).topk(k=num_correspondences, dim=1, largest=True)
+        ref_corr_indices, src_corr_indices = torch.unravel_index(corr_indices, scores.shape[1:])
+        corr_batch = torch.arange(batch_size, device=scores.device).unsqueeze(1).expand_as(corr_indices)
+        keep = corr_scores >= 0
+        return (
+            src_indices.gather(1, src_corr_indices)[keep],
+            ref_indices.gather(1, ref_corr_indices)[keep],
+            corr_scores[keep],
+            corr_batch[keep],
+        )
 
     def forward_head(
         self,
@@ -775,94 +822,109 @@ class GeoTransformerRegistration(RegistrationModel):
         if self.training and transform is None:
             raise ValueError("Training needs the ground-truth `transform` of every pair to sample the patch pairs.")
 
-        cloud_f, cloud_c = fine["batch"], coarse["batch"]
-        batch_size = (int(cloud_c.max()) + 1) // 2
-        collected: Dict[str, List[Tensor]] = defaultdict(list)
+        cloud = coarse["batch"]
+        num_clouds = int(cloud.max()) + 1
+        batch_size = num_clouds // 2
+        ptr = cumsum(degree(cloud, num_clouds, dtype=torch.long))
+        num_src = int(ptr[batch_size])
+        local = torch.arange(cloud.size(0), device=cloud.device) - ptr[cloud]  # index within the cloud
 
-        for b in range(batch_size):
-            src_f, ref_f = cloud_f == b, cloud_f == b + batch_size
-            src_c, ref_c = cloud_c == b, cloud_c == b + batch_size
-            ref_points_c, src_points_c = coarse["pos"][ref_c], coarse["pos"][src_c]
-            ref_points_f, src_points_f = fine["pos"][ref_f], fine["pos"][src_f]
-            ref_feats_f, src_feats_f = fine["x"][ref_f], fine["x"][src_f]
+        _, node_masks, node_knn_indices, node_knn_masks = point_to_node_partition(
+            fine["pos"], coarse["pos"], self.num_points_in_patch, fine["batch"], cloud, num_clouds
+        )
+        node_knn_points = gather_neighbors(fine["pos"], node_knn_indices)  # (M, K, 3)
 
-            _, ref_node_masks, ref_node_knn_indices, ref_node_knn_masks = point_to_node_partition(
-                ref_points_f, ref_points_c, self.num_points_in_patch
+        src_pos_c, ref_pos_c = coarse["pos"][:num_src], coarse["pos"][num_src:]
+        src_batch_c, ref_batch_c = cloud[:num_src], cloud[num_src:] - batch_size
+        src_local, ref_local = local[:num_src], local[num_src:]
+        src_masks, ref_masks = node_masks[:num_src], node_masks[num_src:]
+        src_knn_indices, ref_knn_indices = node_knn_indices[:num_src], node_knn_indices[num_src:]
+        src_knn_masks, ref_knn_masks = node_knn_masks[:num_src], node_knn_masks[num_src:]
+        src_knn_points, ref_knn_points = node_knn_points[:num_src], node_knn_points[num_src:]
+
+        src_points, src_valid = to_dense_batch(src_pos_c, src_batch_c, batch_size=batch_size)
+        ref_points, ref_valid = to_dense_batch(ref_pos_c, ref_batch_c, batch_size=batch_size)
+        src_x, _ = to_dense_batch(coarse["x"][:num_src], src_batch_c, batch_size=batch_size)
+        ref_x, _ = to_dense_batch(coarse["x"][num_src:], ref_batch_c, batch_size=batch_size)
+        src_feats_c, ref_feats_c = self.transformer(
+            src_points, ref_points, src_x, ref_x, src_masks=src_valid, ref_masks=ref_valid
+        )
+        src_feats_c = F.normalize(src_feats_c[src_valid], p=2, dim=1)
+        ref_feats_c = F.normalize(ref_feats_c[ref_valid], p=2, dim=1)
+
+        if transform is not None:
+            gt_node_corr_indices, gt_node_corr_overlaps = node_correspondences(
+                src_pos_c,
+                ref_pos_c,
+                src_knn_points,
+                ref_knn_points,
+                transform,
+                self.matching_radius,
+                src_masks=src_masks,
+                ref_masks=ref_masks,
+                src_knn_masks=src_knn_masks,
+                ref_knn_masks=ref_knn_masks,
+                src_batch=src_batch_c,
+                ref_batch=ref_batch_c,
             )
-            _, src_node_masks, src_node_knn_indices, src_node_knn_masks = point_to_node_partition(
-                src_points_f, src_points_c, self.num_points_in_patch
-            )
-            ref_node_knn_points = gather_neighbors(ref_points_f, ref_node_knn_indices)  # (M_r, K, 3)
-            src_node_knn_points = gather_neighbors(src_points_f, src_node_knn_indices)  # (M_s, K, 3)
+            gt_node_corr_batch = src_batch_c[gt_node_corr_indices[:, 0]]
 
-            if transform is not None:
-                gt_node_corr_indices, gt_node_corr_overlaps = node_correspondences(
-                    src_points_c,
-                    ref_points_c,
-                    src_node_knn_points,
-                    ref_node_knn_points,
-                    transform[b],
-                    self.matching_radius,
-                    src_masks=src_node_masks,
-                    ref_masks=ref_node_masks,
-                    src_knn_masks=src_node_knn_masks,
-                    ref_knn_masks=ref_node_knn_masks,
+        with torch.no_grad():
+            if self.training:
+                keep = gt_node_corr_overlaps > self.overlap_threshold
+                targets, node_corr_scores = gt_node_corr_indices[keep], gt_node_corr_overlaps[keep]
+                node_corr_batch = gt_node_corr_batch[keep]
+                # At most `num_targets` targets per pair, drawn at random, in their original order.
+                order = torch.argsort(node_corr_batch + torch.rand_like(node_corr_scores))
+                rank = torch.empty_like(order)
+                rank[order] = torch.arange(order.size(0), device=order.device)
+                first = cumsum(degree(node_corr_batch, batch_size, dtype=torch.long))[node_corr_batch]
+                sampled = rank - first < self.num_targets
+                targets, node_corr_scores = targets[sampled], node_corr_scores[sampled]
+                node_corr_batch = node_corr_batch[sampled]
+                src_node_corr_indices, ref_node_corr_indices = targets.unbind(dim=1)
+            else:
+                src_node_corr_indices, ref_node_corr_indices, node_corr_scores, node_corr_batch = (
+                    self.superpoint_matching(
+                        src_feats_c, ref_feats_c, src_masks, ref_masks, src_batch_c, ref_batch_c, batch_size
+                    )
                 )
-                collected["gt_node_corr_indices"].append(gt_node_corr_indices)
-                collected["gt_node_corr_overlaps"].append(gt_node_corr_overlaps)
-                collected["gt_node_corr_batch"].append(torch.full_like(gt_node_corr_overlaps, b, dtype=torch.long))
 
-            src_feats_c, ref_feats_c = self.transformer(
-                src_points_c.unsqueeze(0),
-                ref_points_c.unsqueeze(0),
-                coarse["x"][src_c].unsqueeze(0),
-                coarse["x"][ref_c].unsqueeze(0),
+        ref_node_corr_knn_indices = ref_knn_indices[ref_node_corr_indices]  # (P, K)
+        src_node_corr_knn_indices = src_knn_indices[src_node_corr_indices]  # (P, K)
+        ref_node_corr_knn_masks = ref_knn_masks[ref_node_corr_indices]  # (P, K)
+        src_node_corr_knn_masks = src_knn_masks[src_node_corr_indices]  # (P, K)
+        ref_node_corr_knn_feats = gather_neighbors(fine["x"], ref_node_corr_knn_indices)  # (P, K, C)
+        src_node_corr_knn_feats = gather_neighbors(fine["x"], src_node_corr_knn_indices)  # (P, K, C)
+
+        matching_scores = torch.einsum("bnd,bmd->bnm", ref_node_corr_knn_feats, src_node_corr_knn_feats)
+        matching_scores = matching_scores / fine["x"].size(1) ** 0.5
+        matching_scores = self.optimal_transport(matching_scores, ref_node_corr_knn_masks, src_node_corr_knn_masks)
+
+        output: GeoTransformerOutput = {
+            "src_pos_c": src_pos_c,
+            "src_batch_c": src_batch_c,
+            "src_feats_c": src_feats_c,
+            "ref_pos_c": ref_pos_c,
+            "ref_batch_c": ref_batch_c,
+            "ref_feats_c": ref_feats_c,
+            "ref_node_corr_indices": ref_local[ref_node_corr_indices],
+            "src_node_corr_indices": src_local[src_node_corr_indices],
+            "node_corr_scores": node_corr_scores,
+            "node_corr_batch": node_corr_batch,
+            "ref_patch_points": ref_knn_points[ref_node_corr_indices],
+            "src_patch_points": src_knn_points[src_node_corr_indices],
+            "ref_patch_masks": ref_node_corr_knn_masks,
+            "src_patch_masks": src_node_corr_knn_masks,
+            "matching_scores": matching_scores,
+        }
+        if transform is not None:
+            output["gt_node_corr_indices"] = torch.stack(
+                [src_local[gt_node_corr_indices[:, 0]], ref_local[gt_node_corr_indices[:, 1]]], dim=1
             )
-            ref_feats_c = F.normalize(ref_feats_c.squeeze(0), p=2, dim=1)
-            src_feats_c = F.normalize(src_feats_c.squeeze(0), p=2, dim=1)
-
-            with torch.no_grad():
-                src_node_corr_indices, ref_node_corr_indices, node_corr_scores = self.superpoint_matching(
-                    src_feats_c, ref_feats_c, src_node_masks, ref_node_masks
-                )
-                if self.training:
-                    assert transform is not None
-                    keep = gt_node_corr_overlaps > self.overlap_threshold
-                    targets, node_corr_scores = gt_node_corr_indices[keep], gt_node_corr_overlaps[keep]
-                    if targets.size(0) > self.num_targets:
-                        sel = torch.randperm(targets.size(0), device=targets.device)[: self.num_targets]
-                        targets, node_corr_scores = targets[sel], node_corr_scores[sel]
-                    src_node_corr_indices, ref_node_corr_indices = targets.unbind(dim=1)
-
-            ref_node_corr_knn_indices = ref_node_knn_indices[ref_node_corr_indices]  # (P, K)
-            src_node_corr_knn_indices = src_node_knn_indices[src_node_corr_indices]  # (P, K)
-            ref_node_corr_knn_masks = ref_node_knn_masks[ref_node_corr_indices]  # (P, K)
-            src_node_corr_knn_masks = src_node_knn_masks[src_node_corr_indices]  # (P, K)
-            ref_node_corr_knn_feats = gather_neighbors(ref_feats_f, ref_node_corr_knn_indices)  # (P, K, C)
-            src_node_corr_knn_feats = gather_neighbors(src_feats_f, src_node_corr_knn_indices)  # (P, K, C)
-
-            matching_scores = torch.einsum("bnd,bmd->bnm", ref_node_corr_knn_feats, src_node_corr_knn_feats)
-            matching_scores = matching_scores / ref_feats_f.size(1) ** 0.5
-            matching_scores = self.optimal_transport(matching_scores, ref_node_corr_knn_masks, src_node_corr_knn_masks)
-
-            collected["src_pos_c"].append(src_points_c)
-            collected["src_batch_c"].append(torch.full_like(src_points_c[:, 0], b, dtype=torch.long))
-            collected["src_feats_c"].append(src_feats_c)
-            collected["ref_pos_c"].append(ref_points_c)
-            collected["ref_batch_c"].append(torch.full_like(ref_points_c[:, 0], b, dtype=torch.long))
-            collected["ref_feats_c"].append(ref_feats_c)
-            collected["ref_node_corr_indices"].append(ref_node_corr_indices)
-            collected["src_node_corr_indices"].append(src_node_corr_indices)
-            collected["node_corr_scores"].append(node_corr_scores)
-            collected["node_corr_batch"].append(torch.full_like(node_corr_scores, b, dtype=torch.long))
-            collected["ref_patch_points"].append(ref_node_knn_points[ref_node_corr_indices])
-            collected["src_patch_points"].append(src_node_knn_points[src_node_corr_indices])
-            collected["ref_patch_masks"].append(ref_node_corr_knn_masks)
-            collected["src_patch_masks"].append(src_node_corr_knn_masks)
-            collected["matching_scores"].append(matching_scores)
-
-        output: Dict[str, Tensor] = {key: torch.cat(values, dim=0) for key, values in collected.items()}
-        return output  # type: ignore[return-value]
+            output["gt_node_corr_overlaps"] = gt_node_corr_overlaps
+            output["gt_node_corr_batch"] = gt_node_corr_batch
+        return output
 
     def forward(
         self,
@@ -879,10 +941,10 @@ class GeoTransformerRegistration(RegistrationModel):
         Args:
             x: Source features of shape $(N, C)$; `None` uses a constant feature of `in_channels` ones.
             pos: Source coordinates of shape $(N, 3)$.
-            batch: Pair index of every source point, shape $(N,)$.
+            batch: Pair index of every source point, shape $(N,)$, sorted.
             ref_x: Reference features of shape $(M, C)$, or `None`.
             ref_pos: Reference coordinates of shape $(M, 3)$.
-            ref_batch: Pair index of every reference point, shape $(M,)$.
+            ref_batch: Pair index of every reference point, shape $(M,)$, sorted.
             transform: Ground-truth transform of every pair, shape $(B, 4, 4)$; required at training.
 
         Returns:
@@ -895,6 +957,9 @@ class GeoTransformerRegistration(RegistrationModel):
     def decode(self, output: GeoTransformerOutput) -> Registration3D:
         r"""Estimate the transform of every pair with the local-to-global registration.
 
+        A pair without any point correspondence (no superpoint correspondence, or none of its patch assignments above
+        `confidence_threshold`) gets the identity.
+
         Args:
             output: The `forward` output of a batch.
 
@@ -902,57 +967,38 @@ class GeoTransformerRegistration(RegistrationModel):
             A `Registration3D` with the `transform` $(B, 4, 4)$ of every pair and the packed point correspondences
             `src_points`, `ref_points`, `scores` and `batch`.
         """
-        node_corr_batch = output["node_corr_batch"]
         ref_batch_c = output["ref_batch_c"]
         batch_size = int(ref_batch_c.max()) + 1 if ref_batch_c.numel() else 0
-        transforms: List[Tensor] = []
-        src_points: List[Tensor] = []
-        ref_points: List[Tensor] = []
-        scores: List[Tensor] = []
-        batches: List[Tensor] = []
-        for b in range(batch_size):
-            pairs = node_corr_batch == b
-            if not bool(pairs.any()):
-                empty = output["ref_pos_c"].new_zeros(0, 3)
-                transforms.append(torch.eye(4, dtype=empty.dtype, device=empty.device))
-                src_points.append(empty)
-                ref_points.append(empty)
-                scores.append(empty.new_zeros(0))
-                batches.append(empty.new_zeros(0, dtype=torch.long))
-                continue
-            score_mat = torch.exp(output["matching_scores"][pairs][:, :-1, :-1])  # (P, K, K), reference rows
-            corr_mat = mutual_topk_correspondences(
-                score_mat,
-                self.topk,
-                self.confidence_threshold,
-                row_mask=output["ref_patch_masks"][pairs],
-                col_mask=output["src_patch_masks"][pairs],
-            )
-            patch, ref_slot, src_slot = torch.nonzero(corr_mat, as_tuple=True)
-            src_corr = output["src_patch_points"][pairs][patch, src_slot]
-            ref_corr = output["ref_patch_points"][pairs][patch, ref_slot]
-            corr_scores = score_mat[patch, ref_slot, src_slot]
-            transform = local_to_global_registration(
-                src_corr,
-                ref_corr,
-                corr_scores,
-                patch,
-                self.acceptance_radius,
-                self.correspondence_threshold,
-                self.num_refinement_steps,
-            )
-            transforms.append(transform)
-            src_points.append(src_corr)
-            ref_points.append(ref_corr)
-            scores.append(corr_scores)
-            batches.append(torch.full_like(corr_scores, b, dtype=torch.long))
-
+        score_mat = torch.exp(output["matching_scores"][:, :-1, :-1])  # (P, K, K), reference rows
+        corr_mat = mutual_topk_correspondences(
+            score_mat,
+            self.topk,
+            self.confidence_threshold,
+            row_mask=output["ref_patch_masks"],
+            col_mask=output["src_patch_masks"],
+        )
+        patch, ref_slot, src_slot = torch.nonzero(corr_mat, as_tuple=True)
+        src_points = output["src_patch_points"][patch, src_slot]
+        ref_points = output["ref_patch_points"][patch, ref_slot]
+        scores = score_mat[patch, ref_slot, src_slot]
+        batch = output["node_corr_batch"][patch]
+        transform = local_to_global_registration(
+            src_points,
+            ref_points,
+            scores,
+            patch,
+            self.acceptance_radius,
+            self.correspondence_threshold,
+            self.num_refinement_steps,
+            batch=batch,
+            batch_size=batch_size,
+        )
         return {
-            "transform": torch.stack(transforms, dim=0),
-            "src_points": torch.cat(src_points, dim=0),
-            "ref_points": torch.cat(ref_points, dim=0),
-            "scores": torch.cat(scores, dim=0),
-            "batch": torch.cat(batches, dim=0),
+            "transform": transform,
+            "src_points": src_points,
+            "ref_points": ref_points,
+            "scores": scores,
+            "batch": batch,
         }
 
 

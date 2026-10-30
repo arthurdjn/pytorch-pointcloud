@@ -110,7 +110,9 @@ def test_node_correspondences_overlap_under_transform() -> None:
     order = torch.tensor([2, 0, 1])  # source node i is reference node order[i]
     src_nodes = transform_points(ref_nodes[order], torch.linalg.inv(transform))
     src_patches = transform_points(ref_patches[order], torch.linalg.inv(transform))
-    corr, overlaps = node_correspondences(src_nodes, ref_nodes, src_patches, ref_patches, transform, radius=0.05)
+    corr, overlaps = node_correspondences(
+        src_nodes, ref_nodes, src_patches, ref_patches, transform.unsqueeze(0), radius=0.05
+    )
     assert corr.tolist() == [[1, 0], [2, 1], [0, 2]]
     assert torch.allclose(overlaps, torch.ones(3))
 
@@ -121,7 +123,7 @@ def test_node_correspondences_masks_empty_nodes() -> None:
     knn_masks = torch.tensor([[True, True], [True, False]])
     node_masks = torch.tensor([True, False])
     corr, _ = node_correspondences(
-        nodes, nodes, patches, patches, torch.eye(4), 0.05, node_masks, node_masks, knn_masks, knn_masks
+        nodes, nodes, patches, patches, torch.eye(4).unsqueeze(0), 0.05, node_masks, node_masks, knn_masks, knn_masks
     )
     assert corr.tolist() == [[0, 0]]
 
@@ -161,7 +163,8 @@ def test_local_to_global_registration_selects_the_consistent_hypothesis() -> Non
     ref[20:] += torch.rand(10, 3) + 1.0  # the third hypothesis is all outliers
     group = torch.arange(3).repeat_interleave(10)
     estimate = local_to_global_registration(src, ref, torch.ones(30), group, 0.05, 3, 5)
-    assert torch.allclose(estimate, transform, atol=1e-4)
+    assert estimate.shape == (1, 4, 4)
+    assert torch.allclose(estimate[0], transform, atol=1e-4)
 
 
 def test_local_to_global_registration_without_large_groups_fits_all_correspondences() -> None:
@@ -170,7 +173,35 @@ def test_local_to_global_registration_without_large_groups_fits_all_corresponden
     estimate = local_to_global_registration(
         src, transform_points(src, transform), torch.ones(6), torch.arange(6), 0.05, 3, 2
     )
-    assert torch.allclose(estimate, transform, atol=1e-5)
+    assert torch.allclose(estimate[0], transform, atol=1e-5)
+
+
+def test_local_to_global_registration_batches_pairs() -> None:
+    """Every pair is registered as alone, and a pair without correspondences gets the identity."""
+    torch.manual_seed(0)
+    first = _transform(_rotation("z", 30.0), torch.tensor([0.5, -0.2, 0.1]))
+    second = _transform(_rotation("x", -50.0), torch.tensor([0.0, 1.0, -0.4]))
+    src = torch.rand(50, 3)
+    ref = torch.cat([transform_points(src[:30], first), transform_points(src[30:], second)])
+    ref[20:30] += torch.rand(10, 3) + 1.0  # the third hypothesis of the first pair is all outliers
+    group = torch.cat([torch.arange(3).repeat_interleave(10), torch.tensor([3] * 4 + [4] * 16)])
+    batch = torch.tensor([0] * 30 + [2] * 20)
+    scores = torch.rand(50)
+    estimate = local_to_global_registration(src, ref, scores, group, 0.05, 3, 5, batch=batch, batch_size=4)
+    assert estimate.shape == (4, 4, 4)
+    alone = local_to_global_registration(src[:30], ref[:30], scores[:30], group[:30], 0.05, 3, 5)
+    assert torch.allclose(estimate[0], alone[0], atol=1e-6)
+    alone = local_to_global_registration(src[30:], ref[30:], scores[30:], group[30:] - 3, 0.05, 3, 5)
+    assert torch.allclose(estimate[2], alone[0], atol=1e-6)
+    assert torch.allclose(estimate[2], second, atol=1e-4)
+    assert torch.equal(estimate[1], torch.eye(4)) and torch.equal(estimate[3], torch.eye(4))
+
+
+def test_local_to_global_registration_without_correspondences_is_identity() -> None:
+    empty = torch.zeros(0, 3)
+    group = torch.zeros(0, dtype=torch.long)
+    estimate = local_to_global_registration(empty, empty, torch.zeros(0), group, 0.05, 3, 5)
+    assert torch.equal(estimate, torch.eye(4).unsqueeze(0))
 
 
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
@@ -182,3 +213,43 @@ def test_weighted_procrustes_fits_half_precision_in_float32(dtype: torch.dtype) 
     estimate = weighted_procrustes(src.to(dtype), ref.to(dtype), torch.ones(40, dtype=dtype))
     assert estimate.dtype == dtype
     assert torch.allclose(estimate.float(), transform, atol=5e-2)
+
+
+def test_point_to_node_partition_batches_clouds() -> None:
+    torch.manual_seed(0)
+    points, nodes = [torch.rand(30, 3), torch.rand(20, 3)], [torch.rand(4, 3), torch.rand(6, 3)]
+    batch = torch.tensor([0] * 30 + [1] * 20)
+    node_batch = torch.tensor([0] * 4 + [1] * 6)
+    point_to_node, node_masks, knn_indices, knn_masks = point_to_node_partition(
+        torch.cat(points), torch.cat(nodes), 8, batch=batch, node_batch=node_batch
+    )
+    first = point_to_node_partition(points[0], nodes[0], 8)
+    second = point_to_node_partition(points[1], nodes[1], 8)
+    assert torch.equal(point_to_node, torch.cat([first[0], second[0] + 4]))
+    assert torch.equal(node_masks, torch.cat([first[1], second[1]]))
+    # Patch indices are global, padded with the total number of points.
+    first_indices = first[2].masked_fill(~first[3], 50)
+    second_indices = (second[2] + 30).masked_fill(~second[3], 50)
+    assert torch.equal(knn_indices, torch.cat([first_indices, second_indices]))
+    assert torch.equal(knn_masks, torch.cat([first[3], second[3]]))
+
+
+def test_node_correspondences_batches_pairs() -> None:
+    nodes = torch.tensor([[0.0, 0, 0], [1.0, 0, 0], [10.0, 0, 0]])
+    patches = nodes.unsqueeze(1) + torch.tensor([[[0.0, 0, 0], [0.02, 0, 0]]])
+    shift = _transform(torch.eye(3), torch.tensor([0.0, 0.0, 0.3]))
+    src_nodes = torch.cat([nodes, transform_points(nodes[:2], torch.linalg.inv(shift))])
+    src_patches = torch.cat([patches, transform_points(patches[:2], torch.linalg.inv(shift))])
+    transform = torch.stack([torch.eye(4), shift])
+    corr, overlaps = node_correspondences(
+        src_nodes,
+        torch.cat([nodes, nodes]),
+        src_patches,
+        torch.cat([patches, patches]),
+        transform,
+        radius=0.05,
+        src_batch=torch.tensor([0, 0, 0, 1, 1]),
+        ref_batch=torch.tensor([0, 0, 0, 1, 1, 1]),
+    )
+    assert corr.tolist() == [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]]
+    assert torch.allclose(overlaps, torch.ones(5))

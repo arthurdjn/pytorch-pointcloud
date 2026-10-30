@@ -54,6 +54,8 @@ def test_voxel_grid_pool_accepts_an_unsorted_batch(origin: Literal["grid", "min"
     x_shuffled, pos_shuffled, batch_shuffled = pool(x[order], pos[order], batch[order])
     assert torch.equal(x_shuffled, x_sorted) and torch.equal(batch_shuffled, batch_sorted)
     assert torch.allclose(pos_shuffled, pos_sorted, atol=1e-6)
+    with_size = pool(x, pos, batch, batch_size=2)
+    assert all(torch.equal(a, b) for a, b in zip(with_size, (x_sorted, pos_sorted, batch_sorted)))
 
 
 def test_voxel_grid_pool_rejects_bad_arguments() -> None:

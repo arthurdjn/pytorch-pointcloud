@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.utils import index_to_mask, mask_to_index, to_dense_batch
+from torch_geometric.utils import cumsum, degree, index_to_mask, mask_to_index, scatter, to_dense_batch
 
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.utils.types import OptTensor
@@ -174,25 +174,30 @@ def local_to_global_registration(
     acceptance_radius: float,
     min_group_size: int,
     num_refinement_steps: int,
+    batch: OptTensor = None,
+    batch_size: Optional[int] = None,
 ) -> Tensor:
-    r"""Rigid transform of one pair from correspondences grouped into local hypotheses.
+    r"""Rigid transform of every pair from its correspondences, grouped into local hypotheses.
 
     Every group of at least `min_group_size` correspondences proposes the `weighted_procrustes` transform of its
-    own correspondences; the proposal with the most inliers among all the correspondences (residual under
-    `acceptance_radius`) is refit on those inliers, then refit `num_refinement_steps - 1` more times on the inliers
-    of the previous fit. Without any large enough group, the first fit uses all the correspondences.
+    own correspondences; the proposal with the most inliers among all the correspondences of its pair (residual
+    under `acceptance_radius`) is refit on those inliers, then refit `num_refinement_steps - 1` more times on the
+    inliers of the previous fit. A pair without any large enough group starts from the fit on all its
+    correspondences, and a pair without correspondences gets the identity. The registration runs outside autocast.
 
     Args:
         src_points: Source point of every correspondence, shape $(C, 3)$.
         ref_points: Reference point of every correspondence, shape $(C, 3)$.
         scores: Weight of every correspondence, shape $(C,)$.
-        group: Hypothesis every correspondence belongs to, shape $(C,)$, sorted.
+        group: Hypothesis every correspondence belongs to, shape $(C,)$, sorted; a group lies within one pair.
         acceptance_radius: Residual under which a correspondence is an inlier of a transform.
         min_group_size: Number of correspondences a group needs to propose a transform.
         num_refinement_steps: Number of fits on the inliers of the selected transform.
+        batch: Pair every correspondence belongs to, shape $(C,)$, sorted; `None` for a single pair.
+        batch_size: Number of pairs $B$; inferred from `batch` when `None`.
 
     Returns:
-        The transform moving the source onto the reference, shape $(4, 4)$.
+        The transform moving the source onto the reference of every pair, shape $(B, 4, 4)$.
 
     Example:
         ```pycon
@@ -201,36 +206,52 @@ def local_to_global_registration(
         >>> src = torch.rand(8, 3)
         >>> group = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
         >>> transform = local_to_global_registration(src, src + 0.5, torch.ones(8), group, 0.1, 3, 5)
-        >>> torch.allclose(transform[:3, 3], torch.full((3,), 0.5), atol=1e-4)
-        True
+        >>> transform.shape, torch.allclose(transform[0, :3, 3], torch.full((3,), 0.5), atol=1e-4)
+        (torch.Size([1, 4, 4]), True)
 
         ```
     """
+    if batch is None:
+        batch = group.new_zeros(group.size(0))
+    if batch_size is None:
+        batch_size = int(batch.max()) + 1 if batch.numel() else 1
 
-    def inlier_scores(transform: Tensor) -> Tensor:
-        residuals = torch.linalg.norm(ref_points - transform_points(src_points, transform), dim=1)
-        return scores * (residuals < acceptance_radius).float()
+    # Residuals in half precision would blur the inlier test, so the registration runs outside autocast.
+    with torch.autocast(src_points.device.type, enabled=False):
+        pair_src, pair_masks = to_dense_batch(src_points, batch, batch_size=batch_size)  # (B, C_max, 3)
+        pair_ref, _ = to_dense_batch(ref_points, batch, batch_size=batch_size)
+        pair_scores, _ = to_dense_batch(scores, batch, batch_size=batch_size)  # zero on the padding
 
-    counts = torch.bincount(group)
-    proposals = mask_to_index(counts >= min_group_size)
-    if proposals.numel() > 0:
-        max_group_size = int(counts[proposals].max())
-        group_src_points, _ = to_dense_batch(src_points, group, max_num_nodes=max_group_size)
-        group_ref_points, _ = to_dense_batch(ref_points, group, max_num_nodes=max_group_size)
-        group_scores, _ = to_dense_batch(scores, group, max_num_nodes=max_group_size)
-        transforms = weighted_procrustes(
-            group_src_points[proposals], group_ref_points[proposals], group_scores[proposals]
-        )
-        aligned = transform_points(src_points.unsqueeze(0), transforms)  # (P, C, 3)
-        inliers = torch.linalg.norm(ref_points.unsqueeze(0) - aligned, dim=2) < acceptance_radius
-        current_scores = scores * inliers[inliers.sum(dim=1).argmax()].float()
-    else:
-        current_scores = inlier_scores(weighted_procrustes(src_points, ref_points, scores))
+        def inliers(transforms: Tensor, pairs: Tensor) -> Tensor:
+            residuals = torch.linalg.norm(pair_ref[pairs] - transform_points(pair_src[pairs], transforms), dim=2)
+            return (residuals < acceptance_radius) & pair_masks[pairs]
 
-    transform = weighted_procrustes(src_points, ref_points, current_scores)
-    for _ in range(num_refinement_steps - 1):
-        transform = weighted_procrustes(src_points, ref_points, inlier_scores(transform))
-    return transform
+        pairs = torch.arange(batch_size, device=batch.device)
+        current_scores = pair_scores * inliers(weighted_procrustes(pair_src, pair_ref, pair_scores), pairs).float()
+        counts = torch.bincount(group)
+        proposals = mask_to_index(counts >= min_group_size)
+        if proposals.numel() > 0:
+            group_batch = scatter(batch, group, dim=0, dim_size=counts.size(0), reduce="max")[proposals]
+            max_group_size = int(counts[proposals].max())
+            group_src, _ = to_dense_batch(src_points, group, max_num_nodes=max_group_size)
+            group_ref, _ = to_dense_batch(ref_points, group, max_num_nodes=max_group_size)
+            group_scores, _ = to_dense_batch(scores, group, max_num_nodes=max_group_size)
+            transforms = weighted_procrustes(group_src[proposals], group_ref[proposals], group_scores[proposals])
+            proposal_inliers = inliers(transforms, group_batch)  # (P, C_max)
+            # The first proposal with the most inliers of every pair: proposals are sorted by pair.
+            num_inliers, _ = to_dense_batch(
+                proposal_inliers.sum(dim=1), group_batch, fill_value=-1, batch_size=batch_size
+            )
+            best = num_inliers.argmax(dim=1) + cumsum(degree(group_batch, batch_size, dtype=torch.long))[:-1]
+            has_proposal = num_inliers.amax(dim=1) >= 0
+            best_scores = pair_scores * proposal_inliers[best.clamp(max=proposals.numel() - 1)].float()
+            current_scores = torch.where(has_proposal.unsqueeze(1), best_scores, current_scores)
+
+        transform = weighted_procrustes(pair_src, pair_ref, current_scores)
+        for _ in range(num_refinement_steps - 1):
+            transform = weighted_procrustes(pair_src, pair_ref, pair_scores * inliers(transform, pairs).float())
+        identity = torch.eye(4, dtype=transform.dtype, device=transform.device)
+        return torch.where(pair_masks.any(dim=1).view(-1, 1, 1), transform, identity)
 
 
 @torch.no_grad()
@@ -238,8 +259,12 @@ def point_to_node_partition(
     points: Tensor,
     nodes: Tensor,
     point_limit: int,
+    batch: OptTensor = None,
+    node_batch: OptTensor = None,
+    batch_size: Optional[int] = None,
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    r"""Assign every point to its nearest node and gather each node's patch of at most `point_limit` points.
+    r"""Assign every point to its nearest node of the same cloud and gather each node's patch of at most `point_limit`
+    points.
 
     A patch holds the points assigned to the node, nearest first; a node with more points than `point_limit`
     keeps the nearest ones, a node with fewer is padded with the index $N$ (a shadow row) and masked.
@@ -248,6 +273,9 @@ def point_to_node_partition(
         points: Fine points, shape $(N, 3)$.
         nodes: Coarse points, shape $(M, 3)$.
         point_limit: Patch size $K$.
+        batch: Cloud of every point, shape $(N,)$, sorted; `None` for a single cloud.
+        node_batch: Cloud of every node, shape $(M,)$, sorted; `None` for a single cloud.
+        batch_size: Number of clouds; inferred from `node_batch` when `None`.
 
     Returns:
         A tuple `(point_to_node, node_masks, node_knn_indices, node_knn_masks)`: the node of every point $(N,)$,
@@ -266,21 +294,33 @@ def point_to_node_partition(
 
         ```
     """
-    sq_dist_mat = pairwise_squared_distance(nodes, points)  # (M, N)
-    point_to_node = sq_dist_mat.min(dim=0)[1]  # (N,)
+    if batch is None:
+        batch = points.new_zeros(points.size(0), dtype=torch.long)
+    if node_batch is None:
+        node_batch = nodes.new_zeros(nodes.size(0), dtype=torch.long)
+    if batch_size is None:
+        batch_size = int(node_batch.max()) + 1 if node_batch.numel() else 1
+
+    dense_points, point_masks = to_dense_batch(points, batch, batch_size=batch_size)  # (B, N_max, 3)
+    dense_nodes, dense_node_masks = to_dense_batch(nodes, node_batch, batch_size=batch_size)  # (B, M_max, 3)
+    point_ptr = cumsum(degree(batch, batch_size, dtype=torch.long))[:-1]
+    node_ptr = cumsum(degree(node_batch, batch_size, dtype=torch.long))[:-1]
+
+    sq_dist_mat = pairwise_squared_distance(dense_nodes, dense_points)  # (B, M_max, N_max)
+    sq_dist_mat.masked_fill_(~dense_node_masks.unsqueeze(2), float("inf"))
+    dense_point_to_node = sq_dist_mat.min(dim=1)[1]  # (B, N_max)
+    point_to_node = (dense_point_to_node + node_ptr.unsqueeze(1))[point_masks]
     node_masks = index_to_mask(point_to_node, size=nodes.size(0))
 
-    matching_masks = torch.zeros_like(sq_dist_mat, dtype=torch.bool)
-    point_indices = torch.arange(points.size(0), device=points.device)
-    matching_masks[point_to_node, point_indices] = True
+    node_indices = torch.arange(sq_dist_mat.size(1), device=nodes.device)
+    matching_masks = (dense_point_to_node.unsqueeze(1) == node_indices.view(1, -1, 1)) & point_masks.unsqueeze(1)
     sq_dist_mat.masked_fill_(~matching_masks, 1e12)
 
-    k = min(point_limit, points.size(0))
-    node_knn_indices = sq_dist_mat.topk(k=k, dim=1, largest=False)[1]  # (M, k)
-    node_knn_node_indices = point_to_node[node_knn_indices]  # (M, k)
-    node_indices = torch.arange(nodes.size(0), device=nodes.device).unsqueeze(1).expand(-1, k)
-    node_knn_masks = node_knn_node_indices == node_indices
-    node_knn_indices.masked_fill_(~node_knn_masks, points.size(0))
+    k = min(point_limit, sq_dist_mat.size(2))
+    node_knn_indices = sq_dist_mat.topk(k=k, dim=2, largest=False)[1]  # (B, M_max, k)
+    node_knn_masks = torch.gather(matching_masks, 2, node_knn_indices)
+    node_knn_indices = (node_knn_indices + point_ptr.view(-1, 1, 1)).masked_fill(~node_knn_masks, points.size(0))
+    node_knn_indices, node_knn_masks = node_knn_indices[dense_node_masks], node_knn_masks[dense_node_masks]
     if k < point_limit:
         node_knn_indices = F.pad(node_knn_indices, (0, point_limit - k), value=points.size(0))
         node_knn_masks = F.pad(node_knn_masks, (0, point_limit - k), value=False)
@@ -299,28 +339,33 @@ def node_correspondences(
     ref_masks: OptTensor = None,
     src_knn_masks: OptTensor = None,
     ref_knn_masks: OptTensor = None,
+    src_batch: OptTensor = None,
+    ref_batch: OptTensor = None,
 ) -> Tuple[Tensor, Tensor]:
-    r"""Ground-truth node (patch) correspondences and their overlap ratios under a known transform.
+    r"""Ground-truth node (patch) correspondences of every pair and their overlap ratios under a known transform.
 
-    Two patches correspond when, after moving the source into the reference frame, they share points closer than
-    `radius`. The overlap of a pair is the mean of the fraction of reference patch points with a match and the
-    fraction of source patch points with a match. Pairs whose enclosing spheres cannot intersect are skipped.
+    Two patches of a pair correspond when, after moving the source into the reference frame, they share points
+    closer than `radius`. The overlap of a correspondence is the mean of the fraction of reference patch points with
+    a match and the fraction of source patch points with a match. Patches whose enclosing spheres cannot intersect
+    are skipped.
 
     Args:
         src_nodes: Source nodes, shape $(N, 3)$.
         ref_nodes: Reference nodes, shape $(M, 3)$.
         src_knn_points: Source patches, shape $(N, K, 3)$.
         ref_knn_points: Reference patches, shape $(M, K, 3)$.
-        transform: Ground-truth transform of the source onto the reference, shape $(4, 4)$.
+        transform: Ground-truth transform of the source onto the reference of every pair, shape $(B, 4, 4)$.
         radius: Distance under which two points match.
         src_masks: Nodes of the source with a non-empty patch, shape $(N,)$.
         ref_masks: Nodes of the reference with a non-empty patch, shape $(M,)$.
         src_knn_masks: Validity of the source patch slots, shape $(N, K)$.
         ref_knn_masks: Validity of the reference patch slots, shape $(M, K)$.
+        src_batch: Pair of every source node, shape $(N,)$, sorted; `None` for a single pair.
+        ref_batch: Pair of every reference node, shape $(M,)$, sorted; `None` for a single pair.
 
     Returns:
         A tuple `(corr_indices, corr_overlaps)`: the `(source node, reference node)` index pairs with a positive
-        overlap, shape $(C, 2)$, ordered by reference node, and their overlap ratios, shape $(C,)$.
+        overlap, shape $(C, 2)$, ordered by pair then reference node, and their overlap ratios, shape $(C,)$.
 
     Example:
         ```pycon
@@ -328,25 +373,30 @@ def node_correspondences(
         >>> from torch_pointcloud.ops.registration import node_correspondences
         >>> nodes = torch.tensor([[0.0, 0, 0], [5.0, 0, 0]])
         >>> patches = nodes.unsqueeze(1) + torch.tensor([[[0.0, 0, 0], [0.1, 0, 0]]])
-        >>> corr, overlaps = node_correspondences(nodes, nodes, patches, patches, torch.eye(4), radius=0.05)
+        >>> transform = torch.eye(4).unsqueeze(0)
+        >>> corr, overlaps = node_correspondences(nodes, nodes, patches, patches, transform, radius=0.05)
         >>> corr.tolist(), overlaps.tolist()
         ([[0, 0], [1, 1]], [1.0, 1.0])
 
         ```
     """
-    src_nodes = transform_points(src_nodes, transform)
-    src_knn_points = transform_points(src_knn_points, transform)
-
-    if ref_masks is None:
-        ref_masks = torch.ones(ref_nodes.size(0), dtype=torch.bool, device=ref_nodes.device)
+    if src_batch is None:
+        src_batch = src_nodes.new_zeros(src_nodes.size(0), dtype=torch.long)
+    if ref_batch is None:
+        ref_batch = ref_nodes.new_zeros(ref_nodes.size(0), dtype=torch.long)
     if src_masks is None:
         src_masks = torch.ones(src_nodes.size(0), dtype=torch.bool, device=src_nodes.device)
-    if ref_knn_masks is None:
-        ref_knn_masks = torch.ones(ref_knn_points.shape[:2], dtype=torch.bool, device=ref_nodes.device)
+    if ref_masks is None:
+        ref_masks = torch.ones(ref_nodes.size(0), dtype=torch.bool, device=ref_nodes.device)
     if src_knn_masks is None:
         src_knn_masks = torch.ones(src_knn_points.shape[:2], dtype=torch.bool, device=src_nodes.device)
+    if ref_knn_masks is None:
+        ref_knn_masks = torch.ones(ref_knn_points.shape[:2], dtype=torch.bool, device=ref_nodes.device)
 
-    node_mask_mat = ref_masks.unsqueeze(1) & src_masks.unsqueeze(0)  # (M, N)
+    batch_size = transform.size(0)
+    src_transform = transform[src_batch]  # (N, 4, 4)
+    src_nodes = transform_points(src_nodes.unsqueeze(1), src_transform).squeeze(1)
+    src_knn_points = transform_points(src_knn_points, src_transform)
 
     ref_knn_dists = torch.linalg.norm(ref_knn_points - ref_nodes.unsqueeze(1), dim=-1)  # (M, K)
     ref_knn_dists.masked_fill_(~ref_knn_masks, 0.0)
@@ -354,10 +404,21 @@ def node_correspondences(
     src_knn_dists = torch.linalg.norm(src_knn_points - src_nodes.unsqueeze(1), dim=-1)  # (N, K)
     src_knn_dists.masked_fill_(~src_knn_masks, 0.0)
     src_max_dists = src_knn_dists.max(1)[0]
-    dist_mat = torch.sqrt(pairwise_squared_distance(ref_nodes, src_nodes))  # (M, N)
-    intersect_mat = (ref_max_dists.unsqueeze(1) + src_max_dists.unsqueeze(0) + radius - dist_mat) > 0
+
+    dense_ref_nodes, dense_ref_masks = to_dense_batch(ref_nodes, ref_batch, batch_size=batch_size)  # (B, M_max, 3)
+    dense_src_nodes, dense_src_masks = to_dense_batch(src_nodes, src_batch, batch_size=batch_size)  # (B, N_max, 3)
+    dense_ref_max_dists, _ = to_dense_batch(ref_max_dists, ref_batch, batch_size=batch_size)
+    dense_src_max_dists, _ = to_dense_batch(src_max_dists, src_batch, batch_size=batch_size)
+    dense_ref_masks &= to_dense_batch(ref_masks, ref_batch, batch_size=batch_size)[0]
+    dense_src_masks &= to_dense_batch(src_masks, src_batch, batch_size=batch_size)[0]
+    node_mask_mat = dense_ref_masks.unsqueeze(2) & dense_src_masks.unsqueeze(1)  # (B, M_max, N_max)
+
+    dist_mat = torch.sqrt(pairwise_squared_distance(dense_ref_nodes, dense_src_nodes))  # (B, M_max, N_max)
+    intersect_mat = (dense_ref_max_dists.unsqueeze(2) + dense_src_max_dists.unsqueeze(1) + radius - dist_mat) > 0
     intersect_mat = intersect_mat & node_mask_mat
-    sel_ref_indices, sel_src_indices = torch.nonzero(intersect_mat, as_tuple=True)
+    sel_batch, sel_ref_indices, sel_src_indices = torch.nonzero(intersect_mat, as_tuple=True)
+    sel_ref_indices = sel_ref_indices + cumsum(degree(ref_batch, batch_size, dtype=torch.long))[sel_batch]
+    sel_src_indices = sel_src_indices + cumsum(degree(src_batch, batch_size, dtype=torch.long))[sel_batch]
 
     ref_knn_masks = ref_knn_masks[sel_ref_indices]  # (P, K)
     src_knn_masks = src_knn_masks[sel_src_indices]  # (P, K)

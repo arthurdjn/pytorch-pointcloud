@@ -1,6 +1,6 @@
 """Voxel grid subsampling of packed point clouds."""
 
-from typing import Literal, Tuple, overload
+from typing import Literal, Optional, Tuple, overload
 
 import torch
 import torch.nn as nn
@@ -24,7 +24,8 @@ class VoxelGridPool(nn.Module):
         origin: Where the grid starts, `"grid"` or `"min"`.
 
     Shape:
-        - Input: $(N, C)$ features, $(N, 3)$ positions and $(N,)$ batch index.
+        - Input: $(N, C)$ features, $(N, 3)$ positions, $(N,)$ batch index and the optional number of batch elements,
+          which saves a device read.
         - Output: $(M, C)$ features, $(M, 3)$ positions, $(M,)$ batch index and, with `return_inverse`, the $(N,)$
           cell index of every input point.
 
@@ -60,6 +61,7 @@ class VoxelGridPool(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[True],
+        batch_size: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
 
     @overload
@@ -69,6 +71,7 @@ class VoxelGridPool(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[False] = False,
+        batch_size: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
@@ -77,8 +80,9 @@ class VoxelGridPool(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_inverse: bool = False,
+        batch_size: Optional[int] = None,
     ) -> Tuple[Tensor, ...]:
-        start = scatter(pos, batch, dim=0, reduce="min")
+        start = scatter(pos, batch, dim=0, dim_size=batch_size, reduce="min")
         if self.origin == "grid":
             start = torch.floor(start / self.grid_size) * self.grid_size
         cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)

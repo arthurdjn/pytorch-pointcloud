@@ -80,6 +80,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--output", default=None, help="Directory for the checkpoints (default: none saved).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--epochs", default=40, type=int)
+    parser.add_argument("--batch-size", default=1, type=int, help="Pairs per step; the authors train one.")
     parser.add_argument("--lr", default=1e-4, type=float)
     parser.add_argument("--weight-decay", default=1e-6, type=float)
     parser.add_argument("--lr-decay", default=0.95, type=float, help="Learning rate factor applied every epoch.")
@@ -111,10 +112,9 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
 
 def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     train_dataset, val_dataset = configure_datasets(args)
-    # The authors train one pair at a time: the superpoint transformer runs per pair.
     train_loader = PointCloudDataLoader(
         train_dataset,
-        batch_size=1,
+        batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
         cat_keys=[DataKeys.REF_POS],

@@ -1,11 +1,12 @@
-r"""Circle loss over a distance matrix, with per-pair weights on the positive terms.
+r"""Circle loss over distance matrices, with per-pair weights on the positive terms.
 
 :arxiv: [Circle Loss: A Unified Perspective of Pair Similarity Optimization](https://arxiv.org/abs/2002.10857)
 """
 
-import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+
+from torch_pointcloud.utils.types import OptTensor
 
 
 def weighted_circle_loss(
@@ -18,26 +19,31 @@ def weighted_circle_loss(
     positive_optimal: float,
     negative_optimal: float,
     log_scale: float,
+    mask: OptTensor = None,
 ) -> Tensor:
-    r"""Circle loss over a distance matrix, with per-pair weights on the positive terms.
+    r"""Circle loss over distance matrices, with per-pair weights on the positive terms.
 
     The positives of a row are pushed under `positive_margin` and the negatives beyond `negative_margin`, with the
     self-paced weights of the circle loss scaled by `positive_weights` on the positives; the row and column losses
-    are averaged over the rows and columns that have both a positive and a negative.
+    are averaged over the rows and columns that have both a positive and a negative. Leading dimensions hold
+    independent matrices, each with its own loss; `mask` leaves the padding of matrices padded to a common size out
+    of every term.
 
     Args:
-        distances: Distances between the elements of two sets, shape $(N, M)$.
-        positive_mask: Positive pairs, shape $(N, M)$.
-        negative_mask: Negative pairs, shape $(N, M)$.
-        positive_weights: Weight of every positive pair, shape $(N, M)$.
+        distances: Distances between the elements of two sets, shape $(\ldots, N, M)$.
+        positive_mask: Positive pairs, shape $(\ldots, N, M)$.
+        negative_mask: Negative pairs, shape $(\ldots, N, M)$.
+        positive_weights: Weight of every positive pair, shape $(\ldots, N, M)$.
         positive_margin: Distance under which a positive pair stops being penalized.
         negative_margin: Distance beyond which a negative pair stops being penalized.
         positive_optimal: Target distance of the positives in the self-paced weights.
         negative_optimal: Target distance of the negatives in the self-paced weights.
         log_scale: Temperature of the log-sum-exp.
+        mask: Valid entries, shape $(\ldots, N, M)$; every entry when `None`.
 
     Returns:
-        The scalar loss, zero when no row and no column has both a positive and a negative.
+        The loss of every matrix, shape $(\ldots)$, zero for a matrix where no row and no column has both a positive
+        and a negative.
 
     Example:
         ```pycon
@@ -51,6 +57,8 @@ def weighted_circle_loss(
 
         ```
     """
+    if mask is not None:
+        positive_mask, negative_mask = positive_mask & mask, negative_mask & mask
     positive_scales = distances - 1e5 * (~positive_mask).float()  # mask the non-positives
     positive_scales = (positive_scales - positive_optimal).clamp(min=0.0)
     positive_scales = positive_weights * positive_scales.detach()
@@ -60,15 +68,18 @@ def weighted_circle_loss(
 
     positive_logits = log_scale * (distances - positive_margin) * positive_scales
     negative_logits = log_scale * (negative_margin - distances) * negative_scales
-    row_loss = F.softplus(torch.logsumexp(positive_logits, dim=-1) + torch.logsumexp(negative_logits, dim=-1))
-    col_loss = F.softplus(torch.logsumexp(positive_logits, dim=-2) + torch.logsumexp(negative_logits, dim=-2))
+    if mask is not None:
+        # Finite rather than infinite, so a fully padded row keeps finite gradients.
+        positive_logits = positive_logits.masked_fill(~mask, -1e12)
+        negative_logits = negative_logits.masked_fill(~mask, -1e12)
+    row_loss = F.softplus(positive_logits.logsumexp(dim=-1) + negative_logits.logsumexp(dim=-1))
+    col_loss = F.softplus(positive_logits.logsumexp(dim=-2) + negative_logits.logsumexp(dim=-2))
     row_loss, col_loss = row_loss / log_scale, col_loss / log_scale
 
     row_mask = positive_mask.any(dim=-1) & negative_mask.any(dim=-1)
     col_mask = positive_mask.any(dim=-2) & negative_mask.any(dim=-2)
-    zero = distances.sum() * 0.0
-    row_term = row_loss[row_mask].mean() if bool(row_mask.any()) else zero
-    col_term = col_loss[col_mask].mean() if bool(col_mask.any()) else zero
+    row_term = (row_loss * row_mask).sum(dim=-1) / row_mask.sum(dim=-1).clamp(min=1)
+    col_term = (col_loss * col_mask).sum(dim=-1) / col_mask.sum(dim=-1).clamp(min=1)
     return (row_term + col_term) / 2
 
 
@@ -104,8 +115,10 @@ class WeightedCircleLoss(nn.Module):
         positive_mask: Tensor,
         negative_mask: Tensor,
         positive_weights: Tensor,
+        mask: OptTensor = None,
     ) -> Tensor:
-        r"""Compute the loss of the $(N, M)$ `distances` with its positive and negative masks and positive weights."""
+        r"""Compute the loss of the $(\ldots, N, M)$ `distances` with its positive and negative masks, positive weights
+        and optional mask of valid entries."""
         return weighted_circle_loss(
             distances,
             positive_mask,
@@ -116,6 +129,7 @@ class WeightedCircleLoss(nn.Module):
             self.positive_optimal,
             self.negative_optimal,
             self.log_scale,
+            mask=mask,
         )
 
     def extra_repr(self) -> str:

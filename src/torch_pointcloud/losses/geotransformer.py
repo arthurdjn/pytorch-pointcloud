@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import torch
 from torch import Tensor, nn
+from torch_geometric.utils import to_dense_batch
 
 from torch_pointcloud.ops.geometry import transform_points
 from torch_pointcloud.ops.registration import pairwise_squared_distance
@@ -118,33 +119,29 @@ class GeoTransformerLoss(nn.Module):
         self.weight_fine = weight_fine
 
     def coarse_loss(self, output: "GeoTransformerOutput") -> Tensor:
-        gt_batch = output["gt_node_corr_batch"]
         batch_size = int(output["ref_batch_c"].max()) + 1
-        losses = []
-        for b in range(batch_size):
-            ref_feats = output["ref_feats_c"][output["ref_batch_c"] == b]
-            src_feats = output["src_feats_c"][output["src_batch_c"] == b]
-            gt_indices = output["gt_node_corr_indices"][gt_batch == b]
-            gt_overlaps = output["gt_node_corr_overlaps"][gt_batch == b]
+        ref_feats, ref_valid = to_dense_batch(output["ref_feats_c"], output["ref_batch_c"], batch_size=batch_size)
+        src_feats, src_valid = to_dense_batch(output["src_feats_c"], output["src_batch_c"], batch_size=batch_size)
+        valid = ref_valid.unsqueeze(2) & src_valid.unsqueeze(1)  # (B, M_r, M_s)
+        gt_indices = output["gt_node_corr_indices"]
 
-            distances = torch.sqrt(pairwise_squared_distance(ref_feats, src_feats, normalized=True))
-            overlaps = torch.zeros_like(distances)
-            overlaps[gt_indices[:, 1], gt_indices[:, 0]] = gt_overlaps
-            positive_mask = overlaps > self.positive_overlap
-            losses.append(
-                weighted_circle_loss(
-                    distances,
-                    positive_mask,
-                    overlaps == 0,
-                    torch.sqrt(overlaps * positive_mask.float()),
-                    self.positive_margin,
-                    self.negative_margin,
-                    self.positive_optimal,
-                    self.negative_optimal,
-                    self.log_scale,
-                )
-            )
-        return torch.stack(losses).mean()
+        distances = torch.sqrt(pairwise_squared_distance(ref_feats, src_feats, normalized=True))
+        overlaps = torch.zeros_like(distances)
+        overlaps[output["gt_node_corr_batch"], gt_indices[:, 1], gt_indices[:, 0]] = output["gt_node_corr_overlaps"]
+        positive_mask = overlaps > self.positive_overlap
+        losses = weighted_circle_loss(
+            distances,
+            positive_mask,
+            overlaps == 0,
+            torch.sqrt(overlaps * positive_mask.float()),
+            self.positive_margin,
+            self.negative_margin,
+            self.positive_optimal,
+            self.negative_optimal,
+            self.log_scale,
+            mask=valid,
+        )
+        return losses.mean()
 
     def fine_loss(self, output: "GeoTransformerOutput", transform: Tensor) -> Tensor:
         src_points = transform_points(output["src_patch_points"], transform[output["node_corr_batch"]])
