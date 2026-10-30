@@ -546,9 +546,10 @@ class Point2VecPretraining(PretrainingModel):
         x_rec = self.decoder_norm(self.decoder(x_full, torch.cat([pos_vis, pos_mask], dim=1)))
         predictions = self.regressor(x_rec[:, -M:]).reshape(-1, C)
 
-        hidden = self.teacher(tokens, pos_embed, fetch_idx=self.target_layers)
-        targets = torch.stack([F.layer_norm(h, h.shape[-1:]) for h in hidden]).mean(0)
-        targets = F.layer_norm(targets, targets.shape[-1:])[mask]
+        with torch.no_grad():
+            hidden = self.teacher(tokens, pos_embed, fetch_idx=self.target_layers)
+            targets = torch.stack([F.layer_norm(h, h.shape[-1:]) for h in hidden]).mean(0)
+            targets = F.layer_norm(targets, targets.shape[-1:])[mask]
         return predictions, targets
 
 

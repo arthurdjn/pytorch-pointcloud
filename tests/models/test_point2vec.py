@@ -125,6 +125,7 @@ def test_point2vec_pretraining_regresses_the_frozen_teacher() -> None:
 
     num_masked = int(0.65 * 16)
     assert predictions.shape == targets.shape == (2 * num_masked, 48)
+    assert not targets.requires_grad
     assert all(p.grad is None for p in model.teacher.parameters())
     assert model.get_parameter("blocks.blocks.0.attn.qkv.weight").grad is not None
     assert torch.equal(

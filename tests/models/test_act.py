@@ -82,6 +82,7 @@ def test_act_pretraining_regresses_the_frozen_teacher() -> None:
     (1 - torch.nn.functional.cosine_similarity(predictions, targets, dim=-1)).mean().backward()
 
     num_masked = int(0.8 * 16)
+    assert not targets.requires_grad
     assert predictions.shape == targets.shape == (2 * num_masked, 24)
     assert all(p.grad is None for p in model.teacher.parameters())
     assert model.get_parameter("blocks.blocks.0.attn.qkv.weight").grad is not None

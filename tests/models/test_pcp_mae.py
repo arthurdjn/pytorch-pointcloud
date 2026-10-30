@@ -63,6 +63,7 @@ def test_pcp_mae_pretraining_predicts_the_center_embedding_of_the_masked_groups(
     assert pred_batch.max() == 2 * 9 - 1
     assert center_pred.shape == center_target.shape == (2 * 9, 48)
     assert torch.allclose(center_target, PositionEmbeddingSine(48)(center[mask]))
+    assert center_pred.requires_grad and not center_target.requires_grad and not target.requires_grad
 
 
 def test_pcp_mae_pretraining_invalid_mask_ratio_raises() -> None:
