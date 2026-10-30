@@ -25,6 +25,8 @@ class PartSegmentationDecoder(nn.Module):
         propagation_channels: Widths of the feature-propagation MLP, the last one $C_p$ being its output width.
         category_channels: The width $E$ of the category embedding.
         spatial_dim: The spatial dimension $D$ of the points and patch centers.
+        bias: Whether the feature-propagation linear layers have a bias.
+        eps: The term added to the squared distances of the inverse-distance weighting.
 
     Shape:
         - x: $(B, G, C)$ patch features.
@@ -57,6 +59,8 @@ class PartSegmentationDecoder(nn.Module):
         propagation_channels: Sequence[int],
         category_channels: int = 64,
         spatial_dim: int = 3,
+        bias: bool = True,
+        eps: float = 1e-8,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -76,10 +80,10 @@ class PartSegmentationDecoder(nn.Module):
             k=3,
             act="relu",
             norm="batch_norm",
-            bias=True,
+            bias=bias,
             plain_last=False,
             weighting="squared",
-            eps=1e-8,
+            eps=eps,
         )
 
     @property

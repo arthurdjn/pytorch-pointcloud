@@ -51,3 +51,23 @@ def test_part_segmentation_decoder_rejects_a_misshaped_category(category: torch.
     with pytest.raises(ValueError, match="category"):
         decoder(x, center, pos, batch, category)
 
+
+def test_part_segmentation_decoder_bias_and_eps() -> None:
+    biased = PartSegmentationDecoder(in_channels=24, num_categories=16, propagation_channels=(32, 16))
+    unbiased = PartSegmentationDecoder(in_channels=24, num_categories=16, propagation_channels=(32, 16), bias=False)
+    assert set(biased.state_dict()) - set(unbiased.state_dict()) == {
+        "propagation.mlp.lins.0.bias",
+        "propagation.mlp.lins.1.bias",
+    }
+
+    loose = PartSegmentationDecoder(in_channels=24, num_categories=16, propagation_channels=(32, 16), eps=1e-2)
+    loose.load_state_dict(biased.state_dict())
+    biased.eval()
+    loose.eval()
+    x, center, pos, batch, category = _inputs()
+    pos[:8], pos[200:208] = center[0], center[1]
+    with torch.no_grad():
+        out = biased(x, center, pos, batch, category)
+        out_loose = loose(x, center, pos, batch, category)
+    assert not torch.allclose(out[:, :16], out_loose[:, :16])
+    assert torch.equal(out[:, 16:], out_loose[:, 16:])
