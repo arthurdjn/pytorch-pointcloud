@@ -1,8 +1,9 @@
 """Benchmark the ReCon classifiers on ModelNet40, single pass without voting.
 
-NOTE: the 1k reference, 94.12, is the test accuracy stored in the released checkpoint, measured on the authors'
-cache of 8192 farthest points per cloud (drawn from a random first point) sampled to 1024 farthest points. Sampling
-from the first point, this script scores 93.68, and the authors' two-step order 93.64.
+NOTE: the 1k reference, 94.12, is the test accuracy stored in the released checkpoint by the authors' fine-tuning run
+(`python main.py --config cfgs/full/finetune_modelnet.yaml --finetune_model`, qizekun/ReCon@51a8be0), on their cache
+of 8192 farthest points per cloud (drawn from a random first point) sampled to 1024 farthest points; it was not re-run.
+Sampling from the first point, this script scores 93.68, and the authors' two-step order 93.64.
 """
 
 import os

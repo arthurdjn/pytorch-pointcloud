@@ -1,7 +1,8 @@
 """Benchmark the point2vec part segmentation model on ShapeNetPart, single pass without voting.
 
-NOTE: the reference, 86.3 instance mIoU (84.59 class mIoU, in the file name), is the authors' validation score on 2048
-points per shape drawn at random with replacement, with a random first point of the patch sampling. On the 2048
+NOTE: the reference, 86.3 instance mIoU (84.59 class mIoU, in the file name), is the authors' validation score at the
+released epoch of `./scripts/part_segmentation_shapenetpart.bash` (karimknaebel/point2vec@2d80818), on 2048 points per
+shape drawn at random with replacement, with a random first point of the patch sampling; it was not re-run. On the 2048
 farthest points, this script scores 85.97 (84.38).
 """
 

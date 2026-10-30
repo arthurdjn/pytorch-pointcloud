@@ -1,7 +1,8 @@
 """Benchmark the ReCon part segmentation model on ShapeNetPart, single pass without voting.
 
-NOTE: the reference, 86.41 instance mIoU (84.43 class mIoU), is stored in the released checkpoint, from the authors'
-test loop on 2048 points per shape drawn at random with replacement. On the 2048 farthest points, this script scores
+NOTE: the reference, 86.41 instance mIoU (84.43 class mIoU), is stored in the released checkpoint by the authors'
+`python main.py --learning_rate 0.0001 --epoch 300` in `segmentation/` (qizekun/ReCon@51a8be0), whose test loop draws
+2048 points per shape at random with replacement; it was not re-run. On the 2048 farthest points, this script scores
 86.15 (84.40).
 """
 

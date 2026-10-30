@@ -1,8 +1,9 @@
 """Benchmark the point2vec classifier on ScanObjectNN PB_T50_RS, single pass without voting.
 
-NOTE: the reference, 87.47, is the validation accuracy the authors logged at the released epoch (in the file name),
-with a random first point of the patch sampling. This script scores 86.92 from the first point, and 86.36 to 86.78
-over five random first points, in float32 and float16 alike.
+NOTE: the reference, 87.47, is the validation accuracy the authors logged at the released epoch (in the file name) of
+`./scripts/classification_scanobjectnn.bash --config configs/classification/_pretrained.yaml`
+(karimknaebel/point2vec@2d80818), with a random first point of the patch sampling; it was not re-run. This script
+scores 86.92 from the first point, and 86.36 to 86.78 over five random first points, in float32 and float16 alike.
 """
 
 import os

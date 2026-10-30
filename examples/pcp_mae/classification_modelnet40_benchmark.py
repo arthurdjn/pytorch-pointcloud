@@ -1,8 +1,9 @@
 """Benchmark the PCP-MAE classifiers on ModelNet40, single pass without voting.
 
-NOTE: the reference, 94.1, is the authors' accuracy without voting (94.08 stored in the released checkpoint),
-measured on their cache of 8192 farthest points per cloud (drawn from a random first point) sampled to 1024 farthest
-points. Sampling from the first point, this script scores 93.64, and the authors' two-step order 93.64 too.
+NOTE: the reference, 94.1, is the authors' accuracy without voting (94.08 stored in the released checkpoint by
+`python main.py --config cfgs/finetune_modelnet.yaml --finetune_model`, aHapBean/PCP-MAE@33b896d), measured on their
+cache of 8192 farthest points per cloud (drawn from a random first point) sampled to 1024 farthest points; it was not
+re-run. Sampling from the first point, this script scores 93.64, and the authors' two-step order 93.64 too.
 """
 
 import os

@@ -1,4 +1,9 @@
-"""Benchmark the PCP-MAE classifiers on the ScanObjectNN protocols, single pass without voting."""
+"""Benchmark the PCP-MAE classifiers on the ScanObjectNN protocols, single pass without voting.
+
+NOTE: the PB_T50_RS reference, 90.35, is the test accuracy stored in the released checkpoint by the authors' fine-tuning
+run (`python main.py --config cfgs/finetune_scan_hardest.yaml --finetune_model`, aHapBean/PCP-MAE@33b896d); it was not
+re-run. This script scores 90.28, two objects fewer.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace

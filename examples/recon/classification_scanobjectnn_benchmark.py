@@ -1,4 +1,9 @@
-"""Benchmark the ReCon classifiers on the ScanObjectNN protocols, single pass without voting."""
+"""Benchmark the ReCon classifiers on the ScanObjectNN protocols, single pass without voting.
+
+NOTE: the PB_T50_RS reference, 90.63, is the test accuracy stored in the released checkpoint by the authors' fine-tuning
+run (`python main.py --config cfgs/full/finetune_scan_hardest.yaml --finetune_model`, qizekun/ReCon@51a8be0); it was
+not re-run. This script scores 90.56, two objects fewer.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace
