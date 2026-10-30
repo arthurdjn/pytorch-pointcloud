@@ -182,6 +182,14 @@ def test_sample_rois_scene_without_boxes_is_all_background() -> None:
     assert samples["target_index"].tolist() == [-1] * 8
 
 
+def test_sample_rois_without_rois_draws_nothing() -> None:
+    boxes = _boxes([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+    zero = torch.zeros(1, dtype=torch.long)
+    samples = _sample(boxes[:0], zero[:0], zero[:0], boxes, zero, zero)
+    assert samples["index"].shape == samples["target_index"].shape == samples["iou"].shape == (0,)
+    assert samples["index"].dtype == torch.long and samples["iou"].dtype == boxes.dtype
+
+
 def test_sample_rois_draws_the_same_samples_from_the_same_generator() -> None:
     boxes = _boxes([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
     rois = boxes + torch.rand(40, 7) * torch.tensor([3.0, 3.0, 0.5, 0.0, 0.0, 0.0, 0.5])

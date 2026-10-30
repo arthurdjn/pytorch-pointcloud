@@ -104,8 +104,8 @@ def roi_head_loss(
 
     The confidence target of a RoI is its IoU with its matched box, mapped linearly from
     `[cls_background_threshold, cls_foreground_threshold]` onto $[0, 1]$ and clamped; the binary cross-entropy is
-    averaged over the RoIs. The RoIs whose IoU exceeds `reg_foreground_threshold` regress their matched box with
-    [`roi_box_loss`][torch_pointcloud.losses.roi_head.roi_box_loss].
+    averaged over the RoIs, and zero without RoIs. The RoIs whose IoU exceeds `reg_foreground_threshold` regress their
+    matched box with [`roi_box_loss`][torch_pointcloud.losses.roi_head.roi_box_loss].
 
     Args:
         cls_logits: Confidence logit of every RoI, shape $(R, 1)$.
@@ -147,7 +147,8 @@ def roi_head_loss(
         ```
     """
     cls_target = ((iou - cls_background_threshold) / (cls_foreground_threshold - cls_background_threshold)).clamp(0, 1)
-    cls_loss = F.binary_cross_entropy_with_logits(cls_logits, cls_target.unsqueeze(1))
+    cls_loss = F.binary_cross_entropy_with_logits(cls_logits, cls_target.unsqueeze(1), reduction="sum")
+    cls_loss = cls_loss / max(iou.shape[0], 1)
     box_loss, corner = roi_box_loss(
         box_codes,
         rois,

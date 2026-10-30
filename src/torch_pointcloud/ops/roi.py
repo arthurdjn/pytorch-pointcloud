@@ -255,6 +255,8 @@ def roi_aware_pool3d(
 class RoISamples(TypedDict):
     r"""RoIs sampled for the refinement stage of a two-stage detector, matched to the ground truth.
 
+    $B$ counts the scenes that have RoIs, and $S$ is the number of samples per scene.
+
     Attributes:
         index: Index of every sampled RoI into the input RoIs, scene by scene, shape $(B S,)$.
         target_index: Index of the matched ground-truth box, $-1$ when the RoI overlaps no box of its class,
@@ -305,9 +307,10 @@ def sample_rois(
 
     Every RoI is matched to the box of its class with the highest 3D IoU. A RoI is foreground when that IoU is at
     least `foreground_threshold`, hard background when it is at least `hard_background_threshold`, and easy
-    background otherwise. Every scene draws `num_samples` RoIs: up to `foreground_ratio` of them among the
-    foreground without replacement, the rest among the background with replacement, `hard_background_ratio` of them
-    hard. A scene without background fills all its samples from the foreground with replacement.
+    background otherwise. Every scene that has RoIs draws `num_samples` of them: up to `foreground_ratio` among
+    the foreground without replacement, the rest among the background with replacement, `hard_background_ratio` of
+    them hard. A scene without background fills all its samples from the foreground with replacement, and a scene
+    without RoIs draws none.
 
     Args:
         rois: RoIs $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
@@ -329,7 +332,7 @@ def sample_rois(
     Shape:
         - rois: $(R, 7)$
         - boxes: $(K, 7)$
-        - output: $(B S,)$ each
+        - output: $(B S,)$ each, $B$ the number of scenes that have RoIs
 
     Example:
         ```pycon
@@ -355,7 +358,7 @@ def sample_rois(
         ```
     """
     num_foreground = int(round(foreground_ratio * num_samples))
-    index, target_index, ious = [], [], []
+    index, target_index, ious = [roi_batch.new_zeros(0)], [roi_batch.new_zeros(0)], [rois.new_zeros(0)]
     for b in torch.unique(roi_batch):
         scene = (roi_batch == b).nonzero().view(-1)
         targets = (box_batch == b).nonzero().view(-1)

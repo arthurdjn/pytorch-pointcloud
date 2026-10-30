@@ -81,6 +81,20 @@ def test_roi_head_loss_regresses_only_the_foreground() -> None:
     assert torch.equal(reference[1], background_changed[1]) and torch.equal(reference[2], background_changed[2])
 
 
+def test_roi_head_loss_without_rois_is_zero() -> None:
+    losses = roi_head_loss(
+        torch.zeros(0, 1),
+        torch.zeros(0, 7),
+        torch.zeros(0, 7),
+        torch.zeros(0, 7),
+        torch.zeros(0),
+        cls_foreground_threshold=CLS_FOREGROUND,
+        cls_background_threshold=CLS_BACKGROUND,
+        reg_foreground_threshold=REG_FOREGROUND,
+    )
+    assert [loss.item() for loss in losses] == [0.0, 0.0, 0.0]
+
+
 def test_roi_head_loss_rejects_flat_logits() -> None:
     with pytest.raises(ValueError, match="size"):
         roi_head_loss(
