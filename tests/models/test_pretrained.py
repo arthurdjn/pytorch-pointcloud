@@ -153,6 +153,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
     # nuScenes-lidarseg based models
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
+    # GridNet-HD based models
+    ("ptv3.gridnet-hd.heig-vd-geo", "semantic-segmentation", "gridnethd"),
     # Volt (all four datasets)
     ("volt-s.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
     ("volt-s.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),

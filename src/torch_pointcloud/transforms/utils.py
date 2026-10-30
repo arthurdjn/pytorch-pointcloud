@@ -186,11 +186,10 @@ def relabel(
     src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)
     tgt = torch.tensor([table[s] for s in sorted_sources], dtype=torch.long, device=labels.device)
     labels_long = labels.long()
-    idx = torch.searchsorted(src, labels_long)
-    idx_clamped = idx.clamp(max=src.numel() - 1)
-    hit = src[idx_clamped] == labels_long
+    idx = torch.searchsorted(src, labels_long).clamp_(max=src.numel() - 1)
+    hit = src[idx] == labels_long
     dst = torch.full_like(labels_long, default)
-    dst[hit] = tgt[idx_clamped[hit]]
+    dst[hit] = tgt[idx[hit]]
     return dst.to(labels.dtype)
 
 

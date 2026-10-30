@@ -160,6 +160,12 @@ BENCHMARKS = [
         id="volt/semantickitti-simple",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_gridnethd_benchmark.py",
+        ("--model", "ptv3.gridnet-hd.heig-vd-geo", "--limit", "1"),
+        marks=(*_GPU_SPCONV, _REQUIRES_LASPY),
+        id="ptv3/gridnethd",
+    ),
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,
