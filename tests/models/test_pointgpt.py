@@ -293,9 +293,43 @@ def test_pointgpt_part_segmentation_ragged_batch() -> None:
     assert torch.allclose(out[:96], first, atol=1e-5)
 
 
-def test_pointgpt_part_segmentation_validates_fetch_idx_against_depth() -> None:
+@pytest.mark.parametrize(
+    "fetch_idx",
+    [
+        pytest.param((3, 7, 11), id="beyond-depth"),
+        pytest.param((), id="empty"),
+        pytest.param((-1, 3), id="negative"),
+    ],
+)
+def test_pointgpt_part_segmentation_validates_fetch_idx_against_depth(fetch_idx: tuple) -> None:
     with pytest.raises(ValueError, match="fetch_idx"):
-        PointGPTPartSegmentation(in_channels=0, num_classes=5, num_categories=16, depth=6, embed_dim=96, num_heads=2)
+        PointGPTPartSegmentation(
+            in_channels=0,
+            num_classes=5,
+            num_categories=16,
+            depth=6,
+            embed_dim=96,
+            num_heads=2,
+            fetch_idx=fetch_idx,
+        )
+
+
+def test_pointgpt_part_segmentation_repeated_fetch_idx() -> None:
+    model = PointGPTPartSegmentation(
+        in_channels=0,
+        num_classes=5,
+        num_categories=16,
+        embed_dim=96,
+        depth=4,
+        num_heads=2,
+        num_groups=8,
+        group_size=4,
+        fetch_idx=(1, 1, 3),
+        propagation_channels=(64, 32),
+    )
+    model.eval()
+    pos, batch, category = _uniform_batch(128)
+    assert model(None, pos, batch, category).shape == (256, 5)
 
 
 def test_pointgpt_part_segmentation_accepts_features() -> None:
@@ -332,6 +366,35 @@ def test_pointgpt_extractor_fetch_idx_returns_hidden_states() -> None:
     assert [tuple(feat.shape) for feat in features] == [(2, 6, 32), (2, 6, 32)]
     assert torch.allclose(features[-1], extractor(tokens, pos, mask))
     assert torch.equal(extractor(tokens, pos), extractor(tokens, pos, None))
+
+
+def test_pointgpt_extractor_fetch_idx_order() -> None:
+    extractor = PointGPTExtractor(embed_dim=32, num_heads=2, depth=4)
+    extractor.eval()
+    tokens = torch.randn(2, 5, 32)
+    pos = torch.randn(2, 6, 32)
+    first, last = extractor(tokens, pos, fetch_idx=(1, 3))
+    reversed_states = extractor(tokens, pos, fetch_idx=(3, 1))
+    repeated = extractor(tokens, pos, fetch_idx=(1, 1))
+    assert torch.equal(reversed_states[0], last)
+    assert torch.equal(reversed_states[1], first)
+    assert len(repeated) == 2
+    assert torch.equal(repeated[0], first)
+    assert torch.equal(repeated[1], first)
+
+
+@pytest.mark.parametrize(
+    "fetch_idx",
+    [
+        pytest.param((), id="empty"),
+        pytest.param((-1,), id="negative"),
+        pytest.param((4,), id="beyond-depth"),
+    ],
+)
+def test_pointgpt_extractor_validates_fetch_idx(fetch_idx: tuple) -> None:
+    extractor = PointGPTExtractor(embed_dim=32, num_heads=2, depth=4)
+    with pytest.raises(ValueError, match="fetch_idx"):
+        extractor(torch.randn(2, 5, 32), torch.randn(2, 6, 32), fetch_idx=fetch_idx)
 
 
 def test_pointgpt_extractor_fetch_idx_skips_the_later_blocks() -> None:

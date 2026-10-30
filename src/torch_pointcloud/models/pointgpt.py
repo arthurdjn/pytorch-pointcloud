@@ -199,8 +199,9 @@ class PointGPTExtractor(nn.Module):
     token is prepended to the patch-token sequence, a stack of causally-masked `PointGPTBlock` layers
     consumes the tokens plus their positional embedding, and a final layer normalization produces the
     encoded points. This is the backbone reused for downstream classification and part segmentation;
-    `fetch_idx` returns the hidden states after the given blocks instead, each through the final normalization, and
-    skips the blocks after the last one. `attn_mask=None` lets every token attend to the whole sequence.
+    `fetch_idx` returns the hidden states after the given blocks instead, in the order of `fetch_idx`, each through
+    the final normalization, and skips the blocks after the last one. `attn_mask=None` lets every token attend to the
+    whole sequence.
 
     Args:
         embed_dim: The token dimension $C$.
@@ -279,6 +280,9 @@ class PointGPTExtractor(nn.Module):
         *,
         fetch_idx: Optional[Sequence[int]] = None,
     ) -> Union[Tensor, List[Tensor]]:
+        if fetch_idx is not None and (not fetch_idx or min(fetch_idx) < 0 or max(fetch_idx) >= len(self.layers)):
+            raise ValueError(f"`fetch_idx` must hold block indices in [0, {len(self.layers)}); got {fetch_idx}.")
+
         batch = x.size(0)
         x = x.transpose(0, 1)
         pos = pos.transpose(0, 1)
@@ -290,12 +294,12 @@ class PointGPTExtractor(nn.Module):
             x = torch.cat([sos, x], dim=0)
 
         if fetch_idx is not None:
-            features: List[Tensor] = []
+            hidden: Dict[int, Tensor] = {}
             for i, layer in enumerate(self.layers[: max(fetch_idx) + 1]):
                 x = layer(x + pos, attn_mask)
                 if i in fetch_idx:
-                    features.append(self.ln_f(x).transpose(0, 1))
-            return features
+                    hidden[i] = x
+            return [self.ln_f(hidden[i]).transpose(0, 1) for i in fetch_idx]
 
         for layer in self.layers:
             x = layer(x + pos, attn_mask)
@@ -599,7 +603,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         num_heads: The number of attention heads.
         num_groups: The number of patches $G$.
         group_size: The number of points $M$ per patch.
-        fetch_idx: The extractor blocks whose hidden states feed the decoder, each below `depth`.
+        fetch_idx: The extractor blocks whose hidden states feed the decoder, in this order, each in $[0, \text{depth})$.
         encoder_local_channels: Hidden widths of the patch embedder's per-point MLP.
         encoder_global_channels: Hidden widths of the patch embedder's per-patch MLP.
         propagation_channels: Widths of the feature-propagation MLP, the last one being its output width.
@@ -652,10 +656,8 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         spatial_dim: int = 3,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
-        if max(fetch_idx) >= depth:
-            raise ValueError(
-                f"`fetch_idx` {fetch_idx} requires at least {max(fetch_idx) + 1} blocks; got depth={depth}."
-            )
+        if not fetch_idx or min(fetch_idx) < 0 or max(fetch_idx) >= depth:
+            raise ValueError(f"`fetch_idx` must hold block indices in [0, {depth}); got {fetch_idx}.")
 
         self.embed_dim = embed_dim
         self.depth = depth
