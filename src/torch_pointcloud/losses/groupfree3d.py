@@ -26,7 +26,8 @@ class GroupFree3DLoss(nn.Module):
     scene that contains it, and a candidate inherits the box of the seed it was sampled from.
 
     - **Sampling:** the `num_positives` seeds of each object closest to its center, in units of its size, are
-      positives of the seed objectness logits; a sigmoid focal loss averaged per scene supervises them.
+      positives of the seed objectness logits; a sigmoid focal loss averaged per scene supervises them. The seeds are
+      ranked inside their own object, so an object with fewer seeds labels all of them and no seed of another object.
     - **Objectness:** a candidate is positive when its seed lies inside an object; a sigmoid focal loss averaged per
       scene supervises the objectness logits of every stage.
     - **Box and semantic:** positive candidates drive, at every stage, the center (smooth-$L_1$ to the object center),
@@ -37,6 +38,9 @@ class GroupFree3DLoss(nn.Module):
     The total is `loss_weight` times the weighted sampling term plus the weighted objectness, box and semantic terms
     averaged over the stages. The library heading is counter-clockwise about $+z$ while the heading head predicts the
     negated angle, so the heading bins are computed from $-\theta$.
+
+    The recipe defaults are the authors' ScanNet values; their SUN RGB-D values are in the example below.
+    `LitDetectionModel` takes this loss built: its criterion factory completes the head geometry of `VoteNetLoss`.
 
     Args:
         num_classes: Number of semantic classes.
@@ -93,11 +97,11 @@ class GroupFree3DLoss(nn.Module):
         *,
         num_heading_bins: int,
         mean_sizes: Union[Tensor, List[List[float]], None],
-        sampling_weight: float,
-        objectness_weight: float,
-        center_delta: float,
-        size_delta: float,
-        heading_delta: float,
+        sampling_weight: float = 0.8,
+        objectness_weight: float = 0.1,
+        center_delta: float = 0.04,
+        size_delta: float = 0.111111111111,
+        heading_delta: float = 1.0,
         num_positives: int = 4,
         heading_cls_weight: float = 0.1,
         size_cls_weight: float = 0.1,
