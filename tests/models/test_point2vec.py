@@ -77,12 +77,12 @@ def test_point2vec_checkpoint_filter_fn_maps_the_lightning_layout() -> None:
     assert set(out) == {
         "encoder.local_mlp.lins.0.weight",
         "blocks.blocks.4.mlp.lins.1.bias",
-        "propagation_0.mlp.lins.0.weight",
+        "decoder.propagation.mlp.lins.0.weight",
         "head.lins.2.bias",
     }
     assert out["encoder.local_mlp.lins.0.weight"].shape == (128, 3)
-    assert torch.equal(out["propagation_0.mlp.lins.0.weight"][:, :48], upsampling[:, 3:, 0])
-    assert torch.equal(out["propagation_0.mlp.lins.0.weight"][:, 48:], upsampling[:, :3, 0])
+    assert torch.equal(out["decoder.propagation.mlp.lins.0.weight"][:, :48], upsampling[:, 3:, 0])
+    assert torch.equal(out["decoder.propagation.mlp.lins.0.weight"][:, 48:], upsampling[:, :3, 0])
     assert set(out) <= set(model.state_dict())
 
 

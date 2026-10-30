@@ -13,7 +13,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed
+from torch_pointcloud.layers import PartSegmentationDecoder, PointPatchEmbed
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.utils.data import DataKeys
@@ -198,11 +198,10 @@ class Point2VecPartSegmentation(PartSegmentationModel):
     Point Clouds](https://arxiv.org/abs/2303.16570), adapted from
     :github: [karimknaebel/point2vec](https://github.com/karimknaebel/point2vec).
 
-    Tokenizes local groups with a mini-PointNet encoder, processes them with a plain transformer encoder, averages
-    the layer-normalized hidden states at three block depths, and propagates the group features back to every point
-    with a PointNet++-style feature propagation (`PointNet2FeaturePropagation`) over the point coordinates. A global
-    branch made of the max- and mean-pooled group features and the embedded category one-hot is fused before the
-    per-point classifier.
+    Tokenizes local groups with a mini-PointNet encoder, processes them with a plain transformer encoder and averages
+    the layer-normalized hidden states at three block depths. A `PartSegmentationDecoder` propagates the group
+    features back to every point and appends their max- and mean-pooled descriptor and the embedded category one-hot
+    before the per-point classifier.
 
     Args:
         in_channels: Number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
@@ -282,8 +281,7 @@ class Point2VecPartSegmentation(PartSegmentationModel):
         self.pos_embed = self.configure_pos_embed()
         self.blocks = self.configure_blocks()
 
-        self.label_conv = self.configure_label_conv()
-        self.propagation_0 = self.configure_propagation_0()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
     def configure_encoder(self) -> PointPatchEmbed:
@@ -321,34 +319,21 @@ class Point2VecPartSegmentation(PartSegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_label_conv(self) -> MLP:
-        """Build the MLP embedding the category one-hot for the global branch."""
-        return MLP(
-            [self.num_categories, 64],
-            act="leaky_relu",
-            act_kwargs=dict(negative_slope=0.2),
-            norm="batch_norm",
+    def configure_decoder(self) -> PartSegmentationDecoder:
+        """Build the decoder interpolating the group features back to every point with the global descriptor."""
+        return PartSegmentationDecoder(
+            in_channels=self.embed_dim,
+            num_categories=self.num_categories,
+            propagation_channels=self.propagation_channels,
+            spatial_dim=self.spatial_dim,
             bias=False,
-            plain_last=False,
-        )
-
-    def configure_propagation_0(self) -> PointNet2FeaturePropagation:
-        """Build the feature-propagation module interpolating group features back to every point."""
-        return PointNet2FeaturePropagation(
-            channels=[self.embed_dim + self.spatial_dim, *self.propagation_channels],
-            k=3,
-            act="relu",
-            norm="batch_norm",
-            bias=False,
-            plain_last=False,
-            weighting="squared",
             eps=torch.finfo(torch.float32).eps,
         )
 
     @property
     def num_features(self) -> int:
         """Channel count $C$ of the per-point features entering the head."""
-        return self.propagation_channels[-1] + 2 * self.embed_dim + 64
+        return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -387,14 +372,7 @@ class Point2VecPartSegmentation(PartSegmentationModel):
         return x_feat, center
 
     def forward_decoder(self, x_feat: Tensor, pos: Tensor, batch: Tensor, center: Tensor, category: Tensor) -> Tensor:
-        B, G, C = x_feat.shape
-        x_global = torch.cat([x_feat.max(1)[0], x_feat.mean(1), self.label_conv(category)], dim=-1)
-
-        group_batch = torch.arange(B, device=pos.device).repeat_interleave(G)
-        x_groups = x_feat.reshape(B * G, C)
-        center_pos = center.reshape(B * G, self.spatial_dim)
-        x, _, _ = self.propagation_0(x_groups, center_pos, group_batch, pos, pos, batch)
-        return torch.cat([x, x_global[batch]], dim=-1)
+        return self.decoder(x_feat, center, pos, batch, category)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         return x if pre_logits else self.head(x)
@@ -609,10 +587,10 @@ _CHECKPOINT_MAPPING = {
     "cls_head.4.{param}": "head.lins.1.{param}",
     "cls_head.5.{param}": "head.norms.1.module.{param}",
     "cls_head.8.{param}": "head.lins.2.{param}",
-    "label_embedding.0.{param}": "label_conv.lins.0.{param}",
-    "label_embedding.1.{param}": "label_conv.norms.0.module.{param}",
-    "upsampling.mlp_convs.{i}.{param}": "propagation_0.mlp.lins.{i}.{param}",
-    "upsampling.mlp_bns.{i}.{param}": "propagation_0.mlp.norms.{i}.module.{param}",
+    "label_embedding.0.{param}": "decoder.category_embed.lins.0.{param}",
+    "label_embedding.1.{param}": "decoder.category_embed.norms.0.module.{param}",
+    "upsampling.mlp_convs.{i}.{param}": "decoder.propagation.mlp.lins.{i}.{param}",
+    "upsampling.mlp_bns.{i}.{param}": "decoder.propagation.mlp.norms.{i}.module.{param}",
     "seg_head.0.{param}": "head.lins.0.{param}",
     "seg_head.1.{param}": "head.norms.0.module.{param}",
     "seg_head.4.{param}": "head.lins.1.{param}",
@@ -650,10 +628,12 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
     )
     if "mask_token" in state_dict:
         state_dict["mask_token"] = state_dict["mask_token"].reshape(1, 1, -1)
-    if "propagation_0.mlp.lins.0.weight" in state_dict:
-        weight = state_dict["propagation_0.mlp.lins.0.weight"]
+    if "decoder.propagation.mlp.lins.0.weight" in state_dict:
+        weight = state_dict["decoder.propagation.mlp.lins.0.weight"]
         spatial_dim = getattr(model, "spatial_dim", 3)
-        state_dict["propagation_0.mlp.lins.0.weight"] = torch.cat([weight[:, spatial_dim:], weight[:, :spatial_dim]], 1)
+        state_dict["decoder.propagation.mlp.lins.0.weight"] = torch.cat(
+            [weight[:, spatial_dim:], weight[:, :spatial_dim]], 1
+        )
     return state_dict
 
 

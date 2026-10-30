@@ -12,7 +12,7 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import Attention, CrossAttention, DropPath, PointNet2FeaturePropagation, PointPatchEmbed
+from torch_pointcloud.layers import Attention, CrossAttention, DropPath, PartSegmentationDecoder, PointPatchEmbed
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.ops.masking import random_mask
@@ -410,10 +410,10 @@ class ReConPartSegmentation(PartSegmentationModel):
     :github: [qizekun/ReCon](https://github.com/qizekun/ReCon).
 
     Tokenizes local groups with a mini-PointNet encoder, prepends the class, image and text queries, processes the
-    sequence with a `ReConEncoder`, concatenates the normalized local hidden states at three block depths, and
-    propagates the group features back to every point with a PointNet++-style feature propagation
-    (`PointNet2FeaturePropagation`). A global branch made of the max- and mean-pooled group features, the max-pooled
-    final queries and the embedded category one-hot is fused before the per-point classifier.
+    sequence with a `ReConEncoder` and concatenates the normalized local hidden states at three block depths. A
+    `PartSegmentationDecoder` propagates the group features back to every point and appends their max- and
+    mean-pooled descriptor and the embedded category one-hot; the max-pooled final queries are appended last, before
+    the per-point classifier.
 
     Args:
         in_channels: Number of per-point feature channels concatenated to the coordinates ($0$ for coordinates only).
@@ -497,8 +497,7 @@ class ReConPartSegmentation(PartSegmentationModel):
         self.blocks = self.configure_blocks()
         self.norm_f = nn.LayerNorm(embed_dim)
 
-        self.label_conv = self.configure_label_conv()
-        self.propagation_0 = self.configure_propagation_0()
+        self.decoder = self.configure_decoder()
         self.head = self.configure_head()
 
     def configure_encoder(self) -> PointPatchEmbed:
@@ -535,34 +534,19 @@ class ReConPartSegmentation(PartSegmentationModel):
             norm_kwargs=self.norm_kwargs,
         )
 
-    def configure_label_conv(self) -> MLP:
-        """Build the MLP embedding the category one-hot for the global branch."""
-        return MLP(
-            [self.num_categories, 64],
-            act="leaky_relu",
-            act_kwargs=dict(negative_slope=0.2),
-            norm="batch_norm",
-            bias=False,
-            plain_last=False,
-        )
-
-    def configure_propagation_0(self) -> PointNet2FeaturePropagation:
-        """Build the feature-propagation module interpolating group features back to every point."""
-        return PointNet2FeaturePropagation(
-            channels=[3 * self.embed_dim + self.spatial_dim, self.embed_dim * 4, 1024],
-            k=3,
-            act="relu",
-            norm="batch_norm",
-            bias=True,
-            plain_last=False,
-            weighting="squared",
-            eps=1e-8,
+    def configure_decoder(self) -> PartSegmentationDecoder:
+        """Build the decoder interpolating the group features back to every point with the global descriptor."""
+        return PartSegmentationDecoder(
+            in_channels=3 * self.embed_dim,
+            num_categories=self.num_categories,
+            propagation_channels=(4 * self.embed_dim, 1024),
+            spatial_dim=self.spatial_dim,
         )
 
     @property
     def num_features(self) -> int:
         """Channel count $C$ of the per-point features entering the head."""
-        return 1024 + 3 * self.embed_dim * 2 + self.embed_dim + 64
+        return self.decoder.out_channels + self.embed_dim
 
     def configure_head(self) -> nn.Module:
         if self.num_classes == 0:
@@ -617,14 +601,8 @@ class ReConPartSegmentation(PartSegmentationModel):
         center: Tensor,
         category: Tensor,
     ) -> Tensor:
-        B, G, C = x_feat.shape
-        x_global = torch.cat([x_feat.max(1)[0], x_feat.mean(1), x_query, self.label_conv(category)], dim=-1)
-
-        group_batch = torch.arange(B, device=pos.device).repeat_interleave(G)
-        x_groups = x_feat.reshape(B * G, C)
-        center_pos = center.reshape(B * G, self.spatial_dim)
-        x, _, _ = self.propagation_0(x_groups, center_pos, group_batch, pos, pos, batch)
-        return torch.cat([x, x_global[batch]], dim=-1)
+        x = self.decoder(x_feat, center, pos, batch, category)
+        return torch.cat([x, x_query[batch]], dim=-1)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         return x if pre_logits else self.head(x)
