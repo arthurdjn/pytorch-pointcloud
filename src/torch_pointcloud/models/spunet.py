@@ -95,6 +95,20 @@ class SparseUNetEncoder(nn.Module):
     The stride-2 convolution of stage $s$ outputs `down_channels[s]` channels (`channels[s]` by default) and the first
     residual block of the stage maps them to `channels[s]`. The stem output and every stage output but the last are
     returned as decoder skips.
+
+    Args:
+        in_channels: Number of input feature channels.
+        stem_channels: Number of channels of the stem, also the width of the shallowest skip.
+        channels: Feature width of every stage.
+        depths: Number of residual blocks per stage, aligned with `channels`.
+        stem_kernel_size: Kernel size of the stem convolution.
+        kernel_size: Kernel size of the residual convolutions.
+        spatial_padding: Padding added to the sparse spatial shape, so that voxel indices stay in range.
+        act: Activation function.
+        act_kwargs: Keyword arguments for the activation function.
+        norm: Normalization function.
+        norm_kwargs: Keyword arguments for the normalization function.
+        down_channels: Output width of the stride-2 convolution of every stage. `None` uses `channels`.
     """
 
     def __init__(
