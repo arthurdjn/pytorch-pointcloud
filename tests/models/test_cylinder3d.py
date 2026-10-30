@@ -77,6 +77,17 @@ def test_cylinder3d_clamps_points_outside_the_range(model: Cylinder3DSegmentatio
 
 
 @CUDA_SPCONV
+def test_cylinder3d_runs_under_autocast(model: Cylinder3DSegmentation, data: Dict[str, Tensor]) -> None:
+    with torch.no_grad():
+        expected = model(data["x"], data["pos"], data["batch"])
+        with torch.autocast("cuda", dtype=torch.float16):
+            logits = model(data["x"], data["pos"], data["batch"])
+    assert logits.shape == expected.shape
+    assert torch.isfinite(logits).all()
+    assert torch.allclose(logits.float(), expected, atol=1e-2)
+
+
+@CUDA_SPCONV
 def test_cylinder3d_forward_head_returns_one_row_per_voxel(
     model: Cylinder3DSegmentation, data: Dict[str, Tensor]
 ) -> None:

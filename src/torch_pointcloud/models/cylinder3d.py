@@ -62,6 +62,9 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
     loss = torch.nn.functional.cross_entropy(logits, target, ignore_index=-1)
     ```
 
+    Run mixed precision under `torch.autocast`, not `.half()`: `.half()` also rounds the positions and the grid bounds
+    to float16, which moves points to neighboring voxels.
+
     Args:
         in_channels: Point feature channels, without the coordinates (e.g. $1$ for the LiDAR intensity).
         num_classes: Number of semantic classes; `0` drops the head.
@@ -228,6 +231,8 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         point_x = torch.cat([pos[:, :2], x], dim=1)
         voxel_x, voxel_indices, inverse = self.vfe(point_x, cartesian_to_cylindrical(pos), batch)
         batch_size = int(batch.max().item()) + 1
+        # spconv's inference path skips autocast, so the features must already have the weight dtype.
+        voxel_x = voxel_x.to(self.stem.conv1.weight.dtype)
         sparse_x = spconv.SparseConvTensor(voxel_x, voxel_indices, list(self.grid_size), batch_size)
 
         sparse_x = self.stem(sparse_x)
