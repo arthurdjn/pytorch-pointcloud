@@ -93,7 +93,8 @@ class AxialRoPE(nn.Module):
 
     Shape:
         - Input: queries and keys of shape $(N, H, D)$ and positions of shape $(N, 3)$.
-        - Output: rotated queries and keys of shape $(N, H, D)$, in the input dtype.
+        - Output: rotated queries and keys of shape $(N, H, D)$, in the input dtype (angles and rotation run in
+          float32, also in a half-precision module).
 
     Example:
         ```python
@@ -106,7 +107,6 @@ class AxialRoPE(nn.Module):
         ```
     """
 
-    inv_freq: Tensor
     axis: Tensor
 
     def __init__(self, num_frequencies: Sequence[int], base: float) -> None:
@@ -118,9 +118,7 @@ class AxialRoPE(nn.Module):
         self.base = base
         self.head_dim = 2 * sum(self.num_frequencies)
 
-        inv_freq = torch.cat([1.0 / base ** torch.linspace(0, 1, n) for n in self.num_frequencies])
         axis = torch.repeat_interleave(torch.arange(3), torch.tensor(self.num_frequencies))
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.register_buffer("axis", axis, persistent=False)
 
     @staticmethod
@@ -131,7 +129,16 @@ class AxialRoPE(nn.Module):
         return rotated.flatten(-2).type_as(x)
 
     def forward(self, q: Tensor, k: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor]:
-        angle = pos.to(self.inv_freq.dtype)[:, self.axis] * self.inv_freq
+        if q.size(-1) != self.head_dim:
+            raise ValueError(
+                f"`num_frequencies` {self.num_frequencies} rotate {self.head_dim} channels, got {q.size(-1)}."
+            )
+
+        # Rebuilt in float32 on every call: a floating-point buffer would follow the module into half precision.
+        inv_freq = torch.cat(
+            [1.0 / self.base ** torch.linspace(0, 1, n, device=pos.device) for n in self.num_frequencies]
+        )
+        angle = pos.float()[:, self.axis] * inv_freq
         cos, sin = angle.cos().unsqueeze(1), angle.sin().unsqueeze(1)
         return self._rotate(q, cos, sin), self._rotate(k, cos, sin)
 

@@ -62,3 +62,24 @@ def test_axial_rope_logits_depend_on_relative_positions() -> None:
 def test_axial_rope_requires_three_bands() -> None:
     with pytest.raises(ValueError, match="three positive counts"):
         AxialRoPE(num_frequencies=(4, 4), base=10.0)
+
+
+def test_axial_rope_keeps_float32_angles_in_a_bfloat16_module() -> None:
+    torch.manual_seed(0)
+    rope = AxialRoPE(num_frequencies=(4, 4, 4), base=100.0)
+    q, k = torch.randn(2, 64, 2, 24).unbind(0)
+    pos = torch.randint(0, 400, (64, 3))
+    q_ref, k_ref = rope(q, k, pos)
+
+    q_out, k_out = rope.to(torch.bfloat16)(q.bfloat16(), k.bfloat16(), pos)
+
+    torch.testing.assert_close(q_out.float(), q_ref, atol=0.05, rtol=0.02)
+    torch.testing.assert_close(k_out.float(), k_ref, atol=0.05, rtol=0.02)
+
+
+def test_axial_rope_rejects_a_mismatched_head_dimension() -> None:
+    rope = AxialRoPE(num_frequencies=(4, 4, 4), base=100.0)
+    q = torch.randn(8, 2, 16)
+
+    with pytest.raises(ValueError, match="rotate 24 channels, got 16"):
+        rope(q, q, torch.randint(0, 8, (8, 3)))
