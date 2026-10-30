@@ -1169,7 +1169,7 @@ _LITEPT_NUSCENES_TRANSFORM = T.Compose(
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/litept-small.scannet20.prs-eth/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/litept-small.scannet20.prs-eth/resolve/8481021fab8868892ed01dea56cd253df51b85f3/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 76.54, "OA": 91.42},
         classes=SCANNET20_CLASSES,
@@ -1213,7 +1213,7 @@ def litept_small_scannet20(**hparams: Any) -> LitePTSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/litept-small.nuscenes.prs-eth/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/litept-small.nuscenes.prs-eth/resolve/58fa9d2bbb0c34af696ded9f0b94b23f1c54e612/model.safetensors",
         dataset="nuscenes",
         metrics={"simple/mIoU": 80.47, "simple/OA": 94.68},
         classes=NUSCENES_LIDARSEG_CLASSES,
@@ -1257,7 +1257,7 @@ def litept_small_nuscenes(**hparams: Any) -> LitePTSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/litept-large.nuscenes.prs-eth/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/litept-large.nuscenes.prs-eth/resolve/ff3f27f36873de8c84a4e4d976aed80c4a7871e3/model.safetensors",
         dataset="nuscenes",
         metrics={"simple/mIoU": 81.11, "simple/OA": 94.68},
         classes=NUSCENES_LIDARSEG_CLASSES,
@@ -1301,7 +1301,7 @@ def litept_large_nuscenes(**hparams: Any) -> LitePTSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/litept-small.structured3d.prs-eth/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/litept-small.structured3d.prs-eth/resolve/20012f4de57228b9386595c273dcc23f43855b25/model.safetensors",
         dataset="structured3d",
         classes=STRUCTURED3D_CLASSES,
         author="prs-eth",
@@ -1344,7 +1344,7 @@ def litept_small_structured3d(**hparams: Any) -> LitePTSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/litept-base.structured3d.prs-eth/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/litept-base.structured3d.prs-eth/resolve/81fe734df0c2203403322b7a3b68b5e10d285c7f/model.safetensors",
         dataset="structured3d",
         classes=STRUCTURED3D_CLASSES,
         author="prs-eth",
@@ -1387,7 +1387,7 @@ def litept_base_structured3d(**hparams: Any) -> LitePTSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/litept-large.structured3d.prs-eth/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/litept-large.structured3d.prs-eth/resolve/4f5bc7dc7c0b5fc7a340cf8456b0bc20ce693d24/model.safetensors",
         dataset="structured3d",
         classes=STRUCTURED3D_CLASSES,
         author="prs-eth",
