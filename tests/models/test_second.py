@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection
+from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection, VoxelBackbone8x
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
@@ -147,6 +147,14 @@ def test_second_multihead_create_model_hparams() -> None:
     assert model.sparse_shape == [41, 1024, 1024]
     assert len(model.head.rpn_heads) == 6
     assert "second-multihead.nuscenes.openpcdet" in list_models("second*", task="detection")
+
+
+def test_voxel_backbone_stage_widths_and_strides_follow_the_convs() -> None:
+    backbone = VoxelBackbone8x(4)
+    assert backbone.stage_channels == (16, 32, 64, 64)
+    assert backbone.stage_strides == (1, 2, 4, 8)
+    with pytest.raises(AttributeError):
+        backbone.stage_channels = (8, 8, 8, 8)  # type: ignore[misc]
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")

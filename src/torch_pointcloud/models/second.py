@@ -3,6 +3,8 @@
 {{ paper("second-2018") }}
 """
 
+from itertools import accumulate
+from operator import mul
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -98,8 +100,17 @@ class VoxelBackbone8x(nn.Module):
             create_act(act, **(act_kwargs or {})),
         )
         self.out_channels = 128
-        self.stage_channels = (16, 32, 64, 64)
-        self.stage_strides = (1, 2, 4, 8)
+
+    @property
+    def stage_channels(self) -> Tuple[int, ...]:
+        """Width of the four stages."""
+        return tuple(stage[-1][0].out_channels for stage in (self.conv1, self.conv2, self.conv3, self.conv4))
+
+    @property
+    def stage_strides(self) -> Tuple[int, ...]:
+        r"""Downsampling of the four stages in $x$ and $y$."""
+        strides = (stage[0][0].stride[-1] for stage in (self.conv1, self.conv2, self.conv3, self.conv4))
+        return tuple(accumulate(strides, mul))
 
     @overload
     def forward(
