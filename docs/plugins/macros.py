@@ -33,6 +33,7 @@ MODELS_DIR = DOCS_DIR.parent / "src" / "torch_pointcloud" / "models"
 MODEL_LABELS = {
     "centerpoint": "CenterPoint",
     "concerto": "Concerto",
+    "cylinder3d": "Cylinder3D",
     "dgcnn": "DGCNN",
     "kpconv": "KPConv",
     "lion": "LION",

@@ -21,6 +21,7 @@ from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
+from .cylinder3d_blocks import AsymmetricResidualBlock, AsymmetricUpsampleBlock, DimensionDecompositionBlock
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -102,7 +103,7 @@ from .spconv_blocks import (
 from .tnet import DynamicTNet, TNet
 from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
 from .transformer import Attention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
-from .vfe import DynamicMeanVFE, PillarFeatureLayer
+from .vfe import DynamicMaxVFE, DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
 from .xconv import XConv
@@ -130,6 +131,9 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
+    "AsymmetricResidualBlock",
+    "AsymmetricUpsampleBlock",
+    "DimensionDecompositionBlock",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -210,6 +214,7 @@ __all__ = [
     "TransformerBlock",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
+    "DynamicMaxVFE",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",

@@ -488,3 +488,35 @@ def spherical_points_lloyd(
             kernel_points[1:3, :-1] = torch.zeros_like(kernel_points[1:3, :-1])
 
     return kernel_points * radius
+
+
+def cartesian_to_cylindrical(pos: Tensor) -> Tensor:
+    r"""Convert Cartesian coordinates to cylindrical coordinates $(\rho, \phi, z)$.
+
+    The radius $\rho = \sqrt{x^2 + y^2}$ and the azimuth $\phi = \operatorname{atan2}(y, x) \in [-\pi, \pi]$ are
+    measured in the $xy$ plane; $z$ is kept as is.
+
+    Args:
+        pos: Cartesian coordinates.
+
+    Returns:
+        The cylindrical coordinates $(\rho, \phi, z)$.
+
+    Shape:
+        - `pos`: $(N, 3)$
+        - Output: $(N, 3)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.geometry import cartesian_to_cylindrical
+        >>> cartesian_to_cylindrical(torch.tensor([[1.0, 0.0, 2.0], [0.0, 2.0, -1.0]]))
+        tensor([[ 1.0000,  0.0000,  2.0000],
+                [ 2.0000,  1.5708, -1.0000]])
+
+        ```
+    """
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    rho = torch.sqrt(x * x + y * y)
+    phi = torch.atan2(y, x)
+    return torch.stack([rho, phi, z], dim=-1)
