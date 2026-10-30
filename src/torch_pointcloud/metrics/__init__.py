@@ -2,7 +2,14 @@
 
 from .classification import accuracy, confusion_matrix
 from .detection import box_average_precision, box_matches
-from .instance_segmentation import instance_average_precision, instance_matches
+from .instance_segmentation import (
+    instance_average_precision,
+    instance_coverage,
+    instance_f1_score,
+    instance_matches,
+    instance_precision,
+    instance_recall,
+)
 from .kitti import kitti_average_precision
 from .nuscenes import nuscenes_detection_metrics
 from .segmentation import intersection_over_union, part_intersection_over_union, part_mean_intersection_over_union
@@ -13,7 +20,11 @@ __all__ = [
     "box_matches",
     "confusion_matrix",
     "instance_average_precision",
+    "instance_coverage",
+    "instance_f1_score",
     "instance_matches",
+    "instance_precision",
+    "instance_recall",
     "intersection_over_union",
     "kitti_average_precision",
     "nuscenes_detection_metrics",
