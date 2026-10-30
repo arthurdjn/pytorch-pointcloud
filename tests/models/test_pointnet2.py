@@ -234,6 +234,13 @@ def test_pointnet2_part_segmentation_forward(
     assert logits.dtype == data["x"].dtype
 
 
+def test_pointnet2_part_segmentation_rejects_category_indices(
+    model_part: PointNet2PartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    with pytest.raises(ValueError, match="must be one-hot"):
+        model_part(data["x"], data["pos"], data["batch"], category.argmax(dim=1))
+
+
 def test_pointnet2_part_segmentation_forward_features_decoder_head(
     model_part: PointNet2PartSegmentation, data: Dict[str, Tensor], category: Tensor
 ) -> None:
