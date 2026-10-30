@@ -1,4 +1,5 @@
 import math
+import warnings
 from typing import Dict
 
 import pytest
@@ -251,6 +252,17 @@ def test_second_iou_forward_raises_in_training_mode() -> None:
     empty = torch.zeros(0, dtype=torch.long)
     with pytest.raises(RuntimeError, match="inference only"):
         model(torch.zeros(0, 5, 4), torch.zeros(0, 3, dtype=torch.long), empty, empty)
+
+
+@SPCONV
+def test_second_without_dir_offset_warns() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        create_model("second.kitti.openpcdet", task="detection")
+    with pytest.warns(FutureWarning, match="SECONDDetection"):
+        model = create_model("second.kitti.openpcdet", task="detection", dir_offset=None)
+    assert isinstance(model, SECONDDetection)
+    assert model.dir_offset == 0.78539
 
 
 NUSCENES_RANGE = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)

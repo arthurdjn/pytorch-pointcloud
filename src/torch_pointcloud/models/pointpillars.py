@@ -6,6 +6,7 @@
 import itertools
 import math
 import operator
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -185,7 +186,8 @@ class PointPillarsDetection(DetectionModel):
         upsample_strides: 2D backbone upsample strides per level.
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the head.
-        dir_offset: Direction-classifier angle offset.
+        dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
+            warns and uses $0.78539$) and an error from 0.0.20.
         dir_limit_offset: Heading wrap offset used during decoding.
         act: Activation type or callable for the pillar feature net and 2D backbone.
         act_kwargs: Extra activation arguments.
@@ -214,13 +216,22 @@ class PointPillarsDetection(DetectionModel):
         upsample_strides: Sequence[int] = (1, 2, 4),
         num_upsample_filters: Sequence[int] = (128, 128, 128),
         num_dir_bins: int = 2,
-        dir_offset: float = 0.78539,
+        dir_offset: Optional[float] = None,
         dir_limit_offset: float = 0.0,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if dir_offset is None:
+            warnings.warn(
+                "Omitting `dir_offset` of `PointPillarsDetection` is deprecated since 0.0.19 and an error from 0.0.20; "
+                "pass the direction offset the weights were trained with (0.78539 was the default).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            dir_offset = 0.78539
+
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
@@ -700,6 +711,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
         anchor_sizes=[[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]],
         anchor_bottom_heights=[-1.78, -0.6, -0.6],
         feature_map_stride=2,
+        dir_offset=0.78539,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )

@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict
 
 import pytest
@@ -104,6 +105,16 @@ def test_pointpillars_create_model_hparams() -> None:
     assert model.num_classes == 3
     assert model.grid_size == (432, 496, 1)
     assert model.head.anchors.shape == (248 * 216 * 6, 7)
+
+
+def test_pointpillars_without_dir_offset_warns() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        create_model("pointpillars.kitti.openpcdet", task="detection")
+    with pytest.warns(FutureWarning, match="PointPillarsDetection"):
+        model = create_model("pointpillars.kitti.openpcdet", task="detection", dir_offset=None)
+    assert isinstance(model, PointPillarsDetection)
+    assert model.dir_offset == 0.78539
 
 
 @pytest.mark.parametrize(
