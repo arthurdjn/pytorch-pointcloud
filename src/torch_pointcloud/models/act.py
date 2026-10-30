@@ -404,7 +404,7 @@ class ACTPretraining(PretrainingModel):
     "act.modelnet40.runpei-dong",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/act.modelnet40.runpei-dong/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/act.modelnet40.runpei-dong/resolve/0d58e7d65cbd4e3c793c6b212796bed5149f51e4/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.19, "mAcc": 89.90},
         classes=MODELNET40_CLASSES,
@@ -450,7 +450,7 @@ def act_modelnet40_clf(**kwargs: Any) -> PointMAEClassification:
     "act.scanobjectnn-objbg.runpei-dong",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/act.scanobjectnn-objbg.runpei-dong/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/act.scanobjectnn-objbg.runpei-dong/resolve/a5e3549e374ae49af099fd80920abc7b919de183/model.safetensors",
         dataset="scanobjectnn-objbg",
         metrics={"OA": 93.29, "mAcc": 91.48},
         classes=SCANOBJECTNN_CLASSES,
@@ -484,7 +484,7 @@ def act_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassification:
     "act.scanobjectnn-objonly.runpei-dong",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/act.scanobjectnn-objonly.runpei-dong/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/act.scanobjectnn-objonly.runpei-dong/resolve/f7a3234ac7c1e0c22521bd91174cc35f68204438/model.safetensors",
         dataset="scanobjectnn-objonly",
         metrics={"OA": 91.22, "mAcc": 90.26},
         classes=SCANOBJECTNN_CLASSES,
@@ -518,7 +518,7 @@ def act_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassification:
     "act.scanobjectnn-hardest.runpei-dong",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/act.scanobjectnn-hardest.runpei-dong/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/act.scanobjectnn-hardest.runpei-dong/resolve/c2d08b53f068e6b45453b8be437332ea9404cafa/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 88.27, "mAcc": 86.63},
         classes=SCANOBJECTNN_CLASSES,
@@ -552,7 +552,7 @@ def act_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassification:
     "act.dvae.runpei-dong",
     task="pretraining",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/act.dvae.runpei-dong/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/act.dvae.runpei-dong/resolve/321e532150c191521fa4c91cec397d9077b04508/model.safetensors",
         dataset="shapenet55",
         author="runpei-dong",
         license="MIT",
@@ -582,7 +582,7 @@ def act_dvae(**kwargs: Any) -> ACTDiscreteVAE:
     "act.pretrain.runpei-dong",
     task="pretraining",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/act.pretrain.runpei-dong/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/act.pretrain.runpei-dong/resolve/5b0e013b17fa7a1ca3042045e568a906aaa57932/model.safetensors",
         dataset="shapenet55",
         author="runpei-dong",
         license="MIT",

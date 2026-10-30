@@ -386,7 +386,7 @@ class PCPMAEPretraining(PretrainingModel):
     "pcp-mae.modelnet40.xiangdong-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pcp-mae.modelnet40.xiangdong-zhang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pcp-mae.modelnet40.xiangdong-zhang/resolve/80d4730c9fd023619d423f7d55e4ff488b90fc4b/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.64, "mAcc": 90.60},
         classes=MODELNET40_CLASSES,
@@ -432,7 +432,7 @@ def pcp_mae_modelnet40_clf(**kwargs: Any) -> PCPMAEClassification:
     "pcp-mae.scanobjectnn-objbg.xiangdong-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pcp-mae.scanobjectnn-objbg.xiangdong-zhang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pcp-mae.scanobjectnn-objbg.xiangdong-zhang/resolve/54634db8a9a53eaffd26bd16c01cf77a367b14d4/model.safetensors",
         dataset="scanobjectnn-objbg",
         metrics={"OA": 95.52, "mAcc": 94.82},
         classes=SCANOBJECTNN_CLASSES,
@@ -466,7 +466,7 @@ def pcp_mae_scanobjectnn_objbg_clf(**kwargs: Any) -> PCPMAEClassification:
     "pcp-mae.scanobjectnn-objonly.xiangdong-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pcp-mae.scanobjectnn-objonly.xiangdong-zhang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pcp-mae.scanobjectnn-objonly.xiangdong-zhang/resolve/1b78f1e496c9f5610b8196357120a292b38f1deb/model.safetensors",
         dataset="scanobjectnn-objonly",
         metrics={"OA": 94.32, "mAcc": 94.06},
         classes=SCANOBJECTNN_CLASSES,
@@ -500,7 +500,7 @@ def pcp_mae_scanobjectnn_objonly_clf(**kwargs: Any) -> PCPMAEClassification:
     "pcp-mae.scanobjectnn-hardest.xiangdong-zhang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pcp-mae.scanobjectnn-hardest.xiangdong-zhang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pcp-mae.scanobjectnn-hardest.xiangdong-zhang/resolve/c4785b85d55b8368d3dfc6149dd09a38eacb14b9/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 90.28, "mAcc": 89.42},
         classes=SCANOBJECTNN_CLASSES,
@@ -534,7 +534,7 @@ def pcp_mae_scanobjectnn_hardest_clf(**kwargs: Any) -> PCPMAEClassification:
     "pcp-mae.pretrain.xiangdong-zhang",
     task="pretraining",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pcp-mae.pretrain.xiangdong-zhang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pcp-mae.pretrain.xiangdong-zhang/resolve/e99c02659167eb76d8fec9daeb0fa7d13a67e043/model.safetensors",
         dataset="shapenet55",
         author="xiangdong-zhang",
         license="MIT",

@@ -816,7 +816,7 @@ _MODELNET_TRANSFORM = T.Compose(
     "recon.modelnet40.zekun-qi",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.modelnet40.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.modelnet40.zekun-qi/resolve/d7d3fd3ad4510dfd57d1198f7e3a68d7cd7150c5/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.68, "mAcc": 90.73},
         classes=MODELNET40_CLASSES,
@@ -849,7 +849,7 @@ def recon_modelnet40_clf(**kwargs: Any) -> ReConClassification:
     "recon.modelnet40-8k.zekun-qi",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.modelnet40-8k.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.modelnet40-8k.zekun-qi/resolve/3ef4f8ddbe62cf5f30df743b34a2a37007327bfe/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 94.25, "mAcc": 91.35},
         classes=MODELNET40_CLASSES,
@@ -895,7 +895,7 @@ def recon_modelnet40_8k_clf(**kwargs: Any) -> ReConClassification:
     "recon.scanobjectnn-objbg.zekun-qi",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.scanobjectnn-objbg.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.scanobjectnn-objbg.zekun-qi/resolve/45c80700f585991a89b244c65e30fb823b4af2a3/model.safetensors",
         dataset="scanobjectnn-objbg",
         metrics={"OA": 95.18, "mAcc": 94.48},
         classes=SCANOBJECTNN_CLASSES,
@@ -929,7 +929,7 @@ def recon_scanobjectnn_objbg_clf(**kwargs: Any) -> ReConClassification:
     "recon.scanobjectnn-objonly.zekun-qi",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.scanobjectnn-objonly.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.scanobjectnn-objonly.zekun-qi/resolve/e9935d81076d19a15bea2ee3c4b15a2b69401069/model.safetensors",
         dataset="scanobjectnn-objonly",
         metrics={"OA": 93.63, "mAcc": 93.74},
         classes=SCANOBJECTNN_CLASSES,
@@ -963,7 +963,7 @@ def recon_scanobjectnn_objonly_clf(**kwargs: Any) -> ReConClassification:
     "recon.scanobjectnn-hardest.zekun-qi",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.scanobjectnn-hardest.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.scanobjectnn-hardest.zekun-qi/resolve/6b5b6dcbced32e9e572fb51daf47846410deb1b2/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 90.56, "mAcc": 89.39},
         classes=SCANOBJECTNN_CLASSES,
@@ -998,7 +998,7 @@ def recon_scanobjectnn_hardest_clf(**kwargs: Any) -> ReConClassification:
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.shapenetpart.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.shapenetpart.zekun-qi/resolve/92971d61ecd5eae7128a4a8fda60e4a666d65c04/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.15, "cls_mIoU": 84.40},
         author="zekun-qi",
@@ -1049,7 +1049,7 @@ def recon_shapenetpart_seg(**kwargs: Any) -> ReConPartSegmentation:
     "recon.pretrain.zekun-qi",
     task="pretraining",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/recon.pretrain.zekun-qi/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/recon.pretrain.zekun-qi/resolve/c48f92b7156503b1703b31797df3272bcfc9ae3e/model.safetensors",
         dataset="shapenet55",
         author="zekun-qi",
         license="MIT",
