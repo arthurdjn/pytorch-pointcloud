@@ -715,6 +715,18 @@ TRAININGS = [
         id="fcaf3d/sunrgbd-train",
     ),
     pytest.param(
+        "fcaf3d/detection_train.py",
+        (*_SMOKE_RECIPE, "--dataset", "s3dis", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="fcaf3d/s3dis-train",
+    ),
+    pytest.param(
+        "tr3d/detection_train.py",
+        (*_SMOKE_RECIPE, "--dataset", "scannet", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="tr3d/scannet-train",
+    ),
+    pytest.param(
         "tr3d/detection_train.py",
         (*_SMOKE_RECIPE, "--dataset", "s3dis", "--batch-size", "2"),
         marks=_GPU_SPCONV,
