@@ -173,7 +173,10 @@ class PointRCNNLoss(nn.Module):
         point_box_loss = self._point_box_loss(output["point_box_preds"], point_box_labels, point_cls_labels)
         rcnn_cls_loss = self._rcnn_cls_loss(output["rcnn_cls"], rcnn_cls_labels)
         rcnn_box_loss = self._rcnn_box_loss(
-            output["rcnn_reg"], output["rois"], output["gt_of_rois_src"], reg_valid_mask
+            output["rcnn_reg"],
+            output["rois"],
+            output["gt_of_rois_src"],
+            reg_valid_mask,
         )
         return {
             "loss": point_cls_loss + point_box_loss + rcnn_cls_loss + rcnn_box_loss,

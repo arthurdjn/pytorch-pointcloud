@@ -347,7 +347,10 @@ def test_kitti_incomplete_cache_is_not_stamped(
     ],
 )
 def test_kitti_difficulty_levels_at_the_limits(
-    bbox_height: float, truncation: float, occlusion: int, level: int
+    bbox_height: float,
+    truncation: float,
+    occlusion: int,
+    level: int,
 ) -> None:
     result = kitti_difficulty(torch.tensor([bbox_height]), torch.tensor([truncation]), torch.tensor([occlusion]))
     assert result.dtype == torch.long

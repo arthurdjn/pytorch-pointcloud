@@ -97,7 +97,9 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument(
-        "--train-split-file", default=None, help="Frame ids of the training split (ImageSets/train.txt)."
+        "--train-split-file",
+        default=None,
+        help="Frame ids of the training split (ImageSets/train.txt).",
     )
     parser.add_argument("--val-split-file", default=None, help="Frame ids of the validation split (ImageSets/val.txt).")
     parser.add_argument("--output", default=None, help="Directory for the checkpoints (default: none saved).")
@@ -140,7 +142,8 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(
-            train_dataset, range(min(args.limit_train_batches * args.batch_size, len(train_dataset)))
+            train_dataset,
+            range(min(args.limit_train_batches * args.batch_size, len(train_dataset))),
         )
     if args.limit_val_batches is not None:
         val_dataset = Subset(val_dataset, range(min(args.limit_val_batches * args.batch_size, len(val_dataset))))

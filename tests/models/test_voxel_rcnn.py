@@ -187,7 +187,12 @@ def test_voxel_rcnn_forward_and_decode() -> None:
     data = _make_inputs()
     points = torch.cat([data["pos"], data["x"]], dim=1)
     voxels, voxel_indices, num_points = hard_voxelize(
-        points, data["batch"], model.voxel_size, model.point_cloud_range, 5, 40000
+        points,
+        data["batch"],
+        model.voxel_size,
+        model.point_cloud_range,
+        5,
+        40000,
     )
     with torch.no_grad():
         out = model(voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
@@ -213,7 +218,12 @@ def test_voxel_rcnn_training_forward_samples_rois_and_backpropagates() -> None:
     data = _make_inputs()
     points = torch.cat([data["pos"], data["x"]], dim=1)
     voxels, voxel_indices, num_points = hard_voxelize(
-        points, data["batch"], model.voxel_size, model.point_cloud_range, 5, 16000
+        points,
+        data["batch"],
+        model.voxel_size,
+        model.point_cloud_range,
+        5,
+        16000,
     )
     gt_boxes = torch.tensor([[20.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.3], [35.0, 10.0, -1.0, 3.9, 1.6, 1.56, -1.0]]).cuda()
     gt_labels, gt_batch = torch.zeros(2, dtype=torch.long).cuda(), torch.tensor([0, 1]).cuda()
@@ -242,7 +252,11 @@ def test_voxel_rcnn_training_forward_samples_rois_and_backpropagates() -> None:
     ).cuda()
     target = {DataKeys.BOX: gt_boxes, DataKeys.LABEL: gt_labels, DataKeys.BATCH_BOX: gt_batch}
     roi_losses = roi_loss(
-        out["rcnn_cls"], out["rcnn_reg"], out["rois"], out["roi_target_boxes"], out["roi_iou"]
+        out["rcnn_cls"],
+        out["rcnn_reg"],
+        out["rois"],
+        out["roi_target_boxes"],
+        out["roi_iou"],
     )
     loss = anchor_loss(out, target)["loss"] + roi_losses["loss"]
     loss.backward()
