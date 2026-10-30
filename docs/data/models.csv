@@ -1,8 +1,16 @@
 checkpoint,architecture,task,dataset,pretrained,license,params,metric,reference,score,metrics
+act.modelnet40.runpei-dong,act,classification,modelnet40,true,MIT,22.10,OA,93.60,93.19,OA 93.19 · mAcc 89.90
+act.scanobjectnn-hardest.runpei-dong,act,classification,scanobjectnn-hardest,true,MIT,22.09,OA,88.21,88.27,OA 88.27 · mAcc 86.63
+act.scanobjectnn-objbg.runpei-dong,act,classification,scanobjectnn-objbg,true,MIT,22.09,OA,93.29,93.29,OA 93.29 · mAcc 91.48
+act.scanobjectnn-objonly.runpei-dong,act,classification,scanobjectnn-objonly,true,MIT,22.09,OA,91.91,91.22,OA 91.22 · mAcc 90.26
 dgcnn.modelnet40-1024.an-tao,dgcnn,classification,modelnet40,true,MIT,1.81,OA,93.3,93.27,OA 93.27 · mAcc 90.89
 dgcnn.modelnet40-2048.an-tao,dgcnn,classification,modelnet40,true,MIT,1.81,OA,93.6,93.60,OA 93.60 · mAcc 91.18
 kpfcnn.modelnet40,kpconv,classification,modelnet40,false,,1.28,OA,,,
 octformer-base.modelnet40.octree-nn,octformer,classification,modelnet40,true,MIT,3.98,OA,92.7,92.02,OA 92.02 · mAcc 89.79
+pcp-mae.modelnet40.xiangdong-zhang,pcp_mae,classification,modelnet40,true,MIT,22.35,OA,94.1,93.64,OA 93.64 · mAcc 90.60
+pcp-mae.scanobjectnn-hardest.xiangdong-zhang,pcp_mae,classification,scanobjectnn-hardest,true,MIT,22.34,OA,90.35,90.28,OA 90.28 · mAcc 89.42
+pcp-mae.scanobjectnn-objbg.xiangdong-zhang,pcp_mae,classification,scanobjectnn-objbg,true,MIT,22.34,OA,95.52,95.52,OA 95.52 · mAcc 94.82
+pcp-mae.scanobjectnn-objonly.xiangdong-zhang,pcp_mae,classification,scanobjectnn-objonly,true,MIT,22.34,OA,94.32,94.32,OA 94.32 · mAcc 94.06
 point-bert-base.modelnet40-4k.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,92.91,92.99,OA 92.99 · mAcc 89.69
 point-bert-base.modelnet40-8k.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,93.19,93.07,OA 93.07 · mAcc 89.92
 point-bert-base.modelnet40.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,92.67,92.63,OA 92.63 · mAcc 89.56
@@ -22,6 +30,8 @@ point-mamba-base.scanobjectnn-hardest.dingkang-liang,point_mamba,classification,
 point-mamba-base.scanobjectnn-objbg.dingkang-liang,point_mamba,classification,scanobjectnn-objbg,true,Apache-2.0,12.29,OA,94.32,94.32,OA 94.32 · mAcc 92.66
 point-mamba-base.scanobjectnn-objonly.dingkang-liang,point_mamba,classification,scanobjectnn-objonly,true,Apache-2.0,12.29,OA,92.60,92.60,OA 92.60 · mAcc 92.40
 point-transformer.modelnet40,point_transformer,classification,modelnet40,false,,4.92,OA,,,
+point2vec.modelnet40.karim-knaebel,point2vec,classification,modelnet40,true,MIT,22.11,OA,94.65,94.33,OA 94.33 · mAcc 92.14
+point2vec.scanobjectnn-hardest.karim-knaebel,point2vec,classification,scanobjectnn-hardest,true,MIT,22.11,OA,87.47,86.92,OA 86.92 · mAcc 85.23
 pointcnn-base,pointcnn,classification,,false,,,OA,,,
 pointconv-density-base,pointconv,classification,,false,,,OA,,,
 pointconv-density-base.modelnet40.wenxuan-wu,pointconv,classification,modelnet40,true,MIT,19.57,OA,92.5,92.30,OA 92.30 · mAcc 89.50
@@ -57,6 +67,11 @@ pointnext-sm,pointnext,classification,,false,,,OA,,,
 pointnext-sm-c64.modelnet40.openpoints,pointnext,classification,modelnet40,true,MIT,4.53,OA,94.0,93.96,OA 93.96 · mAcc 91.14
 pointnext-sm.scanobjectnn-hardest.openpoints,pointnext,classification,scanobjectnn-hardest,true,MIT,1.37,OA,88.20,88.17,OA 88.17 · mAcc 86.80
 pointnext-xl,pointnext,classification,,false,,,OA,,,
+recon.modelnet40-8k.zekun-qi,recon,classification,modelnet40,true,MIT,43.58,OA,94.29,94.25,OA 94.25 · mAcc 91.35
+recon.modelnet40.zekun-qi,recon,classification,modelnet40,true,MIT,43.58,OA,94.12,93.68,OA 93.68 · mAcc 90.73
+recon.scanobjectnn-hardest.zekun-qi,recon,classification,scanobjectnn-hardest,true,MIT,43.57,OA,90.63,90.56,OA 90.56 · mAcc 89.39
+recon.scanobjectnn-objbg.zekun-qi,recon,classification,scanobjectnn-objbg,true,MIT,43.57,OA,95.18,95.18,OA 95.18 · mAcc 94.48
+recon.scanobjectnn-objonly.zekun-qi,recon,classification,scanobjectnn-objonly,true,MIT,43.57,OA,93.63,93.63,OA 93.63 · mAcc 93.74
 concerto-large-lp.scannet20.pointcept,concerto,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,207.70,mIoU,77.5,78.59,mIoU 78.59 · OA 92.29
 dgcnn.s3dis-area1.an-tao,dgcnn,semantic-segmentation,s3dis-area1,true,MIT,0.99,mIoU,,69.19,mIoU 69.19 · OA 89.69
 dgcnn.s3dis-area2.an-tao,dgcnn,semantic-segmentation,s3dis-area2,true,MIT,0.99,mIoU,,43.50,mIoU 43.50 · OA 81.69
@@ -152,9 +167,11 @@ utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,C
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
 point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.05,ins_mIoU 86.05 · cls_mIoU 84.12
+point2vec.shapenetpart.karim-knaebel,point2vec,part-segmentation,shapenetpart,true,MIT,22.90,mIoU,86.3,85.97,ins_mIoU 85.97 · cls_mIoU 84.38
 pointnext-sm-c160.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,22.52,mIoU,87.1,87.11,ins_mIoU 87.11 · cls_mIoU 85.25
 pointnext-sm-c64.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,3.73,mIoU,86.9,86.93,ins_mIoU 86.93 · cls_mIoU 85.24
 pointnext-sm.shapenetpart.openpoints,pointnext,part-segmentation,shapenetpart,true,MIT,0.98,mIoU,86.7,86.88,ins_mIoU 86.88 · cls_mIoU 84.48
+recon.shapenetpart.zekun-qi,recon,part-segmentation,shapenetpart,true,MIT,48.54,mIoU,86.41,86.15,ins_mIoU 86.15 · cls_mIoU 84.40
 3detr-m.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.44,mAP,65.0,65.46,mAP@0.25 65.46 · mAP@0.5 47.26
 3detr.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.31,mAP,62.1,61.37,mAP@0.25 61.37 · mAP@0.5 38.43
 3detr.sunrgbd.fair,threedetr,detection,sunrgbd,true,Apache-2.0,7.31,mAP,58.0,58.08,mAP@0.25 58.08 · mAP@0.5 29.64
@@ -174,6 +191,8 @@ votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
 voxelnext.nuscenes.openpcdet,voxelnext,detection,nuscenes,true,Apache-2.0,7.98,mAP,60.5,61.41,mAP 61.41 · NDS 66.92
+act.dvae.runpei-dong,act,pretraining,shapenet55,true,MIT,116.19,,,,
+act.pretrain.runpei-dong,act,pretraining,shapenet55,true,MIT,141.76,,,,
 concerto-base-origin.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
 concerto-base-siglip.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
 concerto-base.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
@@ -181,14 +200,17 @@ concerto-large-origin.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-B
 concerto-large.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,207.67,,,,
 concerto-small.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,38.65,,,,
 concerto-tiny.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,4.86,,,,
+pcp-mae.pretrain.xiangdong-zhang,pcp_mae,pretraining,shapenet55,true,MIT,29.50,,,,
 point-bert-base.dvae.xumin-yu,point_bert,pretraining,shapenet55,true,MIT,27.62,,,,
 point-bert-base.pretrain.xumin-yu,point_bert,pretraining,shapenet55,true,MIT,25.47,,,,
 point-m2ae-base.pretrain.renrui-zhang,point_m2ae,pretraining,shapenet55,true,MIT,15.26,,,,
 point-mae-base.pretrain.yatian-pang,point_mae,pretraining,shapenet55,true,MIT,29.01,,,,
 point-mamba-base.pretrain.dingkang-liang,point_mamba,pretraining,shapenet55,true,Apache-2.0,16.07,,,,
+point2vec.pretrain.karim-knaebel,point2vec,pretraining,shapenet55,true,MIT,50.38,,,,
 pointgpt-b.pretrain.guangyan-chen,pointgpt,pretraining,shapenet55,true,MIT,119.92,,,,
 pointgpt-l.pretrain.guangyan-chen,pointgpt,pretraining,shapenet55,true,MIT,359.76,,,,
 pointgpt-s.pretrain.guangyan-chen,pointgpt,pretraining,shapenet55,true,MIT,28.93,,,,
+recon.pretrain.zekun-qi,recon,pretraining,shapenet55,true,MIT,50.78,,,,
 sonata-base.pretrain.fair,sonata,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
 sonata-small.pretrain.fair,sonata,pretraining,pretrain,true,CC-BY-NC-4.0,38.65,,,,
 utonia-base.pretrain.pointcept,utonia,pretraining,pretrain,true,CC-BY-NC-4.0,137.25,,,,

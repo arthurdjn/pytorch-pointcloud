@@ -169,6 +169,16 @@
     "date": "November 2022",
     "title": "Superpoint Transformer for 3D Scene Instance Segmentation"
   },
+  "2212.08320": {
+    "crop": 0.47,
+    "date": "December 2022",
+    "title": "Autoencoders as Cross-Modal Teachers: Can Pretrained 2D Image Transformers Help 3D Representation Learning?"
+  },
+  "2302.02318": {
+    "crop": 0.47,
+    "date": "February 2023",
+    "title": "Contrast with Reconstruct: Contrastive 3D Representation Learning Guided by Generative Pretraining"
+  },
   "2303.11301": {
     "crop": 0.47,
     "date": "March 2023",
@@ -178,6 +188,11 @@
     "crop": 0.47,
     "date": "March 2023",
     "title": "Spherical Transformer for LiDAR-based 3D Recognition"
+  },
+  "2303.16570": {
+    "crop": 0.47,
+    "date": "March 2023",
+    "title": "Point2Vec for Self-Supervised Representation Learning on Point Clouds"
   },
   "2305.03045": {
     "crop": 0.47,
@@ -213,6 +228,11 @@
     "crop": 0.47,
     "date": "July 2024",
     "title": "LION: Linear Group RNN for 3D Object Detection in Point Clouds"
+  },
+  "2408.08753": {
+    "crop": 0.47,
+    "date": "August 2024",
+    "title": "PCP-MAE: Learning to Predict Centers for Point Masked Autoencoders"
   },
   "2503.16429": {
     "crop": 0.47,

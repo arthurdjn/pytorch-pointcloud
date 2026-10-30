@@ -3,17 +3,18 @@
 {{ paper("2305.11487") }}
 """
 
+import math
+import warnings
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import AdaptivePoolLike, PointPatchEmbed, create_adaptive_pool
+from torch_pointcloud.layers import AdaptivePoolLike, PointPatchEmbed, create_adaptive_pool, positional_encoding
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
@@ -69,36 +70,8 @@ def morton_sort(center: Tensor) -> Tensor:
     return order
 
 
-class PositionEmbeddingSine(nn.Module):
-    r"""Parameter-free sinusoidal positional embedding of continuous coordinates.
-
-    Implements the `PositionEmbeddingCoordsSine` of :arxiv: [PointGPT: Auto-regressively Generative
-    Pre-training from Point Clouds](https://arxiv.org/abs/2305.11487), adapted from
-    :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT). Each input
-    dimension is scaled by $2 \pi$ and expanded into interleaved sine / cosine features over a
-    geometric range of frequencies; unused channels are zero-padded.
-
-    Args:
-        spatial_dim: The number of input coordinate dimensions $n$.
-        embed_dim: The output embedding dimension $d$.
-        temperature: The frequency base of the geometric progression.
-        scale: The coordinate scale applied before $2 \pi$ (defaults to $1$).
-
-    Shape:
-        - Input: $(*, n)$.
-        - Output: $(*, d)$.
-
-    Example:
-        ```python
-        import torch
-        from torch_pointcloud.models.pointgpt import PositionEmbeddingSine
-
-        pe = PositionEmbeddingSine(spatial_dim=3, embed_dim=384)
-        center = torch.randn(2, 64, 3)
-        emb = pe(center)
-        print(emb.shape)
-        ```
-    """
+class PositionEmbeddingSine(positional_encoding.PositionEmbeddingSine):
+    r"""Deprecated alias of `layers.PositionEmbeddingSine` with the former argument order and a $2 \pi$ scale."""
 
     def __init__(
         self,
@@ -107,24 +80,19 @@ class PositionEmbeddingSine(nn.Module):
         temperature: float = 10000.0,
         scale: Optional[float] = None,
     ) -> None:
-        super().__init__()
-        self.spatial_dim = spatial_dim
-        self.embed_dim = embed_dim
-        self.num_pos_feats = embed_dim // spatial_dim // 2 * 2
-        self.temperature = temperature
-        self.padding = embed_dim - self.num_pos_feats * spatial_dim
-        self.scale = (1.0 if scale is None else scale) * 2 * torch.pi
-
-    def forward(self, pos: Tensor) -> Tensor:
-        dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=pos.device)
-        dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="trunc") / self.num_pos_feats)
-
-        pos = pos * self.scale
-        pos_divided = pos.unsqueeze(-1) / dim_t
-        pos_sin = pos_divided[..., 0::2].sin()
-        pos_cos = pos_divided[..., 1::2].cos()
-        emb = torch.stack([pos_sin, pos_cos], dim=-1).reshape(*pos.shape[:-1], -1)
-        return F.pad(emb, (0, self.padding))
+        warnings.warn(
+            "`models.pointgpt.PositionEmbeddingSine(spatial_dim, embed_dim, temperature, scale)` is deprecated since "
+            "0.0.19 and will be removed in 0.0.20; use `layers.PositionEmbeddingSine(embed_dim, spatial_dim, "
+            "temperature, scale=2 * math.pi * scale)`.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        super().__init__(
+            embed_dim,
+            spatial_dim,
+            temperature=temperature,
+            scale=2 * math.pi * (1.0 if scale is None else scale),
+        )
 
 
 class PointGPTBlock(nn.Module):
@@ -437,9 +405,14 @@ class PointGPTClassification(ClassificationModel):
             global_channels=self.encoder_global_channels,
         )
 
-    def configure_pos_embed(self) -> PositionEmbeddingSine:
+    def configure_pos_embed(self) -> positional_encoding.PositionEmbeddingSine:
         """Build the sinusoidal positional embedding of the patch centers."""
-        return PositionEmbeddingSine(self.spatial_dim, self.embed_dim, temperature=1.0)
+        return positional_encoding.PositionEmbeddingSine(
+            self.embed_dim,
+            self.spatial_dim,
+            temperature=1.0,
+            scale=2 * math.pi,
+        )
 
     def configure_blocks(self) -> PointGPTExtractor:
         """Build the causally-masked GPT extractor."""
@@ -639,9 +612,14 @@ class PointGPTPretraining(PretrainingModel):
             global_channels=self.encoder_global_channels,
         )
 
-    def configure_pos_embed(self) -> PositionEmbeddingSine:
+    def configure_pos_embed(self) -> positional_encoding.PositionEmbeddingSine:
         """Build the sinusoidal positional embedding of the patch centers and relative directions."""
-        return PositionEmbeddingSine(self.spatial_dim, self.embed_dim, temperature=1.0)
+        return positional_encoding.PositionEmbeddingSine(
+            self.embed_dim,
+            self.spatial_dim,
+            temperature=1.0,
+            scale=2 * math.pi,
+        )
 
     def configure_blocks(self) -> PointGPTExtractor:
         """Build the causally-masked GPT extractor."""

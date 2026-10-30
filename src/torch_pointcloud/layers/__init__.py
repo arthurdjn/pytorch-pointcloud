@@ -37,6 +37,7 @@ from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .part_segmentation_decoder import PartSegmentationDecoder
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -74,6 +75,7 @@ from .pools import (
     create_adaptive_pool,
     create_pool,
 )
+from .positional_encoding import PositionEmbeddingSine
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
 from .randlanet_blocks import (
     AttentivePooling,
@@ -101,7 +103,7 @@ from .spconv_blocks import (
 )
 from .tnet import DynamicTNet, TNet
 from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
-from .transformer import Attention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
+from .transformer import Attention, CrossAttention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
 from .vfe import DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
@@ -151,6 +153,7 @@ __all__ = [
     "OctreeT",
     "OctreeConvBlock",
     "OctreeDeconvBlock",
+    "PartSegmentationDecoder",
     "PDNorm",
     "PointPatchEmbed",
     "PointTransformerConv",
@@ -190,6 +193,7 @@ __all__ = [
     "Point3DRoPE",
     "PatchLayout",
     "RelativePositionalEncoding",
+    "PositionEmbeddingSine",
     "SerializedAttention",
     "SerializedAttentionRoPE",
     "SerializedAttentionRPE",
@@ -207,6 +211,7 @@ __all__ = [
     "TorchSparseConvBlock",
     "TorchSparseResidualBlock",
     "Attention",
+    "CrossAttention",
     "TransformerBlock",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
