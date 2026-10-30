@@ -137,7 +137,8 @@ class InstanceToBox(DictTransform):
     value) is written separately to `dst_class_key` as a $(K,)$ long tensor. Negative instance ids mark
     unlabeled points and never form a box. Instances whose class equals `ignore_index` are dropped, so
     mapping the stuff / non-target semantics to `ignore_index` with a `Relabel` upstream filters the boxes
-    down to the detection classes.
+    down to the detection classes. With `dst_box_index_key`, each point also gets the row of the box built from its
+    instance, $-1$ when its instance forms no box.
 
     ![InstanceToBox before / after](../../assets/transforms/instance_to_box.png)
 
@@ -148,6 +149,7 @@ class InstanceToBox(DictTransform):
         dst_box_key: Key to write the $(K, 7)$ boxes to.
         dst_class_key: Key to write the $(K,)$ per-box classes to.
         ignore_index: Class value whose instances are dropped (e.g. unlabeled / stuff).
+        dst_box_index_key: Optional key to write the $(N,)$ per-point box row to.
         allow_missing_keys: If `True`, return the data unchanged when an input key is missing instead of raising.
     """
 
@@ -159,6 +161,7 @@ class InstanceToBox(DictTransform):
         dst_box_key: str = "box",
         dst_class_key: str = "label",
         ignore_index: int = -1,
+        dst_box_index_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__([instance_key, semantic_key, pos_key], allow_missing_keys)
@@ -168,6 +171,7 @@ class InstanceToBox(DictTransform):
         self.dst_box_key = dst_box_key
         self.dst_class_key = dst_class_key
         self.ignore_index = ignore_index
+        self.dst_box_index_key = dst_box_index_key
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -178,14 +182,17 @@ class InstanceToBox(DictTransform):
 
                 raise KeyError(f"Key {key!r} was missing in the data and `allow_missing_keys==False`.")
 
-        boxes, classes = self._instance_boxes(d[self.pos_key], d[self.instance_key], d[self.semantic_key])
+        boxes, classes, box_index = self._instance_boxes(d[self.pos_key], d[self.instance_key], d[self.semantic_key])
         d[self.dst_box_key] = boxes
         d[self.dst_class_key] = classes
+        if self.dst_box_index_key is not None:
+            d[self.dst_box_index_key] = box_index
         return d
 
-    def _instance_boxes(self, pos: Tensor, instance: Tensor, segment: Tensor) -> Tuple[Tensor, Tensor]:
+    def _instance_boxes(self, pos: Tensor, instance: Tensor, segment: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         boxes: list[Tensor] = []
         classes: list[Tensor] = []
+        box_index = torch.full_like(instance, -1, dtype=torch.long)
         for inst in torch.unique(instance):
             if int(inst) < 0:
                 continue
@@ -195,13 +202,14 @@ class InstanceToBox(DictTransform):
             if int(cls) == self.ignore_index:
                 continue
 
+            box_index[mask] = len(boxes)
             lo, hi = pos[mask].amin(dim=0), pos[mask].amax(dim=0)
             boxes.append(torch.cat([(lo + hi) / 2, hi - lo, pos.new_zeros(1)]))
             classes.append(cls.long())
 
         if not boxes:
-            return pos.new_zeros((0, 7)), torch.zeros(0, dtype=torch.long, device=pos.device)
-        return torch.stack(boxes), torch.stack(classes)
+            return pos.new_zeros((0, 7)), torch.zeros(0, dtype=torch.long, device=pos.device), box_index
+        return torch.stack(boxes), torch.stack(classes), box_index
 
 
 def points_in_oriented_box(pos: Tensor, box: Tensor) -> Tensor:

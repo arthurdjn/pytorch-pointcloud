@@ -33,6 +33,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added Group-Free 3D (`GroupFree3DDetection`, `GroupFree3DLoss`) with the authors' ScanNet and SUN RGB-D checkpoints and the MMDetection3D ScanNet ones, and its benchmark and training scripts.
+- Added `InstanceToBox(dst_box_index_key=...)`, which writes each point's box row to `DataKeys.BOX_INDEX`.
 
 ## 0.0.18 (2026-10-20)
 
