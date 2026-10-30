@@ -79,7 +79,6 @@ INFERER_TRANSFORM = T.Voxelize(
     pos_key=DataKeys.POS,
     pos_reduce="first",
     size=VOXEL_SIZE,
-    keys=DataKeys.BATCH,
     dst_pos_grid_key=DataKeys.POS_GRID,
     dst_inverse_key=DataKeys.INVERSE,
 )
