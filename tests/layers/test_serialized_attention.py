@@ -199,6 +199,11 @@ def test_serialized_attention_rope_qkv_dtype(
     assert rounded == (qkv_dtype == torch.float16)
 
 
+def test_serialized_attention_rope_rejects_an_unsupported_qkv_dtype() -> None:
+    with pytest.raises(ValueError, match="qkv_dtype"):
+        SerializedAttentionRoPE(channels=24, num_heads=2, patch_size=8, use_flash_attn=False, qkv_dtype=torch.float32)
+
+
 def test_serialized_attention_rope_batched_matches_per_scene() -> None:
     """A padded B=2 forward matches running each scene separately (RoPE positions follow the padding)."""
     torch.manual_seed(0)

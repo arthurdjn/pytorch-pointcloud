@@ -397,9 +397,26 @@ class SerializedAttentionRoPE(nn.Module):
     :arxiv: [Utonia](https://arxiv.org/abs/2603.03283).
 
     Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
-    position of each token. Flash Attention is supported and uses bfloat16
-    (matching upstream Utonia's reference implementation) unless `qkv_dtype` is set: flash attention then
-    rounds $Q$, $K$, $V$ to `qkv_dtype` before the rotation, rotates them in float32 and attends in `qkv_dtype`.
+    position of each token. Flash Attention is supported and attends in bfloat16
+    (matching upstream Utonia's reference implementation), or in `qkv_dtype`.
+
+    Args:
+        channels: Feature width $C$, divisible by `num_heads`.
+        num_heads: Number of attention heads.
+        patch_size: Number of points per attention patch.
+        qkv_bias: Whether the QKV projection has a bias.
+        qk_scale: Attention logit scale; `None` uses $1 / \sqrt{\text{head\_dim}}$.
+        attn_drop: Dropout on the attention weights.
+        proj_drop: Dropout after the output projection.
+        use_flash_attn: Whether attention runs through flash attention, which requires `flash-attn` and a CUDA device.
+        upcast_attn: Whether the manual attention path computes the logits in fp32; must be `False` with flash
+            attention.
+        upcast_softmax: Whether the manual attention path computes the softmax in fp32; must be `False` with flash
+            attention.
+        rope_base: Frequency base of the rotary position embedding.
+        qkv_dtype: `torch.float16` or `torch.bfloat16`: flash attention rounds $Q$, $K$, $V$ to it before the
+            rotation, rotates them in float32 and attends in it. `None` attends in bfloat16 without the rounding. The
+            manual attention path ignores it.
 
     Note:
         The input must be batch-blocked: each sample's points contiguous (a sorted `batch`), and
@@ -426,6 +443,9 @@ class SerializedAttentionRoPE(nn.Module):
         super().__init__()
         if channels % num_heads != 0:
             raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
+
+        if qkv_dtype not in (None, torch.float16, torch.bfloat16):
+            raise ValueError(f"`qkv_dtype` must be torch.float16, torch.bfloat16 or None, got {qkv_dtype}.")
 
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
