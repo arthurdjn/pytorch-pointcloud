@@ -217,12 +217,10 @@ def evaluate(model: SPFormerInstanceSegmentation, loader: DataLoader, device: st
             data[DataKeys.BATCH_INVERSE],
         )
         instances = model.decode(output)
-        masks, labels, scores = instances["masks"], instances["labels"], instances["scores"]
-        keep = (scores > SCORE_THRESHOLD) & (masks.sum(dim=1) > MIN_POINTS)
+        sizes = torch.bincount(instances["mask_index"][0], minlength=instances["labels"].shape[0])
+        instances["ignore_mask"] = (instances["scores"] <= SCORE_THRESHOLD) | (sizes <= MIN_POINTS)
         match = instance_matches(
-            masks[keep],
-            labels[keep],
-            scores[keep],
+            instances,
             data[DataKeys.INSTANCE],
             data[DataKeys.SEGMENT],
             batch=data[DataKeys.BATCH_INVERSE],

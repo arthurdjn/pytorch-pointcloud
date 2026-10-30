@@ -1,4 +1,4 @@
-r"""Superpoint operations on packed point clouds: feature pooling and instance mask targets.
+r"""Superpoint operations on packed point clouds: feature pooling, instance mask targets and point masks.
 
 A superpoint is a group of points of one scene (typically a geometric over-segmentation of its mesh). Per-point
 superpoint ids are given within each scene, so two scenes of a batch may reuse the same ids; the operations here key
@@ -104,3 +104,41 @@ def superpoint_instance_masks(
     sizes = torch.bincount(superpoint, minlength=num_superpoints)
     masks = counts.view(num_instances, num_superpoints) / sizes.clamp(min=1) > threshold
     return masks, labels, keys // ids.numel()
+
+
+def point_mask_index(mask_index: Tensor, superpoint: Tensor) -> Tensor:
+    r"""Expand sparse instance masks over superpoints to the points of those superpoints.
+
+    The masks are given by their (instance, superpoint) pairs, and every pair becomes one (instance, point) pair per
+    point of the superpoint. Any packed point clustering works as `superpoint`, e.g. the packed `inverse` map of a
+    voxelized batch, which takes masks over voxels to the points.
+
+    Args:
+        mask_index: Instance and superpoint index of every covered superpoint, shape $(2, M_s)$.
+        superpoint: Packed superpoint index of every point, shape $(N,)$.
+
+    Returns:
+        The instance and point index of every covered point, shape $(2, M)$, in the order of the pairs of
+        `mask_index`, each pair's points in ascending order.
+
+    Shape:
+        - mask_index: $(2, M_s)$
+        - superpoint: $(N,)$
+        - output: $(2, M)$
+
+    Example:
+        ```pycon
+        >>> mask_index = torch.tensor([[0, 0, 1], [0, 2, 1]])
+        >>> point_mask_index(mask_index, torch.tensor([2, 0, 1, 0, 2])).tolist()
+        [[0, 0, 0, 0, 1], [1, 3, 0, 4, 2]]
+
+        ```
+    """
+    instance, column = mask_index
+    sorted_superpoint, order = torch.sort(superpoint, stable=True)
+    start = torch.searchsorted(sorted_superpoint, column)
+    repeats = torch.searchsorted(sorted_superpoint, column, right=True) - start
+    # Output entry t of pair j reads `order[start[j] + t - first[j]]`, with `first` the pair's first output entry.
+    shift = (start - repeats.cumsum(0) + repeats).repeat_interleave(repeats)
+    point = order[shift + torch.arange(shift.numel(), device=shift.device)]
+    return torch.stack([instance.repeat_interleave(repeats), point])

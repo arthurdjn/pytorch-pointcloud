@@ -66,18 +66,26 @@ class Detection3D(Boxes3D):
 class InstanceSegmentation3D(TypedDict):
     r"""Packed instance masks with class, score and scene indices (a model's `decode` output).
 
+    The masks are sparse: `mask_index` lists the (instance, row) pairs they cover, like the `edge_index` of a graph,
+    so their memory grows with the covered rows rather than with $K \times N$. The rows are the ones the model
+    predicts: the points of the batch, or its voxels for voxel models fed no point map. Masks may overlap, and a
+    merged prediction is the case where no row appears twice. `torch.zeros(K, N, dtype=torch.bool)` with
+    `index_put_(tuple(mask_index), torch.tensor(True))` gives the dense masks.
+
     Attributes:
-        masks: Per-instance boolean point masks over the points of the batch, false outside the instance's scene,
-            shape $(K, N)$.
+        mask_index: Instance and row index of every covered row, shape $(2, M)$, each pair once; each instance
+            covers rows of its own scene only.
         labels: Per-instance class, shape $(K,)$.
         scores: Per-instance confidence score, shape $(K,)$.
         batch: Per-instance scene index, shape $(K,)$.
+        ignore_mask: Per-instance ignore mask, shape $(K,)$: `instance_matches` leaves these instances out.
     """
 
-    masks: Tensor
+    mask_index: Tensor
     labels: Tensor
     scores: Tensor
     batch: Tensor
+    ignore_mask: NotRequired[Tensor]
 
 
 class FeaturesDict(TypedDict):

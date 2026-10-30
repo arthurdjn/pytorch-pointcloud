@@ -2,7 +2,9 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.ops.superpoint import superpoint_instance_masks, superpoint_pool
+from torch_pointcloud.ops.superpoint import point_mask_index, superpoint_instance_masks, superpoint_pool
+
+_REQUIRES_CUDA = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
 
 
 def _brute_force_pool(x: Tensor, superpoint: Tensor, batch: Tensor) -> tuple[Tensor, list[int], list[int]]:
@@ -143,3 +145,34 @@ def test_superpoint_instance_masks_without_instances() -> None:
         torch.tensor([-1, -1]), torch.tensor([0, 0]), torch.tensor([0, 1]), torch.tensor([0, 0])
     )
     assert masks.shape == (0, 2) and labels.numel() == 0 and batch.numel() == 0
+
+
+MASK_INDEX_CASES = [
+    pytest.param([[0, 0, 1], [0, 2, 1]], [2, 0, 1, 0, 2], id="unsorted-superpoints"),
+    pytest.param([[0, 1, 1, 2], [1, 0, 1, 1]], [1, 1, 0, 1], id="overlapping-masks"),
+    pytest.param([[0, 0], [1, 3]], [0, 1, 1, 0], id="superpoint-without-points"),
+    pytest.param([[], []], [0, 1, 2], id="no-pairs"),
+    pytest.param([[0, 1], [0, 1]], [], id="no-points"),
+]
+
+
+@pytest.mark.parametrize(("mask_index", "superpoint"), MASK_INDEX_CASES)
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=_REQUIRES_CUDA)])
+def test_point_mask_index_equals_the_dense_expansion(
+    mask_index: list[list[int]],
+    superpoint: list[int],
+    device: str,
+) -> None:
+    """Pair by pair, the points of each covered superpoint, in ascending order."""
+    expected = [
+        (instance, point)
+        for instance, column in zip(*mask_index)
+        for point, index in enumerate(superpoint)
+        if index == column
+    ]
+    out = point_mask_index(
+        torch.tensor(mask_index, dtype=torch.long, device=device),
+        torch.tensor(superpoint, dtype=torch.long, device=device),
+    )
+    assert out.shape == (2, len(expected))
+    assert out.t().tolist() == [list(pair) for pair in expected]

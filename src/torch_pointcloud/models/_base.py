@@ -392,7 +392,11 @@ class InstanceSegmentationModel(nn.Module, metaclass=ABCMeta):
         point's scene, and the point batch index `batch_inverse` (what `collate` emits for
         `cat_keys=[DataKeys.INVERSE]`).
 
-        Both return the prediction dict consumed by the training criterion and by `decode`.
+        Canonical signature of voxel models fed no point map: `forward(x, pos, pos_grid, batch)` with voxel features
+        `x` $(V, C)$, voxel positions `pos` $(V, 3)$, integer voxel coordinates `pos_grid` $(V, 3)$ and voxel batch
+        index `batch` $(V,)$.
+
+        All return the prediction dict consumed by the training criterion and by `decode`.
         """
 
     @abstractmethod
@@ -414,8 +418,12 @@ class InstanceSegmentationModel(nn.Module, metaclass=ABCMeta):
     def decode(self, *args: Any, **kwargs: Any) -> Any:
         r"""Decode the raw `forward` output into per-instance point masks.
 
-        Canonical signature: `decode(output)`, returning an `InstanceSegmentation3D` with boolean `masks` $(K, N)$
-        over the points of the batch, false outside the instance's scene, `labels` $(K,)$, `scores` $(K,)$ and
-        `batch` $(K,)$. `metrics.instance_matches(masks, labels, scores, instance, segment, batch=point_batch)`
-        scores the whole batch in one call. The decode is raw: no score threshold and no minimum mask size.
+        Canonical signature: `decode(output)`, returning an `InstanceSegmentation3D`: the sparse masks as the
+        (instance, row) pairs `mask_index` $(2, M)$ over the rows the model predicts, each instance covering rows of
+        its own scene only, with `labels` $(K,)$, `scores` $(K,)$ and `batch` $(K,)$. The rows are the points of the
+        batch for point models and for voxel models fed the point-to-voxel `inverse`, and the voxels for voxel models
+        fed none, whose masks reach the points through the voxelization's `inverse`
+        (`ops.superpoint.point_mask_index(mask_index, inverse)`). `metrics.instance_matches(instances, instance,
+        segment, batch=point_batch)` then scores the whole batch in one call. The decode is raw: no score threshold
+        and no minimum mask size (set `ignore_mask` to drop instances).
         """

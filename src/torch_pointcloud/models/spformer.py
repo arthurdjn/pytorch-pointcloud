@@ -16,7 +16,7 @@ from torch_pointcloud.layers import MaskedQueryDecoderLayer
 from torch_pointcloud.models._base import InstanceSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.spformer_unet import SPFormerUNetDecoder, SPFormerUNetEncoder
-from torch_pointcloud.ops.superpoint import superpoint_pool
+from torch_pointcloud.ops.superpoint import point_mask_index, superpoint_pool
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys, offset_index
 from torch_pointcloud.utils.types import InstanceSegmentation3D
@@ -192,7 +192,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
     Shape:
         - Input: voxel features $(V, \text{in\_channels})$, voxel grid coordinates $(V, 3)$, voxel batch $(V,)$,
           point superpoint ids $(N,)$, point-to-voxel `inverse` $(N,)$ and point batch $(N,)$.
-        - Output: `SPFormerOutput`, decoded by `decode` into $(K, N)$ instance masks.
+        - Output: `SPFormerOutput`, decoded by `decode` into sparse point masks (`InstanceSegmentation3D`).
     """
 
     def __init__(
@@ -367,28 +367,30 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
             output: The `forward` output.
 
         Returns:
-            The packed instances: `masks` $(K, N)$ over the points of the batch (false outside the instance's scene),
-            `labels`, `scores` and `batch` $(K,)$.
+            The packed instances: `mask_index` $(2, M)$, the (instance, point) pairs of their masks over the points of
+            the batch, sorted by instance, then `labels`, `scores` and `batch` $(K,)$.
         """
         class_scores = output["class_logits"].softmax(dim=-1)[..., :-1] * output["scores"][..., None]
-        superpoint_batch = output["superpoint_batch"]
+        superpoint, superpoint_batch = output["superpoint"], output["superpoint_batch"]
         sizes = torch.bincount(superpoint_batch).tolist()
-        masks, labels, scores, batch = [], [], [], []
-        start = 0
+        instances, columns, labels, scores, batch = [], [], [], [], []
+        num_decoded, start = 0, 0
         for index, (logits, size) in enumerate(zip(output["mask_logits"].split(sizes, dim=1), sizes)):
             score, pair = class_scores[index].flatten().topk(min(self.num_instances, class_scores[index].numel()))
             mask_logits = logits[pair // self.num_classes]
             mask = mask_logits > 0
             mask_score = (mask_logits.sigmoid() * mask).sum(dim=1) / (mask.sum(dim=1) + 1e-6)
-            packed = mask.new_zeros(mask.shape[0], superpoint_batch.shape[0])
-            packed[:, start : start + size] = mask
-            masks.append(packed)
+            instance, column = mask.nonzero(as_tuple=True)
+            instances.append(instance + num_decoded)
+            columns.append(column + start)
             labels.append(pair % self.num_classes)
             scores.append(score * mask_score)
             batch.append(torch.full_like(pair, index))
+            num_decoded += pair.numel()
             start += size
+        mask_index = torch.stack([torch.cat(instances), torch.cat(columns)])
         return {
-            "masks": torch.cat(masks)[:, output["superpoint"]],
+            "mask_index": point_mask_index(mask_index, superpoint),
             "labels": torch.cat(labels),
             "scores": torch.cat(scores),
             "batch": torch.cat(batch),

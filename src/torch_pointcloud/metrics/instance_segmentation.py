@@ -1,11 +1,14 @@
-"""Point-mask instance-segmentation metrics: per-scene instance matches and their average precision."""
+"""Point-mask instance-segmentation metrics: instance matches of a scene or packed batch and their average precision."""
 
 import math
+import warnings
 from typing import Dict, List, Literal, Mapping, Optional, Sequence, TypedDict, Union, overload
 
 import numpy as np
 import torch
 from torch import Tensor
+
+from torch_pointcloud.utils.types import InstanceSegmentation3D
 
 
 class InstanceMatches(TypedDict):
@@ -39,21 +42,20 @@ class InstanceMatches(TypedDict):
 
 
 def instance_matches(
-    pred_masks: Tensor,
-    pred_labels: Tensor,
-    pred_scores: Tensor,
+    preds: Union[InstanceSegmentation3D, Tensor],
     gt_instance: Tensor,
     gt_label: Tensor,
-    *,
+    *args: Tensor,
     batch: Optional[Tensor] = None,
     ignore_index: int = -1,
 ) -> InstanceMatches:
     r"""Reduce the predictions of a scene or a packed batch to the record scored by `instance_average_precision`.
 
-    Predicted masks are dense $(K, N)$ booleans: a few hundred masks over a $\sim 50\text{k}$-point scene
-    is only tens of MB and intersections reduce to bincounts, while index lists would be ragged and no
-    smaller. The returned record holds per-instance counts and pairwise intersections only, so nothing
-    mask-sized outlives the call and a whole validation split can be accumulated scene by scene.
+    The predictions are a model's `decode` output: sparse masks given by their (instance, point) pairs, with a class,
+    a score and a scene per instance. Instances flagged by `ignore_mask` are left out of the record, so they neither
+    match an instance nor count as a false positive (e.g. the masks an evaluation protocol drops for their size). The
+    record holds per-instance counts and pairwise intersections only, so nothing mask-sized outlives the call and a
+    whole validation split can be accumulated batch by batch.
 
     Ground truth instances are the unique `gt_instance` ids among points with a non-negative id and a
     valid semantic label; points whose `gt_label` equals `ignore_index` or that belong to no instance are void,
@@ -61,42 +63,80 @@ def instance_matches(
     semantic label. Intersections are recorded for same-class (prediction, instance) pairs only.
 
     With `batch`, the points are a packed batch of scenes and instances are keyed by (scene, id), so ids may repeat
-    across scenes. Each predicted mask must then be false outside its own scene, as in a model's `decode` output, and
-    one call gives the record of the whole batch.
+    across scenes; without it, every point and prediction belongs to scene $0$. Each predicted mask covers points of
+    its own scene `preds["batch"]` only.
 
     Args:
-        pred_masks: Per-instance point masks, shape $(K, N)$ bool.
-        pred_labels: Per-instance class indices, shape $(K,)$.
-        pred_scores: Per-instance confidences, shape $(K,)$.
+        preds: Packed predictions (one `decode` output), `{"mask_index", "labels", "scores", "batch"}` with an
+            optional `ignore_mask` (see `InstanceSegmentation3D`).
         gt_instance: Per-point ground-truth instance ids, shape $(N,)$; negative marks no instance.
         gt_label: Per-point semantic labels in the instance-class space, shape $(N,)$.
+        *args: Ground truth of the deprecated call `instance_matches(pred_masks, pred_labels, pred_scores,
+            gt_instance, gt_label)` with dense $(K, N)$ boolean masks of one scene, accepted until 0.0.20 with a
+            `FutureWarning`.
         batch: Per-point scene index of a packed batch, shape $(N,)$. `None` scores the points as one scene.
         ignore_index: Semantic label marking void points.
 
     Returns:
-        The `InstanceMatches` record of the scene, as CPU tensors.
+        The `InstanceMatches` record of the predictions left after `ignore_mask`, as CPU tensors.
+
+    Raises:
+        ValueError: If a mask covers a point outside the scene of its instance.
+
+    Shape:
+        - preds["mask_index"]: $(2, M)$
+        - preds["labels"], preds["scores"], preds["batch"]: $(K,)$
+        - gt_instance, gt_label, batch: $(N,)$
 
     Example:
         ```pycon
-        >>> masks = torch.tensor([[True, True, True, True]])
-        >>> match = instance_matches(
-        ...     masks, torch.tensor([0]), torch.tensor([0.9]), torch.tensor([0, 0, 1, -1]), torch.tensor([0, 0, 0, -1])
-        ... )
+        >>> index = torch.zeros(1, dtype=torch.long)
+        >>> mask_index = torch.tensor([[0, 0, 0, 0], [0, 1, 2, 3]])
+        >>> preds = {"mask_index": mask_index, "labels": index, "scores": torch.tensor([0.9]), "batch": index}
+        >>> match = instance_matches(preds, torch.tensor([0, 0, 1, -1]), torch.tensor([0, 0, 0, -1]))
         >>> match["gt_counts"].tolist(), match["pair_inter"].tolist(), match["pred_void"].tolist()
         ([2, 1], [2, 1], [1])
 
         ```
     """
-    pred_masks = pred_masks.bool()
-    pred_labels = pred_labels.long()
+    if isinstance(preds, Tensor):
+        warnings.warn(
+            "`instance_matches(pred_masks, pred_labels, pred_scores, gt_instance, gt_label)` is deprecated since "
+            "0.0.19 and will be removed in 0.0.20; pass the `decode` output instead, e.g. `instance_matches("
+            "{'mask_index': pred_masks.nonzero().t(), 'labels': pred_labels, 'scores': pred_scores, 'batch': "
+            "torch.zeros_like(pred_labels)}, gt_instance, gt_label)`.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        pred_labels, pred_scores = gt_instance, gt_label
+        gt_instance, gt_label = args
+        preds = {
+            "mask_index": preds.bool().nonzero().t(),
+            "labels": pred_labels,
+            "scores": pred_scores,
+            "batch": torch.zeros_like(pred_labels),
+        }
+
     gt_instance = gt_instance.long()
     gt_label = gt_label.long()
+    point_batch = torch.zeros_like(gt_instance) if batch is None else batch.long()
+    pred, point = preds["mask_index"].long()
+    if (preds["batch"].long()[pred] != point_batch[point]).any():
+        raise ValueError("A predicted mask covers points outside the scene of its instance (`preds['batch']`).")
+
+    pred_labels, pred_scores = preds["labels"].long(), preds["scores"]
+    ignore_mask = preds.get("ignore_mask")
+    if ignore_mask is not None:
+        keep = ~ignore_mask.bool()
+        covered = keep[pred]
+        pred, point = (keep.cumsum(0) - 1)[pred[covered]], point[covered]
+        pred_labels, pred_scores = pred_labels[keep], pred_scores[keep]
 
     valid = (gt_label != ignore_index) & (gt_instance >= 0)
     ids = gt_instance[valid]
     if batch is not None:
         # One integer key per (scene, id rank), ordered like the (scene, id) pairs.
-        ids = batch.long()[valid] * ids.numel() + torch.unique(ids, return_inverse=True)[1]
+        ids = point_batch[valid] * ids.numel() + torch.unique(ids, return_inverse=True)[1]
     keys, inverse = torch.unique(ids, return_inverse=True)
     num_instances = keys.numel()
     gt_counts = torch.bincount(inverse, minlength=num_instances)
@@ -105,8 +145,7 @@ def instance_matches(
     point_instance[valid] = inverse
 
     # Column 0 counts the void points of each prediction, column i + 1 its intersection with instance i.
-    num_preds = pred_masks.shape[0]
-    pred, point = pred_masks.nonzero(as_tuple=True)
+    num_preds = pred_labels.shape[0]
     counts = torch.bincount(
         pred * (num_instances + 1) + point_instance[point] + 1,
         minlength=num_preds * (num_instances + 1),
@@ -162,7 +201,7 @@ def _instance_class_ap(
     iou_threshold: float,
     min_points: int,
 ) -> float:
-    """Greedy mask-IoU AP for one class at one threshold over per-scene `instance_matches` records.
+    """Greedy mask-IoU AP for one class at one threshold over `instance_matches` records.
 
     Ground-truth instances (in ascending id order) greedily consume overlapping predictions above the
     threshold in prediction order; extra predictions on an already-matched instance become false
@@ -288,7 +327,7 @@ def instance_average_precision(
     `iou_threshold=0.5` and `0.25` its AP50 and AP25. A class is scored when it has ground truth.
 
     Args:
-        matches: The `instance_matches` record of every evaluated scene.
+        matches: The `instance_matches` records of the evaluated scenes or batches.
         iou_threshold: IoU a match must exceed, or a sequence of them to average the AP over.
         average: `"macro"` returns the mean AP (mAP) over the scored classes; `"none"` returns the per-class AP.
         num_classes: Number of instance classes, i.e. the length of the `average="none"` output; defaults to the
@@ -308,14 +347,13 @@ def instance_average_precision(
 
     Example:
         ```pycon
-        >>> masks = torch.tensor([[True, True, True, False], [False, False, False, True]])
-        >>> match = instance_matches(
-        ...     masks,
-        ...     torch.tensor([0, 1]),
-        ...     torch.tensor([0.9, 0.8]),
-        ...     torch.tensor([0, 0, 0, 1]),
-        ...     torch.tensor([0, 0, 0, 1]),
-        ... )
+        >>> preds = {
+        ...     "mask_index": torch.tensor([[0, 0, 0, 1], [0, 1, 2, 3]]),
+        ...     "labels": torch.tensor([0, 1]),
+        ...     "scores": torch.tensor([0.9, 0.8]),
+        ...     "batch": torch.tensor([0, 0]),
+        ... }
+        >>> match = instance_matches(preds, torch.tensor([0, 0, 0, 1]), torch.tensor([0, 0, 0, 1]))
         >>> instance_average_precision([match], min_points=1)
         1.0
         >>> instance_average_precision([match], iou_threshold=0.5, average="none", class_names=["chair", "table"], min_points=1)

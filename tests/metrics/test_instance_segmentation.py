@@ -6,12 +6,24 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.metrics import instance_average_precision, instance_matches
+from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
+from torch_pointcloud.utils.types import InstanceSegmentation3D
 
 
 def _mask(num_points: int, indices: list[int]) -> Tensor:
     out = torch.zeros(num_points, dtype=torch.bool)
     out[torch.tensor(indices)] = True
     return out
+
+
+def _preds(masks: Tensor, labels: Tensor, scores: Tensor, batch: Optional[Tensor] = None) -> InstanceSegmentation3D:
+    """The `decode` form of dense $(K, N)$ masks."""
+    return {
+        "mask_index": masks.nonzero().t(),
+        "labels": labels,
+        "scores": scores,
+        "batch": torch.zeros_like(labels) if batch is None else batch,
+    }
 
 
 def _random_inputs(
@@ -24,6 +36,7 @@ def _random_inputs(
     score_dtype: torch.dtype = torch.float32,
     shuffle: bool = False,
     with_batch: bool = True,
+    with_ignore_mask: bool = False,
 ) -> dict[str, Any]:
     generator = torch.Generator().manual_seed(0)
     masks, gt_instance, gt_label = [], [], []
@@ -47,6 +60,8 @@ def _random_inputs(
         "pred_scores": scores.to(score_dtype),
         "gt_instance": torch.cat(gt_instance),
         "gt_label": torch.cat(gt_label),
+        "pred_batch": torch.arange(len(sizes)).repeat_interleave(num_preds),
+        "pred_ignore": torch.rand(num_preds * len(sizes), generator=generator) < (0.3 if with_ignore_mask else 0.0),
         "batch": torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes)) if with_batch else None,
         "ignore_index": ignore_index,
     }
@@ -93,9 +108,31 @@ def _brute_force_matches(
     return record
 
 
+def _instance_matches(inputs: dict[str, Any]) -> InstanceMatches:
+    preds = _preds(inputs["pred_masks"], inputs["pred_labels"], inputs["pred_scores"], inputs["pred_batch"])
+    preds["ignore_mask"] = inputs["pred_ignore"]
+    return instance_matches(
+        preds,
+        inputs["gt_instance"],
+        inputs["gt_label"],
+        batch=inputs["batch"],
+        ignore_index=inputs["ignore_index"],
+    )
+
+
 def _assert_matches_brute_force(inputs: dict[str, Any]) -> None:
-    match = {key: value for key, value in instance_matches(**inputs).items() if isinstance(value, Tensor)}
-    assert {key: value.tolist() for key, value in match.items()} == _brute_force_matches(**inputs)
+    match = {key: value for key, value in _instance_matches(inputs).items() if isinstance(value, Tensor)}
+    keep = ~inputs["pred_ignore"]
+    expected = _brute_force_matches(
+        inputs["pred_masks"][keep],
+        inputs["pred_labels"][keep],
+        inputs["pred_scores"][keep],
+        inputs["gt_instance"],
+        inputs["gt_label"],
+        inputs["batch"],
+        inputs["ignore_index"],
+    )
+    assert {key: value.tolist() for key, value in match.items()} == expected
     assert all(value.device.type == "cpu" for value in match.values())
     assert match["pred_scores"].dtype == inputs["pred_scores"].dtype
     assert all(value.dtype == torch.long for key, value in match.items() if key != "pred_scores")
@@ -114,12 +151,18 @@ MATCH_CASES = [
     pytest.param({"sizes": [120, 80, 50], "num_instances": 5, "num_preds": 6}, id="packed-batch"),
     pytest.param({"sizes": [120, 80, 50], "num_instances": 5, "num_preds": 6, "shuffle": True}, id="unsorted-batch"),
     pytest.param({"sizes": [200], "num_instances": 6, "num_preds": 10, "score_dtype": torch.float16}, id="float16"),
+    pytest.param(
+        {"sizes": [120, 80, 50], "num_instances": 5, "num_preds": 6, "with_ignore_mask": True}, id="ignore-mask"
+    ),
 ]
 
 
 @pytest.mark.parametrize("case", MATCH_CASES)
 def test_instance_matches_equals_brute_force(case: dict[str, Any]) -> None:
-    """Every field of the record equals a per-prediction, per-instance count over Python sets."""
+    """Every field of the record equals a per-prediction, per-instance count over Python sets.
+
+    The predictions are random dense masks, block-diagonal over the scenes, in their `decode` form.
+    """
     _assert_matches_brute_force(_random_inputs(**case))
 
 
@@ -141,7 +184,8 @@ def test_instance_matches_record_hand_checked() -> None:
     gt_instance = torch.tensor([0, 0, 0, 1, 1, -1, -1, 2])
     gt_label = torch.tensor([0, 0, 0, 1, 1, -1, -1, -1])
     masks = torch.stack([_mask(8, [0, 1, 5]), _mask(8, [3, 4, 7]), _mask(8, [0, 1])])
-    match = instance_matches(masks, torch.tensor([0, 1, 1]), torch.tensor([0.9, 0.8, 0.7]), gt_instance, gt_label)
+    preds = _preds(masks, torch.tensor([0, 1, 1]), torch.tensor([0.9, 0.8, 0.7]))
+    match = instance_matches(preds, gt_instance, gt_label)
     assert match["gt_counts"].tolist() == [3, 2]
     assert match["gt_labels"].tolist() == [0, 1]
     assert match["pred_counts"].tolist() == [3, 3, 2]
@@ -163,18 +207,17 @@ def test_instance_matches_packed_batch_equals_per_scene_records() -> None:
         labels = torch.randint(0, 2, (6,), generator=generator)
         scores = torch.rand(6, generator=generator)
         scenes.append((masks, labels, scores, gt_instance, gt_label))
-    per_scene = [instance_matches(*scene) for scene in scenes]
+    per_scene = [instance_matches(_preds(*scene[:3]), *scene[3:]) for scene in scenes]
 
     masks = torch.block_diag(*(scene[0].int() for scene in scenes)).bool()
     labels, scores, gt_instance, gt_label = (torch.cat([scene[i] for scene in scenes]) for i in range(1, 5))
     batch = torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes))
-    packed = instance_matches(masks, labels, scores, gt_instance, gt_label, batch=batch)
+    preds = _preds(masks, labels, scores, torch.arange(len(sizes)).repeat_interleave(6))
+    packed = instance_matches(preds, gt_instance, gt_label, batch=batch)
 
     assert packed["gt_counts"].tolist() == torch.cat([match["gt_counts"] for match in per_scene]).tolist()
-    assert (
-        instance_matches(masks, labels, scores, gt_instance, gt_label)["gt_counts"].numel()
-        < packed["gt_counts"].numel()
-    )
+    preds["batch"] = torch.zeros_like(labels)
+    assert instance_matches(preds, gt_instance, gt_label)["gt_counts"].numel() < packed["gt_counts"].numel()
     for iou_threshold in ((0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95), 0.5, 0.25):
         expected = instance_average_precision(per_scene, iou_threshold=iou_threshold, num_classes=2, min_points=1)
         assert instance_average_precision(
@@ -185,6 +228,41 @@ def test_instance_matches_packed_batch_equals_per_scene_records() -> None:
         ) == pytest.approx(expected)
 
 
+@pytest.mark.parametrize(
+    "mask_index,pred_batch,batch",
+    [
+        pytest.param([[0, 0], [1, 4]], [0], [0, 0, 0, 1, 1, 1], id="mask-spanning-two-scenes"),
+        pytest.param([[0, 0], [4, 5]], [0], [0, 0, 0, 1, 1, 1], id="mask-in-another-scene"),
+        pytest.param([[0, 0], [4, 5]], [1], None, id="scene-without-batch"),
+    ],
+)
+def test_instance_matches_rejects_a_mask_outside_its_scene(
+    mask_index: list[list[int]],
+    pred_batch: list[int],
+    batch: Optional[list[int]],
+) -> None:
+    preds: InstanceSegmentation3D = {
+        "mask_index": torch.tensor(mask_index),
+        "labels": torch.tensor([0]),
+        "scores": torch.tensor([0.9]),
+        "batch": torch.tensor(pred_batch),
+    }
+    gt_instance = torch.tensor([0, 0, 0, 0, 0, 0])
+    with pytest.raises(ValueError, match="outside the scene of its instance"):
+        instance_matches(preds, gt_instance, gt_instance, batch=None if batch is None else torch.tensor(batch))
+
+
+def test_instance_matches_dense_masks_are_deprecated() -> None:
+    """The 0.0.18 call with dense masks warns and gives the record of the `decode` form."""
+    inputs = _random_inputs([200], 6, 10, with_batch=False)
+    masks, labels, scores = inputs["pred_masks"], inputs["pred_labels"], inputs["pred_scores"]
+    with pytest.warns(FutureWarning, match="removed in 0.0.20"):
+        legacy = instance_matches(masks.int(), labels, scores, inputs["gt_instance"], inputs["gt_label"])
+    expected = instance_matches(_preds(masks, labels, scores), inputs["gt_instance"], inputs["gt_label"])
+    for key in expected:
+        assert torch.equal(legacy[key], expected[key]), key  # type: ignore[literal-required]
+
+
 def test_instance_average_precision_perfect_two_scenes() -> None:
     """Exact predictions over two scenes score 1.0 at every threshold, with named per-class keys."""
     matches = []
@@ -192,7 +270,9 @@ def test_instance_average_precision_perfect_two_scenes() -> None:
         gt_instance = torch.tensor([0, 0, 0, 1, 1, 1])
         gt_label = torch.tensor([0, 0, 0, 1, 1, 1])
         masks = torch.stack([_mask(6, [0, 1, 2]), _mask(6, [3, 4, 5])])
-        matches.append(instance_matches(masks, torch.tensor([0, 1]), torch.tensor([0.9, 0.8]), gt_instance, gt_label))
+        matches.append(
+            instance_matches(_preds(masks, torch.tensor([0, 1]), torch.tensor([0.9, 0.8])), gt_instance, gt_label)
+        )
     per_class = instance_average_precision(matches, average="none", class_names=("chair", "table"), min_points=1)
     assert per_class == pytest.approx({"chair": 1.0, "table": 1.0})
     assert instance_average_precision(matches, num_classes=2, min_points=1) == pytest.approx(1.0)
@@ -223,7 +303,7 @@ def test_instance_average_precision_hand_scenario() -> None:
     )
     labels = torch.tensor([0, 0, 0, 1, 1])
     scores = torch.tensor([0.9, 0.8, 0.3, 0.7, 0.95])
-    match = instance_matches(masks, labels, scores, gt_instance, gt_label)
+    match = instance_matches(_preds(masks, labels, scores), gt_instance, gt_label)
     per_class = instance_average_precision([match], average="none", num_classes=2, min_points=1)
     assert per_class.tolist() == pytest.approx([19.0 / 24.0, 2.0 / 3.0])
     assert instance_average_precision([match], num_classes=2, min_points=1) == pytest.approx(35.0 / 48.0)
@@ -245,13 +325,13 @@ def test_instance_average_precision_void_overlap_excused() -> None:
 
     gt_instance = torch.tensor([0] * 10 + [-1] * 10)
     for gt_label in (torch.tensor([0] * 10 + [-1] * 10), torch.tensor([0] * 20)):
-        match = instance_matches(masks, labels, scores, gt_instance, gt_label)
+        match = instance_matches(_preds(masks, labels, scores), gt_instance, gt_label)
         assert match["pred_void"].tolist() == [0, 10]
         assert instance_average_precision([match], num_classes=1, min_points=1) == pytest.approx(1.0)
 
     gt_instance = torch.tensor([0] * 10 + [1] * 10)
     gt_label = torch.tensor([0] * 10 + [1] * 10)
-    match = instance_matches(masks, labels, scores, gt_instance, gt_label)
+    match = instance_matches(_preds(masks, labels, scores), gt_instance, gt_label)
     assert instance_average_precision([match], average="none", num_classes=2, min_points=1)[0] == pytest.approx(0.25)
     per_class = instance_average_precision([match], iou_threshold=0.25, average="none", num_classes=2, min_points=1)
     assert per_class[0] == pytest.approx(0.25)
@@ -270,7 +350,7 @@ def test_instance_average_precision_min_points_gates() -> None:
     masks = torch.stack([_mask(20, [0, 1, 2, 13, 14]), _mask(20, list(range(3, 13))), _mask(20, [3, 4, 5])])
     labels = torch.tensor([0, 1, 1])
     scores = torch.tensor([0.9, 0.8, 0.99])
-    match = instance_matches(masks, labels, scores, gt_instance, gt_label)
+    match = instance_matches(_preds(masks, labels, scores), gt_instance, gt_label)
     per_class = instance_average_precision([match], average="none", num_classes=2, min_points=5)
     assert math.isnan(per_class[0].item())
     assert per_class[1].item() == pytest.approx(1.0)
@@ -282,16 +362,13 @@ def test_instance_average_precision_empty_edges() -> None:
     """No predictions with ground truth scores 0.0; no ground truth at all reports only zero mAPs."""
     gt_instance = torch.tensor([0] * 10)
     gt_label = torch.tensor([0] * 10)
-    empty = instance_matches(
-        torch.zeros(0, 10, dtype=torch.bool), torch.zeros(0, dtype=torch.long), torch.zeros(0), gt_instance, gt_label
-    )
+    no_preds = _preds(torch.zeros(0, 10, dtype=torch.bool), torch.zeros(0, dtype=torch.long), torch.zeros(0))
+    empty = instance_matches(no_preds, gt_instance, gt_label)
     assert instance_average_precision([empty], average="none", num_classes=1, min_points=1).tolist() == [0.0]
     assert instance_average_precision([empty], num_classes=1, min_points=1) == 0.0
 
     no_gt = instance_matches(
-        torch.stack([_mask(10, [0, 1])]),
-        torch.tensor([0]),
-        torch.tensor([0.9]),
+        _preds(torch.stack([_mask(10, [0, 1])]), torch.tensor([0]), torch.tensor([0.9])),
         torch.full((10,), -1),
         torch.full((10,), -1),
     )

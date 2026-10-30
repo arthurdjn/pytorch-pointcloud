@@ -8,6 +8,7 @@ from torch_pointcloud.models import model_info
 from torch_pointcloud.models.spformer import SPFormerInstanceSegmentation, SPFormerOutput, SPFormerQueryDecoder
 from torch_pointcloud.utils.data import DataKeys, collate, select_inputs
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
+from torch_pointcloud.utils.types import InstanceSegmentation3D
 
 _REQUIRES_SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 _REQUIRES_CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
@@ -34,6 +35,12 @@ def _model(**kwargs: Any) -> SPFormerInstanceSegmentation:
     )
     hparams.update(kwargs)
     return SPFormerInstanceSegmentation(6, 3, **hparams).eval()
+
+
+def _dense_masks(instances: InstanceSegmentation3D, num_points: int) -> Tensor:
+    masks = torch.zeros(instances["labels"].shape[0], num_points, dtype=torch.bool, device=instances["labels"].device)
+    masks[tuple(instances["mask_index"])] = True
+    return masks
 
 
 def _scenes() -> List[Dict[str, Tensor]]:
@@ -149,13 +156,44 @@ def test_decode_keeps_the_best_pairs_of_every_scene() -> None:
         "aux_outputs": [],
     }
     instances = model.decode(output)
-    assert instances["masks"].shape == (10, 7)
+    masks = _dense_masks(instances, 7)
+    assert masks.shape == (10, 7)
     assert instances["batch"].tolist() == [0] * 5 + [1] * 5
     assert instances["labels"][[0, 5]].tolist() == [1, 2]
     torch.testing.assert_close(instances["scores"][[0, 5]], torch.full((2,), 0.5), atol=1e-3, rtol=0)
-    assert instances["masks"][0].tolist() == [True, True, True, False, False, False, False]
-    assert instances["masks"][5].tolist() == [False, False, False, False, False, True, True]
-    assert not instances["masks"][:5, 4:].any() and not instances["masks"][5:, :4].any()
+    assert masks[0].tolist() == [True, True, True, False, False, False, False]
+    assert masks[5].tolist() == [False, False, False, False, False, True, True]
+    assert not masks[:5, 4:].any() and not masks[5:, :4].any()
+
+
+@_REQUIRES_SPCONV
+def test_decode_mask_index_equals_the_dense_superpoint_masks() -> None:
+    """The sparse masks are the positive-logit superpoints of every kept pair, expanded to their points."""
+    model = _model(num_instances=6)
+    torch.manual_seed(0)
+    superpoint_batch = torch.tensor([0] * 5 + [1] * 3 + [2] * 4)
+    superpoint = torch.cat([torch.randint(0, 5, (30,)), torch.randint(5, 8, (20,)), torch.randint(8, 12, (25,))])
+    superpoint = superpoint[torch.randperm(superpoint.numel())]
+    output: SPFormerOutput = {
+        "class_logits": torch.randn(3, 4, 4),
+        "scores": torch.rand(3, 4),
+        "mask_logits": torch.randn(4, 12),
+        "superpoint": superpoint,
+        "superpoint_batch": superpoint_batch,
+        "aux_outputs": [],
+    }
+    instances = model.decode(output)
+
+    class_scores = output["class_logits"].softmax(dim=-1)[..., :-1] * output["scores"][..., None]
+    expected = torch.zeros(18, 12, dtype=torch.bool)
+    for scene in range(3):
+        pair = class_scores[scene].flatten().topk(6).indices
+        columns = superpoint_batch == scene
+        expected[6 * scene : 6 * (scene + 1), columns] = output["mask_logits"][pair // 3][:, columns] > 0
+    assert torch.equal(_dense_masks(instances, superpoint.numel()), expected[:, superpoint])
+    assert instances["mask_index"].shape[1] == expected[:, superpoint].sum()
+    assert (instances["mask_index"][0].diff() >= 0).all()
+    assert torch.equal(instances["batch"], torch.arange(3).repeat_interleave(6))
 
 
 @_REQUIRES_SPCONV
@@ -183,8 +221,9 @@ def test_forward_and_decode() -> None:
     assert output["mask_logits"].shape == (4, num_superpoints)
     assert output["superpoint"].shape == (sum(points),)
     assert len(output["aux_outputs"]) == 1
-    assert instances["masks"].shape == (10, sum(points))
-    assert not instances["masks"][instances["batch"] == 0, points[0] :].any()
+    masks = _dense_masks(instances, sum(points))
+    assert not masks[instances["batch"] == 0, points[0] :].any()
+    assert not masks[instances["batch"] == 1, : points[0]].any()
 
 
 @_REQUIRES_SPCONV
