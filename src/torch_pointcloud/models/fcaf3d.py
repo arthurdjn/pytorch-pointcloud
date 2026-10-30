@@ -514,28 +514,30 @@ class FCAF3DDetection(DetectionModel):
         r"""Score the boxes of a forward output (no score threshold, top-k or NMS).
 
         Every location is scored per class by its class probability times its centerness, and labelled by its best
-        class.
+        class. The authors' evaluation keeps the $1000$ best `scores` of every scene and level, then every (box,
+        class) pair whose class score exceeds $0.01$, suppressed per class at a bird's-eye-view IoU of $0.5$ (`nms3d`
+        with `rotated=True`).
 
         Args:
             out: The raw output of `forward`.
 
         Returns:
-            Packed detections `{"boxes", "scores", "labels", "batch", "class_probs"}` with one row per output row, the
-            per-class scores in `class_probs`.
+            Packed detections `{"boxes", "scores", "labels", "batch", "class_scores"}` with one row per output row,
+            the per-class scores in `class_scores`.
 
         Shape:
             - boxes: $(M, 7)$
             - scores / labels / batch: $(M,)$
-            - class_probs: $(M, C)$
+            - class_scores: $(M, C)$
         """
-        class_probs = out["cls_logits"].sigmoid() * out["centerness"].sigmoid()
-        scores, labels = class_probs.max(dim=1)
+        class_scores = out["cls_logits"].sigmoid() * out["centerness"].sigmoid()
+        scores, labels = class_scores.max(dim=1)
         return {
             "boxes": out["boxes"],
             "scores": scores,
             "labels": labels,
             "batch": out["batch"],
-            "class_probs": class_probs,
+            "class_scores": class_scores,
         }
 
 

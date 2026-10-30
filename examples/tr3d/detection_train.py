@@ -273,9 +273,9 @@ def evaluate(model: TR3DDetection, loader: DataLoader, device: str) -> dict[str,
         det = model.decode(out)
         # Keep the best locations of every scene, then score each of them against every class.
         keep = topk(det["scores"], NMS_PRE, det["batch"])
-        box, label = (det["class_probs"][keep] > SCORE_THRESHOLD).nonzero(as_tuple=True)
+        box, label = (det["class_scores"][keep] > SCORE_THRESHOLD).nonzero(as_tuple=True)
         boxes, batch = det["boxes"][keep][box], det["batch"][keep][box]
-        scores = det["class_probs"][keep][box, label]
+        scores = det["class_scores"][keep][box, label]
         kept = nms3d(boxes, scores, NMS_IOU, labels=label, batch=batch, rotated=True)
         preds: Detection3D = {"boxes": boxes[kept], "scores": scores[kept], "labels": label[kept], "batch": batch[kept]}
         target: Boxes3D = {
