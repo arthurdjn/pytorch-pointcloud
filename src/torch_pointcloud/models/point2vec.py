@@ -607,8 +607,8 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
 
     The $1 \times 1$ convolution weights become linear weights, the first feature-propagation layer swaps its input
     columns from `[coordinates, interpolated]` to the `[interpolated, coordinates]` order of
-    `PointNet2FeaturePropagation`, and the encoder's final normalization is dropped when `model` has no `norm_f`
-    (the part-segmentation model normalizes its hidden states without parameters). In a pretraining checkpoint the
+    `PointNet2FeaturePropagation`, and the encoder's final normalization is dropped for a `Point2VecPartSegmentation`
+    (which normalizes its hidden states without parameters). In a pretraining checkpoint the
     student becomes the encoder, and the copy of the student and the moving-average counters held by the teacher are
     dropped.
 
@@ -619,7 +619,7 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
     Returns:
         The state dict keyed as `model` expects.
     """
-    dropped = _DROPPED_KEYS if hasattr(model, "norm_f") else (*_DROPPED_KEYS, "encoder.norm.")
+    dropped = (*_DROPPED_KEYS, "encoder.norm.") if isinstance(model, Point2VecPartSegmentation) else _DROPPED_KEYS
     state_dict = {key: value for key, value in state_dict.items() if not key.startswith(dropped)}
     state_dict = transform_state_dict(
         state_dict,
@@ -628,9 +628,9 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
     )
     if "mask_token" in state_dict:
         state_dict["mask_token"] = state_dict["mask_token"].reshape(1, 1, -1)
-    if "decoder.propagation.mlp.lins.0.weight" in state_dict:
+    if isinstance(model, Point2VecPartSegmentation) and "decoder.propagation.mlp.lins.0.weight" in state_dict:
         weight = state_dict["decoder.propagation.mlp.lins.0.weight"]
-        spatial_dim = getattr(model, "spatial_dim", 3)
+        spatial_dim = model.spatial_dim
         state_dict["decoder.propagation.mlp.lins.0.weight"] = torch.cat(
             [weight[:, spatial_dim:], weight[:, :spatial_dim]], 1
         )
