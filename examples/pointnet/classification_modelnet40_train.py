@@ -130,6 +130,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
 
 
 def configure_model(args: Namespace) -> nn.Module:
+    # SimpleView drops out once, before the head's second norm; PyG `MLP` drops out after every hidden activation.
     return create_model(args.model, task="classification", pretrained=False).to(args.device)
 
 
