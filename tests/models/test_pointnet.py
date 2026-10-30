@@ -142,20 +142,20 @@ def test_pointnet_encoder_act_first(act_first: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    ("stnet_use_features", "stnet_in_channels"),
+    ("input_transform_uses_features", "input_transform_in_channels"),
     [
         pytest.param(False, 3, id="coordinates"),
         pytest.param(True, 9, id="coordinates-and-features"),
     ],
 )
-def test_pointnet_encoder_stnet_use_features(
-    stnet_use_features: bool,
-    stnet_in_channels: int,
+def test_pointnet_encoder_input_transform_uses_features(
+    input_transform_uses_features: bool,
+    input_transform_in_channels: int,
     data: Dict[str, Tensor],
 ) -> None:
-    encoder = PointNetEncoder(in_channels=6, stnet_use_features=stnet_use_features)
+    encoder = PointNetEncoder(in_channels=6, input_transform_uses_features=input_transform_uses_features)
     out = encoder(data["x"], data["pos"], data["batch"])
-    assert encoder.stnet.local_nn.channel_list[0] == stnet_in_channels
+    assert encoder.stnet.local_nn.channel_list[0] == input_transform_in_channels
     assert out.shape == (data["pos"].shape[0], 1024)
 
 

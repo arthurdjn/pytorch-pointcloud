@@ -78,8 +78,8 @@ class PointNetEncoder(nn.Module):
         act_first: Whether to apply the activation before the normalization in every layer.
         act_last: Whether the last layer of the second MLP applies the activation; `False` returns its normalized
             linear output. Unlike PyG's `plain_last`, the normalization is kept.
-        stnet_use_features: Whether the input T-Net predicts its transform from the coordinates concatenated with
-            the point features, the coordinates alone otherwise.
+        input_transform_uses_features: Whether the input T-Net predicts its transform from the coordinates
+            concatenated with the point features, the coordinates alone otherwise.
     """
 
     def __init__(
@@ -101,11 +101,11 @@ class PointNetEncoder(nn.Module):
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = True,
         act_last: bool = True,
-        stnet_use_features: bool = False,
+        input_transform_uses_features: bool = False,
     ) -> None:
         super().__init__()
         self.act_first = act_first
-        self.stnet_use_features = stnet_use_features
+        self.input_transform_uses_features = input_transform_uses_features
         mlp1_channels = [spatial_dim + in_channels] + list(mlp1_channels)
         mlp2_channels = [mlp1_channels[-1]] + list(mlp2_channels)
 
@@ -113,7 +113,7 @@ class PointNetEncoder(nn.Module):
             local_channels=tnet_mlp1_dims,
             global_channels=tnet_mlp2_dims,
             k=spatial_dim,
-            in_channels=mlp1_channels[0] if stnet_use_features else None,
+            in_channels=mlp1_channels[0] if input_transform_uses_features else None,
             act=tnet_act,
             act_kwargs=tnet_act_kwargs,
             act_first=act_first,
@@ -196,7 +196,7 @@ class PointNetEncoder(nn.Module):
                 - `point_features` of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
         """
 
-        xp = self.stnet(pos, batch, x if self.stnet_use_features else None)
+        xp = self.stnet(pos, batch, x if self.input_transform_uses_features else None)
         x = xp if x is None else torch.cat([xp, x], dim=1)
 
         point_features = self.mlp1(x)
@@ -265,8 +265,8 @@ class PointNetClassification(ClassificationModel):
         act_first: Whether to apply the activation before the normalization in every layer.
         act_last: Whether the last encoder layer applies the activation; `False` pools the normalized linear
             output. Unlike PyG's `plain_last`, the normalization is kept.
-        stnet_use_features: Whether the input T-Net predicts its transform from the coordinates concatenated with
-            the point features, the coordinates alone otherwise.
+        input_transform_uses_features: Whether the input T-Net predicts its transform from the coordinates
+            concatenated with the point features, the coordinates alone otherwise.
 
     Shape:
         - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape $(N, \text{spatial\_dim})$
@@ -297,7 +297,7 @@ class PointNetClassification(ClassificationModel):
         head_channels: Sequence[int] = (512, 256),
         act_first: bool = True,
         act_last: bool = True,
-        stnet_use_features: bool = False,
+        input_transform_uses_features: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
@@ -318,7 +318,7 @@ class PointNetClassification(ClassificationModel):
         self.head_channels = list(head_channels)
         self.act_first = act_first
         self.act_last = act_last
-        self.stnet_use_features = stnet_use_features
+        self.input_transform_uses_features = input_transform_uses_features
 
         self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
@@ -344,7 +344,7 @@ class PointNetClassification(ClassificationModel):
             tnet_norm_kwargs=self.tnet_norm_kwargs,
             act_first=self.act_first,
             act_last=self.act_last,
-            stnet_use_features=self.stnet_use_features,
+            input_transform_uses_features=self.input_transform_uses_features,
         )
 
     @property
@@ -480,8 +480,8 @@ class PointNetSegmentation(SemanticSegmentationModel):
         act_first: Whether to apply the activation before the normalization in every layer.
         act_last: Whether the last encoder layer applies the activation; `False` pools the normalized linear
             output. Unlike PyG's `plain_last`, the normalization is kept.
-        stnet_use_features: Whether the input T-Net predicts its transform from the coordinates concatenated with
-            the point features, the coordinates alone otherwise.
+        input_transform_uses_features: Whether the input T-Net predicts its transform from the coordinates
+            concatenated with the point features, the coordinates alone otherwise.
 
     Shape:
         - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape $(N, \text{spatial\_dim})$
@@ -512,7 +512,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
         seg_head_dims: Sequence[int] = (512, 256, 128),
         act_first: bool = True,
         act_last: bool = True,
-        stnet_use_features: bool = False,
+        input_transform_uses_features: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
@@ -533,7 +533,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
         self.seg_head_dims = list(seg_head_dims)
         self.act_first = act_first
         self.act_last = act_last
-        self.stnet_use_features = stnet_use_features
+        self.input_transform_uses_features = input_transform_uses_features
 
         self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
@@ -561,7 +561,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
             tnet_norm_kwargs=self.tnet_norm_kwargs,
             act_first=self.act_first,
             act_last=self.act_last,
-            stnet_use_features=self.stnet_use_features,
+            input_transform_uses_features=self.input_transform_uses_features,
         )
 
     @property
@@ -767,7 +767,7 @@ def pointnet_jiawei_ren_modelnet40(**hparams: Any) -> PointNetClassification:
         mlp2_channels=[64, 128, 1024],
         act_first=False,
         act_last=False,
-        stnet_use_features=True,
+        input_transform_uses_features=True,
     ),
     transform=T.Compose(
         [
@@ -801,7 +801,7 @@ def pointnet_openpoints_scanobjectnn(**hparams: Any) -> PointNetClassification:
         dropout=0.0,
         act_first=False,
         act_last=False,
-        stnet_use_features=True,
+        input_transform_uses_features=True,
     ),
     transform=T.Cat(keys=[DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
 )
