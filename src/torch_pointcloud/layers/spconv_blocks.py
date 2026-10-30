@@ -15,15 +15,15 @@ from .norms import create_norm
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
-    from spconv.pytorch import SparseSequential
+    from spconv.pytorch import SparseConv3d, SparseSequential
 else:
+    SparseConv3d, _ = optional_import("spconv.pytorch", "SparseConv3d", url=_SPCONV_GITHUB_URL)
     SparseSequential, _ = optional_import("spconv.pytorch", "SparseSequential", url=_SPCONV_GITHUB_URL)
 
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 SparseModule: Any = spconv.SparseModule if _SPCONV_AVAILABLE else nn.Module
-SparseConv3d: Any = spconv.SparseConv3d if _SPCONV_AVAILABLE else nn.Module
 
 
 class SubMConv3dBlock(nn.Module):
