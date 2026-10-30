@@ -204,8 +204,8 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
 
     shape_ious, category = torch.cat(ious), torch.cat(categories)
     return {
-        "ins_mIoU": float(part_mean_intersection_over_union(shape_ious, category)),
-        "cls_mIoU": float(part_mean_intersection_over_union(shape_ious, category, average="macro")),
+        "ins_mIoU": part_mean_intersection_over_union(shape_ious, category),
+        "cls_mIoU": part_mean_intersection_over_union(shape_ious, category, average="macro"),
     }
 
 

@@ -15,7 +15,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40Hdf5
-from torch_pointcloud.metrics import confusion_matrix
+from torch_pointcloud.metrics import accuracy, confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -85,7 +85,8 @@ def configure_train_transform(args: Namespace) -> T.Transform:
     return T.Compose(
         [
             T.Slice(keys=POINT_KEYS, stop=NUM_POINTS),
-            T.RandomDropout(keys=POINT_KEYS, drop_ratio_range=(0.0, 0.875)),  # random_point_dropout
+            # random_point_dropout, removing the dropped points instead of overwriting them with the first one
+            T.RandomDropout(keys=POINT_KEYS, drop_ratio_range=(0.0, 0.875)),
             # translate_pointcloud: per-axis scale in [2/3, 3/2] and shift in [-0.2, 0.2]
             T.RandomScale(keys=DataKeys.POS, scale_range=(2.0 / 3.0, 3.0 / 2.0), anisotropic=True),
             T.RandomTranslate(keys=DataKeys.POS, translation_range=(-0.2, 0.2)),
@@ -174,16 +175,13 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH])
-        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], NUM_CLASSES)
+        cm += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], NUM_CLASSES)
 
-    present = confusion.sum(dim=1) > 0
-    accuracy = confusion.diag().sum() / confusion.sum()
-    mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
-    return {"acc": accuracy.item(), "mean_acc": mean_accuracy.item()}
+    return {"acc": accuracy(cm), "mean_acc": accuracy(cm, average="macro")}
 
 
 if __name__ == "__main__":
