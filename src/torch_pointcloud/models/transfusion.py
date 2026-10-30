@@ -211,7 +211,7 @@ class TransFusionDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/transfusion-lidar.nuscenes.openpcdet/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/transfusion-lidar.nuscenes.openpcdet/resolve/d7b98f5b95ce86619b35192bacd721fd1def70ea/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 65.32, "NDS": 69.71},
         classes=NUSCENES_DETECTION_CLASSES,
