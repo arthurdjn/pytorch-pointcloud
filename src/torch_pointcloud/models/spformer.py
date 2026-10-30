@@ -410,24 +410,20 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
     transform=T.Compose(
         [
             T.Relabel(keys=DataKeys.SEGMENT, labels=range(3, 21), default=-1, allow_missing_keys=True),
-            T.CopyItems(
-                keys=[DataKeys.POS, DataKeys.SEGMENT, DataKeys.INSTANCE],
-                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT, DataKeys.ORIGIN_INSTANCE],
-                allow_missing_keys=True,
-            ),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
             T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
             T.Shift(keys=DataKeys.POS, method="centroid"),
             T.Cat(keys=[DataKeys.COLOR, DataKeys.POS], dst_key=DataKeys.X, dim=1),
-            # 2 cm voxels: the grid is the scaled positions, floored from their minimum.
+            # 2 cm voxels: the grid is the scaled positions, floored from their minimum. The labels stay per point,
+            # the resolution of `superpoint` and of the decoded masks.
             T.Scale(keys=DataKeys.POS, scale=50.0),
             T.Shift(keys=DataKeys.POS, method="min"),
             T.Voxelize(
                 pos_key=DataKeys.POS,
                 pos_reduce="grid",
                 dst_pos_grid_key=DataKeys.POS_GRID,
-                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INSTANCE, DataKeys.COLOR, DataKeys.NORMAL],
+                keys=DataKeys.X,
                 size=1.0,
-                allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
         ]

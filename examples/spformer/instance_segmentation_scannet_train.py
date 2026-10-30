@@ -223,8 +223,8 @@ def evaluate(model: SPFormerInstanceSegmentation, loader: DataLoader, device: st
             masks[keep],
             labels[keep],
             scores[keep],
-            data[DataKeys.ORIGIN_INSTANCE],
-            data[DataKeys.ORIGIN_SEGMENT],
+            data[DataKeys.INSTANCE],
+            data[DataKeys.SEGMENT],
             batch=data[DataKeys.BATCH_INVERSE],
         )
         matches.append(match)

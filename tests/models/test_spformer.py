@@ -110,6 +110,26 @@ def test_registered_transform_runs_without_labels() -> None:
     assert data[DataKeys.X].shape == (data[DataKeys.POS_GRID].shape[0], 6)
 
 
+@_REQUIRES_PYG_LIB
+def test_registered_transform_keeps_the_labels_per_point() -> None:
+    """`segment` and `instance` stay at the resolution of `superpoint` and of the decoded masks."""
+    transform = model_info("spformer.scannet.jiahao-sun", task="instance-segmentation")["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    sample = {
+        DataKeys.POS: torch.rand(500, 3) * 0.1,
+        DataKeys.COLOR: torch.randint(0, 256, (500, 3)).float(),
+        DataKeys.SUPERPOINT: torch.randint(0, 20, (500,)),
+        DataKeys.SEGMENT: torch.randint(0, 21, (500,)),
+        DataKeys.INSTANCE: torch.randint(-1, 10, (500,)),
+    }
+    data = transform(sample)
+    assert data[DataKeys.X].shape[0] < 500
+    assert torch.equal(data[DataKeys.INSTANCE], sample[DataKeys.INSTANCE])
+    expected = torch.where(sample[DataKeys.SEGMENT] >= 3, sample[DataKeys.SEGMENT] - 3, -1)
+    assert torch.equal(data[DataKeys.SEGMENT], expected)
+
+
 @_REQUIRES_SPCONV
 def test_decode_keeps_the_best_pairs_of_every_scene() -> None:
     """Hand-built output: 2 scenes of 3 and 2 superpoints, 4 queries, 3 classes."""
