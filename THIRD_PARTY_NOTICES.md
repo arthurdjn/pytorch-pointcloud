@@ -38,6 +38,7 @@ neither are marked as such.
 | IGNF/myria3d                                    | `ignf`           | Etalab-2.0   | 1     | Copyright (c) 2021, Institut National de l'Information Géographique et Forestière                                          |
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
+| heig-vd-geo/PTv3_GridNet-HD_baseline (Hugging Face) | `heig-vd-geo` | MIT         | 1     | not stated upstream                                                                                                        |
 
 ## Training data
 
@@ -56,6 +57,7 @@ Licenses of the datasets the checkpoints were trained on.
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
 | FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
+| GridNet-HD                                      | CC BY 4.0                                                 | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 
 ## Source code
