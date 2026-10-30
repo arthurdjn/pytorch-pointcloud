@@ -8,17 +8,18 @@ This installs the library with :pytorch: [`torch`](https://pytorch.org) and :pyg
 The kernels below ship as prebuilt wheels that must match your torch and CUDA build, so install torch first. The
 selector writes the commands.
 
-| Dependency    | Needed by                                                                                                                              |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pyg-lib`     | FPS, kNN and radius search: nearly every point-based model                                                                             |
-| `spconv`      | Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION              |
-| `flash-attn`  | Point Transformer V3, Sonata, Concerto, Utonia (`use_flash_attn=False` runs the dense attention instead)                               |
-| `mamba`       | PointMamba, Voxel-Mamba, LION (`mamba-ssm` and `causal-conv1d`)                                                                        |
-| `ocnn`        | OctFormer and the octree transforms, with `dwconv` for its depthwise convolutions                                                      |
-| `torchsparse` | SPVCNN (built from source, needs `libsparsehash-dev`)                                                                                  |
-| `sptr`        | SphereFormer (with `torch-scatter`, up to torch 2.12)                                                                                  |
-| `kaolin`      | A faster nearest-neighbor kernel for the Chamfer distance                                                                              |
-| `lightning`   | The Lightning training modules (with `torchmetrics`)                                                                                   |
+| Dependency     | Needed by                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `pyg-lib`      | FPS, kNN and radius search: nearly every point-based model                                                                           |
+| `spconv`       | Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, OpenScene, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION |
+| `flash-attn`   | Point Transformer V3, Sonata, Concerto, Utonia (`use_flash_attn=False` runs the dense attention instead)                             |
+| `mamba`        | PointMamba, Voxel-Mamba, LION (`mamba-ssm` and `causal-conv1d`)                                                                      |
+| `ocnn`         | OctFormer and the octree transforms, with `dwconv` for its depthwise convolutions                                                    |
+| `torchsparse`  | SPVCNN (built from source, needs `libsparsehash-dev`)                                                                                |
+| `sptr`         | SphereFormer (with `torch-scatter`, up to torch 2.12)                                                                                |
+| `kaolin`       | A faster nearest-neighbor kernel for the Chamfer distance                                                                            |
+| `lightning`    | The Lightning training modules (with `torchmetrics`)                                                                                 |
+| `transformers` | `CLIPTextEncoder`, the prompt embeddings of the open-vocabulary models                                                               |
 
 <div class="install-selector" id="install-selector" markdown="0">
   <div class="isel-row"><span class="isel-label">Package manager</span><span class="isel-opts">
@@ -53,6 +54,7 @@ selector writes the commands.
     <button data-dim="extra" data-val="sptr">sptr</button>
     <button data-dim="extra" data-val="kaolin">kaolin</button>
     <button data-dim="extra" data-val="lightning">lightning</button>
+    <button data-dim="extra" data-val="transformers">transformers</button>
   </span></div>
   <div class="isel-output">
     <button class="isel-copy" id="isel-copy" title="Copy to clipboard" aria-label="Copy to clipboard"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12V1Z"/></svg></button>
