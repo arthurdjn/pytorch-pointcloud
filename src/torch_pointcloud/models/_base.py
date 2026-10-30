@@ -349,8 +349,8 @@ class OpenVocabularySegmentationModel(nn.Module, metaclass=ABCMeta):
     These models have no class list. `forward` returns one unit-length embedding per point, $(N, \text{embed\_dim})$,
     in the space of a pretrained text encoder, so its product with unit text embeddings is a cosine similarity, a
     point is labelled by the nearest prompt, and the vocabulary is a list of prompts chosen at inference time. The
-    text encoder and prompt template of a checkpoint are registered with its weights (`weights["text_model"]`,
-    `weights["prompt_template"]`).
+    text encoder, its revision and the prompt template of a checkpoint are registered with its weights
+    (`weights["text_model"]`, `weights["text_revision"]`, `weights["prompt_template"]`).
 
     Subclasses implement `forward_features` (encoder, keeping the skip intermediates), `forward_head` (the
     projection into the text space) and `configure_head`, and compose them in `forward`, usually through

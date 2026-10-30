@@ -906,6 +906,18 @@ def test_registered_weights_classes_match_num_classes() -> None:
                 assert len(weights["classes"]) == num_classes, name
 
 
+def test_registered_open_vocabulary_weights_pin_their_text_space() -> None:
+    """Every open-vocabulary checkpoint names its text encoder, pinned to a commit, and its prompt template."""
+    for name, entry in _REGISTERED_MODELS["open-vocabulary-segmentation"].items():
+        weights = entry["weights"]
+        if weights is None:
+            continue
+
+        assert "text_model" in weights, name
+        assert re.fullmatch(r"[0-9a-f]{40}", weights.get("text_revision", "")), name
+        assert "{}" in weights.get("prompt_template", ""), name
+
+
 def test_registered_input_keys_fill_the_forward_arguments() -> None:
     """`input_keys` cover the required positional arguments of `forward`, and no more than its positional ones."""
     for entries in _REGISTERED_MODELS.values():

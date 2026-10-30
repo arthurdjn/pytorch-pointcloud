@@ -78,7 +78,7 @@ def main() -> None:
     model, info = create_model(args.model, task="open-vocabulary-segmentation", pretrained=True, return_info=True)
     weights = info["weights"]
     assert weights is not None
-    text_encoder = CLIPTextEncoder(weights["text_model"])
+    text_encoder = CLIPTextEncoder(weights["text_model"], revision=weights["text_revision"])
     prompts = [weights["prompt_template"].format(name) for name in CLASSES] + ["other"]
     inferer = configure_inferer(args)
     dataloader = configure_dataloader(args)

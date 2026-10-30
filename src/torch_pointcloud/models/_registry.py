@@ -59,6 +59,8 @@ class WeightsDict(TypedDict):
         classes: Label names in prediction-channel order, so `classes[i]` names class $i$ of the head.
         text_model: Hub id of the text encoder the embeddings of an open-vocabulary checkpoint are aligned with
             (e.g. `openai/clip-vit-large-patch14-336`, read by `layers.CLIPTextEncoder`).
+        text_revision: Commit sha of `text_model` the checkpoint was scored with, passed as the `revision` of
+            `layers.CLIPTextEncoder`.
         prompt_template: Prompt an open-vocabulary checkpoint was scored with, `{}` standing for the class name
             (e.g. `a {} in a scene`).
         author: Tag identifying who trained the original checkpoint (e.g. `openpcdet`, `fair`).
@@ -71,6 +73,7 @@ class WeightsDict(TypedDict):
     metrics: NotRequired[Dict[str, float]]
     classes: NotRequired[Sequence[str]]
     text_model: NotRequired[str]
+    text_revision: NotRequired[str]
     prompt_template: NotRequired[str]
     author: NotRequired[str]
     license: NotRequired[str]

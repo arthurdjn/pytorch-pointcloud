@@ -395,8 +395,8 @@ def test_pretrained_openscene_nuscenes(
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
 ) -> None:
-    """The nuScenes OpenScene weights have no in-repo lidarseg fixture, so a fixed synthetic sweep goes through the
-    registered transform; the 768-d embeddings of a few hundred voxels keep the snapshot small."""
+    """Two synthetic sweeps of 600 points go through the registered transform instead of the `nuscenes_lidarseg`
+    fixture of `PRETRAINED_MODELS`, so the snapshot of 768-d embeddings stays under 4 MB."""
     _skip_if_deps_missing(model_name)
     models_dir = models_dir_factory("*.safetensors")
 
@@ -432,7 +432,7 @@ def test_pretrained_open_vocabulary_text_model_matches_embed_dim(model_name: str
     info = model_info(model_name, task="open-vocabulary-segmentation")
     weights = info["weights"]
     assert weights is not None
-    config = transformers.CLIPTextConfig.from_pretrained(weights["text_model"])
+    config = transformers.CLIPTextConfig.from_pretrained(weights["text_model"], revision=weights["text_revision"])
     assert config.projection_dim == info["hparams"]["embed_dim"]
 
 

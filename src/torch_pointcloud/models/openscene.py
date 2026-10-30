@@ -33,8 +33,8 @@ class OpenSceneOpenVocabularySegmentation(OpenVocabularySegmentationModel):
     their product with unit text embeddings (`layers.CLIPTextEncoder`) is the cosine similarity that labels a point
     with the nearest prompt, for any vocabulary. The released weights were distilled from per-pixel OpenSeg or LSeg
     features and read geometry only: `x=None` feeds a constant feature of `in_channels` ones per voxel. Each
-    registered checkpoint names its text encoder and prompt template in `weights["text_model"]` and
-    `weights["prompt_template"]`.
+    registered checkpoint names its text encoder, the revision of that encoder and its prompt template in
+    `weights["text_model"]`, `weights["text_revision"]` and `weights["prompt_template"]`.
 
     Args:
         in_channels: Number of input feature channels. `x=None` feeds ones.
@@ -213,6 +213,7 @@ class OpenSceneOpenVocabularySegmentation(OpenVocabularySegmentationModel):
             "simple/OA": 69.09,
         },
         text_model="openai/clip-vit-large-patch14-336",
+        text_revision="ce19dc912ca5cd21c8a653c79e251e808ccabcd1",
         prompt_template="a {} in a scene",
         author="songyou-peng",
         license="Apache-2.0",
@@ -269,6 +270,7 @@ def openscene_openseg_scannet20(**hparams: Any) -> OpenSceneOpenVocabularySegmen
             "simple/OA": 80.10,
         },
         text_model="openai/clip-vit-base-patch32",
+        text_revision="3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268",
         prompt_template="a {} in a scene",
         author="songyou-peng",
         license="Apache-2.0",
@@ -317,6 +319,7 @@ def openscene_lseg_scannet20(**hparams: Any) -> OpenSceneOpenVocabularySegmentat
         url="hf://torch-pointcloud/openscene-openseg.nuscenes.songyou-peng/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
         text_model="openai/clip-vit-large-patch14-336",
+        text_revision="ce19dc912ca5cd21c8a653c79e251e808ccabcd1",
         prompt_template="a {} in a scene",
         author="songyou-peng",
         license="Apache-2.0",
