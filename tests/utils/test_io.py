@@ -1,10 +1,23 @@
+import io
+import os
+import pickle
 from pathlib import Path
+from typing import Any, Tuple
 
 import numpy as np
 import pytest
 import torch
 
-from torch_pointcloud.utils.io import load_json, load_off, load_ply, load_safetensors, save_ply, save_safetensors
+from torch_pointcloud.utils.io import (
+    ArrayUnpickler,
+    load_json,
+    load_off,
+    load_pickle,
+    load_ply,
+    load_safetensors,
+    save_ply,
+    save_safetensors,
+)
 
 OFF_CONTENT = """OFF
 # a full-line comment
@@ -170,3 +183,42 @@ def test_save_ply_rejects_whitespace_in_names(tmp_path: Path) -> None:
     vertex = np.array([(1.5,)], dtype=[("my field", "f4")])
     with pytest.raises(ValueError, match="whitespace"):
         save_ply(tmp_path / "cloud.ply", {"vertex": vertex})
+
+
+class CallsGetcwd:
+    def __reduce__(self) -> Tuple[Any, ...]:
+        return (os.getcwd, ())
+
+
+class PersistentPickler(pickle.Pickler):
+    def persistent_id(self, obj: Any) -> Any:
+        return "external" if isinstance(obj, str) else None
+
+
+def test_load_pickle_reads_arrays_scalars_and_containers(tmp_path: Path) -> None:
+    points = np.arange(6, dtype=np.float32).reshape(2, 3)
+    path = tmp_path / "data.pkl"
+    path.write_bytes(pickle.dumps({"points": points, "frame": np.int64(3), "names": ["a", "b"]}))
+    loaded = load_pickle(path)
+    assert np.array_equal(loaded["points"], points) and loaded["points"].dtype == np.float32
+    assert loaded["frame"] == 3 and loaded["names"] == ["a", "b"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(CallsGetcwd(), id="global"),
+        pytest.param({"nested": [CallsGetcwd()]}, id="nested-global"),
+        pytest.param(np.array([CallsGetcwd()], dtype=object), id="object-array"),
+    ],
+)
+def test_array_unpickler_refuses_other_globals(payload: Any) -> None:
+    with pytest.raises(pickle.UnpicklingError, match="Refusing to unpickle the global"):
+        ArrayUnpickler(io.BytesIO(pickle.dumps(payload))).load()
+
+
+def test_array_unpickler_refuses_persistent_ids() -> None:
+    buffer = io.BytesIO()
+    PersistentPickler(buffer).dump(["external"])
+    with pytest.raises(pickle.UnpicklingError, match="persistent ids"):
+        ArrayUnpickler(io.BytesIO(buffer.getvalue())).load()

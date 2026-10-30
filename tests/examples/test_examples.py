@@ -166,6 +166,30 @@ BENCHMARKS = [
     ),
     pytest.param("dgcnn/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="dgcnn/scannet"),
     pytest.param(
+        "geotransformer/registration_3dmatch_benchmark.py",
+        ("--limit", "2"),
+        marks=_CLUSTER,
+        id="geotransformer/3dmatch",
+    ),
+    pytest.param(
+        "geotransformer/registration_3dmatch_benchmark.py",
+        ("--benchmark", "3DLoMatch", "--limit", "2"),
+        marks=_CLUSTER,
+        id="geotransformer/3dlomatch",
+    ),
+    pytest.param(
+        "geotransformer/registration_modelnet40_benchmark.py",
+        ("--batch-size", "2"),
+        marks=_CLUSTER,
+        id="geotransformer/modelnet40",
+    ),
+    pytest.param(
+        "geotransformer/registration_kitti_benchmark.py",
+        ("--limit", "2"),
+        marks=_CLUSTER,
+        id="geotransformer/kitti",
+    ),
+    pytest.param(
         "dgcnn/segmentation_s3dis_benchmark.py",
         ("--model", "dgcnn.s3dis-area5.an-tao", "--limit", "4"),
         marks=_CLUSTER,
@@ -352,6 +376,9 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="dgcnn/shapenetpart",
+    ),
+    pytest.param(
+        "geotransformer/registration_3dmatch_train.py", _SMOKE_RECIPE, marks=_CLUSTER, id="geotransformer/3dmatch"
     ),
     pytest.param(
         "kpconv/segmentation_s3dis_train.py", (*_SMOKE_RECIPE, "--batch-size", "2"), marks=_CLUSTER, id="kpconv/s3dis"

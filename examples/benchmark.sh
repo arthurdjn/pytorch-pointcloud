@@ -165,3 +165,13 @@ $RUN examples/point_transformer_v3/segmentation_dales_benchmark.py --root "$ROOT
 $RUN examples/point_transformer_v3/segmentation_gridnethd_benchmark.py --root "$ROOT" --model ptv3.gridnet-hd.heig-vd-geo --sw-batch-size 1
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2
+
+# Registration (3DMatch, 3DLoMatch)
+$RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DMatch
+$RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DLoMatch
+
+# Registration (KITTI odometry)
+$RUN examples/geotransformer/registration_kitti_benchmark.py --root "$ROOT" --model geotransformer.kitti.zheng-qin
+
+# Registration (ModelNet40 pairs)
+$RUN examples/geotransformer/registration_modelnet40_benchmark.py --root "$ROOT" --model geotransformer.modelnet40.zheng-qin

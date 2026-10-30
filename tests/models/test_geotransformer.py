@@ -1,0 +1,351 @@
+from typing import Any, Dict
+
+import pytest
+import torch
+from torch import Tensor
+
+from torch_pointcloud.layers import sinusoidal_embedding
+from torch_pointcloud.losses import GeoTransformerLoss
+from torch_pointcloud.models import create_model
+from torch_pointcloud.models.geotransformer import (
+    GeometricStructureEmbedding,
+    GeometricTransformer,
+    GeoTransformerRegistration,
+    KPConvFPN,
+)
+from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
+
+pytestmark = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+
+
+def _create_model(**overrides: Any) -> GeoTransformerRegistration:
+    kwargs: Dict[str, Any] = dict(
+        in_channels=1,
+        stem_channels=8,
+        encoder_channels=[16, 32, 64],
+        decoder_channels=[32, 16],
+        voxel_sizes=[0.1, 0.2],
+        radii=[0.125, 0.25, 0.5],
+        kp_sigma=[0.1, 0.2, 0.4],
+        max_num_neighbors=[16, 16, 16],
+        num_groups=4,
+        embed_dim=32,
+        coarse_channels=32,
+        num_heads=4,
+        depth=1,
+        sigma_d=0.2,
+        num_points_in_patch=16,
+        matching_radius=0.05,
+        acceptance_radius=0.1,
+        num_correspondences=32,
+        num_targets=16,
+        num_sinkhorn_iterations=10,
+    )
+    kwargs.update(overrides)
+    return GeoTransformerRegistration(**kwargs)
+
+
+def _pair(num_src: int = 600, num_ref: int = 700, seed: int = 0) -> Dict[str, Tensor]:
+    torch.manual_seed(seed)
+    pos = torch.rand(num_src, 3) * 2.0
+    ref_pos = torch.rand(num_ref, 3) * 2.0
+    transform = torch.eye(4)
+    transform[:3, 3] = torch.tensor([0.1, -0.2, 0.05])
+    return {
+        DataKeys.POS: pos,
+        DataKeys.BATCH: torch.zeros(num_src, dtype=torch.long),
+        DataKeys.REF_POS: ref_pos,
+        DataKeys.BATCH_REF_POS: torch.zeros(num_ref, dtype=torch.long),
+        DataKeys.TRANSFORM: transform.unsqueeze(0),
+    }
+
+
+def test_geometric_structure_embedding_is_rigid_invariant() -> None:
+    torch.manual_seed(0)
+    embedding = GeometricStructureEmbedding(16, sigma_d=0.2, sigma_a=15.0, angle_k=3)
+    points = torch.rand(1, 20, 3)
+    angle = torch.tensor(0.7)
+    rotation = torch.tensor(
+        [[torch.cos(angle), -torch.sin(angle), 0.0], [torch.sin(angle), torch.cos(angle), 0.0], [0.0, 0.0, 1.0]]
+    )
+    moved = points @ rotation.T + torch.tensor([0.1, -0.2, 0.3])
+    # The distances come from the expanded squared-distance formula, whose float32 cancellation bounds the match.
+    assert torch.allclose(embedding(points), embedding(moved), atol=1e-3)
+    assert embedding(points).shape == (1, 20, 20, 16)
+
+
+@pytest.mark.parametrize(
+    "num_points",
+    [
+        pytest.param(1, id="single-superpoint"),
+        pytest.param(2, id="one-angle-neighbor"),
+    ],
+)
+def test_geometric_structure_embedding_of_small_sets(num_points: int) -> None:
+    """Fewer superpoints than `angle_k + 1` measure the angles against all the others; a single one has none."""
+    embedding = GeometricStructureEmbedding(16, sigma_d=0.2, sigma_a=15.0, angle_k=3)
+    points = torch.rand(1, num_points, 3)
+    out = embedding(points)
+    assert out.shape == (1, num_points, num_points, 16)
+    assert torch.isfinite(out).all()
+    if num_points == 1:
+        assert torch.equal(out, embedding.proj_d(sinusoidal_embedding(torch.zeros(1, 1, 1), 16)))
+
+
+@pytest.mark.parametrize(
+    "num_points",
+    [
+        pytest.param(1, id="single-superpoint"),
+        pytest.param(3, id="fewer-than-angle-k"),
+        pytest.param(9, id="many"),
+    ],
+)
+def test_geometric_structure_embedding_ignores_padding(num_points: int) -> None:
+    torch.manual_seed(0)
+    embedding = GeometricStructureEmbedding(16, sigma_d=0.2, sigma_a=15.0, angle_k=3)
+    points = torch.rand(1, num_points, 3)
+    padded = torch.cat([points, torch.rand(1, 12 - num_points, 3) * 5.0], dim=1)
+    masks = torch.arange(12).unsqueeze(0) < num_points
+    out = embedding(padded, masks)[:, :num_points, :num_points]
+    # The float32 cancellation of the expanded squared distances depends on the matrix size: the match is approximate.
+    assert torch.allclose(out, embedding(points), atol=1e-3)
+
+
+def test_geometric_transformer_padded_sets_match_single_sets() -> None:
+    torch.manual_seed(0)
+    transformer = GeometricTransformer(24, 32, 16, 4, 2, 0.2, 15.0, 3).eval()
+    sizes = [(10, 7), (4, 12)]
+    sets = [(torch.rand(1, n, 3), torch.rand(1, m, 3), torch.randn(1, n, 24), torch.randn(1, m, 24)) for n, m in sizes]
+
+    def pad(tensor: Tensor, size: int) -> Tensor:
+        return torch.cat([tensor, torch.rand(1, size - tensor.size(1), tensor.size(2))], dim=1)
+
+    src_points, ref_points, src_x, ref_x = (torch.cat([pad(s[i], 12 if i % 2 else 10) for s in sets]) for i in range(4))
+    src_masks = torch.arange(10).unsqueeze(0) < torch.tensor([[10], [4]])
+    ref_masks = torch.arange(12).unsqueeze(0) < torch.tensor([[7], [12]])
+    with torch.no_grad():
+        src_feats, ref_feats = transformer(src_points, ref_points, src_x, ref_x, src_masks, ref_masks)
+        for i, (n, m) in enumerate(sizes):
+            src_alone, ref_alone = transformer(*sets[i])
+            assert torch.allclose(src_feats[i, :n], src_alone[0], atol=1e-3)
+            assert torch.allclose(ref_feats[i, :m], ref_alone[0], atol=1e-3)
+
+
+def test_geometric_transformer_runs_on_a_single_superpoint() -> None:
+    transformer = GeometricTransformer(24, 32, 16, 4, 1, 0.2, 15.0, 3)
+    ref_feats, src_feats = transformer(
+        torch.rand(1, 1, 3), torch.rand(1, 5, 3), torch.randn(1, 1, 24), torch.randn(1, 5, 24)
+    )
+    assert ref_feats.shape == (1, 1, 16) and src_feats.shape == (1, 5, 16)
+
+
+def test_geometric_transformer_shapes() -> None:
+    transformer = GeometricTransformer(24, 32, 16, 4, 1, 0.2, 15.0, 3)
+    ref, src = torch.rand(1, 10, 3), torch.rand(1, 12, 3)
+    ref_feats, src_feats = transformer(ref, src, torch.randn(1, 10, 24), torch.randn(1, 12, 24))
+    assert ref_feats.shape == (1, 10, 16)
+    assert src_feats.shape == (1, 12, 16)
+
+
+def test_kpconv_fpn_rejects_inconsistent_configs() -> None:
+    with pytest.raises(ValueError, match="voxel_sizes"):
+        KPConvFPN(
+            1,
+            stem_channels=8,
+            encoder_channels=[8, 16],
+            decoder_channels=[8],
+            voxel_sizes=[],
+            radii=[0.1, 0.2],
+            kp_sigma=[0.1, 0.2],
+            max_num_neighbors=[8, 8],
+        )
+    with pytest.raises(ValueError, match="decoders"):
+        KPConvFPN(
+            1,
+            stem_channels=8,
+            encoder_channels=[8, 16],
+            decoder_channels=[8, 8],
+            voxel_sizes=[0.1],
+            radii=[0.1, 0.2],
+            kp_sigma=[0.1, 0.2],
+            max_num_neighbors=[8, 8],
+        )
+
+
+def test_geotransformer_forward_decode_shapes() -> None:
+    model = _create_model().eval()
+    data = _pair()
+    with torch.no_grad():
+        fine, coarse = model.forward_features(
+            None, data[DataKeys.POS], data[DataKeys.BATCH], None, data[DataKeys.REF_POS], data[DataKeys.BATCH_REF_POS]
+        )
+        output = model.forward_head(fine, coarse)
+        registration = model.decode(output)
+    assert fine["x"].shape[1] == model.num_features == 16
+    assert set(fine["batch"].tolist()) == {0, 1}
+    num_corr = output["node_corr_batch"].numel()
+    assert 0 < num_corr <= 32
+    assert output["matching_scores"].shape == (num_corr, 17, 17)
+    assert output["ref_patch_points"].shape == (num_corr, 16, 3)
+    assert output["src_feats_c"].shape[1] == 32
+    assert torch.allclose(output["src_feats_c"].norm(dim=1), torch.ones(output["src_feats_c"].size(0)), atol=1e-4)
+    assert "gt_node_corr_indices" not in output
+    assert registration["transform"].shape == (1, 4, 4)
+    assert torch.allclose(registration["transform"][0, 3], torch.tensor([0.0, 0.0, 0.0, 1.0]))
+    rotation = registration["transform"][0, :3, :3]
+    assert torch.allclose(rotation @ rotation.T, torch.eye(3), atol=1e-4)
+    assert registration["src_points"].shape == registration["ref_points"].shape
+    assert registration["scores"].shape[0] == registration["batch"].shape[0] == registration["src_points"].shape[0]
+
+
+def test_geotransformer_batch_matches_single_pairs() -> None:
+    model = _create_model().eval()
+    first, second = _pair(seed=0), _pair(600, 650, seed=1)
+    with torch.no_grad():
+        out_first = model(
+            None,
+            first[DataKeys.POS],
+            first[DataKeys.BATCH],
+            None,
+            first[DataKeys.REF_POS],
+            first[DataKeys.BATCH_REF_POS],
+        )
+        out_second = model(
+            None,
+            second[DataKeys.POS],
+            second[DataKeys.BATCH],
+            None,
+            second[DataKeys.REF_POS],
+            second[DataKeys.BATCH_REF_POS],
+        )
+        out = model(
+            None,
+            torch.cat([first[DataKeys.POS], second[DataKeys.POS]]),
+            torch.cat([first[DataKeys.BATCH], second[DataKeys.BATCH] + 1]),
+            None,
+            torch.cat([first[DataKeys.REF_POS], second[DataKeys.REF_POS]]),
+            torch.cat([first[DataKeys.BATCH_REF_POS], second[DataKeys.BATCH_REF_POS] + 1]),
+        )
+    assert torch.allclose(out["matching_scores"][out["node_corr_batch"] == 0], out_first["matching_scores"], atol=1e-4)
+    assert torch.allclose(out["matching_scores"][out["node_corr_batch"] == 1], out_second["matching_scores"], atol=1e-4)
+    transforms = model.decode(out)["transform"]
+    assert transforms.shape == (2, 4, 4)
+    assert torch.allclose(transforms[1], model.decode(out_second)["transform"][0], atol=1e-4)
+
+
+def test_geotransformer_decode_without_point_correspondences_is_identity() -> None:
+    """No patch assignment above `confidence_threshold` leaves a pair without point correspondences."""
+    model = _create_model(confidence_threshold=2.0).eval()
+    first, second = _pair(seed=0), _pair(500, 550, seed=1)
+    with torch.no_grad():
+        out = model(
+            None,
+            torch.cat([first[DataKeys.POS], second[DataKeys.POS]]),
+            torch.cat([first[DataKeys.BATCH], second[DataKeys.BATCH] + 1]),
+            None,
+            torch.cat([first[DataKeys.REF_POS], second[DataKeys.REF_POS]]),
+            torch.cat([first[DataKeys.BATCH_REF_POS], second[DataKeys.BATCH_REF_POS] + 1]),
+        )
+        registration = model.decode(out)
+    assert out["node_corr_batch"].numel() > 0
+    assert torch.equal(registration["transform"], torch.eye(4).repeat(2, 1, 1))
+    assert registration["src_points"].shape == (0, 3) and registration["batch"].shape == (0,)
+
+
+def test_geotransformer_runs_under_bfloat16_autocast() -> None:
+    model = _create_model().eval()
+    data = _pair()
+    with torch.no_grad(), torch.autocast("cpu", dtype=torch.bfloat16):
+        out = model(
+            None, data[DataKeys.POS], data[DataKeys.BATCH], None, data[DataKeys.REF_POS], data[DataKeys.BATCH_REF_POS]
+        )
+        registration = model.decode(out)
+    assert torch.isfinite(registration["transform"]).all()
+
+
+def test_geotransformer_batched_training_loss_is_the_mean_of_pair_losses() -> None:
+    model = _create_model(num_targets=1000).train()
+    first, second = _pair(seed=0), _pair(500, 550, seed=1)
+    criterion = GeoTransformerLoss(positive_radius=0.05)
+
+    def loss(*pairs: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        data = {
+            key: torch.cat(
+                [
+                    pair[key] + (i if key in (DataKeys.BATCH, DataKeys.BATCH_REF_POS) else 0)
+                    for i, pair in enumerate(pairs)
+                ]
+            )
+            for key in (DataKeys.POS, DataKeys.BATCH, DataKeys.REF_POS, DataKeys.BATCH_REF_POS, DataKeys.TRANSFORM)
+        }
+        torch.manual_seed(0)
+        output = model(
+            None,
+            data[DataKeys.POS],
+            data[DataKeys.BATCH],
+            None,
+            data[DataKeys.REF_POS],
+            data[DataKeys.BATCH_REF_POS],
+            transform=data[DataKeys.TRANSFORM],
+        )
+        return criterion(output, data)
+
+    batched, alone_first, alone_second = loss(first, second), loss(first), loss(second)
+    expected = (alone_first["coarse_loss"] + alone_second["coarse_loss"]) / 2
+    assert torch.allclose(batched["coarse_loss"], expected, atol=1e-5)
+
+
+def test_geotransformer_training_uses_ground_truth_targets() -> None:
+    model = _create_model().train()
+    data = _pair()
+    with pytest.raises(ValueError, match="transform"):
+        model(
+            None, data[DataKeys.POS], data[DataKeys.BATCH], None, data[DataKeys.REF_POS], data[DataKeys.BATCH_REF_POS]
+        )
+
+    output = model(
+        None,
+        data[DataKeys.POS],
+        data[DataKeys.BATCH],
+        None,
+        data[DataKeys.REF_POS],
+        data[DataKeys.BATCH_REF_POS],
+        transform=data[DataKeys.TRANSFORM],
+    )
+    assert output["gt_node_corr_indices"].shape[1] == 2
+    assert output["node_corr_batch"].numel() <= 16
+    losses = GeoTransformerLoss(positive_radius=0.05)(output, data)
+    losses["loss"].backward()
+    assert torch.isfinite(losses["loss"])
+    assert model.transformer.in_proj.weight.grad is not None
+
+
+def test_geotransformer_x_none_uses_constant_feature() -> None:
+    model = _create_model().eval()
+    data = _pair()
+    ones = torch.ones(data[DataKeys.POS].size(0), 1)
+    ref_ones = torch.ones(data[DataKeys.REF_POS].size(0), 1)
+    with torch.no_grad():
+        a = model(
+            None, data[DataKeys.POS], data[DataKeys.BATCH], None, data[DataKeys.REF_POS], data[DataKeys.BATCH_REF_POS]
+        )
+        b = model(
+            ones,
+            data[DataKeys.POS],
+            data[DataKeys.BATCH],
+            ref_ones,
+            data[DataKeys.REF_POS],
+            data[DataKeys.BATCH_REF_POS],
+        )
+    assert torch.equal(a["matching_scores"], b["matching_scores"])
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["geotransformer.3dmatch.zheng-qin", "geotransformer.kitti.zheng-qin", "geotransformer.modelnet40.zheng-qin"],
+)
+def test_registered_geotransformer_builds(name: str) -> None:
+    model = create_model(name, task="registration")
+    assert isinstance(model, GeoTransformerRegistration)
+    assert model.num_features == 256

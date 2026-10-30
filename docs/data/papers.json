@@ -4,6 +4,11 @@
     "date": "June 2014",
     "title": "3D ShapeNets: A Deep Representation for Volumetric Shapes"
   },
+  "1603.08182": {
+    "crop": 0.47,
+    "date": "March 2016",
+    "title": "3DMatch: Learning Local Geometric Descriptors from RGB-D Reconstructions"
+  },
   "1612.00593": {
     "crop": 0.47,
     "date": "December 2016",
@@ -138,6 +143,11 @@
     "crop": 0.47,
     "date": "November 2021",
     "title": "Point-BERT: Pre-training 3D Point Cloud Transformers with Masked Point Modeling"
+  },
+  "2202.06688": {
+    "crop": 0.47,
+    "date": "February 2022",
+    "title": "Geometric Transformer for Fast and Robust Point Cloud Registration"
   },
   "2202.07123": {
     "crop": 0.47,

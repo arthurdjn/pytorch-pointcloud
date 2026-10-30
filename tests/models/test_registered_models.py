@@ -240,6 +240,11 @@ DETECTION_MODELS = [
     "voxel-mamba.waymo",
     "voxelnext.nuscenes.openpcdet",
 ]
+REGISTRATION_MODELS = [
+    "geotransformer.3dmatch.zheng-qin",
+    "geotransformer.kitti.zheng-qin",
+    "geotransformer.modelnet40.zheng-qin",
+]
 
 
 NON_COMMERCIAL_MODELS = [
@@ -395,6 +400,7 @@ def _check_architecture_or_regen(
         ("semantic-segmentation", SEMANTIC_SEGMENTATION_MODELS),
         ("part-segmentation", PART_SEGMENTATION_MODELS),
         ("detection", DETECTION_MODELS),
+        ("registration", REGISTRATION_MODELS),
     ],
 )
 def test_list_models(task: str, expected_models: List[str]) -> None:
@@ -558,6 +564,35 @@ def test_detection_architecture(model_name: str, force_regen: bool, models_dir_f
         model,
         model_name,
         task="detection",
+        models_dir=models_dir,
+        force_regen=force_regen,
+    )
+
+
+@pytest.mark.skipif(
+    not _PYG_LIB_AVAILABLE,
+    reason="pyg-lib is not installed",
+)
+@pytest.mark.parametrize("model_name", REGISTRATION_MODELS)
+def test_registration_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered registration models is correct.
+    This test will only verify that the state-dict structure of the model matches the expected structure,
+    but will not verify that the content of the weights are correct.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_registration_architecture --force-regen
+    ```
+    """
+    models_dir = models_dir_factory("*.json")
+
+    model = create_model(model_name, task="registration")
+    assert isinstance(model.num_features, int)
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="registration",
         models_dir=models_dir,
         force_regen=force_regen,
     )

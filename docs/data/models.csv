@@ -174,6 +174,9 @@ votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
 voxelnext.nuscenes.openpcdet,voxelnext,detection,nuscenes,true,Apache-2.0,7.98,mAP,60.5,61.41,mAP 61.41 · NDS 66.92
+geotransformer.3dmatch.zheng-qin,geotransformer,registration,3dmatch,true,MIT,9.83,RR,92.5,92.48,RR 92.48 · FMR 98.14 · IR 70.93 · 3DLoMatch/RR 74.36 · 3DLoMatch/FMR 87.07 · 3DLoMatch/IR 43.54
+geotransformer.kitti.zheng-qin,geotransformer,registration,kitti,true,MIT,25.50,RR,99.8,99.82,RR 99.82 · RRE 0.24 · RTE 6.33
+geotransformer.modelnet40.zheng-qin,geotransformer,registration,modelnet40,true,MIT,5.21,RRE,1.577,1.597,RRE 1.60 · RTE 0.02 · RMSE 0.02
 concerto-base-origin.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
 concerto-base-siglip.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,
 concerto-base.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,

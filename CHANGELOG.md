@@ -37,6 +37,15 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added the `registration` task, its data keys and the registration metrics.
+- Added GeoTransformer with the authors' 3DMatch, KITTI and ModelNet40 weights, its loss, and its benchmark and training scripts.
+- Added the `ThreeDMatch`, `KITTIOdometry` and `ModelNet40Registration` datasets.
+- Added `ops.registration`, `rotation_matrix_to_quaternion`, `load_pickle`, `sinusoidal_embedding`, the packed `GroupNorm`, `LogOptimalTransport`, `WeightedCircleLoss`, `assignment_negative_log_likelihood` and the `RandomPairRotate` transform.
+- `transform_points` broadcasts batched transforms over batched point sets.
+- `RandomJitter(distribution="uniform")` draws the noise uniformly in `[-sigma, sigma]`.
+- `VoxelGridPool` pools each cloud of a batch as it would alone.
+- `KPConvBlock`, `KPResidualBlock` and `LinearBlock` pass the batch index to the normalizations that take one; `KPResidualBlock` takes `normalize_by_positive_neighbors` and `max_num_neighbors`.
+- `extract_zip` takes a `prefix` limiting the extracted members.
 
 ## 0.0.18 (2026-10-20)
 

@@ -712,6 +712,35 @@ def test_pretrained_pv_rcnn(
 
 
 @pytest.mark.pretrained
+def test_pretrained_geotransformer_3dmatch(
+    dataset_factory: Callable[..., Dataset],
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """GeoTransformer returns a dict of matching tensors and `decode` a transform, so it needs its own snapshot test.
+
+    The snapshot is the superpoint features of the reference cloud and the decoded transform of the first fixture
+    pair; the superpoint correspondences themselves come from a top-k selection and are left out.
+    """
+    if not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
+
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "geotransformer.3dmatch.zheng-qin"
+    model = create_model(model_name, task="registration", pretrained=True).to(DEVICE).eval()
+
+    dataset = dataset_factory("threedmatch")
+    data = collate([dataset[0]], cat_keys=["ref_pos"], stack_keys=["transform"])
+    data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
+    with torch.no_grad():
+        out = model(None, data["pos"], data["batch"], None, data["ref_pos"], data["batch_ref_pos"])
+        registration = model.decode(out)
+
+    reduced = torch.cat([out["ref_feats_c"].reshape(-1), registration["transform"].reshape(-1)])
+    _check_output(reduced, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
 @pytest.mark.parametrize(
     "model_name",
     [
@@ -743,3 +772,40 @@ def test_pretrained_parta2(
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name, scale, num_points",
+    [
+        pytest.param("geotransformer.kitti.zheng-qin", 60.0, 6000, id="kitti"),
+        pytest.param("geotransformer.modelnet40.zheng-qin", 1.0, 700, id="modelnet40"),
+    ],
+)
+def test_pretrained_geotransformer_synthetic(
+    model_name: str,
+    scale: float,
+    num_points: int,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """The KITTI and ModelNet checkpoints run on a seeded synthetic pair at the scale of their training data."""
+    if not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
+
+    models_dir = models_dir_factory("*.safetensors")
+    model = create_model(model_name, task="registration", pretrained=True).to(DEVICE).eval()
+
+    # Seed after `create_model`: building a pretrained model random-inits its parameters before loading weights. The
+    # pair is a flat patch, like a LiDAR ground sweep or an object surface, so the superpoint count stays moderate.
+    torch.manual_seed(0)
+    ref_pos = torch.rand(num_points, 3) * torch.tensor([scale, scale, scale / 50])
+    ref_pos = ref_pos.to(DEVICE)
+    pos = (ref_pos + torch.tensor([0.1, -0.2, 0.01], device=DEVICE) * scale)[: num_points - num_points // 10]
+    zeros = torch.zeros(ref_pos.size(0), dtype=torch.long, device=DEVICE)
+    with torch.no_grad():
+        out = model(None, pos, zeros[: pos.size(0)], None, ref_pos, zeros)
+        registration = model.decode(out)
+
+    reduced = torch.cat([out["ref_feats_c"].reshape(-1), registration["transform"].reshape(-1)])
+    _check_output(reduced, model_name, force_regen, models_dir)

@@ -1,0 +1,120 @@
+r"""GeoTransformer registration loss: an overlap-aware circle loss on the superpoint features and a negative
+log-likelihood on the patch optimal-transport assignments."""
+
+from typing import TYPE_CHECKING, Any, Dict
+
+import torch
+from torch import Tensor, nn
+from torch_geometric.utils import to_dense_batch
+
+from torch_pointcloud.ops.geometry import transform_points
+from torch_pointcloud.ops.registration import pairwise_squared_distance
+from torch_pointcloud.utils.data import DataKeys
+
+from .assignment import assignment_negative_log_likelihood
+from .circle import weighted_circle_loss
+
+if TYPE_CHECKING:
+    from torch_pointcloud.models.geotransformer import GeoTransformerOutput
+
+
+class GeoTransformerLoss(nn.Module):
+    r"""Training criterion of `GeoTransformerRegistration`.
+
+    - **Coarse matching:** the `weighted_circle_loss` between the unit-norm superpoint features of the two clouds,
+      where a superpoint pair is positive when its ground-truth patch overlap exceeds `positive_overlap`, weighted
+      by the square root of that overlap, and negative when the patches do not overlap at all.
+    - **Fine matching:** the `assignment_negative_log_likelihood` of the optimal-transport scores of every patch
+      pair: point pairs closer than `positive_radius` under the ground-truth transform, and the dustbin for the
+      points of a patch without a match.
+
+    The forward reads the ground-truth superpoint correspondences of the model output, so the model must have
+    received the ground-truth transform, and the transform itself from `data[DataKeys.TRANSFORM]`, shape
+    $(B, 4, 4)$.
+
+    Args:
+        positive_radius: Distance under which two patch points are a ground-truth match, in the unit of the
+            coordinates.
+        positive_margin: Circle loss positive margin.
+        negative_margin: Circle loss negative margin.
+        positive_optimal: Circle loss positive target distance.
+        negative_optimal: Circle loss negative target distance.
+        log_scale: Circle loss temperature.
+        positive_overlap: Minimum ground-truth patch overlap of a positive superpoint pair.
+        weight_coarse: Weight of the coarse matching loss.
+        weight_fine: Weight of the fine matching loss.
+    """
+
+    def __init__(
+        self,
+        positive_radius: float,
+        positive_margin: float = 0.1,
+        negative_margin: float = 1.4,
+        positive_optimal: float = 0.1,
+        negative_optimal: float = 1.4,
+        log_scale: float = 24.0,
+        positive_overlap: float = 0.1,
+        weight_coarse: float = 1.0,
+        weight_fine: float = 1.0,
+    ) -> None:
+        super().__init__()
+        self.positive_radius = positive_radius
+        self.positive_margin = positive_margin
+        self.negative_margin = negative_margin
+        self.positive_optimal = positive_optimal
+        self.negative_optimal = negative_optimal
+        self.log_scale = log_scale
+        self.positive_overlap = positive_overlap
+        self.weight_coarse = weight_coarse
+        self.weight_fine = weight_fine
+
+    def coarse_loss(self, output: "GeoTransformerOutput") -> Tensor:
+        batch_size = int(output["ref_batch_c"].max()) + 1
+        ref_feats, ref_valid = to_dense_batch(output["ref_feats_c"], output["ref_batch_c"], batch_size=batch_size)
+        src_feats, src_valid = to_dense_batch(output["src_feats_c"], output["src_batch_c"], batch_size=batch_size)
+        valid = ref_valid.unsqueeze(2) & src_valid.unsqueeze(1)  # (B, M_r, M_s)
+        gt_indices = output["gt_node_corr_indices"]
+
+        distances = torch.sqrt(pairwise_squared_distance(ref_feats, src_feats, normalized=True))
+        overlaps = torch.zeros_like(distances)
+        overlaps[output["gt_node_corr_batch"], gt_indices[:, 1], gt_indices[:, 0]] = output["gt_node_corr_overlaps"]
+        positive_mask = overlaps > self.positive_overlap
+        losses = weighted_circle_loss(
+            distances,
+            positive_mask,
+            overlaps == 0,
+            torch.sqrt(overlaps * positive_mask.float()),
+            self.positive_margin,
+            self.negative_margin,
+            self.positive_optimal,
+            self.negative_optimal,
+            self.log_scale,
+            mask=valid,
+        )
+        return losses.mean()
+
+    def fine_loss(self, output: "GeoTransformerOutput", transform: Tensor) -> Tensor:
+        src_points = transform_points(output["src_patch_points"], transform[output["node_corr_batch"]])
+        return assignment_negative_log_likelihood(
+            output["matching_scores"],
+            output["ref_patch_points"],
+            src_points,
+            self.positive_radius,
+            row_mask=output["ref_patch_masks"],
+            col_mask=output["src_patch_masks"],
+        )
+
+    def forward(self, output: "GeoTransformerOutput", data: Dict[str, Any]) -> Dict[str, Tensor]:
+        r"""Compute the loss of a batch.
+
+        Args:
+            output: The model output, with the ground-truth superpoint correspondences.
+            data: The batch, holding the ground-truth transforms under `DataKeys.TRANSFORM`, shape $(B, 4, 4)$.
+
+        Returns:
+            A dict with the total `loss` and its detached `coarse_loss` and `fine_loss` terms.
+        """
+        coarse = self.coarse_loss(output)
+        fine = self.fine_loss(output, data[DataKeys.TRANSFORM])
+        loss = self.weight_coarse * coarse + self.weight_fine * fine
+        return {"loss": loss, "coarse_loss": coarse.detach(), "fine_loss": fine.detach()}

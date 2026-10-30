@@ -1,0 +1,1067 @@
+{
+  "num_params": 25499137,
+  "state_dict": {
+    "backbone.stages.0.0.conv.weight": [
+      15,
+      1,
+      64
+    ],
+    "backbone.stages.0.0.conv.bias": [
+      64
+    ],
+    "backbone.stages.0.0.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.0.0.norm.weight": [
+      64
+    ],
+    "backbone.stages.0.0.norm.bias": [
+      64
+    ],
+    "backbone.stages.0.1.unary1.lins.0.weight": [
+      32,
+      64
+    ],
+    "backbone.stages.0.1.unary1.lins.0.bias": [
+      32
+    ],
+    "backbone.stages.0.1.unary1.norms.0.weight": [
+      32
+    ],
+    "backbone.stages.0.1.unary1.norms.0.bias": [
+      32
+    ],
+    "backbone.stages.0.1.conv.conv.weight": [
+      15,
+      32,
+      32
+    ],
+    "backbone.stages.0.1.conv.conv.bias": [
+      32
+    ],
+    "backbone.stages.0.1.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.0.1.conv.norm.weight": [
+      32
+    ],
+    "backbone.stages.0.1.conv.norm.bias": [
+      32
+    ],
+    "backbone.stages.0.1.unary2.lins.0.weight": [
+      128,
+      32
+    ],
+    "backbone.stages.0.1.unary2.lins.0.bias": [
+      128
+    ],
+    "backbone.stages.0.1.unary2.norms.0.weight": [
+      128
+    ],
+    "backbone.stages.0.1.unary2.norms.0.bias": [
+      128
+    ],
+    "backbone.stages.0.1.shortcut.lins.0.weight": [
+      128,
+      64
+    ],
+    "backbone.stages.0.1.shortcut.lins.0.bias": [
+      128
+    ],
+    "backbone.stages.0.1.shortcut.norms.0.weight": [
+      128
+    ],
+    "backbone.stages.0.1.shortcut.norms.0.bias": [
+      128
+    ],
+    "backbone.stages.1.0.unary1.lins.0.weight": [
+      32,
+      128
+    ],
+    "backbone.stages.1.0.unary1.lins.0.bias": [
+      32
+    ],
+    "backbone.stages.1.0.unary1.norms.0.weight": [
+      32
+    ],
+    "backbone.stages.1.0.unary1.norms.0.bias": [
+      32
+    ],
+    "backbone.stages.1.0.conv.conv.weight": [
+      15,
+      32,
+      32
+    ],
+    "backbone.stages.1.0.conv.conv.bias": [
+      32
+    ],
+    "backbone.stages.1.0.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.1.0.conv.norm.weight": [
+      32
+    ],
+    "backbone.stages.1.0.conv.norm.bias": [
+      32
+    ],
+    "backbone.stages.1.0.unary2.lins.0.weight": [
+      128,
+      32
+    ],
+    "backbone.stages.1.0.unary2.lins.0.bias": [
+      128
+    ],
+    "backbone.stages.1.0.unary2.norms.0.weight": [
+      128
+    ],
+    "backbone.stages.1.0.unary2.norms.0.bias": [
+      128
+    ],
+    "backbone.stages.1.1.unary1.lins.0.weight": [
+      64,
+      128
+    ],
+    "backbone.stages.1.1.unary1.lins.0.bias": [
+      64
+    ],
+    "backbone.stages.1.1.unary1.norms.0.weight": [
+      64
+    ],
+    "backbone.stages.1.1.unary1.norms.0.bias": [
+      64
+    ],
+    "backbone.stages.1.1.conv.conv.weight": [
+      15,
+      64,
+      64
+    ],
+    "backbone.stages.1.1.conv.conv.bias": [
+      64
+    ],
+    "backbone.stages.1.1.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.1.1.conv.norm.weight": [
+      64
+    ],
+    "backbone.stages.1.1.conv.norm.bias": [
+      64
+    ],
+    "backbone.stages.1.1.unary2.lins.0.weight": [
+      256,
+      64
+    ],
+    "backbone.stages.1.1.unary2.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.1.1.unary2.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.1.1.unary2.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.1.1.shortcut.lins.0.weight": [
+      256,
+      128
+    ],
+    "backbone.stages.1.1.shortcut.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.1.1.shortcut.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.1.1.shortcut.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.1.2.unary1.lins.0.weight": [
+      64,
+      256
+    ],
+    "backbone.stages.1.2.unary1.lins.0.bias": [
+      64
+    ],
+    "backbone.stages.1.2.unary1.norms.0.weight": [
+      64
+    ],
+    "backbone.stages.1.2.unary1.norms.0.bias": [
+      64
+    ],
+    "backbone.stages.1.2.conv.conv.weight": [
+      15,
+      64,
+      64
+    ],
+    "backbone.stages.1.2.conv.conv.bias": [
+      64
+    ],
+    "backbone.stages.1.2.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.1.2.conv.norm.weight": [
+      64
+    ],
+    "backbone.stages.1.2.conv.norm.bias": [
+      64
+    ],
+    "backbone.stages.1.2.unary2.lins.0.weight": [
+      256,
+      64
+    ],
+    "backbone.stages.1.2.unary2.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.1.2.unary2.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.1.2.unary2.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.2.0.unary1.lins.0.weight": [
+      64,
+      256
+    ],
+    "backbone.stages.2.0.unary1.lins.0.bias": [
+      64
+    ],
+    "backbone.stages.2.0.unary1.norms.0.weight": [
+      64
+    ],
+    "backbone.stages.2.0.unary1.norms.0.bias": [
+      64
+    ],
+    "backbone.stages.2.0.conv.conv.weight": [
+      15,
+      64,
+      64
+    ],
+    "backbone.stages.2.0.conv.conv.bias": [
+      64
+    ],
+    "backbone.stages.2.0.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.2.0.conv.norm.weight": [
+      64
+    ],
+    "backbone.stages.2.0.conv.norm.bias": [
+      64
+    ],
+    "backbone.stages.2.0.unary2.lins.0.weight": [
+      256,
+      64
+    ],
+    "backbone.stages.2.0.unary2.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.2.0.unary2.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.2.0.unary2.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.2.1.unary1.lins.0.weight": [
+      128,
+      256
+    ],
+    "backbone.stages.2.1.unary1.lins.0.bias": [
+      128
+    ],
+    "backbone.stages.2.1.unary1.norms.0.weight": [
+      128
+    ],
+    "backbone.stages.2.1.unary1.norms.0.bias": [
+      128
+    ],
+    "backbone.stages.2.1.conv.conv.weight": [
+      15,
+      128,
+      128
+    ],
+    "backbone.stages.2.1.conv.conv.bias": [
+      128
+    ],
+    "backbone.stages.2.1.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.2.1.conv.norm.weight": [
+      128
+    ],
+    "backbone.stages.2.1.conv.norm.bias": [
+      128
+    ],
+    "backbone.stages.2.1.unary2.lins.0.weight": [
+      512,
+      128
+    ],
+    "backbone.stages.2.1.unary2.lins.0.bias": [
+      512
+    ],
+    "backbone.stages.2.1.unary2.norms.0.weight": [
+      512
+    ],
+    "backbone.stages.2.1.unary2.norms.0.bias": [
+      512
+    ],
+    "backbone.stages.2.1.shortcut.lins.0.weight": [
+      512,
+      256
+    ],
+    "backbone.stages.2.1.shortcut.lins.0.bias": [
+      512
+    ],
+    "backbone.stages.2.1.shortcut.norms.0.weight": [
+      512
+    ],
+    "backbone.stages.2.1.shortcut.norms.0.bias": [
+      512
+    ],
+    "backbone.stages.2.2.unary1.lins.0.weight": [
+      128,
+      512
+    ],
+    "backbone.stages.2.2.unary1.lins.0.bias": [
+      128
+    ],
+    "backbone.stages.2.2.unary1.norms.0.weight": [
+      128
+    ],
+    "backbone.stages.2.2.unary1.norms.0.bias": [
+      128
+    ],
+    "backbone.stages.2.2.conv.conv.weight": [
+      15,
+      128,
+      128
+    ],
+    "backbone.stages.2.2.conv.conv.bias": [
+      128
+    ],
+    "backbone.stages.2.2.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.2.2.conv.norm.weight": [
+      128
+    ],
+    "backbone.stages.2.2.conv.norm.bias": [
+      128
+    ],
+    "backbone.stages.2.2.unary2.lins.0.weight": [
+      512,
+      128
+    ],
+    "backbone.stages.2.2.unary2.lins.0.bias": [
+      512
+    ],
+    "backbone.stages.2.2.unary2.norms.0.weight": [
+      512
+    ],
+    "backbone.stages.2.2.unary2.norms.0.bias": [
+      512
+    ],
+    "backbone.stages.3.0.unary1.lins.0.weight": [
+      128,
+      512
+    ],
+    "backbone.stages.3.0.unary1.lins.0.bias": [
+      128
+    ],
+    "backbone.stages.3.0.unary1.norms.0.weight": [
+      128
+    ],
+    "backbone.stages.3.0.unary1.norms.0.bias": [
+      128
+    ],
+    "backbone.stages.3.0.conv.conv.weight": [
+      15,
+      128,
+      128
+    ],
+    "backbone.stages.3.0.conv.conv.bias": [
+      128
+    ],
+    "backbone.stages.3.0.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.3.0.conv.norm.weight": [
+      128
+    ],
+    "backbone.stages.3.0.conv.norm.bias": [
+      128
+    ],
+    "backbone.stages.3.0.unary2.lins.0.weight": [
+      512,
+      128
+    ],
+    "backbone.stages.3.0.unary2.lins.0.bias": [
+      512
+    ],
+    "backbone.stages.3.0.unary2.norms.0.weight": [
+      512
+    ],
+    "backbone.stages.3.0.unary2.norms.0.bias": [
+      512
+    ],
+    "backbone.stages.3.1.unary1.lins.0.weight": [
+      256,
+      512
+    ],
+    "backbone.stages.3.1.unary1.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.3.1.unary1.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.3.1.unary1.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.3.1.conv.conv.weight": [
+      15,
+      256,
+      256
+    ],
+    "backbone.stages.3.1.conv.conv.bias": [
+      256
+    ],
+    "backbone.stages.3.1.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.3.1.conv.norm.weight": [
+      256
+    ],
+    "backbone.stages.3.1.conv.norm.bias": [
+      256
+    ],
+    "backbone.stages.3.1.unary2.lins.0.weight": [
+      1024,
+      256
+    ],
+    "backbone.stages.3.1.unary2.lins.0.bias": [
+      1024
+    ],
+    "backbone.stages.3.1.unary2.norms.0.weight": [
+      1024
+    ],
+    "backbone.stages.3.1.unary2.norms.0.bias": [
+      1024
+    ],
+    "backbone.stages.3.1.shortcut.lins.0.weight": [
+      1024,
+      512
+    ],
+    "backbone.stages.3.1.shortcut.lins.0.bias": [
+      1024
+    ],
+    "backbone.stages.3.1.shortcut.norms.0.weight": [
+      1024
+    ],
+    "backbone.stages.3.1.shortcut.norms.0.bias": [
+      1024
+    ],
+    "backbone.stages.3.2.unary1.lins.0.weight": [
+      256,
+      1024
+    ],
+    "backbone.stages.3.2.unary1.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.3.2.unary1.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.3.2.unary1.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.3.2.conv.conv.weight": [
+      15,
+      256,
+      256
+    ],
+    "backbone.stages.3.2.conv.conv.bias": [
+      256
+    ],
+    "backbone.stages.3.2.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.3.2.conv.norm.weight": [
+      256
+    ],
+    "backbone.stages.3.2.conv.norm.bias": [
+      256
+    ],
+    "backbone.stages.3.2.unary2.lins.0.weight": [
+      1024,
+      256
+    ],
+    "backbone.stages.3.2.unary2.lins.0.bias": [
+      1024
+    ],
+    "backbone.stages.3.2.unary2.norms.0.weight": [
+      1024
+    ],
+    "backbone.stages.3.2.unary2.norms.0.bias": [
+      1024
+    ],
+    "backbone.stages.4.0.unary1.lins.0.weight": [
+      256,
+      1024
+    ],
+    "backbone.stages.4.0.unary1.lins.0.bias": [
+      256
+    ],
+    "backbone.stages.4.0.unary1.norms.0.weight": [
+      256
+    ],
+    "backbone.stages.4.0.unary1.norms.0.bias": [
+      256
+    ],
+    "backbone.stages.4.0.conv.conv.weight": [
+      15,
+      256,
+      256
+    ],
+    "backbone.stages.4.0.conv.conv.bias": [
+      256
+    ],
+    "backbone.stages.4.0.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.4.0.conv.norm.weight": [
+      256
+    ],
+    "backbone.stages.4.0.conv.norm.bias": [
+      256
+    ],
+    "backbone.stages.4.0.unary2.lins.0.weight": [
+      1024,
+      256
+    ],
+    "backbone.stages.4.0.unary2.lins.0.bias": [
+      1024
+    ],
+    "backbone.stages.4.0.unary2.norms.0.weight": [
+      1024
+    ],
+    "backbone.stages.4.0.unary2.norms.0.bias": [
+      1024
+    ],
+    "backbone.stages.4.1.unary1.lins.0.weight": [
+      512,
+      1024
+    ],
+    "backbone.stages.4.1.unary1.lins.0.bias": [
+      512
+    ],
+    "backbone.stages.4.1.unary1.norms.0.weight": [
+      512
+    ],
+    "backbone.stages.4.1.unary1.norms.0.bias": [
+      512
+    ],
+    "backbone.stages.4.1.conv.conv.weight": [
+      15,
+      512,
+      512
+    ],
+    "backbone.stages.4.1.conv.conv.bias": [
+      512
+    ],
+    "backbone.stages.4.1.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.4.1.conv.norm.weight": [
+      512
+    ],
+    "backbone.stages.4.1.conv.norm.bias": [
+      512
+    ],
+    "backbone.stages.4.1.unary2.lins.0.weight": [
+      2048,
+      512
+    ],
+    "backbone.stages.4.1.unary2.lins.0.bias": [
+      2048
+    ],
+    "backbone.stages.4.1.unary2.norms.0.weight": [
+      2048
+    ],
+    "backbone.stages.4.1.unary2.norms.0.bias": [
+      2048
+    ],
+    "backbone.stages.4.1.shortcut.lins.0.weight": [
+      2048,
+      1024
+    ],
+    "backbone.stages.4.1.shortcut.lins.0.bias": [
+      2048
+    ],
+    "backbone.stages.4.1.shortcut.norms.0.weight": [
+      2048
+    ],
+    "backbone.stages.4.1.shortcut.norms.0.bias": [
+      2048
+    ],
+    "backbone.stages.4.2.unary1.lins.0.weight": [
+      512,
+      2048
+    ],
+    "backbone.stages.4.2.unary1.lins.0.bias": [
+      512
+    ],
+    "backbone.stages.4.2.unary1.norms.0.weight": [
+      512
+    ],
+    "backbone.stages.4.2.unary1.norms.0.bias": [
+      512
+    ],
+    "backbone.stages.4.2.conv.conv.weight": [
+      15,
+      512,
+      512
+    ],
+    "backbone.stages.4.2.conv.conv.bias": [
+      512
+    ],
+    "backbone.stages.4.2.conv.conv.kernel": [
+      15,
+      3
+    ],
+    "backbone.stages.4.2.conv.norm.weight": [
+      512
+    ],
+    "backbone.stages.4.2.conv.norm.bias": [
+      512
+    ],
+    "backbone.stages.4.2.unary2.lins.0.weight": [
+      2048,
+      512
+    ],
+    "backbone.stages.4.2.unary2.lins.0.bias": [
+      2048
+    ],
+    "backbone.stages.4.2.unary2.norms.0.weight": [
+      2048
+    ],
+    "backbone.stages.4.2.unary2.norms.0.bias": [
+      2048
+    ],
+    "backbone.decoders.0.lins.0.weight": [
+      1024,
+      3072
+    ],
+    "backbone.decoders.0.lins.0.bias": [
+      1024
+    ],
+    "backbone.decoders.0.norms.0.weight": [
+      1024
+    ],
+    "backbone.decoders.0.norms.0.bias": [
+      1024
+    ],
+    "backbone.decoders.1.lins.0.weight": [
+      512,
+      1536
+    ],
+    "backbone.decoders.1.lins.0.bias": [
+      512
+    ],
+    "backbone.decoders.1.norms.0.weight": [
+      512
+    ],
+    "backbone.decoders.1.norms.0.bias": [
+      512
+    ],
+    "backbone.decoders.2.lins.0.weight": [
+      256,
+      768
+    ],
+    "backbone.decoders.2.lins.0.bias": [
+      256
+    ],
+    "transformer.embedding.proj_d.weight": [
+      128,
+      128
+    ],
+    "transformer.embedding.proj_d.bias": [
+      128
+    ],
+    "transformer.embedding.proj_a.weight": [
+      128,
+      128
+    ],
+    "transformer.embedding.proj_a.bias": [
+      128
+    ],
+    "transformer.in_proj.weight": [
+      128,
+      2048
+    ],
+    "transformer.in_proj.bias": [
+      128
+    ],
+    "transformer.layers.0.attention.proj_q.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.0.attention.proj_q.bias": [
+      128
+    ],
+    "transformer.layers.0.attention.proj_k.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.0.attention.proj_k.bias": [
+      128
+    ],
+    "transformer.layers.0.attention.proj_v.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.0.attention.proj_v.bias": [
+      128
+    ],
+    "transformer.layers.0.attention.proj_p.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.0.attention.proj_p.bias": [
+      128
+    ],
+    "transformer.layers.0.linear.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.0.linear.bias": [
+      128
+    ],
+    "transformer.layers.0.norm1.weight": [
+      128
+    ],
+    "transformer.layers.0.norm1.bias": [
+      128
+    ],
+    "transformer.layers.0.mlp.lins.0.weight": [
+      256,
+      128
+    ],
+    "transformer.layers.0.mlp.lins.0.bias": [
+      256
+    ],
+    "transformer.layers.0.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "transformer.layers.0.mlp.lins.1.bias": [
+      128
+    ],
+    "transformer.layers.0.norm2.weight": [
+      128
+    ],
+    "transformer.layers.0.norm2.bias": [
+      128
+    ],
+    "transformer.layers.1.attention.proj_q.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.1.attention.proj_q.bias": [
+      128
+    ],
+    "transformer.layers.1.attention.proj_k.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.1.attention.proj_k.bias": [
+      128
+    ],
+    "transformer.layers.1.attention.proj_v.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.1.attention.proj_v.bias": [
+      128
+    ],
+    "transformer.layers.1.linear.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.1.linear.bias": [
+      128
+    ],
+    "transformer.layers.1.norm1.weight": [
+      128
+    ],
+    "transformer.layers.1.norm1.bias": [
+      128
+    ],
+    "transformer.layers.1.mlp.lins.0.weight": [
+      256,
+      128
+    ],
+    "transformer.layers.1.mlp.lins.0.bias": [
+      256
+    ],
+    "transformer.layers.1.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "transformer.layers.1.mlp.lins.1.bias": [
+      128
+    ],
+    "transformer.layers.1.norm2.weight": [
+      128
+    ],
+    "transformer.layers.1.norm2.bias": [
+      128
+    ],
+    "transformer.layers.2.attention.proj_q.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.2.attention.proj_q.bias": [
+      128
+    ],
+    "transformer.layers.2.attention.proj_k.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.2.attention.proj_k.bias": [
+      128
+    ],
+    "transformer.layers.2.attention.proj_v.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.2.attention.proj_v.bias": [
+      128
+    ],
+    "transformer.layers.2.attention.proj_p.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.2.attention.proj_p.bias": [
+      128
+    ],
+    "transformer.layers.2.linear.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.2.linear.bias": [
+      128
+    ],
+    "transformer.layers.2.norm1.weight": [
+      128
+    ],
+    "transformer.layers.2.norm1.bias": [
+      128
+    ],
+    "transformer.layers.2.mlp.lins.0.weight": [
+      256,
+      128
+    ],
+    "transformer.layers.2.mlp.lins.0.bias": [
+      256
+    ],
+    "transformer.layers.2.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "transformer.layers.2.mlp.lins.1.bias": [
+      128
+    ],
+    "transformer.layers.2.norm2.weight": [
+      128
+    ],
+    "transformer.layers.2.norm2.bias": [
+      128
+    ],
+    "transformer.layers.3.attention.proj_q.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.3.attention.proj_q.bias": [
+      128
+    ],
+    "transformer.layers.3.attention.proj_k.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.3.attention.proj_k.bias": [
+      128
+    ],
+    "transformer.layers.3.attention.proj_v.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.3.attention.proj_v.bias": [
+      128
+    ],
+    "transformer.layers.3.linear.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.3.linear.bias": [
+      128
+    ],
+    "transformer.layers.3.norm1.weight": [
+      128
+    ],
+    "transformer.layers.3.norm1.bias": [
+      128
+    ],
+    "transformer.layers.3.mlp.lins.0.weight": [
+      256,
+      128
+    ],
+    "transformer.layers.3.mlp.lins.0.bias": [
+      256
+    ],
+    "transformer.layers.3.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "transformer.layers.3.mlp.lins.1.bias": [
+      128
+    ],
+    "transformer.layers.3.norm2.weight": [
+      128
+    ],
+    "transformer.layers.3.norm2.bias": [
+      128
+    ],
+    "transformer.layers.4.attention.proj_q.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.4.attention.proj_q.bias": [
+      128
+    ],
+    "transformer.layers.4.attention.proj_k.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.4.attention.proj_k.bias": [
+      128
+    ],
+    "transformer.layers.4.attention.proj_v.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.4.attention.proj_v.bias": [
+      128
+    ],
+    "transformer.layers.4.attention.proj_p.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.4.attention.proj_p.bias": [
+      128
+    ],
+    "transformer.layers.4.linear.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.4.linear.bias": [
+      128
+    ],
+    "transformer.layers.4.norm1.weight": [
+      128
+    ],
+    "transformer.layers.4.norm1.bias": [
+      128
+    ],
+    "transformer.layers.4.mlp.lins.0.weight": [
+      256,
+      128
+    ],
+    "transformer.layers.4.mlp.lins.0.bias": [
+      256
+    ],
+    "transformer.layers.4.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "transformer.layers.4.mlp.lins.1.bias": [
+      128
+    ],
+    "transformer.layers.4.norm2.weight": [
+      128
+    ],
+    "transformer.layers.4.norm2.bias": [
+      128
+    ],
+    "transformer.layers.5.attention.proj_q.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.5.attention.proj_q.bias": [
+      128
+    ],
+    "transformer.layers.5.attention.proj_k.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.5.attention.proj_k.bias": [
+      128
+    ],
+    "transformer.layers.5.attention.proj_v.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.5.attention.proj_v.bias": [
+      128
+    ],
+    "transformer.layers.5.linear.weight": [
+      128,
+      128
+    ],
+    "transformer.layers.5.linear.bias": [
+      128
+    ],
+    "transformer.layers.5.norm1.weight": [
+      128
+    ],
+    "transformer.layers.5.norm1.bias": [
+      128
+    ],
+    "transformer.layers.5.mlp.lins.0.weight": [
+      256,
+      128
+    ],
+    "transformer.layers.5.mlp.lins.0.bias": [
+      256
+    ],
+    "transformer.layers.5.mlp.lins.1.weight": [
+      128,
+      256
+    ],
+    "transformer.layers.5.mlp.lins.1.bias": [
+      128
+    ],
+    "transformer.layers.5.norm2.weight": [
+      128
+    ],
+    "transformer.layers.5.norm2.bias": [
+      128
+    ],
+    "transformer.out_proj.weight": [
+      256,
+      128
+    ],
+    "transformer.out_proj.bias": [
+      256
+    ],
+    "optimal_transport.alpha": []
+  }
+}

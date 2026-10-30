@@ -5,6 +5,7 @@ from ._base import (
     DetectionModel,
     PartSegmentationModel,
     PretrainingModel,
+    RegistrationModel,
     SemanticSegmentationModel,
 )
 from ._registry import (
@@ -22,6 +23,7 @@ from ._registry import (
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
+from .geotransformer import GeoTransformerRegistration
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
@@ -64,6 +66,7 @@ __all__ = [
     "PartA2Detection",
     "PartSegmentationModel",
     "PretrainingModel",
+    "RegistrationModel",
     "SemanticSegmentationModel",
     "DeprecatedModelDict",
     "ModelDict",
@@ -81,6 +84,7 @@ __all__ = [
     "DGCNNClassification",
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
+    "GeoTransformerRegistration",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",

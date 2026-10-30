@@ -1,4 +1,5 @@
-"""Abstract base classes for classification, semantic and part segmentation, detection and pretraining models."""
+"""Abstract base classes for classification, semantic and part segmentation, detection, registration and pretraining
+models."""
 
 from abc import ABCMeta, abstractmethod
 from typing import Any
@@ -14,13 +15,14 @@ class PretrainingModel(nn.Module, metaclass=ABCMeta):
     stores `in_channels`; each subclass defines its own `forward` signature.
 
     Models with a task head inherit from one of the task ABCs instead: `ClassificationModel`,
-    `SemanticSegmentationModel`, `PartSegmentationModel` or `DetectionModel`. The classification and segmentation
-    ABCs require the
+    `SemanticSegmentationModel`, `PartSegmentationModel`, `DetectionModel` or `RegistrationModel`. The
+    classification and segmentation ABCs require the
     split into `forward_features` (encoder), `forward_decoder` (segmentation only, optional) and
     `forward_head` (logits), plus `configure_head` / `reset_classifier` for building the head and
     the read-only `num_features` property for the width of the features entering it. Detection models
     split into `forward_features` (backbone), `forward_head` (raw predictions) and `decode` (boxes), and
-    expose `num_features` as the backbone output width.
+    expose `num_features` as the backbone output width; registration models follow the same split, with
+    `decode` returning the rigid transform of each pair.
 
     Args:
         in_channels: Number of input feature channels.
@@ -339,4 +341,66 @@ class DetectionModel(nn.Module, metaclass=ABCMeta):
 
         Canonical signature: `decode(output)`, returning a `Detection3D` with `boxes` $(K, 7)$, `scores`
         $(K,)$, `labels` $(K,)$ and `batch` $(K,)$. The decode is raw: no score thresholding and no NMS.
+        """
+
+
+class RegistrationModel(nn.Module, metaclass=ABCMeta):
+    r"""Base class for pairwise rigid point cloud registration models.
+
+    A registration model takes a source and a reference point cloud and estimates the rigid transform that moves
+    the source into the reference frame. Subclasses implement `forward_features` (the backbone, run on both
+    clouds), `forward_head` (the matching: correspondences and their scores), `decode` (the transform of every
+    pair) and `num_features`, and compose the first two in `forward`. Like detectors, `decode` is raw: it applies
+    the model's own estimator and nothing else.
+
+    Args:
+        in_channels: Number of input feature channels.
+    """
+
+    def __init__(self, in_channels: int) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+
+    @property
+    @abstractmethod
+    def num_features(self) -> int:
+        r"""Channel count $C$ of the point features `forward_features` returns.
+
+        Read-only: it is derived from the instantiated submodules.
+        """
+
+    @abstractmethod
+    def forward(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Run the model on a batch of point cloud pairs and return its raw matching output.
+
+        Canonical signature: `forward(x, pos, batch, ref_x, ref_pos, ref_batch, transform=None)` with the source
+        cloud as features `x` $(N, C)$ (or `None`), positions `pos` $(N, 3)$ and batch index `batch` $(N,)$, the
+        reference cloud as `ref_x` $(M, C)$ (or `None`), `ref_pos` $(M, 3)$ and `ref_batch` $(M,)$, and the
+        ground-truth `transform` $(B, 4, 4)$ of every pair, which training needs to build the matching targets.
+        The registered `input_keys` name the six inference inputs; the training loop passes `transform` by keyword.
+        Returns the output dict consumed by the training criterion and by `decode`.
+        """
+
+    @abstractmethod
+    def forward_features(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Run the backbone on the packed source and reference clouds.
+
+        Canonical signature: `forward_features(x, pos, batch, ref_x, ref_pos, ref_batch)`, returning the point
+        features fed to the matching head.
+        """
+
+    @abstractmethod
+    def forward_head(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Match the backbone features of the two clouds.
+
+        Canonical signature: `forward_head(*features, transform=None)`, taking what `forward_features` returns and
+        the optional ground-truth transform of `forward`, and returning the same output as `forward`.
+        """
+
+    @abstractmethod
+    def decode(self, *args: Any, **kwargs: Any) -> Any:
+        r"""Estimate the rigid transform of every pair from the raw `forward` output.
+
+        Canonical signature: `decode(output)`, returning a `Registration3D` with `transform` $(B, 4, 4)$ and the
+        packed correspondences `src_points` $(K, 3)$, `ref_points` $(K, 3)$, `scores` $(K,)$ and `batch` $(K,)$.
         """

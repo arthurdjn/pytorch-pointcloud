@@ -57,6 +57,14 @@ class DataKeys(StrEnum):
     ORIGIN_INSTANCE = "origin_instance"
     BOX = "box"
     BATCH_BOX = "batch_box"
+    REF_X = "ref_x"
+    REF_POS = "ref_pos"
+    REF_NORMAL = "ref_normal"
+    REF_FRAME = "ref_frame"
+    BATCH_REF_POS = "batch_ref_pos"
+    TRANSFORM = "transform"
+    INFORMATION = "information"
+    OVERLAP = "overlap"
     VELOCITY = "velocity"
     NUM_POINTS = "num_points"
     ATTRIBUTE = "attribute"
@@ -245,8 +253,8 @@ def mix_pairs(
 def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
     """Gather the positional inputs of a model's `forward` from a batch dict, in `keys` order.
 
-    A dotted key reads an attribute of a batch value (e.g. `octree.depth`). A missing `x` resolves to `None`, since
-    models accept `x=None` and build their features from the positions; any other missing key raises.
+    A dotted key reads an attribute of a batch value (e.g. `octree.depth`). A missing `x` or `ref_x` resolves to
+    `None`, since models accept `x=None` and build their features from the positions; any other missing key raises.
 
     Args:
         data: Collated batch dict, e.g. from `collate` or `PointCloudDataLoader`.
@@ -257,7 +265,7 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
         The values to unpack into the model's `forward`.
 
     Raises:
-        KeyError: If a key other than `x` is missing from `data`.
+        KeyError: If a key other than `x` or `ref_x` is missing from `data`.
 
     Example:
         ```python
@@ -276,7 +284,7 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
     for key in keys:
         value = deep_getattr(data, key, default=_MISSING)
         if value is _MISSING:
-            if key != DataKeys.X:
+            if key not in (DataKeys.X, DataKeys.REF_X):
                 raise KeyError(f"Input key {key!r} not found in the batch (available keys: {sorted(data)}).")
 
             value = None
