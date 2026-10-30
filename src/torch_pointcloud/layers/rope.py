@@ -122,11 +122,9 @@ class AxialRoPE(nn.Module):
         self.register_buffer("axis", axis, persistent=False)
 
     @staticmethod
-    def _rotate(x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
-        pairs = x.float().unflatten(-1, (-1, 2))
-        even, odd = pairs[..., 0], pairs[..., 1]
-        rotated = torch.stack([even * cos - odd * sin, even * sin + odd * cos], dim=-1)
-        return rotated.flatten(-2).type_as(x)
+    def _rotate(x: Tensor, rotation: Tensor) -> Tensor:
+        rotated = torch.view_as_complex(x.float().unflatten(-1, (-1, 2))) * rotation
+        return torch.view_as_real(rotated).flatten(-2).type_as(x)
 
     def forward(self, q: Tensor, k: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor]:
         if q.size(-1) != self.head_dim:
@@ -139,8 +137,9 @@ class AxialRoPE(nn.Module):
             [1.0 / self.base ** torch.linspace(0, 1, n, device=pos.device) for n in self.num_frequencies]
         )
         angle = pos.float()[:, self.axis] * inv_freq
-        cos, sin = angle.cos().unsqueeze(1), angle.sin().unsqueeze(1)
-        return self._rotate(q, cos, sin), self._rotate(k, cos, sin)
+        # Each pair rotates as one complex product, with fewer elementwise kernels than the real-valued form.
+        rotation = torch.polar(torch.ones_like(angle), angle).unsqueeze(1)
+        return self._rotate(q, rotation), self._rotate(k, rotation)
 
     def extra_repr(self) -> str:
         return f"num_frequencies={self.num_frequencies}, base={self.base}"
