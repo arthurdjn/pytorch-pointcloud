@@ -189,9 +189,18 @@ def test_groupfree3d_reset_classifier_rejects_class_aware_size_templates() -> No
     assert model.num_classes == 18
 
 
-def test_groupfree3d_rejects_malformed_mean_sizes() -> None:
+@pytest.mark.parametrize(
+    "mean_sizes",
+    [pytest.param([[1.0, 1.0]] * 18, id="two-columns"), pytest.param(torch.zeros(0, 3), id="no-template")],
+)
+def test_groupfree3d_rejects_malformed_mean_sizes(mean_sizes: Any) -> None:
     with pytest.raises(ValueError, match="mean_sizes"):
-        _create_groupfree3d(mean_sizes=[[1.0, 1.0]] * 18)
+        _create_groupfree3d(mean_sizes=mean_sizes)
+
+
+def test_groupfree3d_rejects_more_proposals_than_seeds() -> None:
+    with pytest.raises(ValueError, match="num_proposals"):
+        _create_groupfree3d(num_proposals=129)
 
 
 def test_groupfree3d_mean_sizes_not_persisted() -> None:
@@ -291,7 +300,7 @@ def test_groupfree3d_decode_rejects_unknown_stages() -> None:
         out = model(None, data["pos"], data["batch"])
     with pytest.raises(IndexError, match="stages"):
         model.decode(out, stages=[model.num_decoder_layers + 1])
-    with pytest.raises(IndexError, match="stages"):
+    with pytest.raises(ValueError, match="stages"):
         model.decode(out, stages=[])
 
 

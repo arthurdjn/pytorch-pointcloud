@@ -179,7 +179,7 @@ class GroupFree3DDetection(DetectionModel):
         num_heading_bins: Number of heading-angle bins ($1$ for axis-aligned boxes).
         mean_sizes: Mean box size of each template of a class-aware size head, shape $(S, 3)$, or `None` to regress
             the box size directly.
-        num_proposals: Number of object candidates per scene.
+        num_proposals: Number of object candidates per scene, at most the seeds per scene `sa_num_points[1]`.
         sa_channels: Per-SA-block MLP channel lists for the backbone.
         sa_num_points: Per-SA-block farthest-point-sample counts.
         sa_radii: Per-SA-block ball-query radii.
@@ -235,8 +235,13 @@ class GroupFree3DDetection(DetectionModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         mean = None if mean_sizes is None else torch.as_tensor(mean_sizes, dtype=torch.float32)
-        if mean is not None and (mean.dim() != 2 or mean.shape[1] != 3):
-            raise ValueError(f"`mean_sizes` must have shape (S, 3), got {tuple(mean.shape)}.")
+        if mean is not None and (mean.dim() != 2 or mean.shape[0] == 0 or mean.shape[1] != 3):
+            raise ValueError(f"`mean_sizes` must have shape (S, 3) with S >= 1, got {tuple(mean.shape)}.")
+        if num_proposals > sa_num_points[1]:
+            raise ValueError(
+                f"`num_proposals` ({num_proposals}) cannot exceed the seeds per scene "
+                f"(`sa_num_points[1]` = {sa_num_points[1]})."
+            )
 
         self.num_heading_bins = num_heading_bins
         self.num_proposals = num_proposals
@@ -247,8 +252,6 @@ class GroupFree3DDetection(DetectionModel):
         self.norm = norm
         self.norm_kwargs = norm_kwargs
 
-        # Not part of the checkpoint (the reference rebuilds it on the fly); persistent=False
-        # keeps it out of the state dict while still moving with `.to(device)`.
         self.register_buffer("mean_sizes", mean, persistent=False)
 
         self.backbone = VoteNetBackbone(
@@ -430,7 +433,8 @@ class GroupFree3DDetection(DetectionModel):
             softmaxed semantic-class probabilities.
 
         Raises:
-            IndexError: If `stages` is empty or indexes past the stages of `out`.
+            ValueError: If `stages` is empty.
+            IndexError: If `stages` indexes past the stages of `out`.
 
         Shape:
             - boxes: $(B \cdot T \cdot Q, 7)$ for $T$ selected stages
@@ -439,8 +443,11 @@ class GroupFree3DDetection(DetectionModel):
         """
         num_total, batch_size, num_proposals, _ = out["center"].shape
         stages = self.decode_stages if stages is None else stages
+        if not stages:
+            raise ValueError("`stages` must select at least one stage.")
+
         positions = [stage + num_total if stage < 0 else stage for stage in stages]
-        if not positions or any(not 0 <= position < num_total for position in positions):
+        if any(not 0 <= position < num_total for position in positions):
             raise IndexError(f"`stages` must index the {num_total} stages of the output, got {list(stages)}.")
 
         index = torch.tensor(positions, device=out["center"].device)
