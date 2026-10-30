@@ -4,7 +4,7 @@ import math
 import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional
 
 import numpy as np
 import torch
@@ -204,7 +204,6 @@ def configure_criterion(args: Namespace) -> TransFusionHeadLoss:
         point_cloud_range=hparams["point_cloud_range"],
         voxel_size=hparams["voxel_size"],
         feature_map_stride=hparams["feature_map_stride"],
-        num_proposals=200,
         gaussian_overlap=0.1,
         min_radius=2,
         matcher_cls_cost=0.15,
@@ -275,8 +274,9 @@ def disable_sampling(dataset: Dataset) -> None:
     """Drop the object pasting from the training transform."""
     if isinstance(dataset, Subset):
         dataset = dataset.dataset
-    dataset = cast(NuScenes, dataset)
-    transform = cast(T.Compose, dataset.transform)
+    assert isinstance(dataset, NuScenes)
+    transform = dataset.transform
+    assert isinstance(transform, T.Compose)
 
     steps = [step for step in transform.transforms if not isinstance(step, T.PasteBoxes)]
     dataset.transform = T.Compose(steps)

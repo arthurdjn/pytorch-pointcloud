@@ -1,16 +1,17 @@
 r"""Loss of the query-based `TransFusionHead`: Hungarian-matched query targets and a dense center heatmap."""
 
-from typing import Any, Dict, List, Literal, Sequence, Tuple
+import warnings
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor, nn
 
-from torch_pointcloud.layers.transfusion_head import TransFusionHeadOutput, decode_query_boxes
+from torch_pointcloud.layers.transfusion_head import TransFusionHeadOutput
 from torch_pointcloud.losses._utils import unbatch_boxes
 from torch_pointcloud.losses.focal import gaussian_focal_loss, sigmoid_focal_loss
 from torch_pointcloud.losses.matching import hungarian_match_batched
 from torch_pointcloud.ops.box3d import boxes_iou3d
-from torch_pointcloud.ops.heatmap import draw_heatmap_targets
+from torch_pointcloud.ops.heatmap import decode_query_codes, draw_heatmap_targets
 
 _LOG_EPS = 1e-12
 
@@ -39,10 +40,13 @@ class TransFusionHeadLoss(nn.Module):
 
     Args:
         num_classes: Number of foreground classes (heatmap channels and query logits).
-        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         feature_map_stride: Stride from the voxel grid to the BEV feature map.
-        num_proposals: Number of object queries per scene.
+        height_code: Box point the head's `height` code regresses: the gravity center, or the top face
+            ($z + d_z / 2$). Omitting it is accepted until 0.0.20 for the top face, with a `FutureWarning`.
+        num_proposals: Unused, the query count comes from the head output; accepted until 0.0.20, with a
+            `FutureWarning`.
         gaussian_overlap: Min-overlap passed to the Gaussian-radius solver.
         min_radius: Lower clamp on the integer splat radius.
         matcher_cls_cost: Weight of the focal classification term in the matching cost.
@@ -55,8 +59,6 @@ class TransFusionHeadLoss(nn.Module):
         iou_weight: Multiplier on the IoU-rescore term of a head with the `iou` branch.
         focal_alpha: Focal positive/negative balance (classification loss and matching cost).
         focal_gamma: Focal focusing exponent (classification loss and matching cost).
-        height_code: Box point the head's `height` code regresses: the gravity center, or the top face
-            ($z + d_z / 2$).
     """
 
     code_weights: Tensor
@@ -65,10 +67,11 @@ class TransFusionHeadLoss(nn.Module):
         self,
         num_classes: int,
         *,
-        point_cloud_range: Sequence[float],
         voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
         feature_map_stride: int,
-        num_proposals: int = 200,
+        height_code: Optional[Literal["center", "top"]] = None,
+        num_proposals: Optional[int] = None,
         gaussian_overlap: float = 0.1,
         min_radius: int = 2,
         matcher_cls_cost: float = 0.15,
@@ -81,17 +84,34 @@ class TransFusionHeadLoss(nn.Module):
         iou_weight: float = 0.5,
         focal_alpha: float = 0.25,
         focal_gamma: float = 2.0,
-        height_code: Literal["center", "top"] = "center",
     ) -> None:
         super().__init__()
         if len(code_weights) != 10:
             raise ValueError(f"`code_weights` must have length 10, got {len(code_weights)}.")
+        if height_code not in (None, "center", "top"):
+            raise ValueError(f"`height_code` must be 'center' or 'top', got {height_code!r}.")
+
+        if height_code is None:
+            warnings.warn(
+                "Omitting `height_code` from `TransFusionHeadLoss` is deprecated in 0.0.19 and raises in 0.0.20; until "
+                'then the box-top code is used, so pass `height_code="top"` to keep that behaviour.',
+                FutureWarning,
+                stacklevel=2,
+            )
+            height_code = "top"
+        if num_proposals is not None:
+            warnings.warn(
+                "`num_proposals` of `TransFusionHeadLoss` is unused (the query count comes from the head output) and "
+                "will be removed in 0.0.20.",
+                FutureWarning,
+                stacklevel=2,
+            )
 
         self.num_classes = num_classes
-        self.point_cloud_range = tuple(float(p) for p in point_cloud_range)
         self.voxel_size = tuple(float(v) for v in voxel_size)
+        self.point_cloud_range = tuple(float(p) for p in point_cloud_range)
         self.feature_map_stride = feature_map_stride
-        self.num_proposals = num_proposals
+        self.height_code = height_code
         self.gaussian_overlap = gaussian_overlap
         self.min_radius = min_radius
         self.matcher_cls_cost = matcher_cls_cost
@@ -103,7 +123,6 @@ class TransFusionHeadLoss(nn.Module):
         self.iou_weight = iou_weight
         self.focal_alpha = focal_alpha
         self.focal_gamma = focal_gamma
-        self.height_code = height_code
 
         pcr, vs = self.point_cloud_range, self.voxel_size
         grid = [int(round((pcr[i + 3] - pcr[i]) / vs[i])) for i in range(3)]
@@ -147,7 +166,8 @@ class TransFusionHeadLoss(nn.Module):
         if num_pos > 0:
             matched = assignment >= 0
             starts = center.new_tensor([sum(counts[:b]) for b in range(batch_size)], dtype=torch.long)
-            gt_index = assignment.clamp(min=0) + starts.unsqueeze(1)
+            # An unmatched query of a trailing scene without boxes points one past the last box; `matched` masks it.
+            gt_index = (assignment.clamp(min=0) + starts.unsqueeze(1)).clamp(max=sum(counts) - 1)
             all_boxes = torch.cat(boxes_per_scene)
             all_labels = torch.cat(labels_per_scene)
 
@@ -212,8 +232,15 @@ class TransFusionHeadLoss(nn.Module):
 
     def _decode_queries(self, output: TransFusionHeadOutput) -> Tensor:
         r"""Decode the per-query predictions of every scene to oriented boxes $(B, Q, 7)$ in metric coordinates."""
-        return decode_query_boxes(
-            output, self.voxel_size, self.point_cloud_range, self.feature_map_stride, height_code=self.height_code
+        return decode_query_codes(
+            output["center"].transpose(1, 2),
+            output["height"].transpose(1, 2),
+            output["dim"].transpose(1, 2),
+            output["rot"].transpose(1, 2),
+            voxel_size=self.voxel_size,
+            point_cloud_range=self.point_cloud_range,
+            feature_map_stride=self.feature_map_stride,
+            height_code=self.height_code,
         )
 
     @torch.no_grad()

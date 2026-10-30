@@ -195,3 +195,44 @@ def test_transfusion_loss_no_boxes_is_finite() -> None:
     data[DataKeys.LABEL] = data[DataKeys.LABEL][:0]
     data[DataKeys.BATCH_BOX] = data[DataKeys.BATCH_BOX][:0]
     assert torch.isfinite(_loss()(output, data)["loss"])
+
+
+def test_transfusion_loss_last_scene_without_boxes_is_finite() -> None:
+    output, data = _data()
+    data[DataKeys.BATCH_BOX] = torch.zeros(3, dtype=torch.long)
+    out = _loss()(output, data)
+    assert torch.isfinite(out["loss"])
+
+
+def test_transfusion_loss_without_height_code_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="height_code"):
+        loss_fn = TransFusionHeadLoss(
+            _NUM_CLASSES,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=_STRIDE,
+        )
+    assert loss_fn.height_code == "top"
+
+
+def test_transfusion_loss_num_proposals_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="num_proposals"):
+        TransFusionHeadLoss(
+            _NUM_CLASSES,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=_STRIDE,
+            height_code="top",
+            num_proposals=200,
+        )
+
+
+def test_transfusion_loss_rejects_an_unknown_height_code() -> None:
+    with pytest.raises(ValueError, match="height_code"):
+        TransFusionHeadLoss(
+            _NUM_CLASSES,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=_STRIDE,
+            height_code="bottom",  # type: ignore[arg-type]
+        )
