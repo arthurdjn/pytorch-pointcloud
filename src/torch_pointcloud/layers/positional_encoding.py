@@ -8,9 +8,10 @@ from torch import Tensor, nn
 class PositionEmbeddingSine(nn.Module):
     r"""Parameter-free sinusoidal positional embedding of continuous coordinates.
 
-    Each of the $n$ coordinate axes is multiplied by `scale` and expanded into $\lfloor d / 2n \rfloor$ frequencies
-    $\omega_i = \text{temperature}^{-2i \cdot 2n / d}$, as interleaved $\sin(\omega_i p), \cos(\omega_i p)$ pairs; the
-    axes are concatenated and the channels left over when $d$ is not a multiple of $2n$ are zero-padded.
+    Each of the $n$ coordinate axes is multiplied by `scale` and expanded into $F / 2$ frequencies
+    $\omega_i = \text{temperature}^{-2i / F}$, with $F = 2 \lfloor d / 2n \rfloor$ channels per axis, as interleaved
+    $\sin(\omega_i p), \cos(\omega_i p)$ pairs; the axes are concatenated and the channels left over when $d$ is not a
+    multiple of $2n$ are zero-padded.
 
     Args:
         embed_dim: The output embedding dimension $d$.
@@ -41,6 +42,12 @@ class PositionEmbeddingSine(nn.Module):
         temperature: float = 10000.0,
         scale: float = 1.0,
     ) -> None:
+        if embed_dim < 2 * spatial_dim:
+            raise ValueError(
+                f"`embed_dim` must be at least `2 * spatial_dim` = {2 * spatial_dim} to hold one sine / cosine pair per "
+                f"axis, got {embed_dim}."
+            )
+
         super().__init__()
         self.spatial_dim = spatial_dim
         self.embed_dim = embed_dim
@@ -50,6 +57,11 @@ class PositionEmbeddingSine(nn.Module):
         self.scale = scale
 
     def forward(self, pos: Tensor) -> Tensor:
+        if pos.size(-1) != self.spatial_dim:
+            raise ValueError(
+                f"`pos` must have {self.spatial_dim} coordinates in its last dimension, got {pos.size(-1)}."
+            )
+
         dim_t = torch.arange(self.num_pos_feats, dtype=torch.float32, device=pos.device)
         dim_t = self.temperature ** (2 * torch.div(dim_t, 2, rounding_mode="trunc") / self.num_pos_feats)
 

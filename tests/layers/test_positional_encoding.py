@@ -39,3 +39,15 @@ def test_position_embedding_sine_scale_multiplies_the_coordinates() -> None:
     scaled = PositionEmbeddingSine(12, scale=2 * math.pi)(pos)
 
     assert torch.allclose(scaled, PositionEmbeddingSine(12)(pos * 2 * math.pi), atol=1e-6)
+
+
+def test_position_embedding_sine_rejects_too_few_channels_per_axis() -> None:
+    with pytest.raises(ValueError, match="embed_dim"):
+        PositionEmbeddingSine(3, spatial_dim=384)
+
+
+def test_position_embedding_sine_rejects_coordinates_of_another_dimension() -> None:
+    embed = PositionEmbeddingSine(12, spatial_dim=3)
+
+    with pytest.raises(ValueError, match="3 coordinates"):
+        embed(torch.randn(4, 2))
