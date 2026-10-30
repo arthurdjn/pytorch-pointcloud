@@ -132,7 +132,8 @@ class VoxelBackbone8x(nn.Module):
         With `return_intermediates`, the features `x`, scene index `batch` and $(z, y, x)$ voxel coordinates
         `pos_grid` of the four stages are returned too, finest first. The strided stages 2-4 come in $(b, z, y, x)$
         order, since a strided sparse convolution returns its voxels in an order of the library's choosing; stage 1
-        keeps the order of the input voxels.
+        keeps the order of the input voxels, so its `batch` is sorted when the voxels come grouped by scene, as
+        `collate` packs them.
         """
         x = self.conv_input(x)
         intermediates: List[FeaturesDict] = []
