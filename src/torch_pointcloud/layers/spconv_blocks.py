@@ -139,20 +139,32 @@ class StridedSparseConv3d(SparseConv3d):
             bias=bias,
         )
 
-    def forward(
-        self,
-        input: "spconv.SparseConvTensor",
-        add_input: Optional["spconv.SparseConvTensor"] = None,
-    ) -> "spconv.SparseConvTensor":
+    def forward(self, input: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
         indices = input.indices
-        parents = torch.cat([indices[:, :1], torch.div(indices[:, 1:], self.stride[0], rounding_mode="floor")], dim=1)
+        stride = self.stride[0]
+        parents = torch.cat([indices[:, :1], torch.div(indices[:, 1:], stride, rounding_mode="floor")], dim=1)
         parents = torch.unique(parents, dim=0)
 
-        out = super().forward(input, add_input)
-        index = lookup_coordinates(out.indices, parents)
-        features = out.features[index.clamp(min=0)] * (index >= 0).unsqueeze(1).to(out.features.dtype)
+        if max(self.kernel_size) == 1:
+            # The window of a parent is its child at `stride * parent` alone. spconv raises when no parent of the
+            # batch has that child, so the features are gathered and projected here.
+            children = torch.cat([parents[:, :1], parents[:, 1:] * stride], dim=1)
+            index = lookup_coordinates(indices, children)
+            features = input.features[index.clamp(min=0)] @ self.weight.view(self.out_channels, self.in_channels).T
+            if self.bias is not None:
+                features = features + self.bias
+            out = input
+            spatial_shape = [(size - 1) // stride + 1 for size in input.spatial_shape]
+        else:
+            out = super().forward(input)
+            index = lookup_coordinates(out.indices, parents)
+            features = out.features[index.clamp(min=0)]
+            spatial_shape = out.spatial_shape
+
+        features = features * (index >= 0).unsqueeze(1).to(features.dtype)
         # `replace_feature` carries the index cache of the earlier layers and the algorithm settings over.
         out = out.replace_feature(features)
+        out.spatial_shape = spatial_shape
         out.indices = parents.int().contiguous()
         return out
 

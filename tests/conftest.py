@@ -19,6 +19,9 @@ from torch_pointcloud.datasets import (
     SemanticKITTI,
     ShapeNetPart,
 )
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
+
+ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo", url=_SPCONV_GITHUB_URL)
 
 DATA_DIR = Path(__file__).parent / "data"
 DATASETS_DIR = DATA_DIR / "datasets"
@@ -386,3 +389,17 @@ def single_point_scene() -> Dict[str, Any]:
         "normal": torch.tensor([[0.0, 0.0, 1.0]]),
         "segment": torch.tensor([5], dtype=torch.long),
     }
+
+
+@pytest.fixture
+def spconv_to_device() -> Callable[[torch.nn.Module, str], None]:
+    """Move a module to a device in place; on CPU, its spconv layers run the native algorithm, the only CPU one."""
+
+    def to_device(module: torch.nn.Module, device: str) -> None:
+        if device == "cpu":
+            for layer in module.modules():
+                if hasattr(layer, "algo"):
+                    layer.algo = ConvAlgo.Native
+        module.to(device)
+
+    return to_device

@@ -1,4 +1,4 @@
-from typing import Any, TypeVar
+from typing import Any, Callable
 
 import pytest
 import torch
@@ -19,17 +19,6 @@ ConvAlgo, _ = optional_import("spconv.core", "ConvAlgo", url=_SPCONV_GITHUB_URL)
 pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
 DEVICES = pytest.mark.parametrize("device", [pytest.param("cpu"), pytest.param("cuda", marks=CUDA)])
-
-M = TypeVar("M", bound=torch.nn.Module)
-
-
-def _to_device(module: M, device: str) -> M:
-    """Move `module` to `device`; on CPU a CUDA build of spconv runs only its native algorithm."""
-    if device == "cpu":
-        for layer in module.modules():
-            if hasattr(layer, "algo"):
-                layer.algo = ConvAlgo.Native
-    return module.to(device)
 
 
 @CUDA
@@ -118,9 +107,14 @@ def _random_sparse_tensor(size: int = 12, channels: int = 3, seed: int = 0, devi
 
 
 @DEVICES
-def test_strided_sparse_conv3d_outputs_the_parent_voxels(device: str) -> None:
+def test_strided_sparse_conv3d_outputs_the_parent_voxels(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     x = _random_sparse_tensor(device=device)
-    out = _to_device(StridedSparseConv3d(3, 4, kernel_size=3, stride=2), device)(x)
+    conv = StridedSparseConv3d(3, 4, kernel_size=3, stride=2)
+    spconv_to_device(conv, device)
+    out = conv(x)
 
     parents = torch.unique(torch.cat([x.indices[:, :1], x.indices[:, 1:] // 2], 1), dim=0)
     assert torch.equal(out.indices, parents.int())
@@ -128,9 +122,13 @@ def test_strided_sparse_conv3d_outputs_the_parent_voxels(device: str) -> None:
 
 
 @DEVICES
-def test_strided_sparse_conv3d_matches_a_dense_convolution(device: str) -> None:
+def test_strided_sparse_conv3d_matches_a_dense_convolution(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     x = _random_sparse_tensor(device=device)
-    conv = _to_device(StridedSparseConv3d(3, 4, kernel_size=3, stride=2), device)
+    conv = StridedSparseConv3d(3, 4, kernel_size=3, stride=2)
+    spconv_to_device(conv, device)
     out = conv(x)
 
     dense = F.conv3d(x.dense(), conv.weight.permute(0, 4, 1, 2, 3), stride=2, padding=1)
@@ -140,10 +138,33 @@ def test_strided_sparse_conv3d_matches_a_dense_convolution(device: str) -> None:
 
 
 @DEVICES
-def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child(device: str) -> None:
+def test_strided_sparse_conv3d_pointwise_kernel_matches_a_dense_convolution(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    x = _random_sparse_tensor(device=device)
+    conv = StridedSparseConv3d(3, 4, kernel_size=1, stride=2)
+    spconv_to_device(conv, device)
+    out = conv(x)
+
+    dense = F.conv3d(x.dense(), conv.weight.permute(0, 4, 1, 2, 3), stride=2)
+    index = out.indices.long()
+    expected = dense[0, :, index[:, 1], index[:, 2], index[:, 3]].T
+    assert out.spatial_shape == [6, 6, 6]
+    torch.testing.assert_close(out.features, expected, atol=1e-5, rtol=1e-5)
+
+
+@DEVICES
+def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     indices = torch.tensor([[0, 0, 0, 0], [0, 3, 1, 1]], dtype=torch.int32, device=device)
     x = spconv.SparseConvTensor(torch.ones(2, 2, device=device), indices, [4, 4, 4], 1)
-    conv = _to_device(StridedSparseConv3d(2, 1, kernel_size=1, stride=2), device)
+    conv = StridedSparseConv3d(2, 1, kernel_size=1, stride=2)
+    spconv_to_device(conv, device)
     out = conv(x)
 
     assert out.indices.tolist() == [[0, 0, 0, 0], [0, 1, 0, 0]]
@@ -152,20 +173,45 @@ def test_strided_sparse_conv3d_pointwise_kernel_is_zero_without_an_even_child(de
 
 
 @DEVICES
-def test_strided_sparse_conv3d_keeps_the_index_cache_and_settings(device: str) -> None:
+def test_strided_sparse_conv3d_pointwise_kernel_without_any_even_child_outputs_zeros(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    indices = torch.tensor([[0, 1, 1, 1], [0, 3, 1, 1]], dtype=torch.int32, device=device)
+    x = spconv.SparseConvTensor(torch.ones(2, 2, device=device), indices, [4, 4, 4], 1)
+    conv = StridedSparseConv3d(2, 3, kernel_size=1, stride=2)
+    spconv_to_device(conv, device)
+    out = conv(x)
+
+    assert out.indices.tolist() == [[0, 0, 0, 0], [0, 1, 0, 0]]
+    assert torch.equal(out.features, torch.zeros(2, 3, device=device))
+
+
+@DEVICES
+def test_strided_sparse_conv3d_keeps_the_index_cache_and_settings(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     x = _random_sparse_tensor(device=device)
     x.force_algo = ConvAlgo.Native
-    x = _to_device(spconv.SparseConv3d(3, 3, 3, stride=2, padding=1, indice_key="down"), device)(x)
-    out = _to_device(StridedSparseConv3d(3, 4, kernel_size=3, stride=2), device)(x)
+    down = spconv.SparseConv3d(3, 3, 3, stride=2, padding=1, indice_key="down")
+    conv = StridedSparseConv3d(3, 4, kernel_size=3, stride=2)
+    spconv_to_device(down, device)
+    spconv_to_device(conv, device)
+    out = conv(down(x))
 
     assert "down" in out.indice_dict
     assert out.force_algo == ConvAlgo.Native
 
 
 @DEVICES
-def test_sparse_basic_block_stride_two_halves_the_resolution(device: str) -> None:
+def test_sparse_basic_block_stride_two_halves_the_resolution(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     x = _random_sparse_tensor(channels=8, device=device)
-    block = _to_device(SparseBasicBlock(8, 16, stride=2, indice_key="subm"), device).eval()
+    block = SparseBasicBlock(8, 16, stride=2, indice_key="subm").eval()
+    spconv_to_device(block, device)
     out = block(x)
 
     parents = torch.unique(torch.cat([x.indices[:, :1], x.indices[:, 1:] // 2], 1), dim=0)
@@ -175,10 +221,14 @@ def test_sparse_basic_block_stride_two_halves_the_resolution(device: str) -> Non
 
 
 @DEVICES
-def test_sparse_conv_block_transposeconv_generates_children(device: str) -> None:
+def test_sparse_conv_block_transposeconv_generates_children(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     x = _random_sparse_tensor(size=6, channels=4, device=device)
-    block = SparseConvBlock(4, 2, 2, stride=2, indice_key=None, conv_type="transposeconv")
-    out = _to_device(block, device).eval()(x)
+    block = SparseConvBlock(4, 2, 2, stride=2, indice_key=None, conv_type="transposeconv").eval()
+    spconv_to_device(block, device)
+    out = block(x)
 
     offsets = torch.cartesian_prod(*[torch.arange(2)] * 3).int().to(device)
     children = (x.indices[:, None, 1:] * 2 + offsets).view(-1, 3)
