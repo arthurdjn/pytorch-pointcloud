@@ -501,7 +501,7 @@ def _semantickitti_transforms() -> T.Compose:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-s.scannet20.kadir-yilmaz/resolve/73940deb63dd26a9e7017c57222ae06aa908056e/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 77.27, "OA": 91.77, "simple/mIoU": 76.38, "simple/OA": 91.36},
         classes=SCANNET20_CLASSES,
@@ -535,7 +535,7 @@ def volt_s_scannet20(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-s.scannet200.kadir-yilmaz/resolve/0b59ba62d0ccb1ac9da27d707198ec212448fc12/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 36.14, "OA": 83.85, "simple/mIoU": 35.36, "simple/OA": 83.32},
         classes=SCANNET200_CLASSES,
@@ -569,7 +569,7 @@ def volt_s_scannet200(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-s.nuscenes.kadir-yilmaz/resolve/085ccde7af444e0255ea2eb0a48556ce33b5b5e5/model.safetensors",
         dataset="nuscenes",
         metrics={"simple/mIoU": 80.57, "simple/OA": 94.54},
         classes=NUSCENES_LIDARSEG_CLASSES,
@@ -603,7 +603,7 @@ def volt_s_nuscenes(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s.semantickitti.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-s.semantickitti.kadir-yilmaz/resolve/0b563f08a587a9bb42a2e8aab6fe532f4f7666ba/model.safetensors",
         dataset="semantickitti",
         metrics={"simple/mIoU": 69.42, "simple/OA": 92.64},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -637,7 +637,7 @@ def volt_s_semantickitti(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s-joint.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-s-joint.scannet20.kadir-yilmaz/resolve/bacb435d17b118cacd93630eeb773c263cdfa7de/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 80.18, "OA": 92.81, "simple/mIoU": 79.50, "simple/OA": 92.45},
         classes=SCANNET20_CLASSES,
@@ -671,7 +671,7 @@ def volt_s_joint_scannet20(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s-joint.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-s-joint.scannet200.kadir-yilmaz/resolve/28d0bd2f478829ccfe8ad4dd619fe1fa64b0741e/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 38.53, "OA": 84.79, "simple/mIoU": 37.91, "simple/OA": 84.27},
         classes=SCANNET200_CLASSES,
@@ -705,7 +705,7 @@ def volt_s_joint_scannet200(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-b-joint.scannet20.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-b-joint.scannet20.kadir-yilmaz/resolve/03e5543530b5420f9180baf500fabdf5b9280b42/model.safetensors",
         dataset="scannet20",
         metrics={"mIoU": 80.45, "OA": 93.13, "simple/mIoU": 79.69, "simple/OA": 92.78},
         classes=SCANNET20_CLASSES,
@@ -739,7 +739,7 @@ def volt_b_joint_scannet20(**hparams: Any) -> VoltSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-b-joint.scannet200.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/volt-b-joint.scannet200.kadir-yilmaz/resolve/b3599079065db190490805f0ff34034b8fc14a4e/model.safetensors",
         dataset="scannet200",
         metrics={"mIoU": 40.06, "OA": 85.29, "simple/mIoU": 39.47, "simple/OA": 85.01},
         classes=SCANNET200_CLASSES,
