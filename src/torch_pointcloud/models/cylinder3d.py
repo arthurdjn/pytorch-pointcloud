@@ -228,6 +228,9 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
 
         With `return_intermediates`, the output of every encoder stage is appended, fine to coarse.
         """
+        if pos.shape[0] == 0:
+            raise ValueError("Expected at least one point.")
+
         point_x = torch.cat([pos[:, :2], x], dim=1)
         voxel_x, voxel_indices, inverse = self.vfe(point_x, cartesian_to_cylindrical(pos), batch)
         batch_size = int(batch.max().item()) + 1

@@ -190,6 +190,20 @@ def test_cylinder3d_grid_puts_the_last_cell_at_the_upper_bound() -> None:
     assert torch.equal(model.vfe.voxel_size, torch.tensor([1.0, 0.5, 4.0]))
 
 
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_cylinder3d_rejects_an_empty_point_cloud() -> None:
+    model = Cylinder3DSegmentation(
+        1,
+        5,
+        point_cloud_range=POINT_CLOUD_RANGE,
+        grid_size=(96, 72, 16),
+        channels=(8, 16, 32),
+        strides=((2, 2, 2), (2, 2, 1)),
+    ).eval()
+    with pytest.raises(ValueError, match="at least one point"):
+        model(torch.empty(0, 1), torch.empty(0, 3), torch.empty(0, dtype=torch.long))
+
+
 @pytest.mark.parametrize(
     "model_name",
     [
