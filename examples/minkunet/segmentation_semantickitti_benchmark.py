@@ -1,9 +1,18 @@
 """Benchmark MinkUNet semantic segmentation on SemanticKITTI in a single pass, scored at full resolution.
 
-NOTE: `minkunet34-w32-spconv` scores 68.64 mIoU against the 69.3 of the MMDetection3D model zoo. What we ran in
-MMDetection3D 1.4.0 (spconv 2.3.8): `init_model` and `test_step` with the checkpoint's own config
-`minkunet34_w32_spconv_8xb2-laser-polar-mix-3x_semantickitti` and file `..._20230512_233817-72b200d8.pth`, then
-`seg_eval` over the 4071 raw scans of sequence 08; it gives 68.65 mIoU.
+NOTE: `minkunet34-w32-spconv` scores 68.64 mIoU (zoo 69.3); MMDetection3D at fe25f7a (v1.4.0) gives 68.65 with:
+
+```python
+# spconv 2.3.8, TF32 off; the 4071 raw scans of sequence 08, labels mapped by the config's `seg_label_mapping`.
+config = Config.fromfile("configs/minkunet/minkunet34_w32_spconv_8xb2-laser-polar-mix-3x_semantickitti.py")
+model = init_model(config, "minkunet34_w32_spconv_8xb2-laser-polar-mix-3x_semantickitti_20230512_233817-72b200d8.pth")
+for points in scans:  # (N, 4) float32 on cuda:0
+    sample = Det3DDataSample()
+    sample.gt_pts_seg = PointData()
+    result = model.test_step({"inputs": {"points": [points]}, "data_samples": [sample]})[0]
+    predictions.append(result.pred_pts_seg.pts_semantic_mask)
+seg_eval(gt_labels, predictions, label2cat, config.val_dataloader.dataset.ignore_index)["miou"]
+```
 """
 
 import os
