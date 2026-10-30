@@ -200,6 +200,28 @@ def test_part_intersection_over_union_without_batch_is_one_shape() -> None:
     assert torch.equal(ious, part_intersection_over_union(preds, target, part_ids, torch.tensor(0)))
 
 
+def test_part_predictions_argmax_over_the_category_parts_only() -> None:
+    part_ids = [[0, 1], [2, 3]]
+    scores = torch.tensor([[0.1, 0.2, 0.9, 0.3], [0.8, 0.1, 0.0, 0.5], [0.9, 0.0, 0.1, 0.2], [0.0, 0.7, 0.1, 0.6]])
+    batch = torch.tensor([0, 0, 1, 1])
+
+    preds = part_predictions(scores, part_ids, torch.tensor([0, 1]), batch)
+    assert torch.equal(preds, torch.tensor([1, 0, 3, 3]))
+    assert torch.equal(part_predictions(scores[:2], part_ids, torch.tensor([0])), torch.tensor([1, 0]))
+    assert torch.equal(part_predictions(scores[:2], part_ids, torch.tensor(0)), torch.tensor([1, 0]))
+
+
+def test_part_metrics_reject_a_one_hot_category() -> None:
+    part_ids = [[0, 1], [2, 3]]
+    one_hot = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+    batch = torch.tensor([0, 0, 1, 1])
+
+    with pytest.raises(ValueError, match="argmax"):
+        part_predictions(torch.rand(4, 4), part_ids, one_hot, batch)
+    with pytest.raises(ValueError, match="argmax"):
+        part_intersection_over_union(torch.tensor([0, 1, 2, 3]), torch.tensor([0, 1, 2, 3]), part_ids, one_hot, batch)
+
+
 def test_part_mean_iou_instance_vs_class_averaging() -> None:
     # Shape 0 (cat 0): 7/12. Shapes 1 and 2 (cat 1): 1 and 0. Category 2 has no shape.
     # ins = mean(7/12, 1, 0) = 19/36; cls = mean(7/12, (1 + 0) / 2) = 13/24 (absent category excluded).
@@ -253,14 +275,3 @@ def test_part_mean_iou_accumulates_batches() -> None:
     assert torch.equal(ious, whole)
     instance_miou = part_mean_intersection_over_union(ious, category)
     assert part_mean_intersection_over_union(ious, category, average="macro") != instance_miou
-
-
-def test_part_predictions_stay_in_the_parts_of_the_shape_category() -> None:
-    scores = torch.tensor([[0.1, 0.2, 0.9, 0.0], [0.6, 0.1, 0.0, 0.3], [0.9, 0.0, 0.1, 0.2], [0.0, 0.5, 0.0, 0.4]])
-    category = torch.tensor([0, 1])
-    batch = torch.tensor([0, 0, 1, 1])
-
-    preds = part_predictions(scores, [[0, 1], [2, 3]], category, batch)
-
-    assert preds.tolist() == [1, 0, 3, 3]
-    assert torch.equal(part_predictions(scores[:2], [[0, 1], [2, 3]], category[:1]), preds[:2])

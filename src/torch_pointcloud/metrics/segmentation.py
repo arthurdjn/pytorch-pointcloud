@@ -161,21 +161,30 @@ def intersection_over_union(
     return per_class[keep].mean().item()
 
 
+def _category_parts(part_ids: Sequence[Sequence[int]], num_classes: int, device: torch.device) -> Tensor:
+    """Boolean mask of shape $(K, C)$ marking the part labels each of the $K$ categories owns."""
+    rows = [c for c, ids in enumerate(part_ids) for _ in ids]
+    cols = [i for ids in part_ids for i in ids]
+    mask = torch.zeros(len(part_ids), num_classes, dtype=torch.bool)
+    mask[rows, cols] = True
+    return mask.to(device)
+
+
 def part_predictions(
     scores: Tensor,
     part_ids: Sequence[Sequence[int]],
     category: Tensor,
     batch: Optional[Tensor] = None,
 ) -> Tensor:
-    r"""Predict each point's part among the parts its shape's category owns (the ShapeNetPart protocol).
+    r"""Per-point part predictions restricted to the parts of each shape's category.
 
-    The argmax of the part scores is taken over the part labels of the shape's category only, so a point is never
-    assigned a part of another category.
+    The argmax of each point runs over the part labels its shape's category owns only, so a point never takes a part
+    of another category.
 
     Args:
         scores: Per-point part scores (logits or probabilities), shape $(N, C)$.
-        part_ids: Part labels owned by each category, e.g. `ShapeNetPart.seg_ids.values()`.
-        category: Per-shape category index into `part_ids`, shape $(B,)$.
+        part_ids: Part labels owned by each category.
+        category: Per-shape category index into `part_ids`, shape $(B,)$, not the one-hot category a model takes.
         batch: Optional per-point shape index, shape $(N,)$; when omitted, all the points belong to one shape.
 
     Returns:
@@ -188,21 +197,24 @@ def part_predictions(
 
     Example:
         ```pycon
-        >>> scores = torch.tensor([[0.1, 0.2, 0.9, 0.0], [0.6, 0.1, 0.0, 0.3]])
+        >>> scores = torch.tensor([[0.1, 0.2, 0.9, 0.3], [0.8, 0.1, 0.0, 0.5]])
         >>> part_predictions(scores, part_ids=[[0, 1], [2, 3]], category=torch.tensor([0]))
         tensor([1, 0])
 
         ```
     """
-    allowed = torch.zeros(len(part_ids), scores.shape[1], dtype=torch.bool, device=scores.device)
-    for c, ids in enumerate(part_ids):
-        allowed[c, list(ids)] = True
+    if category.dim() > 1:
+        raise ValueError(
+            f"`category` must hold one category index per shape, got shape {tuple(category.shape)}; "
+            "pass `category.argmax(dim=1)` for a one-hot category."
+        )
 
+    owned = _category_parts(part_ids, scores.size(1), scores.device)
     if batch is None:
-        batch = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
+        batch = torch.zeros(scores.size(0), dtype=torch.long, device=scores.device)
 
-    point_allowed = allowed[category.long().reshape(-1)][batch]
-    return scores.masked_fill(~point_allowed, float("-inf")).argmax(dim=1)
+    allowed = owned[category.long().reshape(-1)][batch]
+    return scores.masked_fill(~allowed, float("-inf")).argmax(dim=1)
 
 
 def part_intersection_over_union(
@@ -221,7 +233,7 @@ def part_intersection_over_union(
         preds: Predicted part indices, shape $(N,)$.
         target: Ground truth part indices, shape $(N,)$.
         part_ids: Part labels owned by each category, e.g. `ShapeNetPart.seg_ids.values()`.
-        category: Per-shape category index into `part_ids`, shape $(B,)$.
+        category: Per-shape category index into `part_ids`, shape $(B,)$, not the one-hot category a model takes.
         batch: Optional per-point shape index, shape $(N,)$; when omitted, all the points belong to one shape.
 
     Returns:
@@ -240,12 +252,14 @@ def part_intersection_over_union(
 
         ```
     """
-    parts = [list(ids) for ids in part_ids]
-    num_classes = max(max(ids) for ids in parts) + 1
-    mask = torch.zeros(len(parts), num_classes, dtype=torch.float, device=preds.device)
-    for c, ids in enumerate(parts):
-        mask[c, ids] = 1.0
+    if category.dim() > 1:
+        raise ValueError(
+            f"`category` must hold one category index per shape, got shape {tuple(category.shape)}; "
+            "pass `category.argmax(dim=1)` for a one-hot category."
+        )
 
+    num_classes = max(max(ids) for ids in part_ids) + 1
+    mask = _category_parts(part_ids, num_classes, preds.device).float()
     if batch is None:
         batch = torch.zeros_like(target, dtype=torch.long)
 
