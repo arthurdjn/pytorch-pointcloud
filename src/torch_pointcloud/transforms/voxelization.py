@@ -216,7 +216,7 @@ class DivisiblePad(DictTransform, Randomizable):
     row. If the key already holds a prior inverse map (from an earlier
     invertible transform), the new map composes with it via gather, so the
     stored tensor always maps from the outermost source space to the current
-    predictor space. Consumers such as `SlidingWindowInferer` read this key
+    predictor space. Consumers such as `SlidingWindowSegmentationInferer` read this key
     once and gather predictions back to the source rows.
 
     === "Object"

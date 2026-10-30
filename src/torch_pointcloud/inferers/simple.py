@@ -8,15 +8,18 @@ from torch import Tensor
 from .inferer import Inferer
 
 
-class SimpleInferer(Inferer):
+class SimpleInferer(Inferer[Any]):
     """Direct call to the predictor on the whole scene.
 
     The lightest possible `Inferer`. Use when the model can consume the entire
-    point cloud in one forward pass (object classification, small scenes).
+    point cloud in one forward pass (object classification, small scenes, a
+    detector on one LiDAR frame). It merges nothing, so it serves every task and
+    returns the predictor output of any type.
 
     Args:
         softmax: If `True`, softmax the predictor output over the last dim before
-            returning it. The default returns the predictor output unchanged.
+            returning it; only valid for a tensor output. The default returns the
+            predictor output unchanged.
 
     Example:
         ```python
@@ -43,9 +46,13 @@ class SimpleInferer(Inferer):
     def forward(
         self,
         data: Dict[str, Any],
-        predictor: Callable[[Dict[str, Any]], Tensor],
-    ) -> Tensor:
+        predictor: Callable[[Dict[str, Any]], Any],
+    ) -> Any:
         out = predictor(data)
-        if self.softmax:
-            out = torch.softmax(out, dim=-1)
-        return out
+        if not self.softmax:
+            return out
+
+        if not isinstance(out, Tensor):
+            raise TypeError(f"`softmax=True` needs a tensor predictor output, got {type(out).__name__}.")
+
+        return torch.softmax(out, dim=-1)

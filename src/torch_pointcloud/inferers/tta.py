@@ -1,32 +1,39 @@
-r"""Test-time augmentation (TTA) inferer.
+r"""Test-time augmentation (TTA) inferers.
 
-Wraps any `Inferer` and runs it N times, each time under a different spatial
-augmentation of the input, then aggregates the per-point predictions. Because
-point cloud segmentation outputs are indexed by point ID rather than by spatial
-position, predictions from rotated or flipped views are already aligned and can
-be averaged directly without inverting the transform.
+Run a model under several spatial augmentations of the input and merge the
+outputs. Segmentation outputs are indexed by point ID rather than by spatial
+position, so predictions from rotated or flipped views are already aligned and
+are averaged directly. Detection outputs are boxes in the coordinates of the
+view, so each view's boxes are mapped back through the inverse augmentation
+before they are concatenated.
 """
 
 import itertools
+import math
 import warnings
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor
 from tqdm import tqdm
 
+import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.ops.box3d import limit_period
 from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate, RandomScale, Transform
-from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.types import KeyCollection
+from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.data import DataKeys, collate, decollate
+from torch_pointcloud.utils.types import Detection3D, KeyCollection
 
-from .inferer import Inferer
+from ._utils import check_batch_alignment
+from .inferer import DetectionInferer, Inferer, SegmentationInferer
+from .simple import SimpleInferer
 
 AggregateMode = Literal["mean", "ema"]
 TransformFn = Callable[[Dict[str, Any]], Dict[str, Any]]
 
 
-class TTAInferer(Inferer):
-    r"""Test-time augmentation inferer.
+class TTASegmentationInferer(SegmentationInferer):
+    r"""Test-time augmentation inferer for segmentation.
 
     Runs the wrapped `base` inferer once per augmentation pass and aggregates
     the per-point predictions across passes.
@@ -43,9 +50,9 @@ class TTAInferer(Inferer):
       random padding).
 
     Args:
-        base: Underlying `Inferer` invoked once per pass. Any concrete inferer
-            works: `SimpleInferer()`, `SlidingWindowInferer(...)`,
-            `KNNWindowInferer(...)`.
+        base: Underlying inferer invoked once per pass: a `SegmentationInferer`
+            (`SlidingWindowSegmentationInferer(...)`, `KNNWindowSegmentationInferer(...)`)
+            or `SimpleInferer()`.
         transforms: Single callable (re-sampled each pass), a sequence of
             callables for fixed views, or `None` for un-augmented passes. Any
             `Dict[str, Any] -> Dict[str, Any]` callable works, including
@@ -61,9 +68,12 @@ class TTAInferer(Inferer):
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ used when `aggregate="ema"`.
         softmax: If `True`, softmax each pass's output before aggregating. Leave
             `False` when the base inferer already returns probabilities (e.g.
-            `SlidingWindowInferer(softmax=True)`).
+            `SlidingWindowSegmentationInferer(softmax=True)`).
         pos_key: Dict key for the position tensor (used for the empty-output fallback).
         progress: If `True`, show a `tqdm` progress bar over the passes.
+
+    Raises:
+        TypeError: If `base` is neither a `SegmentationInferer` nor a `SimpleInferer`.
 
     Example:
         A 4-pass TTA over random Z rotations and X/Y flips:
@@ -72,7 +82,7 @@ class TTAInferer(Inferer):
         import torch
 
         import torch_pointcloud as tp
-        from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
+        from torch_pointcloud.inferers import SlidingWindowSegmentationInferer, TTASegmentationInferer
         from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate
 
         model = tp.create_model("pointnet.s3dis-area5").eval()
@@ -82,31 +92,31 @@ class TTAInferer(Inferer):
             "batch": torch.zeros(4096, dtype=torch.long),
         }
 
-        base = SlidingWindowInferer(block_size=6.0)
+        base = SlidingWindowSegmentationInferer(block_size=6.0)
         aug = Compose([
             RandomRotate(keys="pos", angle_range=(-180.0, 180.0), axis=2, p=1.0),
             RandomFlip(keys="pos", axes=[0, 1], p=0.5),
         ])
-        inferer = TTAInferer(base=base, transforms=aug, num_passes=4, aggregate="mean")
+        inferer = TTASegmentationInferer(base=base, transforms=aug, num_passes=4, aggregate="mean")
         probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
 
         Enumerated 8-view TTA (ScanNet ablation):
 
         ```python
-        from torch_pointcloud.inferers import SlidingWindowInferer, TTAInferer
+        from torch_pointcloud.inferers import SlidingWindowSegmentationInferer, TTASegmentationInferer
         from torch_pointcloud.transforms import Compose, RandomRotate
 
-        base = SlidingWindowInferer(block_size=6.0)
+        base = SlidingWindowSegmentationInferer(block_size=6.0)
         views = [Compose([RandomRotate(keys="pos", angle_range=(a, a), axis=2, p=1.0)])
                  for a in (0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0)]
-        inferer = TTAInferer(base=base, transforms=views, aggregate="mean")
+        inferer = TTASegmentationInferer(base=base, transforms=views, aggregate="mean")
         ```
     """
 
     def __init__(
         self,
-        base: Inferer,
+        base: Inferer[Tensor],
         transforms: Union[TransformFn, Sequence[TransformFn], None] = None,
         num_passes: Optional[int] = None,
         include_identity: bool = False,
@@ -116,6 +126,9 @@ class TTAInferer(Inferer):
         pos_key: str = DataKeys.POS,
         progress: bool = False,
     ) -> None:
+        if not isinstance(base, (SegmentationInferer, SimpleInferer)):
+            raise TypeError(f"`base` must be a `SegmentationInferer` or `SimpleInferer`, got {type(base).__name__}.")
+
         if transforms is None or callable(transforms):
             self._sequence: Optional[Sequence[TransformFn]] = None
             self._sample: Optional[TransformFn] = transforms
@@ -221,14 +234,18 @@ def simple_tta_transforms(
         scale_keys: Keys scaled.
 
     Returns:
-        A list of `len(rotations) * len(scales) + flip` composed transforms for `TTAInferer`.
+        A list of `len(rotations) * len(scales) + flip` composed transforms for `TTASegmentationInferer`.
 
     Example:
         ```python
-        from torch_pointcloud.inferers import TTAInferer, VoxelPartitionInferer, simple_tta_transforms
+        from torch_pointcloud.inferers import (
+            TTASegmentationInferer,
+            VoxelPartitionSegmentationInferer,
+            simple_tta_transforms,
+        )
 
-        inferer = TTAInferer(
-            base=VoxelPartitionInferer(voxel_size=0.02, softmax=True, aggregate="sum"),
+        inferer = TTASegmentationInferer(
+            base=VoxelPartitionSegmentationInferer(voxel_size=0.02, softmax=True, aggregate="sum"),
             transforms=simple_tta_transforms(),
         )
         ```
@@ -244,3 +261,262 @@ def simple_tta_transforms(
     if flip:
         transforms.append(Compose([RandomFlip(keys=keys, axes=(0, 1), p=1.0, allow_missing_keys=True)]))
     return transforms
+
+
+def _check_detection_keys(det: Detection3D) -> None:
+    """Raise when the predictor returns a per-box entry the view inversion does not know how to map back."""
+    unknown = sorted(set(det) - {"boxes", "scores", "labels", "batch", "ignore_mask", "class_probs", "velocity"})
+    if unknown:
+        raise ValueError(
+            f"The predictor returned {unknown}, which `TTADetectionInferer` cannot map back to the input scene: it "
+            f"maps `boxes` and `velocity` back and keeps `scores`, `labels`, `batch`, `ignore_mask` and "
+            f"`class_probs` as they are."
+        )
+
+
+def _cat_detections(parts: List[Detection3D], like: Tensor) -> Detection3D:
+    """Concatenate detections box-wise onto the device of `like`; no parts give an empty set of its dtype."""
+    if not parts:
+        return {
+            "boxes": like.new_zeros((0, 7)),
+            "scores": like.new_zeros(0),
+            "labels": like.new_zeros(0, dtype=torch.long),
+            "batch": like.new_zeros(0, dtype=torch.long),
+        }
+
+    keys = set(parts[0])
+    for part in parts[1:]:
+        if set(part) != keys:
+            raise ValueError(f"The predictor returned different keys across calls: {sorted(keys)} and {sorted(part)}.")
+
+    merged: Detection3D = {
+        "boxes": torch.cat([part["boxes"] for part in parts]).to(like.device),
+        "scores": torch.cat([part["scores"] for part in parts]).to(like.device),
+        "labels": torch.cat([part["labels"] for part in parts]).to(like.device),
+        "batch": torch.cat([part["batch"] for part in parts]).to(like.device),
+    }
+    if "ignore_mask" in keys:
+        merged["ignore_mask"] = torch.cat([part["ignore_mask"] for part in parts]).to(like.device)
+    if "class_probs" in keys:
+        merged["class_probs"] = torch.cat([part["class_probs"] for part in parts]).to(like.device)
+    if "velocity" in keys:
+        merged["velocity"] = torch.cat([part["velocity"] for part in parts]).to(like.device)
+    return merged
+
+
+def _map_view_back(det: Detection3D, angle: float, scale: float, flips: Tuple[int, ...]) -> Detection3D:
+    r"""Map boxes predicted on a view (rotated by `angle` degrees, scaled, flipped) back to the input scene.
+
+    The headings of a rotated or flipped view come back wrapped to $[-\pi, \pi)$.
+    """
+    velocity = det.get("velocity")
+    boxes = det["boxes"] if velocity is None else torch.cat([det["boxes"], velocity], dim=1)
+    for axis in flips:
+        boxes = F.flip_boxes(boxes, axis)
+    if scale != 1.0:
+        boxes = F.scale_boxes(boxes, 1.0 / scale)
+    if angle != 0.0:
+        radians = -math.radians(angle)
+        boxes = F.rotate_boxes(boxes, F.rotation_matrix(radians, axis=2), radians)
+    if angle != 0.0 or flips:
+        heading = limit_period(boxes[:, 6:7], 0.5, 2 * math.pi)
+        boxes = torch.cat([boxes[:, :6], heading, boxes[:, 7:]], dim=1)
+
+    mapped = det.copy()
+    mapped["boxes"] = boxes[:, :7]
+    if velocity is not None:
+        mapped["velocity"] = boxes[:, 7:9]
+    return mapped
+
+
+class TTADetectionInferer(DetectionInferer):
+    r"""Test-time augmentation inferer for 3D detection.
+
+    Runs the predictor once per view of the scene and maps each view's boxes back to the coordinates of the
+    input. A view rotates the scene about the up axis through the origin, scales it isotropically and negates
+    its $x$ and/or $y$ coordinate, in that order; the views are every combination of `scales`, `rotations` and
+    `flips`, scales outermost. Each view's boxes go back through the inverse steps in reverse order
+    (`flip_boxes`, `scale_boxes`, `rotate_boxes`), a `velocity` with them, and the views' detections are
+    concatenated on the device of the input, with the headings of a rotated or flipped view wrapped to
+    $[-\pi, \pi)$. The duplicates of one object across views are left to the postprocess `nms3d`, which keeps
+    the most confident one. A view must keep the scene inside the model's point-cloud range: on a range that
+    starts at $x = 0$, only the $y$ flip does.
+
+    A view moves the points, so every step that depends on their positions must run after it: the inferer
+    splits the batch into its scenes with `decollate` and runs `transform`, the model's per-scene pipeline (for
+    a voxel detector, its registered `transform`: feature stacking and voxelization within the point-cloud
+    range), on each scene of each view, then collates the results, `sw_batch_size` scenes per predictor call.
+    The split keeps the per-point entries and the `stack_keys` and `cat_keys` entries of each scene and drops
+    the rest, so entries the pipeline derives from the points (voxels, features) come from `transform`, not
+    from the batch.
+
+    Args:
+        transform: Callable applied to each scene of each view before the predictor; `lambda sample: sample`
+            for a predictor that reads the points directly.
+        rotations: Rotation angles in degrees about the up axis ($z$). The boxes come back rotated, so a
+            rotation needs a detector that predicts headings; an axis-aligned detector takes flips and scales.
+        scales: Isotropic scale factors, each $> 0$.
+        flips: Sets of coordinates to negate, each a sequence of distinct axes from `(0, 1)`; `()` leaves the
+            view unflipped, `(1,)` negates $y$. `[(), (0,), (1,), (0, 1)]` gives the four bird's-eye-view flips.
+        keys: Keys rotated and flipped, `pos_key` among them (positions, normals). Other missing keys are
+            skipped.
+        scale_keys: Keys scaled, `pos_key` among them. Other missing keys are skipped.
+        sw_batch_size: Number of transformed scenes collated into one predictor call.
+        stack_keys: Per-scene keys with a leading scene dimension (e.g. `DataKeys.CALIB`), split by scene row
+            and stacked again for the predictor.
+        cat_keys: Packed keys with a `batch_<key>` scene index, split by that index and collated again for the
+            predictor, e.g. `DataKeys.POS_VOXEL` for the `batch_pos_voxel` of the voxel detectors.
+        pos_key: Dict key for the position tensor.
+        batch_key: Dict key for the per-point batch index.
+        progress: If `True`, show a `tqdm` progress bar over the views.
+
+    Raises:
+        ValueError: If a view is empty or invalid (a scale $\leq 0$, a flip axis outside `(0, 1)`), or `keys` or
+            `scale_keys` miss `pos_key`.
+
+    Example:
+        PointPillars on a KITTI frame and its mirror image along $y$, then the postprocess of the KITTI protocol:
+
+        ```python
+        import torch
+
+        import torch_pointcloud as tp
+        from torch_pointcloud.inferers import TTADetectionInferer
+        from torch_pointcloud.ops.box3d import nms3d
+        from torch_pointcloud.utils.data import DataKeys, select_inputs
+
+        model, info = tp.create_model("pointpillars.kitti.openpcdet", task="detection", return_info=True)
+        model.eval()
+        scene = {
+            "pos": torch.rand(20_000, 3) * torch.tensor([60.0, 60.0, 3.0]) - torch.tensor([0.0, 30.0, 2.0]),
+            "intensity": torch.rand(20_000, 1),
+            "batch": torch.zeros(20_000, dtype=torch.long),
+        }
+
+        inferer = TTADetectionInferer(
+            transform=info["transform"],
+            flips=[(), (1,)],
+            cat_keys=[DataKeys.POS_VOXEL],
+        )
+        det = inferer(scene, predictor=lambda d: model.decode(model(*select_inputs(d, info["input_keys"]))))
+        keep = torch.where(det["scores"] > 0.1)[0]
+        keep = keep[nms3d(det["boxes"][keep], det["scores"][keep], 0.01, batch=det["batch"][keep], rotated=True)]
+        boxes, scores, labels = det["boxes"][keep], det["scores"][keep], det["labels"][keep]
+        ```
+    """
+
+    def __init__(
+        self,
+        transform: TransformFn,
+        rotations: Sequence[float] = (0.0,),
+        scales: Sequence[float] = (1.0,),
+        flips: Sequence[Sequence[int]] = ((),),
+        keys: KeyCollection = (DataKeys.POS, DataKeys.NORMAL),
+        scale_keys: KeyCollection = DataKeys.POS,
+        sw_batch_size: int = 1,
+        stack_keys: Optional[KeyCollection] = None,
+        cat_keys: Optional[KeyCollection] = None,
+        pos_key: str = DataKeys.POS,
+        batch_key: str = DataKeys.BATCH,
+        progress: bool = False,
+    ) -> None:
+        if len(rotations) == 0 or len(scales) == 0 or len(flips) == 0:
+            raise ValueError("`rotations`, `scales` and `flips` must each hold at least one entry.")
+
+        if any(scale <= 0.0 for scale in scales):
+            raise ValueError(f"`scales` must all be > 0, got {list(scales)}.")
+
+        for axes in flips:
+            if any(axis not in (0, 1) for axis in axes) or len(set(axes)) != len(axes):
+                raise ValueError(f"Each entry of `flips` must list distinct axes from (0, 1), got {tuple(axes)}.")
+
+        if pos_key not in ensure_tuple(keys) or pos_key not in ensure_tuple(scale_keys):
+            raise ValueError(
+                f"`keys` and `scale_keys` must include `pos_key` ({pos_key!r}): the boxes are mapped back through "
+                f"the view of the positions."
+            )
+
+        if sw_batch_size < 1:
+            raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
+
+        self.transform = transform
+        self.rotations = [float(angle) for angle in rotations]
+        self.scales = [float(scale) for scale in scales]
+        self.flips = [tuple(int(axis) for axis in axes) for axes in flips]
+        self.keys = ensure_tuple(keys)
+        self.scale_keys = ensure_tuple(scale_keys)
+        self.sw_batch_size = sw_batch_size
+        self.stack_keys = stack_keys
+        self.cat_keys = cat_keys
+        self.pos_key = pos_key
+        self.batch_key = batch_key
+        self.progress = progress
+
+    def forward(
+        self,
+        data: Dict[str, Any],
+        predictor: Callable[[Dict[str, Any]], Detection3D],
+    ) -> Detection3D:
+        for key in (self.pos_key, self.batch_key):
+            if key not in data:
+                raise KeyError(f"`data` is missing the required key {key!r}.")
+
+        pos = data[self.pos_key]
+        check_batch_alignment(pos, data[self.batch_key], self.pos_key, self.batch_key)
+        samples = decollate(data, batch_key=self.batch_key, stack_keys=self.stack_keys, cat_keys=self.cat_keys)
+        scenes = [scene for scene, sample in enumerate(samples) if sample[self.pos_key].size(0) > 0]
+        views = list(itertools.product(self.scales, self.rotations, self.flips))
+        parts: List[Detection3D] = []
+        for scale, angle, flips in tqdm(views, desc="TTA", leave=False, disable=not self.progress):
+            for start in range(0, len(scenes), self.sw_batch_size):
+                chunk = scenes[start : start + self.sw_batch_size]
+                transformed = [self.transform(self._apply_view(samples[scene], angle, scale, flips)) for scene in chunk]
+                packed = collate(
+                    transformed,
+                    batch_from=self.pos_key,
+                    batch_key=self.batch_key,
+                    stack_keys=self.stack_keys,
+                    cat_keys=self.cat_keys,
+                )
+                det = predictor(packed)
+                _check_detection_keys(det)
+                det = _map_view_back(det, angle, scale, flips)
+                det["batch"] = torch.tensor(chunk, device=det["batch"].device)[det["batch"]]
+                parts.append(det)
+        return _cat_detections(parts, like=pos)
+
+    def _apply_view(self, data: Dict[str, Any], angle: float, scale: float, flips: Tuple[int, ...]) -> Dict[str, Any]:
+        """Rotate `keys` by `angle` degrees about $z$ and flip them along `flips`; scale `scale_keys` (it commutes)."""
+        view = dict(data)
+        rotation = F.rotation_matrix(math.radians(angle), axis=2)
+        for key in self.keys:
+            if key not in view:
+                continue
+
+            value = view[key]
+            if angle != 0.0:
+                value = F.rotate_vectors(value, rotation)
+            for axis in flips:
+                value = F.flip_vectors(value, axis)
+            view[key] = value
+
+        if scale != 1.0:
+            for key in self.scale_keys:
+                if key in view:
+                    view[key] = view[key] * scale
+        return view
+
+
+_RENAMED = {"TTAInferer": "TTASegmentationInferer"}
+
+
+def __getattr__(name: str) -> Any:
+    if name in _RENAMED:
+        warnings.warn(
+            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return globals()[_RENAMED[name]]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

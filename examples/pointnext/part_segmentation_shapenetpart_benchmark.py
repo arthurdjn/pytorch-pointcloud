@@ -13,7 +13,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ShapeNetPart
-from torch_pointcloud.inferers import Inferer, PartRefinementInferer, SimpleInferer, TTAInferer
+from torch_pointcloud.inferers import Inferer, PartRefinementInferer, SimpleInferer, TTASegmentationInferer
 from torch_pointcloud.metrics import part_intersection_over_union, part_mean_intersection_over_union
 from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -87,7 +87,9 @@ def configure_model(args: Namespace) -> Module:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    votes = TTAInferer(base=SimpleInferer(), transforms=INFERER_TRANSFORM, num_passes=NUM_VOTES, include_identity=True)
+    votes = TTASegmentationInferer(
+        base=SimpleInferer(), transforms=INFERER_TRANSFORM, num_passes=NUM_VOTES, include_identity=True
+    )
     return PartRefinementInferer(base=votes, min_count=10, num_neighbors=11)
 
 

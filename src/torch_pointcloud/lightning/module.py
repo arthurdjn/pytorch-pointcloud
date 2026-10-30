@@ -1,19 +1,19 @@
 """Lightning modules for classification, segmentation, and detection training."""
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Literal, Optional, Sequence, Tuple, Type, Union
 
 import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
 
-from torch_pointcloud.inferers import Inferer, SimpleInferer
+from torch_pointcloud.inferers import DetectionInferer, Inferer, SegmentationInferer, SimpleInferer
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models._registry import Task
 from torch_pointcloud.ops.box3d import count_points_in_boxes, nms3d, projected_ignore_mask
 from torch_pointcloud.optim import generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, offset_index, select_inputs
 from torch_pointcloud.utils.imports import _LIGHTNING_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import Boxes3D
+from torch_pointcloud.utils.types import Boxes3D, Detection3D
 
 if TYPE_CHECKING:
     from lightning.pytorch import LightningModule
@@ -37,11 +37,11 @@ class LitModel(LightningModule):
         optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.
-        inferer: Test-time inference strategy (e.g. `TTAInferer`, `SlidingWindowInferer`) run in place of the
-            plain forward on test batches; defaults to `SimpleInferer` (one forward on the whole batch), so
-            every test prediction goes through an inferer. Training and validation are unaffected. The
-            inferer may return probabilities instead of logits (torchmetrics handles both), so no `test/loss`
-            is logged.
+        inferer: Test-time inference strategy (e.g. `TTASegmentationInferer`, `SlidingWindowSegmentationInferer`)
+            run in place of the plain forward on test batches; defaults to `SimpleInferer` (one forward on the
+            whole batch), so every test prediction goes through an inferer. Training and validation are
+            unaffected. The inferer may return probabilities instead of logits (torchmetrics handles both), so
+            no `test/loss` is logged.
         input_keys: Batch-dict keys passed positionally to the model's forward (see `select_inputs`); `None` (the
             default) uses the registered `input_keys` of the model.
         target_key: Batch-dict key for the per-cloud label.
@@ -53,7 +53,17 @@ class LitModel(LightningModule):
         param_groups: Optional dict of kwargs forwarded to
             `torch_pointcloud.optim.generate_param_groups`.
         **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
+
+    Attributes:
+        inferer_types: Inferer classes that merge the module's test predictions; `inferer` must be an instance
+            of one. Logits merge with a `SegmentationInferer` (the classification and segmentation modules),
+            boxes with a `DetectionInferer` (`LitDetectionModel`), and `SimpleInferer` serves both.
+
+    Raises:
+        TypeError: If `inferer` is not an instance of `inferer_types`.
     """
+
+    inferer_types: ClassVar[Tuple[Type[Inferer[Any]], ...]] = (SimpleInferer, SegmentationInferer)
 
     def __init__(
         self,
@@ -63,7 +73,7 @@ class LitModel(LightningModule):
         optimizer: Optional[Callable[..., Optimizer]] = None,
         scheduler: Optional[Callable[..., Any]] = None,
         criterion: Optional[nn.Module] = None,
-        inferer: Optional[Inferer] = None,
+        inferer: Optional[Inferer[Any]] = None,
         input_keys: Optional[Sequence[str]] = None,
         target_key: str = DataKeys.LABEL,
         metric_input_keys: Sequence[str] = (),
@@ -71,6 +81,10 @@ class LitModel(LightningModule):
         param_groups: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
+        if inferer is not None and not isinstance(inferer, self.inferer_types):
+            names = " or ".join(f"`{inferer_type.__name__}`" for inferer_type in self.inferer_types)
+            raise TypeError(f"`inferer` must be a {names} for {type(self).__name__}, got {type(inferer).__name__}.")
+
         super().__init__()
         model, info = create_model(name, task=task, return_info=True, **kwargs)
 
@@ -78,7 +92,7 @@ class LitModel(LightningModule):
         self.transform = info["transform"]
         self.criterion: Optional[nn.Module] = criterion if criterion is not None else nn.CrossEntropyLoss()
         # Not a serializable hyperparameter, so it stays out of `save_hyperparameters` (like `criterion`).
-        self.inferer: Inferer = inferer if inferer is not None else SimpleInferer()
+        self.inferer: Inferer[Any] = inferer if inferer is not None else SimpleInferer()
         self._optimizer = optimizer
         self._scheduler = scheduler
         self._param_groups = param_groups
@@ -338,19 +352,20 @@ class LitDetectionModel(LitModel):
       evaluation-only (no loss is logged, training raises);
     - `step` (training only) feeds the whole forward output and the batch to the loss, which returns a dict
       of named components (each logged), and reports the total `loss`;
-    - the eval steps are metric-driven, not loss-driven: they run the model's raw `decode`, postprocess it
-      (optional `min_points` filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou`
-      on the rotated BEV IoU when `nms_rotated`, and the indoor per-class expansion when `decode` emits
-      `class_probs`), and pair the result with the
-      ground truth for a `MetricCallback` (e.g. `BoxMeanAveragePrecision`, `BoxAveragePrecision`); any other
-      per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is filtered alongside the boxes and kept
-      in the predictions dict, and when the batch carries `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked
-      per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px `projected_ignore_mask` of the surviving boxes is
-      attached as the predictions' `ignore_mask` (the KITTI min-height rule); the ground-truth boxes are
-      `DataKeys.BOX` packed as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ (full extents,
-      counter-clockwise heading $\theta$), with per-box classes under `label_key`. No loss is computed at
-      validation, so a two-stage detector whose inference forward differs from its training forward (its
-      eval output carries decoded proposals, not loss targets) validates cleanly.
+    - the eval steps are metric-driven, not loss-driven: they run the model's raw `decode` (`detect`, through
+      the `inferer` on test batches, e.g. a `TTADetectionInferer`), postprocess it (optional `min_points`
+      filter, drop boxes below `score_threshold`, per-class 3D `nms3d` at `nms_iou` on the rotated BEV IoU
+      when `nms_rotated`, and the indoor per-class expansion when `decode` emits `class_probs`), and pair
+      the result with the ground truth for a `MetricCallback` (e.g. `BoxMeanAveragePrecision`,
+      `BoxAveragePrecision`); any other per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is
+      filtered alongside the boxes and kept in the predictions dict, and when the batch carries
+      `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px
+      `projected_ignore_mask` of the surviving boxes is attached as the predictions' `ignore_mask` (the KITTI
+      min-height rule); the ground-truth boxes are `DataKeys.BOX` packed as $(K, 7)$ rows
+      $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ (full extents, counter-clockwise heading $\theta$), with per-box
+      classes under `label_key`. No loss is computed at validation, so a two-stage detector whose inference
+      forward differs from its training forward (its eval output carries decoded proposals, not loss targets)
+      validates cleanly.
 
     A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
     from `decode(output)`, and (for training) is paired with a `criterion(output, data)`.
@@ -373,9 +388,16 @@ class LitDetectionModel(LitModel):
         label_key: Batch-dict key of the per-box ground-truth class labels (defaults to `DataKeys.LABEL`).
         ignore_mask_key: Optional batch-dict key of a per-box ignore mask forwarded to the metric with the
             ground truth (KITTI-style ignore regions).
-        **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`). The
-            base's `inferer` does not apply: detection eval is the decode / postprocess path above.
+        **kwargs: Forwarded to `create_model` and the base (e.g. `optimizer`, `scheduler`, `input_keys`,
+            `inferer`). The `inferer` runs `detect` on test batches and returns raw detections in the
+            coordinates of the batch, which the postprocess above filters like a single pass: a
+            `DetectionInferer` or the default `SimpleInferer`.
+
+    Raises:
+        TypeError: If `inferer` is neither a `DetectionInferer` nor a `SimpleInferer`.
     """
+
+    inferer_types = (SimpleInferer, DetectionInferer)
 
     def __init__(
         self,
@@ -442,9 +464,13 @@ class LitDetectionModel(LitModel):
 
         return {"output": output, "loss": losses["loss"]}
 
-    def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+    def detect(self, batch: Dict[str, Any]) -> Detection3D:
+        """Forward the batch and decode the raw detections (the predictor handed to the inferer)."""
         output = self.forward(batch)
-        det = self.model.decode(output)
+        return self.model.decode(output)
+
+    def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
+        det: Detection3D = self.inferer(batch, predictor=self.detect) if stage == "test" else self.detect(batch)
         keep = det["scores"] > self.score_threshold
         if self.min_points is not None:
             counts = count_points_in_boxes(

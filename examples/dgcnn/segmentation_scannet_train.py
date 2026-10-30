@@ -16,7 +16,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import RepeatSampler, ScanNet20
-from torch_pointcloud.inferers import Inferer, SlidingWindowInferer
+from torch_pointcloud.inferers import Inferer, SlidingWindowSegmentationInferer
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import bn_momentum, set_bn_momentum
@@ -200,7 +200,7 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    return SlidingWindowInferer(
+    return SlidingWindowSegmentationInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),

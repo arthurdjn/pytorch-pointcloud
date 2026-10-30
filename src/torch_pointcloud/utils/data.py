@@ -1,4 +1,4 @@
-"""Data loading: standard sample keys, packed-batch collation and row offsets, worker seeding, and the data loader."""
+"""Data loading: sample keys, packed-batch collation and its inverse, row offsets, worker seeding, the data loader."""
 
 import functools
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Set
@@ -199,6 +199,101 @@ def collate(
             out[dst] = torch.cat([torch.full((n,), i, dtype=torch.long, device=device) for i, n in enumerate(lengths)])
 
     return out
+
+
+def decollate(
+    data: Dict[str, Any],
+    batch_key: str = DataKeys.BATCH,
+    stack_keys: Optional[KeyCollection] = None,
+    cat_keys: Optional[KeyCollection] = None,
+) -> List[Dict[str, Any]]:
+    r"""Split a batched dict into one sample dict per scene, the inverse of `collate`.
+
+    Sample $b$ gets:
+
+    - the rows of every per-point tensor (leading dimension $N$, the length of `data[batch_key]`) whose `batch_key`
+      index is $b$;
+    - row $b$ of every `stack_keys` entry and element $b$ of every list of length $B$ (the per-scene values that
+      `collate` stacks or lists);
+    - the rows of every `cat_keys` entry whose `batch_<key>` index is $b$.
+
+    The scene count $B$ is the leading size of the `stack_keys` entries, or one more than the largest scene index of
+    `batch_key` and the `cat_keys` indices when no key is stacked. The scene indices are dropped, and so is every other
+    entry, which belongs to no single scene: a packed entry outside `cat_keys` (its `batch_<key>` with it), a scalar, a
+    tensor of another leading size. A scene without points gives a sample with empty per-point tensors.
+
+    Args:
+        data: Batched dict, e.g. from `collate` or `PointCloudDataLoader`.
+        batch_key: Key of the per-point scene index.
+        stack_keys: Keys stacked along a leading scene dimension, as passed to `collate`. Missing keys are skipped.
+        cat_keys: Packed keys with a `batch_<key>` scene index, as passed to `collate`. Missing keys are skipped.
+
+    Returns:
+        One sample dict per scene, in scene order.
+
+    Raises:
+        ValueError: If a key is in both `stack_keys` and `cat_keys`, a `cat_keys` entry has no `batch_<key>` index,
+            or the `stack_keys` entries do not share one leading size covering every scene index.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> samples = [
+        ...     {"pos": torch.rand(5, 3), "calib": torch.rand(3, 4), "box": torch.rand(2, 7)},
+        ...     {"pos": torch.rand(3, 3), "calib": torch.rand(3, 4), "box": torch.rand(1, 7)},
+        ... ]
+        >>> batch = collate(samples, stack_keys=["calib"], cat_keys=["box"])
+        >>> scenes = decollate(batch, stack_keys=["calib"], cat_keys=["box"])
+        >>> [(scene["pos"].shape[0], scene["box"].shape[0]) for scene in scenes]
+        [(5, 2), (3, 1)]
+        >>> torch.equal(scenes[1]["calib"], samples[1]["calib"])
+        True
+
+        ```
+    """
+    stack_keys = [key for key in ensure_tuple(stack_keys) if key in data]
+    cat_keys = [key for key in ensure_tuple(cat_keys) if key in data]
+    overlap = sorted(set(stack_keys) & set(cat_keys))
+    if overlap:
+        raise ValueError(f"Keys cannot be in both `stack_keys` and `cat_keys`: {overlap}.")
+
+    for key in cat_keys:
+        if f"batch_{key}" not in data:
+            raise ValueError(f"`cat_keys` lists {key!r}, but the batch has no `batch_{key}` index.")
+
+    batch = data[batch_key]
+    indices = [batch, *(data[f"batch_{key}"] for key in cat_keys)]
+    num_scenes = max((int(index.max()) + 1 for index in indices if index.numel() > 0), default=0)
+    sizes = {key: _leading_size(data[key]) for key in stack_keys}
+    if sizes:
+        if len(set(sizes.values())) > 1 or min(sizes.values()) < num_scenes:
+            raise ValueError(
+                f"The `stack_keys` entries must share one leading size of at least {num_scenes} (the scenes the "
+                f"scene indices reach), got {sizes}."
+            )
+
+        num_scenes = next(iter(sizes.values()))
+
+    packed = {key for key in data if f"batch_{key}" in data}
+    dropped = {batch_key} | {f"batch_{key}" for key in packed} | (packed - set(cat_keys) - set(sizes))
+    samples: List[Dict[str, Any]] = []
+    for scene in range(num_scenes):
+        rows = torch.where(batch == scene)[0]
+        sample: Dict[str, Any] = {}
+        for key, value in data.items():
+            if key in dropped:
+                continue
+
+            if key in sizes:
+                sample[key] = value[scene]
+            elif key in cat_keys:
+                sample[key] = value[data[f"batch_{key}"] == scene]
+            elif isinstance(value, Tensor) and value.ndim > 0 and value.size(0) == batch.size(0):
+                sample[key] = value[rows]
+            elif isinstance(value, list) and len(value) == num_scenes:
+                sample[key] = value[scene]
+        samples.append(sample)
+    return samples
 
 
 def mix_pairs(
