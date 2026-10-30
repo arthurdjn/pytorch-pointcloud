@@ -174,6 +174,16 @@ BENCHMARKS = [
     pytest.param(
         "dgcnn/part_segmentation_shapenetpart_benchmark.py", ("--limit", "4"), marks=_CLUSTER, id="dgcnn/shapenetpart"
     ),
+    pytest.param("pct/classification_modelnet40_benchmark.py", ("--limit", "4"), marks=_CLUSTER, id="pct/modelnet40"),
+    pytest.param(
+        "curvenet/classification_modelnet40_benchmark.py", ("--limit", "4"), marks=_CLUSTER, id="curvenet/modelnet40"
+    ),
+    pytest.param(
+        "curvenet/part_segmentation_shapenetpart_benchmark.py",
+        ("--limit", "4"),
+        marks=_CLUSTER,
+        id="curvenet/shapenetpart",
+    ),
     pytest.param(
         "octformer/segmentation_scannet_benchmark.py",
         ("--model", "octformer-base.scannet20.octree-nn", "--limit", "1"),
@@ -352,6 +362,24 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="dgcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pct/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pct/modelnet40",
+    ),
+    pytest.param(
+        "curvenet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="curvenet/modelnet40",
+    ),
+    pytest.param(
+        "curvenet/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="curvenet/shapenetpart",
     ),
     pytest.param(
         "kpconv/segmentation_s3dis_train.py", (*_SMOKE_RECIPE, "--batch-size", "2"), marks=_CLUSTER, id="kpconv/s3dis"

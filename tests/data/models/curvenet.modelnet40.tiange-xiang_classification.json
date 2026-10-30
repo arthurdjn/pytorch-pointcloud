@@ -1,0 +1,1011 @@
+{
+  "num_params": 2125635,
+  "state_dict": {
+    "embed.geometry.lins.0.weight": [
+      3,
+      9
+    ],
+    "embed.geometry.norms.0.module.weight": [
+      3
+    ],
+    "embed.geometry.norms.0.module.bias": [
+      3
+    ],
+    "embed.geometry.norms.0.module.running_mean": [
+      3
+    ],
+    "embed.geometry.norms.0.module.running_var": [
+      3
+    ],
+    "embed.geometry.norms.0.module.num_batches_tracked": [],
+    "embed.mlp.lins.0.weight": [
+      32,
+      3
+    ],
+    "embed.mlp.norms.0.module.weight": [
+      32
+    ],
+    "embed.mlp.norms.0.module.bias": [
+      32
+    ],
+    "embed.mlp.norms.0.module.running_mean": [
+      32
+    ],
+    "embed.mlp.norms.0.module.running_var": [
+      32
+    ],
+    "embed.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.conv1.lins.0.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.0.0.conv1.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.0.conv1.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.0.conv1.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.0.conv1.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.0.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.curve_grouping.att.weight": [
+      1,
+      16
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.agent.lins.0.weight": [
+      1,
+      32
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.agent.norms.0.module.weight": [
+      1
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.agent.norms.0.module.bias": [
+      1
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.agent.norms.0.module.running_mean": [
+      1
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.agent.norms.0.module.running_var": [
+      1
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.agent.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.curve_grouping.walk.momentum.lins.0.weight": [
+      2,
+      32
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.momentum.norms.0.module.weight": [
+      2
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.momentum.norms.0.module.bias": [
+      2
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.momentum.norms.0.module.running_mean": [
+      2
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.momentum.norms.0.module.running_var": [
+      2
+    ],
+    "encoder.stages.0.0.curve_grouping.walk.momentum.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.curve_aggregation.curve_att.weight": [
+      1,
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.inter.weight": [
+      8,
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.intra.weight": [
+      8,
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.query.weight": [
+      8,
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.inter_value.weight": [
+      8,
+      8
+    ],
+    "encoder.stages.0.0.curve_aggregation.intra_value.weight": [
+      8,
+      8
+    ],
+    "encoder.stages.0.0.curve_aggregation.proj.lins.0.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.proj.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.proj.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.proj.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.proj.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.0.curve_aggregation.proj.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.lpfa.geometry.lins.0.weight": [
+      16,
+      9
+    ],
+    "encoder.stages.0.0.lpfa.geometry.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.geometry.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.geometry.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.geometry.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.lpfa.mlp.lins.0.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.0.0.lpfa.mlp.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.mlp.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.mlp.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.mlp.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.0.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.conv2.lins.0.weight": [
+      64,
+      16
+    ],
+    "encoder.stages.0.0.conv2.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.0.0.conv2.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.0.0.conv2.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.0.0.conv2.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.0.0.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.0.shortcut.lins.0.weight": [
+      64,
+      32
+    ],
+    "encoder.stages.0.0.shortcut.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.0.0.shortcut.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.0.0.shortcut.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.0.0.shortcut.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.0.0.shortcut.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.conv1.lins.0.weight": [
+      16,
+      64
+    ],
+    "encoder.stages.0.1.conv1.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.1.conv1.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.1.conv1.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.1.conv1.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.1.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.curve_grouping.att.weight": [
+      1,
+      16
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.agent.lins.0.weight": [
+      1,
+      32
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.agent.norms.0.module.weight": [
+      1
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.agent.norms.0.module.bias": [
+      1
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.agent.norms.0.module.running_mean": [
+      1
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.agent.norms.0.module.running_var": [
+      1
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.agent.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.curve_grouping.walk.momentum.lins.0.weight": [
+      2,
+      32
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.momentum.norms.0.module.weight": [
+      2
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.momentum.norms.0.module.bias": [
+      2
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.momentum.norms.0.module.running_mean": [
+      2
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.momentum.norms.0.module.running_var": [
+      2
+    ],
+    "encoder.stages.0.1.curve_grouping.walk.momentum.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.curve_aggregation.curve_att.weight": [
+      1,
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.inter.weight": [
+      8,
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.intra.weight": [
+      8,
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.query.weight": [
+      8,
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.inter_value.weight": [
+      8,
+      8
+    ],
+    "encoder.stages.0.1.curve_aggregation.intra_value.weight": [
+      8,
+      8
+    ],
+    "encoder.stages.0.1.curve_aggregation.proj.lins.0.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.proj.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.proj.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.proj.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.proj.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.1.curve_aggregation.proj.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.lpfa.geometry.lins.0.weight": [
+      16,
+      9
+    ],
+    "encoder.stages.0.1.lpfa.geometry.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.geometry.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.geometry.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.geometry.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.lpfa.mlp.lins.0.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.0.1.lpfa.mlp.norms.0.module.weight": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.mlp.norms.0.module.bias": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.mlp.norms.0.module.running_mean": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.mlp.norms.0.module.running_var": [
+      16
+    ],
+    "encoder.stages.0.1.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.0.1.conv2.lins.0.weight": [
+      64,
+      16
+    ],
+    "encoder.stages.0.1.conv2.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.0.1.conv2.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.0.1.conv2.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.0.1.conv2.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.0.1.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.conv1.lins.0.weight": [
+      32,
+      64
+    ],
+    "encoder.stages.1.0.conv1.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.0.conv1.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.0.conv1.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.0.conv1.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.0.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.curve_grouping.att.weight": [
+      1,
+      32
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.agent.lins.0.weight": [
+      1,
+      64
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.agent.norms.0.module.weight": [
+      1
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.agent.norms.0.module.bias": [
+      1
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.agent.norms.0.module.running_mean": [
+      1
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.agent.norms.0.module.running_var": [
+      1
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.agent.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.curve_grouping.walk.momentum.lins.0.weight": [
+      2,
+      64
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.momentum.norms.0.module.weight": [
+      2
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.momentum.norms.0.module.bias": [
+      2
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.momentum.norms.0.module.running_mean": [
+      2
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.momentum.norms.0.module.running_var": [
+      2
+    ],
+    "encoder.stages.1.0.curve_grouping.walk.momentum.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.curve_aggregation.curve_att.weight": [
+      1,
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.inter.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.intra.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.query.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.inter_value.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.1.0.curve_aggregation.intra_value.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.1.0.curve_aggregation.proj.lins.0.weight": [
+      32,
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.proj.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.proj.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.proj.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.proj.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.0.curve_aggregation.proj.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.lpfa.geometry.lins.0.weight": [
+      32,
+      9
+    ],
+    "encoder.stages.1.0.lpfa.geometry.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.geometry.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.geometry.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.geometry.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.lpfa.mlp.lins.0.weight": [
+      32,
+      32
+    ],
+    "encoder.stages.1.0.lpfa.mlp.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.mlp.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.mlp.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.mlp.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.0.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.conv2.lins.0.weight": [
+      128,
+      32
+    ],
+    "encoder.stages.1.0.conv2.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.1.0.conv2.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.1.0.conv2.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.1.0.conv2.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.1.0.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.0.shortcut.lins.0.weight": [
+      128,
+      64
+    ],
+    "encoder.stages.1.0.shortcut.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.1.0.shortcut.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.1.0.shortcut.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.1.0.shortcut.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.1.0.shortcut.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.conv1.lins.0.weight": [
+      32,
+      128
+    ],
+    "encoder.stages.1.1.conv1.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.1.conv1.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.1.conv1.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.1.conv1.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.1.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.curve_grouping.att.weight": [
+      1,
+      32
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.agent.lins.0.weight": [
+      1,
+      64
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.agent.norms.0.module.weight": [
+      1
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.agent.norms.0.module.bias": [
+      1
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.agent.norms.0.module.running_mean": [
+      1
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.agent.norms.0.module.running_var": [
+      1
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.agent.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.curve_grouping.walk.momentum.lins.0.weight": [
+      2,
+      64
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.momentum.norms.0.module.weight": [
+      2
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.momentum.norms.0.module.bias": [
+      2
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.momentum.norms.0.module.running_mean": [
+      2
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.momentum.norms.0.module.running_var": [
+      2
+    ],
+    "encoder.stages.1.1.curve_grouping.walk.momentum.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.curve_aggregation.curve_att.weight": [
+      1,
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.inter.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.intra.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.query.weight": [
+      16,
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.inter_value.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.1.1.curve_aggregation.intra_value.weight": [
+      16,
+      16
+    ],
+    "encoder.stages.1.1.curve_aggregation.proj.lins.0.weight": [
+      32,
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.proj.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.proj.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.proj.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.proj.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.1.curve_aggregation.proj.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.lpfa.geometry.lins.0.weight": [
+      32,
+      9
+    ],
+    "encoder.stages.1.1.lpfa.geometry.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.geometry.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.geometry.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.geometry.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.lpfa.mlp.lins.0.weight": [
+      32,
+      32
+    ],
+    "encoder.stages.1.1.lpfa.mlp.norms.0.module.weight": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.mlp.norms.0.module.bias": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.mlp.norms.0.module.running_mean": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.mlp.norms.0.module.running_var": [
+      32
+    ],
+    "encoder.stages.1.1.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.1.1.conv2.lins.0.weight": [
+      128,
+      32
+    ],
+    "encoder.stages.1.1.conv2.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.1.1.conv2.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.1.1.conv2.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.1.1.conv2.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.1.1.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.0.conv1.lins.0.weight": [
+      64,
+      128
+    ],
+    "encoder.stages.2.0.conv1.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.2.0.conv1.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.2.0.conv1.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.2.0.conv1.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.2.0.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.0.lpfa.geometry.lins.0.weight": [
+      64,
+      9
+    ],
+    "encoder.stages.2.0.lpfa.geometry.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.geometry.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.geometry.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.geometry.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.0.lpfa.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "encoder.stages.2.0.lpfa.mlp.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.mlp.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.2.0.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.0.conv2.lins.0.weight": [
+      256,
+      64
+    ],
+    "encoder.stages.2.0.conv2.norms.0.module.weight": [
+      256
+    ],
+    "encoder.stages.2.0.conv2.norms.0.module.bias": [
+      256
+    ],
+    "encoder.stages.2.0.conv2.norms.0.module.running_mean": [
+      256
+    ],
+    "encoder.stages.2.0.conv2.norms.0.module.running_var": [
+      256
+    ],
+    "encoder.stages.2.0.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.0.shortcut.lins.0.weight": [
+      256,
+      128
+    ],
+    "encoder.stages.2.0.shortcut.norms.0.module.weight": [
+      256
+    ],
+    "encoder.stages.2.0.shortcut.norms.0.module.bias": [
+      256
+    ],
+    "encoder.stages.2.0.shortcut.norms.0.module.running_mean": [
+      256
+    ],
+    "encoder.stages.2.0.shortcut.norms.0.module.running_var": [
+      256
+    ],
+    "encoder.stages.2.0.shortcut.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.1.conv1.lins.0.weight": [
+      64,
+      256
+    ],
+    "encoder.stages.2.1.conv1.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.2.1.conv1.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.2.1.conv1.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.2.1.conv1.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.2.1.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.1.lpfa.geometry.lins.0.weight": [
+      64,
+      9
+    ],
+    "encoder.stages.2.1.lpfa.geometry.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.geometry.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.geometry.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.geometry.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.1.lpfa.mlp.lins.0.weight": [
+      64,
+      64
+    ],
+    "encoder.stages.2.1.lpfa.mlp.norms.0.module.weight": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.mlp.norms.0.module.bias": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.mlp.norms.0.module.running_mean": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.mlp.norms.0.module.running_var": [
+      64
+    ],
+    "encoder.stages.2.1.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.2.1.conv2.lins.0.weight": [
+      256,
+      64
+    ],
+    "encoder.stages.2.1.conv2.norms.0.module.weight": [
+      256
+    ],
+    "encoder.stages.2.1.conv2.norms.0.module.bias": [
+      256
+    ],
+    "encoder.stages.2.1.conv2.norms.0.module.running_mean": [
+      256
+    ],
+    "encoder.stages.2.1.conv2.norms.0.module.running_var": [
+      256
+    ],
+    "encoder.stages.2.1.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.0.conv1.lins.0.weight": [
+      128,
+      256
+    ],
+    "encoder.stages.3.0.conv1.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.3.0.conv1.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.3.0.conv1.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.3.0.conv1.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.3.0.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.0.lpfa.geometry.lins.0.weight": [
+      128,
+      9
+    ],
+    "encoder.stages.3.0.lpfa.geometry.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.geometry.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.geometry.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.geometry.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.0.lpfa.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "encoder.stages.3.0.lpfa.mlp.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.mlp.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.3.0.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.0.conv2.lins.0.weight": [
+      512,
+      128
+    ],
+    "encoder.stages.3.0.conv2.norms.0.module.weight": [
+      512
+    ],
+    "encoder.stages.3.0.conv2.norms.0.module.bias": [
+      512
+    ],
+    "encoder.stages.3.0.conv2.norms.0.module.running_mean": [
+      512
+    ],
+    "encoder.stages.3.0.conv2.norms.0.module.running_var": [
+      512
+    ],
+    "encoder.stages.3.0.conv2.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.0.shortcut.lins.0.weight": [
+      512,
+      256
+    ],
+    "encoder.stages.3.0.shortcut.norms.0.module.weight": [
+      512
+    ],
+    "encoder.stages.3.0.shortcut.norms.0.module.bias": [
+      512
+    ],
+    "encoder.stages.3.0.shortcut.norms.0.module.running_mean": [
+      512
+    ],
+    "encoder.stages.3.0.shortcut.norms.0.module.running_var": [
+      512
+    ],
+    "encoder.stages.3.0.shortcut.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.1.conv1.lins.0.weight": [
+      128,
+      512
+    ],
+    "encoder.stages.3.1.conv1.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.3.1.conv1.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.3.1.conv1.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.3.1.conv1.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.3.1.conv1.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.1.lpfa.geometry.lins.0.weight": [
+      128,
+      9
+    ],
+    "encoder.stages.3.1.lpfa.geometry.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.geometry.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.geometry.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.geometry.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.geometry.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.1.lpfa.mlp.lins.0.weight": [
+      128,
+      128
+    ],
+    "encoder.stages.3.1.lpfa.mlp.norms.0.module.weight": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.mlp.norms.0.module.bias": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.mlp.norms.0.module.running_mean": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.mlp.norms.0.module.running_var": [
+      128
+    ],
+    "encoder.stages.3.1.lpfa.mlp.norms.0.module.num_batches_tracked": [],
+    "encoder.stages.3.1.conv2.lins.0.weight": [
+      512,
+      128
+    ],
+    "encoder.stages.3.1.conv2.norms.0.module.weight": [
+      512
+    ],
+    "encoder.stages.3.1.conv2.norms.0.module.bias": [
+      512
+    ],
+    "encoder.stages.3.1.conv2.norms.0.module.running_mean": [
+      512
+    ],
+    "encoder.stages.3.1.conv2.norms.0.module.running_var": [
+      512
+    ],
+    "encoder.stages.3.1.conv2.norms.0.module.num_batches_tracked": [],
+    "proj.lins.0.weight": [
+      1024,
+      512
+    ],
+    "proj.norms.0.module.weight": [
+      1024
+    ],
+    "proj.norms.0.module.bias": [
+      1024
+    ],
+    "proj.norms.0.module.running_mean": [
+      1024
+    ],
+    "proj.norms.0.module.running_var": [
+      1024
+    ],
+    "proj.norms.0.module.num_batches_tracked": [],
+    "head.lins.0.weight": [
+      512,
+      2048
+    ],
+    "head.lins.0.bias": [
+      512
+    ],
+    "head.lins.1.weight": [
+      10,
+      512
+    ],
+    "head.lins.1.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      512
+    ],
+    "head.norms.0.module.bias": [
+      512
+    ],
+    "head.norms.0.module.running_mean": [
+      512
+    ],
+    "head.norms.0.module.running_var": [
+      512
+    ],
+    "head.norms.0.module.num_batches_tracked": []
+  }
+}

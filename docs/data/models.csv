@@ -1,8 +1,10 @@
 checkpoint,architecture,task,dataset,pretrained,license,params,metric,reference,score,metrics
+curvenet.modelnet40.tiange-xiang,curvenet,classification,modelnet40,true,MIT,2.14,OA,93.8,93.84,OA 93.84 · mAcc 91.14
 dgcnn.modelnet40-1024.an-tao,dgcnn,classification,modelnet40,true,MIT,1.81,OA,93.3,93.27,OA 93.27 · mAcc 90.89
 dgcnn.modelnet40-2048.an-tao,dgcnn,classification,modelnet40,true,MIT,1.81,OA,93.6,93.60,OA 93.60 · mAcc 91.18
 kpfcnn.modelnet40,kpconv,classification,modelnet40,false,,1.28,OA,,,
 octformer-base.modelnet40.octree-nn,octformer,classification,modelnet40,true,MIT,3.98,OA,92.7,92.02,OA 92.02 · mAcc 89.79
+pct.modelnet40.strawberry-eat-mango,pct,classification,modelnet40,true,MIT,2.88,OA,93.2,93.27,OA 93.27 · mAcc 89.99
 point-bert-base.modelnet40-4k.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,92.91,92.99,OA 92.99 · mAcc 89.69
 point-bert-base.modelnet40-8k.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,93.19,93.07,OA 93.07 · mAcc 89.92
 point-bert-base.modelnet40.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,92.67,92.63,OA 92.63 · mAcc 89.56
@@ -149,6 +151,7 @@ spvcnn-119gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantick
 spvcnn-30gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,5.45,mIoU,60.7,60.70,mIoU 60.70 · OA 91.94
 spvcnn-47gmacs.semantickitti.mit-han-lab,spvcnn,semantic-segmentation,semantickitti,true,MIT,8.79,mIoU,61.4,61.59,mIoU 61.59 · OA 92.22
 utonia-base-lp.scannet20.pointcept,utonia,semantic-segmentation,scannet20,true,CC-BY-NC-4.0,137.28,mIoU,77.7,77.70,mIoU 77.70 · OA 91.88
+curvenet.shapenetpart.tiange-xiang,curvenet,part-segmentation,shapenetpart,true,MIT,5.53,mIoU,86.6,86.67,ins_mIoU 86.67 · cls_mIoU 83.79
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.17,ins_mIoU 86.17 · cls_mIoU 84.60
 point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.05,ins_mIoU 86.05 · cls_mIoU 84.12
