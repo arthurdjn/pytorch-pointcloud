@@ -229,6 +229,11 @@
     "date": "December 2025",
     "title": "LitePT: Lighter Yet Stronger Point Transformer"
   },
+  "2601.13052": {
+    "crop": 0.47,
+    "date": "January 2026",
+    "title": "GridNet-HD: A High-Resolution Multi-Modal Dataset for LiDAR-Image Fusion on Power Line Infrastructure"
+  },
   "2603.03283": {
     "crop": 0.47,
     "date": "March 2026",

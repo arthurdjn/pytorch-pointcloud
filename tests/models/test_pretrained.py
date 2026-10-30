@@ -159,6 +159,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
     ("litept-small.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     ("litept-large.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
+    # GridNet-HD based models
+    ("ptv3.gridnet-hd.heig-vd-geo", "semantic-segmentation", "gridnethd"),
 ]
 
 

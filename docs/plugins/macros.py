@@ -91,6 +91,8 @@ DATASET_LABELS = {
     "scannet200": "ScanNet200",
     "semantickitti": "SemanticKITTI",
     "fractal": "FRACTAL",
+    "dales": "DALES",
+    "gridnet-hd": "GridNet-HD",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
     "structured3d": "Structured3D",
