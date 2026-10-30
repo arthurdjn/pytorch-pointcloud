@@ -314,10 +314,12 @@ def dynamic_voxelize(
         print(voxels.shape, voxel_indices.tolist(), num_points.tolist())
         ```
     """
-    size = points.new_tensor(list(voxel_size))
-    low = points.new_tensor(list(point_cloud_range[:3]))
-    grid_size = torch.round((points.new_tensor(list(point_cloud_range[3:])) - low) / size).long()
-    coords = torch.floor((points[:, :3] - low) / size).long()
+    # Half-precision coordinates would round points into the neighbouring voxel.
+    pos = points[:, :3].to(torch.promote_types(points.dtype, torch.float32))
+    size = pos.new_tensor(list(voxel_size))
+    low = pos.new_tensor(list(point_cloud_range[:3]))
+    grid_size = torch.round((pos.new_tensor(list(point_cloud_range[3:])) - low) / size).long()
+    coords = torch.floor((pos - low) / size).long()
     inside = ((coords >= 0) & (coords < grid_size)).all(dim=1)
     coords, points, batch = coords[inside], points[inside], batch[inside]
 

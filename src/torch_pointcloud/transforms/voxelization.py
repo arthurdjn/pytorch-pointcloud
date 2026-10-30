@@ -445,7 +445,8 @@ class DynamicVoxelize(DictTransform):
         ```python
         import torch
         import torch_pointcloud.transforms as T
-        data = {"pos": torch.rand(1000, 3) * 50.0, "x": torch.rand(1000, 1)}
+        low, high = torch.tensor([0.0, -40.0, -3.0]), torch.tensor([70.4, 40.0, 1.0])
+        data = {"pos": low + torch.rand(1000, 3) * (high - low), "x": torch.rand(1000, 1)}
         transform = T.DynamicVoxelize(
             pos_key="pos",
             feature_key="x",
