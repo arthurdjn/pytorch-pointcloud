@@ -34,7 +34,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
 - Added `act_first`, `act_last` and `input_transform_uses_features` to the PointNet models, and `in_channels` to `TNet`.
-- Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`.
+- Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`; the former key still loads, with a `FutureWarning`.
 
 ## 0.0.18 (2026-10-20)
 

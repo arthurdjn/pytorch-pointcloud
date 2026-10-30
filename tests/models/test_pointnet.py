@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 import pytest
 import torch
@@ -181,6 +181,32 @@ def test_pointnet_encoder_second_mlp_matches_pyg_mlp(act_first: bool, data: Dict
         out = encoder(None, data["pos"], data["batch"])
         expected = reference(inputs["x"])
     torch.testing.assert_close(out, expected)
+
+
+def test_pointnet_loads_former_out_norm_keys(data: Dict[str, Tensor]) -> None:
+    torch.manual_seed(0)
+    hparams: Dict[str, Any] = dict(
+        mlp1_channels=(32,),
+        mlp2_channels=(64, 128),
+        tnet_mlp1_dims=(32, 64),
+        tnet_mlp2_dims=(32,),
+        head_channels=(32,),
+    )
+    model = PointNetClassification(in_channels=6, num_classes=10, **hparams).eval()
+    out_norm = model.get_submodule("encoder.out_norm.module")
+    assert isinstance(out_norm, nn.BatchNorm1d) and out_norm.running_mean is not None
+    out_norm.running_mean.uniform_(-0.5, 0.5)
+    state = {
+        key.replace("encoder.out_norm.", "encoder.mlp2.norms.1."): value for key, value in model.state_dict().items()
+    }
+
+    loaded = PointNetClassification(in_channels=6, num_classes=10, **hparams).eval()
+    with pytest.warns(FutureWarning, match="encoder.out_norm"):
+        loaded.load_state_dict(state)
+    with torch.no_grad():
+        torch.testing.assert_close(
+            loaded(data["x"], data["pos"], data["batch"]), model(data["x"], data["pos"], data["batch"])
+        )
 
 
 @pytest.mark.parametrize(

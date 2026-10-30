@@ -3,6 +3,7 @@
 {{ paper("1612.00593") }}
 """
 
+import warnings
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -154,6 +155,7 @@ class PointNetEncoder(nn.Module):
         )
         self.out_norm = create_norm(norm, mlp2_channels[-1], **(norm_kwargs or {})) or nn.Identity()
         self.out_act = (create_act(act, **(act_kwargs or {})) if act_last else None) or nn.Identity()
+        self.register_load_state_dict_pre_hook(_rename_former_out_norm_keys)  # type: ignore[no-untyped-call]
 
     @overload
     def forward(
@@ -215,6 +217,21 @@ class PointNetEncoder(nn.Module):
         if return_point_features:
             return x, point_features
         return x
+
+
+def _rename_former_out_norm_keys(module: nn.Module, state_dict: Dict[str, Any], prefix: str, *args: Any) -> None:
+    assert isinstance(module, PointNetEncoder)
+    former = f"{prefix}mlp2.norms.{module.mlp2.num_layers - 1}."
+    keys = [key for key in state_dict if key.startswith(former)]
+    if keys:
+        warnings.warn(
+            f"The `{former}*` keys of `PointNetEncoder` were renamed to `{prefix}out_norm.*` in 0.0.19 and will stop "
+            "loading in 0.0.20; save the loaded model's `state_dict` again to update the checkpoint.",
+            FutureWarning,
+            stacklevel=2,
+        )
+    for key in keys:
+        state_dict[f"{prefix}out_norm.{key[len(former) :]}"] = state_dict.pop(key)
 
 
 class PointNetClassification(ClassificationModel):
