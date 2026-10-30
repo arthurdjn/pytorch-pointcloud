@@ -1,0 +1,5 @@
+path,folder,split
+CULS/plot_1_annotated.las,CULS,dev
+CULS/plot_2_annotated.las,CULS,test
+TUWIEN/test.las,TUWIEN,test
+NIBIO2/plot1_annotated.las,NIBIO2,test

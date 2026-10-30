@@ -55,6 +55,18 @@ BENCHMARKS = [
         marks=_GPU_SPCONV,
         id="spformer/scannet",
     ),
+    pytest.param(
+        "forainet/instance_segmentation_forinstance_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="segment-any-tree/forinstance",
+    ),
+    pytest.param(
+        "forainet/instance_segmentation_forinstance_benchmark.py",
+        ("--limit", "1", "--model", "forainet.for-instance.prs-eth"),
+        marks=_GPU_SPCONV,
+        id="forainet/forinstance",
+    ),
     pytest.param("kpconv/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
     pytest.param(
         "kpconv/segmentation_semantickitti_benchmark.py",

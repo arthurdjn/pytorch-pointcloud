@@ -40,6 +40,8 @@ neither are marked as such.
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
 | heig-vd-geo/PTv3_GridNet-HD_baseline (Hugging Face) | `heig-vd-geo` | MIT         | 1     | not stated upstream                                                                                                        |
 | sunjiahao1999/SPFormer                          | `jiahao-sun`     | MIT          | 1     | Copyright (c) 2022 Jiahao Sun                                                                                              |
+| SmartForest-no/SegmentAnyTree                   | `nibio`          | MIT          | 1     | Copyright (c) 2025 NIBIO                                                                                                   |
+| prs-eth/ForAINet                                | `prs-eth`        | BSD-3-Clause | 1     | Copyright (c) 2024-2026, PRS-ETH                                                                                           |
 
 ## Training data
 
@@ -59,6 +61,8 @@ Licenses of the datasets the checkpoints were trained on.
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
 | FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
 | GridNet-HD                                      | CC BY 4.0                                                 | 1           |
+| FOR-instance                                    | CC BY 4.0                                                 | 2           |
+| NIBIO_MLS                                       | AGPL-3.0-or-later                                         | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 
 ## Source code
@@ -81,6 +85,11 @@ Files adapted from other implementations, with the copyright notice each source 
 | gwenzhang/Voxel-Mamba             | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py`                                                                            | not stated upstream                                                           |
 | JIA-Lab-research/VoxelNeXt        | Apache-2.0 | `models/voxelnext.py`                                                                                               | not stated upstream                                                           |
 | sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`, `models/spformer.py`, `layers/masked_query_decoder_layer.py`, `losses/spformer.py`       | Copyright (c) 2022 Jiahao Sun                                                 |
+| SmartForest-no/SegmentAnyTree     | MIT        | `models/forainet.py`, `inferers/cylinder.py`                                                                        | Copyright (c) 2025 NIBIO                                                      |
+| prs-eth/ForAINet                  | BSD-3-Clause | `models/forainet.py`, `inferers/cylinder.py`                                                                      | Copyright (c) 2024-2026, PRS-ETH                                              |
+| nicolas-chaulet/torch-points3d    | BSD-3-Clause | `models/forainet.py`, `inferers/cylinder.py`                                                                      | Copyright (c) 2020, Principia Labs Ltd                                        |
+| torch-points3d/torch-points-kernels | MIT        | `ops/cluster.py`                                                                                                  | Copyright (c) 2020 Nicolas Chaulet                                            |
+| scikit-learn/scikit-learn         | BSD-3-Clause | `ops/cluster.py`                                                                                                  | Copyright (c) 2007-2024 The scikit-learn developers                           |
 | Julie-tang00/Point-BERT           | MIT        | `models/point_bert.py`                                                                                              | Copyright (c) 2021 Xumin Yu                                                   |
 | Pang-Yatian/Point-MAE             | MIT        | `models/point_mae.py`                                                                                               | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
 | ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                              | Copyright (c) 2022 Renrui Zhang                                               |

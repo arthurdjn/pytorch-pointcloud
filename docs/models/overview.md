@@ -76,8 +76,8 @@ Best for **object parts** (ShapeNetPart). Inputs are single objects and their ca
 
 ### Instance segmentation
 
-Separate **every object of a scene** (ScanNet). Inputs are large scenes, outputs are one point mask, class and score per
-object.
+Separate **every object of a scene**: indoor objects (ScanNet) or individual trees (FOR-instance). Inputs are large
+scenes, outputs are one point mask, class and score per object.
 
 {{ architecture_table("instance-segmentation") }}
 

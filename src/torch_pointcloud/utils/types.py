@@ -79,6 +79,7 @@ class InstanceSegmentation3D(TypedDict):
         scores: Per-instance confidence score, shape $(K,)$.
         batch: Per-instance scene index, shape $(K,)$.
         ignore_mask: Per-instance ignore mask, shape $(K,)$: `instance_matches` leaves these instances out.
+        semantic_logits: Per-row semantic logits, shape $(N, C)$, for models that also classify every row.
     """
 
     mask_index: Tensor
@@ -86,6 +87,7 @@ class InstanceSegmentation3D(TypedDict):
     scores: Tensor
     batch: Tensor
     ignore_mask: NotRequired[Tensor]
+    semantic_logits: NotRequired[Tensor]
 
 
 class FeaturesDict(TypedDict):

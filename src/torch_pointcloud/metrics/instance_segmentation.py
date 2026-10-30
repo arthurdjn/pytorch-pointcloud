@@ -1,4 +1,5 @@
-"""Point-mask instance-segmentation metrics: instance matches of a scene or packed batch and their average precision."""
+"""Point-mask instance-segmentation metrics: instance matches of a scene or packed batch, their average precision,
+precision, recall, F1 score and coverage."""
 
 import math
 import warnings
@@ -405,3 +406,140 @@ def instance_average_precision(
 
     scored = [value for value in per_class if not math.isnan(value)]
     return float(np.mean(scored)) if scored else 0.0
+
+
+def _pair_iou(match: InstanceMatches) -> Tensor:
+    """IoU of every overlapping (prediction, instance) pair of a record."""
+    inter = match["pair_inter"].double()
+    union = match["pred_counts"][match["pair_pred"]] + match["gt_counts"][match["pair_gt"]] - inter
+    return inter / union
+
+
+def _num_matched(matches: Sequence[InstanceMatches], iou_threshold: float, *, by_instance: bool) -> int:
+    """Number of predictions, or of ground-truth instances with `by_instance`, whose IoU with some instance or
+    prediction of their class reaches `iou_threshold`."""
+    count = 0
+    for match in matches:
+        index = match["pair_gt"] if by_instance else match["pair_pred"]
+        size = match["gt_labels"].numel() if by_instance else match["pred_labels"].numel()
+        best = torch.zeros(size, dtype=torch.float64).scatter_reduce(0, index, _pair_iou(match), reduce="amax")
+        count += int((best >= iou_threshold).sum())
+    return count
+
+
+def instance_precision(matches: Sequence[InstanceMatches], *, iou_threshold: float = 0.5) -> float:
+    r"""Fraction of the predicted instances that match a ground-truth instance.
+
+    A prediction is a true positive when its IoU with some ground-truth instance of its class reaches
+    `iou_threshold`, whatever its score; counts are pooled over the records and the classes. Overlapping
+    predictions of one instance all count as true positives.
+
+    Args:
+        matches: The `instance_matches` record of every evaluated scene.
+        iou_threshold: IoU a prediction must reach to be a true positive.
+
+    Returns:
+        The precision, $0$ without predictions.
+
+    Example:
+        ```pycon
+        >>> index = torch.zeros(2, dtype=torch.long)
+        >>> mask_index = torch.tensor([[0, 0, 1], [0, 1, 3]])
+        >>> preds = {"mask_index": mask_index, "labels": index, "scores": torch.tensor([0.9, 0.8]), "batch": index}
+        >>> match = instance_matches(preds, torch.tensor([0, 0, 0, 1]), torch.zeros(4))
+        >>> instance_precision([match])
+        1.0
+
+        ```
+    """
+    num_predictions = sum(match["pred_labels"].numel() for match in matches)
+    return _num_matched(matches, iou_threshold, by_instance=False) / num_predictions if num_predictions else 0.0
+
+
+def instance_recall(matches: Sequence[InstanceMatches], *, iou_threshold: float = 0.5) -> float:
+    r"""Fraction of the ground-truth instances that a predicted instance matches.
+
+    A ground-truth instance is matched when its IoU with some prediction of its class reaches `iou_threshold`;
+    counts are pooled over the records and the classes, so the recall stays in $[0, 1]$ however many predictions
+    overlap one instance.
+
+    Args:
+        matches: The `instance_matches` record of every evaluated scene.
+        iou_threshold: IoU an instance must reach to be matched.
+
+    Returns:
+        The recall, $0$ without ground truth.
+
+    Example:
+        ```pycon
+        >>> index, scores = torch.zeros(1, dtype=torch.long), torch.tensor([0.9])
+        >>> preds = {"mask_index": torch.tensor([[0, 0], [0, 1]]), "labels": index, "scores": scores, "batch": index}
+        >>> match = instance_matches(preds, torch.tensor([0, 0, 0, 1]), torch.zeros(4))
+        >>> instance_recall([match])
+        0.5
+
+        ```
+    """
+    num_instances = sum(match["gt_labels"].numel() for match in matches)
+    return _num_matched(matches, iou_threshold, by_instance=True) / num_instances if num_instances else 0.0
+
+
+def instance_f1_score(matches: Sequence[InstanceMatches], *, iou_threshold: float = 0.5) -> float:
+    r"""Harmonic mean of `instance_precision` and `instance_recall`.
+
+    Args:
+        matches: The `instance_matches` record of every evaluated scene.
+        iou_threshold: IoU of a match, as in `instance_precision` and `instance_recall`.
+
+    Returns:
+        The F1 score, $0$ when precision and recall are both $0$.
+
+    Example:
+        ```pycon
+        >>> index, scores = torch.zeros(1, dtype=torch.long), torch.tensor([0.9])
+        >>> preds = {"mask_index": torch.tensor([[0, 0], [0, 1]]), "labels": index, "scores": scores, "batch": index}
+        >>> match = instance_matches(preds, torch.tensor([0, 0, 0, 1]), torch.zeros(4))
+        >>> round(instance_f1_score([match]), 4)
+        0.6667
+
+        ```
+    """
+    precision = instance_precision(matches, iou_threshold=iou_threshold)
+    recall = instance_recall(matches, iou_threshold=iou_threshold)
+    return 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+
+
+def instance_coverage(matches: Sequence[InstanceMatches], *, weighted: bool = False) -> float:
+    r"""Mean coverage of the ground-truth instances by the predictions (MUCov, or MWCov when `weighted`).
+
+    The coverage of a ground-truth instance is its best IoU with a prediction of its class, $0$ when none overlaps.
+    It is averaged over the instances of a record (weighted by their point counts with `weighted`), then over the
+    records that hold ground truth.
+
+    Args:
+        matches: The `instance_matches` record of every evaluated scene.
+        weighted: Weight every instance by its number of points.
+
+    Returns:
+        The mean coverage, $0$ without ground truth.
+
+    Example:
+        ```pycon
+        >>> index, scores = torch.zeros(1, dtype=torch.long), torch.tensor([0.9])
+        >>> preds = {"mask_index": torch.tensor([[0, 0], [0, 1]]), "labels": index, "scores": scores, "batch": index}
+        >>> match = instance_matches(preds, torch.tensor([0, 0, 0, 1]), torch.zeros(4))
+        >>> round(instance_coverage([match]), 4), round(instance_coverage([match], weighted=True), 4)
+        (0.3333, 0.5)
+
+        ```
+    """
+    coverages = []
+    for match in matches:
+        if match["gt_labels"].numel() == 0:
+            continue
+
+        best = torch.zeros(match["gt_labels"].numel(), dtype=torch.float64)
+        best = best.scatter_reduce(0, match["pair_gt"], _pair_iou(match), reduce="amax")
+        weights = match["gt_counts"].double() if weighted else torch.ones_like(best)
+        coverages.append(float((best * weights).sum() / weights.sum()))
+    return float(np.mean(coverages)) if coverages else 0.0
