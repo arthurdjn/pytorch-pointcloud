@@ -117,8 +117,8 @@ class AsymmetricUpsampleBlock(SparseModule):
 
     The input is projected to `out_channels` by a $3 \times 3 \times 3$ `SubMConv3d`, upsampled by a
     `SparseInverseConv3d` that undoes the strided convolution registered under `upsample_indice_key`, summed with the
-    skip features of that resolution (one row per voxel of the strided convolution's input), then refined by three `SubMConv3d` of `kernel_sizes`. Every convolution is followed
-    by the activation and then the normalization.
+    skip features of that resolution (one row per voxel of the strided convolution's input), then refined by three
+    `SubMConv3d` of `kernel_sizes`. Every convolution is followed by the activation and then the normalization.
 
     Args:
         in_channels: Number of input channels.

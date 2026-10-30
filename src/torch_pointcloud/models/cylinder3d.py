@@ -39,15 +39,28 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
 
     :arxiv: [Cylindrical and Asymmetrical 3D Convolution Networks for LiDAR Segmentation](https://arxiv.org/abs/2011.10033)
 
-    The points are partitioned on a cylindrical $(\rho, \phi, z)$ grid of `grid_size` cells over
-    `point_cloud_range`, the last cell along each axis starting at the upper bound. A `DynamicMaxVFE` encodes each point (offset to its voxel center, cylindrical coordinates,
-    Cartesian $x, y$ and the features `x`) and max-pools it per voxel. A sparse U-Net of `AsymmetricResidualBlock`
-    and `AsymmetricUpsampleBlock` stages processes the voxels, a `DimensionDecompositionBlock` gates the
-    full-resolution features, and a $3 \times 3 \times 3$ submanifold convolution classifies each voxel. `forward`
-    returns the logits of every point, those of its voxel; `forward_head` returns the per-voxel logits.
+    The points are partitioned on a cylindrical $(\rho, \phi, z)$ grid of `grid_size` cells over `point_cloud_range`,
+    the last cell along each axis starting at the upper bound. A `DynamicMaxVFE` encodes each point (offset to its
+    voxel center, cylindrical coordinates, Cartesian $x, y$ and the features `x`) and max-pools it per voxel. A sparse
+    U-Net of `AsymmetricResidualBlock` and `AsymmetricUpsampleBlock` stages processes the voxels, a
+    `DimensionDecompositionBlock` gates the full-resolution features, and a $3 \times 3 \times 3$ submanifold
+    convolution classifies each voxel. `forward` returns the logits of every point, those of its voxel; `forward_head`
+    returns the per-voxel logits.
 
     The released checkpoints were trained with an index table shared by all the convolutions of a block, so each
-    convolution of a block uses the kernel of the block's first one; the model builds that network.
+    convolution of a block uses the kernel of the block's first one; the model builds that network. They were also
+    trained on the per-voxel logits against the majority label of each voxel, not on the per-point logits of
+    `forward`:
+
+    ```{.python notest}
+    from torch_pointcloud.ops.voxelization import majority_label
+
+    sparse_x, inverse, skips = model.forward_features(x, pos, batch, return_intermediates=True)
+    sparse_x = model.forward_decoder(sparse_x, skips)
+    logits = model.forward_head(sparse_x)  # (V, num_classes)
+    target = majority_label(segment, inverse, num_classes, logits.shape[0], ignore_index=-1)
+    loss = torch.nn.functional.cross_entropy(logits, target, ignore_index=-1)
+    ```
 
     Args:
         in_channels: Point feature channels, without the coordinates (e.g. $1$ for the LiDAR intensity).
