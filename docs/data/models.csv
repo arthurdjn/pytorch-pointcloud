@@ -125,6 +125,7 @@ ptv3-base.s3dis-area5.pointcept,point_transformer_v3,semantic-segmentation,s3dis
 ptv3-base.scannet20.pointcept,point_transformer_v3,semantic-segmentation,scannet20,true,MIT,46.17,mIoU,77.6,77.42,mIoU 77.42 · OA 92.00
 ptv3-base.scannet200.pointcept,point_transformer_v3,semantic-segmentation,scannet200,true,MIT,46.18,mIoU,35.3,35.12,mIoU 35.12 · OA 83.31
 ptv3.dales.jayakumar-pujar,point_transformer_v3,semantic-segmentation,dales,true,MIT,103.77,mIoU,69.29,68.70,mIoU 68.70 · OA 96.47
+ptv3.gridnet-hd.heig-vd-geo,point_transformer_v3,semantic-segmentation,gridnet-hd,true,MIT,46.15,mIoU,,71.61,mIoU 71.61 · OA 90.78
 pvcnn-c0p125.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,0.04,mIoU,48.75,49.25,mIoU 49.25 · OA 83.04 · simple/mIoU 46.36 · simple/OA 80.74
 pvcnn-c0p25.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,0.17,mIoU,53.08,53.31,mIoU 53.31 · OA 84.93 · simple/mIoU 51.05 · simple/OA 83.29
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
