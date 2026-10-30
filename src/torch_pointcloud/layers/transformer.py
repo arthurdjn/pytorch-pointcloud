@@ -283,7 +283,8 @@ class PackedTransformerBlock(nn.Module):
         drop_path: Stochastic-depth rate of the two residual branches.
         act: Activation of the MLP.
         act_kwargs: Extra arguments for the activation.
-        norm: Normalization applied before attention and before the MLP.
+        norm: Normalization applied to every token before attention and before the MLP; `"layer_norm"` resolves to a
+            per-token `LayerNorm`.
         norm_kwargs: Extra arguments for the normalization.
         rope: Rotary position embedding of the attention, see `PackedAttention`.
         use_flash_attn: Whether attention runs the flash attention kernel.
@@ -321,6 +322,9 @@ class PackedTransformerBlock(nn.Module):
         use_flash_attn: bool = True,
     ) -> None:
         super().__init__()
+        if norm == "layer_norm":
+            # PyG resolves "layer_norm" to a graph LayerNorm, which normalizes over every sample of the packed batch.
+            norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
 
         def make_norm() -> nn.Module:
             module = create_norm(norm, embed_dim, **(norm_kwargs or {}))

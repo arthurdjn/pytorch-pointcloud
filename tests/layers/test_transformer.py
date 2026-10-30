@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Any, Tuple
 
 import pytest
 import torch
@@ -128,3 +128,17 @@ def test_packed_transformer_block_builds_the_given_norm() -> None:
 def test_packed_transformer_block_requires_a_norm() -> None:
     with pytest.raises(ValueError, match="normalization"):
         PackedTransformerBlock(32, 2, norm=None)
+
+
+@pytest.mark.parametrize("norm", [pytest.param("layer_norm", id="string"), pytest.param(nn.LayerNorm, id="class")])
+def test_packed_transformer_block_keeps_samples_independent(norm: Any) -> None:
+    torch.manual_seed(0)
+    block = PackedTransformerBlock(32, 2, norm=norm, use_flash_attn=False).eval()
+    x, _, cu_seqlens, max_seqlen = _packed_tokens((10, 20), 32)
+    changed = x.clone()
+    changed[10:] = changed[10:] * 5 + 3
+
+    out = block(x, cu_seqlens, max_seqlen)
+    out_changed = block(changed, cu_seqlens, max_seqlen)
+
+    torch.testing.assert_close(out[:10], out_changed[:10])
