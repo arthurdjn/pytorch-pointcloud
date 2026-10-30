@@ -309,25 +309,19 @@ class PotentialSphereSegmentationInferer(SegmentationInferer):
         )
 
 
-def potential_sphere_inference(*args: Any, **kwargs: Any) -> Tensor:
-    """Deprecated alias of `potential_sphere_segmentation_inference`."""
-    warnings.warn(
-        "`potential_sphere_inference` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-        "`potential_sphere_segmentation_inference` instead.",
-        FutureWarning,
-        stacklevel=2,
-    )
-    return potential_sphere_segmentation_inference(*args, **kwargs)
+_RENAMED = {
+    "PotentialSphereInferer": "PotentialSphereSegmentationInferer",
+    "potential_sphere_inference": "potential_sphere_segmentation_inference",
+}
 
 
-class PotentialSphereInferer(PotentialSphereSegmentationInferer):
-    """Deprecated alias of `PotentialSphereSegmentationInferer`."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+def __getattr__(name: str) -> Any:
+    if name in _RENAMED:
         warnings.warn(
-            "`PotentialSphereInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-            "`PotentialSphereSegmentationInferer` instead.",
+            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
             FutureWarning,
             stacklevel=2,
         )
-        super().__init__(*args, **kwargs)
+        return globals()[_RENAMED[name]]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

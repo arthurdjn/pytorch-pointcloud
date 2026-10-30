@@ -628,25 +628,19 @@ class SlidingWindowSegmentationInferer(SegmentationInferer):
         )
 
 
-def sliding_window_inference(*args: Any, **kwargs: Any) -> Tensor:
-    """Deprecated alias of `sliding_window_segmentation_inference`."""
-    warnings.warn(
-        "`sliding_window_inference` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-        "`sliding_window_segmentation_inference` instead.",
-        FutureWarning,
-        stacklevel=2,
-    )
-    return sliding_window_segmentation_inference(*args, **kwargs)
+_RENAMED = {
+    "SlidingWindowInferer": "SlidingWindowSegmentationInferer",
+    "sliding_window_inference": "sliding_window_segmentation_inference",
+}
 
 
-class SlidingWindowInferer(SlidingWindowSegmentationInferer):
-    """Deprecated alias of `SlidingWindowSegmentationInferer`."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+def __getattr__(name: str) -> Any:
+    if name in _RENAMED:
         warnings.warn(
-            "`SlidingWindowInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-            "`SlidingWindowSegmentationInferer` instead.",
+            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
             FutureWarning,
             stacklevel=2,
         )
-        super().__init__(*args, **kwargs)
+        return globals()[_RENAMED[name]]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

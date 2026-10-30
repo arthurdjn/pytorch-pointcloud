@@ -206,14 +206,18 @@ class VoxelPartitionSegmentationInferer(SegmentationInferer):
         return (logits_sum / counts.clamp_min(1).unsqueeze(-1)).to(out_dtype)
 
 
-class VoxelPartitionInferer(VoxelPartitionSegmentationInferer):
-    """Deprecated alias of `VoxelPartitionSegmentationInferer`."""
+_RENAMED = {
+    "VoxelPartitionInferer": "VoxelPartitionSegmentationInferer",
+}
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+
+def __getattr__(name: str) -> Any:
+    if name in _RENAMED:
         warnings.warn(
-            "`VoxelPartitionInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-            "`VoxelPartitionSegmentationInferer` instead.",
+            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
             FutureWarning,
             stacklevel=2,
         )
-        super().__init__(*args, **kwargs)
+        return globals()[_RENAMED[name]]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

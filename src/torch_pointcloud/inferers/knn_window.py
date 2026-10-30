@@ -391,25 +391,19 @@ class KNNWindowSegmentationInferer(SegmentationInferer):
         )
 
 
-def knn_window_inference(*args: Any, **kwargs: Any) -> Tensor:
-    """Deprecated alias of `knn_window_segmentation_inference`."""
-    warnings.warn(
-        "`knn_window_inference` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-        "`knn_window_segmentation_inference` instead.",
-        FutureWarning,
-        stacklevel=2,
-    )
-    return knn_window_segmentation_inference(*args, **kwargs)
+_RENAMED = {
+    "KNNWindowInferer": "KNNWindowSegmentationInferer",
+    "knn_window_inference": "knn_window_segmentation_inference",
+}
 
 
-class KNNWindowInferer(KNNWindowSegmentationInferer):
-    """Deprecated alias of `KNNWindowSegmentationInferer`."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+def __getattr__(name: str) -> Any:
+    if name in _RENAMED:
         warnings.warn(
-            "`KNNWindowInferer` is deprecated since 0.0.19 and will be removed in 0.0.20; use "
-            "`KNNWindowSegmentationInferer` instead.",
+            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
             FutureWarning,
             stacklevel=2,
         )
-        super().__init__(*args, **kwargs)
+        return globals()[_RENAMED[name]]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
