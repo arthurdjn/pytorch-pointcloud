@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 import pytest
 import torch
@@ -130,6 +130,24 @@ def test_curvenet_classification_forward_features_and_head(
     x, pos, batch = model_clf.forward_features(None, data["pos"], data["batch"])
     assert x.shape == (32, 64) and pos.shape == (32, 3) and batch.shape == (32,)
     assert model_clf.forward_head(x, batch, pre_logits=True).shape == (2, model_clf.num_features)
+
+
+@pytest.mark.parametrize(
+    "lengths,batch_ids",
+    [
+        pytest.param([128, 9], [0, 1], id="sample-smaller-than-num-curves"),
+        pytest.param([128, 96], [0, 2], id="missing-batch-id"),
+    ],
+)
+def test_curvenet_classification_rejects_missing_curve_starts(
+    model_clf: CurveNetClassification,
+    lengths: List[int],
+    batch_ids: List[int],
+) -> None:
+    pos = torch.rand(sum(lengths), 3)
+    batch = torch.repeat_interleave(torch.tensor(batch_ids), torch.tensor(lengths))
+    with pytest.raises(ValueError, match="num_curves"):
+        model_clf(None, pos, batch)
 
 
 def test_curvenet_part_segmentation_forward(

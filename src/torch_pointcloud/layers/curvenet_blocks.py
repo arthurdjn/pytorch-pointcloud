@@ -235,7 +235,7 @@ class CurveGrouping(nn.Module):
 
     Args:
         channels: Number of feature channels $C$.
-        num_curves: Number of curves $n$ per sample.
+        num_curves: Number of curves $n$ per sample; every sample needs at least $n$ points.
         curve_length: Number of points $L$ on every curve.
         norm: Normalization of the walk layers.
         norm_kwargs: Extra arguments for the normalization.
@@ -276,6 +276,14 @@ class CurveGrouping(nn.Module):
     def forward(self, x: Tensor, batch: Tensor, table: Tensor) -> Tensor:
         score = torch.sigmoid(self.att(x))  # (N, 1)
         start = topk(score.squeeze(1), self.num_curves, batch)
+        # `topk` keeps fewer starts for a sample smaller than `num_curves` and none for a missing batch id.
+        num_samples = int(batch.max()) + 1
+        if start.numel() != self.num_curves * num_samples:
+            raise ValueError(
+                f"Every sample needs at least `num_curves` ({self.num_curves}) points and the batch ids must be "
+                f"contiguous, got {start.numel()} curve starts for {num_samples} samples."
+            )
+
         # The momentum pairing of `CurveWalk` depends on the curve order: the curves start in point order.
         start = start.view(-1, self.num_curves).sort(dim=1).values  # (B, n)
         curves = self.walk(x * score, table, start)

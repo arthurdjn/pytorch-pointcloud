@@ -76,6 +76,20 @@ def test_curve_grouping_starts_per_sample() -> None:
     assert grouping(x, batch, table).shape == (2, 5, 3, 8)
 
 
+@pytest.mark.parametrize(
+    "batch",
+    [
+        pytest.param(torch.tensor([0] * 30 + [1] * 3), id="sample-smaller-than-num-curves"),
+        pytest.param(torch.tensor([0] * 30 + [2] * 30), id="missing-batch-id"),
+    ],
+)
+def test_curve_grouping_rejects_missing_curve_starts(batch: Tensor) -> None:
+    x = torch.randn(batch.numel(), 8)
+    grouping = CurveGrouping(8, num_curves=5, curve_length=3).eval()
+    with pytest.raises(ValueError, match="num_curves"):
+        grouping(x, batch, _ring_table(batch.numel(), 4))
+
+
 def test_curve_aggregation_shape() -> None:
     x, _, batch = _cloud(num_points=30, batch_size=2, channels=8)
     aggregation = CurveAggregation(8).eval()
