@@ -1,4 +1,4 @@
-"""Finetune PointGPT (S / B / L) for part segmentation on ShapeNetPart, following its `segmentation/main.py` recipe."""
+"""Finetune PointGPT (S / B / L) for ShapeNetPart part segmentation: `segmentation/main.py` recipe, no causal mask."""
 
 import os
 from argparse import ArgumentParser, Namespace

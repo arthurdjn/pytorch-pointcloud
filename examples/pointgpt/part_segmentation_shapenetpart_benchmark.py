@@ -1,10 +1,8 @@
 """Benchmark the PointGPT part segmentation model on ShapeNetPart, single pass without voting.
 
-NOTE: what we ran: the test loop of `segmentation/main.py` at CGuangyan-BIT/PointGPT 9ba3d40 (`V1.2`), with its model
-and `PartNormalDataset` on the `shapenetcore_partanno_segmentation_benchmark_v0_normal` test split (2048 points sampled
-with replacement, batch 16, TF32 off) and each size's `part_seg.pth`. With the causal mask of `gpt2_seg.Block.forward`
-it gives 81.86 instance mIoU for PointGPT-S; with only that mask removed, 86.14 / 85.83 / 86.53 for S / B / L
-(published 86.2 / 86.5 / 86.6). The registered entries run without the mask (`causal=False`).
+NOTE: `segmentation/main.py` at CGuangyan-BIT/PointGPT 9ba3d40 tests only inside its training loop; we ran that loop
+alone on each `part_seg.pth` (`PartNormalDataset` test split, 2048 points, batch 16, TF32 off): 81.86 Ins. mIoU for S
+with the causal mask of `gpt2_seg.Block.forward`, 86.14 / 85.83 / 86.53 for S / B / L without it (`causal=False`).
 """
 
 import os
