@@ -726,7 +726,6 @@ class LIONDetection(DetectionModel):
         feature_map_stride: BEV stride of the head.
         local_max_classes: Crowded small-object class indices passed to the head (nuScenes pedestrian /
             traffic-cone); see [`TransFusionHead`][torch_pointcloud.layers.transfusion_head.TransFusionHead].
-        post_center_range: Box-center range kept at decode; `None` keeps every box.
         d_state: SSM state width.
         d_conv: Causal-conv kernel width.
         expand: Inner-width expansion factor of the Mamba operator.
@@ -753,7 +752,6 @@ class LIONDetection(DetectionModel):
         num_upsample_filters: Sequence[int] = (128, 128, 128),
         feature_map_stride: int = 2,
         local_max_classes: Sequence[int] = (),
-        post_center_range: Optional[Sequence[float]] = None,
         d_state: int = 16,
         d_conv: int = 4,
         expand: int = 2,
@@ -777,7 +775,6 @@ class LIONDetection(DetectionModel):
         self.num_upsample_filters = num_upsample_filters
         self.feature_map_stride = feature_map_stride
         self.local_max_classes = local_max_classes
-        self.post_center_range = post_center_range
         self.d_state = d_state
         self.d_conv = d_conv
         self.expand = expand
@@ -830,18 +827,15 @@ class LIONDetection(DetectionModel):
         return TransFusionHead(
             self.backbone.num_bev_features,
             self.num_classes,
-            self.grid_size,
-            self.point_cloud_range,
-            self.voxel_size,
+            voxel_size=self.voxel_size,
+            point_cloud_range=self.point_cloud_range,
             feature_map_stride=self.feature_map_stride,
-            dropout=0.0,
-            bias=True,
-            use_iou=True,
-            query_radius=20,
-            iou_rectifier=0.5,
             height_code="top",
+            dropout=0.0,
             local_max_classes=self.local_max_classes,
-            post_center_range=self.post_center_range,
+            query_radius=20,
+            use_iou=True,
+            bias=True,
         )
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
@@ -861,21 +855,39 @@ class LIONDetection(DetectionModel):
         return self.forward_head(features)
 
     @torch.no_grad()
-    def decode(self, out: TransFusionHeadOutput) -> Detection3D:
-        r"""Decode a forward output into raw candidate detections (see `TransFusionHead.decode`)."""
-        return self.head.decode(out)
+    def decode(
+        self,
+        out: TransFusionHeadOutput,
+        *,
+        iou_rectifier: Optional[Sequence[float]] = (0.5,) * 10,
+    ) -> Detection3D:
+        r"""Decode a forward output into raw candidate detections rescored by the predicted IoU (no NMS).
+
+        See [`TransFusionHead.decode`][torch_pointcloud.layers.transfusion_head.TransFusionHead.decode].
+
+        Args:
+            out: A `TransFusionHeadOutput` from `forward`.
+            iou_rectifier: Per-class IoU-rectification exponent, one entry per class (the default holds the reference
+                nuScenes value $0.5$ for each of the $10$ classes); `None` keeps the unrectified scores.
+
+        Returns:
+            Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
+            (PyG layout), plus `"velocity"` $(K, 2)$.
+        """
+        return self.head.decode(out, iou_rectifier=iou_rectifier)
 
 
 def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
-    r"""Transpose the head convolution kernels of a released LION checkpoint, as the `pretrained_filter_fn` of a
-    `WeightsDict`.
+    r"""Transpose the head convolution kernels of a LION state dict in the authors' layout, as the
+    `pretrained_filter_fn` of a `WeightsDict`.
 
-    The released head convolves the BEV map with $x$ along its rows, while
+    The authors' head convolves the BEV map with $x$ along its rows, while
     [`TransFusionHead`][torch_pointcloud.layers.transfusion_head.TransFusionHead] takes the $(y, x)$ layout of the
-    backbone, so the spatial axes of each head convolution kernel are swapped.
+    backbone, so the spatial axes of each head convolution kernel are swapped. The registered weights are a copy of
+    the authors' checkpoint in their layout.
 
     Args:
-        state_dict: State dict of the released checkpoint.
+        state_dict: State dict in the authors' layout.
         model: Model the state dict is loaded into.
 
     Returns:
@@ -894,7 +906,7 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
         url="hf://torch-pointcloud/lion-mamba.nuscenes.zhe-liu/resolve/cf347e7237553182ab3818056d3d7bb8843811d3/model.safetensors",
         pretrained_filter_fn=checkpoint_filter_fn,
         dataset="nuscenes",
-        metrics={"mAP": 68.81, "NDS": 72.33},
+        metrics={"mAP": 68.84, "NDS": 72.35},
         classes=NUSCENES_DETECTION_CLASSES,
         author="zhe-liu",
         license="Apache-2.0",
@@ -919,7 +931,6 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
         num_upsample_filters=(128, 128, 128),
         feature_map_stride=2,
         local_max_classes=(8, 9),
-        post_center_range=(-61.2, -61.2, -10.0, 61.2, 61.2, 10.0),
         d_state=16,
         d_conv=4,
         expand=2,

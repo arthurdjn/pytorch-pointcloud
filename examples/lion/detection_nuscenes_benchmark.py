@@ -25,7 +25,8 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
-CIRCULAR_NMS_RADIUS = 0.175
+NMS_IOU_THRESHOLD = 0.175
+NMS_MAX_KEEP = 100
 
 
 def main() -> None:
@@ -92,32 +93,29 @@ def configure_model(args: Namespace) -> LIONDetection:
     return model
 
 
-def circular_nms(det: Detection3D, local_max_classes: Sequence[int], radius: float) -> Detection3D:
-    """LION's per-task BEV filter: circular NMS on the crowded `local_max_classes`, keep all other classes."""
-    boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
-    keep_parts = []
-    for b in torch.unique(batch):
-        scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
-        keep_mask = torch.ones(scene.numel(), dtype=torch.bool, device=scene.device)
-        for cls in local_max_classes:
-            local = (labels[scene] == cls).nonzero(as_tuple=False).squeeze(-1)
-            if local.numel() == 0:
-                continue
-
-            cls_keep = torch.zeros(local.numel(), dtype=torch.bool, device=scene.device)
-            cls_keep[nms3d(boxes[scene][local][:, :7], scores[scene][local], radius)] = True
-            keep_mask[local] = cls_keep
-
-        keep_parts.append(scene[keep_mask])
-
-    idx = torch.cat(keep_parts)
+def task_nms(det: Detection3D, classes: Sequence[int]) -> Detection3D:
+    """LION's task NMS: rotated BEV NMS within each crowded class of each scene, every other class kept."""
+    labels = det["labels"]
+    crowded = torch.isin(labels, labels.new_tensor(list(classes)))
+    index = crowded.nonzero().squeeze(-1)
+    # One NMS group per (scene, class), so `max_keep` caps every class of every scene as the reference does.
+    group = det["batch"][index] * len(NUSCENES_DETECTION_CLASSES) + labels[index]
+    kept = nms3d(
+        det["boxes"][index],
+        det["scores"][index],
+        NMS_IOU_THRESHOLD,
+        batch=group,
+        rotated=True,
+        max_keep=NMS_MAX_KEEP,
+    )
+    keep = torch.cat([(~crowded).nonzero().squeeze(-1), index[kept]])
 
     return {
-        "boxes": boxes[idx],
-        "scores": scores[idx],
-        "labels": labels[idx],
-        "batch": batch[idx],
-        "velocity": det["velocity"][idx],
+        "boxes": det["boxes"][keep],
+        "scores": det["scores"][keep],
+        "labels": labels[keep],
+        "batch": det["batch"][keep],
+        "velocity": det["velocity"][keep],
     }
 
 
@@ -134,7 +132,7 @@ def evaluate(model: LIONDetection, dataloader: DataLoader, device: str) -> Dict[
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
         output = model(data[DataKeys.X], data[DataKeys.POS], data[f"batch_{DataKeys.POS}"])
-        det = circular_nms(model.decode(output), model.head.local_max_classes, CIRCULAR_NMS_RADIUS)
+        det = task_nms(model.decode(output), model.head.local_max_classes)
         preds.append(
             {
                 "boxes": det["boxes"].cpu(),

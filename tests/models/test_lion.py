@@ -1,11 +1,12 @@
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Dict, Sequence
 
 import pytest
 import torch
 import torch.nn as nn
 
 from torch_pointcloud.config import MODELS_DIR
+from torch_pointcloud.layers.transfusion_head import TransFusionHead, TransFusionHeadOutput
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.lion import (
     FlattenedWindowMapping,
@@ -55,6 +56,45 @@ def test_lion_checkpoint_filter_fn_transposes_the_head_convolutions() -> None:
     assert torch.equal(out["head.shared_conv.weight"], state["head.shared_conv.weight"].transpose(-1, -2))
     for key in ("head.shared_conv.bias", "backbone.blocks.0.1.conv.weight", "head.class_encoding.weight"):
         assert out[key] is state[key]
+
+
+def test_lion_checkpoint_filter_fn_reads_the_authors_bev_layout() -> None:
+    """The authors' head convolves the transposed BEV map: the filtered head on $x$ gives its heatmap on $x^T$."""
+    torch.manual_seed(0)
+    geometry: Dict[str, Any] = dict(voxel_size=(0.3, 0.3, 0.25), point_cloud_range=RANGE, feature_map_stride=8)
+    authors = TransFusionHead(16, 3, height_code="top", num_proposals=5, **geometry).eval()
+    ours = TransFusionHead(16, 3, height_code="top", num_proposals=5, **geometry).eval()
+    state = checkpoint_filter_fn({f"head.{k}": v for k, v in authors.state_dict().items()}, nn.Identity())
+    ours.load_state_dict({key.removeprefix("head."): value for key, value in state.items()})
+    x = torch.randn(2, 16, 6, 9)
+    with torch.no_grad():
+        expected = authors(x.transpose(-1, -2))["dense_heatmap"].transpose(-1, -2)
+        actual = ours(x)["dense_heatmap"]
+    assert torch.allclose(actual, expected, atol=1e-6)
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_lion_decode_rescores_by_the_predicted_iou() -> None:
+    """By default the candidates are rescored as $\\sqrt{s \\cdot \\text{iou}}$, the checkpoint's rectifier $0.5$."""
+    model = create_model("lion-mamba.nuscenes.zhe-liu", task="detection").eval()
+    assert isinstance(model, LIONDetection)
+    torch.manual_seed(0)
+    q = model.head.num_proposals
+    out: TransFusionHeadOutput = {
+        "center": torch.rand(1, 2, q) * 180,
+        "height": torch.randn(1, 1, q),
+        "dim": torch.randn(1, 3, q),
+        "rot": torch.randn(1, 2, q),
+        "vel": torch.randn(1, 2, q),
+        "iou": torch.rand(1, 1, q) * 2 - 1,
+        "heatmap": torch.randn(1, 10, q),
+        "query_heatmap_score": torch.rand(1, 10, q),
+        "query_labels": torch.randint(0, 10, (1, q)),
+        "dense_heatmap": torch.randn(1, 10, 8, 8),
+    }
+    raw = model.decode(out, iou_rectifier=None)["scores"]
+    iou = ((out["iou"][:, 0] + 1) * 0.5).clamp(0, 1).reshape(-1)
+    assert torch.allclose(model.decode(out)["scores"], (raw * iou).sqrt())
 
 
 def test_lion_window_mapping_empty_batch_element() -> None:
