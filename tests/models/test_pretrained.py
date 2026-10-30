@@ -430,6 +430,50 @@ def test_pretrained_lion(
 
 
 @pytest.mark.pretrained
+@pytest.mark.parametrize("model_name", ["transfusion-lidar.nuscenes.openpcdet"])
+def test_pretrained_transfusion(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """TransFusion-L returns a TransFusion-head dict, so it needs its own snapshot test.
+
+    A fixed synthetic cloud inside the model's range is hard-voxelized as the registered transform would. The snapshot
+    is the order-invariant `dense_heatmap`: the per-query outputs follow the top-k order of the heatmap, which a float
+    tie can reorder. TF32 is disabled: the sparse backbone's rounding differs across processes with it on.
+    """
+    if not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+    if not torch.cuda.is_available():
+        pytest.skip(f"{model_name} requires CUDA, none available")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    pc_range = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
+    n = 8000
+    pos = torch.rand(n, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (pc_range[d + 3] - pc_range[d]) + pc_range[d]
+    x = torch.rand(n, model.in_channels - 3)
+    points = torch.cat([pos, x], dim=1).to(DEVICE)
+    batch = torch.zeros(n, dtype=torch.long, device=DEVICE)
+
+    voxels, voxel_indices, num_points = hard_voxelize(points, batch, (0.075, 0.075, 0.2), pc_range, 10, 160000)
+    with torch.no_grad():
+        out = model(voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
+
+    _check_output(out["dense_heatmap"].reshape(-1), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
 @pytest.mark.parametrize("model_name", ["voxel-mamba.waymo"])
 def test_seeded_voxel_mamba(
     model_name: str,

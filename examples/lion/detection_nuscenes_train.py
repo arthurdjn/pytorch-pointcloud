@@ -18,10 +18,11 @@ import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, NuScenesSplit, velocity_attributes
+from torch_pointcloud.layers.transfusion_head import TransFusionHeadOutput
 from torch_pointcloud.losses import TransFusionHeadLoss
 from torch_pointcloud.metrics import nuscenes_detection_metrics
 from torch_pointcloud.models import create_model, model_info
-from torch_pointcloud.models.lion import LIONDetection, TransFusionHeadOutput
+from torch_pointcloud.models.lion import LIONDetection
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -33,6 +34,8 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 MODEL = "lion-mamba.nuscenes.zhe-liu"
+NMS_IOU_THRESHOLD = 0.175
+NMS_MAX_KEEP = 100
 POINT_CLOUD_RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 # Objects pasted per scene and class, in the order of NUSCENES_DETECTION_CLASSES, counting the ones already there.
 SAMPLES_PER_CLASS = dict(enumerate((2, 3, 7, 4, 6, 2, 6, 6, 2, 2)))
@@ -200,7 +203,6 @@ def configure_criterion(args: Namespace) -> TransFusionHeadLoss:
         point_cloud_range=hparams["point_cloud_range"],
         voxel_size=hparams["voxel_size"],
         feature_map_stride=hparams["feature_map_stride"],
-        num_proposals=200,
         gaussian_overlap=0.1,
         min_radius=2,
         matcher_cls_cost=0.15,
@@ -211,6 +213,7 @@ def configure_criterion(args: Namespace) -> TransFusionHeadLoss:
         loc_weight=0.25,
         heatmap_weight=1.0,
         iou_weight=0.5,
+        height_code="top",
     ).to(args.device)
 
 
@@ -270,32 +273,29 @@ def disable_sampling(dataset: Dataset) -> None:
     dataset.transform = T.Compose(steps)
 
 
-def circular_nms(det: Detection3D, local_max_classes: Sequence[int], radius: float) -> Detection3D:
-    """LION's per-task BEV filter: circular NMS on the crowded `local_max_classes`, keep all other classes."""
-    boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
-    keep_parts = []
-    for b in torch.unique(batch):
-        scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
-        keep_mask = torch.ones(scene.numel(), dtype=torch.bool, device=scene.device)
-        for cls in local_max_classes:
-            local = (labels[scene] == cls).nonzero(as_tuple=False).squeeze(-1)
-            if local.numel() == 0:
-                continue
-
-            cls_keep = torch.zeros(local.numel(), dtype=torch.bool, device=scene.device)
-            cls_keep[nms3d(boxes[scene][local][:, :7], scores[scene][local], radius)] = True
-            keep_mask[local] = cls_keep
-
-        keep_parts.append(scene[keep_mask])
-
-    idx = torch.cat(keep_parts)
+def task_nms(det: Detection3D, classes: Sequence[int]) -> Detection3D:
+    """LION's task NMS: rotated BEV NMS within each crowded class of each scene, every other class kept."""
+    labels = det["labels"]
+    crowded = torch.isin(labels, labels.new_tensor(list(classes)))
+    index = crowded.nonzero().squeeze(-1)
+    # One NMS group per (scene, class), so `max_keep` caps every class of every scene as the reference does.
+    group = det["batch"][index] * len(NUSCENES_DETECTION_CLASSES) + labels[index]
+    kept = nms3d(
+        det["boxes"][index],
+        det["scores"][index],
+        NMS_IOU_THRESHOLD,
+        batch=group,
+        rotated=True,
+        max_keep=NMS_MAX_KEEP,
+    )
+    keep = torch.cat([(~crowded).nonzero().squeeze(-1), index[kept]])
 
     return {
-        "boxes": boxes[idx],
-        "scores": scores[idx],
-        "labels": labels[idx],
-        "batch": batch[idx],
-        "velocity": det["velocity"][idx],
+        "boxes": det["boxes"][keep],
+        "scores": det["scores"][keep],
+        "labels": labels[keep],
+        "batch": det["batch"][keep],
+        "velocity": det["velocity"][keep],
     }
 
 
@@ -339,7 +339,7 @@ def evaluate(model: LIONDetection, loader: DataLoader, device: str) -> dict[str,
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
-        det = circular_nms(model.decode(forward(model, data)), model.head.local_max_classes, model.head.nms_radius)
+        det = task_nms(model.decode(forward(model, data)), model.head.local_max_classes)
         preds.append(
             {
                 "boxes": det["boxes"].cpu(),

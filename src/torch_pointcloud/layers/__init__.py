@@ -102,6 +102,12 @@ from .spconv_blocks import (
 from .tnet import DynamicTNet, TNet
 from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
 from .transformer import Attention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
+from .transfusion_head import (
+    TransFusionDecoderLayer,
+    TransFusionHead,
+    TransFusionHeadOutput,
+    TransFusionPredictionHead,
+)
 from .vfe import DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
@@ -210,6 +216,10 @@ __all__ = [
     "TransformerBlock",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
+    "TransFusionDecoderLayer",
+    "TransFusionHead",
+    "TransFusionHeadOutput",
+    "TransFusionPredictionHead",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",

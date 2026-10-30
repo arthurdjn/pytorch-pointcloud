@@ -1,0 +1,993 @@
+{
+  "num_params": 8306030,
+  "state_dict": {
+    "backbone_3d.conv_input.0.weight": [
+      16,
+      3,
+      3,
+      3,
+      5
+    ],
+    "backbone_3d.conv_input.1.module.weight": [
+      16
+    ],
+    "backbone_3d.conv_input.1.module.bias": [
+      16
+    ],
+    "backbone_3d.conv_input.1.module.running_mean": [
+      16
+    ],
+    "backbone_3d.conv_input.1.module.running_var": [
+      16
+    ],
+    "backbone_3d.conv_input.1.module.num_batches_tracked": [],
+    "backbone_3d.conv1.0.conv1.weight": [
+      16,
+      3,
+      3,
+      3,
+      16
+    ],
+    "backbone_3d.conv1.0.norm1.module.weight": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm1.module.bias": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm1.module.running_mean": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm1.module.running_var": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv1.0.conv2.weight": [
+      16,
+      3,
+      3,
+      3,
+      16
+    ],
+    "backbone_3d.conv1.0.norm2.module.weight": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm2.module.bias": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm2.module.running_mean": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm2.module.running_var": [
+      16
+    ],
+    "backbone_3d.conv1.0.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv1.1.conv1.weight": [
+      16,
+      3,
+      3,
+      3,
+      16
+    ],
+    "backbone_3d.conv1.1.norm1.module.weight": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm1.module.bias": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm1.module.running_mean": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm1.module.running_var": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv1.1.conv2.weight": [
+      16,
+      3,
+      3,
+      3,
+      16
+    ],
+    "backbone_3d.conv1.1.norm2.module.weight": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm2.module.bias": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm2.module.running_mean": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm2.module.running_var": [
+      16
+    ],
+    "backbone_3d.conv1.1.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv2.0.0.weight": [
+      32,
+      3,
+      3,
+      3,
+      16
+    ],
+    "backbone_3d.conv2.0.1.module.weight": [
+      32
+    ],
+    "backbone_3d.conv2.0.1.module.bias": [
+      32
+    ],
+    "backbone_3d.conv2.0.1.module.running_mean": [
+      32
+    ],
+    "backbone_3d.conv2.0.1.module.running_var": [
+      32
+    ],
+    "backbone_3d.conv2.0.1.module.num_batches_tracked": [],
+    "backbone_3d.conv2.1.conv1.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "backbone_3d.conv2.1.norm1.module.weight": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm1.module.bias": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm1.module.running_mean": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm1.module.running_var": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv2.1.conv2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "backbone_3d.conv2.1.norm2.module.weight": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm2.module.bias": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm2.module.running_mean": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm2.module.running_var": [
+      32
+    ],
+    "backbone_3d.conv2.1.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv2.2.conv1.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "backbone_3d.conv2.2.norm1.module.weight": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm1.module.bias": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm1.module.running_mean": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm1.module.running_var": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv2.2.conv2.weight": [
+      32,
+      3,
+      3,
+      3,
+      32
+    ],
+    "backbone_3d.conv2.2.norm2.module.weight": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm2.module.bias": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm2.module.running_mean": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm2.module.running_var": [
+      32
+    ],
+    "backbone_3d.conv2.2.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv3.0.0.weight": [
+      64,
+      3,
+      3,
+      3,
+      32
+    ],
+    "backbone_3d.conv3.0.1.module.weight": [
+      64
+    ],
+    "backbone_3d.conv3.0.1.module.bias": [
+      64
+    ],
+    "backbone_3d.conv3.0.1.module.running_mean": [
+      64
+    ],
+    "backbone_3d.conv3.0.1.module.running_var": [
+      64
+    ],
+    "backbone_3d.conv3.0.1.module.num_batches_tracked": [],
+    "backbone_3d.conv3.1.conv1.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "backbone_3d.conv3.1.norm1.module.weight": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm1.module.bias": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm1.module.running_mean": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm1.module.running_var": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv3.1.conv2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "backbone_3d.conv3.1.norm2.module.weight": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm2.module.bias": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm2.module.running_mean": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm2.module.running_var": [
+      64
+    ],
+    "backbone_3d.conv3.1.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv3.2.conv1.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "backbone_3d.conv3.2.norm1.module.weight": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm1.module.bias": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm1.module.running_mean": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm1.module.running_var": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv3.2.conv2.weight": [
+      64,
+      3,
+      3,
+      3,
+      64
+    ],
+    "backbone_3d.conv3.2.norm2.module.weight": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm2.module.bias": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm2.module.running_mean": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm2.module.running_var": [
+      64
+    ],
+    "backbone_3d.conv3.2.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv4.0.0.weight": [
+      128,
+      3,
+      3,
+      3,
+      64
+    ],
+    "backbone_3d.conv4.0.1.module.weight": [
+      128
+    ],
+    "backbone_3d.conv4.0.1.module.bias": [
+      128
+    ],
+    "backbone_3d.conv4.0.1.module.running_mean": [
+      128
+    ],
+    "backbone_3d.conv4.0.1.module.running_var": [
+      128
+    ],
+    "backbone_3d.conv4.0.1.module.num_batches_tracked": [],
+    "backbone_3d.conv4.1.conv1.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.conv4.1.norm1.module.weight": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm1.module.bias": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm1.module.running_mean": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm1.module.running_var": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv4.1.conv2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.conv4.1.norm2.module.weight": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm2.module.bias": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm2.module.running_mean": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm2.module.running_var": [
+      128
+    ],
+    "backbone_3d.conv4.1.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv4.2.conv1.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.conv4.2.norm1.module.weight": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm1.module.bias": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm1.module.running_mean": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm1.module.running_var": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm1.module.num_batches_tracked": [],
+    "backbone_3d.conv4.2.conv2.weight": [
+      128,
+      3,
+      3,
+      3,
+      128
+    ],
+    "backbone_3d.conv4.2.norm2.module.weight": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm2.module.bias": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm2.module.running_mean": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm2.module.running_var": [
+      128
+    ],
+    "backbone_3d.conv4.2.norm2.module.num_batches_tracked": [],
+    "backbone_3d.conv_out.0.weight": [
+      128,
+      3,
+      1,
+      1,
+      128
+    ],
+    "backbone_3d.conv_out.1.module.weight": [
+      128
+    ],
+    "backbone_3d.conv_out.1.module.bias": [
+      128
+    ],
+    "backbone_3d.conv_out.1.module.running_mean": [
+      128
+    ],
+    "backbone_3d.conv_out.1.module.running_var": [
+      128
+    ],
+    "backbone_3d.conv_out.1.module.num_batches_tracked": [],
+    "backbone.blocks.0.1.conv.weight": [
+      128,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.0.1.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.1.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.1.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.1.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.1.norm.num_batches_tracked": [],
+    "backbone.blocks.0.2.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.2.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.2.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.2.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.2.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.2.norm.num_batches_tracked": [],
+    "backbone.blocks.0.3.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.3.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.3.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.3.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.3.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.3.norm.num_batches_tracked": [],
+    "backbone.blocks.0.4.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.4.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.4.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.4.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.4.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.4.norm.num_batches_tracked": [],
+    "backbone.blocks.0.5.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.5.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.5.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.5.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.5.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.5.norm.num_batches_tracked": [],
+    "backbone.blocks.0.6.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.0.6.norm.weight": [
+      128
+    ],
+    "backbone.blocks.0.6.norm.bias": [
+      128
+    ],
+    "backbone.blocks.0.6.norm.running_mean": [
+      128
+    ],
+    "backbone.blocks.0.6.norm.running_var": [
+      128
+    ],
+    "backbone.blocks.0.6.norm.num_batches_tracked": [],
+    "backbone.blocks.1.1.conv.weight": [
+      256,
+      128,
+      3,
+      3
+    ],
+    "backbone.blocks.1.1.norm.weight": [
+      256
+    ],
+    "backbone.blocks.1.1.norm.bias": [
+      256
+    ],
+    "backbone.blocks.1.1.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.1.1.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.1.1.norm.num_batches_tracked": [],
+    "backbone.blocks.1.2.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.1.2.norm.weight": [
+      256
+    ],
+    "backbone.blocks.1.2.norm.bias": [
+      256
+    ],
+    "backbone.blocks.1.2.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.1.2.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.1.2.norm.num_batches_tracked": [],
+    "backbone.blocks.1.3.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.1.3.norm.weight": [
+      256
+    ],
+    "backbone.blocks.1.3.norm.bias": [
+      256
+    ],
+    "backbone.blocks.1.3.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.1.3.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.1.3.norm.num_batches_tracked": [],
+    "backbone.blocks.1.4.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.1.4.norm.weight": [
+      256
+    ],
+    "backbone.blocks.1.4.norm.bias": [
+      256
+    ],
+    "backbone.blocks.1.4.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.1.4.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.1.4.norm.num_batches_tracked": [],
+    "backbone.blocks.1.5.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.1.5.norm.weight": [
+      256
+    ],
+    "backbone.blocks.1.5.norm.bias": [
+      256
+    ],
+    "backbone.blocks.1.5.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.1.5.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.1.5.norm.num_batches_tracked": [],
+    "backbone.blocks.1.6.conv.weight": [
+      256,
+      256,
+      3,
+      3
+    ],
+    "backbone.blocks.1.6.norm.weight": [
+      256
+    ],
+    "backbone.blocks.1.6.norm.bias": [
+      256
+    ],
+    "backbone.blocks.1.6.norm.running_mean": [
+      256
+    ],
+    "backbone.blocks.1.6.norm.running_var": [
+      256
+    ],
+    "backbone.blocks.1.6.norm.num_batches_tracked": [],
+    "backbone.deblocks.0.conv.weight": [
+      128,
+      256,
+      1,
+      1
+    ],
+    "backbone.deblocks.0.norm.weight": [
+      256
+    ],
+    "backbone.deblocks.0.norm.bias": [
+      256
+    ],
+    "backbone.deblocks.0.norm.running_mean": [
+      256
+    ],
+    "backbone.deblocks.0.norm.running_var": [
+      256
+    ],
+    "backbone.deblocks.0.norm.num_batches_tracked": [],
+    "backbone.deblocks.1.conv.weight": [
+      256,
+      256,
+      2,
+      2
+    ],
+    "backbone.deblocks.1.norm.weight": [
+      256
+    ],
+    "backbone.deblocks.1.norm.bias": [
+      256
+    ],
+    "backbone.deblocks.1.norm.running_mean": [
+      256
+    ],
+    "backbone.deblocks.1.norm.running_var": [
+      256
+    ],
+    "backbone.deblocks.1.norm.num_batches_tracked": [],
+    "head.shared_conv.weight": [
+      128,
+      512,
+      3,
+      3
+    ],
+    "head.shared_conv.bias": [
+      128
+    ],
+    "head.heatmap_head.0.conv.weight": [
+      128,
+      128,
+      3,
+      3
+    ],
+    "head.heatmap_head.0.norm.weight": [
+      128
+    ],
+    "head.heatmap_head.0.norm.bias": [
+      128
+    ],
+    "head.heatmap_head.0.norm.running_mean": [
+      128
+    ],
+    "head.heatmap_head.0.norm.running_var": [
+      128
+    ],
+    "head.heatmap_head.0.norm.num_batches_tracked": [],
+    "head.heatmap_head.1.weight": [
+      10,
+      128,
+      3,
+      3
+    ],
+    "head.heatmap_head.1.bias": [
+      10
+    ],
+    "head.class_encoding.weight": [
+      128,
+      10
+    ],
+    "head.class_encoding.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.lins.0.weight": [
+      128,
+      2
+    ],
+    "head.decoder.self_posembed.lins.0.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.lins.1.weight": [
+      128,
+      128
+    ],
+    "head.decoder.self_posembed.lins.1.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.weight": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.bias": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.running_mean": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.running_var": [
+      128
+    ],
+    "head.decoder.self_posembed.norms.0.module.num_batches_tracked": [],
+    "head.decoder.cross_posembed.lins.0.weight": [
+      128,
+      2
+    ],
+    "head.decoder.cross_posembed.lins.0.bias": [
+      128
+    ],
+    "head.decoder.cross_posembed.lins.1.weight": [
+      128,
+      128
+    ],
+    "head.decoder.cross_posembed.lins.1.bias": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.weight": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.bias": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.running_mean": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.running_var": [
+      128
+    ],
+    "head.decoder.cross_posembed.norms.0.module.num_batches_tracked": [],
+    "head.decoder.layer.self_attn.in_proj_weight": [
+      384,
+      128
+    ],
+    "head.decoder.layer.self_attn.in_proj_bias": [
+      384
+    ],
+    "head.decoder.layer.self_attn.out_proj.weight": [
+      128,
+      128
+    ],
+    "head.decoder.layer.self_attn.out_proj.bias": [
+      128
+    ],
+    "head.decoder.layer.multihead_attn.in_proj_weight": [
+      384,
+      128
+    ],
+    "head.decoder.layer.multihead_attn.in_proj_bias": [
+      384
+    ],
+    "head.decoder.layer.multihead_attn.out_proj.weight": [
+      128,
+      128
+    ],
+    "head.decoder.layer.multihead_attn.out_proj.bias": [
+      128
+    ],
+    "head.decoder.layer.linear1.weight": [
+      256,
+      128
+    ],
+    "head.decoder.layer.linear1.bias": [
+      256
+    ],
+    "head.decoder.layer.linear2.weight": [
+      128,
+      256
+    ],
+    "head.decoder.layer.linear2.bias": [
+      128
+    ],
+    "head.decoder.layer.norm1.weight": [
+      128
+    ],
+    "head.decoder.layer.norm1.bias": [
+      128
+    ],
+    "head.decoder.layer.norm2.weight": [
+      128
+    ],
+    "head.decoder.layer.norm2.bias": [
+      128
+    ],
+    "head.decoder.layer.norm3.weight": [
+      128
+    ],
+    "head.decoder.layer.norm3.bias": [
+      128
+    ],
+    "head.prediction_head.center.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.center.lins.1.weight": [
+      2,
+      64
+    ],
+    "head.prediction_head.center.lins.1.bias": [
+      2
+    ],
+    "head.prediction_head.center.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.center.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.height.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.height.lins.1.weight": [
+      1,
+      64
+    ],
+    "head.prediction_head.height.lins.1.bias": [
+      1
+    ],
+    "head.prediction_head.height.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.height.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.dim.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.dim.lins.1.weight": [
+      3,
+      64
+    ],
+    "head.prediction_head.dim.lins.1.bias": [
+      3
+    ],
+    "head.prediction_head.dim.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.dim.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.rot.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.rot.lins.1.weight": [
+      2,
+      64
+    ],
+    "head.prediction_head.rot.lins.1.bias": [
+      2
+    ],
+    "head.prediction_head.rot.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.rot.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.vel.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.vel.lins.1.weight": [
+      2,
+      64
+    ],
+    "head.prediction_head.vel.lins.1.bias": [
+      2
+    ],
+    "head.prediction_head.vel.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.vel.norms.0.module.num_batches_tracked": [],
+    "head.prediction_head.heatmap.lins.0.weight": [
+      64,
+      128
+    ],
+    "head.prediction_head.heatmap.lins.1.weight": [
+      10,
+      64
+    ],
+    "head.prediction_head.heatmap.lins.1.bias": [
+      10
+    ],
+    "head.prediction_head.heatmap.norms.0.module.weight": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.bias": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.running_mean": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.running_var": [
+      64
+    ],
+    "head.prediction_head.heatmap.norms.0.module.num_batches_tracked": []
+  }
+}

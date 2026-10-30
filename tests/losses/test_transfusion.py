@@ -1,5 +1,6 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Literal, Tuple
 
+import pytest
 import torch
 from torch import Tensor
 
@@ -40,21 +41,24 @@ def _data(batch_size: int = 2, num_queries: int = 20, size: int = 24) -> Tuple[D
     return output, data
 
 
-def _loss() -> TransFusionHeadLoss:
+def _loss(height_code: Literal["center", "top"] = "top") -> TransFusionHeadLoss:
     return TransFusionHeadLoss(
         _NUM_CLASSES,
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=_STRIDE,
         code_weights=_CODE_WEIGHTS,
+        height_code=height_code,
     )
 
 
-def _perfect_output(boxes: Tensor, labels: Tensor, num_queries: int = 4) -> Dict[str, Tensor]:
+def _perfect_output(
+    boxes: Tensor, labels: Tensor, num_queries: int = 4, height_code: Literal["center", "top"] = "top"
+) -> Dict[str, Tensor]:
     r"""Queries 0..K-1 decode exactly to the GT boxes with confident class logits; the rest are background.
 
     The height channel carries the box-top code $z + d_z / 2$ (the decode recovers the gravity center as
-    $\text{height} - d_z / 2$).
+    $\text{height} - d_z / 2$), or the gravity center itself with `height_code="center"`.
     """
     k = boxes.shape[0]
     center = torch.full((1, 2, num_queries), 1.0)
@@ -67,7 +71,7 @@ def _perfect_output(boxes: Tensor, labels: Tensor, num_queries: int = 4) -> Dict
 
     center[0, 0, :k] = (boxes[:, 0] + 12.0) / 1.0
     center[0, 1, :k] = (boxes[:, 1] + 12.0) / 1.0
-    height[0, 0, :k] = boxes[:, 2] + 0.5 * boxes[:, 5]
+    height[0, 0, :k] = boxes[:, 2] + 0.5 * boxes[:, 5] if height_code == "top" else boxes[:, 2]
     dim[0, :, :k] = boxes[:, 3:6].log().t()
     rot[0, 0, :k] = torch.sin(boxes[:, 6])
     rot[0, 1, :k] = torch.cos(boxes[:, 6])
@@ -109,6 +113,39 @@ def test_transfusion_loss_encode_decode_height_convention() -> None:
     output = _perfect_output(boxes, torch.tensor([0]))
     decoded = loss_fn._decode_queries(output)[0]  # type: ignore[arg-type]
     assert torch.allclose(decoded[0], boxes[0], atol=1e-5)
+
+
+def test_transfusion_loss_center_height_code_keeps_the_gravity_center() -> None:
+    boxes = torch.tensor([[2.0, 3.0, -1.0, 3.5, 2.0, 1.8, 0.4]])
+    loss_fn = _loss(height_code="center")
+    assert torch.isclose(loss_fn._encode(boxes)[0, 2], torch.tensor(-1.0))
+
+    output = _perfect_output(boxes, torch.tensor([0]), height_code="center")
+    decoded = loss_fn._decode_queries(output)[0]  # type: ignore[arg-type]
+    assert torch.allclose(decoded[0], boxes[0], atol=1e-5)
+
+
+@pytest.mark.parametrize("height_code", ["center", "top"])
+def test_transfusion_loss_perfect_queries_for_each_height_code(height_code: Literal["center", "top"]) -> None:
+    boxes = torch.tensor([[2.0, 3.0, 0.2, 3.5, 2.0, 1.5, 0.4], [-5.0, 4.0, 0.1, 4.0, 1.8, 1.6, -0.6]])
+    labels = torch.tensor([0, 2])
+    data: Dict[str, Any] = {
+        DataKeys.BOX: boxes,
+        DataKeys.LABEL: labels,
+        DataKeys.BATCH_BOX: torch.zeros(2, dtype=torch.long),
+    }
+    out = _loss(height_code)(_perfect_output(boxes, labels, height_code=height_code), data)
+    assert out["box_loss"] < 1e-5
+    assert out["iou_loss"] < 1e-5
+
+
+def test_transfusion_loss_without_iou_branch_has_no_iou_term() -> None:
+    output, data = _data()
+    with_iou = _loss()(output, data)
+    del output["iou"]
+    out = _loss()(output, data)
+    assert "iou_loss" not in out
+    assert torch.allclose(out["loss"], with_iou["loss"] - with_iou["iou_loss"])
 
 
 def test_transfusion_loss_perturbed_queries_are_larger() -> None:
@@ -158,3 +195,44 @@ def test_transfusion_loss_no_boxes_is_finite() -> None:
     data[DataKeys.LABEL] = data[DataKeys.LABEL][:0]
     data[DataKeys.BATCH_BOX] = data[DataKeys.BATCH_BOX][:0]
     assert torch.isfinite(_loss()(output, data)["loss"])
+
+
+def test_transfusion_loss_last_scene_without_boxes_is_finite() -> None:
+    output, data = _data()
+    data[DataKeys.BATCH_BOX] = torch.zeros(3, dtype=torch.long)
+    out = _loss()(output, data)
+    assert torch.isfinite(out["loss"])
+
+
+def test_transfusion_loss_without_height_code_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="height_code"):
+        loss_fn = TransFusionHeadLoss(
+            _NUM_CLASSES,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=_STRIDE,
+        )
+    assert loss_fn.height_code == "top"
+
+
+def test_transfusion_loss_num_proposals_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="num_proposals"):
+        TransFusionHeadLoss(
+            _NUM_CLASSES,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=_STRIDE,
+            height_code="top",
+            num_proposals=200,
+        )
+
+
+def test_transfusion_loss_rejects_an_unknown_height_code() -> None:
+    with pytest.raises(ValueError, match="height_code"):
+        TransFusionHeadLoss(
+            _NUM_CLASSES,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=_STRIDE,
+            height_code="bottom",  # type: ignore[arg-type]
+        )
