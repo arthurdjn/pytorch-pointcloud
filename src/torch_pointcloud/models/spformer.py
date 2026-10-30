@@ -76,7 +76,8 @@ class SPFormerQueryDecoder(nn.Module):
         act: Activation of the feed-forward blocks.
 
     Shape:
-        - Input: superpoint features $(S, \text{in\_channels})$ and their scene index $(S,)$, sorted.
+        - Input: superpoint features $(S, \text{in\_channels})$ and their scene index $(S,)$, sorted and contiguous
+          ($0 \ldots B - 1$).
         - Output: the predictions after every layer, see `SPFormerPrediction`.
     """
 
@@ -167,7 +168,12 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
     `forward` takes the voxelized scenes (`x`, `pos_grid` and the voxel `batch`) and three per-point tensors:
     `superpoint`, the superpoint id of every point within its scene (any integer ids), `inverse`, the voxel row of
     every point within its scene, and `batch_inverse`, the scene of every point. Collating with
-    `cat_keys=[DataKeys.INVERSE]` produces `batch_inverse`.
+    `cat_keys=[DataKeys.INVERSE]` produces `batch_inverse`. Scene indices are contiguous, $0 \ldots B - 1$, as `collate`
+    emits them.
+
+    Any over-segmentation of a scene into small groups of similar points can serve as `superpoint`. The registered
+    checkpoint was trained on the mesh segments of ScanNet (`ScanNet(return_superpoint=True)`); a scan without a mesh
+    can use a coarser grouping, such as the 5 cm cells of PyG `voxel_grid`, at a lower accuracy.
 
     Args:
         in_channels: Number of input voxel feature channels.
