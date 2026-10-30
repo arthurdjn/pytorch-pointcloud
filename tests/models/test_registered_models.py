@@ -905,6 +905,7 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
             for url in ensure_tuple(weights["url"]):
                 match = HF_URL_RE.fullmatch(url)
                 assert match is not None and re.fullmatch(r"[0-9a-f]{40}", match["revision"]), (name, url)
+                assert match["revision"] != "0" * 40, ("placeholder revision, upload and re-pin", name, url)
                 if match["namespace"] == "torch-pointcloud":
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
@@ -925,7 +926,9 @@ def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
 
 
 def test_registered_weights_urls_exist_on_the_hub() -> None:
-    """Every registered weight file answers a HEAD request at its pinned revision (401/403 means gated, not missing)."""
+    """Every registered weight file answers a HEAD request at its pinned revision. The Hub answers 401 to an anonymous
+    request for a missing repository too, so 401/403 (gated) passes only outside the public `torch-pointcloud`
+    organisation."""
     for name in list_models(pretrained=True):
         weights = model_info(name)["weights"]
         assert weights is not None, name
@@ -936,7 +939,7 @@ def test_registered_weights_urls_exist_on_the_hub() -> None:
                 with urllib.request.urlopen(request, timeout=30) as response:
                     assert response.status == 200, (name, url, response.status)
             except urllib.error.HTTPError as e:
-                assert e.code in (401, 403), (name, url, e.code)
+                assert e.code in (401, 403) and not url.startswith("hf://torch-pointcloud/"), (name, url, e.code)
 
 
 @pytest.mark.skipif(
