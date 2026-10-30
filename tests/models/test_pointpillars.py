@@ -14,8 +14,8 @@ from torch_pointcloud.models.pointpillars import (
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
-pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
-
+# `hard_voxelize` runs on spconv.
+SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (0.0, -39.68, -3.0, 69.12, 39.68, 1.0)
 
@@ -53,6 +53,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
     }
 
 
+@SPCONV
 def test_pointpillars_forward_shapes() -> None:
     model = create_model("pointpillars.kitti.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsDetection)
@@ -76,6 +77,7 @@ def test_pointpillars_forward_shapes() -> None:
     assert torch.isfinite(out["batch_box"]).all()
 
 
+@SPCONV
 def test_pointpillars_eval_is_deterministic() -> None:
     model = create_model("pointpillars.kitti.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsDetection)
@@ -125,6 +127,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
     }
 
 
+@SPCONV
 def test_pp_multihead_forward_shapes() -> None:
     model = create_model("pointpillars-multihead.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsMultiHeadDetection)
@@ -185,6 +188,7 @@ def test_pointpillars_fpn_level_strides_follow_the_backbone_strides() -> None:
     assert model.head.anchors.shape == ((400 * 400 + 200 * 200 + 100 * 100) * 8, 9)
 
 
+@SPCONV
 def test_pointpillars_fpn_forward_and_decode() -> None:
     model = create_model("pointpillars-fpn.nuscenes.mmdet3d", task="detection").to(DEVICE).eval()
     assert isinstance(model, PointPillarsFPNDetection)

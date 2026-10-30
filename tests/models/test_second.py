@@ -15,7 +15,7 @@ from torch_pointcloud.models.second import (
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
-pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 
 # The sparse 3D backbone (spconv SubM/SparseConv3d) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -55,6 +55,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
     }
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_forward_shapes() -> None:
     model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
@@ -77,6 +78,7 @@ def test_second_forward_shapes() -> None:
     assert torch.isfinite(out["batch_box"]).all()
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_eval_is_deterministic() -> None:
     model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
@@ -94,6 +96,7 @@ def test_second_registered_variant() -> None:
     assert "second.kitti.openpcdet" in list_models("second*", task="detection")
 
 
+@SPCONV
 def test_second_create_model_hparams() -> None:
     model = create_model("second.kitti.openpcdet", task="detection")
     assert isinstance(model, SECONDDetection)
@@ -105,6 +108,7 @@ def test_second_create_model_hparams() -> None:
     assert model.head.anchors.shape == (200 * 176 * 6, 7)
 
 
+@SPCONV
 def test_second_iou_create_model_hparams() -> None:
     model = create_model("second-iou.kitti.openpcdet", task="detection")
     assert isinstance(model, SECONDIoUDetection)
@@ -177,6 +181,7 @@ def test_second_iou_head_pool_is_zero_outside_the_map() -> None:
     assert out.abs().max() == 0.0
 
 
+@SPCONV
 def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
     torch.manual_seed(0)
     model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=8).eval()
@@ -202,6 +207,7 @@ def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
     assert int(det["labels"].max()) < 3
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_iou_forward_and_decode() -> None:
     model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=16).to(DEVICE).eval()
@@ -239,6 +245,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
     }
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_multihead_forward_shapes() -> None:
     model = create_model("second-multihead.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
@@ -257,6 +264,7 @@ def test_second_multihead_forward_shapes() -> None:
     assert torch.isfinite(out["batch_box"]).all()
 
 
+@SPCONV
 def test_second_multihead_create_model_hparams() -> None:
     model = create_model("second-multihead.nuscenes.openpcdet", task="detection")
     assert isinstance(model, SECONDMultiHeadDetection)

@@ -16,6 +16,7 @@ from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 _POINT_CLOUD_RANGE = (0.0, -4.0, -2.0, 8.0, 4.0, 2.0)
 _VOXEL_SIZE = (1.0, 1.0, 4.0)
+SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 
 
 def _single_loss() -> AnchorHeadLoss:
@@ -155,20 +156,19 @@ def test_anchor_loss_without_dir_offset_warns_and_keeps_the_former_default() -> 
     assert loss_fn.dir_offset == 0.78539
 
 
-@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 @pytest.mark.parametrize(
     "name",
     [
         pytest.param("pointpillars.kitti.openpcdet", id="pointpillars.kitti.openpcdet"),
         pytest.param("pointpillars.kitti.mmdet3d", id="pointpillars.kitti.mmdet3d"),
         pytest.param("pointpillars.kitti-car.mmdet3d", id="pointpillars.kitti-car.mmdet3d"),
-        pytest.param("second.kitti.openpcdet", id="second.kitti.openpcdet"),
-        pytest.param("second.kitti.mmdet3d", id="second.kitti.mmdet3d"),
-        pytest.param("second.kitti-car.mmdet3d", id="second.kitti-car.mmdet3d"),
-        pytest.param("second-dynamic-voxel.kitti.mmdet3d", id="second-dynamic-voxel.kitti.mmdet3d"),
-        pytest.param("second-iou.kitti.openpcdet", id="second-iou.kitti.openpcdet"),
-        pytest.param("part-a2.kitti.mmdet3d", id="part-a2.kitti.mmdet3d"),
-        pytest.param("pv-rcnn.kitti.mmdet3d", id="pv-rcnn.kitti.mmdet3d"),
+        pytest.param("second.kitti.openpcdet", marks=SPCONV, id="second.kitti.openpcdet"),
+        pytest.param("second.kitti.mmdet3d", marks=SPCONV, id="second.kitti.mmdet3d"),
+        pytest.param("second.kitti-car.mmdet3d", marks=SPCONV, id="second.kitti-car.mmdet3d"),
+        pytest.param("second-dynamic-voxel.kitti.mmdet3d", marks=SPCONV, id="second-dynamic-voxel.kitti.mmdet3d"),
+        pytest.param("second-iou.kitti.openpcdet", marks=SPCONV, id="second-iou.kitti.openpcdet"),
+        pytest.param("part-a2.kitti.mmdet3d", marks=SPCONV, id="part-a2.kitti.mmdet3d"),
+        pytest.param("pv-rcnn.kitti.mmdet3d", marks=SPCONV, id="pv-rcnn.kitti.mmdet3d"),
     ],
 )
 def test_anchor_loss_rebuilds_the_anchors_of_the_registered_head(name: str) -> None:
