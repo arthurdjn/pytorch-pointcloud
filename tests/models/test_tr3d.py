@@ -1,5 +1,5 @@
 import math
-from typing import Tuple
+from typing import Callable, Tuple
 
 import pytest
 import torch
@@ -7,16 +7,14 @@ from torch import Tensor
 
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.tr3d import TR3DDetection, TR3DOutput
-from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
-CUDA_SPCONV = pytest.mark.skipif(
-    not (_SPCONV_AVAILABLE and torch.cuda.is_available()),
-    reason="the sparse encoder needs spconv and CUDA",
-)
+CUDA = pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available")
+DEVICES = pytest.mark.parametrize("device", [pytest.param("cpu"), pytest.param("cuda", marks=CUDA)])
 
 
-def _scenes(n_per_scene: int = 6000, batch_size: int = 2) -> Tuple[Tensor, Tensor, Tensor]:
+def _scenes(device: str, n_per_scene: int = 3000, batch_size: int = 2) -> Tuple[Tensor, Tensor, Tensor]:
     """Random coloured points on the floor and two walls of a 4 m room, per scene."""
     generator = torch.Generator().manual_seed(0)
     pos = torch.rand(batch_size * n_per_scene, 3, generator=generator) * torch.tensor([4.0, 4.0, 2.5])
@@ -25,7 +23,7 @@ def _scenes(n_per_scene: int = 6000, batch_size: int = 2) -> Tuple[Tensor, Tenso
     pos[2::3, 1] = 4.0
     x = torch.rand(batch_size * n_per_scene, 3, generator=generator)
     batch = torch.arange(batch_size).repeat_interleave(n_per_scene)
-    return x.cuda(), pos.cuda(), batch.cuda()
+    return x.to(device), pos.to(device), batch.to(device)
 
 
 @SPCONV
@@ -38,6 +36,12 @@ def test_tr3d_registered_variants() -> None:
         assert model.box.out_features == num_box_outputs
         assert model.strides == (16, 32)
         assert model.num_features == 128
+
+
+@SPCONV
+def test_tr3d_rejects_no_classes() -> None:
+    with pytest.raises(ValueError, match="at least one class"):
+        create_model("tr3d.scannet.mmdet3d", task="detection", num_classes=0)
 
 
 @SPCONV
@@ -79,7 +83,7 @@ def test_tr3d_decode_scores_by_class() -> None:
 
     assert det["labels"].tolist() == [2]
     torch.testing.assert_close(det["scores"], torch.sigmoid(torch.tensor([1.0])))
-    torch.testing.assert_close(det["class_probs"], cls.sigmoid())
+    torch.testing.assert_close(det["class_scores"], cls.sigmoid())
 
 
 @SPCONV
@@ -90,11 +94,16 @@ def test_tr3d_reset_classifier() -> None:
     assert model.num_classes == 4 and model.cls.out_features == 4
 
 
-@CUDA_SPCONV
-def test_tr3d_forward_and_decode_shapes() -> None:
-    model = create_model("tr3d.scannet.mmdet3d", task="detection").cuda().eval()
+@SPCONV
+@DEVICES
+def test_tr3d_forward_and_decode_shapes(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    model = create_model("tr3d.scannet.mmdet3d", task="detection").eval()
     assert isinstance(model, TR3DDetection)
-    x, pos, batch = _scenes()
+    spconv_to_device(model, device)
+    x, pos, batch = _scenes(device)
     with torch.no_grad():
         out = model(x, pos, batch)
         det = model.decode(out)
@@ -104,7 +113,40 @@ def test_tr3d_forward_and_decode_shapes() -> None:
     assert set(out["level"].unique().tolist()) == {0, 1}
     assert set(out["batch"].unique().tolist()) == {0, 1}
     assert (out["boxes"][:, 3:6] > 0).all()
-    assert det["boxes"].shape == (m, 7) and det["class_probs"].shape == (m, 18)
-    stride = torch.tensor(model.strides, device="cuda")[out["level"]].unsqueeze(1)
+    assert det["boxes"].shape == (m, 7) and det["class_scores"].shape == (m, 18)
+    stride = torch.tensor(model.strides, device=device)[out["level"]].unsqueeze(1)
     cells = torch.round(out["pos"] / model.voxel_size).long()
     assert (cells % stride == 0).all()
+
+
+@SPCONV
+@DEVICES
+@pytest.mark.parametrize("num_points", [pytest.param(1), pytest.param(3), pytest.param(8)])
+def test_tr3d_forward_on_a_tiny_cloud(
+    device: str,
+    num_points: int,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    model = create_model("tr3d.scannet.mmdet3d", task="detection").eval()
+    spconv_to_device(model, device)
+    generator = torch.Generator().manual_seed(num_points)
+    pos = (torch.rand(num_points, 3, generator=generator) * 2).to(device)
+    with torch.no_grad():
+        out = model(
+            torch.rand(num_points, 3, device=device), pos, torch.zeros(num_points, dtype=torch.long, device=device)
+        )
+
+    assert set(out["level"].tolist()) == {0, 1}
+    assert torch.isfinite(out["boxes"]).all()
+
+
+@SPCONV
+@CUDA
+def test_tr3d_runs_in_half_precision() -> None:
+    model = create_model("tr3d.scannet.mmdet3d", task="detection").cuda().eval().half()
+    x, pos, batch = _scenes("cuda")
+    with torch.no_grad():
+        out = model(x.half(), pos, batch)
+
+    assert out["cls_logits"].dtype == torch.half
+    assert torch.isfinite(out["boxes"]).all()
