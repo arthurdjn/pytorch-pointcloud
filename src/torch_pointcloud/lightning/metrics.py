@@ -13,8 +13,8 @@ from torch_pointcloud.metrics import (
     box_matches,
     instance_average_precision,
     nuscenes_detection_metrics,
-    part_argmax,
     part_intersection_over_union,
+    part_predictions,
 )
 from torch_pointcloud.metrics.detection import BoxMatches, Interpolation
 from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
@@ -456,7 +456,11 @@ class InstancePartMeanIntersectionOverUnion(Metric):
         category[batch] = self.part_to_category[target]
 
         if preds.dim() == 2:
-            preds = part_argmax(preds, self.part_ids, category, batch) if self.restrict_to_category else preds.argmax(1)
+            preds = (
+                part_predictions(preds, self.part_ids, category, batch)
+                if self.restrict_to_category
+                else preds.argmax(dim=1)
+            )
 
         ious = part_intersection_over_union(preds, target, self.part_ids, category, batch)
         self.iou_sum.index_add_(0, category, ious)

@@ -40,7 +40,6 @@ All notable changes to this project are documented in this file. The format is b
 - Added `PointGPTPartSegmentation` with the ShapeNetPart checkpoints `pointgpt-s.shapenetpart.guangyan-chen`, `pointgpt-b.shapenetpart.guangyan-chen` and `pointgpt-l.shapenetpart.guangyan-chen`, their benchmark and training scripts, and the `PartSegmentationDecoder` layer.
 - Added the PointGPT post-pre-training checkpoints `pointgpt-b.post-pretrain.guangyan-chen` and `pointgpt-l.post-pretrain.guangyan-chen`.
 - `PointGPTExtractor.forward` takes `fetch_idx` and accepts `attn_mask=None`.
-- Added `metrics.part_argmax`, the part prediction taken over the parts of the shape's category only.
 
 ## 0.0.18 (2026-10-20)
 

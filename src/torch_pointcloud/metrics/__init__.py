@@ -7,9 +7,9 @@ from .kitti import kitti_average_precision
 from .nuscenes import nuscenes_detection_metrics
 from .segmentation import (
     intersection_over_union,
-    part_argmax,
     part_intersection_over_union,
     part_mean_intersection_over_union,
+    part_predictions,
 )
 
 __all__ = [
@@ -22,7 +22,7 @@ __all__ = [
     "intersection_over_union",
     "kitti_average_precision",
     "nuscenes_detection_metrics",
-    "part_argmax",
     "part_intersection_over_union",
     "part_mean_intersection_over_union",
+    "part_predictions",
 ]
