@@ -96,6 +96,18 @@ BENCHMARKS = [
         id="pointnet2/scanobjectnn",
     ),
     pytest.param("pvcnn/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="pvcnn/s3dis"),
+    pytest.param(
+        "pvcnn/part_segmentation_shapenetpart_benchmark.py",
+        ("--limit", "4", "--num-votes", "2"),
+        marks=_CLUSTER,
+        id="pvcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointnet2/part_segmentation_shapenetpart_benchmark.py",
+        ("--model", "pointnet2-msg.shapenetpart.mit-han-lab", "--limit", "4", "--num-votes", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/shapenetpart",
+    ),
     pytest.param("sonata/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="sonata/scannet"),
     pytest.param(
         "concerto/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="concerto/scannet"
@@ -523,6 +535,26 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--model", "pvcnn2.s3dis-area5.mit-han-lab", "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="pvcnn/s3dis-pvcnn2",
+    ),
+    pytest.param(
+        "pvcnn/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pvcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointnet2/part_segmentation_shapenetpart_train.py",
+        (
+            *_SMOKE_RECIPE,
+            "--model",
+            "pointnet2-msg.shapenetpart.mit-han-lab",
+            "--batch-size",
+            "2",
+            "--val-batch-size",
+            "2",
+        ),
+        marks=_CLUSTER,
+        id="pointnet2/shapenetpart",
     ),
     pytest.param(
         "randlanet/segmentation_semantickitti_train.py",

@@ -129,6 +129,21 @@ def test_tta_ema_aggregation_returns_probabilities() -> None:
     assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
 
 
+def test_tta_max_aggregation_keeps_the_most_confident_pass() -> None:
+    """`aggregate="max"` is the elementwise maximum over the passes, so argmax picks the most confident pass."""
+    data = _toy_data()
+    calls: List[int] = []
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        calls.append(len(calls))
+        probs = torch.tensor([[0.6, 0.4], [0.2, 0.8]])[len(calls) - 1]
+        return probs.expand(window[DataKeys.POS].size(0), 2)
+
+    out = TTAInferer(base=SimpleInferer(), num_passes=2, aggregate="max")(data, predictor=predictor)
+    assert torch.allclose(out, torch.tensor([0.6, 0.8]).expand(64, 2))
+    assert (out.argmax(dim=1) == 1).all()
+
+
 def test_tta_without_transforms_votes_over_the_base_inferer() -> None:
     """`transforms=None` runs the base `num_passes` times on the untouched input and averages the passes."""
     data = _toy_data()
@@ -156,7 +171,7 @@ def test_tta_invalid_num_passes_raises() -> None:
 
 
 def test_tta_invalid_aggregate_raises() -> None:
-    """`aggregate` only accepts "mean" or "ema"; unknown values raise ValueError."""
+    """`aggregate` only accepts "mean", "max" or "ema"; unknown values raise ValueError."""
     base = SimpleInferer()
     with pytest.raises(ValueError, match="aggregate"):
         TTAInferer(base=base, transforms=Compose([]), num_passes=1, aggregate="vote")  # type: ignore[arg-type]

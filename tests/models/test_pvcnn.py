@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict
 
 import pytest
 import torch
@@ -8,7 +8,8 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn.dense.linear import Linear as PyGLinear
 
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
-from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNSegmentation
+from torch_pointcloud.models import create_model, model_info
+from torch_pointcloud.models.pvcnn import PVCNNClassification, PVCNNPartSegmentation, PVCNNSegmentation
 
 
 @pytest.fixture
@@ -153,26 +154,55 @@ def test_pvconv_voxel_branch_uses_generic_act_and_norm() -> None:
     assert isinstance(first.act, nn.ReLU)
 
 
-def test_pvcnn_mit_han_lab_factory_patches_voxel_branch_to_paper_recipe() -> None:
-    """The registered S3DIS Area-5 factory should patch every PVConv voxel branch
-    to upstream's LeakyReLU(0.1) + BN3d(eps=1e-4) recipe after construction,
-    while keeping the point branch on ReLU."""
+def test_pvconv_voxel_kwargs_set_the_voxel_branch_apart() -> None:
+    """`voxel_act`, `voxel_act_kwargs` and `voxel_norm_kwargs` reach the voxel convolutions only: the point MLP and
+    the squeeze-and-excitation gate keep `act` / `norm_kwargs`."""
     from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
-    from torch_pointcloud.models._registry import create_model
 
-    model = create_model("pvcnn.s3dis-area5.mit-han-lab", task="semantic-segmentation", pretrained=False)
-    pvconvs = [m for m in model.modules() if isinstance(m, PVConv)]
-    assert pvconvs, "Expected at least one PVConv in the factory-built model."
-    for pv in pvconvs:
-        for block in pv.voxel_layers:
-            if not isinstance(block, Conv3dBlock):
-                continue
+    pv = PVConv(
+        in_channels=4,
+        out_channels=8,
+        kernel_size=3,
+        resolution=4,
+        use_se=True,
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    )
+    blocks = [block for block in pv.voxel_layers if isinstance(block, Conv3dBlock)]
+    assert len(blocks) == 2
+    for block in blocks:
+        assert isinstance(block.act, nn.LeakyReLU)
+        assert block.act.negative_slope == 0.1
+        assert isinstance(block.norm, nn.BatchNorm3d)
+        assert block.norm.eps == 1e-4
+    assert isinstance(pv.voxel_layers[-1].act, nn.ReLU)
+    assert isinstance(pv.mlp.act, nn.ReLU)
+    assert pv.mlp.norms[0].module.eps == 1e-5
 
-            assert isinstance(block.norm, nn.BatchNorm3d)
-            assert block.norm.eps == 1e-4
-            assert isinstance(block.act, nn.LeakyReLU)
-            assert block.act.negative_slope == 0.1
-        assert pv.mlp.act.__class__.__name__ == "ReLU"
+
+@pytest.mark.parametrize(
+    "name, model_cls",
+    [
+        pytest.param("pvcnn.s3dis-area5.mit-han-lab", PVCNNSegmentation, id="s3dis"),
+        pytest.param("pvcnn-c0p25.shapenetpart.mit-han-lab", PVCNNPartSegmentation, id="shapenetpart"),
+    ],
+)
+def test_pvcnn_mit_han_lab_hparams_rebuild_the_registered_model(name: str, model_cls: type) -> None:
+    """The registered hparams alone build upstream's voxel branch (`LeakyReLU(0.1)`, `BatchNorm3d` with eps
+    1e-4), so the class called on them is the registered model."""
+    from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
+
+    model = create_model(name)
+    rebuilt = model_cls(**model_info(name)["hparams"])
+    assert repr(rebuilt) == repr(model)
+    blocks = [block for block in rebuilt.modules() if isinstance(block, Conv3dBlock)]
+    assert blocks
+    for block in blocks:
+        assert isinstance(block.act, nn.LeakyReLU)
+        assert isinstance(block.norm, nn.BatchNorm3d)
+        assert block.norm.eps == 1e-4
 
 
 def test_pvcnn_segmentation_with_head_channels_creates_mlp_head() -> None:
@@ -196,3 +226,99 @@ def test_pvcnn_segmentation_with_head_channels_creates_mlp_head() -> None:
     for lin, expected_out in zip(head.lins, (24, 16, 13)):
         assert isinstance(lin, PyGLinear)
         assert lin.out_channels == expected_out
+
+
+@pytest.fixture
+def model_part() -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(
+        in_channels=6,
+        num_classes=10,
+        num_categories=4,
+        channels=[32, 64, 128],
+        depths=[1, 1, 1],
+        kernel_sizes=[3, 3, 3],
+        resolutions=[8, 8, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[64, 32],
+        head_dropout=0.2,
+    )
+
+
+@pytest.fixture
+def category() -> Tensor:
+    return torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+
+
+def test_pvcnn_part_segmentation_forward(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    logits = model_part(data["x"], data["pos"], data["batch"], category)
+    assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
+    assert logits.dtype == data["x"].dtype
+
+
+def test_pvcnn_part_segmentation_rejects_category_indices(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    with pytest.raises(ValueError, match="must be one-hot"):
+        model_part(data["x"], data["pos"], data["batch"], category.argmax(dim=1))
+
+
+def test_pvcnn_part_segmentation_forward_features_decoder_head(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    x, intermediates = model_part.forward_features(data["x"], data["pos"], data["batch"], return_intermediates=True)
+    assert len(intermediates) == 3
+    x = model_part.forward_decoder(x, data["batch"], category, intermediates)
+    assert x.shape == (data["pos"].shape[0], model_part.num_features)
+    assert model_part.num_features == 32 + 64 + 128 + 128 + 4
+    assert torch.equal(x[:, -4:], category[data["batch"]])
+    assert torch.equal(model_part.forward_head(x, pre_logits=True), x)
+    logits = model_part.forward_head(x)
+    assert logits.shape == (data["pos"].shape[0], model_part.num_classes)
+
+
+@pytest.mark.parametrize(
+    "model_cls",
+    [
+        pytest.param(PVCNNSegmentation, id="segmentation"),
+        pytest.param(PVCNNPartSegmentation, id="part_segmentation"),
+    ],
+)
+def test_pvcnn_head_dropout_per_hidden_layer(model_cls: type) -> None:
+    hparams: Dict[str, Any] = dict(
+        in_channels=6,
+        num_classes=10,
+        channels=[32, 64],
+        depths=[1, 1],
+        kernel_sizes=[3, 3],
+        resolutions=[8, 0],
+        head_channels=[64, 32],
+    )
+    if model_cls is PVCNNPartSegmentation:
+        hparams["num_categories"] = 4
+
+    assert model_cls(**hparams, head_dropout=0.2).head.dropout == [0.2, 0.2, 0.0]
+    assert model_cls(**hparams, head_dropout=[0.2, 0.0]).head.dropout == [0.2, 0.0, 0.0]
+    with pytest.raises(ValueError, match="`head_dropout` takes one value per `head_channels` entry"):
+        model_cls(**hparams, head_dropout=[0.2, 0.2, 0.0])
+
+
+def test_pvcnn_shapenetpart_head_dropout_skips_the_last_hidden_layer() -> None:
+    model = create_model("pvcnn-c0p25.shapenetpart.mit-han-lab")
+    assert isinstance(model.head, MLP)
+    assert model.head.dropout == [0.2, 0.2, 0.0, 0.0]
+
+
+def test_pvcnn_part_segmentation_reset_classifier(
+    model_part: PVCNNPartSegmentation, data: Dict[str, Tensor], category: Tensor
+) -> None:
+    model_part.reset_classifier(num_classes=42)
+    logits = model_part(data["x"], data["pos"], data["batch"], category)
+    assert logits.shape == (data["pos"].shape[0], 42)
+
+    model_part.reset_classifier(num_classes=0)
+    assert isinstance(model_part.head, nn.Identity)
+    features = model_part(data["x"], data["pos"], data["batch"], category)
+    assert features.shape == (data["pos"].shape[0], model_part.num_features)

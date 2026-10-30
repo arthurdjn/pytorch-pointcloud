@@ -1,4 +1,4 @@
-"""PointNet++ classification and segmentation models.
+"""PointNet++ classification, semantic segmentation and part segmentation models.
 
 {{ paper("1706.02413") }}
 """
@@ -16,12 +16,16 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
-from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
+from torch_pointcloud.layers.pointnet2_blocks import (
+    PointNet2FeaturePropagation,
+    PointNet2GlobalSetAbstraction,
+    PointNet2SetAbstraction,
+)
 from torch_pointcloud.utils.conversion import ensure_list, ensure_msg_list, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import AggrType, FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SemanticSegmentationModel
+from ._base import ClassificationModel, PartSegmentationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 
@@ -743,6 +747,281 @@ class PointNet2Segmentation(SemanticSegmentationModel):
         return self.forward_head(x)
 
 
+class PointNet2PartSegmentation(PartSegmentationModel):
+    """PointNet++ part segmentation model from the paper
+    :arxiv: [PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space](https://arxiv.org/abs/1706.02413)
+    by Charles R. Qi, Li Yi, Hao Su, Leonidas J. Guibas.
+
+    A `PointNet2Encoder` (optional stem + SA blocks), a `PointNet2GlobalSetAbstraction` pooling the coarsest
+    level into one feature per shape, a `PointNet2Decoder` (FP blocks with skip connections) whose finest skip
+    concatenates the input features, the point positions and the broadcast one-hot category, and a per-point
+    classification head.
+
+    Args:
+        in_channels: Number of input channels (features per point).
+        num_classes: Number of output part classes. $0$ replaces the head with `nn.Identity`.
+        num_categories: Number of object categories of the one-hot `category` input.
+        stem_channels: Optional number of channels for initial linear projection (inside the encoder).
+        sa_channels: List of channel configurations for Set Abstraction (SA) blocks.
+            Each element defines the MLP channels for one SA block.
+            For Multi-Scale Grouping (MSG), provide nested lists of channels.
+        global_channels: MLP channels of the global set abstraction, pooled over each shape.
+        fp_channels: List of channel configurations for Feature Propagation (FP) blocks, one more than the SA
+            blocks. Each element defines the MLP channels for one FP block.
+        head_channels: Hidden channels of the per-point head. `None` uses a single linear layer.
+        ratios: Sampling ratios for each SA block (between 0 and 1). Mutually exclusive with `num_points`.
+        num_points: Absolute number of sampled centroids for each SA block. Exactly one of `ratios` /
+            `num_points` must be given.
+        radii: Search radiuses for each SA block's neighborhood.
+            For MSG, provide a list of radii per block.
+        num_neighbors: Max number of neighbors for each SA block.
+            For MSG, provide a list of neighbor counts per block.
+        spatial_dim: Spatial dimensionality of point coordinates (e.g. 3 for 3D, 2 for 2D).
+        act: Activation function type or callable.
+        act_kwargs: Additional keyword arguments for the activation function.
+        act_first: If `True`, activation is applied before normalization.
+        norm: Normalization layer type or callable.
+        norm_kwargs: Additional keyword arguments for the normalization layer.
+        bias: Whether to use bias in linear layers.
+        use_pos: Whether to concatenate per-point relative positions to `x` in the SA blocks.
+        normalize_pos: Divide the relative positions by the ball-query radius in the SA blocks.
+        global_use_pos: Whether to concatenate the absolute positions to `x` in the global set abstraction.
+        sa_aggr: Aggregation of the grouped features in each SA block.
+        global_aggr: Aggregation of the global set abstraction over each shape.
+        dropout: Dropout of the segmentation head, before its single linear layer (`head_channels=None`) or after
+            each hidden layer.
+        use_category: Concatenate the one-hot `category` to the finest skip. When `False`, `forward` still takes
+            `category` but the prediction does not depend on it.
+        fp_k: Number of neighbors for the kNN interpolation of the FP blocks (see `PointNet2Decoder`).
+        sort_neighbors: Keep the smallest source indices when a ball holds more than `num_neighbors` points, as the
+            reference `query_ball_point` does.
+        fp_eps: Numerical stability term added to the interpolation distances of the FP blocks.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        num_categories: int,
+        stem_channels: Optional[int] = None,
+        sa_channels: Sequence[Sequence[Union[int, Sequence[int]]]],
+        global_channels: Sequence[int],
+        fp_channels: Sequence[Sequence[int]],
+        head_channels: Optional[Union[int, Sequence[int]]] = None,
+        ratios: Optional[Sequence[float]] = None,
+        num_points: Optional[Sequence[int]] = None,
+        radii: Sequence[Union[float, Sequence[float]]],
+        num_neighbors: Sequence[Union[int, Sequence[int]]],
+        spatial_dim: int = 3,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
+        use_pos: bool = True,
+        normalize_pos: bool = True,
+        global_use_pos: bool = True,
+        sa_aggr: AggrType = "max",
+        global_aggr: PoolLike = "max",
+        dropout: float = 0.0,
+        use_category: bool = True,
+        fp_k: Optional[Union[int, Sequence[int]]] = None,
+        sort_neighbors: bool = False,
+        fp_eps: float = 1e-16,
+    ) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
+        self.stem_channels = stem_channels
+        self.sa_channels = sa_channels
+        self.global_channels = ensure_tuple(global_channels)
+        self.fp_channels = fp_channels
+        self.head_channels = ensure_list(head_channels, none_as_empty=True)
+        self.ratios = ratios
+        self.num_points = num_points
+        self.radii = radii
+        self.num_neighbors = num_neighbors
+        self.spatial_dim = spatial_dim
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.bias = bias
+        self.use_pos = use_pos
+        self.normalize_pos = normalize_pos
+        self.global_use_pos = global_use_pos
+        self.sa_aggr = sa_aggr
+        self.global_aggr = global_aggr
+        self.dropout = dropout
+        self.use_category = use_category
+        self.fp_k = fp_k
+        self.sort_neighbors = sort_neighbors
+        self.fp_eps = fp_eps
+
+        self.encoder = self.configure_encoder()
+        self.global_sa = self.configure_global_sa()
+        self.decoder = self.configure_decoder()
+        self.head = self.configure_head()
+
+    def configure_encoder(self) -> PointNet2Encoder:
+        """Build the `PointNet2Encoder` backbone."""
+        return PointNet2Encoder(
+            in_channels=self.in_channels,
+            sa_channels=self.sa_channels,
+            ratios=self.ratios,
+            num_points=self.num_points,
+            radii=self.radii,
+            num_neighbors=self.num_neighbors,
+            stem_channels=self.stem_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            use_pos=self.use_pos,
+            normalize_pos=self.normalize_pos,
+            aggr=self.sa_aggr,
+            sort_neighbors=self.sort_neighbors,
+        )
+
+    def configure_global_sa(self) -> PointNet2GlobalSetAbstraction:
+        """Build the global set abstraction pooling the coarsest SA level into one feature per shape."""
+        return PointNet2GlobalSetAbstraction(
+            in_channels=self.encoder.out_channels,
+            channels=self.global_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            use_pos=self.global_use_pos,
+            aggr=self.global_aggr,
+        )
+
+    def configure_decoder(self) -> PointNet2Decoder:
+        """Build the `PointNet2Decoder` upsampling the global feature back through the SA skips to the points."""
+        skip_channels = [self.encoder.out_channels, *self.encoder.skip_channels[::-1]]
+        skip_channels[-1] += self.spatial_dim + (self.num_categories if self.use_category else 0)
+        return PointNet2Decoder(
+            in_channels=self.global_channels[-1],
+            skip_channels=skip_channels,
+            fp_channels=self.fp_channels,
+            spatial_dim=self.spatial_dim,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            k=self.fp_k,
+            eps=self.fp_eps,
+        )
+
+    @property
+    def num_features(self) -> int:
+        """Feature dimension $C$ of the decoder output."""
+        return self.fp_channels[-1][-1]
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+
+        if not self.head_channels:
+            return nn.Linear(self.num_features, self.num_classes)
+
+        channels_list = [self.num_features] + list(self.head_channels) + [self.num_classes]
+        dropout_list = [self.dropout] * (len(channels_list) - 2) + [0.0]
+        return MLP(
+            channels_list,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            bias=self.bias,
+            dropout=dropout_list,
+            plain_last=True,
+        )
+
+    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
+        result = self.encoder(x, pos, batch, return_intermediates=return_intermediates)
+
+        if return_intermediates:
+            x, pos, batch, intermediates = result
+            intermediates.append({"x": x, "pos": pos, "batch": batch})
+        else:
+            x, pos, batch = result
+
+        x, pos, batch = self.global_sa(x, pos, batch)
+
+        if return_intermediates:
+            return x, pos, batch, intermediates
+        return x, pos, batch
+
+    def forward_decoder(
+        self,
+        x: Tensor,
+        pos: Tensor,
+        batch: Tensor,
+        category: Tensor,
+        intermediates: List[FeaturesDict],
+    ) -> Tensor:
+        x_in, pos_in, batch_in = intermediates[0]["x"], intermediates[0]["pos"], intermediates[0]["batch"]
+        skip = [x_in, pos_in, category[batch_in]] if self.use_category else [x_in, pos_in]
+        skips = [{"x": torch.cat(skip, dim=1), "pos": pos_in, "batch": batch_in}, *intermediates[1:]]
+        x, _, _ = self.decoder(x, pos, batch, skips)
+        return x
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.dropout and not self.head_channels:
+            x = F.dropout(x, p=float(self.dropout), training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        if category.dim() != 2:
+            raise ValueError(
+                f"`category` must be one-hot of shape (B, num_categories), got shape {tuple(category.shape)}; "
+                "pass `F.one_hot(category, num_categories).float()` for category indices."
+            )
+
+        x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x = self.forward_decoder(x, pos, batch, category, intermediates)
+        return self.forward_head(x)
+
+
 def _apply_yanx27_compat(model: nn.Module) -> None:
     """Match yanx27's reference ops so pretrained weights load deterministically.
 
@@ -1115,3 +1394,87 @@ def pointnet2_openpoints_s3dis_area5(**hparams: Any) -> PointNet2Segmentation:
 )
 def pointnet2_openpoints_s3dis_area6(**hparams: Any) -> PointNet2Segmentation:
     return _pointnet2_openpoints_s3dis(**hparams)
+
+
+_MIT_HAN_LAB_SHAPENETPART_TRANSFORM = T.Compose(
+    [
+        T.Rescale(keys=DataKeys.POS, method="centroid"),
+        T.CopyItems(keys=DataKeys.NORMAL, dst_keys=DataKeys.X),
+        T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
+    ]
+)
+
+
+@register_model(
+    "pointnet2-ssg.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2-ssg.shapenetpart.mit-han-lab/resolve/56289f82c4606f83ee72f60cb2e7579e37328040/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.04, "cls_mIoU": 82.64},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=50,
+        num_categories=16,
+        sa_channels=[[64, 64, 128], [128, 128, 256]],
+        global_channels=[256, 512, 1024],
+        fp_channels=[[256, 256], [256, 128], [128, 128, 128]],
+        head_channels=[128],
+        num_points=[512, 128],
+        radii=[0.2, 0.4],
+        num_neighbors=[64, 64],
+        use_pos=True,
+        normalize_pos=False,
+        bias=True,
+        dropout=0.5,
+        use_category=False,
+        sort_neighbors=True,
+        fp_eps=1e-10,
+    ),
+    transform=_MIT_HAN_LAB_SHAPENETPART_TRANSFORM,
+)
+def pointnet2_ssg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmentation:
+    return PointNet2PartSegmentation(**hparams)
+
+
+@register_model(
+    "pointnet2-msg.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet2-msg.shapenetpart.mit-han-lab/resolve/617b17ec15afc92481bcd3d24fad3104ac489d0f/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.24, "cls_mIoU": 82.84},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=50,
+        num_categories=16,
+        sa_channels=[
+            [[32, 32, 64], [64, 64, 128], [64, 96, 128]],
+            [[128, 128, 256], [128, 196, 256]],
+        ],
+        global_channels=[256, 512, 1024],
+        fp_channels=[[256, 256], [256, 128], [128, 128, 128]],
+        head_channels=[128],
+        num_points=[512, 128],
+        radii=[[0.1, 0.2, 0.4], [0.4, 0.8]],
+        num_neighbors=[[32, 64, 128], [64, 128]],
+        use_pos=True,
+        normalize_pos=False,
+        bias=True,
+        dropout=0.5,
+        use_category=True,
+        sort_neighbors=True,
+        fp_eps=1e-10,
+    ),
+    transform=_MIT_HAN_LAB_SHAPENETPART_TRANSFORM,
+)
+def pointnet2_msg_mit_han_lab_shapenetpart(**hparams: Any) -> PointNet2PartSegmentation:
+    return PointNet2PartSegmentation(**hparams)

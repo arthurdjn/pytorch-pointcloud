@@ -117,6 +117,9 @@ class PVConv(nn.Module):
         act_kwargs: Extra kwargs for the activation.
         norm: Normalization, name resolved by `create_norm`. `None` disables.
         norm_kwargs: Extra kwargs for the normalization.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Extra kwargs for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Extra kwargs for the normalization of the voxel convolutions. `None` uses `norm_kwargs`.
     """
 
     def __init__(
@@ -132,31 +135,37 @@ class PVConv(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         self.resolution = resolution
         self.voxelization = Voxelization(resolution, normalize=normalize)
+        voxel_act = act if voxel_act is None else voxel_act
+        voxel_act_kwargs = act_kwargs if voxel_act_kwargs is None else voxel_act_kwargs
+        voxel_norm_kwargs = norm_kwargs if voxel_norm_kwargs is None else voxel_norm_kwargs
 
         voxel_layers: List[nn.Module] = [
             Conv3dBlock(
                 in_channels,
                 out_channels,
                 kernel_size=kernel_size,
-                act=act,
+                act=voxel_act,
                 act_first=act_first,
-                act_kwargs=act_kwargs,
+                act_kwargs=voxel_act_kwargs,
                 norm=norm,
-                norm_kwargs=norm_kwargs,
+                norm_kwargs=voxel_norm_kwargs,
             ),
             Conv3dBlock(
                 out_channels,
                 out_channels,
                 kernel_size=kernel_size,
-                act=act,
+                act=voxel_act,
                 act_first=act_first,
-                act_kwargs=act_kwargs,
+                act_kwargs=voxel_act_kwargs,
                 norm=norm,
-                norm_kwargs=norm_kwargs,
+                norm_kwargs=voxel_norm_kwargs,
             ),
         ]
         if use_se:
