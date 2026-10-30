@@ -412,8 +412,8 @@ class InstancePartMeanIntersectionOverUnion(Metric):
         part_ids: Part labels owned by each category; defaults to the 16-category / 50-part
             ShapeNetPart table (`ShapeNetPart.seg_ids`).
         restrict_to_category: If `True`, the argmax of 2-D `preds` is taken over the shape's own category
-            parts only (logits of the other parts are masked out), the protocol of PointNet, Point-MAE and
-            Point-M2AE. The default is the global argmax over all parts (DGCNN, PointNeXt).
+            parts only (logits of the other parts are masked out), the protocol of PointNet, Point-MAE, Point-M2AE
+            and PointGPT. The default is the global argmax over all parts (DGCNN, PointNeXt).
         kwargs: Forwarded to `torchmetrics.Metric`.
     """
 

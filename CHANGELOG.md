@@ -40,6 +40,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `PointGPTPartSegmentation` with the ShapeNetPart checkpoints `pointgpt-s.shapenetpart.guangyan-chen`, `pointgpt-b.shapenetpart.guangyan-chen` and `pointgpt-l.shapenetpart.guangyan-chen`, their benchmark and training scripts, and the `PartSegmentationDecoder` layer.
 - Added the PointGPT post-pre-training checkpoints `pointgpt-b.post-pretrain.guangyan-chen` and `pointgpt-l.post-pretrain.guangyan-chen`.
 - `PointGPTExtractor.forward` takes `fetch_idx`, and its `attn_mask` defaults to `None`.
+- Updated the ShapeNetPart metrics of `point-mae-base.shapenetpart.yatian-pang` and `point-m2ae-base.shapenetpart.renrui-zhang`, re-measured with the argmax over the parts of each shape's category.
 
 ## 0.0.18 (2026-10-20)
 
