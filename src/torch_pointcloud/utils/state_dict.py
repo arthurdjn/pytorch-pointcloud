@@ -36,10 +36,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
     Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
-    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) whose module wraps the
-    network under `self.model` are reduced to it: the `model.`-prefixed keys are kept, with the prefix stripped. A
-    Lightning module that is the network itself keeps every key. `torch.save` files load with
-    `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
+    present. A Lightning checkpoint (identified by its `pytorch-lightning_version` key) that holds `model.`-prefixed
+    keys is reduced to them, with the prefix stripped; one with no such key keeps every key. `torch.save` files load
+    with `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
     optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported
     nor called.
 
