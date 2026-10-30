@@ -561,7 +561,7 @@ def volt_s_scannet200(**hparams: Any) -> VoltSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/volt-s.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
-        metrics={"mIoU": 80.57, "OA": 94.54, "simple/mIoU": 80.57, "simple/OA": 94.54},
+        metrics={"simple/mIoU": 80.57, "simple/OA": 94.54},
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="kadir-yilmaz",
         license="MIT",
@@ -595,7 +595,7 @@ def volt_s_nuscenes(**hparams: Any) -> VoltSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/volt-s.semantickitti.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="semantickitti",
-        metrics={"mIoU": 69.42, "OA": 92.64, "simple/mIoU": 69.42, "simple/OA": 92.64},
+        metrics={"simple/mIoU": 69.42, "simple/OA": 92.64},
         classes=SEMANTIC_KITTI_CLASSES,
         author="kadir-yilmaz",
         license="MIT",
