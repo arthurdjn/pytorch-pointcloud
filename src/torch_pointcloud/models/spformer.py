@@ -408,7 +408,7 @@ class SPFormerInstanceSegmentation(InstanceSegmentationModel):
     task="instance-segmentation",
     input_keys=("x", "pos_grid", "batch", "superpoint", "inverse", "batch_inverse"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/spformer.scannet.jiahao-sun/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/spformer.scannet.jiahao-sun/resolve/610da4f7c21bd4659f0355dd830ac52792c86678/model.safetensors",
         dataset="scannet",
         metrics={"mAP": 56.47, "mAP@0.5": 73.93, "mAP@0.25": 82.55},
         classes=SCANNET20_CLASSES[2:],
