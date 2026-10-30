@@ -740,7 +740,7 @@ def pointnet_shapenetpart(**hparams: Any) -> PointNetSegmentation:
     "pointnet.modelnet40.jiawei-ren",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet.modelnet40.jiawei-ren/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointnet.modelnet40.jiawei-ren/resolve/5a8d19dab6e031ba8daed747ab11d12572450636/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 90.68, "mAcc": 86.54},
         classes=MODELNET40_CLASSES,
@@ -780,7 +780,7 @@ def pointnet_jiawei_ren_modelnet40(**hparams: Any) -> PointNetClassification:
     "pointnet.scanobjectnn-hardest.openpoints",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet.scanobjectnn-hardest.openpoints/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointnet.scanobjectnn-hardest.openpoints/resolve/b2b0b456a34418d384cc1d48221988faf902c5a9/model.safetensors",
         dataset="scanobjectnn-hardest",
         metrics={"OA": 75.16, "mAcc": 71.44},
         classes=SCANOBJECTNN_CLASSES,
@@ -819,7 +819,7 @@ def pointnet_openpoints_scanobjectnn(**hparams: Any) -> PointNetClassification:
     "pointnet.s3dis-area5.xu-yan",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointnet.s3dis-area5.xu-yan/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointnet.s3dis-area5.xu-yan/resolve/b929f375f615cf4b50139907e3afd7be41c7fe4e/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 43.88, "OA": 79.39},
         classes=S3DIS_CLASSES,
