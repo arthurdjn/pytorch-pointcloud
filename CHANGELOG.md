@@ -37,6 +37,12 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added the `open-vocabulary-segmentation` task, its `OpenVocabularySegmentationModel` base class and the `text_model`, `text_revision` and `prompt_template` fields of `WeightsDict`.
+- Added `OpenSceneOpenVocabularySegmentation` (Apache-2.0) with the `openscene-openseg.scannet20.songyou-peng`, `openscene-lseg.scannet20.songyou-peng` and `openscene-openseg.nuscenes.songyou-peng` pretrained weights, and their ScanNet and nuScenes benchmarks.
+- Added `layers.CLIPTextEncoder`, a frozen CLIP text tower read with the optional `transformers` package.
+- Added the `down_channels` option of `SparseUNetEncoder`.
+- Added the `transform`, `pos_key`, `batch_key` and `inverse_key` options of `SimpleInferer`.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
 
 ## 0.0.18 (2026-10-20)
 

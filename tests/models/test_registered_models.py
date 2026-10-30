@@ -211,6 +211,12 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
 ]
+OPEN_VOCABULARY_SEGMENTATION_MODELS = [
+    "openscene-openseg.scannet20.songyou-peng",
+    "openscene-lseg.scannet20.songyou-peng",
+    "openscene-openseg.nuscenes.songyou-peng",
+]
+
 PART_SEGMENTATION_MODELS = [
     "dgcnn.shapenetpart.an-tao",
     "point-m2ae-base.shapenetpart.renrui-zhang",
@@ -270,7 +276,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "spformer", "openscene")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn"))
@@ -300,7 +306,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "openscene", "octformer", "ptv3"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
@@ -394,6 +400,7 @@ def _check_architecture_or_regen(
         ("classification", CLASSIFICATION_MODELS),
         ("semantic-segmentation", SEMANTIC_SEGMENTATION_MODELS),
         ("part-segmentation", PART_SEGMENTATION_MODELS),
+        ("open-vocabulary-segmentation", OPEN_VOCABULARY_SEGMENTATION_MODELS),
         ("detection", DETECTION_MODELS),
     ],
 )
@@ -525,6 +532,31 @@ def test_part_segmentation_architecture(model_name: str, force_regen: bool, mode
         model,
         model_name,
         task="part-segmentation",
+        models_dir=models_dir,
+        force_regen=force_regen,
+    )
+
+
+@pytest.mark.parametrize("model_name", OPEN_VOCABULARY_SEGMENTATION_MODELS)
+def test_open_vocabulary_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the architecture of all registered open-vocabulary segmentation models is correct.
+    This test will only verify that the state-dict structure of the model matches the expected structure,
+    but will not verify that the content of the weights are correct.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_open_vocabulary_segmentation_architecture --force-regen
+    ```
+    """
+    _skip_if_model_deps_missing(model_name)
+    models_dir = models_dir_factory("*.json")
+
+    model = create_model(model_name, task="open-vocabulary-segmentation", in_channels=3)
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="open-vocabulary-segmentation",
         models_dir=models_dir,
         force_regen=force_regen,
     )
@@ -874,6 +906,18 @@ def test_registered_weights_classes_match_num_classes() -> None:
                 assert len(weights["classes"]) == num_classes, name
 
 
+def test_registered_open_vocabulary_weights_pin_their_text_space() -> None:
+    """Every open-vocabulary checkpoint names its text encoder, pinned to a commit, and its prompt template."""
+    for name, entry in _REGISTERED_MODELS["open-vocabulary-segmentation"].items():
+        weights = entry["weights"]
+        if weights is None:
+            continue
+
+        assert "text_model" in weights, name
+        assert re.fullmatch(r"[0-9a-f]{40}", weights.get("text_revision", "")), name
+        assert "{}" in weights.get("prompt_template", ""), name
+
+
 def test_registered_input_keys_fill_the_forward_arguments() -> None:
     """`input_keys` cover the required positional arguments of `forward`, and no more than its positional ones."""
     for entries in _REGISTERED_MODELS.values():
@@ -1045,5 +1089,49 @@ def test_model_pre_logits_matches_headless_forward(
         f"{model_name}: pre_logits != headless (max abs diff {max_abs_diff:.3e}, max abs value {max_abs_value:.3e})"
     )
 
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+
+@pytest.mark.parametrize("model_name", OPEN_VOCABULARY_SEGMENTATION_MODELS)
+def test_open_vocabulary_model_forward(model_name: str, data_factory: Callable) -> None:
+    """`forward` returns one unit-length embedding per point in the text space, `(N, embed_dim)`."""
+    _skip_if_model_not_runnable(model_name)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = create_model(model_name, task="open-vocabulary-segmentation", in_channels=3).to(device).eval()
+    data = data_factory(in_channels=model.in_channels)
+    pos_grid = data["pos_grid"]
+    with torch.no_grad():
+        embeddings = model(None, pos_grid.to(device), data["batch"].to(device))
+    _check_output_tensor(
+        embeddings,
+        label=f"{model_name} (open-vocabulary-segmentation)",
+        expected_shape=(pos_grid.shape[0], model.embed_dim),
+        allow_nonfinite=False,
+    )
+    norms = embeddings.norm(dim=1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5), f"{model_name}: embeddings are not unit length"
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+
+@pytest.mark.parametrize("model_name", OPEN_VOCABULARY_SEGMENTATION_MODELS)
+def test_open_vocabulary_model_pre_logits(model_name: str, data_factory: Callable) -> None:
+    """`forward_head(..., pre_logits=True)` returns the `(N, num_features)` features entering the projection."""
+    _skip_if_model_not_runnable(model_name)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = create_model(model_name, task="open-vocabulary-segmentation", in_channels=3).to(device).eval()
+    data = data_factory(in_channels=model.in_channels)
+    pos_grid = data["pos_grid"].to(device)
+    batch = data["batch"].to(device)
+    with torch.no_grad():
+        sparse_x, skips = model.forward_features(None, pos_grid, batch, return_intermediates=True)
+        sparse_x = model.forward_decoder(sparse_x, skips)
+        features = model.forward_head(sparse_x, pre_logits=True)
+        embeddings = model.forward_head(sparse_x)
+    assert features.shape == (pos_grid.shape[0], model.num_features)
+    assert embeddings.shape == (pos_grid.shape[0], model.embed_dim)
+    rows = [skip["x"].shape[0] for skip in skips]
+    assert rows == sorted(rows, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {rows}"
     if device == "cuda":
         torch.cuda.empty_cache()

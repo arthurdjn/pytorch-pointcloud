@@ -19,6 +19,7 @@ from .anchors import (
 )
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
+from .clip_text_encoder import CLIPTextEncoder
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .dropouts import (
@@ -128,6 +129,7 @@ __all__ = [
     "CenterHead",
     "CenterHeadOutput",
     "SeparateHead",
+    "CLIPTextEncoder",
     "Conv2dBlock",
     "Conv3dBlock",
     "DropoutLike",

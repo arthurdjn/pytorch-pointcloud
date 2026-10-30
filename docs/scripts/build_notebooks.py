@@ -28,6 +28,7 @@ MODEL_TABLES = {
     "models/segmentation.ipynb": "semantic-segmentation",
     "models/part-segmentation.ipynb": "part-segmentation",
     "models/detection.ipynb": "detection",
+    "models/open-vocabulary.ipynb": "open-vocabulary-segmentation",
     "models/features.ipynb": "pretraining",
 }
 

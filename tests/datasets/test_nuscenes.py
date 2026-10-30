@@ -15,6 +15,7 @@ from torch_pointcloud.datasets.nuscenes import (
     NUSCENES_DETECTION_CLASSES,
     NUSCENES_LIDARSEG_CLASSES,
     NUSCENES_LIDARSEG_LABEL_NAMES,
+    NUSCENES_LIDARSEG_LEARNING_MAP,
     NUSCENES_MINI_TRAIN_SCENES,
     NUSCENES_MINI_VAL_SCENES,
     NUSCENES_VAL_SCENES,
@@ -280,9 +281,11 @@ def test_nuscenes_parallel_processing_matches_sequential(datasets_dir_factory: C
 
 
 def test_nuscenes_lidarseg_label_tables() -> None:
-    """The raw lidarseg id table covers ids 0..31 and the benchmark taxonomy has 16 classes."""
+    """The raw lidarseg id table covers ids 0..31 and the learning map sends them onto the 16 benchmark classes."""
     assert sorted(NUSCENES_LIDARSEG_LABEL_NAMES) == list(range(32))
     assert len(NUSCENES_LIDARSEG_CLASSES) == len(set(NUSCENES_LIDARSEG_CLASSES)) == 16
+    assert set(NUSCENES_LIDARSEG_LEARNING_MAP) <= set(NUSCENES_LIDARSEG_LABEL_NAMES)
+    assert sorted(set(NUSCENES_LIDARSEG_LEARNING_MAP.values())) == list(range(len(NUSCENES_LIDARSEG_CLASSES)))
 
 
 def test_load_nuscenes_sweeps_keeps_keyframe_ego_points(tmp_path: Path) -> None:

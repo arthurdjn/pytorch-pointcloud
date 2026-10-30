@@ -3,6 +3,7 @@
 from ._base import (
     ClassificationModel,
     DetectionModel,
+    OpenVocabularySegmentationModel,
     PartSegmentationModel,
     PretrainingModel,
     SemanticSegmentationModel,
@@ -25,6 +26,7 @@ from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
+from .openscene import OpenSceneOpenVocabularySegmentation
 from .parta2 import PartA2Detection
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
 from .point_m2ae import PointM2AEClassification, PointM2AEPartSegmentation, PointM2AEPretraining
@@ -62,6 +64,7 @@ __all__ = [
     "ClassificationModel",
     "DetectionModel",
     "PartA2Detection",
+    "OpenVocabularySegmentationModel",
     "PartSegmentationModel",
     "PretrainingModel",
     "SemanticSegmentationModel",
@@ -86,6 +89,7 @@ __all__ = [
     "LIONDetection",
     "OctFormerClassification",
     "OctFormerSegmentation",
+    "OpenSceneOpenVocabularySegmentation",
     "PointBERTClassification",
     "PointBERTDiscreteVAE",
     "PointBERTPretraining",

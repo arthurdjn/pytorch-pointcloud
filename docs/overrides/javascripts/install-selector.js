@@ -14,7 +14,7 @@ function initInstallSelector() {
   var CUDA_DOT = { cu126: "12.6", cu128: "12.8", cu129: "12.9", cu130: "13.0", cu132: "13.2" };
   var state = {
     pm: "uv", torch: "2.10", cuda: "cu128",
-    extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, kaolin: false, lightning: false }
+    extras: { pyg: true, flash: false, mamba: false, spconv: false, ocnn: false, torchsparse: false, sptr: false, kaolin: false, lightning: false, transformers: false }
   };
   function disabledExtras() {
     var d = {};
@@ -84,6 +84,9 @@ function initInstallSelector() {
     }
     if (state.extras.lightning) {
       lines.push("", pipish + " lightning torchmetrics");
+    }
+    if (state.extras.transformers) {
+      lines.push("", pipish + " transformers");
     }
     return lines.join("\n");
   }
