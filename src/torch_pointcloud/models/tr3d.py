@@ -364,7 +364,7 @@ class TR3DDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/tr3d.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet",
-        metrics={"mAP@0.25": 71.99, "mAP@0.5": 58.56},
+        metrics={"mAP@0.25": 71.98, "mAP@0.5": 58.57},
         classes=SCANNET_DETECTION_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -425,7 +425,7 @@ def tr3d_sunrgbd_mmdet3d(**hparams: Any) -> TR3DDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/tr3d.s3dis-area5.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mAP@0.25": 71.26, "mAP@0.5": 48.29},
+        metrics={"mAP@0.25": 71.24, "mAP@0.5": 48.37},
         classes=S3DIS_DETECTION_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",

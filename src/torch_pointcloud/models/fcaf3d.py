@@ -551,7 +551,7 @@ class FCAF3DDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/fcaf3d.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet",
-        metrics={"mAP@0.25": 69.57, "mAP@0.5": 55.09},
+        metrics={"mAP@0.25": 69.55, "mAP@0.5": 55.10},
         classes=SCANNET_DETECTION_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
