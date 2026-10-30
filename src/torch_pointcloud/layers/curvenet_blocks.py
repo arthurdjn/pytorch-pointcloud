@@ -500,11 +500,12 @@ class CurveInterventionConv(nn.Module):
 
 
 class CurveNetFeaturePropagation(nn.Module):
-    r"""Feature propagation of CurveNet: $k$-NN interpolation of the coarse features, an `AttentionGate` on the skip
-    features, concatenation and an MLP.
+    r"""Feature propagation from
+    :arxiv: [Walk in the Cloud: Learning Curves for Point Clouds Shape Analysis](https://arxiv.org/abs/2105.01288).
 
-    The interpolation weights are $1 / (d^2 + \epsilon)$, and the skip features are concatenated **before** the
-    interpolated ones.
+    Interpolates the coarse features by $k$-NN, gates the skip features with an `AttentionGate`, concatenates both and
+    applies an MLP. The interpolation weights are $1 / (d^2 + \epsilon)$, and the skip features are concatenated
+    **before** the interpolated ones.
 
     Args:
         in_channels: Number of channels of the coarse features.

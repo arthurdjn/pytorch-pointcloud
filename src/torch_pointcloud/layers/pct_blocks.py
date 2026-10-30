@@ -102,7 +102,7 @@ class OffsetAttention(nn.Module):
         norm_kwargs: Extra arguments for the normalization.
 
     Shape:
-        - Input: $(B, N, C)$ tokens.
+        - Input: $(B, N, C)$ tokens, the same $N$ for every sample: there is no padding mask.
         - Output: $(B, N, C)$.
 
     Example:
