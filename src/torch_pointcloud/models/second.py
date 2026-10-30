@@ -429,6 +429,8 @@ class SECONDIoUDetection(DetectionModel):
     then scores every RoI by its predicted IoU, which replaces the classification score. The RoIs keep their
     first-stage boxes and classes.
 
+    The detector is inference only: the IoU branch has no training loss, so `forward` raises in training mode.
+
     Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
     Args:
@@ -647,6 +649,11 @@ class SECONDIoUDetection(DetectionModel):
         voxel_num_points: Tensor,
         batch: Tensor,
     ) -> SECONDIoUOutput:
+        if self.training:
+            raise RuntimeError(
+                "SECONDIoUDetection is inference only: its IoU branch has no training loss. Call `model.eval()` first."
+            )
+
         features = self.forward_features(voxels, pos_voxel, voxel_num_points, batch)
         out = self.forward_head(features)
         rois, roi_scores, roi_labels, roi_batch = self.proposals(out)

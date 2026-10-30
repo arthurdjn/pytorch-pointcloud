@@ -245,6 +245,14 @@ def test_second_iou_forward_and_decode() -> None:
     assert torch.isfinite(det["boxes"]).all()
 
 
+@SPCONV
+def test_second_iou_forward_raises_in_training_mode() -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection").train()
+    empty = torch.zeros(0, dtype=torch.long)
+    with pytest.raises(RuntimeError, match="inference only"):
+        model(torch.zeros(0, 5, 4), torch.zeros(0, 3, dtype=torch.long), empty, empty)
+
+
 NUSCENES_RANGE = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)
 
 
