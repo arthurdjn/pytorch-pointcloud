@@ -167,7 +167,7 @@ part-a2.kitti.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.89,mAP,68.33,68.
 pointpillars-multihead.nuscenes.openpcdet,pointpillars,detection,nuscenes,true,Apache-2.0,6.08,mAP,44.63,44.56,mAP 44.56 · NDS 57.21
 pointpillars.kitti.openpcdet,pointpillars,detection,kitti,true,Apache-2.0,4.83,mAP,64.08,64.16,mAP 64.16 · AP/Car 77.35 · AP/Pedestrian 52.39 · AP/Cyclist 62.74
 pointrcnn.kitti.openpcdet,pointrcnn,detection,kitti,true,Apache-2.0,4.04,mAP,68.41,69.29,mAP 69.29 · AP/Car 78.67 · AP/Pedestrian 56.94 · AP/Cyclist 72.27
-pv-rcnn.kitti.mmdet3d,pv_rcnn,detection,kitti,true,Apache-2.0,13.12,mAP,72.14,72.16,mAP 72.16 · AP/Car 83.54 · AP/Pedestrian 59.73 · AP/Cyclist 73.20
+pv-rcnn.kitti.mmdet3d,pv_rcnn,detection,kitti,true,Apache-2.0,13.12,mAP,72.14,72.15,mAP 72.15 · AP/Car 83.54 · AP/Pedestrian 59.71 · AP/Cyclist 73.20
 second-multihead.nuscenes.openpcdet,second,detection,nuscenes,true,Apache-2.0,9.04,mAP,50.59,50.76,mAP 50.76 · NDS 61.85
 second.kitti.openpcdet,second,detection,kitti,true,Apache-2.0,5.33,mAP,66.25,66.26,mAP 66.26 · AP/Car 78.63 · AP/Pedestrian 52.98 · AP/Cyclist 67.16
 votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@0.25 57.65 · mAP@0.5 34.10

@@ -48,6 +48,70 @@ def test_boxes_iou_self_diag_is_one() -> None:
     assert torch.allclose(diag_3d, torch.ones(3), atol=1e-5)
 
 
+@pytest.mark.parametrize(
+    "dtype", [pytest.param(torch.float32, id="float32"), pytest.param(torch.float64, id="float64")]
+)
+def test_boxes_iou_bev_square_turned_by_45_degrees_overlaps_in_an_octagon(dtype: torch.dtype) -> None:
+    a = _boxes([[0.0, 0, 0, 1, 1, 1, 0]]).to(dtype)
+    b = _boxes([[0.0, 0, 0, 1, 1, 1, math.pi / 4]]).to(dtype)
+    assert boxes_iou_bev(a, b).item() == pytest.approx(1 / math.sqrt(2), abs=1e-6)
+
+
+@pytest.mark.parametrize("heading", [pytest.param(0.0, id="axis-aligned"), pytest.param(0.7, id="rotated")])
+def test_boxes_iou_bev_of_boxes_sharing_an_edge(heading: float) -> None:
+    boxes = _boxes([[3.0, -2, 0, 4, 2, 1, heading]] * 3)
+    boxes[1, :2] += 4 * torch.tensor([math.cos(heading), math.sin(heading)])  # touches box 0 front to back
+    boxes[2, 3] = 2.0  # back half of box 0
+    boxes[2, :2] -= torch.tensor([math.cos(heading), math.sin(heading)])
+    iou = boxes_iou_bev(boxes[:1], boxes)[0]
+    assert iou[0].item() == pytest.approx(1.0, abs=1e-6)
+    assert iou[0].item() <= 1.0
+    assert iou[1].item() == pytest.approx(0.0, abs=1e-6)
+    assert iou[2].item() == pytest.approx(0.5, abs=1e-6)
+
+
+def test_boxes_iou_bev_nested_and_zero_area_boxes() -> None:
+    outer = _boxes([[1.0, 1, 0, 4, 4, 1, 0.3]])
+    inner = _boxes([[1.0, 1, 0, 2, 1, 1, 1.1], [1.0, 1, 0, 0, 0, 1, 0], [1.0, 1, 0, 3, 0, 1, 0.2]])
+    iou = boxes_iou_bev(outer, inner)[0]
+    assert iou.tolist() == pytest.approx([2 / 16, 0.0, 0.0], abs=1e-6)
+    assert boxes_iou_bev(inner[1:], inner[1:]).abs().max().item() == 0.0
+
+
+@pytest.mark.parametrize(
+    "shift",
+    [pytest.param(0.0, id="identical"), pytest.param(4.0, id="touching"), pytest.param(1.0, id="overlapping")],
+)
+def test_boxes_iou3d_aligned_gradients_are_finite(shift: float) -> None:
+    a = _boxes([[3.0, -2, 0, 4, 2, 1, 0.7]] * 4).requires_grad_()
+    b = (a.detach() + torch.tensor([shift * math.cos(0.7), shift * math.sin(0.7), 0, 0, 0, 0, 0])).requires_grad_()
+    boxes_iou3d(a, b, aligned=True).sum().backward()
+    assert a.grad is not None and b.grad is not None
+    assert torch.isfinite(a.grad).all() and torch.isfinite(b.grad).all()
+
+
+@pytest.mark.parametrize(
+    "turn",
+    [pytest.param(0.0, id="parallel"), pytest.param(1e-3, id="near-parallel"), pytest.param(0.5, id="turned")],
+)
+def test_boxes_iou_bev_matches_the_exact_corner_overlap(turn: float) -> None:
+    generator = torch.Generator().manual_seed(0)
+    a = torch.cat(
+        [
+            torch.rand(40, 2, generator=generator, dtype=torch.float64) * 3,
+            torch.zeros(40, 1, dtype=torch.float64),
+            torch.rand(40, 2, generator=generator, dtype=torch.float64) * 3 + 0.5,
+            torch.ones(40, 1, dtype=torch.float64),
+            torch.rand(40, 1, generator=generator, dtype=torch.float64) * math.pi,
+        ],
+        dim=1,
+    )
+    b = a.roll(1, 0)
+    b[:, 6] = a[:, 6] + turn
+    expected = box3d_overlap(box_corners(a), box_corners(b))[1]
+    assert torch.allclose(boxes_iou_bev(a, b), expected, atol=1e-5)
+
+
 def test_box3d_overlap_degenerate_boxes_finite_zero_iou() -> None:
     # Zero-volume boxes must give IoU 0, not NaN or a division error.
     corners = box_corners(_boxes([[0.0, 0, 0, 0, 0, 0, 0]]))
@@ -525,6 +589,14 @@ def test_nms3d_chain_of_overlapping_boxes_matches_greedy_reference(rotated: bool
 def test_nms3d_nan_boxes_match_greedy_reference(rotated: bool) -> None:
     boxes, scores, labels, batch = _nms3d_inputs()
     boxes[::7] = float("nan")
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_half_precision_boxes_match_greedy_reference(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    boxes, scores = boxes.half(), scores.half()
     keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
     assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
 

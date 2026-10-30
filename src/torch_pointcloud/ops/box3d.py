@@ -242,9 +242,8 @@ def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> T
     return val - torch.floor(val / period + offset) * period
 
 
-# Slack of `_point_in_box`, the `MARGIN` of the CUDA IoU kernel it ports: a corner this close to a box counts as
-# inside, which makes the rotated IoU reproduce the reference values. The bounds test that prefilters the pairwise
-# overlap carries the same slack so that it never skips a pair the inside test could count.
+# Slack of the bounds test that prefilters rotated BEV overlaps: two boxes whose rotated bounds are this close are
+# still clipped, so rounding in the bounds never skips a pair that overlaps.
 _BEV_MARGIN = 1e-2
 
 
@@ -394,23 +393,6 @@ def _bev_corners(boxes: Tensor) -> Tensor:
     return torch.stack([x, y], dim=-1)
 
 
-def _point_in_box(
-    px: Tensor,
-    py: Tensor,
-    cx: Tensor,
-    cy: Tensor,
-    dx: Tensor,
-    dy: Tensor,
-    cos: Tensor,
-    sin: Tensor,
-) -> Tensor:
-    """Broadcasted test of whether points $(p_x, p_y)$ lie inside oriented BEV boxes (with a small margin)."""
-    ux, uy = px - cx, py - cy
-    lx = ux * cos + uy * sin
-    ly = -ux * sin + uy * cos
-    return (lx.abs() < dx / 2 + _BEV_MARGIN) & (ly.abs() < dy / 2 + _BEV_MARGIN)
-
-
 def _bev_half_extents(boxes: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Half extents of the axis-aligned bounding box of each rotated BEV box, shape $(K,)$ each."""
     cos, sin = torch.cos(boxes[:, 6]).abs(), torch.sin(boxes[:, 6]).abs()
@@ -419,22 +401,19 @@ def _bev_half_extents(boxes: Tensor) -> Tuple[Tensor, Tensor]:
 
 
 def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:
-    r"""BEV intersection area of oriented boxes: pairwise $(N, 7), (M, 7) \to (N, M)$, or per pair with `aligned`.
-
-    Vectorized clip-free polygon intersection: the intersection of two convex quads is the convex hull of
-    (edge-edge crossings) + (corners of one box inside the other). Those candidate points are collected at
-    fixed capacity, sorted counter-clockwise about their centroid, and the shoelace area is taken.
-    """
+    r"""BEV intersection area of oriented boxes: pairwise $(N, 7), (M, 7) \to (N, M)$, or per pair with `aligned`."""
     corners_a, corners_b = _bev_corners(boxes_a), _bev_corners(boxes_b)
+    # The intersection never exceeds the smaller footprint: rounding cannot push the IoU of identical boxes above 1.
+    area_a, area_b = boxes_a[:, 3] * boxes_a[:, 4], boxes_b[:, 3] * boxes_b[:, 4]
     if aligned:
         if boxes_a.shape[0] != boxes_b.shape[0]:
             raise ValueError(
                 f"`aligned` needs as many boxes on both sides, got {boxes_a.shape[0]} and {boxes_b.shape[0]}."
             )
-        return _quad_overlap(corners_a, corners_b, boxes_a, boxes_b)
+        return torch.minimum(_quad_overlap(corners_a, corners_b), torch.minimum(area_a, area_b))
 
-    # Pairwise: two boxes whose axis-aligned bounds do not meet have no intersection, so the polygon arithmetic
-    # runs only on the candidate pairs, written into a zero matrix (the bounds carry the slack of `_point_in_box`).
+    # Pairwise: two boxes whose axis-aligned bounds do not meet have no intersection, so the clipping runs only on
+    # the candidate pairs, written into a zero matrix.
     overlap = boxes_a.new_zeros(boxes_a.shape[0], boxes_b.shape[0])
     half_x_a, half_y_a = _bev_half_extents(boxes_a)
     half_x_b, half_y_b = _bev_half_extents(boxes_b)
@@ -442,74 +421,64 @@ def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool 
     meet_y = (boxes_a[:, None, 1] - boxes_b[None, :, 1]).abs() <= half_y_a[:, None] + half_y_b[None, :] + _BEV_MARGIN
     rows, cols = (meet_x & meet_y).nonzero(as_tuple=True)
     if rows.numel() > 0:
-        overlap[rows, cols] = _quad_overlap(corners_a[rows], corners_b[cols], boxes_a[rows], boxes_b[cols])
+        inter = _quad_overlap(corners_a[rows], corners_b[cols])
+        overlap[rows, cols] = torch.minimum(inter, torch.minimum(area_a[rows], area_b[cols]))
 
     return overlap
 
 
-def _quad_overlap(corners_a: Tensor, corners_b: Tensor, boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
-    r"""Intersection area of oriented BEV boxes over broadcast leading dims: $(\ldots, 4, 2)$ corners and $(\ldots, 7)$ boxes."""
-    lead = torch.broadcast_shapes(corners_a.shape[:-2], corners_b.shape[:-2])
-    corners_a = corners_a.expand(*lead, 4, 2)
-    corners_b = corners_b.expand(*lead, 4, 2)
+def _quad_overlap(corners_a: Tensor, corners_b: Tensor) -> Tensor:
+    r"""Intersection area of counter-clockwise convex quads over broadcast leading dims, $(\ldots, 4, 2)$ each.
 
-    def cross2(u: Tensor, v: Tensor) -> Tensor:
-        return u[..., 0] * v[..., 1] - u[..., 1] * v[..., 0]
+    By Green's theorem the area is half the integral of $x\,dy - y\,dx$ along the boundary of the intersection: the
+    edges of each quad clipped to the other quad. An edge $p + t\,d$ kept from $t_0$ to $t_1$ contributes
+    $\frac{1}{2}(t_1 - t_0)\,(p \times d)$. Both clippings read one set of decisions per pair of edges (whether they
+    are parallel, which side one lies on, where they cross), so rounding cannot count a boundary of the other quad
+    once instead of zero or two times.
+    """
+    origin = corners_a.mean(dim=-2, keepdim=True)
+    quad_a, quad_b = corners_a - origin, corners_b - origin
+    edge_a = quad_a.roll(-1, dims=-2) - quad_a
+    edge_b = quad_b.roll(-1, dims=-2) - quad_b
 
-    # Edge-edge crossings: every edge of A against every edge of B, (..., 4, 4) pairs.
-    a0 = corners_a[..., :, None, :]
-    a1 = corners_a.roll(-1, dims=-2)[..., :, None, :]
-    b0 = corners_b[..., None, :, :]
-    b1 = corners_b.roll(-1, dims=-2)[..., None, :, :]
-    r, s, qp = a1 - a0, b1 - b0, b0 - a0
-    denom = cross2(r, s)
-    t = cross2(qp, s) / denom
-    u = cross2(qp, r) / denom
-    edge_valid = (denom.abs() > 1e-12) & (t >= 0) & (t <= 1) & (u >= 0) & (u <= 1)
-    edge_pts = a0 + t[..., None] * r
-    edge_pts = torch.where(edge_valid[..., None], edge_pts, edge_pts.new_zeros(())).reshape(*lead, 16, 2)
-    edge_valid = edge_valid.reshape(*lead, 16)
+    # Pairs of edge i of `quad_a` (rows) and edge k of `quad_b` (columns), (..., 4, 4).
+    start_a, along_a = quad_a[..., :, None, :], edge_a[..., :, None, :]
+    start_b, along_b = quad_b[..., None, :, :], edge_b[..., None, :, :]
+    gap = start_a - start_b
+    # Side of the start of edge i against edge k (positive inside `quad_b`) and its rate along edge i; edge k
+    # crosses the line of edge i at the opposite rate.
+    side = along_b[..., 0] * gap[..., 1] - along_b[..., 1] * gap[..., 0]
+    gap_along_b = gap[..., 0] * along_b[..., 0] + gap[..., 1] * along_b[..., 1]
+    del gap  # the per-pair vectors dominate the memory of a large batch of pairs
+    rate = along_b[..., 0] * along_a[..., 1] - along_b[..., 1] * along_a[..., 0]
+    dot = along_a[..., 0] * along_b[..., 0] + along_a[..., 1] * along_b[..., 1]
+    length_a = torch.linalg.vector_norm(along_a, dim=-1)
+    length_b = torch.linalg.vector_norm(along_b, dim=-1)
+    parallel = rate.abs() <= 16 * torch.finfo(rate.dtype).eps * length_a * length_b
+    same_way = dot > 0
+    # Edges of zero length bound nothing: a degenerate quad keeps no edge of the other one.
+    degenerate_a, degenerate_b = length_a == 0, length_b == 0
 
-    # Corners of each box inside the other one.
-    cos_a, sin_a = torch.cos(boxes_a[..., 6]), torch.sin(boxes_a[..., 6])
-    cos_b, sin_b = torch.cos(boxes_b[..., 6]), torch.sin(boxes_b[..., 6])
-    a_in_b = _point_in_box(
-        corners_a[..., 0],
-        corners_a[..., 1],
-        boxes_b[..., None, 0],
-        boxes_b[..., None, 1],
-        boxes_b[..., None, 3],
-        boxes_b[..., None, 4],
-        cos_b[..., None],
-        sin_b[..., None],
-    )
-    b_in_a = _point_in_box(
-        corners_b[..., 0],
-        corners_b[..., 1],
-        boxes_a[..., None, 0],
-        boxes_a[..., None, 1],
-        boxes_a[..., None, 3],
-        boxes_a[..., None, 4],
-        cos_a[..., None],
-        sin_a[..., None],
-    )
+    # Where edge i crosses the line of edge k, as a fraction of edge i, then of edge k.
+    crossing = -side / torch.where(parallel, torch.ones_like(rate), rate)
+    squared_b = torch.where(degenerate_b, 1.0, length_b * length_b)
+    crossing_b = (gap_along_b + crossing * dot) / squared_b
 
-    # Order the valid candidates counter-clockwise about their centroid and take the shoelace area.
-    pts = torch.cat([edge_pts, corners_a, corners_b], dim=-2)
-    valid = torch.cat([edge_valid, a_in_b, b_in_a], dim=-1)
-    count = valid.sum(-1)
-    weight = valid[..., None].to(pts.dtype)
-    centroid = (pts * weight).sum(-2) / count.clamp(min=1)[..., None]
-    rel = pts - centroid[..., None, :]
-    angle = torch.atan2(rel[..., 1], rel[..., 0])
-    angle = torch.where(valid, angle, torch.full_like(angle, 1e10))
-    order = angle.argsort(dim=-1)
-    pts = torch.gather(pts, -2, order[..., None].expand(*lead, pts.shape[-2], 2))
-    valid = torch.gather(valid, -1, order)
-    pts = torch.where(valid[..., None], pts, pts[..., 0:1, :])
-    x, y = pts[..., 0], pts[..., 1]
-    area = 0.5 * (x * y.roll(-1, dims=-1) - x.roll(-1, dims=-1) * y).sum(-1).abs()
-    return torch.where(count >= 3, area, area.new_zeros(()))
+    enter_a = torch.where(~parallel & (rate > 0), crossing, 0.0).amax(dim=-1)
+    leave_a = torch.where(~parallel & (rate < 0), crossing, 1.0).amin(dim=-1)
+    outside_a = degenerate_b | (parallel & ((side < 0) | ((side == 0) & ~same_way)))
+    kept_a = torch.where(outside_a.any(dim=-1), 0.0, (leave_a - enter_a).clamp_min(0))
+
+    # A boundary the two quads share is counted once, through the edges of `quad_a`.
+    enter_b = torch.where(~parallel & (rate < 0), crossing_b, 0.0).amax(dim=-2)
+    leave_b = torch.where(~parallel & (rate > 0), crossing_b, 1.0).amin(dim=-2)
+    outside_b = degenerate_a | (parallel & torch.where(same_way, side >= 0, side <= 0))
+    kept_b = torch.where(outside_b.any(dim=-2), 0.0, (leave_b - enter_b).clamp_min(0))
+
+    moment_a = quad_a[..., 0] * edge_a[..., 1] - quad_a[..., 1] * edge_a[..., 0]
+    moment_b = quad_b[..., 0] * edge_b[..., 1] - quad_b[..., 1] * edge_b[..., 0]
+    area = 0.5 * ((kept_a * moment_a).sum(dim=-1) + (kept_b * moment_b).sum(dim=-1))
+    return area.clamp_min(0)
 
 
 def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:

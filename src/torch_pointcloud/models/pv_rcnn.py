@@ -781,7 +781,7 @@ class PVRCNNDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/772e84df456a383eb47366efebda099f7cfde296/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 72.16, "AP/Car": 83.54, "AP/Pedestrian": 59.73, "AP/Cyclist": 73.20},
+        metrics={"mAP": 72.15, "AP/Car": 83.54, "AP/Pedestrian": 59.71, "AP/Cyclist": 73.20},
         classes=("Pedestrian", "Cyclist", "Car"),
         author="mmdet3d",
         license="Apache-2.0",
