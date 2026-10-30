@@ -226,6 +226,15 @@ DETECTION_MODELS = [
     "centerpoint-pillar02.nuscenes.mmdet3d",
     "centerpoint-voxel0075.nuscenes.mmdet3d",
     "centerpoint-voxel01.nuscenes.mmdet3d",
+    "groupfree3d-l12-o256.scannet.mmdet3d",
+    "groupfree3d-l12-o256.scannet.ze-liu",
+    "groupfree3d-l6-o256.scannet.mmdet3d",
+    "groupfree3d-l6-o256.scannet.ze-liu",
+    "groupfree3d-l6-o256.sunrgbd.ze-liu",
+    "groupfree3d-w2x-l12-o256.scannet.mmdet3d",
+    "groupfree3d-w2x-l12-o256.scannet.ze-liu",
+    "groupfree3d-w2x-l12-o512.scannet.mmdet3d",
+    "groupfree3d-w2x-l12-o512.scannet.ze-liu",
     "lion-mamba.nuscenes.zhe-liu",
     "part-a2.kitti-car.mmdet3d",
     "part-a2.kitti.mmdet3d",
@@ -279,7 +288,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "groupfree3d", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")

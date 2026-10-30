@@ -269,6 +269,18 @@ BENCHMARKS = [
         id="3detr/scannet",
     ),
     pytest.param(
+        "groupfree3d/detection_scannet_benchmark.py",
+        ("--model", "groupfree3d-l6-o256.scannet.ze-liu", "--limit", "2"),
+        marks=_CLUSTER,
+        id="groupfree3d/scannet",
+    ),
+    pytest.param(
+        "groupfree3d/detection_sunrgbd_benchmark.py",
+        ("--model", "groupfree3d-l6-o256.sunrgbd.ze-liu", "--limit", "2"),
+        marks=_CLUSTER,
+        id="groupfree3d/sunrgbd",
+    ),
+    pytest.param(
         "second/detection_kitti_benchmark.py",
         ("--model", "second.kitti.openpcdet", "--limit", "2"),
         marks=_GPU_SPCONV,
@@ -617,6 +629,18 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2"),
         marks=_CLUSTER,
         id="threedetr/sunrgbd",
+    ),
+    pytest.param(
+        "groupfree3d/detection_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="groupfree3d/scannet-train",
+    ),
+    pytest.param(
+        "groupfree3d/detection_sunrgbd_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="groupfree3d/sunrgbd-train",
     ),
     pytest.param(
         "votenet/detection_sunrgbd_train.py",

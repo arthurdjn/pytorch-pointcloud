@@ -22,6 +22,7 @@ from ._registry import (
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
+from .groupfree3d import GroupFree3DDetection
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
@@ -81,6 +82,7 @@ __all__ = [
     "DGCNNClassification",
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
+    "GroupFree3DDetection",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
