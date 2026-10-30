@@ -274,7 +274,7 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
     task="semantic-segmentation",
     input_keys=("x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/cylinder3d.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/cylinder3d.semantickitti.mmdet3d/resolve/e4c2b9903b6d72031c9f0dd7d74a9659e3805100/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 63.19, "OA": 91.08},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -303,7 +303,7 @@ def cylinder3d_semantickitti_mmdet3d(**hparams: Any) -> Cylinder3DSegmentation:
     task="semantic-segmentation",
     input_keys=("x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/cylinder3d-laser-polar-mix.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/cylinder3d-laser-polar-mix.semantickitti.mmdet3d/resolve/656de50c81654be9ba63b31068583e442e1e8bf9/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 67.54, "OA": 91.87},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -332,7 +332,7 @@ def cylinder3d_laser_polar_mix_semantickitti_mmdet3d(**hparams: Any) -> Cylinder
     task="semantic-segmentation",
     input_keys=("x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/cylinder3d.semantickitti.xinge-zhu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/cylinder3d.semantickitti.xinge-zhu/resolve/fbf6c73d0cfbbe6df07d9b10c283688680b69000/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 66.91, "OA": 91.49},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -361,7 +361,7 @@ def cylinder3d_semantickitti_xinge_zhu(**hparams: Any) -> Cylinder3DSegmentation
     task="semantic-segmentation",
     input_keys=("x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/cylinder3d-0p5x.nuscenes.yuenan-hou/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/cylinder3d-0p5x.nuscenes.yuenan-hou/resolve/19107f65a8429e93da773b910e910cd62f520983/model.safetensors",
         dataset="nuscenes",
         metrics={"mIoU": 76.15, "OA": 93.22},
         classes=NUSCENES_LIDARSEG_CLASSES,
