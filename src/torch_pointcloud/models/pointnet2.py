@@ -759,7 +759,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
 
     Args:
         in_channels: Number of input channels (features per point).
-        num_classes: Number of output part classes.
+        num_classes: Number of output part classes. $0$ replaces the head with `nn.Identity`.
         num_categories: Number of object categories of the one-hot `category` input.
         stem_channels: Optional number of channels for initial linear projection (inside the encoder).
         sa_channels: List of channel configurations for Set Abstraction (SA) blocks.
@@ -787,8 +787,9 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         normalize_pos: Divide the relative positions by the ball-query radius in the SA blocks.
         global_use_pos: Whether to concatenate the absolute positions to `x` in the global set abstraction.
         sa_aggr: Aggregation of the grouped features in each SA block.
-        global_pool: Pooling of the global set abstraction over each shape.
-        dropout: Dropout rate for the classification head.
+        global_aggr: Aggregation of the global set abstraction over each shape.
+        dropout: Dropout of the segmentation head, before its single linear layer (`head_channels=None`) or after
+            each hidden layer.
         use_category: Concatenate the one-hot `category` to the finest skip. When `False`, `forward` still takes
             `category` but the prediction does not depend on it.
         fp_k: Number of neighbors for the kNN interpolation of the FP blocks (see `PointNet2Decoder`).
@@ -823,7 +824,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         normalize_pos: bool = True,
         global_use_pos: bool = True,
         sa_aggr: AggrType = "max",
-        global_pool: PoolLike = "max",
+        global_aggr: PoolLike = "max",
         dropout: float = 0.0,
         use_category: bool = True,
         fp_k: Optional[Union[int, Sequence[int]]] = None,
@@ -851,7 +852,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         self.normalize_pos = normalize_pos
         self.global_use_pos = global_use_pos
         self.sa_aggr = sa_aggr
-        self.global_pool = global_pool
+        self.global_aggr = global_aggr
         self.dropout = dropout
         self.use_category = use_category
         self.fp_k = fp_k
@@ -899,7 +900,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
             use_pos=self.global_use_pos,
-            aggr=self.global_pool,
+            aggr=self.global_aggr,
         )
 
     def configure_decoder(self) -> PointNet2Decoder:
