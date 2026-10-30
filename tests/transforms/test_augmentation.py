@@ -41,6 +41,11 @@ def test_random_linear_jitter_zero_sigma_and_probability_keep_the_input() -> Non
     assert T.RandomLinearJitter(keys="pos", sigma=0.1, p=0.0)({"pos": pos})["pos"] is pos
 
 
+def test_random_linear_jitter_rejects_integer_keys() -> None:
+    with pytest.raises(TypeError, match="floating-point tensor at 'pos'"):
+        T.RandomLinearJitter(keys="pos", sigma=0.1, seed=0)({"pos": torch.tensor([[1, 2, 3]])})
+
+
 def test_random_scale_same_factor_across_keys() -> None:
     """Same factor applies to every point-like key. Direction vectors (e.g. `normal`) must not be listed."""
     pos = torch.tensor([[1.0, 2.0, 3.0]])

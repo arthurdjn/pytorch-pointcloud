@@ -331,6 +331,9 @@ class RandomLinearJitter(DictTransform, Randomizable):
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
         allow_missing_keys: If `True`, silently skip absent keys.
 
+    Raises:
+        TypeError: If a listed tensor is not floating-point.
+
     Example:
         ```pycon
         >>> import torch_pointcloud.transforms as T
@@ -366,6 +369,11 @@ class RandomLinearJitter(DictTransform, Randomizable):
 
         matrix = torch.eye(3) + torch.randn(3, 3, generator=self.R) * self.sigma
         for key, dst_key in self.iter_keys(data, self.dst_keys):
+            if not data[key].is_floating_point():
+                raise TypeError(
+                    f"`RandomLinearJitter` needs a floating-point tensor at {key!r}, got {data[key].dtype}."
+                )
+
             data[dst_key] = data[key] @ matrix.to(data[key])
         return data
 
