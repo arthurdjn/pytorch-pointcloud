@@ -1008,7 +1008,12 @@ class SPVCNNSegmentation(SemanticSegmentationModel):
 def _spvcnn_semantickitti_transforms() -> T.Compose:
     return T.Compose(
         [
-            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_UNMERGED_LEARNING_MAP, default=255),
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels=SEMANTIC_KITTI_UNMERGED_LEARNING_MAP,
+                default=255,
+                allow_missing_keys=True,
+            ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.CopyItems(
                 keys=[DataKeys.POS, DataKeys.SEGMENT],
