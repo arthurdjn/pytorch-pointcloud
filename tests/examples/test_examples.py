@@ -287,6 +287,12 @@ BENCHMARKS = [
         id="pointpillars/kitti",
     ),
     pytest.param(
+        "pointpillars/detection_kitti_benchmark.py",
+        ("--model", "pointpillars.kitti.openpcdet", "--limit", "2", "--tta"),
+        marks=_GPU_SPCONV,
+        id="pointpillars/kitti-tta",
+    ),
+    pytest.param(
         "pointpillars/detection_nuscenes_benchmark.py",
         ("--model", "pointpillars-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,

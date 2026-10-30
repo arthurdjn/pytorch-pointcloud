@@ -12,6 +12,7 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI
 from torch_pointcloud.datasets.kitti import KITTI_CLASSES
+from torch_pointcloud.inferers import Inferer, SimpleInferer, TTADetectionInferer
 from torch_pointcloud.metrics import box_matches, kitti_average_precision
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DetectionModel, create_model, model_info
@@ -46,9 +47,10 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on KITTI!")
     model = configure_model(args)
     dataloader = configure_dataloader(args)
+    inferer = configure_inferer(args)
 
     print(f"Test set: {len(dataloader.dataset)} frames")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device)
+    metrics = evaluate(model, dataloader, inferer, args.device)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -64,6 +66,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
+    parser.add_argument("--tta", action="store_true", help="Add the frame mirrored along y as a second view.")
     return parser.parse_args()
 
 
@@ -113,6 +116,17 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
+def configure_inferer(args: Namespace) -> Inferer[Detection3D]:
+    if not args.tta:
+        return SimpleInferer()
+    return TTADetectionInferer(
+        configure_transform(args),
+        flips=[(), (1,)],
+        sw_batch_size=args.batch_size,
+        cat_keys=[DataKeys.POS_VOXEL],
+    )
+
+
 def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
     output = model(
         data[DataKeys.VOXEL],
@@ -124,13 +138,15 @@ def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
 
 
 @torch.no_grad()
-def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(
+    model: DetectionModel, dataloader: DataLoader, inferer: Inferer[Detection3D], device: str
+) -> dict[str, float]:
     model.to(device).eval()
     matches: list[BoxMatches] = []
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        det = forward(model, data)
+        det = inferer(data, predictor=lambda batch: forward(model, batch))
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
         idx = nms3d(boxes, scores, NMS_IOU, batch=batch, rotated=True)
