@@ -168,6 +168,30 @@ def test_hard_voxelize_empty_input_returns_empty_outputs() -> None:
     assert num_points.dtype == torch.int32
 
 
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_voxelize_to_spconv_tensor_keeps_first_point_and_aligns_origin() -> None:
+    pos = torch.tensor([[0.01, 0.0, 0.0], [0.02, 0.0, 0.0], [-0.55, 0.21, 0.1], [0.0, 0.0, 0.0]])
+    x = torch.tensor([[1.0], [2.0], [3.0], [4.0]])
+    batch = torch.tensor([0, 0, 0, 1])
+    sparse, origin = voxelize_to_spconv_tensor(x, pos, batch, voxel_size=0.1, alignment=4)
+
+    assert origin.tolist() == [-12, -4, -4]
+    assert (origin % 4 == 0).all()
+    cells = torch.cat([sparse.indices[:, :1].long(), sparse.indices[:, 1:].long() + origin], 1)
+    rows = {tuple(row): feature for row, feature in zip(cells.tolist(), sparse.features.view(-1).tolist())}
+    assert rows == {(0, 0, 0, 0): 1.0, (0, -6, 2, 1): 3.0, (1, 0, 0, 0): 4.0}
+    assert sparse.indices[:, 1:].min() >= 4
+    shape = torch.tensor(sparse.spatial_shape)
+    assert (shape % 4 == 0).all() and (sparse.indices[:, 1:].max(0).values + 4 < shape).all()
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_voxelize_to_spconv_tensor_rejects_an_empty_cloud() -> None:
+    empty = torch.empty(0, 3)
+    with pytest.raises(ValueError, match="empty point cloud"):
+        voxelize_to_spconv_tensor(empty, empty, torch.empty(0, dtype=torch.long), voxel_size=0.1)
+
+
 def _two_voxel_cloud() -> torch.Tensor:
     """Six points: 4 in voxel A=[0,1)^3 and 2 in voxel B=[1,2)x[0,1)^2."""
     return torch.tensor(
@@ -342,20 +366,3 @@ def test_trilinear_sparse_devoxelize_empty_inputs() -> None:
     assert out.shape == (3, 2) and not out.any()
     out = trilinear_sparse_devoxelize(torch.rand(2, 2), torch.zeros(2, 3), empty.new_zeros(2), torch.empty(0, 3), empty)
     assert out.shape == (0, 2)
-
-
-@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
-def test_voxelize_to_spconv_tensor_keeps_first_point_and_aligns_origin() -> None:
-    pos = torch.tensor([[0.01, 0.0, 0.0], [0.02, 0.0, 0.0], [-0.55, 0.21, 0.1], [0.0, 0.0, 0.0]])
-    x = torch.tensor([[1.0], [2.0], [3.0], [4.0]])
-    batch = torch.tensor([0, 0, 0, 1])
-    sparse, origin = voxelize_to_spconv_tensor(x, pos, batch, voxel_size=0.1, alignment=4)
-
-    assert origin.tolist() == [-12, -4, -4]
-    assert (origin % 4 == 0).all()
-    cells = torch.cat([sparse.indices[:, :1].long(), sparse.indices[:, 1:].long() + origin], 1)
-    rows = {tuple(row): feature for row, feature in zip(cells.tolist(), sparse.features.view(-1).tolist())}
-    assert rows == {(0, 0, 0, 0): 1.0, (0, -6, 2, 1): 3.0, (1, 0, 0, 0): 4.0}
-    assert sparse.indices[:, 1:].min() >= 4
-    shape = torch.tensor(sparse.spatial_shape)
-    assert (shape % 4 == 0).all() and (sparse.indices[:, 1:].max(0).values + 4 < shape).all()

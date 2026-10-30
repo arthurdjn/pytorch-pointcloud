@@ -574,6 +574,9 @@ def voxelize_to_spconv_tensor(
         The sparse tensor, with `[batch, i, j, k]` indices and a spatial shape that is a multiple of `alignment`, and
         the integer `origin` $(3,)$: voxel $v$ holds the points of cell $v + \text{origin}$.
 
+    Raises:
+        ValueError: If `pos` holds no point.
+
     Shape:
         - x: $(N, C)$
         - pos: $(N, 3)$
@@ -591,6 +594,9 @@ def voxelize_to_spconv_tensor(
         origin  # tensor([-12, -4, -4])
         ```
     """
+    if pos.shape[0] == 0:
+        raise ValueError("Cannot voxelize an empty point cloud: pos has no points.")
+
     x_voxel, grid_voxel, batch_voxel = sparse_voxelize(x, pos, batch, voxel_size, reduce="first", origin="grid")
     cells = grid_voxel.long()
 
