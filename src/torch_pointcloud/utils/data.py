@@ -75,6 +75,7 @@ class DataKeys(StrEnum):
     TOKEN = "token"
     CONDITION = "condition"
     NORM_POS = "norm_pos"
+    HEIGHT = "height"
     # Sample-identity keys
     NAME = "name"
     SCENE = "scene"
