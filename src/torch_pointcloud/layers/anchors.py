@@ -223,7 +223,8 @@ class AnchorHead(nn.Module):
         Returns:
             Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
             "batch": (B * A,), "class_probs": (B * A, C)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the
-            box code carries it.
+            box code carries it. The anchors come scene by scene, each scene in the order of `anchors`: feature-map
+            row ($y$), column ($x$), anchor template, rotation.
         """
         return _anchor_detections(out["batch_cls"], out["batch_box"])
 
@@ -339,9 +340,10 @@ class MultiLevelAnchorHead(nn.Module):
 
         anchor_range = point_cloud_range if anchor_range is None else anchor_range
         self.num_anchors_per_location = len(anchor_sizes) * len(anchor_rotations)
+        self.feature_map_sizes = [(grid_size[0] // stride, grid_size[1] // stride) for stride in feature_map_strides]
+        self.num_anchors_per_level = [nx * ny * self.num_anchors_per_location for nx, ny in self.feature_map_sizes]
         level_anchors = []
-        for stride, scale in zip(feature_map_strides, anchor_scales):
-            feature_map_size = (grid_size[0] // stride, grid_size[1] // stride)
+        for feature_map_size, scale in zip(self.feature_map_sizes, anchor_scales):
             templates = [
                 generate_anchors(
                     anchor_range,
@@ -372,7 +374,30 @@ class MultiLevelAnchorHead(nn.Module):
         nn.init.normal_(self.conv_box.weight, mean=0.0, std=0.001)
 
     def forward(self, features: Sequence[Tensor]) -> MultiLevelAnchorHeadOutput:
-        r"""Predict on every level and decode the boxes of all anchors, finest level first."""
+        r"""Predict on every level and decode the boxes of all anchors, finest level first.
+
+        Args:
+            features: One $(B, C, H_l, W_l)$ map per level, finest first; $H_l$ and $W_l$ are the grid size divided
+                (rounding down) by the level's stride.
+
+        Returns:
+            The per-level `cls` / `box` / `dir_cls` maps and the decoded `batch_cls` $(B, A, C)$ and `batch_box`
+            $(B, A, \text{code\_size})$ over the $A$ anchors of every level.
+
+        Raises:
+            ValueError: If the number of maps or the size of a map does not match the levels of the head.
+        """
+        if len(features) != len(self.feature_map_sizes):
+            raise ValueError(
+                f"Expected one feature map per level ({len(self.feature_map_sizes)}), got {len(features)}."
+            )
+        for level, (x, (nx, ny)) in enumerate(zip(features, self.feature_map_sizes)):
+            if tuple(x.shape[2:]) != (ny, nx):
+                raise ValueError(
+                    f"Expected the map of level {level} to be {ny} x {nx} (grid size over the stride), got "
+                    f"{tuple(x.shape[2:])}."
+                )
+
         cls_list = [self.conv_cls(x).permute(0, 2, 3, 1).contiguous() for x in features]
         box_list = [self.conv_box(x).permute(0, 2, 3, 1).contiguous() for x in features]
         dir_list = [self.conv_dir_cls(x).permute(0, 2, 3, 1).contiguous() for x in features]
@@ -398,10 +423,17 @@ class MultiLevelAnchorHead(nn.Module):
 
         Returns:
             Packed per-anchor detections `{"boxes": (B * A, 7), "scores": (B * A,), "labels": (B * A,),
-            "batch": (B * A,), "class_probs": (B * A, C)}` (PyG layout), plus `"velocity"` $(B \cdot A, 2)$ when the
-            box code carries it.
+            "batch": (B * A,), "class_probs": (B * A, C), "level": (B * A,)}` (PyG layout), plus `"velocity"`
+            $(B \cdot A, 2)$ when the box code carries it. `level` is the pyramid level of every anchor. The anchors
+            come scene by scene, level by level (finest first), each level in the order of its anchor grid:
+            feature-map row ($y$), column ($x$), anchor template, rotation.
         """
-        return _anchor_detections(out["batch_cls"], out["batch_box"])
+        det = _anchor_detections(out["batch_cls"], out["batch_box"])
+        device = det["scores"].device
+        level = torch.arange(len(self.num_anchors_per_level), device=device)
+        counts = torch.tensor(self.num_anchors_per_level, device=device)
+        det["level"] = level.repeat_interleave(counts).repeat(out["batch_cls"].shape[0])
+        return det
 
 
 class AnchorHeadMultiOutput(TypedDict):

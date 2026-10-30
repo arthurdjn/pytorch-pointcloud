@@ -182,6 +182,23 @@ def test_multi_level_anchor_head_scales_the_templates_of_every_level() -> None:
     det = head.decode(out)
     assert det["boxes"].shape == (2 * (fine + coarse), 7)
     assert torch.equal(det["class_probs"], out["batch_cls"].sigmoid().reshape(-1, 3))
+    # Scene by scene, finest level first.
+    level = torch.cat([torch.zeros(fine, dtype=torch.long), torch.ones(coarse, dtype=torch.long)])
+    assert torch.equal(det["level"], level.repeat(2))
+    assert torch.equal(det["batch"], torch.arange(2).repeat_interleave(fine + coarse))
+
+
+@pytest.mark.parametrize(
+    "shapes,match",
+    [
+        pytest.param([(8, 8)], "one feature map per level", id="missing-level"),
+        pytest.param([(8, 8), (5, 5)], "level 1 to be 4 x 4", id="wrong-size"),
+    ],
+)
+def test_multi_level_anchor_head_rejects_maps_that_do_not_match_its_levels(shapes: list, match: str) -> None:
+    head = _make_multi_level_head([1, 2], [1.0, 2.0])
+    with pytest.raises(ValueError, match=match):
+        head([torch.randn(2, 8, *shape) for shape in shapes])
 
 
 def test_multi_level_anchor_head_with_one_level_matches_the_anchor_head() -> None:

@@ -56,11 +56,13 @@ class Detection3D(Boxes3D):
             expands every kept box across all classes (e.g. VoteNet / 3DETR, the anchor heads).
         velocity: Per-box BEV velocity $(v_x, v_y)$, shape $(N, 2)$, emitted by detectors whose head
             regresses velocity (the nuScenes heads).
+        level: Per-box feature-pyramid level, shape $(N,)$, emitted by the multi-level anchor heads.
     """
 
     scores: Tensor
     class_probs: NotRequired[Tensor]
     velocity: NotRequired[Tensor]
+    level: NotRequired[Tensor]
 
 
 class FeaturesDict(TypedDict):
