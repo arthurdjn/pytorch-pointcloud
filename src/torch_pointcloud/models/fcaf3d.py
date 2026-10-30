@@ -430,6 +430,11 @@ class FCAF3DDetection(DetectionModel):
         """Channel count $C$ of the coarsest encoder stage."""
         return self.encoder_channels[-1]
 
+    @property
+    def strides(self) -> Tuple[int, ...]:
+        """Total stride of every pyramid level with respect to the input voxels."""
+        return self.encoder.strides
+
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
         self.head.reset_classifier(num_classes)
@@ -462,7 +467,7 @@ class FCAF3DDetection(DetectionModel):
         """
         out = self.head(stages)
         level = out["level"]
-        strides = torch.tensor(self.encoder.strides, device=level.device)[level].unsqueeze(1)
+        strides = torch.tensor(self.strides, device=level.device)[level].unsqueeze(1)
         indices = out["indices"].long()
         pos = (indices[:, 1:] * strides + origin) * self.voxel_size
 

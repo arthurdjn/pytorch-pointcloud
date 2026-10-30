@@ -140,7 +140,7 @@ def evaluate(model: FCAF3DDetection, dataloader: DataLoader, device: str) -> dic
         out = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
         det = model.decode(out)
         # Keep the best locations of every pyramid level, then score each of them against every class.
-        keep = topk(det["scores"], NMS_PRE, det["batch"] * len(model.encoder.strides) + out["level"])
+        keep = topk(det["scores"], NMS_PRE, det["batch"] * len(model.strides) + out["level"])
         box, label = (det["class_probs"][keep] > SCORE_THRESHOLD).nonzero(as_tuple=True)
         boxes, batch = det["boxes"][keep][box], det["batch"][keep][box]
         scores = det["class_probs"][keep][box, label]
