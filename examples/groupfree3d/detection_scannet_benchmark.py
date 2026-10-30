@@ -1,11 +1,14 @@
 """Benchmark Group-Free 3D on ScanNet with its evaluation protocol.
 
-NOTE: a run draws 50 000 random points per scene; the authors' references average five (MMDetection3D's: best epoch).
+NOTE: one draw of 50 000 points per scene; the authors average five, and we did not run MMDetection3D's `tools/test.py`.
 
 ```bash
 # zeliu98/Group-Free-3D at ef8b7bb
 python eval_avg.py --num_point 50000 --num_decoder_layers {6,12} [--width 2] [--num_target 512] \
     --checkpoint_path <checkpoint> --avg_times 5 --dataset scannet --data_root <data directory>
+# open-mmlab/mmdetection3d at fe25f7a (v1.4.0), data from `tools/create_data.py scannet`, <variant> one of
+# head-L6-O256, head-L12-O256, w2x-head-L12-O256, w2x-head-L12-O512
+python tools/test.py configs/groupfree3d/groupfree3d_<variant>_4xb8_scannet-seg.py <checkpoint>
 ```
 """
 
