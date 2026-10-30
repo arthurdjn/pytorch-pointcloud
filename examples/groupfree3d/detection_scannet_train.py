@@ -39,7 +39,7 @@ DECODER_KEYWORDS = ["decoder", "query_proj", "key_proj", "pos_embeds"]
 
 
 # The ScanNet boxes are axis aligned, so they are refitted on the instances after the flips and the rotation, and
-# the Group-Free targets (sampled seeds, size bins) are assigned inside `GroupFree3DLoss` from the packed boxes.
+# `GroupFree3DLoss` assigns each seed to the box of its instance through `BOX_INDEX`.
 TRAIN_TRANSFORM = T.Compose(
     [
         T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET_DETECTION_LABELS, default=-1),
@@ -47,8 +47,8 @@ TRAIN_TRANSFORM = T.Compose(
         T.RandomFlip(keys=DataKeys.POS, axes=(0,), p=0.5),
         T.RandomFlip(keys=DataKeys.POS, axes=(1,), p=0.5),
         T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(-5.0, 5.0)),
-        T.InstanceToBox(ignore_index=-1),
-        T.KeepItems(keys=[DataKeys.POS, DataKeys.BOX, DataKeys.LABEL]),
+        T.InstanceToBox(ignore_index=-1, dst_box_index_key=DataKeys.BOX_INDEX),
+        T.KeepItems(keys=[DataKeys.POS, DataKeys.BOX, DataKeys.LABEL, DataKeys.BOX_INDEX]),
     ]
 )
 

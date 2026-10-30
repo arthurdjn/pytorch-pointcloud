@@ -157,6 +157,27 @@ def test_groupfree3d_loss_sampling_stays_inside_an_object_with_few_seeds() -> No
     assert torch.allclose(out["sampling_loss"], expected)
 
 
+def test_groupfree3d_loss_assigns_seeds_by_their_box_index() -> None:
+    loss_fn = _create_loss()
+    output, data = _create_data(num_seeds=32, num_queries=8)
+    output["seed_indices"] = torch.arange(64)
+    box_index = torch.full((64,), -1)
+    box_index[:8] = 1  # the candidates of scene 0 belong to its second box
+    box_index[32 + 3] = 0  # one candidate of scene 1 belongs to its only box, packed row 2
+    data[DataKeys.BOX_INDEX] = box_index
+    output["center"][:, 0] = data[DataKeys.BOX][1, :3]
+    output["center"][:, 1] = data[DataKeys.BOX][2, :3]
+    out = loss_fn(output, data)
+
+    positive = torch.zeros(2, 8)
+    positive[0] = 1.0
+    positive[1, 3] = 1.0
+    weight = torch.full((2, 8), 1 / 8)
+    expected = sigmoid_focal_loss(output["objectness_scores"], positive.unsqueeze(-1), weight).sum() / 2
+    assert torch.allclose(out["objectness_loss"], expected)
+    assert out["center_loss"] == 0
+
+
 def test_groupfree3d_loss_accepts_half_precision_predictions() -> None:
     loss_fn = _create_loss()
     output, data = _create_data()

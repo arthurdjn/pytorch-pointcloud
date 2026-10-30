@@ -22,8 +22,9 @@ class GroupFree3DLoss(nn.Module):
 
     Reference: :arxiv: [Group-Free 3D Object Detection via Transformers](https://arxiv.org/abs/2104.00678) (Liu et al., 2021).
 
-    Every target is assigned inside the loss from the packed ground-truth boxes. A seed belongs to the first box of its
-    scene that contains it, and a candidate inherits the box of the seed it was sampled from.
+    Every target is assigned inside the loss from the packed ground truth. A seed belongs to the box of its own
+    instance when `data` holds the per-point `DataKeys.BOX_INDEX` (written by `InstanceToBox`), otherwise to the first
+    box of its scene that contains it; a candidate inherits the box of the seed it was sampled from.
 
     - **Sampling:** the `num_positives` seeds of each object closest to its center, in units of its size, are
       positives of the seed objectness logits; a sigmoid focal loss averaged per scene supervises them. The seeds are
@@ -137,7 +138,9 @@ class GroupFree3DLoss(nn.Module):
                 `query_indices` $(B, Q)$ into the packed seeds, and the seeds' `seed_objectness_logits` $(N_s,)$,
                 `pos_seed` $(N_s, 3)$ and `batch_seed` $(N_s,)$.
             data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent boxes with counter-clockwise headings,
-                `DataKeys.LABEL` $(K,)$ per-box classes and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
+                `DataKeys.LABEL` $(K,)$ per-box classes, `DataKeys.BATCH_BOX` $(K,)$ per-box scene index and,
+                optionally, `DataKeys.BOX_INDEX` $(N,)$, the box row of each input point inside its scene ($-1$ for
+                none), read at the output's `seed_indices`.
 
         Returns:
             A dict with the scalar `loss` and the detached `sampling_loss`, `objectness_loss`, `box_loss`,
@@ -155,9 +158,16 @@ class GroupFree3DLoss(nn.Module):
         box_batch: Tensor = data[DataKeys.BATCH_BOX].to(pos_seed.device)
 
         num_boxes = boxes.shape[0]
-        inside = points_in_boxes(pos_seed, boxes) & (batch_seed.unsqueeze(1) == box_batch.unsqueeze(0))  # (N_s, K)
-        # The first box containing each seed; seeds outside every box take the zero row appended to the targets.
-        assignment = torch.cat([inside, inside.new_ones(inside.shape[0], 1)], dim=1).long().argmax(dim=1)
+        if DataKeys.BOX_INDEX in data:
+            seed_box = data[DataKeys.BOX_INDEX].to(pos_seed.device)[output["seed_indices"]]
+            box_count = torch.zeros(batch_size, dtype=torch.long, device=pos_seed.device)
+            box_count = box_count.index_add_(0, box_batch, torch.ones_like(box_batch))
+            box_offset = box_count.cumsum(0) - box_count
+            assignment = torch.where(seed_box >= 0, seed_box + box_offset[batch_seed], num_boxes)
+        else:
+            inside = points_in_boxes(pos_seed, boxes) & (batch_seed.unsqueeze(1) == box_batch.unsqueeze(0))  # (N_s, K)
+            # The first box containing each seed; seeds outside every box take the zero row appended to the targets.
+            assignment = torch.cat([inside, inside.new_ones(inside.shape[0], 1)], dim=1).long().argmax(dim=1)
         has_box = assignment < num_boxes
         boxes = torch.cat([boxes, boxes.new_zeros(1, 7)])
         labels = torch.cat([labels, labels.new_zeros(1)])
