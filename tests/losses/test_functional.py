@@ -35,6 +35,7 @@ def test_functional_reexports_every_tensor_function() -> None:
         "kpconv_deform_regularizer",
         "lovasz_softmax",
         "mask_matching_cost",
+        "mask_score_loss",
         "one_hot_foreground",
         "pairwise_binary_cross_entropy_with_logits",
         "pairwise_dice_loss",

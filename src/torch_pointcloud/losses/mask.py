@@ -1,7 +1,8 @@
-r"""Mask losses: the dice loss and the pairwise mask costs of the set-prediction matchers."""
+r"""Mask losses: the dice and mask quality losses, and the pairwise mask costs of the set-prediction matchers."""
 
 from typing import Literal
 
+import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
@@ -84,6 +85,45 @@ class DiceLoss(nn.Module):
 
     def extra_repr(self) -> str:
         return f"smooth={self.smooth}, reduction={self.reduction!r}"
+
+
+def mask_score_loss(scores: Tensor, mask_logits: Tensor, target_masks: Tensor, *, iou_threshold: float = 0.5) -> Tensor:
+    r"""Mask quality loss: squared error between each predicted score and the IoU of its mask with its target.
+
+    Each mask is binarized at a sigmoid of $0.5$ and its IoU with the target carries no gradient. Only the masks whose
+    IoU exceeds `iou_threshold` supervise their score, so a poorly matched mask does not teach its quality.
+
+    Args:
+        scores: Predicted mask quality scores, shape $(K,)$.
+        mask_logits: Predicted mask logits, shape $(K, M)$.
+        target_masks: Binary target masks, shape $(K, M)$.
+        iou_threshold: IoU a mask must exceed to supervise its score.
+
+    Returns:
+        The mean squared error over the supervised masks, $0$ when there are none.
+
+    Shape:
+        - scores: $(K,)$
+        - mask_logits: $(K, M)$
+        - target_masks: $(K, M)$
+        - output: scalar
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> logits = torch.tensor([[10.0, 10.0, -10.0], [10.0, -10.0, -10.0]])
+        >>> targets = torch.tensor([[1.0, 1.0, 0.0], [0.0, 1.0, 1.0]])
+        >>> mask_score_loss(torch.tensor([0.5, 0.9]), logits, targets).round(decimals=2).item()
+        0.25
+
+        ```
+    """
+    with torch.no_grad():
+        binary = (mask_logits.sigmoid() >= 0.5).float()
+        intersection = (binary * target_masks).sum(dim=-1)
+        iou = intersection / (binary.sum(dim=-1) + target_masks.sum(dim=-1) - intersection + 1e-6)
+    keep = (iou > iou_threshold).float()
+    return ((scores - iou).square() * keep).sum() / keep.sum().clamp(min=1)
 
 
 def pairwise_dice_loss(logits: Tensor, targets: Tensor, *, smooth: float = 1.0) -> Tensor:

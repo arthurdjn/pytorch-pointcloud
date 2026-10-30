@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from torch_pointcloud.losses.mask import dice_loss, mask_matching_cost
+from torch_pointcloud.losses.mask import dice_loss, mask_matching_cost, mask_score_loss
 from torch_pointcloud.losses.matching import hungarian_match_batched
 from torch_pointcloud.ops.superpoint import superpoint_instance_masks
 from torch_pointcloud.utils.data import DataKeys
@@ -38,9 +38,10 @@ class SPFormerLoss(nn.Module):
 
     - **Class:** weighted cross-entropy over the $C + 1$ class logits of every query, the unmatched ones assigned the
       no-object slot, down-weighted by `no_object_weight`.
-    - **Mask:** binary cross-entropy and dice loss between the matched queries' mask logits and their instances.
+    - **Mask:** binary cross-entropy and dice loss (`dice_loss`) between the matched queries' mask logits and their
+      instances.
     - **Score:** mean squared error between the matched queries' scores and the IoU of their binarized masks with
-      their instances, over the pairs whose IoU exceeds `score_iou_threshold`.
+      their instances, over the pairs whose IoU exceeds `score_iou_threshold` (`mask_score_loss`).
 
     The mask and score terms are averaged over the scenes of the batch, except the last layer's dice term, which is
     summed over them. `loss` sums the terms of every layer, while the returned `class_loss`, `mask_loss`, `dice_loss`
@@ -197,13 +198,12 @@ class SPFormerLoss(nn.Module):
             matched, matched_masks = mask_logits[:, target.superpoints][query], target.masks[instance]
             mask_loss = mask_loss + F.binary_cross_entropy_with_logits(matched, matched_masks)
             dice = dice + dice_loss(matched, matched_masks).mean()
-            with torch.no_grad():
-                binary = (matched.sigmoid() >= 0.5).float()
-                intersection = (binary * matched_masks).sum(dim=-1)
-                iou = intersection / (binary.sum(dim=-1) + matched_masks.sum(dim=-1) - intersection + 1e-6)
-            keep = (iou > self.score_iou_threshold).float()
-            squared_error = (scores[target.scene, query] - iou).square()
-            score_loss = score_loss + (squared_error * keep).sum() / keep.sum().clamp(min=1)
+            score_loss = score_loss + mask_score_loss(
+                scores[target.scene, query],
+                matched,
+                matched_masks,
+                iou_threshold=self.score_iou_threshold,
+            )
 
         class_loss = F.cross_entropy(class_logits.transpose(1, 2), class_target, self.class_weights)
         return {

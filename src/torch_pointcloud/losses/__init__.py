@@ -27,6 +27,7 @@ from .mask import (
     DiceLoss,
     dice_loss,
     mask_matching_cost,
+    mask_score_loss,
     pairwise_binary_cross_entropy_with_logits,
     pairwise_dice_loss,
 )
@@ -71,6 +72,7 @@ __all__ = [
     "kpconv_deform_regularizer",
     "lovasz_softmax",
     "mask_matching_cost",
+    "mask_score_loss",
     "one_hot_foreground",
     "pairwise_binary_cross_entropy_with_logits",
     "pairwise_dice_loss",

@@ -33,7 +33,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added the `instance-segmentation` task with SPFormer (`spformer.scannet.jiahao-sun`), its loss and its ScanNet benchmark and train scripts.
-- Added `ops.superpoint`, the dice losses, `mask_matching_cost`, the `MaskedQueryDecoderLayer` layer and the `RandomLinearJitter` transform.
+- Added `ops.superpoint`, the dice and mask score losses, `mask_matching_cost`, the `MaskedQueryDecoderLayer` layer and the `RandomLinearJitter` transform.
 - `instance_matches` takes a model's `decode` output (sparse masks, optional `ignore_mask`) and a `batch` to score a packed batch, and counts the points without an instance as void; the dense-mask call still works until 0.0.20, with a `FutureWarning`.
 - Added a `std` option to `RandomColorShift` for normal per-channel offsets.
 

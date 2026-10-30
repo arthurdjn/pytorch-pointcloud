@@ -6,6 +6,7 @@ from torch_pointcloud.losses import (
     DiceLoss,
     dice_loss,
     mask_matching_cost,
+    mask_score_loss,
     pairwise_binary_cross_entropy_with_logits,
     pairwise_dice_loss,
 )
@@ -59,3 +60,18 @@ def test_mask_matching_cost_sums_the_weighted_terms() -> None:
         + 3.0 * pairwise_dice_loss(logits, targets)
     )
     torch.testing.assert_close(cost, expected)
+
+
+def test_mask_score_loss_supervises_the_well_matched_masks_only() -> None:
+    """Mask 0 (IoU 2/3) supervises its score; mask 1 (IoU 0) and the empty mask 2 do not."""
+    logits = torch.tensor([[10.0, 10.0, -10.0, -10.0], [10.0, -10.0, -10.0, -10.0], [-10.0, -10.0, -10.0, -10.0]])
+    logits.requires_grad_()
+    targets = torch.tensor([[1.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+    scores = torch.tensor([0.5, 0.9, 0.3], requires_grad=True)
+    loss = mask_score_loss(scores, logits, targets)
+    loss.backward()
+    iou = 2.0 / (3.0 + 1e-6)
+    assert loss.item() == pytest.approx((0.5 - iou) ** 2)
+    assert scores.grad is not None and scores.grad.tolist() == pytest.approx([2 * (0.5 - iou), 0.0, 0.0])
+    assert logits.grad is None
+    assert mask_score_loss(scores, logits, targets, iou_threshold=0.7).item() == 0.0
