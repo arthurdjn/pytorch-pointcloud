@@ -1,3 +1,4 @@
+from typing import List
 from unittest.mock import sentinel
 
 import pytest
@@ -95,6 +96,22 @@ def test_cat_casts_integer_inputs_to_float32() -> None:
     }
     result = T.Cat(keys=["a", "b"], dst_key="x", dim=-1)(data)
     assert result["x"].dtype == torch.float32
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        pytest.param(["a", "b"], id="different-ranks"),
+        pytest.param(["b"], id="one-key-without-the-dimension"),
+    ],
+)
+def test_cat_names_the_tensor_it_cannot_concatenate(keys: List[str]) -> None:
+    data = {
+        "a": torch.ones(4, 3),
+        "b": torch.zeros(4),
+    }
+    with pytest.raises(ValueError, match=r"`b` \(4,\)"):
+        T.Cat(keys=keys, dst_key="x", dim=1)(data)
 
 
 def test_keep_items() -> None:

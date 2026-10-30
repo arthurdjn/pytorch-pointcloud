@@ -35,6 +35,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark and training scripts.
 - Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `nms3d(max_candidates=...)`.
 - Added `datasets.kitti.kitti_difficulty`.
+- `Cat` raises a `ValueError` naming the keys when its inputs differ in rank or lack the `dim` it concatenates along.
 
 ## 0.0.18 (2026-10-20)
 
