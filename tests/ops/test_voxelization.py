@@ -6,6 +6,7 @@ from torch_pointcloud.ops.voxelization import (
     dense_voxelize,
     first_permutation,
     hard_voxelize,
+    lookup_coordinates,
     sparse_voxelize,
     trilinear_dense_devoxelize,
     trilinear_sparse_devoxelize,
@@ -64,103 +65,6 @@ def test_trilinear_devoxelize_inverts_dense_voxelize_at_grid_points() -> None:
     x_voxel = dense_voxelize(x, pos, batch, resolution=2)
     out = trilinear_dense_devoxelize(x_voxel, pos, batch, resolution=2)
     assert out[:, 0].tolist() == [2.0, 2.0, 5.0]
-
-
-def test_trilinear_sparse_devoxelize_matches_dense_on_a_full_grid() -> None:
-    torch.manual_seed(0)
-    x_voxel = torch.randn(1, 2, 3, 3, 3)
-    pos_voxel = torch.stack(torch.meshgrid(torch.arange(3), torch.arange(3), torch.arange(3), indexing="ij"), -1)
-    pos_voxel = pos_voxel.reshape(-1, 3)
-    x = x_voxel[0].permute(1, 2, 3, 0).reshape(-1, 2)
-    pos = torch.rand(50, 3) * 2
-    batch = torch.zeros(50, dtype=torch.long)
-    expected = trilinear_dense_devoxelize(x_voxel, pos, batch, resolution=3)
-    perm = torch.randperm(27)
-    out = trilinear_sparse_devoxelize(
-        x_voxel=x[perm],
-        pos_voxel=pos_voxel[perm],
-        batch_voxel=torch.zeros(27, dtype=torch.long),
-        pos=pos,
-        batch=batch,
-    )
-    torch.testing.assert_close(out, expected)
-
-
-def test_trilinear_sparse_devoxelize_missing_voxels_count_as_zero() -> None:
-    x_voxel = torch.tensor([[2.0], [6.0]])
-    pos_voxel = torch.tensor([[0, 0, 0], [1, 1, 1]])
-    pos = torch.tensor([[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.0, 0.0], [5.0, 5.0, 5.0]])
-    out = trilinear_sparse_devoxelize(
-        x_voxel=x_voxel,
-        pos_voxel=pos_voxel,
-        batch_voxel=torch.zeros(2, dtype=torch.long),
-        pos=pos,
-        batch=torch.zeros(4, dtype=torch.long),
-    )
-    torch.testing.assert_close(out[:, 0], torch.tensor([2.0, 1.0, 1.5, 0.0]))
-
-
-def test_trilinear_sparse_devoxelize_renormalizes_over_occupied_corners() -> None:
-    x_voxel = torch.tensor([[2.0], [6.0]])
-    pos_voxel = torch.tensor([[0, 0, 0], [1, 1, 1]])
-    pos = torch.tensor([[0.0, 0.0, 0.0], [0.5, 0.5, 0.5], [0.25, 0.0, 0.0], [5.0, 5.0, 5.0]])
-    out = trilinear_sparse_devoxelize(
-        x_voxel=x_voxel,
-        pos_voxel=pos_voxel,
-        batch_voxel=torch.zeros(2, dtype=torch.long),
-        pos=pos,
-        batch=torch.zeros(4, dtype=torch.long),
-        normalize=True,
-    )
-    torch.testing.assert_close(out[:, 0], torch.tensor([2.0, 4.0, 2.0, 0.0]))
-
-
-def test_trilinear_sparse_devoxelize_separates_batches() -> None:
-    out = trilinear_sparse_devoxelize(
-        x_voxel=torch.tensor([[1.0], [10.0]]),
-        pos_voxel=torch.tensor([[0, 0, 0], [0, 0, 0]]),
-        batch_voxel=torch.tensor([0, 1]),
-        pos=torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]),
-        batch=torch.tensor([1, 0]),
-        normalize=True,
-    )
-    assert out[:, 0].tolist() == pytest.approx([10.0, 1.0])
-
-
-def test_trilinear_sparse_devoxelize_backpropagates_to_the_voxels() -> None:
-    x_voxel = torch.tensor([[1.0], [3.0]], requires_grad=True)
-    out = trilinear_sparse_devoxelize(
-        x_voxel=x_voxel,
-        pos_voxel=torch.tensor([[0, 0, 0], [1, 0, 0]]),
-        batch_voxel=torch.zeros(2, dtype=torch.long),
-        pos=torch.tensor([[0.25, 0.0, 0.0]]),
-        batch=torch.zeros(1, dtype=torch.long),
-        normalize=True,
-    )
-    out.sum().backward()
-    assert x_voxel.grad is not None
-    torch.testing.assert_close(x_voxel.grad[:, 0], torch.tensor([0.75, 0.25]))
-
-
-def test_trilinear_sparse_devoxelize_empty_inputs() -> None:
-    out = trilinear_sparse_devoxelize(
-        x_voxel=torch.zeros(0, 4),
-        pos_voxel=torch.zeros(0, 3, dtype=torch.long),
-        batch_voxel=torch.zeros(0, dtype=torch.long),
-        pos=torch.rand(5, 3),
-        batch=torch.zeros(5, dtype=torch.long),
-        normalize=True,
-    )
-    assert out.shape == (5, 4)
-    assert not out.any()
-    out = trilinear_sparse_devoxelize(
-        x_voxel=torch.rand(2, 4),
-        pos_voxel=torch.zeros(2, 3),
-        batch_voxel=torch.tensor([0, 1]),
-        pos=torch.zeros(0, 3),
-        batch=torch.zeros(0, dtype=torch.long),
-    )
-    assert out.shape == (0, 4)
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -308,3 +212,119 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_lookup_coordinates_finds_rows_and_flags_missing() -> None:
+    coordinates = torch.tensor([[0, 1, 2], [0, -3, 0], [1, 1, 2], [0, 0, 7]])
+    query = torch.tensor([[1, 1, 2], [0, 1, 3], [0, -3, 0], [0, 0, 7], [2, 1, 2]])
+    assert lookup_coordinates(coordinates, query).tolist() == [2, -1, 1, 3, -1]
+
+
+def test_lookup_coordinates_matches_brute_force() -> None:
+    generator = torch.Generator().manual_seed(0)
+    coordinates = torch.unique(torch.randint(-20, 20, (300, 4), generator=generator), dim=0)
+    query = torch.randint(-20, 20, (500, 4), generator=generator)
+    expected = [next((j for j, row in enumerate(coordinates.tolist()) if row == q), -1) for q in query.tolist()]
+    assert lookup_coordinates(coordinates, query).tolist() == expected
+
+
+def test_lookup_coordinates_empty_inputs() -> None:
+    assert lookup_coordinates(torch.zeros(0, 4, dtype=torch.long), torch.zeros(3, 4, dtype=torch.long)).tolist() == [
+        -1,
+        -1,
+        -1,
+    ]
+    assert lookup_coordinates(torch.zeros(2, 4, dtype=torch.long), torch.zeros(0, 4, dtype=torch.long)).shape == (0,)
+
+
+def test_lookup_coordinates_rejects_width_mismatch() -> None:
+    with pytest.raises(ValueError, match="same width"):
+        lookup_coordinates(torch.zeros(1, 4, dtype=torch.long), torch.zeros(1, 3, dtype=torch.long))
+
+
+def test_trilinear_sparse_devoxelize_reads_voxels_on_the_grid() -> None:
+    x_voxel = torch.tensor([[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]])
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0], [0, 0, 0]])
+    batch_voxel = torch.tensor([0, 0, 1])
+    pos = torch.tensor([[1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, torch.tensor([0, 1, 0]))
+    assert out.tolist() == [[2.0, 20.0], [3.0, 30.0], [1.0, 10.0]]
+
+
+def test_trilinear_sparse_devoxelize_missing_voxels_count_as_zero() -> None:
+    x_voxel = torch.tensor([[4.0]])
+    pos_voxel = torch.tensor([[0, 0, 0]])
+    batch_voxel = torch.tensor([0])
+    pos = torch.tensor([[0.5, 0.5, 0.5], [0.25, 0.0, 0.0], [5.0, 5.0, 5.0]])
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, torch.zeros(3, dtype=torch.long))
+    assert out.view(-1).tolist() == pytest.approx([0.5, 3.0, 0.0])
+
+
+def test_trilinear_sparse_devoxelize_matches_dense_on_a_full_grid() -> None:
+    generator = torch.Generator().manual_seed(0)
+    grid = torch.rand(1, 2, 4, 4, 4, generator=generator)
+    pos_voxel = torch.stack(torch.meshgrid(*[torch.arange(4)] * 3, indexing="ij"), -1).view(-1, 3)
+    x_voxel = grid[0].permute(1, 2, 3, 0).reshape(-1, 2)
+    pos = torch.rand(50, 3, generator=generator) * 3
+    batch = torch.zeros(50, dtype=torch.long)
+    sparse = trilinear_sparse_devoxelize(x_voxel, pos_voxel, torch.zeros(64, dtype=torch.long), pos, batch)
+    dense = trilinear_dense_devoxelize(grid, pos, batch, resolution=4)
+    torch.testing.assert_close(sparse, dense)
+    # Every corner is occupied, so renormalizing changes nothing.
+    normalized = trilinear_sparse_devoxelize(
+        x_voxel,
+        pos_voxel,
+        torch.zeros(64, dtype=torch.long),
+        pos,
+        batch,
+        normalize=True,
+    )
+    torch.testing.assert_close(normalized, dense)
+
+
+def test_trilinear_sparse_devoxelize_normalize_averages_the_occupied_corners() -> None:
+    x_voxel = torch.tensor([[2.0], [6.0], [9.0]])
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0], [0, 0, 0]])
+    batch_voxel = torch.tensor([0, 0, 1])
+    pos = torch.tensor([[0.25, 0.5, 0.0], [0.0, 0.0, 0.0], [5.0, 5.0, 5.0], [0.5, 0.5, 0.5]])
+    batch = torch.tensor([0, 0, 0, 1])
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, batch, normalize=True)
+
+    # Weights 0.375 and 0.125 on the two occupied corners, divided by their sum; scene 1 reads only its own voxel.
+    assert out.view(-1).tolist() == pytest.approx([3.0, 2.0, 0.0, 9.0])
+
+
+def test_trilinear_sparse_devoxelize_normalize_in_half_precision_reads_zeros_without_corners() -> None:
+    x_voxel = torch.tensor([[2.0], [6.0]], dtype=torch.half)
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
+    pos = torch.tensor([[0.25, 0.5, 0.0], [0.0, 0.0, 0.0], [5.0, 5.0, 5.0]], dtype=torch.half)
+    zeros = torch.zeros(3, dtype=torch.long)
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, zeros[:2], pos, zeros, normalize=True)
+
+    assert out.dtype == torch.half
+    assert out.view(-1).tolist() == pytest.approx([3.0, 2.0, 0.0])
+
+
+def test_trilinear_sparse_devoxelize_backward_reaches_the_voxels() -> None:
+    x_voxel = torch.tensor([[1.0], [3.0]], requires_grad=True)
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
+    pos = torch.tensor([[0.25, 0.0, 0.0], [0.5, 0.5, 0.0]])
+    for normalize in (False, True):
+        out = trilinear_sparse_devoxelize(
+            x_voxel,
+            pos_voxel,
+            torch.zeros(2, dtype=torch.long),
+            pos,
+            torch.zeros(2, dtype=torch.long),
+            normalize=normalize,
+        )
+        (grad,) = torch.autograd.grad(out.sum(), x_voxel)
+        assert torch.isfinite(grad).all() and (grad > 0).all()
+
+
+def test_trilinear_sparse_devoxelize_empty_inputs() -> None:
+    empty = torch.empty(0, dtype=torch.long)
+    out = trilinear_sparse_devoxelize(torch.empty(0, 2), torch.empty(0, 3), empty, torch.rand(3, 3), empty.new_zeros(3))
+    assert out.shape == (3, 2) and not out.any()
+    out = trilinear_sparse_devoxelize(torch.rand(2, 2), torch.zeros(2, 3), empty.new_zeros(2), torch.empty(0, 3), empty)
+    assert out.shape == (0, 2)

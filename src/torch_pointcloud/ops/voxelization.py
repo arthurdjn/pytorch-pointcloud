@@ -1,4 +1,5 @@
-"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization."""
+"""Dense and sparse voxelization, FNV voxel hashing, coordinate lookup, the first point per voxel, and trilinear
+devoxelization."""
 
 import functools
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
@@ -139,6 +140,55 @@ def trilinear_dense_devoxelize(x_voxel: Tensor, pos: Tensor, batch: Tensor, reso
     return x_out
 
 
+def lookup_coordinates(coordinates: Tensor, query: Tensor) -> Tensor:
+    r"""Row of `coordinates` equal to each row of `query`, or $-1$ where there is none.
+
+    Rows are integer coordinates of any width, e.g. the `[batch, x, y, z]` indices of a sparse voxel tensor. Both
+    sets are ranked on one mixed-radix key, so a lookup is a sort and a binary search, without host synchronization.
+
+    Args:
+        coordinates: Integer coordinates with unique rows, $(N, D)$.
+        query: Integer coordinates to look up, $(Q, D)$.
+
+    Returns:
+        The row of `coordinates` matching each query row, $-1$ when absent, as a long tensor $(Q,)$.
+
+    Shape:
+        - coordinates: $(N, D)$
+        - query: $(Q, D)$
+        - output: $(Q,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.voxelization import lookup_coordinates
+        >>> coordinates = torch.tensor([[0, 1, 2], [0, 0, 0], [1, 1, 2]])
+        >>> lookup_coordinates(coordinates, torch.tensor([[1, 1, 2], [0, 5, 5], [0, 0, 0]]))
+        tensor([ 2, -1,  1])
+
+        ```
+    """
+    if coordinates.shape[1] != query.shape[1]:
+        raise ValueError(
+            f"query and coordinates must have the same width, got {query.shape[1]} and {coordinates.shape[1]}."
+        )
+
+    if query.shape[0] == 0 or coordinates.shape[0] == 0:
+        return torch.full((query.shape[0],), -1, dtype=torch.long, device=query.device)
+
+    query, coordinates = query.long(), coordinates.long()
+    low = torch.minimum(query.min(0).values, coordinates.min(0).values)
+    extent = torch.maximum(query.max(0).values, coordinates.max(0).values) - low + 1
+    radix = torch.cat([extent.flip(0).cumprod(0).flip(0)[1:], extent.new_ones(1)])
+    query_key = ((query - low) * radix).sum(1)
+    key = ((coordinates - low) * radix).sum(1)
+
+    sorted_key, order = key.sort()
+    position = torch.searchsorted(sorted_key, query_key).clamp(max=key.numel() - 1)
+    found = sorted_key[position] == query_key
+    return torch.where(found, order[position], torch.full_like(position, -1))
+
+
 def trilinear_sparse_devoxelize(
     x_voxel: Tensor,
     pos_voxel: Tensor,
@@ -151,89 +201,72 @@ def trilinear_sparse_devoxelize(
 ) -> Tensor:
     r"""Interpolate sparse voxel features at continuous grid positions, trilinearly.
 
-    The feature of a voxel sits at its integer coordinate, so a position $\mathbf{p}$ reads the eight voxels
-    $\lfloor \mathbf{p} \rfloor + \{0, 1\}^3$ with the trilinear weights of $\mathbf{p} - \lfloor \mathbf{p} \rfloor$.
-    A corner without a voxel contributes nothing. Without `normalize` the weights of the others are kept as they are;
-    with it they are divided by their sum, so the result is a weighted mean of the occupied corners. Either way a
-    position on a voxel reads that voxel and a position with no occupied corner reads zeros. To read the voxels of a
-    grid downsampled by a stride $s$ at full-resolution coordinates, pass $\mathbf{p} / s$.
+    A position $p$ reads the $8$ voxels around it, $\lfloor p \rfloor + \{0, 1\}^3$, each weighted by
+    $\prod_d (1 - |p_d - c_d|)$. A voxel absent from `pos_voxel` contributes nothing. Without `normalize` the weights
+    of the others are kept as they are; with it they are divided by their sum, so the result is a weighted mean of the
+    occupied corners. Either way a position on a voxel reads that voxel and a position with no occupied corner reads
+    zeros. To read a grid of stride $s$ at full-resolution coordinates, pass $p / s$.
 
     Args:
-        x_voxel: Voxel features.
-        pos_voxel: Integer voxel coordinates, unique within a batch element.
-        batch_voxel: Batch index of the voxels.
-        pos: Query positions, in voxel units.
-        batch: Batch index of the queries.
+        x_voxel: Voxel features $(V, C)$.
+        pos_voxel: Integer voxel coordinates $(V, 3)$, unique within a scene.
+        batch_voxel: Per-voxel batch index $(V,)$.
+        pos: Query positions in voxel units $(N, 3)$.
+        batch: Per-query batch index $(N,)$.
         normalize: Divide the weights of the occupied corners by their sum.
         eps: Added to the sum of the weights before dividing, with `normalize`.
 
     Returns:
-        The interpolated features.
+        The interpolated features $(N, C)$.
 
     Shape:
-        - `x_voxel`: $(V, C)$
-        - `pos_voxel`: $(V, 3)$
-        - `batch_voxel`: $(V,)$
-        - `pos`: $(N, 3)$
-        - `batch`: $(N,)$
-        - Output: $(N, C)$
+        - x_voxel: $(V, C)$
+        - pos_voxel: $(V, 3)$
+        - batch_voxel: $(V,)$
+        - pos: $(N, 3)$
+        - batch: $(N,)$
+        - output: $(N, C)$
 
     Example:
         ```pycon
         >>> import torch
         >>> from torch_pointcloud.ops.voxelization import trilinear_sparse_devoxelize
-        >>> x_voxel = torch.tensor([[2.0], [6.0]])
-        >>> pos_voxel = torch.tensor([[0, 0, 0], [1, 1, 1]])
+        >>> x_voxel = torch.tensor([[1.0], [3.0]])
+        >>> pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
         >>> batch_voxel = torch.zeros(2, dtype=torch.long)
-        >>> pos = torch.tensor([[0.5, 0.5, 0.5]])
-        >>> batch = torch.zeros(1, dtype=torch.long)
+        >>> pos = torch.tensor([[0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
+        >>> batch = torch.zeros(2, dtype=torch.long)
         >>> trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, batch)
-        tensor([[1.]])
+        tensor([[2.0000],
+                [0.5000]])
         >>> trilinear_sparse_devoxelize(x_voxel, pos_voxel, batch_voxel, pos, batch, normalize=True)
-        tensor([[4.]])
+        tensor([[2.],
+                [1.]])
 
         ```
     """
-    if pos_voxel.shape[1] != 3 or pos.shape[1] != 3:
-        raise ValueError(f"Positions must be 3D, got {pos_voxel.shape[1]}-D voxels and {pos.shape[1]}-D queries.")
-
-    out = x_voxel.new_zeros(pos.shape[0], x_voxel.shape[1])
     if pos_voxel.shape[0] == 0 or pos.shape[0] == 0:
-        return out
+        return x_voxel.new_zeros(pos.shape[0], x_voxel.shape[1])
 
-    pos_floor = torch.floor(pos)
-    frac = (pos - pos_floor).to(x_voxel.dtype)
-    lower = pos_floor.long()
-    pos_voxel = pos_voxel.long()
+    lower = torch.floor(pos)
+    # Half-precision weights would round `eps` to zero and turn a position with no occupied corner into 0 / 0.
+    frac = (pos - lower).to(torch.promote_types(pos.dtype, torch.float32))
+    corner_offsets = torch.tensor(
+        [[i, j, k] for i in (0, 1) for j in (0, 1) for k in (0, 1)],
+        device=pos.device,
+    )  # (8, 3)
+    corners = lower.long().unsqueeze(1) + corner_offsets  # (N, 8, 3)
+    weights = torch.where(corner_offsets.bool(), frac.unsqueeze(1), 1.0 - frac.unsqueeze(1)).prod(2)  # (N, 8)
 
-    # Linear keys over the box holding the voxels and every corner, so that a sorted search finds each corner.
-    start = torch.minimum(pos_voxel.min(dim=0).values, lower.min(dim=0).values)
-    extent = torch.maximum(pos_voxel.max(dim=0).values, lower.max(dim=0).values + 1) - start + 1
+    query = torch.cat([batch.view(-1, 1, 1).expand(-1, 8, 1), corners], dim=2).view(-1, 4)
+    voxels = torch.cat([batch_voxel.view(-1, 1), pos_voxel.long()], dim=1)
+    index = lookup_coordinates(voxels, query).view(-1, 8)
 
-    def linear_key(batch_index: Tensor, coordinates: Tensor) -> Tensor:
-        coordinates = coordinates - start
-        return ((batch_index.long() * extent[0] + coordinates[:, 0]) * extent[1] + coordinates[:, 1]) * extent[
-            2
-        ] + coordinates[:, 2]
-
-    voxel_key, order = torch.sort(linear_key(batch_voxel, pos_voxel))
-    corners = torch.tensor([[(i >> 2) & 1, (i >> 1) & 1, i & 1] for i in range(8)], device=pos.device)
-
-    indices, weights = [], []
-    for corner in corners:
-        key = linear_key(batch, lower + corner)
-        index = torch.searchsorted(voxel_key, key).clamp(max=voxel_key.shape[0] - 1)
-        found = voxel_key[index] == key
-        weight = torch.where(corner.bool(), frac, 1 - frac).prod(dim=1)
-        indices.append(order[index])
-        weights.append(weight * found)
-
-    weight = torch.stack(weights, dim=1)  # (N, 8)
+    gathered = x_voxel[index.clamp(min=0)]  # (N, 8, C)
+    weights = weights * (index >= 0)
     if normalize:
-        weight = weight / (weight.sum(dim=1, keepdim=True) + eps)
-    for index, corner_weight in zip(indices, weight.unbind(dim=1)):
-        out += x_voxel[index] * corner_weight.unsqueeze(1)
-    return out
+        weights = weights / (weights.sum(dim=1, keepdim=True) + eps)
+    return (gathered * weights.unsqueeze(2).to(x_voxel.dtype)).sum(1)
 
 
 @overload
