@@ -30,7 +30,8 @@ class PartSegmentationDecoder(nn.Module):
         - x: $(B, G, C)$ patch features.
         - center: $(B, G, D)$ patch centers.
         - pos: $(N, D)$ point coordinates.
-        - batch: $(N,)$ shape index of every point.
+        - batch: $(N,)$ shape index of every point, sorted (as `collate` builds it): the $k$-NN interpolation
+          pairs points and patches across shapes on an unsorted `batch`.
         - category: $(B, K)$ category one-hot.
         - Output: $(N, C_p + 2 C + E)$.
 
@@ -59,6 +60,7 @@ class PartSegmentationDecoder(nn.Module):
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
+        self.num_categories = num_categories
         self.propagation_channels = propagation_channels
         self.category_channels = category_channels
         self.category_embed = MLP(
@@ -87,6 +89,12 @@ class PartSegmentationDecoder(nn.Module):
 
     def forward(self, x: Tensor, center: Tensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         B, G, C = x.shape
+        if category.shape != (B, self.num_categories):
+            raise ValueError(
+                f"`category` must be a one-hot of shape ({B}, {self.num_categories}), one row per shape of `x`; "
+                f"got {tuple(category.shape)}."
+            )
+
         x_global = torch.cat([x.amax(dim=1), x.mean(dim=1), self.category_embed(category)], dim=1)
 
         patch_batch = torch.arange(B, device=x.device).repeat_interleave(G)
