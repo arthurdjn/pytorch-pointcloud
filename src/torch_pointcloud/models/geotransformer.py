@@ -16,7 +16,8 @@ from torch_geometric.utils import mask_to_index
 from typing_extensions import NotRequired
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.layers.kpconv_blocks import KPConvBlock, KPResidualGroupNormBlock, LinearGroupNormBlock
+from torch_pointcloud.layers.kpconv_blocks import KPConvBlock, KPResidualBlock
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.optimal_transport import LogOptimalTransport
 from torch_pointcloud.layers.voxel_grid_pool import VoxelGridPool
 from torch_pointcloud.ops.cluster import dense_neighbors, gather_neighbors, knn
@@ -28,6 +29,7 @@ from torch_pointcloud.ops.registration import (
     point_to_node_partition,
 )
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor, Registration3D
 
 from ._base import RegistrationModel
@@ -336,10 +338,10 @@ class KPConvFPN(nn.Module):
     r"""KPConv feature pyramid of the registration backbones: a stem stage at the input resolution, grid-subsampled
     encoder stages, and nearest-neighbor upsampling decoders back to the fine stage.
 
-    The first stage is a group-normalized `KPConvBlock` followed by one residual block; every further stage grid-subsamples
-    the points, then runs a strided residual block and two residual blocks at the doubled radius. The decoders
-    upsample the coarsest features to each finer stage, concatenate that stage's encoder features and mix them with
-    a unary block; the last decoder is a plain linear layer and defines the fine stage. Neighborhoods are the
+    The first stage is a group-normalized `KPConvBlock` followed by one `KPResidualBlock`; every further stage
+    grid-subsamples the points, then runs a strided residual block and two residual blocks at the doubled radius. The
+    decoders upsample the coarsest features to each finer stage, concatenate that stage's encoder features and mix
+    them with a unary `MLP`; the last decoder is a plain linear layer and defines the fine stage. Neighborhoods are the
     `max_num_neighbors` nearest points within each stage's radius, so the clouds of a batch never mix.
 
     Args:
@@ -409,29 +411,41 @@ class KPConvFPN(nn.Module):
             bias=True,
             normalize_by_positive_neighbors=True,
         )
-        first = KPResidualGroupNormBlock(
-            stem_channels, encoder_channels[0], kernel_size, radii[0], kp_sigma[0], num_groups
+        block_kwargs: Dict[str, Any] = dict(
+            spatial_dim=3,
+            kernel_size=kernel_size,
+            act="leaky_relu",
+            act_kwargs={"negative_slope": 0.1},
+            norm="group_norm",
+            norm_kwargs={"num_groups": num_groups},
+            bias=True,
+            normalize_by_positive_neighbors=True,
+        )
+        first = KPResidualBlock(
+            in_channels=stem_channels,
+            out_channels=encoder_channels[0],
+            kp_radius=radii[0],
+            kp_sigma=kp_sigma[0],
+            **block_kwargs,
         )
         self.stages.append(nn.ModuleList([stem, first]))
         for i in range(1, num_stages):
-            strided = KPResidualGroupNormBlock(
-                encoder_channels[i - 1],
-                encoder_channels[i - 1],
-                kernel_size,
-                radii[i - 1],
-                kp_sigma[i - 1],
-                num_groups,
+            strided = KPResidualBlock(
+                in_channels=encoder_channels[i - 1],
+                out_channels=encoder_channels[i - 1],
+                kp_radius=radii[i - 1],
+                kp_sigma=kp_sigma[i - 1],
                 strided=True,
                 max_num_neighbors=max_num_neighbors[i - 1],
+                **block_kwargs,
             )
             blocks = [
-                KPResidualGroupNormBlock(
-                    encoder_channels[i - 1] if j == 0 else encoder_channels[i],
-                    encoder_channels[i],
-                    kernel_size,
-                    radii[i],
-                    kp_sigma[i],
-                    num_groups,
+                KPResidualBlock(
+                    in_channels=encoder_channels[i - 1] if j == 0 else encoder_channels[i],
+                    out_channels=encoder_channels[i],
+                    kp_radius=radii[i],
+                    kp_sigma=kp_sigma[i],
+                    **block_kwargs,
                 )
                 for j in range(2)
             ]
@@ -441,10 +455,15 @@ class KPConvFPN(nn.Module):
         in_channels = encoder_channels[-1]
         for i, out_channels in enumerate(self.decoder_channels):
             skip_channels = encoder_channels[num_stages - 2 - i]
-            if i < len(self.decoder_channels) - 1:
-                self.decoders.append(LinearGroupNormBlock(in_channels + skip_channels, out_channels, num_groups))
-            else:
-                self.decoders.append(nn.Linear(in_channels + skip_channels, out_channels))
+            last = i == len(self.decoder_channels) - 1
+            decoder = MLP(
+                [in_channels + skip_channels, out_channels],
+                act="leaky_relu",
+                act_kwargs={"negative_slope": 0.1},
+                norm=None if last else create_norm("group_norm", out_channels, num_groups=num_groups),
+                plain_last=last,
+            )
+            self.decoders.append(decoder)
             in_channels = out_channels
 
     @property
@@ -516,11 +535,7 @@ class KPConvFPN(nn.Module):
             )
             nearest, _ = dense_neighbors(edge_index, latent.size(0), positions[stage].size(0), max_num_neighbors=1)
             upsampled = gather_neighbors(latent, nearest).squeeze(1)
-            latent = torch.cat([upsampled, feats[stage]], dim=1)
-            if isinstance(decoder, LinearGroupNormBlock):
-                latent = decoder(latent, batches[stage], batch_size)
-            else:
-                latent = decoder(latent)
+            latent = decoder(torch.cat([upsampled, feats[stage]], dim=1), batches[stage], batch_size)
 
         fine: FeaturesDict = {"x": latent, "pos": positions[self.fine_stage], "batch": clouds[self.fine_stage]}
         return fine, coarse
@@ -941,6 +956,37 @@ class GeoTransformerRegistration(RegistrationModel):
         }
 
 
+_UNARY_CHECKPOINT_MAPPING = {
+    "backbone.stages.{i}.{j}.unary1.linear.{param}": "backbone.stages.{i}.{j}.unary1.lins.0.{param}",
+    "backbone.stages.{i}.{j}.unary1.norm.{param}": "backbone.stages.{i}.{j}.unary1.norms.0.{param}",
+    "backbone.stages.{i}.{j}.unary2.linear.{param}": "backbone.stages.{i}.{j}.unary2.lins.0.{param}",
+    "backbone.stages.{i}.{j}.unary2.norm.{param}": "backbone.stages.{i}.{j}.unary2.norms.0.{param}",
+    "backbone.stages.{i}.{j}.shortcut.linear.{param}": "backbone.stages.{i}.{j}.shortcut.lins.0.{param}",
+    "backbone.stages.{i}.{j}.shortcut.norm.{param}": "backbone.stages.{i}.{j}.shortcut.norms.0.{param}",
+    "backbone.decoders.{i}.linear.{param}": "backbone.decoders.{i}.lins.0.{param}",
+    "backbone.decoders.{i}.norm.{param}": "backbone.decoders.{i}.norms.0.{param}",
+    "backbone.decoders.{i}.{param}": "backbone.decoders.{i}.lins.0.{param}",
+}
+
+
+def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Rename the keys of the `torch-pointcloud` GeoTransformer files to the `GeoTransformerRegistration` ones, as the
+    `pretrained_filter_fn` of a `WeightsDict`.
+
+    The files name the linear layer and normalization of every unary layer of the backbone `linear` and `norm`, and
+    the last decoder is a bare linear layer; the model builds them as single-layer PyG `MLP`s (`lins.0`, `norms.0`).
+
+    Args:
+        state_dict: State dict keyed as in the files.
+        model: `GeoTransformerRegistration` the state dict is loaded into.
+
+    Returns:
+        The state dict keyed as `model` expects.
+    """
+    assert isinstance(model, GeoTransformerRegistration)
+    return transform_state_dict(state_dict, _UNARY_CHECKPOINT_MAPPING)
+
+
 _REGISTRATION_INPUT_KEYS = (
     DataKeys.X,
     DataKeys.POS,
@@ -968,6 +1014,7 @@ _REGISTRATION_INPUT_KEYS = (
         },
         author="zheng-qin",
         license="MIT",
+        pretrained_filter_fn=checkpoint_filter_fn,
     ),
     hparams=dict(
         in_channels=1,
@@ -1007,6 +1054,7 @@ def geotransformer_3dmatch(**hparams: Any) -> GeoTransformerRegistration:
         metrics={"RR": 99.82, "RRE": 0.236, "RTE": 6.33},
         author="zheng-qin",
         license="MIT",
+        pretrained_filter_fn=checkpoint_filter_fn,
     ),
     hparams=dict(
         in_channels=1,
@@ -1040,6 +1088,7 @@ def geotransformer_kitti(**hparams: Any) -> GeoTransformerRegistration:
         metrics={"RRE": 1.597, "RTE": 0.019, "RMSE": 0.018},
         author="zheng-qin",
         license="MIT",
+        pretrained_filter_fn=checkpoint_filter_fn,
     ),
     hparams=dict(
         in_channels=1,

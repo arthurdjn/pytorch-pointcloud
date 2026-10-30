@@ -19,17 +19,17 @@
     "backbone.stages.0.0.norm.bias": [
       64
     ],
-    "backbone.stages.0.1.unary1.linear.weight": [
+    "backbone.stages.0.1.unary1.lins.0.weight": [
       32,
       64
     ],
-    "backbone.stages.0.1.unary1.linear.bias": [
+    "backbone.stages.0.1.unary1.lins.0.bias": [
       32
     ],
-    "backbone.stages.0.1.unary1.norm.weight": [
+    "backbone.stages.0.1.unary1.norms.0.weight": [
       32
     ],
-    "backbone.stages.0.1.unary1.norm.bias": [
+    "backbone.stages.0.1.unary1.norms.0.bias": [
       32
     ],
     "backbone.stages.0.1.conv.conv.weight": [
@@ -50,43 +50,43 @@
     "backbone.stages.0.1.conv.norm.bias": [
       32
     ],
-    "backbone.stages.0.1.unary2.linear.weight": [
+    "backbone.stages.0.1.unary2.lins.0.weight": [
       128,
       32
     ],
-    "backbone.stages.0.1.unary2.linear.bias": [
+    "backbone.stages.0.1.unary2.lins.0.bias": [
       128
     ],
-    "backbone.stages.0.1.unary2.norm.weight": [
+    "backbone.stages.0.1.unary2.norms.0.weight": [
       128
     ],
-    "backbone.stages.0.1.unary2.norm.bias": [
+    "backbone.stages.0.1.unary2.norms.0.bias": [
       128
     ],
-    "backbone.stages.0.1.shortcut.linear.weight": [
+    "backbone.stages.0.1.shortcut.lins.0.weight": [
       128,
       64
     ],
-    "backbone.stages.0.1.shortcut.linear.bias": [
+    "backbone.stages.0.1.shortcut.lins.0.bias": [
       128
     ],
-    "backbone.stages.0.1.shortcut.norm.weight": [
+    "backbone.stages.0.1.shortcut.norms.0.weight": [
       128
     ],
-    "backbone.stages.0.1.shortcut.norm.bias": [
+    "backbone.stages.0.1.shortcut.norms.0.bias": [
       128
     ],
-    "backbone.stages.1.0.unary1.linear.weight": [
+    "backbone.stages.1.0.unary1.lins.0.weight": [
       32,
       128
     ],
-    "backbone.stages.1.0.unary1.linear.bias": [
+    "backbone.stages.1.0.unary1.lins.0.bias": [
       32
     ],
-    "backbone.stages.1.0.unary1.norm.weight": [
+    "backbone.stages.1.0.unary1.norms.0.weight": [
       32
     ],
-    "backbone.stages.1.0.unary1.norm.bias": [
+    "backbone.stages.1.0.unary1.norms.0.bias": [
       32
     ],
     "backbone.stages.1.0.conv.conv.weight": [
@@ -107,30 +107,30 @@
     "backbone.stages.1.0.conv.norm.bias": [
       32
     ],
-    "backbone.stages.1.0.unary2.linear.weight": [
+    "backbone.stages.1.0.unary2.lins.0.weight": [
       128,
       32
     ],
-    "backbone.stages.1.0.unary2.linear.bias": [
+    "backbone.stages.1.0.unary2.lins.0.bias": [
       128
     ],
-    "backbone.stages.1.0.unary2.norm.weight": [
+    "backbone.stages.1.0.unary2.norms.0.weight": [
       128
     ],
-    "backbone.stages.1.0.unary2.norm.bias": [
+    "backbone.stages.1.0.unary2.norms.0.bias": [
       128
     ],
-    "backbone.stages.1.1.unary1.linear.weight": [
+    "backbone.stages.1.1.unary1.lins.0.weight": [
       64,
       128
     ],
-    "backbone.stages.1.1.unary1.linear.bias": [
+    "backbone.stages.1.1.unary1.lins.0.bias": [
       64
     ],
-    "backbone.stages.1.1.unary1.norm.weight": [
+    "backbone.stages.1.1.unary1.norms.0.weight": [
       64
     ],
-    "backbone.stages.1.1.unary1.norm.bias": [
+    "backbone.stages.1.1.unary1.norms.0.bias": [
       64
     ],
     "backbone.stages.1.1.conv.conv.weight": [
@@ -151,43 +151,43 @@
     "backbone.stages.1.1.conv.norm.bias": [
       64
     ],
-    "backbone.stages.1.1.unary2.linear.weight": [
+    "backbone.stages.1.1.unary2.lins.0.weight": [
       256,
       64
     ],
-    "backbone.stages.1.1.unary2.linear.bias": [
+    "backbone.stages.1.1.unary2.lins.0.bias": [
       256
     ],
-    "backbone.stages.1.1.unary2.norm.weight": [
+    "backbone.stages.1.1.unary2.norms.0.weight": [
       256
     ],
-    "backbone.stages.1.1.unary2.norm.bias": [
+    "backbone.stages.1.1.unary2.norms.0.bias": [
       256
     ],
-    "backbone.stages.1.1.shortcut.linear.weight": [
+    "backbone.stages.1.1.shortcut.lins.0.weight": [
       256,
       128
     ],
-    "backbone.stages.1.1.shortcut.linear.bias": [
+    "backbone.stages.1.1.shortcut.lins.0.bias": [
       256
     ],
-    "backbone.stages.1.1.shortcut.norm.weight": [
+    "backbone.stages.1.1.shortcut.norms.0.weight": [
       256
     ],
-    "backbone.stages.1.1.shortcut.norm.bias": [
+    "backbone.stages.1.1.shortcut.norms.0.bias": [
       256
     ],
-    "backbone.stages.1.2.unary1.linear.weight": [
+    "backbone.stages.1.2.unary1.lins.0.weight": [
       64,
       256
     ],
-    "backbone.stages.1.2.unary1.linear.bias": [
+    "backbone.stages.1.2.unary1.lins.0.bias": [
       64
     ],
-    "backbone.stages.1.2.unary1.norm.weight": [
+    "backbone.stages.1.2.unary1.norms.0.weight": [
       64
     ],
-    "backbone.stages.1.2.unary1.norm.bias": [
+    "backbone.stages.1.2.unary1.norms.0.bias": [
       64
     ],
     "backbone.stages.1.2.conv.conv.weight": [
@@ -208,30 +208,30 @@
     "backbone.stages.1.2.conv.norm.bias": [
       64
     ],
-    "backbone.stages.1.2.unary2.linear.weight": [
+    "backbone.stages.1.2.unary2.lins.0.weight": [
       256,
       64
     ],
-    "backbone.stages.1.2.unary2.linear.bias": [
+    "backbone.stages.1.2.unary2.lins.0.bias": [
       256
     ],
-    "backbone.stages.1.2.unary2.norm.weight": [
+    "backbone.stages.1.2.unary2.norms.0.weight": [
       256
     ],
-    "backbone.stages.1.2.unary2.norm.bias": [
+    "backbone.stages.1.2.unary2.norms.0.bias": [
       256
     ],
-    "backbone.stages.2.0.unary1.linear.weight": [
+    "backbone.stages.2.0.unary1.lins.0.weight": [
       64,
       256
     ],
-    "backbone.stages.2.0.unary1.linear.bias": [
+    "backbone.stages.2.0.unary1.lins.0.bias": [
       64
     ],
-    "backbone.stages.2.0.unary1.norm.weight": [
+    "backbone.stages.2.0.unary1.norms.0.weight": [
       64
     ],
-    "backbone.stages.2.0.unary1.norm.bias": [
+    "backbone.stages.2.0.unary1.norms.0.bias": [
       64
     ],
     "backbone.stages.2.0.conv.conv.weight": [
@@ -252,30 +252,30 @@
     "backbone.stages.2.0.conv.norm.bias": [
       64
     ],
-    "backbone.stages.2.0.unary2.linear.weight": [
+    "backbone.stages.2.0.unary2.lins.0.weight": [
       256,
       64
     ],
-    "backbone.stages.2.0.unary2.linear.bias": [
+    "backbone.stages.2.0.unary2.lins.0.bias": [
       256
     ],
-    "backbone.stages.2.0.unary2.norm.weight": [
+    "backbone.stages.2.0.unary2.norms.0.weight": [
       256
     ],
-    "backbone.stages.2.0.unary2.norm.bias": [
+    "backbone.stages.2.0.unary2.norms.0.bias": [
       256
     ],
-    "backbone.stages.2.1.unary1.linear.weight": [
+    "backbone.stages.2.1.unary1.lins.0.weight": [
       128,
       256
     ],
-    "backbone.stages.2.1.unary1.linear.bias": [
+    "backbone.stages.2.1.unary1.lins.0.bias": [
       128
     ],
-    "backbone.stages.2.1.unary1.norm.weight": [
+    "backbone.stages.2.1.unary1.norms.0.weight": [
       128
     ],
-    "backbone.stages.2.1.unary1.norm.bias": [
+    "backbone.stages.2.1.unary1.norms.0.bias": [
       128
     ],
     "backbone.stages.2.1.conv.conv.weight": [
@@ -296,43 +296,43 @@
     "backbone.stages.2.1.conv.norm.bias": [
       128
     ],
-    "backbone.stages.2.1.unary2.linear.weight": [
+    "backbone.stages.2.1.unary2.lins.0.weight": [
       512,
       128
     ],
-    "backbone.stages.2.1.unary2.linear.bias": [
+    "backbone.stages.2.1.unary2.lins.0.bias": [
       512
     ],
-    "backbone.stages.2.1.unary2.norm.weight": [
+    "backbone.stages.2.1.unary2.norms.0.weight": [
       512
     ],
-    "backbone.stages.2.1.unary2.norm.bias": [
+    "backbone.stages.2.1.unary2.norms.0.bias": [
       512
     ],
-    "backbone.stages.2.1.shortcut.linear.weight": [
+    "backbone.stages.2.1.shortcut.lins.0.weight": [
       512,
       256
     ],
-    "backbone.stages.2.1.shortcut.linear.bias": [
+    "backbone.stages.2.1.shortcut.lins.0.bias": [
       512
     ],
-    "backbone.stages.2.1.shortcut.norm.weight": [
+    "backbone.stages.2.1.shortcut.norms.0.weight": [
       512
     ],
-    "backbone.stages.2.1.shortcut.norm.bias": [
+    "backbone.stages.2.1.shortcut.norms.0.bias": [
       512
     ],
-    "backbone.stages.2.2.unary1.linear.weight": [
+    "backbone.stages.2.2.unary1.lins.0.weight": [
       128,
       512
     ],
-    "backbone.stages.2.2.unary1.linear.bias": [
+    "backbone.stages.2.2.unary1.lins.0.bias": [
       128
     ],
-    "backbone.stages.2.2.unary1.norm.weight": [
+    "backbone.stages.2.2.unary1.norms.0.weight": [
       128
     ],
-    "backbone.stages.2.2.unary1.norm.bias": [
+    "backbone.stages.2.2.unary1.norms.0.bias": [
       128
     ],
     "backbone.stages.2.2.conv.conv.weight": [
@@ -353,30 +353,30 @@
     "backbone.stages.2.2.conv.norm.bias": [
       128
     ],
-    "backbone.stages.2.2.unary2.linear.weight": [
+    "backbone.stages.2.2.unary2.lins.0.weight": [
       512,
       128
     ],
-    "backbone.stages.2.2.unary2.linear.bias": [
+    "backbone.stages.2.2.unary2.lins.0.bias": [
       512
     ],
-    "backbone.stages.2.2.unary2.norm.weight": [
+    "backbone.stages.2.2.unary2.norms.0.weight": [
       512
     ],
-    "backbone.stages.2.2.unary2.norm.bias": [
+    "backbone.stages.2.2.unary2.norms.0.bias": [
       512
     ],
-    "backbone.stages.3.0.unary1.linear.weight": [
+    "backbone.stages.3.0.unary1.lins.0.weight": [
       128,
       512
     ],
-    "backbone.stages.3.0.unary1.linear.bias": [
+    "backbone.stages.3.0.unary1.lins.0.bias": [
       128
     ],
-    "backbone.stages.3.0.unary1.norm.weight": [
+    "backbone.stages.3.0.unary1.norms.0.weight": [
       128
     ],
-    "backbone.stages.3.0.unary1.norm.bias": [
+    "backbone.stages.3.0.unary1.norms.0.bias": [
       128
     ],
     "backbone.stages.3.0.conv.conv.weight": [
@@ -397,30 +397,30 @@
     "backbone.stages.3.0.conv.norm.bias": [
       128
     ],
-    "backbone.stages.3.0.unary2.linear.weight": [
+    "backbone.stages.3.0.unary2.lins.0.weight": [
       512,
       128
     ],
-    "backbone.stages.3.0.unary2.linear.bias": [
+    "backbone.stages.3.0.unary2.lins.0.bias": [
       512
     ],
-    "backbone.stages.3.0.unary2.norm.weight": [
+    "backbone.stages.3.0.unary2.norms.0.weight": [
       512
     ],
-    "backbone.stages.3.0.unary2.norm.bias": [
+    "backbone.stages.3.0.unary2.norms.0.bias": [
       512
     ],
-    "backbone.stages.3.1.unary1.linear.weight": [
+    "backbone.stages.3.1.unary1.lins.0.weight": [
       256,
       512
     ],
-    "backbone.stages.3.1.unary1.linear.bias": [
+    "backbone.stages.3.1.unary1.lins.0.bias": [
       256
     ],
-    "backbone.stages.3.1.unary1.norm.weight": [
+    "backbone.stages.3.1.unary1.norms.0.weight": [
       256
     ],
-    "backbone.stages.3.1.unary1.norm.bias": [
+    "backbone.stages.3.1.unary1.norms.0.bias": [
       256
     ],
     "backbone.stages.3.1.conv.conv.weight": [
@@ -441,43 +441,43 @@
     "backbone.stages.3.1.conv.norm.bias": [
       256
     ],
-    "backbone.stages.3.1.unary2.linear.weight": [
+    "backbone.stages.3.1.unary2.lins.0.weight": [
       1024,
       256
     ],
-    "backbone.stages.3.1.unary2.linear.bias": [
+    "backbone.stages.3.1.unary2.lins.0.bias": [
       1024
     ],
-    "backbone.stages.3.1.unary2.norm.weight": [
+    "backbone.stages.3.1.unary2.norms.0.weight": [
       1024
     ],
-    "backbone.stages.3.1.unary2.norm.bias": [
+    "backbone.stages.3.1.unary2.norms.0.bias": [
       1024
     ],
-    "backbone.stages.3.1.shortcut.linear.weight": [
+    "backbone.stages.3.1.shortcut.lins.0.weight": [
       1024,
       512
     ],
-    "backbone.stages.3.1.shortcut.linear.bias": [
+    "backbone.stages.3.1.shortcut.lins.0.bias": [
       1024
     ],
-    "backbone.stages.3.1.shortcut.norm.weight": [
+    "backbone.stages.3.1.shortcut.norms.0.weight": [
       1024
     ],
-    "backbone.stages.3.1.shortcut.norm.bias": [
+    "backbone.stages.3.1.shortcut.norms.0.bias": [
       1024
     ],
-    "backbone.stages.3.2.unary1.linear.weight": [
+    "backbone.stages.3.2.unary1.lins.0.weight": [
       256,
       1024
     ],
-    "backbone.stages.3.2.unary1.linear.bias": [
+    "backbone.stages.3.2.unary1.lins.0.bias": [
       256
     ],
-    "backbone.stages.3.2.unary1.norm.weight": [
+    "backbone.stages.3.2.unary1.norms.0.weight": [
       256
     ],
-    "backbone.stages.3.2.unary1.norm.bias": [
+    "backbone.stages.3.2.unary1.norms.0.bias": [
       256
     ],
     "backbone.stages.3.2.conv.conv.weight": [
@@ -498,30 +498,30 @@
     "backbone.stages.3.2.conv.norm.bias": [
       256
     ],
-    "backbone.stages.3.2.unary2.linear.weight": [
+    "backbone.stages.3.2.unary2.lins.0.weight": [
       1024,
       256
     ],
-    "backbone.stages.3.2.unary2.linear.bias": [
+    "backbone.stages.3.2.unary2.lins.0.bias": [
       1024
     ],
-    "backbone.stages.3.2.unary2.norm.weight": [
+    "backbone.stages.3.2.unary2.norms.0.weight": [
       1024
     ],
-    "backbone.stages.3.2.unary2.norm.bias": [
+    "backbone.stages.3.2.unary2.norms.0.bias": [
       1024
     ],
-    "backbone.stages.4.0.unary1.linear.weight": [
+    "backbone.stages.4.0.unary1.lins.0.weight": [
       256,
       1024
     ],
-    "backbone.stages.4.0.unary1.linear.bias": [
+    "backbone.stages.4.0.unary1.lins.0.bias": [
       256
     ],
-    "backbone.stages.4.0.unary1.norm.weight": [
+    "backbone.stages.4.0.unary1.norms.0.weight": [
       256
     ],
-    "backbone.stages.4.0.unary1.norm.bias": [
+    "backbone.stages.4.0.unary1.norms.0.bias": [
       256
     ],
     "backbone.stages.4.0.conv.conv.weight": [
@@ -542,30 +542,30 @@
     "backbone.stages.4.0.conv.norm.bias": [
       256
     ],
-    "backbone.stages.4.0.unary2.linear.weight": [
+    "backbone.stages.4.0.unary2.lins.0.weight": [
       1024,
       256
     ],
-    "backbone.stages.4.0.unary2.linear.bias": [
+    "backbone.stages.4.0.unary2.lins.0.bias": [
       1024
     ],
-    "backbone.stages.4.0.unary2.norm.weight": [
+    "backbone.stages.4.0.unary2.norms.0.weight": [
       1024
     ],
-    "backbone.stages.4.0.unary2.norm.bias": [
+    "backbone.stages.4.0.unary2.norms.0.bias": [
       1024
     ],
-    "backbone.stages.4.1.unary1.linear.weight": [
+    "backbone.stages.4.1.unary1.lins.0.weight": [
       512,
       1024
     ],
-    "backbone.stages.4.1.unary1.linear.bias": [
+    "backbone.stages.4.1.unary1.lins.0.bias": [
       512
     ],
-    "backbone.stages.4.1.unary1.norm.weight": [
+    "backbone.stages.4.1.unary1.norms.0.weight": [
       512
     ],
-    "backbone.stages.4.1.unary1.norm.bias": [
+    "backbone.stages.4.1.unary1.norms.0.bias": [
       512
     ],
     "backbone.stages.4.1.conv.conv.weight": [
@@ -586,43 +586,43 @@
     "backbone.stages.4.1.conv.norm.bias": [
       512
     ],
-    "backbone.stages.4.1.unary2.linear.weight": [
+    "backbone.stages.4.1.unary2.lins.0.weight": [
       2048,
       512
     ],
-    "backbone.stages.4.1.unary2.linear.bias": [
+    "backbone.stages.4.1.unary2.lins.0.bias": [
       2048
     ],
-    "backbone.stages.4.1.unary2.norm.weight": [
+    "backbone.stages.4.1.unary2.norms.0.weight": [
       2048
     ],
-    "backbone.stages.4.1.unary2.norm.bias": [
+    "backbone.stages.4.1.unary2.norms.0.bias": [
       2048
     ],
-    "backbone.stages.4.1.shortcut.linear.weight": [
+    "backbone.stages.4.1.shortcut.lins.0.weight": [
       2048,
       1024
     ],
-    "backbone.stages.4.1.shortcut.linear.bias": [
+    "backbone.stages.4.1.shortcut.lins.0.bias": [
       2048
     ],
-    "backbone.stages.4.1.shortcut.norm.weight": [
+    "backbone.stages.4.1.shortcut.norms.0.weight": [
       2048
     ],
-    "backbone.stages.4.1.shortcut.norm.bias": [
+    "backbone.stages.4.1.shortcut.norms.0.bias": [
       2048
     ],
-    "backbone.stages.4.2.unary1.linear.weight": [
+    "backbone.stages.4.2.unary1.lins.0.weight": [
       512,
       2048
     ],
-    "backbone.stages.4.2.unary1.linear.bias": [
+    "backbone.stages.4.2.unary1.lins.0.bias": [
       512
     ],
-    "backbone.stages.4.2.unary1.norm.weight": [
+    "backbone.stages.4.2.unary1.norms.0.weight": [
       512
     ],
-    "backbone.stages.4.2.unary1.norm.bias": [
+    "backbone.stages.4.2.unary1.norms.0.bias": [
       512
     ],
     "backbone.stages.4.2.conv.conv.weight": [
@@ -643,50 +643,50 @@
     "backbone.stages.4.2.conv.norm.bias": [
       512
     ],
-    "backbone.stages.4.2.unary2.linear.weight": [
+    "backbone.stages.4.2.unary2.lins.0.weight": [
       2048,
       512
     ],
-    "backbone.stages.4.2.unary2.linear.bias": [
+    "backbone.stages.4.2.unary2.lins.0.bias": [
       2048
     ],
-    "backbone.stages.4.2.unary2.norm.weight": [
+    "backbone.stages.4.2.unary2.norms.0.weight": [
       2048
     ],
-    "backbone.stages.4.2.unary2.norm.bias": [
+    "backbone.stages.4.2.unary2.norms.0.bias": [
       2048
     ],
-    "backbone.decoders.0.linear.weight": [
+    "backbone.decoders.0.lins.0.weight": [
       1024,
       3072
     ],
-    "backbone.decoders.0.linear.bias": [
+    "backbone.decoders.0.lins.0.bias": [
       1024
     ],
-    "backbone.decoders.0.norm.weight": [
+    "backbone.decoders.0.norms.0.weight": [
       1024
     ],
-    "backbone.decoders.0.norm.bias": [
+    "backbone.decoders.0.norms.0.bias": [
       1024
     ],
-    "backbone.decoders.1.linear.weight": [
+    "backbone.decoders.1.lins.0.weight": [
       512,
       1536
     ],
-    "backbone.decoders.1.linear.bias": [
+    "backbone.decoders.1.lins.0.bias": [
       512
     ],
-    "backbone.decoders.1.norm.weight": [
+    "backbone.decoders.1.norms.0.weight": [
       512
     ],
-    "backbone.decoders.1.norm.bias": [
+    "backbone.decoders.1.norms.0.bias": [
       512
     ],
-    "backbone.decoders.2.weight": [
+    "backbone.decoders.2.lins.0.weight": [
       256,
       768
     ],
-    "backbone.decoders.2.bias": [
+    "backbone.decoders.2.lins.0.bias": [
       256
     ],
     "transformer.embedding.proj_d.weight": [

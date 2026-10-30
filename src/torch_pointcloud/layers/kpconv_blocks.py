@@ -1,5 +1,6 @@
 """Kernel point convolution, its kernel point placement, and the normalized and residual blocks built on it."""
 
+import inspect
 import math
 import warnings
 from pathlib import Path
@@ -14,7 +15,7 @@ from torch_geometric.utils import scatter
 
 from torch_pointcloud.config import CACHE_DIR
 from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import GroupNorm, create_norm
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.ops.cluster import dense_neighbors, gather_neighbors
 from torch_pointcloud.ops.geometry import rodrigues_rotation_matrix, spherical_points_gradient, spherical_points_lloyd
 from torch_pointcloud.utils.types import OptTensor, PairOptTensor
@@ -355,8 +356,8 @@ class KPConv(MessagePassing):
 class KPConvBlock(nn.Module):
     r"""Kernel point convolution followed by normalization and activation.
 
-    Given a batch index, the normalization is computed per batch element; it then has to take one, as `GroupNorm`
-    and the PyG instance and layer normalizations do.
+    Given a batch index, a normalization whose forward takes one (`GroupNorm`, the PyG instance and layer
+    normalizations) is computed per batch element, as in PyG's `MLP`.
 
     Shape:
         - Input: $(N_s, C_\text{in})$ features, $(N, D)$ positions or a $((N_s, D), (N_t, D))$ pair, a $(2, E)$
@@ -401,6 +402,7 @@ class KPConvBlock(nn.Module):
             normalize_by_positive_neighbors=normalize_by_positive_neighbors,
         )
         self.norm = create_norm(norm, out_channels, **(norm_kwargs or {})) or nn.Identity()
+        self.norm_takes_batch = "batch" in inspect.signature(self.norm.forward).parameters
         self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
 
     def forward(
@@ -412,15 +414,48 @@ class KPConvBlock(nn.Module):
         batch_size: Optional[int] = None,
     ) -> Tensor:
         x = self.conv(x, pos, edge_index)
-        x = self.norm(x) if batch is None else self.norm(x, batch, batch_size)
+        x = self.norm(x, batch, batch_size) if self.norm_takes_batch else self.norm(x)
         return self.act(x)
 
 
 class KPResidualBlock(nn.Module):
-    """Bottleneck residual block: a channel-reducing MLP, a `KPConvBlock`, and a channel-restoring MLP.
+    r"""Bottleneck residual block: a channel-reducing MLP, a `KPConvBlock`, and a channel-restoring MLP.
 
-    Set `strided=True` when the block maps a support cloud onto a coarser query cloud, so that the skip
-    connection is max-pooled over the same neighborhoods.
+    The bottleneck width is a quarter of `out_channels`, at least 8. Set `strided=True` when the block maps a support
+    cloud onto a coarser query cloud: the skip connection is then the max over each query's neighbors and zero or,
+    with `max_num_neighbors`, the max over the neighbor table padded with zeros to that many slots, so zero only
+    enters the max of a query with fewer neighbors. Given a batch index, the normalizations are computed per batch
+    element, as in `KPConvBlock`.
+
+    Args:
+        spatial_dim: Spatial dimension of the input point cloud.
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        kernel_size: Number of kernel points.
+        kp_radius: Radius of the sphere the kernel points are placed on.
+        kp_sigma: Kernel extent, the distance over which a kernel point still influences a neighbor.
+        kp_influence: Influence function: `"constant"`, `"linear"`, or `"gaussian"`.
+        fixed_position: Which kernel point is pinned: `"none"`, `"center"`, or `"vertical"`.
+        aggregation_mode: `"sum"` over all kernel points, or `"closest"` to keep only the nearest one.
+        deformable: Whether to predict per-point kernel offsets.
+        modulated: Whether the deformable branch also predicts a per-kernel-point modulation.
+        strided: Whether the block pools a support cloud onto a coarser query cloud.
+        act: Activation of the bottleneck layers and of the output.
+        act_kwargs: Extra arguments of the activation.
+        act_first: Whether the MLPs apply the activation before the normalization.
+        norm: Normalization of every layer, resolved by `create_norm`.
+        norm_kwargs: Extra arguments of the normalization.
+        bias: Whether the linear layers and the convolution add a bias.
+        normalize_by_positive_neighbors: Whether the convolution divides its output by the number of neighbors with
+            positive features.
+        max_num_neighbors: Width of the zero-padded neighbor table of a strided block, the cap of the search that
+            produced the edges.
+
+    Shape:
+        - Input: $(N_s, C_\text{in})$ features, $(N, D)$ positions or a $((N_s, D), (N_t, D))$ pair, a $(2, E)$
+          `[source, target]` edge index, an optional batch index of the normalizations, $(N,)$ or a
+          $((N_s,), (N_t,))$ pair for a strided block, and the optional number of batch elements.
+        - Output: $(N_t, C_\text{out})$.
     """
 
     def __init__(
@@ -443,21 +478,30 @@ class KPResidualBlock(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: bool = False,
+        normalize_by_positive_neighbors: bool = False,
+        max_num_neighbors: Optional[int] = None,
     ):
         super().__init__()
         mid_channels = max(out_channels // 4, 8)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.strided = strided
+        self.max_num_neighbors = max_num_neighbors
 
-        mlp_kwargs: Dict[str, Any] = dict(
-            act_first=act_first,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-            bias=bias,
-            plain_last=False,
-        )
-        self.unary1 = MLP([in_channels, mid_channels], act=act, act_kwargs=act_kwargs, **mlp_kwargs)
+        # PyG's `MLP` resolves a norm name with its own resolver, which knows no "group_norm", so the norms are built
+        # here; a single-layer `MLP` holds the one instance and passes it the batch index when its forward takes one.
+        def unary(in_channels: int, out_channels: int, act: Union[str, Callable, None]) -> MLP:
+            return MLP(
+                [in_channels, out_channels],
+                act=act,
+                act_kwargs=act_kwargs,
+                act_first=act_first,
+                norm=create_norm(norm, out_channels, **(norm_kwargs or {})),
+                bias=bias,
+                plain_last=False,
+            )
+
+        self.unary1 = unary(in_channels, mid_channels, act)
         self.conv = KPConvBlock(
             spatial_dim=spatial_dim,
             in_channels=mid_channels,
@@ -475,134 +519,11 @@ class KPResidualBlock(nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
             bias=bias,
+            normalize_by_positive_neighbors=normalize_by_positive_neighbors,
         )
-        self.unary2 = MLP([mid_channels, out_channels], act=None, **mlp_kwargs)
-        self.shortcut = (
-            MLP([in_channels, out_channels], act=None, **mlp_kwargs) if in_channels != out_channels else nn.Identity()
-        )
+        self.unary2 = unary(mid_channels, out_channels, None)
+        self.shortcut: Optional[MLP] = unary(in_channels, out_channels, None) if in_channels != out_channels else None
         self.act = create_act(act, **(act_kwargs or {})) or nn.Identity()
-
-    def forward(self, x: Tensor, pos: Union[Tensor, PairTensor], edge_index: Tensor) -> Tensor:
-        shortcut = x
-        if self.strided:
-            source, target = edge_index
-            num_targets = pos[1].size(0) if isinstance(pos, tuple) else pos.size(0)
-            shortcut = scatter(x[source], target, dim=0, dim_size=num_targets, reduce="max").clamp(min=0)
-
-        shortcut = self.shortcut(shortcut)
-        x = self.unary1(x)
-        x = self.conv(x, pos, edge_index)
-        x = self.unary2(x)
-
-        x = x + shortcut
-        if self.act is not None:
-            x = self.act(x)
-
-        return x
-
-
-class LinearGroupNormBlock(nn.Module):
-    r"""Linear layer followed by a `GroupNorm` and an optional LeakyReLU.
-
-    Args:
-        in_channels: Number of input channels.
-        out_channels: Number of output channels.
-        num_groups: Number of channel groups of the normalization.
-        act: Whether to apply the LeakyReLU after the normalization.
-
-    Shape:
-        - Input: $(N, C_\text{in})$ features, an optional $(N,)$ batch index of the normalization and the optional
-          number of batch elements.
-        - Output: $(N, C_\text{out})$.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        num_groups: int = 32,
-        act: bool = True,
-    ) -> None:
-        super().__init__()
-        self.linear = nn.Linear(in_channels, out_channels)
-        self.norm = GroupNorm(out_channels, num_groups)
-        self.act = nn.LeakyReLU(0.1) if act else nn.Identity()
-
-    def forward(self, x: Tensor, batch: Optional[Tensor] = None, batch_size: Optional[int] = None) -> Tensor:
-        x = self.linear(x)
-        x = self.norm(x, batch, batch_size)
-        return self.act(x)
-
-
-class KPResidualGroupNormBlock(nn.Module):
-    r"""Bottleneck residual block with group normalizations: a channel-reducing `LinearGroupNormBlock`, a
-    group-normalized `KPConvBlock` and a channel-restoring `LinearGroupNormBlock`.
-
-    The bottleneck width is a quarter of `out_channels`, and the first unary block is skipped when the input already
-    has that width. A strided block maps a support cloud onto a coarser query cloud; its skip connection is the
-    max over each query's neighbors, taken on the neighbor table padded with zeros to `max_num_neighbors` slots.
-
-    Args:
-        in_channels: Number of input channels.
-        out_channels: Number of output channels.
-        kernel_size: Number of kernel points.
-        kp_radius: Radius of the sphere the kernel points are placed on.
-        kp_sigma: Kernel extent, the distance over which a kernel point still influences a neighbor.
-        num_groups: Number of channel groups of the normalizations.
-        strided: Whether the block pools a support cloud onto a coarser query cloud.
-        max_num_neighbors: Width of the neighbor table of a strided block, the cap of the search that produced the
-            edges.
-
-    Shape:
-        - Input: $(N_s, C_\text{in})$ features, $(N, 3)$ positions or a $((N_s, 3), (N_t, 3))$ pair, a $(2, E)$
-          `[source, target]` edge index, an optional batch index of the normalizations, $(N,)$ or a
-          $((N_s,), (N_t,))$ pair for a strided block, and the optional number of batch elements.
-        - Output: $(N_t, C_\text{out})$.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int,
-        kp_radius: float,
-        kp_sigma: float,
-        num_groups: int = 32,
-        strided: bool = False,
-        max_num_neighbors: Optional[int] = None,
-    ) -> None:
-        super().__init__()
-        if strided and max_num_neighbors is None:
-            raise ValueError("A strided block needs `max_num_neighbors`, the width of its neighbor table.")
-
-        mid_channels = out_channels // 4
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.strided = strided
-        self.max_num_neighbors = max_num_neighbors
-
-        self.unary1: Optional[LinearGroupNormBlock] = None
-        if in_channels != mid_channels:
-            self.unary1 = LinearGroupNormBlock(in_channels, mid_channels, num_groups)
-        self.conv = KPConvBlock(
-            spatial_dim=3,
-            in_channels=mid_channels,
-            out_channels=mid_channels,
-            kernel_size=kernel_size,
-            kp_radius=kp_radius,
-            kp_sigma=kp_sigma,
-            act="leaky_relu",
-            act_kwargs={"negative_slope": 0.1},
-            norm="group_norm",
-            norm_kwargs={"num_groups": num_groups},
-            bias=True,
-            normalize_by_positive_neighbors=True,
-        )
-        self.unary2 = LinearGroupNormBlock(mid_channels, out_channels, num_groups, act=False)
-        self.shortcut: Optional[LinearGroupNormBlock] = None
-        if in_channels != out_channels:
-            self.shortcut = LinearGroupNormBlock(in_channels, out_channels, num_groups, act=False)
-        self.act = nn.LeakyReLU(0.1)
 
     def forward(
         self,
@@ -616,13 +537,16 @@ class KPResidualGroupNormBlock(nn.Module):
         shortcut = x
         if self.strided:
             num_targets = pos[1].size(0) if isinstance(pos, tuple) else pos.size(0)
-            table, _ = dense_neighbors(edge_index, x.size(0), num_targets, max_num_neighbors=self.max_num_neighbors)
-            shortcut = gather_neighbors(x, table).max(dim=1).values
+            if self.max_num_neighbors is None:
+                source, target = edge_index
+                shortcut = scatter(x[source], target, dim=0, dim_size=num_targets, reduce="max").clamp(min=0)
+            else:
+                table, _ = dense_neighbors(edge_index, x.size(0), num_targets, max_num_neighbors=self.max_num_neighbors)
+                shortcut = gather_neighbors(x, table).max(dim=1).values
         if self.shortcut is not None:
             shortcut = self.shortcut(shortcut, batch_target, batch_size)
 
-        if self.unary1 is not None:
-            x = self.unary1(x, batch_source, batch_size)
+        x = self.unary1(x, batch_source, batch_size)
         x = self.conv(x, pos, edge_index, batch_target, batch_size)
         x = self.unary2(x, batch_target, batch_size)
         return self.act(x + shortcut)

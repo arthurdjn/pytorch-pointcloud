@@ -38,7 +38,8 @@ def create_norm(
     r"""Resolve a normalization layer with a spatial dimensionality hint.
 
     For `dim == 1`, defers to PyG's `normalization_resolver` (graph-aware norms
-    plus `BatchNorm1d`), except `"group_norm"`, which resolves to the packed `GroupNorm`. For `dim` $\in \{2, 3\}$, maps common norm names to
+    plus `BatchNorm1d`), except `"group_norm"`, which resolves to the packed
+    `GroupNorm`. For `dim` $\in \{2, 3\}$, maps common norm names to
     the matching `nn.*Nd` variant. Pass a class or an existing instance to
     bypass string resolution. When `conditions` is given, the resolved norm is
     wrapped in a per-condition `PDNorm` for multi-dataset (prompt-driven) training.
@@ -101,8 +102,9 @@ class GroupNorm(nn.Module):
     The channels are split into `num_groups` groups and every group is normalized by the mean and variance of its
     channels over the points of one batch element, then scaled and shifted per channel. `torch.nn.GroupNorm` has no
     batch index and would pool the statistics over every cloud of the batch; called without `batch`, this layer
-    does the same. It is called as the PyG normalizations are, `norm(x, batch, batch_size)`, so PyG's `MLP` passes
-    it the batch index, and `create_norm("group_norm", C)` builds it.
+    does the same. It takes the batch index as the PyG normalizations do, `norm(x, batch, batch_size)`, and
+    `create_norm("group_norm", C, num_groups=G)` builds it. PyG's `MLP` does not resolve it by name, and shares an
+    instance passed as its `norm` across all its layers.
 
     Args:
         in_channels: Number of channels $C$.

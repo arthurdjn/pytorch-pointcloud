@@ -1,5 +1,6 @@
 """Linear block with optional normalization and activation."""
 
+import inspect
 from typing import Any, Callable, Dict, Optional, Union
 
 import torch.nn as nn
@@ -13,6 +14,9 @@ from .norms import create_norm
 
 class LinearBlock(nn.Module):
     """Linear block consisting of a linear layer, normalization and activation.
+
+    Given a batch index, a normalization whose forward takes one (`GroupNorm`, the PyG instance and layer
+    normalizations) is computed per batch element, as in PyG's `MLP`.
 
     Args:
         in_channels: Number of input channels.
@@ -52,17 +56,21 @@ class LinearBlock(nn.Module):
         self.act_first = act_first
         self.stem = nn.Linear(in_channels, out_channels, bias=bias)
         self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **(norm_kwargs or {}))
+        self.norm_takes_batch = self.norm is not None and "batch" in inspect.signature(self.norm.forward).parameters
         self.act = create_act(act, **(act_kwargs or {}))
 
-    # `pos` and `batch` keep the call signature of `SubMConv3dBlock`, the other Point Transformer V3 stem.
+    # `pos` keeps the call signature of `SubMConv3dBlock`, the other Point Transformer V3 stem.
     def forward(
         self,
         x: Tensor,
         pos: OptTensor = None,
         batch: OptTensor = None,
         condition: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> Tensor:
-        norm_kwargs = {} if condition is None else {"condition": condition}
+        norm_kwargs: Dict[str, Any] = {} if condition is None else {"condition": condition}
+        if self.norm_takes_batch:
+            norm_kwargs.update(batch=batch, batch_size=batch_size)
         x = self.stem(x)
         if self.act_first:
             if self.act is not None:

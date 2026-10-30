@@ -36,8 +36,6 @@ from .kpconv_blocks import (
     KPConv,
     KPConvBlock,
     KPResidualBlock,
-    KPResidualGroupNormBlock,
-    LinearGroupNormBlock,
     create_kernel_points,
 )
 from .linear_blocks import LinearBlock
@@ -151,8 +149,6 @@ __all__ = [
     "KPConv",
     "KPConvBlock",
     "KPResidualBlock",
-    "KPResidualGroupNormBlock",
-    "LinearGroupNormBlock",
     "create_kernel_points",
     "LinearBlock",
     "LogOptimalTransport",
