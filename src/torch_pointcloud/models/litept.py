@@ -185,6 +185,8 @@ class LitePTBlock(nn.Module):
         patch_layout: Optional[PatchLayout] = None,
     ) -> Tuple[Tensor, Any]:
         if self.use_conv:
+            # spconv's inference path skips autocast, so the features must already have the weight dtype.
+            x_sparse = x_sparse.replace_feature(x_sparse.features.to(self.cpe_conv.weight.dtype))
             x_sparse = self.cpe_conv(x_sparse)
             x_conv = self.cpe_proj(x_sparse.features)
             x = x + self.cpe_norm(x_conv)

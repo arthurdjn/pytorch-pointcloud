@@ -289,6 +289,8 @@ class PointTransformerV3Block(nn.Module):
     ) -> Tuple[Tensor, Any]:
         norm_kwargs = {} if condition is None else {"condition": condition}
         shortcut = x
+        # spconv's inference path skips autocast, so the features must already have the weight dtype.
+        x_sparse = x_sparse.replace_feature(x_sparse.features.to(self.cpe_conv.weight.dtype))
         x_sparse = self.cpe_conv(x_sparse)
         x = self.cpe_proj(x_sparse.features)
         x = self.cpe_norm(x, **norm_kwargs)

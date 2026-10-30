@@ -87,6 +87,24 @@ def test_litept_segmentation_forward(decoder_depths: Tuple[int, ...], data: Dict
 
 @requires_cuda
 @requires_spconv
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param(torch.float16, id="float16"),
+        pytest.param(torch.bfloat16, id="bfloat16"),
+    ],
+)
+def test_litept_segmentation_inference_under_autocast(dtype: torch.dtype, data: Dict[str, Tensor]) -> None:
+    """The half-precision pooled features reach the sparse convolutions of the next stage, whose weights are float32."""
+    model = _litept((1, 1)).cuda().eval()
+    with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
+        logits = model(data["x"], data["pos_grid"], data["batch"])
+    assert logits.shape == (data["x"].shape[0], 10)
+    assert torch.isfinite(logits).all()
+
+
+@requires_cuda
+@requires_spconv
 def test_litept_segmentation_serializes_attention_stages_only(data: Dict[str, Tensor]) -> None:
     model = _litept((0, 0)).cuda()
     _, _, _, intermediates = model.forward_features(
