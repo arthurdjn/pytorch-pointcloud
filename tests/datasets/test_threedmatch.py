@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Callable, Tuple
@@ -164,6 +165,7 @@ def test_threedmatch_download_fetches_the_fragments_and_the_pair_lists(
     download, extract = Mock(side_effect=fake_download), Mock()
     monkeypatch.setattr(threedmatch, "download_url", download)
     monkeypatch.setattr(threedmatch, "extract_zip", extract)
+    monkeypatch.setattr(ThreeDMatch, "data_sha256", hashlib.sha256(b"").hexdigest())
     monkeypatch.setattr(ThreeDMatch, "process", Mock())
     monkeypatch.setattr(ThreeDMatch, "load_pairs", Mock(return_value=[]))
 
@@ -172,3 +174,17 @@ def test_threedmatch_download_fetches_the_fragments_and_the_pair_lists(
     assert extract.call_args_list[0].kwargs["prefix"] == "data/indoor"
     assert extract.call_args_list[1].kwargs["prefix"] == ThreeDMatch.metadata_prefix
     assert not any(Path(dataset.raw_dir).glob("*.zip"))
+
+
+def test_threedmatch_download_rejects_a_corrupted_archive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from torch_pointcloud.datasets import threedmatch
+
+    def fake_download(url: str, path: Path, **kwargs: Any) -> None:
+        Path(path).write_bytes(b"truncated")
+
+    extract = Mock()
+    monkeypatch.setattr(threedmatch, "download_url", Mock(side_effect=fake_download))
+    monkeypatch.setattr(threedmatch, "extract_zip", extract)
+    with pytest.raises(RuntimeError, match="SHA-256 hash mismatch"):
+        ThreeDMatch(root=tmp_path, split="test", download=True, show_progress=False)
+    extract.assert_not_called()

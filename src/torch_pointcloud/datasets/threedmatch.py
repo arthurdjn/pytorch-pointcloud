@@ -18,7 +18,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url, extract_zip
+from .utils import compute_hash, download_url, extract_zip, is_hash_valid
 
 ThreeDMatchSplit = Literal["train", "val", "test"]
 ThreeDMatchBenchmark = Literal["3DMatch", "3DLoMatch"]
@@ -122,6 +122,7 @@ class ThreeDMatch(PointCloudDataset):
     """
 
     data_url = "https://share.phys.ethz.ch/~gseg/Predator/data.zip"
+    data_sha256 = "08dccb9bf3fff358a1bc3ccbdf5a2881e54432b3eb447d48d02bb7f54e58ba3f"
     metadata_url = "https://github.com/qinzheng93/GeoTransformer/archive/e7a135af4c318ff3b8d7f6c963df094d7e4ea540.zip"
     metadata_prefix = "GeoTransformer-e7a135af4c318ff3b8d7f6c963df094d7e4ea540/data/3DMatch/metadata"
 
@@ -206,7 +207,13 @@ class ThreeDMatch(PointCloudDataset):
 
         if force or not Path(raw_dir, "indoor").is_dir():
             archive = Path(raw_dir, "data.zip")
-            download_url(self.data_url, archive, show_progress=self.show_progress, overwrite="incomplete")
+            if force or not is_hash_valid(archive, expected_hash=self.data_sha256, hash_type="sha256"):
+                download_url(self.data_url, archive, show_progress=self.show_progress, overwrite=True)
+            if not is_hash_valid(archive, expected_hash=self.data_sha256, hash_type="sha256"):
+                raise RuntimeError(
+                    f"File corrupted: SHA-256 hash mismatch for {archive.as_posix()!r} "
+                    f"(expected {self.data_sha256}, got {compute_hash(archive, 'sha256')})."
+                )
             extract_zip(archive, raw_dir, relative_to="data", show_progress=self.show_progress, prefix="data/indoor")
             archive.unlink()
 
