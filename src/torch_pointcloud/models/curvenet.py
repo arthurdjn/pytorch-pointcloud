@@ -384,11 +384,37 @@ class CurveNetClassification(ClassificationModel):
             self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
         self.head = self.configure_head()
 
-    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, Tensor, Tensor, List[FeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tuple[Tensor, Tensor, Tensor]: ...
+
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: bool = False,
+    ) -> Any:
         table = knn_table(pos, pos, self.num_neighbors[0], batch_x=batch, batch_y=batch)
         x = self.embed(x, pos, table)
-        x, pos, batch = self.encoder(x, pos, batch)
+        x, pos, batch, intermediates = self.encoder(x, pos, batch, return_intermediates=True)
         x = self.proj(x)
+        if return_intermediates:
+            return x, pos, batch, intermediates
         return x, pos, batch
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:

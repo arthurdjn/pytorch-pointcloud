@@ -132,6 +132,14 @@ def test_curvenet_classification_forward_features_and_head(
     assert model_clf.forward_head(x, batch, pre_logits=True).shape == (2, model_clf.num_features)
 
 
+def test_curvenet_classification_intermediates(model_clf: CurveNetClassification, data: Dict[str, Tensor]) -> None:
+    x, pos, batch, intermediates = model_clf.forward_features(
+        None, data["pos"], data["batch"], return_intermediates=True
+    )
+    assert torch.equal(x, model_clf.forward_features(None, data["pos"], data["batch"])[0])
+    assert [stage["x"].shape for stage in intermediates] == [(224, 16), (64, 32)]
+
+
 @pytest.mark.parametrize(
     "lengths,batch_ids",
     [
