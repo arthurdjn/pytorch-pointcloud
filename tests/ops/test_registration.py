@@ -171,3 +171,14 @@ def test_local_to_global_registration_without_large_groups_fits_all_corresponden
         src, transform_points(src, transform), torch.ones(6), torch.arange(6), 0.05, 3, 2
     )
     assert torch.allclose(estimate, transform, atol=1e-5)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_weighted_procrustes_fits_half_precision_in_float32(dtype: torch.dtype) -> None:
+    torch.manual_seed(0)
+    src = torch.randn(40, 3)
+    transform = _transform(_rotation("z", 40.0), torch.tensor([0.5, -1.0, 0.2]))
+    ref = transform_points(src, transform)
+    estimate = weighted_procrustes(src.to(dtype), ref.to(dtype), torch.ones(40, dtype=dtype))
+    assert estimate.dtype == dtype
+    assert torch.allclose(estimate.float(), transform, atol=5e-2)

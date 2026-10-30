@@ -5,6 +5,7 @@ A rigid transform is a $4 \times 4$ matrix $T = \begin{bmatrix} R & t \\ 0 & 1 \
 into the reference frame, $q = R p + t$; `ops.geometry.transform_points` applies it.
 """
 
+import math
 from typing import Optional, Tuple
 
 import torch
@@ -63,7 +64,8 @@ def weighted_procrustes(
 
     Weights below `weight_threshold` are zeroed, then normalized to sum to one per set. The rotation is the
     closest proper rotation to the weighted cross-covariance, with the reflection corrected through the sign of
-    its determinant.
+    its determinant. The fit runs in at least float32, outside autocast, and the transforms come back in the dtype of
+    `src_points`.
 
     Args:
         src_points: Source correspondences, shape $(\ldots, N, 3)$.
@@ -86,36 +88,39 @@ def weighted_procrustes(
 
         ```
     """
+    # SVD and determinant have no half-precision kernels, so the fit runs in at least float32 and outside autocast.
+    dtype = src_points.dtype
+    compute_dtype = torch.promote_types(dtype, torch.float32)
     batch_shape, num_points = src_points.shape[:-2], src_points.size(-2)
-    src_points = src_points.reshape(-1, num_points, 3)
-    ref_points = ref_points.reshape(-1, num_points, 3)
-    if weights is not None:
-        weights = weights.reshape(-1, num_points)
+    num_sets = math.prod(batch_shape)
+    with torch.autocast(src_points.device.type, enabled=False):
+        src_points = src_points.reshape(num_sets, num_points, 3).to(compute_dtype)
+        ref_points = ref_points.reshape(num_sets, num_points, 3).to(compute_dtype)
+        if weights is None:
+            weights = torch.ones_like(src_points[:, :, 0])
+        weights = weights.reshape(num_sets, num_points).to(compute_dtype)
+        weights = torch.where(weights < weight_threshold, torch.zeros_like(weights), weights)
+        weights = weights / (weights.sum(dim=1, keepdim=True) + eps)
+        weights = weights.unsqueeze(2)  # (B, N, 1)
 
-    if weights is None:
-        weights = torch.ones_like(src_points[:, :, 0])
-    weights = torch.where(weights < weight_threshold, torch.zeros_like(weights), weights)
-    weights = weights / (weights.sum(dim=1, keepdim=True) + eps)
-    weights = weights.unsqueeze(2)  # (B, N, 1)
+        src_centroid = torch.sum(src_points * weights, dim=1, keepdim=True)  # (B, 1, 3)
+        ref_centroid = torch.sum(ref_points * weights, dim=1, keepdim=True)  # (B, 1, 3)
+        src_centered = src_points - src_centroid
+        ref_centered = ref_points - ref_centroid
 
-    src_centroid = torch.sum(src_points * weights, dim=1, keepdim=True)  # (B, 1, 3)
-    ref_centroid = torch.sum(ref_points * weights, dim=1, keepdim=True)  # (B, 1, 3)
-    src_centered = src_points - src_centroid
-    ref_centered = ref_points - ref_centroid
+        covariance = src_centered.transpose(1, 2) @ (weights * ref_centered)  # (B, 3, 3)
+        u, _, vh = torch.linalg.svd(covariance)
+        v = vh.transpose(1, 2)
+        ut = u.transpose(1, 2)
+        sign = torch.eye(3, dtype=covariance.dtype, device=covariance.device).repeat(covariance.size(0), 1, 1)
+        sign[:, 2, 2] = torch.sign(torch.det(v @ ut))
+        rotation = v @ sign @ ut
 
-    covariance = src_centered.transpose(1, 2) @ (weights * ref_centered)  # (B, 3, 3)
-    u, _, vh = torch.linalg.svd(covariance)
-    v = vh.transpose(1, 2)
-    ut = u.transpose(1, 2)
-    sign = torch.eye(3, dtype=covariance.dtype, device=covariance.device).repeat(covariance.size(0), 1, 1)
-    sign[:, 2, 2] = torch.sign(torch.det(v @ ut))
-    rotation = v @ sign @ ut
-
-    translation = ref_centroid.transpose(1, 2) - rotation @ src_centroid.transpose(1, 2)  # (B, 3, 1)
-    transform = torch.eye(4, dtype=covariance.dtype, device=covariance.device).repeat(covariance.size(0), 1, 1)
-    transform[:, :3, :3] = rotation
-    transform[:, :3, 3] = translation.squeeze(2)
-    return transform.reshape(*batch_shape, 4, 4)
+        translation = ref_centroid.transpose(1, 2) - rotation @ src_centroid.transpose(1, 2)  # (B, 3, 1)
+        transform = torch.eye(4, dtype=covariance.dtype, device=covariance.device).repeat(covariance.size(0), 1, 1)
+        transform[:, :3, :3] = rotation
+        transform[:, :3, 3] = translation.squeeze(2)
+    return transform.reshape(*batch_shape, 4, 4).to(dtype)
 
 
 def mutual_topk_correspondences(

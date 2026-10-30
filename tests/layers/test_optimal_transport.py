@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torch_pointcloud.layers import LogOptimalTransport
@@ -27,3 +28,15 @@ def test_log_optimal_transport_without_masks_uses_every_entry() -> None:
         ot(scores), ot(scores, torch.ones(1, 4, dtype=torch.bool), torch.ones(1, 3, dtype=torch.bool))
     )
     assert "num_iterations=50" in repr(ot)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_log_optimal_transport_keeps_the_half_precision_dtype(dtype: torch.dtype) -> None:
+    torch.manual_seed(0)
+    ot = LogOptimalTransport(num_iterations=20)
+    scores = torch.randn(2, 5, 6)
+    col_masks = torch.ones(2, 6, dtype=torch.bool)
+    col_masks[1, -1] = False
+    out = ot(scores.to(dtype), col_masks=col_masks)
+    assert out.dtype == dtype
+    assert torch.allclose(out.float().exp(), ot(scores, col_masks=col_masks).exp(), atol=1e-2)
