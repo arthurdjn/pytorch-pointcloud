@@ -23,6 +23,7 @@ from torch import Tensor
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.layers import SparseModule, SparseResidualBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
@@ -825,29 +826,9 @@ def sphereformer_semantickitti(**hparams: Any) -> SphereFormerSegmentation:
         [
             T.Relabel(
                 keys=DataKeys.SEGMENT,
-                labels={
-                    9: 0,
-                    14: 1,
-                    15: 2,
-                    16: 2,
-                    17: 3,
-                    18: 4,
-                    21: 5,
-                    2: 6,
-                    3: 6,
-                    4: 6,
-                    6: 6,
-                    12: 7,
-                    22: 8,
-                    23: 9,
-                    24: 10,
-                    25: 11,
-                    26: 12,
-                    27: 13,
-                    28: 14,
-                    30: 15,
-                },
+                labels=NUSCENES_LIDARSEG_LEARNING_MAP,
                 default=255,
+                allow_missing_keys=True,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.CopyItems(

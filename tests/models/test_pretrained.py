@@ -155,6 +155,15 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
     # GridNet-HD based models
     ("ptv3.gridnet-hd.heig-vd-geo", "semantic-segmentation", "gridnethd"),
+    # Volt (all four datasets)
+    ("volt-s.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-s.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-s.nuscenes.kadir-yilmaz", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("volt-s.semantickitti.kadir-yilmaz", "semantic-segmentation", "semantickitti"),
+    ("volt-s-joint.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-s-joint.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-b-joint.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-b-joint.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
 ]
 
 
@@ -164,7 +173,7 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "volt")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -172,7 +181,7 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
+    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "volt")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 

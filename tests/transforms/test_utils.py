@@ -257,6 +257,38 @@ def test_clamp_requires_min_or_max() -> None:
         T.Clamp(keys="pos")
 
 
+def test_clamp_norm_scales_rows_beyond_the_bound() -> None:
+    x = torch.tensor([[30.0, 40.0, 0.0], [3.0, 4.0, 0.0], [0.0, 0.0, 0.0]])
+    out = F.clamp_norm(x, max_norm=10.0)
+    torch.testing.assert_close(out, torch.tensor([[6.0, 8.0, 0.0], [3.0, 4.0, 0.0], [0.0, 0.0, 0.0]]))
+
+
+def test_clamp_norm_keeps_direction() -> None:
+    x = torch.randn(64, 3) * 100.0
+    out = F.clamp_norm(x, max_norm=50.0)
+    norms = torch.linalg.vector_norm(out, dim=1)
+    assert bool((norms <= 50.0 + 1e-4).all())
+    torch.testing.assert_close(out / norms[:, None], x / torch.linalg.vector_norm(x, dim=1, keepdim=True))
+
+
+def test_clamp_norm_matches_renorm_up_to_its_epsilon() -> None:
+    torch.manual_seed(0)
+    x = torch.randn(1000, 3) * 100.0
+    torch.testing.assert_close(F.clamp_norm(x, max_norm=50.0), torch.renorm(x, p=2, dim=0, maxnorm=50.0))
+
+
+def test_clamp_norm_requires_a_positive_bound() -> None:
+    with pytest.raises(ValueError, match="max_norm"):
+        F.clamp_norm(torch.zeros(2, 3), max_norm=0.0)
+
+
+def test_clamp_norm_transform_writes_dst_key() -> None:
+    pos = torch.tensor([[60.0, 80.0, 0.0]])
+    out = T.ClampNorm(keys="pos", max_norm=50.0, dst_keys="clamped")({"pos": pos})
+    torch.testing.assert_close(out["clamped"], torch.tensor([[30.0, 40.0, 0.0]]))
+    assert out["pos"] is pos
+
+
 def test_abs_default() -> None:
     pos = torch.tensor([-1.0, 2.0, -3.0])
     data = {"pos": pos, "other": sentinel.other}

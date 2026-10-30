@@ -54,6 +54,7 @@ from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
 from .utonia import UtoniaSegmentation
+from .volt import VoltSegmentation
 from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
 from .voxelnext import VoxelNeXtDetection
@@ -137,6 +138,7 @@ __all__ = [
     "SPVCNNSegmentation",
     "ThreeDETRDetection",
     "UtoniaSegmentation",
+    "VoltSegmentation",
     "VoteNetDetection",
     "VoxelMambaDetection",
     "VoxelNeXtDetection",

@@ -1,4 +1,4 @@
-"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, and trilinear devoxelization."""
+"""Dense and sparse voxelization, FNV voxel hashing, the first point per voxel, voxel patches and devoxelization."""
 
 import functools
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple, Union, overload
@@ -396,3 +396,48 @@ def first_permutation(cluster: Tensor, num_clusters: Optional[int] = None) -> Te
     perm = torch.arange(n, device=cluster.device)
     first = torch.full((num_clusters,), n, dtype=torch.long, device=cluster.device)
     return first.scatter_reduce_(0, cluster, perm, reduce="amin")
+
+
+def voxel_patch_partition(pos_grid: Tensor, batch: Tensor, patch_size: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    r"""Group the voxels of a packed batch into non-overlapping cubic patches of $K^3$ voxels.
+
+    The voxel at integer coordinates $v$ of sample $b$ belongs to the patch $\lfloor v / K \rfloor$ of that sample, at
+    the position $(v_x \bmod K) K^2 + (v_y \bmod K) K + (v_z \bmod K)$ inside it. Patches are sorted by sample, then by
+    coordinates, so the patches of one sample are contiguous.
+
+    Args:
+        pos_grid: Integer voxel coordinates of shape $(N, 3)$.
+        batch: Batch index of every voxel, shape $(N,)$.
+        patch_size: Patch side $K$, in voxels.
+
+    Returns:
+        A tuple `(patch_grid, patch_batch, inverse, offset)`: the integer coordinates $(P, 3)$ and the batch index
+        $(P,)$ of every patch, then the patch of every voxel $(N,)$ and its position inside that patch, in
+        $[0, K^3)$, shape $(N,)$.
+
+    Example:
+        ```pycon
+        >>> pos_grid = torch.tensor([[0, 0, 0], [1, 2, 3], [4, 0, 0], [0, 0, 0]])
+        >>> batch = torch.tensor([0, 0, 0, 1])
+        >>> patch_grid, patch_batch, inverse, offset = voxel_patch_partition(pos_grid, batch, patch_size=4)
+        >>> patch_grid
+        tensor([[0, 0, 0],
+                [1, 0, 0],
+                [0, 0, 0]])
+        >>> patch_batch
+        tensor([0, 0, 1])
+        >>> inverse
+        tensor([0, 0, 1, 2])
+        >>> offset
+        tensor([ 0, 27,  0,  0])
+
+        ```
+    """
+    if patch_size < 1:
+        raise ValueError(f"`patch_size` must be >= 1, got {patch_size}.")
+
+    keys = torch.cat([batch.unsqueeze(1), torch.div(pos_grid, patch_size, rounding_mode="floor")], dim=1)
+    patches, inverse = torch.unique(keys, dim=0, sorted=True, return_inverse=True)
+    local = torch.remainder(pos_grid, patch_size)
+    offset = (local[:, 0] * patch_size + local[:, 1]) * patch_size + local[:, 2]
+    return patches[:, 1:], patches[:, 0], inverse, offset

@@ -212,3 +212,18 @@ def test_simple_tta_transforms_flip_acts_on_positions_and_normals_and_skips_miss
     assert torch.allclose(out[DataKeys.POS][:, 2], data[DataKeys.POS][:, 2])
     out_no_normal = view(_toy_data(seed=5))
     assert DataKeys.NORMAL not in out_no_normal
+
+
+def test_scale_flip_tta_transforms_mirrors_every_scale() -> None:
+    from torch_pointcloud.inferers import scale_flip_tta_transforms
+
+    transforms = scale_flip_tta_transforms()
+    pos = torch.tensor([[1.0, 2.0, 3.0]])
+    views = [view({DataKeys.POS: pos})[DataKeys.POS] for view in transforms]
+
+    assert len(transforms) == 10
+    assert len(transforms[2].transforms) == 0
+    expected = [pos * scale for scale in (0.9, 0.95, 1.0, 1.05, 1.1)]
+    expected += [p * torch.tensor([-1.0, -1.0, 1.0]) for p in expected]
+    for view, target in zip(views, expected):
+        torch.testing.assert_close(view, target)

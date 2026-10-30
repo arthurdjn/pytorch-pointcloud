@@ -66,6 +66,7 @@ MODEL_LABELS = {
     "spvcnn": "SPVCNN",
     "threedetr": "3DETR",
     "utonia": "Utonia",
+    "volt": "Volt",
     "votenet": "VoteNet",
     "voxel_mamba": "Voxel-Mamba",
     "voxelnext": "VoxelNeXt",

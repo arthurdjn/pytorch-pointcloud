@@ -88,7 +88,7 @@ $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-pillar02.nuscenes.mmdet3d
 $RUN examples/lion/detection_nuscenes_benchmark.py --root "$ROOT" --model lion-mamba.nuscenes.zhe-liu
 
-# Segmentation (S3DIS, ScanNet, SemanticKITTI, Toronto-3D, Paris-Lille-3D, FRACTAL)
+# Segmentation (S3DIS, ScanNet, SemanticKITTI, nuScenes, Toronto-3D, Paris-Lille-3D, FRACTAL)
 $RUN examples/dgcnn/segmentation_scannet_benchmark.py --root "$ROOT" --model dgcnn.scannet20.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area1.an-tao
 $RUN examples/dgcnn/segmentation_s3dis_benchmark.py --root "$ROOT" --model dgcnn.s3dis-area2.an-tao
@@ -153,6 +153,8 @@ $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model p
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-xl.s3dis-area3.openpoints --areas Area_3 --sw-batch-size 2
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-xl.s3dis-area4.openpoints --areas Area_4 --sw-batch-size 2
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-xl.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 2
+$RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-s.nuscenes.kadir-yilmaz --simple
+$RUN examples/volt/segmentation_semantickitti_benchmark.py --root "$ROOT" --model volt-s.semantickitti.kadir-yilmaz --simple
 
 # Segmentation with TTA (ScanNet, S3DIS)
 $RUN examples/spunet/segmentation_scannet_benchmark.py --root "$ROOT" --model spunet-v1m1.scannet20.pointcept --sw-batch-size 8
@@ -165,3 +167,9 @@ $RUN examples/point_transformer_v3/segmentation_dales_benchmark.py --root "$ROOT
 $RUN examples/point_transformer_v3/segmentation_gridnethd_benchmark.py --root "$ROOT" --model ptv3.gridnet-hd.heig-vd-geo --sw-batch-size 1
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s.scannet20.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s.scannet200.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s-joint.scannet20.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s-joint.scannet200.kadir-yilmaz --sw-batch-size 4
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet20.kadir-yilmaz --sw-batch-size 2
+$RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet200.kadir-yilmaz --sw-batch-size 2

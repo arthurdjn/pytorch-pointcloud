@@ -210,6 +210,14 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "spvcnn-30gmacs.semantickitti.mit-han-lab",
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
+    "volt-s.scannet20.kadir-yilmaz",
+    "volt-s.scannet200.kadir-yilmaz",
+    "volt-s.nuscenes.kadir-yilmaz",
+    "volt-s.semantickitti.kadir-yilmaz",
+    "volt-s-joint.scannet20.kadir-yilmaz",
+    "volt-s-joint.scannet200.kadir-yilmaz",
+    "volt-b-joint.scannet20.kadir-yilmaz",
+    "volt-b-joint.scannet200.kadir-yilmaz",
 ]
 PART_SEGMENTATION_MODELS = [
     "dgcnn.shapenetpart.an-tao",
@@ -488,7 +496,13 @@ def test_semantic_segmentation_architecture(model_name: str, force_regen: bool, 
     _skip_if_model_deps_missing(model_name)
     models_dir = models_dir_factory("*.json")
 
-    model = create_model(model_name, task="semantic-segmentation", in_channels=3, num_classes=10)
+    model = create_model(
+        model_name,
+        task="semantic-segmentation",
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     _check_architecture_or_regen(
         model,
         model_name,
@@ -672,6 +686,12 @@ SPVCNN_VOXEL_SIZE = 0.005
 UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
 
 
+def _forward_kwargs(model_name: str) -> Dict[str, Any]:
+    # The registered Volt configurations use the flash attention kernel, which needs CUDA; SDPA runs the same weights
+    # on any device.
+    return {"use_flash_attn": False} if model_name.startswith("volt") else {}
+
+
 @pytest.mark.skipif(
     not _PYG_LIB_AVAILABLE,
     reason="pyg-lib is not installed",
@@ -690,7 +710,13 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     num_classes = 10
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=num_classes)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=num_classes,
+        **_forward_kwargs(model_name),
+    )
     data = data_factory(
         in_channels=model.in_channels,
         spatial_dim=getattr(model, "spatial_dim", 3),
@@ -730,7 +756,13 @@ def test_model_headless_forward_returns_features(model_name: str, task: str, dat
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=0)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=0,
+        **_forward_kwargs(model_name),
+    )
     assert isinstance(model.head, nn.Identity), f"{model_name}: head is {type(model.head).__name__}, not Identity"
     assert isinstance(model.num_features, int), f"{model_name}: num_features is {type(model.num_features).__name__}"
     data = data_factory(
@@ -950,7 +982,13 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     sig = inspect.signature(model.forward_features)
     if "return_intermediates" not in sig.parameters:
         pytest.skip(f"{model_name}: `forward_features` has no intermediates")
@@ -1014,7 +1052,13 @@ def test_model_pre_logits_matches_headless_forward(
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     data = data_factory(
         in_channels=model.in_channels,
         spatial_dim=getattr(model, "spatial_dim", 3),
