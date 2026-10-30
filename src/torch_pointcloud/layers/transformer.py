@@ -293,7 +293,7 @@ class TransformerDecoderLayer(nn.Module):
     def _self_attention(self, x: Tensor, query_pos: OptTensor) -> Tensor:
         q = k = x if query_pos is None else x + query_pos
         value = q if self.pos_in_value else x
-        return self.self_attn(q, k, value=value)[0]
+        return self.self_attn(q, k, value=value, need_weights=False)[0]
 
     def _cross_attention(
         self,
@@ -306,7 +306,13 @@ class TransformerDecoderLayer(nn.Module):
         query = x if query_pos is None else x + query_pos
         key = memory if pos is None else memory + pos
         value = key if self.pos_in_value else memory
-        return self.multihead_attn(query=query, key=key, value=value, key_padding_mask=memory_key_padding_mask)[0]
+        return self.multihead_attn(
+            query=query,
+            key=key,
+            value=value,
+            key_padding_mask=memory_key_padding_mask,
+            need_weights=False,
+        )[0]
 
     def _feed_forward(self, x: Tensor) -> Tensor:
         return self.linear2(self.dropout(self.activation(self.linear1(x))))

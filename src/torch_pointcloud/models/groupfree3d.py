@@ -383,13 +383,20 @@ class GroupFree3DDetection(DetectionModel):
         stages = [self.proposal_head(x_query, pos_query, self.mean_sizes)]
         query = self.query_proj(x_query).transpose(0, 1)  # (Q, B, C)
         key = self.key_proj(x_dense).transpose(0, 1)  # (S, B, C)
+        padding_mask = None if x.size(0) == batch_size * num_seeds else ~mask
         for layer, query_pos_embed, key_pos_embed, head in zip(
             self.decoder, self.query_pos_embeds, self.key_pos_embeds, self.prediction_heads
         ):
             box = torch.cat([stages[-1]["center"], stages[-1]["size"]], dim=-1).detach()  # (B, Q, 6)
             query_pos = query_pos_embed(box.view(-1, 6)).view(batch_size, -1, query.size(-1)).transpose(0, 1)
             key_pos = _to_dense(key_pos_embed(pos), dense_index, batch_size, num_seeds)  # (B, S, C)
-            query = layer(query, key, pos=key_pos.transpose(0, 1), query_pos=query_pos, memory_key_padding_mask=~mask)
+            query = layer(
+                query,
+                key,
+                pos=key_pos.transpose(0, 1),
+                query_pos=query_pos,
+                memory_key_padding_mask=padding_mask,
+            )
             stages.append(head(query.transpose(0, 1), pos_query, self.mean_sizes))
 
         stacked = {name: torch.stack([stage[name] for stage in stages]) for name in stages[0]}
