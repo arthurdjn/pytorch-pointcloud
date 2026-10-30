@@ -392,6 +392,35 @@ def test_sliding_window_accepts_integer_grid_coordinates() -> None:
     assert torch.allclose(out, torch.full_like(out, 3.0))
 
 
+def test_sliding_window_gaussian_accepts_float64_positions() -> None:
+    """Float64 `pos` blends with the float32 gaussian weights and gives the float32 result."""
+    data = _grid_data(steps=4)
+    data_float64 = {**data, DataKeys.POS: data[DataKeys.POS].double()}
+    kwargs: Dict[str, Any] = dict(block_size=2.0, overlap=0.5, mode="gaussian", softmax=False)
+
+    out = sliding_window_inference(data, predictor=_mean_pos_predictor, **kwargs)
+    out_float64 = sliding_window_inference(data_float64, predictor=_mean_pos_predictor, **kwargs)
+
+    assert out_float64.dtype == torch.float32
+    assert torch.allclose(out_float64, out)
+
+
+def test_sliding_window_batch_of_two_scenes_matches_each_scene_alone() -> None:
+    """Each scene of a batch is tiled and blended on its own, then written back at its rows."""
+    first = _grid_data(steps=4)
+    second = _grid_data(steps=4, spacing=0.5)
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.cat([first[DataKeys.POS], second[DataKeys.POS]]),
+        DataKeys.BATCH: torch.cat([first[DataKeys.BATCH], second[DataKeys.BATCH] + 1]),
+    }
+    kwargs: Dict[str, Any] = dict(block_size=1.5, overlap=0.5, mode="gaussian", softmax=False)
+
+    out = sliding_window_inference(data, predictor=_mean_pos_predictor, **kwargs)
+
+    assert torch.equal(out[:64], sliding_window_inference(first, predictor=_mean_pos_predictor, **kwargs))
+    assert torch.equal(out[64:], sliding_window_inference(second, predictor=_mean_pos_predictor, **kwargs))
+
+
 def test_sliding_window_roi_num_points_splits_block_into_capped_chunks() -> None:
     """A block larger than `roi_num_points` is split into random sub-batches within the
     cap; every point is still predicted exactly once.

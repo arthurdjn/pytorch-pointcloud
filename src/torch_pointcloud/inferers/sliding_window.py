@@ -82,8 +82,7 @@ def _assign_point_blocks(
         Tiled axes get the block's grid-defined extent; untiled axes get the full
         $(\min, \max)$ of `pos` along that axis.
     """
-    device = pos.device
-    n, n_dim = pos.size(0), pos.size(1)
+    n_dim = pos.size(1)
     half = block_size / 2.0
     step = block_size * (1.0 - overlap)
 
@@ -104,84 +103,120 @@ def _assign_point_blocks(
     K = math.ceil((block_size + 2.0 * padding) / step)
     n_per_dim = (((pos_tiled.amax(dim=0) - lo) / step).ceil().long() + 1).clamp_min(1)
 
-    strides = torch.ones(n_tiled, device=device, dtype=torch.long)
+    strides = torch.ones(n_tiled, device=pos.device, dtype=torch.long)
     for d in range(n_tiled - 2, -1, -1):
         strides[d] = strides[d + 1] * int(n_per_dim[d + 1].item())
 
-    i_hi = (
-        ((pos_tiled - lo + padding) / step).floor().long().clamp(min=torch.zeros_like(n_per_dim), max=n_per_dim - 1)
-    )  # (N, D_t)
-    i_lo = (i_hi - K + 1).clamp_min(0)  # (N, D_t)
-
-    arange_n = torch.arange(n, device=device)
-    block_flat_list: List[Tensor] = []
-    point_id_list: List[Tensor] = []
-    weight_list: List[Tensor] = []
-    center_idx_list: List[Tensor] = []  # block index in tiled-grid coords
-
-    for offsets in itertools.product(range(K), repeat=n_tiled):
-        off = i_lo.new_tensor(offsets)
-        i = i_lo + off  # (N, D_t)
-        valid = (i <= i_hi).all(dim=1)
-        if not valid.any():
-            continue
-
-        block_lo = lo + i.to(pos.dtype) * step
-        # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
-        # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
-        # The float bound test alone is not enough: on grid-aligned coordinates `(p - lo) / step` can round
-        # across an integer in fp32, landing `p` exactly on a bound of its own `i_hi` block on either side.
-        # Membership of that block is forced by index identity so every point keeps at least one block.
-        inside = ((pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)).all(dim=1)
-        inside = inside | (i == i_hi).all(dim=1)
-        valid = valid & inside
-        if not valid.any():
-            continue
-
-        i_v = i[valid]
-        if mode == "gaussian":
-            centers_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)
-            dist = torch.linalg.norm(pos_tiled[valid] - centers_v_tiled, dim=-1)
-            # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
-            # covered point at a nonzero blend weight so its predictions survive the division.
-            w = gaussian_weights(dist, sigma).clamp_min(1e-12)
-        else:
-            # Blend weights are float even when `pos` holds integer grid coordinates.
-            w = pos.new_ones(int(valid.sum()), dtype=torch.float32)
-        block_flat_list.append((i_v * strides).sum(dim=1))
-        point_id_list.append(arange_n[valid])
-        weight_list.append(w)
-        center_idx_list.append(i_v)
-
-    block_flat = torch.cat(block_flat_list)
-    point_ids = torch.cat(point_id_list)
-    weights = torch.cat(weight_list)
-    centers_idx_all = torch.cat(center_idx_list, dim=0)  # (sum_M, D_t)
-
-    sort_idx = block_flat.argsort(stable=True)
-    block_sorted = block_flat[sort_idx]
-    _, first_idx = torch.unique_consecutive(block_sorted, return_inverse=True)
-    unique_pos = (first_idx[1:] != first_idx[:-1]).nonzero(as_tuple=False).flatten() + 1
-    unique_pos = torch.cat([torch.zeros(1, dtype=torch.long, device=device), unique_pos])
-    _, counts = torch.unique_consecutive(block_sorted, return_counts=True)
+    point_ids, block_flat, weights = _point_block_pairs(
+        pos_tiled,
+        lo=lo,
+        step=step,
+        block_size=block_size,
+        padding=padding,
+        num_offsets=K,
+        n_per_dim=n_per_dim,
+        strides=strides,
+        mode=mode,
+        sigma=sigma,
+    )
+    order = block_flat.argsort(stable=True)
+    block_flat = block_flat[order]
+    point_ids = point_ids[order]
+    weights = weights[order]
+    unique_flat, counts = torch.unique_consecutive(block_flat, return_counts=True)
     sizes = counts.tolist()
 
-    block_lo_tiled = lo + centers_idx_all[sort_idx][unique_pos].to(pos.dtype) * step
+    # The grid coordinates of each block come back from its flat id.
+    block_idx = torch.stack([(unique_flat // strides[j]) % n_per_dim[j] for j in range(n_tiled)], dim=1)
+    block_lo_tiled = lo + block_idx.to(pos.dtype) * step
     block_hi_tiled = block_lo_tiled + block_size
-    bbox_lo_template = lo_full.clone()
-    bbox_hi_template = hi_full.clone()
-    bbox_groups: List[Tensor] = []
-    for row_lo, row_hi in zip(block_lo_tiled, block_hi_tiled):
-        b_lo = bbox_lo_template.clone()
-        b_hi = bbox_hi_template.clone()
-        for j, ax in enumerate(tile_axes):
-            b_lo[ax] = row_lo[j]
-            b_hi[ax] = row_hi[j]
-        bbox_groups.append(torch.cat([b_lo, b_hi]))
+    num_blocks = block_idx.size(0)
+    bbox_lo = lo_full.expand(num_blocks, -1).clone()
+    bbox_hi = hi_full.expand(num_blocks, -1).clone()
+    bbox_lo[:, tile_axes] = block_lo_tiled.to(bbox_lo.dtype)
+    bbox_hi[:, tile_axes] = block_hi_tiled.to(bbox_hi.dtype)
+    bbox_groups = list(torch.cat([bbox_lo, bbox_hi], dim=1))
 
-    point_groups = point_ids[sort_idx].split(sizes)
-    weight_groups = weights[sort_idx].split(sizes)
-    return list(point_groups), list(weight_groups), bbox_groups
+    point_groups = list(point_ids.split(sizes))
+    weight_groups = list(weights.split(sizes))
+    return point_groups, weight_groups, bbox_groups
+
+
+def _point_block_pairs(
+    pos_tiled: Tensor,
+    *,
+    lo: Tensor,
+    step: float,
+    block_size: float,
+    padding: float,
+    num_offsets: int,
+    n_per_dim: Tensor,
+    strides: Tensor,
+    mode: WindowMode,
+    sigma: float,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    """The point id, flat block id and blend weight of every (point, block) pair, in block offset order.
+
+    A point lies in up to `num_offsets`^D_t blocks: the rows of each block offset are counted first, then written
+    into the preallocated pair tensors.
+    """
+    # Block indices are int32: the grids stay far below 2^31 blocks per axis.
+    i_hi = ((pos_tiled - lo + padding) / step).floor().to(torch.int32).clamp_min(0)  # (N, D_t)
+    i_hi = torch.minimum(i_hi, (n_per_dim - 1).to(torch.int32))
+    i_lo = (i_hi - num_offsets + 1).clamp_min(0)  # (N, D_t)
+
+    masks: List[Tuple[Tensor, Tensor]] = []
+    for offsets in itertools.product(range(num_offsets), repeat=pos_tiled.size(1)):
+        off = i_lo.new_tensor(offsets)
+        mask = _block_mask(pos_tiled, i_lo, i_hi, off, lo=lo, step=step, block_size=block_size, padding=padding)
+        if mask.any():
+            masks.append((off, mask))
+    bounds = [0] + list(itertools.accumulate(int(mask.sum()) for _, mask in masks))
+    point_ids = torch.empty(bounds[-1], device=pos_tiled.device, dtype=torch.long)
+    block_flat = torch.empty_like(point_ids)
+    weights = torch.empty(bounds[-1], device=pos_tiled.device, dtype=torch.float32)
+    for (off, mask), start, end in zip(masks, bounds[:-1], bounds[1:]):
+        point_ids[start:end] = mask.nonzero().squeeze(1)
+        block_idx = i_lo[point_ids[start:end]] + off  # (M, D_t)
+        block_flat[start:end] = (block_idx.long() * strides).sum(dim=1)
+        if mode == "gaussian":
+            centers = lo + (block_size / 2.0) + block_idx.to(pos_tiled.dtype) * step  # (M, D_t)
+            dist = torch.linalg.norm(pos_tiled[point_ids[start:end]] - centers, dim=-1)
+            # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
+            # covered point at a nonzero blend weight so its predictions survive the division.
+            weights[start:end] = gaussian_weights(dist, sigma).clamp_min(1e-12)
+        else:
+            # Blend weights are float even when `pos` holds integer grid coordinates.
+            weights[start:end] = 1.0
+    return point_ids, block_flat, weights
+
+
+def _block_mask(
+    pos_tiled: Tensor,
+    i_lo: Tensor,
+    i_hi: Tensor,
+    off: Tensor,
+    *,
+    lo: Tensor,
+    step: float,
+    block_size: float,
+    padding: float,
+) -> Tensor:
+    """Mask of the points lying in the block `off` steps above their lowest candidate block."""
+    i = i_lo + off  # (N, D_t)
+    valid = (i <= i_hi).all(dim=1)
+    if not valid.any():
+        return valid
+
+    block_lo = lo + i.to(pos_tiled.dtype) * step
+    # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
+    # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
+    # The float bound test alone is not enough: on grid-aligned coordinates `(p - lo) / step` can round
+    # across an integer in fp32, landing `p` exactly on a bound of its own `i_hi` block on either side.
+    # Membership of that block is forced by index identity so every point keeps at least one block.
+    inside = ((pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)).all(dim=1)
+    inside |= (i == i_hi).all(dim=1)
+    return valid & inside
 
 
 def _build_window(
@@ -388,8 +423,9 @@ def sliding_window_inference(
         if n_b == 0:
             continue
 
-        pos_b = pos[idx_b]
-        data_b = index_select_dict(data, idx_b, n_total)
+        # A single batch element is the whole scene: no copy of every per-point tensor.
+        pos_b = pos if n_b == n_total else pos[idx_b]
+        data_b = data if n_b == n_total else index_select_dict(data, idx_b, n_total)
 
         if block_size is None:
             point_groups = [torch.arange(n_b, device=device)]
@@ -478,11 +514,14 @@ def sliding_window_inference(
         if scores_b is None:
             continue
 
+        # Uncovered points keep their zero scores: their weight becomes one before the division.
+        scores_b /= weights_b.masked_fill_(weights_b == 0, 1.0).unsqueeze(-1)
+        if n_b == n_total:
+            output = scores_b
+            continue
+
         if output is None:
             output = torch.zeros(n_total, int(scores_b.size(1)), device=device, dtype=torch.float32)
-
-        covered = weights_b > 0
-        scores_b[covered] = scores_b[covered] / weights_b[covered].unsqueeze(-1)
         output[idx_b] = scores_b
 
     if output is None:
