@@ -1132,7 +1132,7 @@ def pointrcnn_openpcdet_kitti(**hparams: Any) -> PointRCNNDetection:
     "pointrcnn-iou.kitti.openpcdet",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointrcnn-iou.kitti.openpcdet/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointrcnn-iou.kitti.openpcdet/resolve/bdbdbbe73852f1639b17fa48fe8dd533878d41da/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 68.50, "AP/Car": 78.57, "AP/Pedestrian": 55.02, "AP/Cyclist": 71.92},
         classes=("Car", "Pedestrian", "Cyclist"),

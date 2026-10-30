@@ -948,7 +948,7 @@ class SECONDMultiHeadDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second.kitti.openpcdet/resolve/257ec23dfb951b12756786fcdaba9792cb3916a0/model.safetensors",
+        url="hf://torch-pointcloud/second.kitti.openpcdet/resolve/93c55d1da11d50c286d5bcd4b5095bb5bb5206ab/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 66.26, "AP/Car": 78.63, "AP/Pedestrian": 52.98, "AP/Cyclist": 67.16},
         classes=("Car", "Pedestrian", "Cyclist"),
@@ -991,7 +991,7 @@ def second_openpcdet_kitti(**hparams: Any) -> SECONDDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second-iou.kitti.openpcdet/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/second-iou.kitti.openpcdet/resolve/497dd31f1b4ba21f23f1f7d23eda75604dd24ba2/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 68.71, "AP/Car": 79.09, "AP/Pedestrian": 55.75, "AP/Cyclist": 71.31},
         classes=("Car", "Pedestrian", "Cyclist"),
@@ -1038,7 +1038,7 @@ def second_iou_openpcdet_kitti(**hparams: Any) -> SECONDIoUDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/second.kitti.mmdet3d/resolve/769e8733c2cd12bea575fde44dfe0def7598e304/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 65.55, "AP/Pedestrian": 52.94, "AP/Cyclist": 66.32, "AP/Car": 77.39},
         classes=("Pedestrian", "Cyclist", "Car"),
@@ -1081,7 +1081,7 @@ def second_mmdet3d_kitti(**hparams: Any) -> SECONDDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second.kitti-car.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/second.kitti-car.mmdet3d/resolve/eef80347b2ff759de7b8de65484f82174e847148/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 78.21, "AP/Car": 78.21},
         classes=("Car",),
@@ -1123,7 +1123,7 @@ def second_mmdet3d_kitti_car(**hparams: Any) -> SECONDDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/second-dynamic-voxel.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/second-dynamic-voxel.kitti.mmdet3d/resolve/586fc0805e879a75e4d0b4b1dc858be4242ee908/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 65.23, "AP/Pedestrian": 56.78, "AP/Cyclist": 62.26, "AP/Car": 76.66},
         classes=("Pedestrian", "Cyclist", "Car"),

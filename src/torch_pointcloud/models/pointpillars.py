@@ -681,7 +681,7 @@ class PointPillarsMultiHeadDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointpillars.kitti.openpcdet/resolve/caf39bd441409bdd2997d3099cc524ac451ff06d/model.safetensors",
+        url="hf://torch-pointcloud/pointpillars.kitti.openpcdet/resolve/749c705d349afa50037f1baa86a42236a437142d/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 64.16, "AP/Car": 77.35, "AP/Pedestrian": 52.39, "AP/Cyclist": 62.74},
         classes=("Car", "Pedestrian", "Cyclist"),
@@ -724,7 +724,7 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointpillars.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointpillars.kitti.mmdet3d/resolve/cf2df62c9c5cc2a4b27ed2027ebe0ca2f440cf95/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 64.00, "AP/Pedestrian": 52.26, "AP/Cyclist": 62.10, "AP/Car": 77.66},
         classes=("Pedestrian", "Cyclist", "Car"),
@@ -768,7 +768,7 @@ def pointpillars_mmdet3d_kitti(**hparams: Any) -> PointPillarsDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointpillars.kitti-car.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointpillars.kitti-car.mmdet3d/resolve/9868c225dc7ad0e612ed7ba81d8355b5cd43c809/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 77.61, "AP/Car": 77.61},
         classes=("Car",),
@@ -865,7 +865,7 @@ def pointpillars_openpcdet_multihead_nuscenes(**hparams: Any) -> PointPillarsMul
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointpillars.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointpillars.nuscenes.mmdet3d/resolve/23fbabbebde8246e5351b2d8bcb27cceb4902297/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 34.69, "NDS": 49.04},
         classes=NUSCENES_DETECTION_CLASSES,
@@ -920,7 +920,7 @@ def pointpillars_mmdet3d_nuscenes(**hparams: Any) -> PointPillarsDetection:
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointpillars-fpn.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointpillars-fpn.nuscenes.mmdet3d/resolve/9f394cab5b733d8902d553bc2a8fcfdd04a19f5a/model.safetensors",
         dataset="nuscenes",
         metrics={"mAP": 40.17, "NDS": 52.98},
         classes=NUSCENES_DETECTION_CLASSES,

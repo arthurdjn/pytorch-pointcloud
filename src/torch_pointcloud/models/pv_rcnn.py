@@ -790,7 +790,7 @@ class PVRCNNDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel", "x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/772e84df456a383eb47366efebda099f7cfde296/model.safetensors",
+        url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/1c52671ddda0fc21e263e8ce401a2fbd9a71ff1c/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 72.16, "AP/Car": 83.54, "AP/Pedestrian": 59.73, "AP/Cyclist": 73.20},
         classes=("Pedestrian", "Cyclist", "Car"),

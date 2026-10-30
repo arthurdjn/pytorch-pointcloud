@@ -643,7 +643,7 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
     "votenet.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/votenet.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/votenet.scannet.mmdet3d/resolve/90a36939b3fdf32cead578d5efb0e509790621c8/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 62.02, "mAP@0.5": 39.94},
         classes=SCANNET_DETECTION_CLASSES,
@@ -742,7 +742,7 @@ def votenet_fair_base_sunrgbd(**hparams: Any) -> VoteNetDetection:
     "votenet.sunrgbd.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/votenet.sunrgbd.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/votenet.sunrgbd.mmdet3d/resolve/2da0e116f276bc971fcfcf11ad5c0e390d55c69b/model.safetensors",
         dataset="sunrgbd",
         metrics={"mAP@0.25": 59.80, "mAP@0.5": 36.87},
         classes=SUNRGBD_CLASSES,
