@@ -1,3 +1,5 @@
+import math
+import warnings
 from typing import Dict
 
 import pytest
@@ -5,11 +7,16 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection
+from torch_pointcloud.models.second import (
+    SECONDDetection,
+    SECONDIoUDetection,
+    SECONDIoUHead,
+    SECONDMultiHeadDetection,
+)
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
-pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 
 # The sparse 3D backbone (spconv SubM/SparseConv3d) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -17,7 +24,7 @@ RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
 
 
 def _voxelize(
-    model: SECONDDetection | SECONDMultiHeadDetection,
+    model: SECONDDetection | SECONDIoUDetection | SECONDMultiHeadDetection,
     data: Dict[str, Tensor],
     max_num_points: int,
     max_num_voxels: int,
@@ -49,6 +56,7 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
     }
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_forward_shapes() -> None:
     model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
@@ -71,6 +79,7 @@ def test_second_forward_shapes() -> None:
     assert torch.isfinite(out["batch_box"]).all()
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_eval_is_deterministic() -> None:
     model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
@@ -88,6 +97,7 @@ def test_second_registered_variant() -> None:
     assert "second.kitti.openpcdet" in list_models("second*", task="detection")
 
 
+@SPCONV
 def test_second_create_model_hparams() -> None:
     model = create_model("second.kitti.openpcdet", task="detection")
     assert isinstance(model, SECONDDetection)
@@ -97,6 +107,162 @@ def test_second_create_model_hparams() -> None:
     assert model.sparse_shape == [41, 1600, 1408]
     assert model.num_features == model.backbone.num_bev_features
     assert model.head.anchors.shape == (200 * 176 * 6, 7)
+
+
+@SPCONV
+def test_second_iou_create_model_hparams() -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection")
+    assert isinstance(model, SECONDIoUDetection)
+    assert model.num_features == 512
+    assert model.roi_head.shared.lins[0].in_channels == 512 * 7 * 7
+    assert model.roi_head.origin == (0.0, -40.0)
+    assert model.roi_head.cell_size == pytest.approx((0.4, 0.4))
+    assert model.grid_size == 7 and model.grid_size_3d == (1408, 1600, 40)
+
+
+def test_second_iou_head_reads_only_the_map_of_each_roi() -> None:
+    torch.manual_seed(0)
+    head = SECONDIoUHead(8, 3, (0.0, 0.0), (1.0, 1.0), shared_channels=[16], cls_channels=[16]).eval()
+    features = torch.randn(2, 8, 10, 10)
+    rois = torch.tensor([[4.0, 4.0, 0.0, 3.0, 2.0, 1.0, 0.3], [5.0, 6.0, 0.0, 2.0, 4.0, 1.0, -1.0]]).repeat(2, 1)
+    roi_batch = torch.tensor([0, 0, 1, 1])
+    with torch.no_grad():
+        iou = head(rois, roi_batch, features)
+        changed = features.clone()
+        changed[1] = torch.randn(8, 10, 10)
+        iou_changed = head(rois, roi_batch, changed)
+    assert iou.shape == (4, 1)
+    assert torch.equal(iou[:2], iou_changed[:2])
+    assert not torch.equal(iou[2:], iou_changed[2:])
+
+
+def _pooling_head(grid_size: int, origin: tuple, cell_size: tuple) -> SECONDIoUHead:
+    return SECONDIoUHead(2, grid_size, origin, cell_size, shared_channels=[4], cls_channels=[4])
+
+
+def test_second_iou_head_pool_reads_the_box_corners() -> None:
+    features = torch.arange(32.0).view(1, 2, 4, 4)
+    rois = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]])
+    out = _pooling_head(2, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.zeros(1, dtype=torch.long), features)
+    assert out.shape == (1, 2, 2, 2)
+    assert out[0, 0].tolist() == [[0.0, 3.0], [12.0, 15.0]]
+    assert out[0, 1].tolist() == [[16.0, 19.0], [28.0, 31.0]]
+
+
+def test_second_iou_head_pool_rotates_the_grid_and_uses_map_coordinates() -> None:
+    features = torch.arange(16.0).view(1, 1, 4, 4).repeat(1, 2, 1, 1)
+    # A quarter turn transposes the grid of a square box; origin and cell size map the box into pixels.
+    rois = torch.tensor([[13.0, 23.0, 0.0, 6.0, 6.0, 1.0, math.pi / 2]])
+    out = _pooling_head(2, (10.0, 20.0), (2.0, 2.0)).pool(rois, torch.zeros(1, dtype=torch.long), features)[0, 0]
+    assert torch.allclose(out, torch.tensor([[3.0, 15.0], [0.0, 12.0]]), atol=1e-5)
+
+
+def test_second_iou_head_pool_shears_a_rotated_non_square_box() -> None:
+    # Channel 0 holds the map x of every pixel, channel 1 its map y.
+    j, i = torch.meshgrid(torch.arange(9.0), torch.arange(9.0), indexing="xy")
+    features = torch.stack([j, i]).unsqueeze(0)
+    rois = torch.tensor([[4.0, 4.0, 0.0, 4.0, 2.0, 1.0, math.pi / 2]])
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.zeros(1, dtype=torch.long), features)[0]
+    # The grid is rotated first and scaled along the map axes second: x spans the half length 2 (along v), y the
+    # half width 1 (along u), where the turned 4 x 2 footprint itself spans 1 in x and 2 in y.
+    assert torch.allclose(out[0], torch.tensor([[6.0] * 3, [4.0] * 3, [2.0] * 3]), atol=1e-5)
+    assert torch.allclose(out[1], torch.tensor([[3.0, 4.0, 5.0]] * 3), atol=1e-5)
+
+
+def test_second_iou_head_pool_reads_the_map_of_each_roi() -> None:
+    features = torch.stack([torch.zeros(2, 4, 4), torch.ones(2, 4, 4)])
+    rois = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]]).repeat(3, 1)
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.tensor([1, 0, 1]), features)
+    assert out[:, 0].mean(dim=(1, 2)).tolist() == [1.0, 0.0, 1.0]
+
+
+def test_second_iou_head_pool_is_zero_outside_the_map() -> None:
+    rois = torch.tensor([[100.0, 100.0, 0.0, 2.0, 2.0, 1.0, 0.3]])
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.zeros(1, dtype=torch.long), torch.ones(1, 2, 4, 4))
+    assert out.abs().max() == 0.0
+
+
+def test_second_iou_head_pool_skips_a_map_without_rois() -> None:
+    features = torch.stack([torch.zeros(2, 4, 4), torch.ones(2, 4, 4), 2 * torch.ones(2, 4, 4)])
+    rois = torch.tensor([[1.5, 1.5, 0.0, 3.0, 3.0, 1.0, 0.0]]).repeat(2, 1)
+    out = _pooling_head(3, (0.0, 0.0), (1.0, 1.0)).pool(rois, torch.tensor([2, 0]), features)
+    assert out[:, 0].mean(dim=(1, 2)).tolist() == [2.0, 0.0]
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
+def test_second_iou_head_pool_reads_the_map_once_per_scene() -> None:
+    # cuDNN's grid sampler makes its input contiguous, so a map broadcast to every RoI is copied once per RoI.
+    features = torch.randn(1, 64, 200, 176, device="cuda")
+    rois = torch.tensor([[30.0, 0.0, -1.0, 3.9, 1.6, 1.56, 0.3]], device="cuda").repeat(40, 1)
+    head = SECONDIoUHead(64, 7, (0.0, -40.0), (0.4, 0.4), shared_channels=[16], cls_channels=[16]).cuda()
+    torch.cuda.synchronize()
+    torch.cuda.reset_peak_memory_stats()
+    start = torch.cuda.memory_allocated()
+    head.pool(rois, torch.zeros(40, dtype=torch.long, device="cuda"), features)
+    torch.cuda.synchronize()
+    assert torch.cuda.max_memory_allocated() - start < 2 * features.numel() * features.element_size()
+
+
+@SPCONV
+def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
+    torch.manual_seed(0)
+    model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=8).eval()
+    assert isinstance(model, SECONDIoUDetection)
+    features = torch.randn(2, model.num_features, 200, 176)
+    with torch.no_grad():
+        out = model.forward_head(features)
+        rois, roi_scores, roi_labels, roi_batch = model.proposals(out)
+        rcnn_cls = model.roi_head(rois, roi_batch, features)
+        det = model.decode(
+            {
+                "rcnn_cls": rcnn_cls,
+                "boxes": rois,
+                "roi_labels": roi_labels,
+                "roi_scores": roi_scores,
+                "batch": roi_batch,
+            }
+        )
+    assert 0 < rois.shape[0] <= 2 * 8
+    assert torch.bincount(roi_batch).max() <= 8
+    assert torch.equal(det["boxes"], rois) and torch.equal(det["labels"], roi_labels)
+    assert torch.equal(det["scores"], rcnn_cls.sigmoid().view(-1))
+    assert int(det["labels"].max()) < 3
+
+
+@SPCONV
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
+def test_second_iou_forward_and_decode() -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=16).to(DEVICE).eval()
+    assert isinstance(model, SECONDIoUDetection)
+    data = _make_inputs()
+    voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
+    with torch.no_grad():
+        out = model(voxels, pos_voxel, num_points, vbatch)
+        det = model.decode(out)
+    num_rois = out["boxes"].shape[0]
+    assert 0 < num_rois <= 2 * 16
+    assert out["rcnn_cls"].shape == (num_rois, 1)
+    assert det["scores"].shape == det["labels"].shape == det["batch"].shape == (num_rois,)
+    assert torch.isfinite(det["boxes"]).all()
+
+
+@SPCONV
+def test_second_iou_forward_raises_in_training_mode() -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection").train()
+    empty = torch.zeros(0, dtype=torch.long)
+    with pytest.raises(RuntimeError, match="inference only"):
+        model(torch.zeros(0, 5, 4), torch.zeros(0, 3, dtype=torch.long), empty, empty)
+
+
+@SPCONV
+def test_second_without_dir_offset_warns() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        create_model("second.kitti.openpcdet", task="detection")
+    with pytest.warns(FutureWarning, match="SECONDDetection"):
+        model = create_model("second.kitti.openpcdet", task="detection", dir_offset=None)
+    assert isinstance(model, SECONDDetection)
+    assert model.dir_offset == 0.78539
 
 
 NUSCENES_RANGE = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)
@@ -120,6 +286,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
     }
 
 
+@SPCONV
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
 def test_second_multihead_forward_shapes() -> None:
     model = create_model("second-multihead.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
@@ -138,6 +305,7 @@ def test_second_multihead_forward_shapes() -> None:
     assert torch.isfinite(out["batch_box"]).all()
 
 
+@SPCONV
 def test_second_multihead_create_model_hparams() -> None:
     model = create_model("second-multihead.nuscenes.openpcdet", task="detection")
     assert isinstance(model, SECONDMultiHeadDetection)

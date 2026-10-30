@@ -1,3 +1,4 @@
+import warnings
 from typing import Tuple
 
 import pytest
@@ -41,6 +42,17 @@ def test_parta2_create_model_hparams() -> None:
     assert isinstance(model, PartA2Detection) and isinstance(car, PartA2Detection)
     assert model.num_classes == 3 and car.num_classes == 1
     assert model.decoder.out_channels == 16
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_parta2_without_dir_offset_warns() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        create_model("part-a2.kitti.mmdet3d", task="detection")
+    with pytest.warns(FutureWarning, match="PartA2Detection"):
+        model = create_model("part-a2.kitti.mmdet3d", task="detection", dir_offset=None)
+    assert isinstance(model, PartA2Detection)
+    assert model.dir_offset == 0.78539
 
 
 @CUDA_SPCONV

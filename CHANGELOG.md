@@ -37,6 +37,10 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added nine MMDetection3D checkpoints for PointPillars, SECOND and VoteNet, and the SECOND-IoU, PointRCNN-IoU and 3DETR-m SUN RGB-D checkpoints.
+- Added `SECONDIoUDetection`, `PointPillarsFPNDetection`, `MultiLevelAnchorHead`, `BEVPyramidBackbone`, `dynamic_voxelize` and `DynamicVoxelize`; `AnchorHead` and `AnchorHeadLoss` take `anchor_range` and `align_center`.
+- Omitting `dir_offset` from `AnchorHead`, `AnchorHeadLoss` or the PointPillars, SECOND, Part-A2 and PV-RCNN detectors is deprecated, and an error from 0.0.20.
+- `HardVoxelize` raises when its `feature_key` is missing, `Cat` when an input lacks the concatenation dimension, and detectors when `num_classes` is 0.
 
 ## 0.0.18 (2026-10-20)
 

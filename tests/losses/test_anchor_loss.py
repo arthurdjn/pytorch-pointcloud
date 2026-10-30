@@ -4,12 +4,19 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.layers.anchors import AnchorHeadMultiOutput
+from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadMultiOutput
 from torch_pointcloud.losses import AnchorHeadLoss, MultiGroupAnchorHeadLoss
+from torch_pointcloud.models import create_model
+from torch_pointcloud.models.parta2 import PartA2Detection
+from torch_pointcloud.models.pointpillars import PointPillarsDetection
+from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
+from torch_pointcloud.models.second import SECONDDetection, SECONDIoUDetection
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 _POINT_CLOUD_RANGE = (0.0, -4.0, -2.0, 8.0, 4.0, 2.0)
 _VOXEL_SIZE = (1.0, 1.0, 4.0)
+SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 
 
 def _single_loss() -> AnchorHeadLoss:
@@ -21,6 +28,7 @@ def _single_loss() -> AnchorHeadLoss:
         anchor_bottom_heights=[-1.0],
         feature_map_stride=1,
         matched_thresholds=[0.6],
+        dir_offset=0.78539,
         unmatched_thresholds=[0.45],
     )
 
@@ -128,8 +136,64 @@ def test_anchor_loss_validates_per_class_geometry() -> None:
             anchor_bottom_heights=[-1.0],
             feature_map_stride=1,
             matched_thresholds=[0.6, 0.6],
+            dir_offset=0.78539,
             unmatched_thresholds=[0.45, 0.45],
         )
+
+
+def test_anchor_loss_without_dir_offset_warns_and_keeps_the_former_default() -> None:
+    with pytest.warns(FutureWarning, match="dir_offset"):
+        loss_fn = AnchorHeadLoss(
+            1,
+            voxel_size=_VOXEL_SIZE,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            anchor_sizes=[[3.0, 1.5, 1.5]],
+            anchor_bottom_heights=[-1.0],
+            feature_map_stride=1,
+            matched_thresholds=[0.6],
+            unmatched_thresholds=[0.45],
+        )
+    assert loss_fn.dir_offset == 0.78539
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("pointpillars.kitti.openpcdet", id="pointpillars.kitti.openpcdet"),
+        pytest.param("pointpillars.kitti.mmdet3d", id="pointpillars.kitti.mmdet3d"),
+        pytest.param("pointpillars.kitti-car.mmdet3d", id="pointpillars.kitti-car.mmdet3d"),
+        pytest.param("second.kitti.openpcdet", marks=SPCONV, id="second.kitti.openpcdet"),
+        pytest.param("second.kitti.mmdet3d", marks=SPCONV, id="second.kitti.mmdet3d"),
+        pytest.param("second.kitti-car.mmdet3d", marks=SPCONV, id="second.kitti-car.mmdet3d"),
+        pytest.param("second-dynamic-voxel.kitti.mmdet3d", marks=SPCONV, id="second-dynamic-voxel.kitti.mmdet3d"),
+        pytest.param("second-iou.kitti.openpcdet", marks=SPCONV, id="second-iou.kitti.openpcdet"),
+        pytest.param("part-a2.kitti.mmdet3d", marks=SPCONV, id="part-a2.kitti.mmdet3d"),
+        pytest.param("pv-rcnn.kitti.mmdet3d", marks=SPCONV, id="pv-rcnn.kitti.mmdet3d"),
+    ],
+)
+def test_anchor_loss_rebuilds_the_anchors_of_the_registered_head(name: str) -> None:
+    model = create_model(name, task="detection")
+    assert isinstance(
+        model, (PointPillarsDetection, SECONDDetection, SECONDIoUDetection, PartA2Detection, PVRCNNDetection)
+    )
+    head = model.head
+    assert isinstance(head, AnchorHead)
+    loss_fn = AnchorHeadLoss(
+        model.num_classes,
+        point_cloud_range=model.point_cloud_range,
+        voxel_size=model.voxel_size,
+        anchor_sizes=model.anchor_sizes,
+        anchor_bottom_heights=model.anchor_bottom_heights,
+        feature_map_stride=model.feature_map_stride,
+        matched_thresholds=[0.6] * model.num_classes,
+        unmatched_thresholds=[0.45] * model.num_classes,
+        anchor_rotations=model.anchor_rotations,
+        # Only PointPillars moves its anchor grid; the other detectors span the point-cloud range.
+        anchor_range=model.anchor_range if isinstance(model, PointPillarsDetection) else None,
+        align_center=model.align_center if isinstance(model, PointPillarsDetection) else False,
+        dir_offset=head.dir_offset,
+    )
+    assert torch.equal(loss_fn.anchors, head.anchors)
 
 
 def _multi_loss(**kwargs: Any) -> MultiGroupAnchorHeadLoss:

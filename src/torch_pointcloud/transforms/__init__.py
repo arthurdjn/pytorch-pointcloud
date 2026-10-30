@@ -110,6 +110,7 @@ from .utils import (
 )
 from .voxelization import (
     DivisiblePad,
+    DynamicVoxelize,
     HardVoxelize,
     Voxelize,
 )
@@ -186,6 +187,7 @@ __all__ = [
     "ToFloat",
     "ToTensor",
     "DivisiblePad",
+    "DynamicVoxelize",
     "HardVoxelize",
     "Voxelize",
 ]

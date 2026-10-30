@@ -40,13 +40,13 @@ from .pointmlp import PointMLPClassification, PointMLPSegmentation
 from .pointnet import PointNetClassification, PointNetSegmentation
 from .pointnet2 import PointNet2Classification, PointNet2Segmentation
 from .pointnext import PointNeXtClassification, PointNeXtPartSegmentation, PointNeXtSegmentation
-from .pointpillars import PointPillarsDetection, PointPillarsMultiHeadDetection
+from .pointpillars import PointPillarsDetection, PointPillarsFPNDetection, PointPillarsMultiHeadDetection
 from .pointrcnn import PointRCNNDetection
 from .pv_rcnn import PVRCNNDetection
 from .pvcnn import PVCNNClassification, PVCNNSegmentation
 from .pvcnn2 import PVCNN2Classification, PVCNN2Segmentation
 from .randlanet import RandLANetClassification, RandLANetSegmentation
-from .second import SECONDDetection, SECONDMultiHeadDetection
+from .second import SECONDDetection, SECONDIoUDetection, SECONDMultiHeadDetection
 from .sonata import SonataSegmentation
 from .spformer_unet import SPFormerUNetSegmentation
 from .sphereformer import SphereFormerSegmentation
@@ -118,6 +118,7 @@ __all__ = [
     "PointNeXtPartSegmentation",
     "PointNeXtSegmentation",
     "PointPillarsDetection",
+    "PointPillarsFPNDetection",
     "PointPillarsMultiHeadDetection",
     "PointRCNNDetection",
     "PVRCNNDetection",
@@ -128,6 +129,7 @@ __all__ = [
     "RandLANetClassification",
     "RandLANetSegmentation",
     "SECONDDetection",
+    "SECONDIoUDetection",
     "SECONDMultiHeadDetection",
     "SonataSegmentation",
     "SPFormerUNetSegmentation",

@@ -26,7 +26,8 @@ from torch.utils.data import DataLoader, Dataset
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.parta2 import PartA2Detection
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
-from torch_pointcloud.ops.voxelization import hard_voxelize
+from torch_pointcloud.models.second import SECONDIoUDetection
+from torch_pointcloud.ops.voxelization import dynamic_voxelize, hard_voxelize
 from torch_pointcloud.utils.data import collate, select_inputs
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
@@ -263,7 +264,10 @@ def test_pretrained_model(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["votenet.scannet.fair", "votenet.sunrgbd.fair"])
+@pytest.mark.parametrize(
+    "model_name",
+    ["votenet.scannet.fair", "votenet.sunrgbd.fair", "votenet.scannet.mmdet3d", "votenet.sunrgbd.mmdet3d"],
+)
 def test_pretrained_votenet(
     model_name: str,
     force_regen: bool,
@@ -301,7 +305,9 @@ def test_pretrained_votenet(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["3detr.scannet.fair", "3detr.sunrgbd.fair", "3detr-m.scannet.fair"])
+@pytest.mark.parametrize(
+    "model_name", ["3detr.scannet.fair", "3detr.sunrgbd.fair", "3detr-m.scannet.fair", "3detr-m.sunrgbd.fair"]
+)
 def test_pretrained_threedetr(
     model_name: str,
     force_regen: bool,
@@ -345,7 +351,7 @@ def test_pretrained_threedetr(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["pointrcnn.kitti.openpcdet"])
+@pytest.mark.parametrize("model_name", ["pointrcnn.kitti.openpcdet", "pointrcnn-iou.kitti.openpcdet"])
 def test_pretrained_pointrcnn(
     model_name: str,
     force_regen: bool,
@@ -579,22 +585,30 @@ def test_pretrained_centerpoint(
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
-ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
-    ("pointpillars.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
-    ("second.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),
-    ("pointpillars-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 30000),
-    ("second-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 60000),
+# The last column subsamples the flattened head maps, which reach tens of MB for the nuScenes grids.
+ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int, int]] = [
+    ("pointpillars.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000, 1),
+    ("second.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000, 1),
+    ("pointpillars-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 30000, 1),
+    ("second-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 60000, 1),
+    ("pointpillars.kitti.mmdet3d", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000, 97),
+    ("pointpillars.kitti-car.mmdet3d", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000, 97),
+    ("second.kitti.mmdet3d", (0.0, -40.0, -3.0, 70.4, 40.0, 1.0), (0.05, 0.05, 0.1), 5, 40000, 97),
+    ("second.kitti-car.mmdet3d", (0.0, -40.0, -3.0, 70.4, 40.0, 1.0), (0.05, 0.05, 0.1), 5, 40000, 97),
+    ("pointpillars.nuscenes.mmdet3d", (-50.0, -50.0, -5.0, 50.0, 50.0, 3.0), (0.25, 0.25, 8.0), 64, 40000, 97),
+    ("pointpillars-fpn.nuscenes.mmdet3d", (-50.0, -50.0, -5.0, 50.0, 50.0, 3.0), (0.25, 0.25, 8.0), 64, 40000, 97),
 ]
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name,pc_range,voxel_size,max_num_points,max_num_voxels", ANCHOR_DETECTION_MODELS)
+@pytest.mark.parametrize("model_name,pc_range,voxel_size,max_num_points,max_num_voxels,stride", ANCHOR_DETECTION_MODELS)
 def test_pretrained_anchor_detection(
     model_name: str,
     pc_range: Tuple[float, ...],
     voxel_size: Tuple[float, ...],
     max_num_points: int,
     max_num_voxels: int,
+    stride: int,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -640,11 +654,14 @@ def test_pretrained_anchor_detection(
     parts: List[Tensor] = []
     for key in ("cls", "box"):
         value = out[key]
-        parts += [t.reshape(-1) for t in value] if isinstance(value, (list, tuple)) else [value.reshape(-1)]
+        tensors = value if isinstance(value, (list, tuple)) else [value]
+        parts += [t.reshape(-1)[::stride] for t in tensors]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
 KITTI_RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
+
+
 # Fixed RoIs (four per scene) so the second stage is pinned without depending on the proposal NMS, whose near-ties
 # flip under float noise on a random cloud.
 KITTI_ROIS = [
@@ -679,6 +696,37 @@ def _kitti_two_stage_inputs(in_channels: int) -> Tuple[Tensor, ...]:
 
 
 @pytest.mark.pretrained
+def test_pretrained_dynamic_voxel_detection(
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SECOND on dynamic voxels: a strided sample of the anchor head maps, the input voxelized as `DynamicVoxelize`."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("SECOND needs spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "second-dynamic-voxel.kitti.mmdet3d"
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 8000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (KITTI_RANGE[d + 3] - KITTI_RANGE[d]) + KITTI_RANGE[d]
+    points = torch.cat([pos, torch.rand(n_per_scene * batch_size, model.in_channels - 3)], dim=1).to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+    voxels, voxel_indices, _ = dynamic_voxelize(points, batch, (0.05, 0.05, 0.1), KITTI_RANGE)
+    num_points = torch.ones(voxels.shape[0], dtype=torch.int32, device=DEVICE)
+    with torch.no_grad():
+        out = model(voxels.unsqueeze(1), voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97]]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
 def test_pretrained_pv_rcnn(
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
@@ -708,6 +756,32 @@ def test_pretrained_pv_rcnn(
         rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, x, pos, batch, stage_features, stage_indices, bev)
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+def test_pretrained_second_iou(
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SECOND-IoU: a strided sample of the anchor head maps and the IoU head on fixed RoIs."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("SECOND-IoU needs spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "second-iou.kitti.openpcdet"
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+    assert isinstance(model, SECONDIoUDetection)
+
+    voxels, pos_voxel, num_points, batch_voxel, _, _, _, rois, roi_batch = _kitti_two_stage_inputs(model.in_channels)
+    with torch.no_grad():
+        features = model.forward_features(voxels, pos_voxel, num_points, batch_voxel)
+        out = model.forward_head(features)
+        rcnn_cls = model.roi_head(rois, roi_batch, features)
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 

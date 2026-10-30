@@ -1019,3 +1019,28 @@ def threedetr_scannet(**hparams: Any) -> ThreeDETRDetection:
 )
 def threedetr_sunrgbd(**hparams: Any) -> ThreeDETRDetection:
     return ThreeDETRDetection(**hparams)
+
+
+@register_model(
+    "3detr-m.sunrgbd.fair",
+    task="detection",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/3detr-m.sunrgbd.fair/resolve/79f523a1c1fef4a7294ef0020230895999e6bcab/model.safetensors",
+        dataset="sunrgbd",
+        metrics={"mAP@0.25": 59.70, "mAP@0.5": 31.29},
+        classes=SUNRGBD_CLASSES,
+        author="fair",
+        license="Apache-2.0",
+    ),
+    transform=_SUNRGBD_TRANSFORM,
+    hparams=dict(
+        in_channels=0,
+        num_classes=10,
+        num_heading_bins=12,
+        num_queries=128,
+        encoder_type="masked",
+        encoder_dropout=0.3,
+    ),
+)
+def threedetr_m_sunrgbd(**hparams: Any) -> ThreeDETRDetection:
+    return ThreeDETRDetection(**hparams)

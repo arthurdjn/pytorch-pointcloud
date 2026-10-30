@@ -23,12 +23,14 @@ def generate_anchors(
     anchor_rotations: Sequence[float],
     anchor_bottom_heights: Sequence[float],
     *,
+    align_center: bool = False,
     dtype: torch.dtype = torch.float32,
 ) -> Tensor:
     r"""Generate axis-aligned anchors for a single class over a BEV feature map.
 
-    A port of OpenPCDet's `AnchorGenerator` with `align_center=False`: anchor centers are placed on a
-    grid spanning `point_cloud_range` (endpoints inclusive), then `anchor_bottom_heights` are lifted
+    By default anchor centers are placed on a grid spanning `point_cloud_range` (endpoints inclusive); with
+    `align_center=True` they sit at the centers of the feature-map cells (the range is cut into
+    `feature_map_size` cells and each anchor takes the cell middle). The `anchor_bottom_heights` are then lifted
     by half the box height to box centers.
 
     Args:
@@ -37,6 +39,7 @@ def generate_anchors(
         anchor_sizes: Box sizes $(d_x, d_y, d_z)$, one row per size template.
         anchor_rotations: Yaw angles (radians).
         anchor_bottom_heights: Anchor bottom $z$ per height template.
+        align_center: Place the anchors at the feature-map cell centers instead of on the inclusive range grid.
         dtype: Anchor dtype.
 
     Returns:
@@ -44,11 +47,16 @@ def generate_anchors(
     """
     nx, ny = feature_map_size
     x_min, y_min, _, x_max, y_max, _ = point_cloud_range
-    x_stride = (x_max - x_min) / (nx - 1)
-    y_stride = (y_max - y_min) / (ny - 1)
-
-    x_shifts = torch.arange(x_min, x_max + 1e-5, step=x_stride, dtype=dtype)
-    y_shifts = torch.arange(y_min, y_max + 1e-5, step=y_stride, dtype=dtype)
+    if align_center:
+        x_stride = (x_max - x_min) / nx
+        y_stride = (y_max - y_min) / ny
+        x_shifts = torch.arange(nx, dtype=dtype) * x_stride + (x_min + x_stride / 2)
+        y_shifts = torch.arange(ny, dtype=dtype) * y_stride + (y_min + y_stride / 2)
+    else:
+        x_stride = (x_max - x_min) / (nx - 1)
+        y_stride = (y_max - y_min) / (ny - 1)
+        x_shifts = torch.arange(x_min, x_max + 1e-5, step=x_stride, dtype=dtype)
+        y_shifts = torch.arange(y_min, y_max + 1e-5, step=y_stride, dtype=dtype)
     z_shifts = torch.tensor(list(anchor_bottom_heights), dtype=dtype)
 
     sizes = torch.tensor([list(s) for s in anchor_sizes], dtype=dtype)

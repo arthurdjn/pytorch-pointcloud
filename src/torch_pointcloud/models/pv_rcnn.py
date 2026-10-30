@@ -3,6 +3,7 @@
 {{ paper("1912.13192") }}
 """
 
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
@@ -370,7 +371,8 @@ class PVRCNNDetection(DetectionModel):
         upsample_strides: 2D backbone upsample strides per level.
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the anchor head.
-        dir_offset: Direction-classifier angle offset.
+        dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
+            warns and uses $0.78539$) and an error from 0.0.20.
         dir_limit_offset: Heading wrap offset used during decoding.
         proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
         proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
@@ -415,7 +417,7 @@ class PVRCNNDetection(DetectionModel):
         upsample_strides: Sequence[int] = (1, 2),
         num_upsample_filters: Sequence[int] = (256, 256),
         num_dir_bins: int = 2,
-        dir_offset: float = 0.78539,
+        dir_offset: Optional[float] = None,
         dir_limit_offset: float = 0.0,
         proposal_pre_maxsize: int = 1024,
         proposal_post_maxsize: int = 100,
@@ -447,6 +449,15 @@ class PVRCNNDetection(DetectionModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if dir_offset is None:
+            warnings.warn(
+                "Omitting `dir_offset` of `PVRCNNDetection` is deprecated since 0.0.19 and an error from 0.0.20; "
+                "pass the direction offset the weights were trained with (0.78539 was the default).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            dir_offset = 0.78539
+
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
@@ -779,7 +790,7 @@ class PVRCNNDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel", "x", "pos", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/772e84df456a383eb47366efebda099f7cfde296/model.safetensors",
+        url="hf://torch-pointcloud/pv-rcnn.kitti.mmdet3d/resolve/1c52671ddda0fc21e263e8ce401a2fbd9a71ff1c/model.safetensors",
         dataset="kitti",
         metrics={"mAP": 72.16, "AP/Car": 83.54, "AP/Pedestrian": 59.73, "AP/Cyclist": 73.20},
         classes=("Pedestrian", "Cyclist", "Car"),
@@ -816,6 +827,7 @@ class PVRCNNDetection(DetectionModel):
         # Pedestrian, Cyclist, Car.
         anchor_sizes=[[0.8, 0.6, 1.73], [1.76, 0.6, 1.73], [3.9, 1.6, 1.56]],
         anchor_bottom_heights=[-0.6, -0.6, -1.78],
+        dir_offset=0.78539,
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )

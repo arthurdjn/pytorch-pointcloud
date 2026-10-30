@@ -1,4 +1,11 @@
-"""Benchmark PointRCNN on KITTI with its evaluation protocol."""
+"""Benchmark PointRCNN on KITTI with its evaluation protocol.
+
+NOTE: `pointrcnn-iou.kitti.openpcdet` reaches 68.50 mAP (Pedestrian 55.02) against the 69.47 (Pedestrian 58.32) of the
+OpenPCDet model zoo. We ran `python tools/test.py --cfg_file cfgs/kitti_models/pointrcnn_iou.yaml --ckpt
+pointrcnn_iou_7875.pth --batch_size 4` at OpenPCDet commit 233f849 on the same 3769 val frames (`kitti_infos_val.pkl`
+built by `KittiDataset.get_infos`): 68.25 mAP (Car 78.80, Pedestrian 55.23, Cyclist 70.73). Both sample 16 384 points
+per frame at random.
+"""
 
 import os
 from argparse import ArgumentParser, Namespace

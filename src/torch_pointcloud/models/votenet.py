@@ -12,8 +12,8 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
-from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES, SCANNET_DETECTION_MEAN_SIZES
+from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES, SUNRGBD_MEAN_SIZES
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
 from torch_pointcloud.ops.box3d import class_to_angle, class_to_size
 from torch_pointcloud.ops.cluster import fps
@@ -587,41 +587,6 @@ class VoteNetDetection(DetectionModel):
         }
 
 
-_SCANNET_MEAN_SIZES = [
-    [0.769667, 0.811602, 0.925737],
-    [1.876858, 1.842560, 1.193157],
-    [0.613280, 0.614861, 0.718270],
-    [1.395501, 1.512155, 0.834436],
-    [0.979496, 1.067515, 0.632969],
-    [0.531663, 0.595558, 1.750015],
-    [0.962471, 0.724623, 1.148187],
-    [0.832219, 1.049094, 1.687566],
-    [0.211322, 0.420616, 0.537285],
-    [1.444007, 1.897083, 0.269857],
-    [1.029426, 1.404080, 0.875543],
-    [1.376641, 0.655218, 1.681313],
-    [0.665082, 0.711119, 1.298853],
-    [0.419992, 0.379069, 1.751397],
-    [0.593596, 0.591249, 0.739190],
-    [0.508676, 0.506561, 0.301362],
-    [1.151153, 1.054630, 0.497068],
-    [0.475353, 0.492495, 0.580212],
-]
-
-_SUNRGBD_MEAN_SIZES = [
-    [2.114256, 1.620300, 0.927272],
-    [0.791118, 1.279516, 0.718182],
-    [0.923508, 1.867419, 0.845495],
-    [0.591958, 0.552978, 0.827272],
-    [0.699104, 0.454178, 0.756250],
-    [0.695190, 1.346299, 0.736364],
-    [0.528526, 1.002642, 1.172878],
-    [0.500618, 0.632163, 0.683424],
-    [0.404671, 1.071108, 1.688889],
-    [0.765840, 1.398258, 0.472728],
-]
-
-
 @register_model(
     "votenet.scannet.fair",
     task="detection",
@@ -666,11 +631,63 @@ _SUNRGBD_MEAN_SIZES = [
         vote_factor=1,
         num_heading_bins=1,
         num_size_clusters=18,
-        mean_sizes=_SCANNET_MEAN_SIZES,
+        mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
         sampling="seed_fps",
     ),
 )
 def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
+    return VoteNetDetection(**hparams)
+
+
+@register_model(
+    "votenet.scannet.mmdet3d",
+    task="detection",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/votenet.scannet.mmdet3d/resolve/90a36939b3fdf32cead578d5efb0e509790621c8/model.safetensors",
+        dataset="scannet",
+        metrics={"mAP@0.25": 62.02, "mAP@0.5": 39.94},
+        classes=SCANNET_DETECTION_CLASSES,
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
+        [
+            T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            # `color` / `normal` / `segment` / `instance` are carried along only when present.
+            T.RandomSample(
+                keys=[DataKeys.POS, "height", DataKeys.COLOR, DataKeys.NORMAL, DataKeys.SEGMENT, DataKeys.INSTANCE],
+                num_samples=40000,
+                allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
+            ),
+            T.Cat(keys=["height"], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=1,
+        num_classes=18,
+        sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
+        sa_num_points=[2048, 1024, 512, 256],
+        sa_radii=[0.2, 0.4, 0.8, 1.2],
+        sa_num_neighbors=[64, 32, 16, 16],
+        fp_channels=[[256, 256], [256, 256]],
+        vote_aggr_channels=[128, 128, 128],
+        vote_aggr_radius=0.3,
+        vote_aggr_num_neighbors=16,
+        num_proposals=256,
+        vote_factor=1,
+        num_heading_bins=1,
+        num_size_clusters=18,
+        mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
+        sampling="seed_fps",
+    ),
+)
+def votenet_mmdet3d_scannet(**hparams: Any) -> VoteNetDetection:
     return VoteNetDetection(**hparams)
 
 
@@ -713,9 +730,56 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
         vote_factor=1,
         num_heading_bins=12,
         num_size_clusters=10,
-        mean_sizes=_SUNRGBD_MEAN_SIZES,
+        mean_sizes=SUNRGBD_MEAN_SIZES,
         sampling="seed_fps",
     ),
 )
 def votenet_fair_base_sunrgbd(**hparams: Any) -> VoteNetDetection:
+    return VoteNetDetection(**hparams)
+
+
+@register_model(
+    "votenet.sunrgbd.mmdet3d",
+    task="detection",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/votenet.sunrgbd.mmdet3d/resolve/2da0e116f276bc971fcfcf11ad5c0e390d55c69b/model.safetensors",
+        dataset="sunrgbd",
+        metrics={"mAP@0.25": 59.80, "mAP@0.5": 36.87},
+        classes=SUNRGBD_CLASSES,
+        author="mmdet3d",
+        license="Apache-2.0",
+    ),
+    transform=T.Compose(
+        [
+            T.AxisMinOffset(keys=DataKeys.POS, axis=2, quantile=0.0099, dst_keys="height"),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+            T.RandomSample(
+                keys=[DataKeys.POS, "height", DataKeys.COLOR],
+                num_samples=20000,
+                allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
+            ),
+            T.Cat(keys=["height"], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=1,
+        num_classes=10,
+        sa_channels=[[64, 64, 128], [128, 128, 256], [128, 128, 256], [128, 128, 256]],
+        sa_num_points=[2048, 1024, 512, 256],
+        sa_radii=[0.2, 0.4, 0.8, 1.2],
+        sa_num_neighbors=[64, 32, 16, 16],
+        fp_channels=[[256, 256], [256, 256]],
+        vote_aggr_channels=[128, 128, 128],
+        vote_aggr_radius=0.3,
+        vote_aggr_num_neighbors=16,
+        num_proposals=256,
+        vote_factor=1,
+        num_heading_bins=12,
+        num_size_clusters=10,
+        mean_sizes=SUNRGBD_MEAN_SIZES,
+        sampling="seed_fps",
+    ),
+)
+def votenet_mmdet3d_sunrgbd(**hparams: Any) -> VoteNetDetection:
     return VoteNetDetection(**hparams)
