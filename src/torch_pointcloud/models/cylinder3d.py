@@ -242,8 +242,9 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         skips: List[FeaturesDict] = []
         for block, downsample in zip(self.encoder, self.downsamples):
             sparse_x = block(sparse_x)
-            x_skip, pos_grid_skip, batch_skip = convert_from_spconv_tensor(sparse_x)
-            skips.append({"x": x_skip, "pos_grid": pos_grid_skip, "batch": batch_skip})
+            if return_intermediates:
+                x_skip, pos_grid_skip, batch_skip = convert_from_spconv_tensor(sparse_x)
+                skips.append({"x": x_skip, "pos_grid": pos_grid_skip, "batch": batch_skip})
             sparse_x = downsample(sparse_x)
 
         if return_intermediates:
