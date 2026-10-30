@@ -159,7 +159,8 @@ def configure_objects(args: Namespace) -> list[dict[str, Tensor]]:
         force_process=args.force_process,
     )
     split = Path(args.train_split_file).stem if args.train_split_file else "training"
-    path = Path(dataset.processed_split_dir).parent / f"objects_{split}.pt"
+    classes = "-".join(KITTI_DETECTION_CLASSES).lower()
+    path = Path(dataset.processed_split_dir).parent / f"objects_{split}_{classes}.pt"
     if path.exists() and not args.force_process:
         objects = torch.load(path, weights_only=True)
     else:
