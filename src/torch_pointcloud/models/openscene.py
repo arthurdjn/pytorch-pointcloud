@@ -207,7 +207,7 @@ class OpenSceneOpenVocabularySegmentation(OpenVocabularySegmentationModel):
     task="open-vocabulary-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/openscene-openseg.scannet20.songyou-peng/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/openscene-openseg.scannet20.songyou-peng/resolve/8cb7996e87c7dccc938367d48da90f3600eb991e/model.safetensors",
         dataset="scannet20",
         metrics={
             "mIoU": 46.11,
@@ -264,7 +264,7 @@ def openscene_openseg_scannet20(**hparams: Any) -> OpenSceneOpenVocabularySegmen
     task="open-vocabulary-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/openscene-lseg.scannet20.songyou-peng/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/openscene-lseg.scannet20.songyou-peng/resolve/a44269075170bd33d1d4f7a5f84abbd0d53b2b9d/model.safetensors",
         dataset="scannet20",
         metrics={
             "mIoU": 52.97,
@@ -321,7 +321,7 @@ def openscene_lseg_scannet20(**hparams: Any) -> OpenSceneOpenVocabularySegmentat
     task="open-vocabulary-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/openscene-openseg.nuscenes.songyou-peng/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/openscene-openseg.nuscenes.songyou-peng/resolve/44279170b08beabff330f70e597aeef2ed188cc7/model.safetensors",
         dataset="nuscenes",
         metrics={
             "mIoU": 42.97,
