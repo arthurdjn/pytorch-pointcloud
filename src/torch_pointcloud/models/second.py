@@ -1018,7 +1018,7 @@ def second_iou_openpcdet_kitti(**hparams: Any) -> SECONDIoUDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/second.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 65.86, "AP/Pedestrian": 53.81, "AP/Cyclist": 66.39, "AP/Car": 77.39},
+        metrics={"mAP": 65.55, "AP/Pedestrian": 52.94, "AP/Cyclist": 66.32, "AP/Car": 77.39},
         classes=("Pedestrian", "Cyclist", "Car"),
         author="mmdet3d",
         license="Apache-2.0",
@@ -1103,7 +1103,7 @@ def second_mmdet3d_kitti_car(**hparams: Any) -> SECONDDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/second-dynamic-voxel.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 65.20, "AP/Pedestrian": 56.84, "AP/Cyclist": 62.11, "AP/Car": 76.65},
+        metrics={"mAP": 65.23, "AP/Pedestrian": 56.78, "AP/Cyclist": 62.26, "AP/Car": 76.66},
         classes=("Pedestrian", "Cyclist", "Car"),
         author="mmdet3d",
         license="Apache-2.0",

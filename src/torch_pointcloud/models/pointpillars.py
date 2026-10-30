@@ -714,7 +714,7 @@ def pointpillars_openpcdet_kitti(**hparams: Any) -> PointPillarsDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars.kitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 63.93, "AP/Pedestrian": 52.07, "AP/Cyclist": 62.07, "AP/Car": 77.65},
+        metrics={"mAP": 64.00, "AP/Pedestrian": 52.26, "AP/Cyclist": 62.10, "AP/Car": 77.66},
         classes=("Pedestrian", "Cyclist", "Car"),
         author="mmdet3d",
         license="Apache-2.0",
@@ -758,7 +758,7 @@ def pointpillars_mmdet3d_kitti(**hparams: Any) -> PointPillarsDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars.kitti-car.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 77.60, "AP/Car": 77.60},
+        metrics={"mAP": 77.61, "AP/Car": 77.61},
         classes=("Car",),
         author="mmdet3d",
         license="Apache-2.0",
@@ -855,7 +855,7 @@ def pointpillars_openpcdet_multihead_nuscenes(**hparams: Any) -> PointPillarsMul
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 34.79, "NDS": 49.33},
+        metrics={"mAP": 34.69, "NDS": 49.04},
         classes=NUSCENES_DETECTION_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -910,7 +910,7 @@ def pointpillars_mmdet3d_nuscenes(**hparams: Any) -> PointPillarsDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars-fpn.nuscenes.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 39.16, "NDS": 52.93},
+        metrics={"mAP": 40.17, "NDS": 52.98},
         classes=NUSCENES_DETECTION_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
