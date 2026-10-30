@@ -251,7 +251,8 @@ def trilinear_sparse_devoxelize(
         return x_voxel.new_zeros(pos.shape[0], x_voxel.shape[1])
 
     lower = torch.floor(pos)
-    frac = pos - lower
+    # Half-precision weights would round `eps` to zero and turn a position with no occupied corner into 0 / 0.
+    frac = (pos - lower).to(torch.promote_types(pos.dtype, torch.float32))
     corner_offsets = torch.tensor(
         [[i, j, k] for i in (0, 1) for j in (0, 1) for k in (0, 1)],
         device=pos.device,

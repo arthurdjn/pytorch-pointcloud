@@ -343,6 +343,17 @@ def test_trilinear_sparse_devoxelize_normalize_averages_the_occupied_corners() -
     assert out.view(-1).tolist() == pytest.approx([3.0, 2.0, 0.0, 9.0])
 
 
+def test_trilinear_sparse_devoxelize_normalize_in_half_precision_reads_zeros_without_corners() -> None:
+    x_voxel = torch.tensor([[2.0], [6.0]], dtype=torch.half)
+    pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
+    pos = torch.tensor([[0.25, 0.5, 0.0], [0.0, 0.0, 0.0], [5.0, 5.0, 5.0]], dtype=torch.half)
+    zeros = torch.zeros(3, dtype=torch.long)
+    out = trilinear_sparse_devoxelize(x_voxel, pos_voxel, zeros[:2], pos, zeros, normalize=True)
+
+    assert out.dtype == torch.half
+    assert out.view(-1).tolist() == pytest.approx([3.0, 2.0, 0.0])
+
+
 def test_trilinear_sparse_devoxelize_backward_reaches_the_voxels() -> None:
     x_voxel = torch.tensor([[1.0], [3.0]], requires_grad=True)
     pos_voxel = torch.tensor([[0, 0, 0], [1, 0, 0]])
