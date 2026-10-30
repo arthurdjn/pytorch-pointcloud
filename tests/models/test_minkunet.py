@@ -1,5 +1,5 @@
 import math
-from typing import Dict
+from typing import Dict, Tuple
 
 import pytest
 import torch
@@ -127,9 +127,16 @@ def test_minkunet_head_stages_widen_the_head() -> None:
     assert model.head.in_features == 256 + 128 + 96
 
 
-def test_minkunet_rejects_unknown_head_stages() -> None:
+@pytest.mark.parametrize(
+    "head_stages",
+    [
+        pytest.param((0, 5), id="out-of-range"),
+        pytest.param((), id="empty"),
+    ],
+)
+def test_minkunet_rejects_unknown_head_stages(head_stages: Tuple[int, ...]) -> None:
     with pytest.raises(ValueError, match="head_stages"):
-        MinkUNetSegmentation(in_channels=4, num_classes=2, head_stages=(0, 5))
+        MinkUNetSegmentation(in_channels=4, num_classes=2, head_stages=head_stages)
 
 
 @_REQUIRES_CUDA

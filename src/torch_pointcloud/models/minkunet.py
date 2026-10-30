@@ -265,10 +265,12 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
                 f"got {len(decoder_depths)} and {len(decoder_channels)}."
             )
 
-        if head_stages is not None and not all(0 <= i <= len(decoder_channels) for i in head_stages):
+        if head_stages is not None and (
+            len(head_stages) == 0 or not all(0 <= i <= len(decoder_channels) for i in head_stages)
+        ):
             raise ValueError(
-                f"`head_stages` must index the bottleneck (0) or a decoder stage (1 to {len(decoder_channels)}), "
-                f"got {tuple(head_stages)}."
+                f"`head_stages` must be non-empty and index the bottleneck (0) or a decoder stage "
+                f"(1 to {len(decoder_channels)}), got {tuple(head_stages)}."
             )
 
         self.stem_channels = stem_channels
