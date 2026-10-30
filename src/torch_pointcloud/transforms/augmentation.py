@@ -493,11 +493,11 @@ class RandomJitter(DictTransform, Randomizable):
         keys: Keys to jitter.
         sigma: Standard deviation of the normal noise, or half-width of the uniform noise.
         clip: If not `None`, clip the noise to `[-clip, clip]`.
-        distribution: `normal` draws Gaussian noise, `uniform` draws noise uniformly in `[-sigma, sigma]`.
         p: Probability of applying the transform.
         dst_keys: Where to store the jittered tensors.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
         allow_missing_keys: If `True`, silently skip absent keys.
+        distribution: `normal` draws Gaussian noise, `uniform` draws noise uniformly in `[-sigma, sigma]`.
     """
 
     def __init__(
@@ -505,11 +505,11 @@ class RandomJitter(DictTransform, Randomizable):
         keys: KeyCollection,
         sigma: float = 0.01,
         clip: Optional[float] = 0.05,
-        distribution: Literal["normal", "uniform"] = "normal",
         p: float = 1.0,
         dst_keys: Optional[KeyCollection] = None,
         seed: Optional[int] = None,
         allow_missing_keys: bool = False,
+        distribution: Literal["normal", "uniform"] = "normal",
     ) -> None:
         if distribution not in ("normal", "uniform"):
             raise ValueError(f"Invalid distribution: {distribution!r}. Expected 'normal' or 'uniform'.")

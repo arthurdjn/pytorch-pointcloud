@@ -434,6 +434,11 @@ def test_random_jitter_rejects_unknown_distribution() -> None:
         T.RandomJitter(keys="pos", distribution="laplace")  # type: ignore[arg-type]
 
 
+def test_random_jitter_keeps_its_positional_parameters() -> None:
+    jitter = T.RandomJitter("pos", 0.02, 0.05, 0.5)
+    assert (jitter.sigma, jitter.clip, jitter.p, jitter.distribution) == (0.02, 0.05, 0.5, "normal")
+
+
 def _pair_rotate(**kwargs: Any) -> T.RandomPairRotate:
     return T.RandomPairRotate(src_keys=["pos", "normal"], ref_keys=["ref_pos"], transform_key="transform", **kwargs)
 
