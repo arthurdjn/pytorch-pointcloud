@@ -364,7 +364,8 @@ class LitDetectionModel(LitModel):
             `VoteNetLoss` carve-out). Either way its `forward(output, data)` returns a dict whose `loss`
             entry is the total to optimize. Leave `None` to benchmark a detector whose training loss is not
             ported.
-        score_threshold: Minimum score to keep a decoded box in the eval postprocess.
+        score_threshold: Minimum score to keep a decoded box in the eval postprocess. When `decode` emits
+            `class_scores`, every (box, class) pair above it is kept and suppressed per class on its own score.
         nms_iou: IoU threshold of the per-class 3D NMS in the eval postprocess.
         nms_rotated: Suppress on the exact rotated BEV IoU instead of the axis-aligned 3D IoU (see
             `nms3d`); the KITTI outdoor protocol.
@@ -455,21 +456,23 @@ class LitDetectionModel(LitModel):
             )
             keep = keep & (counts >= self.min_points)
 
-        boxes, scores, labels, det_batch = (
-            det["boxes"][keep],
-            det["scores"][keep],
-            det["labels"][keep],
-            det["batch"][keep],
-        )
+        index = keep.nonzero().squeeze(1)
+        scores, labels = det["scores"][index], det["labels"][index]
+        if "class_scores" in det:
+            # Every (box, class) pair above the threshold is a candidate, suppressed on its own class score.
+            pair, labels = (det["class_scores"][index] > self.score_threshold).nonzero(as_tuple=True)
+            index = index[pair]
+            scores = det["class_scores"][index, labels]
+        boxes, det_batch = det["boxes"][index], det["batch"][index]
 
         idx = nms3d(boxes, scores, self.nms_iou, labels=labels, batch=det_batch, rotated=self.nms_rotated)
         extras: Dict[str, Tensor] = {}
         for key, value in det.items():
-            if key in ("boxes", "scores", "labels", "batch", "class_probs"):
+            if key in ("boxes", "scores", "labels", "batch", "class_probs", "class_scores"):
                 continue
 
             assert isinstance(value, Tensor)
-            extras[key] = value[keep][idx]
+            extras[key] = value[index][idx]
 
         preds: Dict[str, Tensor] = {
             "boxes": boxes[idx],
@@ -481,7 +484,7 @@ class LitDetectionModel(LitModel):
 
         if "class_probs" in det:
             # Indoor AP convention: score every surviving box against each class by its class probability.
-            probs = det["class_probs"][keep][idx]
+            probs = det["class_probs"][index][idx]
             num_classes = probs.size(-1)
             preds = {
                 "boxes": boxes[idx].repeat_interleave(num_classes, dim=0),

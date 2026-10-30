@@ -22,6 +22,7 @@ from ._registry import (
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
+from .fcaf3d import FCAF3DDetection
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .octformer import OctFormerClassification, OctFormerSegmentation
@@ -53,6 +54,7 @@ from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
+from .tr3d import TR3DDetection
 from .utonia import UtoniaSegmentation
 from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
@@ -81,6 +83,7 @@ __all__ = [
     "DGCNNClassification",
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
+    "FCAF3DDetection",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
@@ -136,6 +139,7 @@ __all__ = [
     "SPVCNNClassification",
     "SPVCNNSegmentation",
     "ThreeDETRDetection",
+    "TR3DDetection",
     "UtoniaSegmentation",
     "VoteNetDetection",
     "VoxelMambaDetection",
