@@ -495,7 +495,13 @@ def test_semantic_segmentation_architecture(model_name: str, force_regen: bool, 
     _skip_if_model_deps_missing(model_name)
     models_dir = models_dir_factory("*.json")
 
-    model = create_model(model_name, task="semantic-segmentation", in_channels=3, num_classes=10)
+    model = create_model(
+        model_name,
+        task="semantic-segmentation",
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     _check_architecture_or_regen(
         model,
         model_name,

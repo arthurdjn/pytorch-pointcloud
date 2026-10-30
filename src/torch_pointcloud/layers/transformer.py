@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     import flash_attn
 
 
-flash_attn, _ = optional_import("flash_attn", url=_FLASH_ATTN_GITHUB_URL)
+flash_attn, _FLASH_ATTN_AVAILABLE = optional_import("flash_attn", url=_FLASH_ATTN_GITHUB_URL)
 
 
 class Attention(nn.Module):
@@ -190,8 +190,8 @@ class PackedAttention(nn.Module):
     flash attention: `cu_seqlens` holds the cumulative token counts $[0, n_0, n_0 + n_1, \ldots]$ of the contiguous
     samples and `max_seqlen` the largest count (build them once from a sorted batch index with `batch_to_cu_seqlens`).
     With `use_flash_attn`, attention runs the variable-length flash attention kernel in half precision, which needs the
-    `flash-attn` package and a CUDA device; otherwise `scaled_dot_product_attention` over the samples padded to
-    `max_seqlen`.
+    `flash-attn` package and CUDA tensors; otherwise `scaled_dot_product_attention` over the samples padded to
+    `max_seqlen`, in the input precision (in float32, several times slower than the flash kernel on a GPU).
 
     Args:
         embed_dim: Token dimension $C$, divisible by `num_heads`.
@@ -230,6 +230,12 @@ class PackedAttention(nn.Module):
         if embed_dim % num_heads != 0:
             raise ValueError(f"`embed_dim` ({embed_dim}) must be divisible by `num_heads` ({num_heads}).")
 
+        if use_flash_attn and not _FLASH_ATTN_AVAILABLE:
+            raise ImportError(
+                "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                "or pass `use_flash_attn=False`."
+            )
+
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -243,6 +249,9 @@ class PackedAttention(nn.Module):
         self.proj = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, x: Tensor, cu_seqlens: Tensor, max_seqlen: int, pos: OptTensor = None) -> Tensor:
+        if self.use_flash_attn and not x.is_cuda:
+            raise ValueError("The flash attention kernel needs CUDA tensors; pass `use_flash_attn=False` on the CPU.")
+
         N, C = x.shape
         q, k, v = self.qkv(x).view(N, 3, self.num_heads, C // self.num_heads).unbind(dim=1)
         q, k = self.q_norm(q).to(q.dtype), self.k_norm(k).to(k.dtype)

@@ -130,6 +130,22 @@ def test_packed_transformer_block_requires_a_norm() -> None:
         PackedTransformerBlock(32, 2, norm=None)
 
 
+def test_packed_attention_without_flash_attn_installed_names_the_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.layers.transformer._FLASH_ATTN_AVAILABLE", False)
+
+    with pytest.raises(ImportError, match="use_flash_attn=False"):
+        PackedAttention(32, 2, use_flash_attn=True)
+
+
+def test_packed_attention_flash_on_cpu_tensors_names_the_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("torch_pointcloud.layers.transformer._FLASH_ATTN_AVAILABLE", True)
+    attn = PackedAttention(32, 2, use_flash_attn=True)
+    x, _, cu_seqlens, max_seqlen = _packed_tokens((7, 12), 32)
+
+    with pytest.raises(ValueError, match="use_flash_attn=False"):
+        attn(x, cu_seqlens, max_seqlen)
+
+
 @pytest.mark.parametrize("norm", [pytest.param("layer_norm", id="string"), pytest.param(nn.LayerNorm, id="class")])
 def test_packed_transformer_block_keeps_samples_independent(norm: Any) -> None:
     torch.manual_seed(0)
