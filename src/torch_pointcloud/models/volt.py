@@ -363,6 +363,16 @@ class VoltSegmentation(SemanticSegmentationModel):
         return self.encoder(x, pos_grid, batch, return_intermediates=return_intermediates)
 
     def forward_decoder(self, x: Tensor, inverse: Tensor, offset: Tensor) -> Tensor:
+        r"""Bring the patch tokens back to the voxels.
+
+        Args:
+            x: Patch tokens of shape $(P, D)$, from `forward_features`.
+            inverse: Patch of every voxel, shape $(N,)$, from `forward_features`.
+            offset: Position of every voxel inside its patch, shape $(N,)$, from `forward_features`.
+
+        Returns:
+            Voxel features of shape $(N, \text{num\_features})$, the input of `forward_head`.
+        """
         return self.decoder(x, inverse, offset)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
