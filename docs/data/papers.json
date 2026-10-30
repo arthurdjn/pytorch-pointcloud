@@ -189,10 +189,25 @@
     "date": "May 2023",
     "title": "PointGPT: Auto-regressively Generative Pre-training from Point Clouds"
   },
+  "2309.01279": {
+    "crop": 0.47,
+    "date": "September 2023",
+    "title": "FOR-instance: a UAV laser scanning benchmark dataset for semantic and instance segmentation of individual trees"
+  },
   "2312.10035": {
     "crop": 0.47,
     "date": "December 2023",
     "title": "Point Transformer V3: Simpler, Faster, Stronger"
+  },
+  "2312.15084": {
+    "crop": 0.47,
+    "date": "December 2023",
+    "title": "Automated forest inventory: analysis of high-density airborne LiDAR point clouds with 3D deep learning"
+  },
+  "2401.15739": {
+    "crop": 0.47,
+    "date": "January 2024",
+    "title": "SegmentAnyTree: A sensor and platform agnostic deep learning model for tree segmentation using laser scanning data"
   },
   "2402.10739": {
     "crop": 0.47,

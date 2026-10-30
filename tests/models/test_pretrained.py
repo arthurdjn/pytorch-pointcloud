@@ -773,3 +773,38 @@ def test_pretrained_spformer(
         [output["class_logits"].flatten(), output["scores"].flatten(), output["mask_logits"].flatten()]
     )
     _check_output(snapshot, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        pytest.param("forainet.for-instance.prs-eth", id="forainet"),
+        pytest.param("segment-any-tree.for-instance.nibio", id="segment-any-tree"),
+    ],
+)
+def test_pretrained_forainet(
+    model_name: str,
+    dataset_factory: Callable[..., Dataset],
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """The registered transform keeps one random point per voxel, so the generator is seeded before the plot is read.
+    The snapshot is every tenth voxel's semantic logits, offset and embedding.
+    """
+    if not _SPCONV_AVAILABLE:
+        pytest.skip("spconv is not installed")
+
+    models_dir = models_dir_factory("*.safetensors")
+    model, info = create_model(model_name, task="instance-segmentation", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    torch.manual_seed(0)
+    dataset = dataset_factory("forinstance", transform=info["transform"])
+    data = collate([dataset[0]], batch_from=DataKeys.POS)
+    data = {k: v.to(DEVICE) if hasattr(v, "to") else v for k, v in data.items()}
+    with torch.no_grad():
+        output = model(*select_inputs(data, info["input_keys"]))
+
+    snapshot = torch.cat([output["semantic_logits"], output["offset"], output["embedding"]], dim=1)[::10]
+    _check_output(snapshot.flatten(), model_name, force_regen, models_dir)
