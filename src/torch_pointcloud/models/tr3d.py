@@ -362,7 +362,7 @@ class TR3DDetection(DetectionModel):
     "tr3d.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/tr3d.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/tr3d.scannet.mmdet3d/resolve/8b37fda8d9c98460db561314be337f85af6f0b8b/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 71.98, "mAP@0.5": 58.57},
         classes=SCANNET_DETECTION_CLASSES,
@@ -390,7 +390,7 @@ def tr3d_scannet_mmdet3d(**hparams: Any) -> TR3DDetection:
     "tr3d.sunrgbd.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/tr3d.sunrgbd.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/tr3d.sunrgbd.mmdet3d/resolve/d821ecacf4162c520d81bdcd89a5f286f7b57ace/model.safetensors",
         dataset="sunrgbd",
         metrics={"mAP@0.25": 66.67, "mAP@0.5": 50.37},
         classes=SUNRGBD_CLASSES,
@@ -423,7 +423,7 @@ def tr3d_sunrgbd_mmdet3d(**hparams: Any) -> TR3DDetection:
     "tr3d.s3dis-area5.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/tr3d.s3dis-area5.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/tr3d.s3dis-area5.mmdet3d/resolve/2833d73b5b04a6be54ddbda5533e12722850c268/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mAP@0.25": 71.24, "mAP@0.5": 48.37},
         classes=S3DIS_DETECTION_CLASSES,

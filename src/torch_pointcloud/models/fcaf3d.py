@@ -549,7 +549,7 @@ class FCAF3DDetection(DetectionModel):
     "fcaf3d.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/fcaf3d.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/fcaf3d.scannet.mmdet3d/resolve/7e2f790ff8a07439ace573f926dff71e5d5aa2b0/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 69.55, "mAP@0.5": 55.10},
         classes=SCANNET_DETECTION_CLASSES,
@@ -583,7 +583,7 @@ def fcaf3d_scannet_mmdet3d(**hparams: Any) -> FCAF3DDetection:
     "fcaf3d.sunrgbd.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/fcaf3d.sunrgbd.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/fcaf3d.sunrgbd.mmdet3d/resolve/17c47353b0e75a84b9c08a4fed2e27995b1d81b1/model.safetensors",
         dataset="sunrgbd",
         metrics={"mAP@0.25": 64.70, "mAP@0.5": 47.93},
         classes=SUNRGBD_CLASSES,
@@ -617,7 +617,7 @@ def fcaf3d_sunrgbd_mmdet3d(**hparams: Any) -> FCAF3DDetection:
     "fcaf3d.s3dis-area5.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/fcaf3d.s3dis-area5.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/fcaf3d.s3dis-area5.mmdet3d/resolve/9f8af3ec43ebcd2ee45afad7030db8cdb37b4e3d/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mAP@0.25": 66.31, "mAP@0.5": 46.71},
         classes=S3DIS_DETECTION_CLASSES,
