@@ -5,7 +5,6 @@
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
@@ -35,6 +34,10 @@ class OpenSceneOpenVocabularySegmentation(OpenVocabularySegmentationModel):
     features and read geometry only: `x=None` feeds a constant feature of `in_channels` ones per voxel. Each
     registered checkpoint names its text encoder, the revision of that encoder and its prompt template in
     `weights["text_model"]`, `weights["text_revision"]` and `weights["prompt_template"]`.
+
+    Note:
+        Run the model in float32 on a GPU: `spconv` has no CPU kernel, and the forward fails under
+        `torch.autocast(dtype=torch.float16)`.
 
     Args:
         in_channels: Number of input feature channels. `x=None` feeds ones.
@@ -174,7 +177,9 @@ class OpenSceneOpenVocabularySegmentation(OpenVocabularySegmentationModel):
         return_intermediates: bool = False,
     ) -> Any:
         if x is None:
-            x = torch.ones(pos_grid.shape[0], self.in_channels, device=pos_grid.device)
+            weight = self.head.weight
+            assert isinstance(weight, Tensor)
+            x = weight.new_ones(pos_grid.shape[0], self.in_channels)
 
         if return_intermediates:
             return self.encoder(x, pos_grid, batch, return_intermediates=True)
@@ -318,6 +323,14 @@ def openscene_lseg_scannet20(**hparams: Any) -> OpenSceneOpenVocabularySegmentat
     weights=WeightsDict(
         url="hf://torch-pointcloud/openscene-openseg.nuscenes.songyou-peng/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="nuscenes",
+        metrics={
+            "mIoU": 42.97,
+            "mAcc": 56.99,
+            "OA": 77.60,
+            "simple/mIoU": 41.84,
+            "simple/mAcc": 56.05,
+            "simple/OA": 77.28,
+        },
         text_model="openai/clip-vit-large-patch14-336",
         text_revision="ce19dc912ca5cd21c8a653c79e251e808ccabcd1",
         prompt_template="a {} in a scene",

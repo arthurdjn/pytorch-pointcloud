@@ -2,7 +2,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
@@ -146,7 +146,7 @@ def configure_inferer(args: Namespace) -> Inferer:
 def evaluate(
     model: OpenVocabularySegmentationModel,
     text_encoder: CLIPTextEncoder,
-    prompts: list[str],
+    prompts: List[str],
     dataloader: DataLoader,
     inferer: Inferer,
     device: str,

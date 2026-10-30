@@ -166,7 +166,7 @@ $RUN examples/point_transformer_v3/segmentation_gridnethd_benchmark.py --root "$
 $RUN examples/concerto/segmentation_scannet_benchmark.py --root "$ROOT" --model concerto-large-lp.scannet20.pointcept --sw-batch-size 2
 $RUN examples/utonia/segmentation_scannet_benchmark.py --root "$ROOT" --model utonia-base-lp.scannet20.pointcept --sw-batch-size 2
 
-# Open-vocabulary segmentation (ScanNet, zero-shot)
+# Open-vocabulary segmentation (ScanNet, nuScenes, zero-shot)
 $RUN examples/openscene/open_vocabulary_segmentation_scannet_benchmark.py --root "$ROOT" --model openscene-openseg.scannet20.songyou-peng
 $RUN examples/openscene/open_vocabulary_segmentation_scannet_benchmark.py --root "$ROOT" --model openscene-lseg.scannet20.songyou-peng
 $RUN examples/openscene/open_vocabulary_segmentation_nuscenes_benchmark.py --root "$ROOT" --model openscene-openseg.nuscenes.songyou-peng

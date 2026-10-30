@@ -2,7 +2,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import torch
 from torch import Tensor
@@ -104,13 +104,14 @@ def main() -> None:
     assert weights is not None
     text_encoder = CLIPTextEncoder(weights["text_model"], revision=weights["text_revision"])
     prompts = [weights["prompt_template"].format(name) for name in CLASSES]
+    prompt_to_class = torch.tensor(list(CLASSES.values()))
     inferer = configure_inferer(args)
     dataloader = configure_dataloader(args)
 
     num_scans = len(dataloader.dataset)  # type: ignore[arg-type]
     protocol = "single pass" if args.simple else f"{NUM_PASSES} randomly rotated and scaled passes"
     print(f"Test set: {num_scans} scans of {args.max_sweeps} sweeps  ({protocol}, scored on the keyframe points)")
-    metrics = evaluate(model, text_encoder, prompts, dataloader, inferer, args.device)
+    metrics = evaluate(model, text_encoder, prompts, prompt_to_class, dataloader, inferer, args.device)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -177,14 +178,15 @@ def configure_inferer(args: Namespace) -> Inferer:
 def evaluate(
     model: OpenVocabularySegmentationModel,
     text_encoder: CLIPTextEncoder,
-    prompts: list[str],
+    prompts: List[str],
+    prompt_to_class: Tensor,
     dataloader: DataLoader,
     inferer: Inferer,
     device: str,
 ) -> Dict[str, Any]:
     model.to(device).eval()
     text = text_encoder.to(device)(prompts)
-    prompt_to_class = torch.tensor(list(CLASSES.values()), device=device)
+    prompt_to_class = prompt_to_class.to(device)
     num_classes = len(NUSCENES_LIDARSEG_CLASSES)
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
 
