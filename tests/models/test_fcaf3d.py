@@ -149,9 +149,15 @@ def test_fcaf3d_scenes_are_independent_in_a_batch(
     spconv_to_device(model, device)
     x, pos, batch = _scenes(device)
     first = batch == 0
-    with torch.no_grad():
-        both = model(x, pos, batch)
-        alone = model(x[first], pos[first], batch[first])
+    # The CPU kernels of the CPU-only spconv wheel race on several threads: their outputs change from run to run.
+    threads = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        with torch.no_grad():
+            both = model(x, pos, batch)
+            alone = model(x[first], pos[first], batch[first])
+    finally:
+        torch.set_num_threads(threads)
 
     rows = both["batch"] == 0
     keys_both = torch.cat([both["level"][rows, None], torch.round(both["pos"][rows] / 0.01).long()], 1)
