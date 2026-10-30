@@ -9,6 +9,7 @@ their `forward(output, data)` returns a dict with the scalar `loss` to optimize 
 
 from . import functional
 from .anchor import AnchorHeadLoss, MultiGroupAnchorHeadLoss
+from .assignment import assignment_negative_log_likelihood
 from .centerpoint import CenterHeadLoss, VoxelNeXtHeadLoss, center_regression_loss, iou_prediction_loss
 from .chamfer import ChamferDistance, chamfer_distance
 from .circle import WeightedCircleLoss, weighted_circle_loss
@@ -22,7 +23,7 @@ from .focal import (
     poly1_focal_loss,
     sigmoid_focal_loss,
 )
-from .geotransformer import GeoTransformerLoss, assignment_negative_log_likelihood
+from .geotransformer import GeoTransformerLoss
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched

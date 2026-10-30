@@ -97,6 +97,7 @@ from .serialized_attention import (
     patch_layout,
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
+from .sinusoidal_embedding import sinusoidal_embedding
 from .spconv_blocks import (
     SparseBasicBlock,
     SparseConvBlock,
@@ -204,6 +205,7 @@ __all__ = [
     "patch_layout",
     "SerializedPool",
     "SerializedUpsample",
+    "sinusoidal_embedding",
     "SparseBasicBlock",
     "SparseConvBlock",
     "SparseModule",

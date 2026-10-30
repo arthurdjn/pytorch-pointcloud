@@ -4,6 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.layers import sinusoidal_embedding
 from torch_pointcloud.losses import GeoTransformerLoss
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.geotransformer import (
@@ -11,7 +12,6 @@ from torch_pointcloud.models.geotransformer import (
     GeometricTransformer,
     GeoTransformerRegistration,
     KPConvFPN,
-    sinusoidal_embedding,
 )
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -59,16 +59,6 @@ def _pair(num_src: int = 600, num_ref: int = 700, seed: int = 0) -> Dict[str, Te
         DataKeys.BATCH_REF_POS: torch.zeros(num_ref, dtype=torch.long),
         DataKeys.TRANSFORM: transform.unsqueeze(0),
     }
-
-
-def test_sinusoidal_embedding_interleaves_sin_and_cos() -> None:
-    indices = torch.tensor([0.0, 1.5])
-    embedding = sinusoidal_embedding(indices, dim=4)
-    assert embedding.shape == (2, 4)
-    assert torch.allclose(embedding[0], torch.tensor([0.0, 1.0, 0.0, 1.0]))
-    assert embedding[1, 0].item() == pytest.approx(torch.sin(torch.tensor(1.5)).item())
-    with pytest.raises(ValueError, match="even"):
-        sinusoidal_embedding(indices, dim=3)
 
 
 def test_geometric_structure_embedding_is_rigid_invariant() -> None:
