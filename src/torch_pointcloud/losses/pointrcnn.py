@@ -7,9 +7,9 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from torch_pointcloud.losses._utils import scene_splits
-from torch_pointcloud.losses.corner import corner_loss
 from torch_pointcloud.losses.focal import one_hot_foreground, sigmoid_focal_loss
-from torch_pointcloud.ops.box3d import encode_box_residuals, points_in_boxes
+from torch_pointcloud.losses.roi_head import roi_box_loss
+from torch_pointcloud.ops.box3d import points_in_boxes
 from torch_pointcloud.utils.data import DataKeys
 
 if TYPE_CHECKING:
@@ -152,11 +152,10 @@ class PointRCNNLoss(nn.Module):
         r"""Compute the two-stage PointRCNN loss and its terms.
 
         Args:
-            output: The model's training-mode output: stage-1 `point_cls_preds` $(N, C)$,
-                `point_box_preds` $(N, 8)$, `point_pos` $(N, 3)$, `point_batch` $(N,)$; stage-2
-                `rcnn_cls` $(M, 1)$, `rcnn_reg` $(M, 7)$, `rcnn_boxes` $(M, 7)$, `rois` $(M, 7)$,
-                `gt_of_rois` $(M, 7)$ (ROI-canonical matched box), `gt_of_rois_src` $(M, 7)$ (lidar-frame
-                matched box) and `roi_ious` $(M,)$.
+            output: The model's training-mode output, of which the loss reads stage-1 `point_cls_preds` $(N, C)$,
+                `point_box_preds` $(N, 8)$, `point_pos` $(N, 3)$, `point_batch` $(N,)$ and stage-2 `rcnn_cls`
+                $(M, 1)$, `rcnn_reg` $(M, 7)$, `rois` $(M, 7)$, `gt_of_rois_src` $(M, 7)$ (lidar-frame matched box)
+                and `roi_ious` $(M,)$.
             data: Packed ground truth: `DataKeys.BOX` $(K, 7)$ full-extent, `DataKeys.LABEL` $(K,)$
                 ($0$-based classes) and `DataKeys.BATCH_BOX` $(K,)$ per-box scene index.
 
@@ -175,9 +174,7 @@ class PointRCNNLoss(nn.Module):
         rcnn_cls_loss = self._rcnn_cls_loss(output["rcnn_cls"], rcnn_cls_labels)
         rcnn_box_loss = self._rcnn_box_loss(
             output["rcnn_reg"],
-            output["rcnn_boxes"],
             output["rois"],
-            output["gt_of_rois"],
             output["gt_of_rois_src"],
             reg_valid_mask,
         )
@@ -283,29 +280,17 @@ class PointRCNNLoss(nn.Module):
         loss = (bce * valid).sum() / valid.sum().clamp(min=1.0)
         return loss * self.rcnn_cls_weight
 
-    def _rcnn_box_loss(
-        self,
-        rcnn_reg: Tensor,
-        rcnn_boxes: Tensor,
-        rois: Tensor,
-        gt_of_rois: Tensor,
-        gt_of_rois_src: Tensor,
-        reg_valid_mask: Tensor,
-    ) -> Tensor:
+    def _rcnn_box_loss(self, rcnn_reg: Tensor, rois: Tensor, gt_of_rois_src: Tensor, reg_valid_mask: Tensor) -> Tensor:
         r"""Stage-2 code-weighted smooth-$L_1$ box residual plus optional corner regularization."""
-        fg_mask = reg_valid_mask.view(-1) > 0
-        fg_sum = fg_mask.sum()
-
-        rois_anchor = rois.clone()
-        rois_anchor[:, 0:3] = 0
-        rois_anchor[:, 6] = 0
-        reg_targets = encode_box_residuals(gt_of_rois[..., 0:7], rois_anchor)
-        diff = (rcnn_reg - reg_targets) * self.rcnn_code_weights.view(1, -1)
-        smooth = F.smooth_l1_loss(diff, torch.zeros_like(diff), beta=self.smooth_l1_beta, reduction="none")
-        loss = (smooth * fg_mask.unsqueeze(-1).to(smooth.dtype)).sum() / fg_sum.clamp(min=1).to(smooth.dtype)
-        loss = loss * self.rcnn_reg_weight
-
-        if self.rcnn_corner_weight > 0 and fg_sum > 0:
-            corner = corner_loss(rcnn_boxes[fg_mask], gt_of_rois_src[fg_mask][..., 0:7], beta=1.0)
-            loss = loss + corner.mean() * self.rcnn_corner_weight
+        box_loss, corner = roi_box_loss(
+            rcnn_reg,
+            rois,
+            gt_of_rois_src[..., 0:7],
+            reg_valid_mask.view(-1) > 0,
+            code_weights=self.rcnn_code_weights,
+            smooth_l1_beta=self.smooth_l1_beta,
+        )
+        loss = box_loss * self.rcnn_reg_weight
+        if self.rcnn_corner_weight > 0:
+            loss = loss + corner * self.rcnn_corner_weight
         return loss

@@ -273,6 +273,7 @@ nav = [
             { "utonia" = "api/models/utonia.md" },
             { "votenet" = "api/models/votenet.md" },
             { "voxel_mamba" = "api/models/voxel_mamba.md" },
+            { "voxel_rcnn" = "api/models/voxel_rcnn.md" },
             { "voxelnext" = "api/models/voxelnext.md" },
         ] },
         { Ops = [
@@ -286,6 +287,7 @@ nav = [
             { "hilbert" = "api/ops/hilbert.md" },
             { "math" = "api/ops/math.md" },
             { "octree" = "api/ops/octree.md" },
+            { "roi" = "api/ops/roi.md" },
             { "serialization" = "api/ops/serialization.md" },
             { "voxelization" = "api/ops/voxelization.md" },
         ] },

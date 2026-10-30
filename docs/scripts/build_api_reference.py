@@ -53,6 +53,7 @@ DISPLAY_TITLES = {
     "pointrcnn": "PointRCNN",
     "centerpoint": "CenterPoint",
     "pv_rcnn": "PV-RCNN",
+    "voxel_rcnn": "Voxel R-CNN",
     "voxelnext": "VoxelNeXt",
     "voxel_mamba": "Voxel-Mamba",
     "lion": "LION",

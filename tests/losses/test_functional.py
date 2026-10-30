@@ -35,6 +35,8 @@ def test_functional_reexports_every_tensor_function() -> None:
         "lovasz_softmax",
         "one_hot_foreground",
         "poly1_focal_loss",
+        "roi_box_loss",
+        "roi_head_loss",
         "sigmoid_focal_loss",
         "tnet_orthogonality_regularizer",
     }

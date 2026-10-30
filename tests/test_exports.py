@@ -36,6 +36,7 @@ OPS_MODULES = [
     "hilbert",
     "math",
     "octree",
+    "roi",
     "serialization",
     "voxelization",
 ]

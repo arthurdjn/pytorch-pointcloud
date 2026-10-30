@@ -1,13 +1,17 @@
 """Run every example script end to end on the dummy datasets shipped under `tests/data/datasets`."""
 
+import importlib.util
 import shutil
 import subprocess
 import sys
+from argparse import Namespace
 from pathlib import Path
+from types import ModuleType
 from typing import Iterator, Tuple
 
 import pytest
 
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _DWCONV_AVAILABLE,
@@ -310,6 +314,12 @@ BENCHMARKS = [
         ("--model", "pv-rcnn.kitti.mmdet3d", "--limit", "2"),
         marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
         id="pv_rcnn/kitti",
+    ),
+    pytest.param(
+        "voxel_rcnn/detection_kitti_benchmark.py",
+        ("--model", "voxel-rcnn.kitti-car.openpcdet", "--limit", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="voxel_rcnn/kitti-car",
     ),
     pytest.param(
         "voxelnext/detection_nuscenes_benchmark.py",
@@ -691,6 +701,12 @@ TRAININGS = [
         id="pointrcnn/kitti-train",
     ),
     pytest.param(
+        "voxel_rcnn/detection_kitti_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="voxel_rcnn/kitti-train",
+    ),
+    pytest.param(
         "second/detection_nuscenes_train.py",
         (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
         marks=_GPU_SPCONV,
@@ -744,6 +760,14 @@ def _run(script: str, args: Tuple[str, ...], root: Path) -> None:
     assert result.returncode == 0, f"{' '.join(command)}\n{result.stdout[-2000:]}\n{result.stderr[-4000:]}"
 
 
+def _import(script: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(script, EXAMPLES_DIR / script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_every_script_has_a_row() -> None:
     """Every example script is exercised by at least one row, or is named here with the reason it is not."""
     without_dummy_data = {
@@ -774,3 +798,16 @@ def test_benchmark_script(script: str, args: Tuple[str, ...], examples_datasets_
 @pytest.mark.parametrize("script, args", TRAININGS)
 def test_training_script(script: str, args: Tuple[str, ...], examples_datasets_dir: Path) -> None:
     _run(script, args, examples_datasets_dir)
+
+
+def test_kitti_training_scripts_cache_the_objects_of_their_own_classes(tmp_path: Path) -> None:
+    alone, after_cars = tmp_path / "alone", tmp_path / "after_cars"
+    shutil.copytree(DATASETS_DIR / "KITTI", alone / "KITTI")
+    shutil.copytree(DATASETS_DIR / "KITTI", after_cars / "KITTI")
+    second = _import("second/detection_kitti_train.py")
+    expected = second.configure_objects(Namespace(root=str(alone), train_split_file=None, force_process=False))
+    args = Namespace(root=str(after_cars), train_split_file=None, force_process=False)
+    _import("voxel_rcnn/detection_kitti_train.py").configure_objects(args)
+    objects = second.configure_objects(args)
+    assert len(expected) > 0
+    assert [int(obj[DataKeys.LABEL]) for obj in objects] == [int(obj[DataKeys.LABEL]) for obj in expected]

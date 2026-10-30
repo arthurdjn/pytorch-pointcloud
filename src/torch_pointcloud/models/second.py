@@ -3,7 +3,9 @@
 {{ paper("second-2018") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from itertools import accumulate
+from operator import mul
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -23,7 +25,7 @@ from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
-from torch_pointcloud.utils.types import Detection3D
+from torch_pointcloud.utils.types import Detection3D, FeaturesDict
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
@@ -39,7 +41,7 @@ class VoxelBackbone8x(nn.Module):
 
     Four sparse conv stages downsample the voxel grid by $2\times$ in $x$/$y$ (stages 2-4) while a
     final $(3, 1, 1)$ sparse conv squeezes the height to 2, yielding a dense BEV tensor after
-    height compression.
+    height compression. `stage_channels` and `stage_strides` give the width and the downsampling of the four stages.
 
     Args:
         in_channels: Input voxel feature channels (e.g. $4$ for mean $x, y, z, \text{intensity}$).
@@ -99,13 +101,57 @@ class VoxelBackbone8x(nn.Module):
         )
         self.out_channels = 128
 
-    def forward(self, x: "spconv.SparseConvTensor") -> "spconv.SparseConvTensor":
+    @property
+    def stage_channels(self) -> Tuple[int, ...]:
+        """Width of the four stages."""
+        return tuple(stage[-1][0].out_channels for stage in (self.conv1, self.conv2, self.conv3, self.conv4))
+
+    @property
+    def stage_strides(self) -> Tuple[int, ...]:
+        r"""Downsampling of the four stages in $x$ and $y$."""
+        strides = (stage[0][0].stride[-1] for stage in (self.conv1, self.conv2, self.conv3, self.conv4))
+        return tuple(accumulate(strides, mul))
+
+    @overload
+    def forward(
+        self,
+        x: "spconv.SparseConvTensor",
+        return_intermediates: Literal[True],
+    ) -> Tuple["spconv.SparseConvTensor", List[FeaturesDict]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: "spconv.SparseConvTensor",
+        return_intermediates: Literal[False] = False,
+    ) -> "spconv.SparseConvTensor": ...
+
+    def forward(self, x: "spconv.SparseConvTensor", return_intermediates: bool = False) -> Any:
+        r"""Run the four stages and the height compression.
+
+        With `return_intermediates`, the features `x`, scene index `batch` and $(z, y, x)$ voxel coordinates
+        `pos_grid` of the four stages are returned too, finest first. The strided stages 2-4 come in $(b, z, y, x)$
+        order, since a strided sparse convolution returns its voxels in an order of the library's choosing; stage 1
+        keeps the order of the input voxels, so its `batch` is sorted when the voxels come grouped by scene, as
+        `collate` packs them.
+        """
         x = self.conv_input(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        return self.conv_out(x)
+        intermediates: List[FeaturesDict] = []
+        for i, conv in enumerate((self.conv1, self.conv2, self.conv3, self.conv4)):
+            x = conv(x)
+            if return_intermediates:
+                features, indices = x.features, x.indices.long()
+                if i > 0:
+                    depth, height, width = x.spatial_shape
+                    key = ((indices[:, 0] * depth + indices[:, 1]) * height + indices[:, 2]) * width + indices[:, 3]
+                    order = key.argsort()
+                    features, indices = features[order], indices[order]
+                intermediates.append({"x": features, "batch": indices[:, 0], "pos_grid": indices[:, 1:]})
+
+        out = self.conv_out(x)
+        if return_intermediates:
+            return out, intermediates
+        return out
 
 
 class SECONDDetection(DetectionModel):

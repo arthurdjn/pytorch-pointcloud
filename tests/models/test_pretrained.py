@@ -26,6 +26,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.parta2 import PartA2Detection
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
+from torch_pointcloud.models.voxel_rcnn import VoxelRCNNDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.data import collate, select_inputs
 from torch_pointcloud.utils.imports import (
@@ -698,14 +699,35 @@ def test_pretrained_pv_rcnn(
         model.in_channels
     )
     with torch.no_grad():
-        features, bev, stage_features, stage_indices = model.encode(
-            voxels,
-            pos_voxel,
-            num_points,
-            batch_voxel,
-        )
+        features, bev, stages = model.encode(voxels, pos_voxel, num_points, batch_voxel)
         out = model.forward_head(features)
-        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, x, pos, batch, stage_features, stage_indices, bev)
+        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, x, pos, batch, stages, bev)
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+def test_pretrained_voxel_rcnn(
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Voxel R-CNN: a strided sample of the anchor head maps and the second stage on fixed RoIs."""
+    if not (_SPCONV_AVAILABLE and _PYG_LIB_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("Voxel R-CNN needs spconv, pyg-lib and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "voxel-rcnn.kitti-car.openpcdet"
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+    assert isinstance(model, VoxelRCNNDetection)
+
+    voxels, pos_voxel, num_points, batch_voxel, _, _, _, rois, roi_batch = _kitti_two_stage_inputs(model.in_channels)
+    with torch.no_grad():
+        features, stages = model.encode(voxels, pos_voxel, num_points, batch_voxel)
+        out = model.forward_head(features)
+        rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, stages)
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)

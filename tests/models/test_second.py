@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection
+from torch_pointcloud.models.second import SECONDDetection, SECONDMultiHeadDetection, VoxelBackbone8x
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
@@ -147,3 +147,34 @@ def test_second_multihead_create_model_hparams() -> None:
     assert model.sparse_shape == [41, 1024, 1024]
     assert len(model.head.rpn_heads) == 6
     assert "second-multihead.nuscenes.openpcdet" in list_models("second*", task="detection")
+
+
+def test_voxel_backbone_stage_widths_and_strides_follow_the_convs() -> None:
+    backbone = VoxelBackbone8x(4)
+    assert backbone.stage_channels == (16, 32, 64, 64)
+    assert backbone.stage_strides == (1, 2, 4, 8)
+    with pytest.raises(AttributeError):
+        backbone.stage_channels = (8, 8, 8, 8)  # type: ignore[misc]
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
+def test_voxel_backbone_intermediates_sort_the_strided_stages() -> None:
+    import spconv.pytorch as spconv
+
+    model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
+    assert isinstance(model, SECONDDetection)
+    voxels, pos_voxel, num_points, vbatch = _voxelize(model, _make_inputs(), 5, 40000)
+    features = voxels.sum(dim=1) / num_points.clamp_min(1).view(-1, 1)
+    indices = torch.cat([vbatch.view(-1, 1), pos_voxel], dim=1).int()
+    x = spconv.SparseConvTensor(features, indices, model.sparse_shape, int(vbatch.max()) + 1)
+    backbone = model.backbone_3d
+    with torch.no_grad():
+        out, stages = backbone(x, return_intermediates=True)
+        plain = backbone(x)
+    assert torch.allclose(out.dense(), plain.dense(), atol=1e-6)
+    assert [stage["x"].shape[1] for stage in stages] == list(backbone.stage_channels)
+    assert torch.equal(stages[0]["pos_grid"], pos_voxel.long()) and torch.equal(stages[0]["batch"], vbatch.long())
+    for stage in stages[1:]:
+        z, y, x_grid = stage["pos_grid"].unbind(dim=1)
+        key = ((stage["batch"] * 4096 + z) * 4096 + y) * 4096 + x_grid
+        assert (key[1:] > key[:-1]).all()
