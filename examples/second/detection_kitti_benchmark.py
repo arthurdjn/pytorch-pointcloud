@@ -65,7 +65,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
-    parser.add_argument("--nms-pre", default=None, type=int, help="Anchors kept per scene before the NMS, by score.")
+    parser.add_argument("--nms-pre", default=None, type=int, help="Boxes kept per scene before the NMS, by score.")
     parser.add_argument("--max-detections", default=None, type=int, help="Detections kept per scene after the NMS.")
     parser.add_argument(
         "--multi-label",
@@ -144,19 +144,27 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
+def top_per_group(scores: Tensor, group: Tensor, k: int) -> Tensor:
+    """Indices of the `k` best scores of every group, group by group and best first."""
+    order = scores.argsort(descending=True, stable=True)
+    order = order[group[order].argsort(stable=True)]
+    sorted_group = group[order]
+    rank = torch.arange(order.numel(), device=order.device) - torch.searchsorted(sorted_group, sorted_group)
+    return order[rank < k]
+
+
 def select_detections(
     det: Detection3D,
     nms_pre: Optional[int],
     max_detections: Optional[int],
     multi_label: bool,
 ) -> Detection3D:
-    """The detections of the protocol: optional top anchors, score threshold, rotated NMS, optional cap."""
+    """The detections of the protocol: optional top boxes per scene, score threshold, rotated NMS, optional cap."""
+    if multi_label and "class_probs" not in det:
+        raise ValueError("`--multi-label` needs the per-class probabilities of an anchor head, which this model lacks.")
     index = torch.arange(det["scores"].numel(), device=det["scores"].device)
     if nms_pre is not None:
-        # Every scene holds the same anchors, so the scores fold into one row per scene.
-        scores = det["scores"].view(int(det["batch"][-1]) + 1, -1)
-        top = scores.topk(min(nms_pre, scores.shape[1]), dim=1).indices
-        index = (top + torch.arange(scores.shape[0], device=top.device)[:, None] * scores.shape[1]).view(-1)
+        index = top_per_group(det["scores"], det["batch"], nms_pre)
     if multi_label:
         anchor, labels = (det["class_probs"][index] > SCORE_THRESHOLD).nonzero(as_tuple=True)
         index = index[anchor]
@@ -203,7 +211,8 @@ def evaluate(
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        det = select_detections(forward(model, data), nms_pre, max_detections, multi_label)
+        raw = forward(model, data)
+        det = select_detections(raw, nms_pre, max_detections, multi_label)
         boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
         ignore_mask = projected_ignore_mask(boxes, data[DataKeys.CALIB][batch], data[DataKeys.IMAGE_SHAPE][batch])
         preds: Detection3D = {
