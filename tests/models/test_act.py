@@ -7,10 +7,6 @@ from torch_pointcloud.models.act import ACTDiscreteVAE, ACTPretraining
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
-pytestmark = [
-    pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed"),
-]
-
 SMALL_DVAE: Dict[str, Any] = dict(
     image_dim=32,
     image_depth=3,
@@ -31,6 +27,7 @@ def _cloud() -> tuple[torch.Tensor, torch.Tensor]:
     return pos, batch
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_act_discrete_vae_reconstructs_every_patch() -> None:
     model = ACTDiscreteVAE(in_channels=0, **SMALL_DVAE).eval()
     pos, batch = _cloud()
@@ -50,6 +47,7 @@ def test_act_discrete_vae_freezes_the_image_transformer_only() -> None:
     assert model.image_proj_in.weight.requires_grad
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_act_discrete_vae_group_features_keep_the_patch_tokens() -> None:
     model = ACTDiscreteVAE(in_channels=0, **SMALL_DVAE).eval()
     neighborhood, center = group(*_cloud(), 16, 8)
@@ -59,6 +57,7 @@ def test_act_discrete_vae_group_features_keep_the_patch_tokens() -> None:
     assert features.shape == (2, 16, 24)
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_act_pretraining_regresses_the_frozen_teacher() -> None:
     model = ACTPretraining(
         in_channels=0,
