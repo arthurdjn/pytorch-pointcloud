@@ -693,7 +693,8 @@ class ModelNet40Hdf5(PointCloudDataset):
 
 # The 32 ModelNet40 classes without a rotational symmetry, the ones the RPM-Net registration benchmark keeps.
 MODELNET40_ASYMMETRIC_LABELS = (
-    0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 38, 39
+    0, 1, 2, 3, 4, 7, 8, 11, 12, 13, 14, 16, 17, 18, 20, 21,
+    22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 38, 39,
 )  # fmt: skip
 
 # The classes of the RPM-Net seen / unseen category split: the first 20 and the last 20 labels.
@@ -729,14 +730,14 @@ class ModelNet40Registration(ModelNet40Hdf5):
     otherwise the seed comes from the torch generator, so training pairs follow `seed_everything` and the DataLoader
     worker seeds.
 
-    | Key         | Shape      | Dtype   | Description                                  |
-    | ----------- | ---------- | ------- | -------------------------------------------- |
-    | `pos`        | $(N, 3)$ | float32 | Source view                                   |
-    | `normal`     | $(N, 3)$ | float32 | Source normals                                |
-    | `ref_pos`    | $(M, 3)$ | float32 | Reference view                                |
-    | `ref_normal` | $(M, 3)$ | float32 | Reference normals                             |
-    | `transform`  | $(4, 4)$ | float32 | Transform of the source onto the reference    |
-    | `label`      | scalar   | int64   | Index of the class in `classes`               |
+    | Key          | Shape    | Dtype   | Description                                |
+    | ------------ | -------- | ------- | ------------------------------------------ |
+    | `pos`        | $(N, 3)$ | float32 | Source view                                |
+    | `normal`     | $(N, 3)$ | float32 | Source normals                             |
+    | `ref_pos`    | $(M, 3)$ | float32 | Reference view                             |
+    | `ref_normal` | $(M, 3)$ | float32 | Reference normals                          |
+    | `transform`  | $(4, 4)$ | float32 | Transform of the source onto the reference |
+    | `label`      | scalar   | int64   | Index of the class in `classes`            |
 
     Args:
         root: Root directory where the dataset should be stored.
@@ -750,7 +751,8 @@ class ModelNet40Registration(ModelNet40Hdf5):
         noise_magnitude: Clipping value of the Gaussian jitter; `None` adds no noise.
         noise_std: Standard deviation of the Gaussian jitter.
         deterministic: Whether sample $i$ is drawn from a generator seeded with $i$; defaults to `not train`.
-        transform: A function/transform that takes in a dictionary containing the data and returns a transformed version.
+        transform: A function/transform that takes in a dictionary containing the data and returns a transformed
+            version.
         download: If `True`, downloads the dataset from the internet and puts it in `root`.
         force_download: If `True`, forces to download the dataset from the internet, even if it is already downloaded.
         force_process: Accepted for contract parity; the HDF5 shards are used directly, so this is a no-op.

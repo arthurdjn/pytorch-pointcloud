@@ -40,7 +40,7 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 
 -   :material-vector-combine: __[Registration](registration.md)__
 
-    3DMatch and 3DLoMatch fragment pairs with their ground-truth transforms.
+    3DMatch, KITTI odometry and ModelNet40 pairs with their ground-truth transforms.
 
 </div>
 

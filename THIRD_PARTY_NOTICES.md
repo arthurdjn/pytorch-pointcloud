@@ -57,7 +57,7 @@ Licenses of the datasets the checkpoints were trained on.
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
 | FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
-| 3DMatch (PREDATOR release)                      | non-commercial use (7-Scenes), CC BY-NC-SA 4.0 (BundleFusion, Analysis by Synthesis) | 1 |
+| 3DMatch (PREDATOR release)                      | non-commercial and CC BY-NC-SA 4.0, by source scene       | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 
 ## Source code

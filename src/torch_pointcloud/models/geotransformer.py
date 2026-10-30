@@ -554,7 +554,8 @@ class GeoTransformerRegistration(RegistrationModel):
 
     The arguments in the unit of the coordinates (`voxel_sizes`, `radii`, `kp_sigma`, `sigma_d`, `matching_radius`,
     `acceptance_radius`) and the neighbor limits calibrated on the training data have no default; the registered
-    checkpoints set them.
+    checkpoints set them, and expect the density of their training data: the 3DMatch weights take fragments
+    voxelized at 2.5 cm, as `ThreeDMatch` returns them, and the KITTI weights register their 30 cm `Voxelize`.
 
     Args:
         in_channels: Number of input feature channels; the registered checkpoints read a constant feature.
