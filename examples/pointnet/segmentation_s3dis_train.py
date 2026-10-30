@@ -17,7 +17,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, RepeatSampler
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.losses import TNetOrthogonalityRegularizer
-from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
+from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import set_bn_momentum
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -238,16 +238,13 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
-        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.SEGMENT], NUM_CLASSES, ignore_index=-1)
+        cm += confusion_matrix(logits.argmax(dim=1), data[DataKeys.SEGMENT], NUM_CLASSES, ignore_index=-1)
 
-    present = confusion.sum(dim=1) > 0
-    accuracy = confusion.diag().sum() / confusion.sum()
-    mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
-    return {"mIoU": float(intersection_over_union(confusion)), "OA": accuracy.item(), "mAcc": mean_accuracy.item()}
+    return {"mIoU": intersection_over_union(cm), "OA": accuracy(cm), "mAcc": accuracy(cm, average="macro")}
 
 
 def _rooms(dataset: Dataset) -> S3DIS:

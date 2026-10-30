@@ -15,7 +15,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanObjectNN
-from torch_pointcloud.metrics import confusion_matrix
+from torch_pointcloud.metrics import accuracy, confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -187,16 +187,13 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
-        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], NUM_CLASSES)
+        cm += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], NUM_CLASSES)
 
-    present = confusion.sum(dim=1) > 0
-    accuracy = confusion.diag().sum() / confusion.sum()
-    mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
-    return {"acc": accuracy.item(), "mean_acc": mean_accuracy.item()}
+    return {"acc": accuracy(cm), "mean_acc": accuracy(cm, average="macro")}
 
 
 if __name__ == "__main__":
