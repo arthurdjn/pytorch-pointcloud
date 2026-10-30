@@ -566,6 +566,24 @@ def test_nms3d_keeps_boxes_that_require_grad_out_of_the_autograd_graph(rotated: 
     assert keep.tolist() == _greedy_nms3d(boxes.detach(), scores, 0.3, labels=labels, batch=batch, rotated=rotated)
 
 
+@pytest.mark.parametrize(
+    ("iou_threshold", "max_keep", "max_candidates"),
+    [
+        pytest.param(-0.1, None, None, id="negative-threshold"),
+        pytest.param(0.5, -1, None, id="negative-max-keep"),
+        pytest.param(0.5, None, -1, id="negative-max-candidates"),
+    ],
+)
+def test_nms3d_rejects_negative_arguments(
+    iou_threshold: float,
+    max_keep: Optional[int],
+    max_candidates: Optional[int],
+) -> None:
+    boxes, scores, _, _ = _nms3d_inputs()
+    with pytest.raises(ValueError, match="non-negative"):
+        nms3d(boxes, scores, iou_threshold, max_keep=max_keep, max_candidates=max_candidates)
+
+
 @pytest.mark.parametrize("seed", [pytest.param(0, id="seed-0"), pytest.param(1, id="seed-1")])
 def test_overlapping_pairs_matches_brute_force(seed: int) -> None:
     generator = torch.Generator().manual_seed(seed)

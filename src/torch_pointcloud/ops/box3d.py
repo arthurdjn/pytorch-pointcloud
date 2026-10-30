@@ -758,7 +758,7 @@ def nms3d(
     Args:
         boxes: Boxes $(N, 7)$ (see `box_corners`).
         scores: Per-box confidence, shape $(N,)$.
-        iou_threshold: IoU above which a lower-scoring box is removed.
+        iou_threshold: Non-negative IoU above which a lower-scoring box is removed.
         labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
         batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
@@ -783,6 +783,11 @@ def nms3d(
 
         ```
     """
+    if iou_threshold < 0:
+        raise ValueError(f"`iou_threshold` must be non-negative, got {iou_threshold}.")
+    if (max_keep is not None and max_keep < 0) or (max_candidates is not None and max_candidates < 0):
+        raise ValueError(f"`max_keep` and `max_candidates` must be non-negative, got {max_keep} and {max_candidates}.")
+
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
 
