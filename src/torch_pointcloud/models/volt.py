@@ -202,7 +202,9 @@ class VoltSegmentation(SemanticSegmentationModel):
 
     Note:
         The registered checkpoints run attention with the flash attention kernel (`use_flash_attn=True`), which needs
-        the `flash-attn` package and a CUDA device; pass `use_flash_attn=False` to run anywhere.
+        the `flash-attn` package and a CUDA device; pass `use_flash_attn=False` to run anywhere. The `-joint`
+        checkpoints were trained on ScanNet, ScanNet200, ScanNet++ and ARKitScenes together; their dataset tag names
+        the label set of their classifier.
 
     Args:
         in_channels: Voxel feature channels.

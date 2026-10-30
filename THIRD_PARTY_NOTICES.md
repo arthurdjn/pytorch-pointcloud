@@ -53,6 +53,7 @@ Licenses of the datasets the checkpoints were trained on.
 | ScanNet                                         | terms of use, non-commercial research and educational use | 18          |
 | SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 5           |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 5           |
+| ScanNet++, ARKitScenes (joint training)         | non-commercial                                            | 4           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
