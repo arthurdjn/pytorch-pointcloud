@@ -518,7 +518,7 @@ _SUNRGBD_TRANSFORM = T.Compose(
     "groupfree3d-l6-o256.scannet.ze-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-l6-o256.scannet.ze-liu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-l6-o256.scannet.ze-liu/resolve/b3725fc180aea159c1a29ca2088a364fe158534d/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 66.43, "mAP@0.5": 47.91},
         classes=SCANNET_DETECTION_CLASSES,
@@ -552,7 +552,7 @@ def groupfree3d_l6_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
     "groupfree3d-l12-o256.scannet.ze-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-l12-o256.scannet.ze-liu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-l12-o256.scannet.ze-liu/resolve/27ff12d765497f7e244b571d910dcf5fa2d138df/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 65.85, "mAP@0.5": 49.45},
         classes=SCANNET_DETECTION_CLASSES,
@@ -586,7 +586,7 @@ def groupfree3d_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetection:
     "groupfree3d-w2x-l12-o256.scannet.ze-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o256.scannet.ze-liu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o256.scannet.ze-liu/resolve/1949b39881b4c9fa52ad689fa57010473f335d30/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 68.59, "mAP@0.5": 51.92},
         classes=SCANNET_DETECTION_CLASSES,
@@ -620,7 +620,7 @@ def groupfree3d_w2x_l12_o256_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetect
     "groupfree3d-w2x-l12-o512.scannet.ze-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o512.scannet.ze-liu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o512.scannet.ze-liu/resolve/408b94d22abf207f1594f1b25f2277e665b9fcb8/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 69.13, "mAP@0.5": 51.96},
         classes=SCANNET_DETECTION_CLASSES,
@@ -688,7 +688,7 @@ def groupfree3d_l6_o256_sunrgbd_ze_liu(**hparams: Any) -> GroupFree3DDetection:
     "groupfree3d-l6-o256.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-l6-o256.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-l6-o256.scannet.mmdet3d/resolve/7710e9dc63ad6a49a66ff1e7591a350b6fd5d17b/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 65.92, "mAP@0.5": 47.59},
         classes=SCANNET_DETECTION_CLASSES,
@@ -722,7 +722,7 @@ def groupfree3d_l6_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection:
     "groupfree3d-l12-o256.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-l12-o256.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-l12-o256.scannet.mmdet3d/resolve/e49c559be0f67c6674a23666de71c7867d8ed167/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 66.86, "mAP@0.5": 48.51},
         classes=SCANNET_DETECTION_CLASSES,
@@ -756,7 +756,7 @@ def groupfree3d_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetection
     "groupfree3d-w2x-l12-o256.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o256.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o256.scannet.mmdet3d/resolve/5de32b7b5e9fe2fcaf5d5d0c047d731519739d1a/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 66.97, "mAP@0.5": 49.53},
         classes=SCANNET_DETECTION_CLASSES,
@@ -790,7 +790,7 @@ def groupfree3d_w2x_l12_o256_scannet_mmdet3d(**hparams: Any) -> GroupFree3DDetec
     "groupfree3d-w2x-l12-o512.scannet.mmdet3d",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o512.scannet.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-w2x-l12-o512.scannet.mmdet3d/resolve/94dfd98b0c53b864f3b8d87589c3cb2ef3475f57/model.safetensors",
         dataset="scannet",
         metrics={"mAP@0.25": 68.32, "mAP@0.5": 51.00},
         classes=SCANNET_DETECTION_CLASSES,
