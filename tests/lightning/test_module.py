@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Iterator, Tuple
+from typing import Any, Callable, Dict, Iterator, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -9,7 +9,14 @@ from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import Dataset
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.inferers import SimpleInferer, SlidingWindowSegmentationInferer, TTADetectionInferer
+from torch_pointcloud.inferers import (
+    DetectionInferer,
+    Inferer,
+    SegmentationInferer,
+    SimpleInferer,
+    SlidingWindowSegmentationInferer,
+    TTADetectionInferer,
+)
 from torch_pointcloud.lightning import (
     LitClassificationModel,
     LitDetectionModel,
@@ -388,7 +395,7 @@ def test_detection_eval_params_saved_to_hparams() -> None:
 def test_seg_inferer_runs_on_test_step() -> None:
     """`test_step` delegates the forward to the inferer, passing the batch and the module's forward."""
     preds = torch.randn(12, 4)
-    inferer = Mock(return_value=preds)
+    inferer = Mock(spec=SegmentationInferer, return_value=preds)
     lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
     batch = {
         "x": torch.randn(12, 3),
@@ -413,7 +420,7 @@ def test_inferer_defaults_to_simple() -> None:
 
 def test_cls_inferer_runs_on_test_step() -> None:
     preds = torch.randn(2, 4)
-    inferer = Mock(return_value=preds)
+    inferer = Mock(spec=SegmentationInferer, return_value=preds)
     lit = LitClassificationModel(name="dummy.classification", inferer=inferer)
     batch = {
         "x": torch.randn(12, 3),
@@ -511,7 +518,7 @@ def test_seg_metric_input_keys_extend_step_output() -> None:
 
 
 def test_seg_inferer_not_used_on_validation_step() -> None:
-    inferer = Mock(return_value=torch.randn(12, 4))
+    inferer = Mock(spec=SegmentationInferer, return_value=torch.randn(12, 4))
     lit = LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
     batch = {
         "x": torch.randn(12, 3),
@@ -775,7 +782,7 @@ def test_detection_inferer_runs_on_test_step_only(monkeypatch: pytest.MonkeyPatc
         "labels": torch.tensor([2, 5]),
         "batch": torch.tensor([0, 1]),
     }
-    inferer = Mock(return_value=decoded)
+    inferer = Mock(spec=DetectionInferer, return_value=decoded)
     module = LitDetectionModel(name="dummy.detection", inferer=inferer)
     monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
     batch = {
@@ -796,6 +803,45 @@ def test_detection_inferer_runs_on_test_step_only(monkeypatch: pytest.MonkeyPatc
     inferer.assert_called_once()
 
 
+def test_detection_test_step_runs_a_real_tta_inferer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Through `TTADetectionInferer`, the boxes of each view come back in the batch frame with their scene index,
+    and the postprocess NMS keeps one box per object across the views."""
+    module = LitDetectionModel(
+        name="dummy.detection",
+        inferer=TTADetectionInferer(lambda sample: sample, flips=[(), (1,)], sw_batch_size=2),
+    )
+
+    def decode(output: Dict[str, Tensor]) -> Detection3D:
+        pos, batch = output["pos"], output["batch"]
+        num_scenes = int(batch.max()) + 1
+        centers = scatter(pos, batch, dim=0, dim_size=num_scenes, reduce="mean")
+        return {
+            "boxes": torch.cat([centers, torch.ones(num_scenes, 3), torch.full((num_scenes, 1), 0.3)], dim=1),
+            "scores": torch.full((num_scenes,), 0.9),
+            "labels": torch.zeros(num_scenes, dtype=torch.long),
+            "batch": torch.arange(num_scenes),
+        }
+
+    monkeypatch.setattr(module.model, "forward", lambda x, pos, batch: {"pos": pos, "batch": batch})
+    monkeypatch.setattr(module.model, "decode", decode)
+    pos = torch.randn(40, 3, generator=torch.Generator().manual_seed(0)) + torch.tensor([10.0, 5.0, 0.0])
+    batch = {
+        "x": torch.zeros(40, 1),
+        "pos": pos,
+        "batch": torch.arange(2).repeat_interleave(20),
+        "box": torch.tensor([[10.0, 5.0, 0.0, 1.0, 1.0, 1.0, 0.0]]).expand(2, 7),
+        "batch_box": torch.tensor([0, 1]),
+        "label": torch.tensor([0, 0]),
+    }
+
+    out = module.test_step(batch, batch_idx=0)
+
+    assert out["preds"]["batch"].tolist() == [0, 1]
+    expected = torch.stack([pos[:20].mean(dim=0), pos[20:].mean(dim=0)])
+    torch.testing.assert_close(out["preds"]["boxes"][:, :3], expected, atol=1e-5, rtol=0.0)
+    torch.testing.assert_close(out["preds"]["boxes"][:, 6], torch.full((2,), 0.3))
+
+
 def test_detection_segmentation_inferer_raises() -> None:
     """A segmentation inferer would average boxes as per-point scores, so the module rejects it up front."""
     with pytest.raises(TypeError, match="SlidingWindowSegmentationInferer"):
@@ -807,6 +853,19 @@ def test_segmentation_detection_inferer_raises() -> None:
     inferer = TTADetectionInferer(lambda sample: sample)
     with pytest.raises(TypeError, match="TTADetectionInferer"):
         LitSemanticSegmentationModel(name="dummy.segmentation", target_key="segment", inferer=inferer)
+
+
+def test_inferer_outside_the_module_task_families_raises() -> None:
+    """The modules accept an allow-list of inferer families: an inferer of none of them is rejected."""
+
+    class OtherInferer(Inferer[Tensor]):
+        def forward(self, data: Dict[str, Any], predictor: Callable[[Dict[str, Any]], Tensor]) -> Tensor:
+            return predictor(data)
+
+    with pytest.raises(TypeError, match="`SimpleInferer` or `SegmentationInferer` for LitClassificationModel"):
+        LitClassificationModel(name="dummy.classification", inferer=OtherInferer())
+    with pytest.raises(TypeError, match="`SimpleInferer` or `DetectionInferer` for LitDetectionModel"):
+        LitDetectionModel(name="dummy.detection", inferer=OtherInferer())
 
 
 def test_detection_score_threshold_kwarg_filters(monkeypatch: pytest.MonkeyPatch) -> None:

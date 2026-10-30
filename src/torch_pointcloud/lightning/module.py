@@ -1,6 +1,6 @@
 """Lightning modules for classification, segmentation, and detection training."""
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, Literal, Optional, Sequence, Tuple, Type, Union
 
 import torch
 from torch import Tensor, nn
@@ -54,10 +54,16 @@ class LitModel(LightningModule):
             `torch_pointcloud.optim.generate_param_groups`.
         **kwargs: Forwarded to `create_model` (e.g. `pretrained=True`, or registry-hparam overrides).
 
+    Attributes:
+        inferer_types: Inferer classes that merge the module's test predictions; `inferer` must be an instance
+            of one. Logits merge with a `SegmentationInferer` (the classification and segmentation modules),
+            boxes with a `DetectionInferer` (`LitDetectionModel`), and `SimpleInferer` serves both.
+
     Raises:
-        TypeError: If `inferer` merges the outputs of another task: a `DetectionInferer` for a classification
-            or segmentation model, a `SegmentationInferer` for a detection model.
+        TypeError: If `inferer` is not an instance of `inferer_types`.
     """
+
+    inferer_types: ClassVar[Tuple[Type[Inferer[Any]], ...]] = (SimpleInferer, SegmentationInferer)
 
     def __init__(
         self,
@@ -75,17 +81,9 @@ class LitModel(LightningModule):
         param_groups: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
-        if task == "detection" and isinstance(inferer, SegmentationInferer):
-            raise TypeError(
-                f"`inferer` must merge detections (a `DetectionInferer` or `SimpleInferer`), got the segmentation "
-                f"inferer {type(inferer).__name__}."
-            )
-
-        if task != "detection" and isinstance(inferer, DetectionInferer):
-            raise TypeError(
-                f"`inferer` must merge logits (a `SegmentationInferer` or `SimpleInferer`), got the detection "
-                f"inferer {type(inferer).__name__}."
-            )
+        if inferer is not None and not isinstance(inferer, self.inferer_types):
+            names = " or ".join(f"`{inferer_type.__name__}`" for inferer_type in self.inferer_types)
+            raise TypeError(f"`inferer` must be a {names} for {type(self).__name__}, got {type(inferer).__name__}.")
 
         super().__init__()
         model, info = create_model(name, task=task, return_info=True, **kwargs)
@@ -360,14 +358,14 @@ class LitDetectionModel(LitModel):
       when `nms_rotated`, and the indoor per-class expansion when `decode` emits `class_probs`), and pair
       the result with the ground truth for a `MetricCallback` (e.g. `BoxMeanAveragePrecision`,
       `BoxAveragePrecision`); any other per-box `decode` entry (e.g. the nuScenes heads' `velocity`) is
-      filtered alongside the boxes and kept
-      in the predictions dict, and when the batch carries `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked
-      per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px `projected_ignore_mask` of the surviving boxes is
-      attached as the predictions' `ignore_mask` (the KITTI min-height rule); the ground-truth boxes are
-      `DataKeys.BOX` packed as $(K, 7)$ rows $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ (full extents,
-      counter-clockwise heading $\theta$), with per-box classes under `label_key`. No loss is computed at
-      validation, so a two-stage detector whose inference forward differs from its training forward (its
-      eval output carries decoded proposals, not loss targets) validates cleanly.
+      filtered alongside the boxes and kept in the predictions dict, and when the batch carries
+      `DataKeys.CALIB` / `DataKeys.IMAGE_SHAPE` (stacked per-frame $(B, 3, 4)$ / $(B, 2)$) the sub-25 px
+      `projected_ignore_mask` of the surviving boxes is attached as the predictions' `ignore_mask` (the KITTI
+      min-height rule); the ground-truth boxes are `DataKeys.BOX` packed as $(K, 7)$ rows
+      $[c_x, c_y, c_z, d_x, d_y, d_z, \theta]$ (full extents, counter-clockwise heading $\theta$), with per-box
+      classes under `label_key`. No loss is computed at validation, so a two-stage detector whose inference
+      forward differs from its training forward (its eval output carries decoded proposals, not loss targets)
+      validates cleanly.
 
     A model is swappable as long as it returns a prediction dict from `forward` and a raw `Detection3D`
     from `decode(output)`, and (for training) is paired with a `criterion(output, data)`.
@@ -396,8 +394,10 @@ class LitDetectionModel(LitModel):
             `DetectionInferer` or the default `SimpleInferer`.
 
     Raises:
-        TypeError: If `inferer` is a `SegmentationInferer`.
+        TypeError: If `inferer` is neither a `DetectionInferer` nor a `SimpleInferer`.
     """
+
+    inferer_types = (SimpleInferer, DetectionInferer)
 
     def __init__(
         self,
@@ -470,7 +470,7 @@ class LitDetectionModel(LitModel):
         return self.model.decode(output)
 
     def _eval_step(self, batch: Dict[str, Any], stage: str) -> Dict[str, Any]:
-        det = self.inferer(batch, predictor=self.detect) if stage == "test" else self.detect(batch)
+        det: Detection3D = self.inferer(batch, predictor=self.detect) if stage == "test" else self.detect(batch)
         keep = det["scores"] > self.score_threshold
         if self.min_points is not None:
             counts = count_points_in_boxes(
