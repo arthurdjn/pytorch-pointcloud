@@ -531,28 +531,6 @@ class Point2VecPretraining(PretrainingModel):
         self.teacher.load_state_dict(self.blocks.state_dict())
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
-    @torch.no_grad()
-    def update_teacher(self, decay: float) -> None:
-        r"""Move the teacher one exponential-moving-average step toward the student blocks.
-
-        Each teacher parameter becomes $\tau \theta_\text{teacher} + (1 - \tau) \theta_\text{student}$. The teacher
-        tracks `blocks` only, not the patch embedder, the positional embedding or `norm_f`. Call it after each
-        optimizer step.
-
-        Args:
-            decay: The decay $\tau$ in $[0, 1]$; $0$ copies the student blocks, $1$ keeps the teacher.
-
-        Example:
-            ```python
-            from torch_pointcloud.models.point2vec import Point2VecPretraining
-
-            model = Point2VecPretraining(in_channels=0, target_layers=range(6, 12))
-            model.update_teacher(decay=0.9998)
-            ```
-        """
-        for teacher, student in zip(self.teacher.parameters(), self.blocks.parameters()):
-            teacher.lerp_(student, 1.0 - decay)
-
         neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         B, G, _ = center.shape
         mask = random_mask(B, G, self.mask_ratio, device=center.device)
@@ -574,6 +552,28 @@ class Point2VecPretraining(PretrainingModel):
             targets = torch.stack([F.layer_norm(h, h.shape[-1:]) for h in hidden]).mean(0)
             targets = F.layer_norm(targets, targets.shape[-1:])[mask]
         return predictions, targets
+
+    @torch.no_grad()
+    def update_teacher(self, decay: float) -> None:
+        r"""Move the teacher one exponential-moving-average step toward the student blocks.
+
+        Each teacher parameter becomes $\tau \theta_\text{teacher} + (1 - \tau) \theta_\text{student}$. The teacher
+        tracks `blocks` only, not the patch embedder, the positional embedding or `norm_f`. Call it after each
+        optimizer step.
+
+        Args:
+            decay: The decay $\tau$ in $[0, 1]$; $0$ copies the student blocks, $1$ keeps the teacher.
+
+        Example:
+            ```python
+            from torch_pointcloud.models.point2vec import Point2VecPretraining
+
+            model = Point2VecPretraining(in_channels=0, target_layers=range(6, 12))
+            model.update_teacher(decay=0.9998)
+            ```
+        """
+        for teacher, student in zip(self.teacher.parameters(), self.blocks.parameters()):
+            teacher.lerp_(student, 1.0 - decay)
 
 
 _CHECKPOINT_MAPPING = {
