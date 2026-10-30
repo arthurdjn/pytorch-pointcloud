@@ -447,7 +447,7 @@ def _semantickitti_transform(learning_map: Dict[int, int]) -> T.Compose:
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet18-w16.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w16.semantickitti.mmdet3d/resolve/8a89025ee1e7412de0c3a957fea50b2d52aa132f/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 60.25, "OA": 91.78},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -474,7 +474,7 @@ def minkunet18_w16_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentation
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet18-w20.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w20.semantickitti.mmdet3d/resolve/b3e610b4da60da1362020e26dbcc5429624aaf6d/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 61.58, "OA": 91.93},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -501,7 +501,7 @@ def minkunet18_w20_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentation
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet18-w32.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w32.semantickitti.mmdet3d/resolve/fc569cc1eeb9147dda5a9b0fa709fb6a5e791eb9/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 63.06, "OA": 92.02},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -528,7 +528,7 @@ def minkunet18_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentation
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet34-w32-torchsparse.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet34-w32-torchsparse.semantickitti.mmdet3d/resolve/84761d8691188e7e91dd16dfcf8c26942a149375/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 68.92, "OA": 92.49},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -555,7 +555,7 @@ def minkunet34_w32_torchsparse_semantickitti_mmdet3d(**hparams: Any) -> MinkUNet
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d/resolve/1d246b11655c61bc7df10b90354e6527b0e6de27/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 69.16, "OA": 92.25},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -582,7 +582,7 @@ def minkunet34_w32_torchsparse_amp_semantickitti_mmdet3d(**hparams: Any) -> Mink
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet34-w32-spconv.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet34-w32-spconv.semantickitti.mmdet3d/resolve/7d5c2e271691c01236fcb24054d0be5efb6bcddd/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 68.64, "OA": 92.06},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -609,7 +609,7 @@ def minkunet34_w32_spconv_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegme
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet34-w32-spconv-amp.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet34-w32-spconv-amp.semantickitti.mmdet3d/resolve/b471d02413024cb083198dde3c5cfa377d243763/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 68.57, "OA": 92.79},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -636,7 +636,7 @@ def minkunet34_w32_spconv_amp_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetS
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet34-w32-minkowski.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet34-w32-minkowski.semantickitti.mmdet3d/resolve/0b1693bf96159fb189f627d23a2b756db2ea4a0a/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 69.21, "OA": 92.36},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -663,7 +663,7 @@ def minkunet34_w32_minkowski_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSe
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet34v2-w32.semantickitti.mmdet3d/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet34v2-w32.semantickitti.mmdet3d/resolve/d6d2a43939445a424980cc53f5eed32716c5b6fd/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 70.20, "OA": 92.34},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -691,7 +691,7 @@ def minkunet34v2_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentati
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet18-w16.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w16.semantickitti.mit-han-lab/resolve/7cb5604cbc4f8f8f3537282548315d227e7a84ab/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 58.90, "OA": 91.73},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -718,7 +718,7 @@ def minkunet18_w16_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmenta
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet18-w20.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w20.semantickitti.mit-han-lab/resolve/dee1a4853b91b08c68a821e75a179a1731309962/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 60.26, "OA": 91.94},
         classes=SEMANTIC_KITTI_CLASSES,
@@ -745,7 +745,7 @@ def minkunet18_w20_semantickitti_mit_han_lab(**hparams: Any) -> MinkUNetSegmenta
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/minkunet18-w32.semantickitti.mit-han-lab/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/minkunet18-w32.semantickitti.mit-han-lab/resolve/762d3d7bebd80a193d12f05f1d63ec8f8f853637/model.safetensors",
         dataset="semantickitti",
         metrics={"mIoU": 61.06, "OA": 91.64},
         classes=SEMANTIC_KITTI_CLASSES,
