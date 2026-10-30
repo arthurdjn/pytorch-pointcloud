@@ -103,11 +103,10 @@ from .tnet import DynamicTNet, TNet
 from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
 from .transformer import Attention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
 from .transfusion_head import (
-    SeparateHeadTransfusion,
     TransFusionDecoderLayer,
     TransFusionHead,
     TransFusionHeadOutput,
-    decode_query_boxes,
+    TransFusionPredictionHead,
 )
 from .vfe import DynamicMeanVFE, PillarFeatureLayer
 from .view import View
@@ -217,11 +216,10 @@ __all__ = [
     "TransformerBlock",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
-    "SeparateHeadTransfusion",
     "TransFusionDecoderLayer",
     "TransFusionHead",
     "TransFusionHeadOutput",
-    "decode_query_boxes",
+    "TransFusionPredictionHead",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",

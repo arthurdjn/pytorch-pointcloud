@@ -63,6 +63,5 @@ def test_transfusion_forward_and_decode() -> None:
     assert det["boxes"].shape[1] == 7
     assert det["velocity"].shape == (det["boxes"].shape[0], 2)
     assert det["scores"].shape == det["labels"].shape == det["batch"].shape == (det["boxes"].shape[0],)
-    assert det["boxes"].shape[0] <= 2 * 200
+    assert det["boxes"].shape[0] == 2 * 200
     assert torch.isfinite(det["boxes"]).all()
-    assert (det["boxes"][:, :2].abs() <= 61.2).all()

@@ -1,6 +1,7 @@
 r"""Query-based TransFusion detection head shared by the BEV detectors (TransFusion-L, LION).
 
-The training loss is [`TransFusionHeadLoss`][torch_pointcloud.losses.transfusion.TransFusionHeadLoss].
+The box codes are decoded by [`decode_query_codes`][torch_pointcloud.ops.heatmap.decode_query_codes] and the training
+loss is [`TransFusionHeadLoss`][torch_pointcloud.losses.transfusion.TransFusionHeadLoss].
 """
 
 from typing import Any, Callable, Dict, Literal, Optional, Sequence, TypedDict, Union
@@ -15,7 +16,7 @@ from typing_extensions import NotRequired
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.layers.transformer import TransformerDecoderLayer
-from torch_pointcloud.ops.heatmap import decode_center_codes
+from torch_pointcloud.ops.heatmap import decode_query_codes
 from torch_pointcloud.utils.types import Detection3D, OptTensor
 
 
@@ -24,7 +25,7 @@ class TransFusionHeadOutput(TypedDict):
 
     Attributes:
         center: BEV center in feature-map cells, shape $(B, 2, Q)$.
-        height: Absolute height code of the box, its center or top face (see `height_code`), shape $(B, 1, Q)$.
+        height: Height code of the box, its center or top face (see `height_code`), shape $(B, 1, Q)$.
         dim: Log box size, shape $(B, 3, Q)$.
         rot: $(\sin\theta, \cos\theta)$, shape $(B, 2, Q)$.
         vel: BEV velocity, shape $(B, 2, Q)$.
@@ -47,31 +48,33 @@ class TransFusionHeadOutput(TypedDict):
     dense_heatmap: Tensor
 
 
-class SeparateHeadTransfusion(nn.Module):
-    r"""Per-attribute prediction head of TransFusion.
+class TransFusionPredictionHead(nn.Module):
+    r"""Per-attribute prediction head of the TransFusion queries.
 
-    One small MLP per box attribute, applied to the per-query features: `center` $(2)$, `height` $(1)$, `dim` $(3)$,
-    `rot` $(2)$, `vel` $(2)$, a class `heatmap` and, with `use_iou`, an `iou` $(1)$ rectification score. The
-    reference's $1 \times 1$ convolutions over $(B, C, Q)$ are equivalent to linear layers over the flattened query
-    dim, so each branch is a plain `MLP`. The branch widths are fixed by the box parametrization; only the number of
-    classes and the depths are configurable.
+    One PyG `MLP` per box attribute over the flattened per-query features: `center` $(2)$, `height` $(1)$, `dim`
+    $(3)$, `rot` $(2)$, `vel` $(2)$, a class `heatmap` and, with `use_iou`, an `iou` $(1)$ rectification score. The
+    output widths are fixed by the box parametrization, except the class count of the `heatmap` branch.
 
     Args:
         in_channels: Input feature channels.
-        head_channels: Hidden channels of the per-attribute MLP.
+        head_channels: Hidden channels of the per-attribute MLPs.
         num_classes: Number of classes predicted by the heatmap branch.
         num_layers: Number of layers per box-attribute branch.
         num_heatmap_layers: Number of layers of the heatmap branch.
-        init_bias: Bias initialization for the heatmap output layer.
-        bias: Whether hidden layers carry a bias.
+        init_bias: Bias of the heatmap output layer at initialization.
         use_iou: Add the IoU-rectification branch.
+        act: Activation of the hidden layers.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization of the hidden layers.
+        norm_kwargs: Extra normalization arguments.
+        bias: Whether the hidden layers carry a bias.
 
     Shape:
         - Input: $(B, C_\text{in}, Q)$ per-query features.
         - Output: dict of $(B, C_\text{attr}, Q)$ tensors keyed by attribute.
 
     Example:
-        >>> head = SeparateHeadTransfusion(32, 16, num_classes=3)
+        >>> head = TransFusionPredictionHead(32, 16, 3).eval()
         >>> out = head(torch.randn(2, 32, 10))
         >>> out["center"].shape, out["heatmap"].shape
         (torch.Size([2, 2, 10]), torch.Size([2, 3, 10]))
@@ -82,17 +85,28 @@ class SeparateHeadTransfusion(nn.Module):
         in_channels: int,
         head_channels: int,
         num_classes: int,
+        *,
         num_layers: int = 2,
         num_heatmap_layers: int = 2,
         init_bias: float = -2.19,
-        bias: bool = False,
         use_iou: bool = False,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
     ) -> None:
         super().__init__()
         self.use_iou = use_iou
         hidden = [head_channels] * (num_layers - 1)
         layer_bias = [bias] * (num_layers - 1) + [True]
-        factory_kwargs: Dict[str, Any] = dict(act="relu", norm="batch_norm", plain_last=True)
+        factory_kwargs: Dict[str, Any] = dict(
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=norm,
+            norm_kwargs=norm_kwargs,
+            plain_last=True,
+        )
         self.center = MLP([in_channels, *hidden, 2], bias=layer_bias, **factory_kwargs)
         self.height = MLP([in_channels, *hidden, 1], bias=layer_bias, **factory_kwargs)
         self.dim = MLP([in_channels, *hidden, 3], bias=layer_bias, **factory_kwargs)
@@ -134,14 +148,22 @@ class TransFusionDecoderLayer(nn.Module):
         num_heads: Number of attention heads.
         mlp_dim: FFN hidden width.
         dropout: Dropout probability.
-        act: FFN activation.
         self_posembed: Position embedding applied to the flattened query positions (self-attention).
         cross_posembed: Position embedding applied to the flattened key positions (cross-attention).
+        act: FFN activation.
+        act_kwargs: Extra FFN activation arguments.
 
     Shape:
         - Input: `query` $(B, C, Q)$, `key` $(B, C, K)$, `query_pos` $(B, Q, 2)$, `key_pos` $(B, K, 2)$ and an
           optional boolean `key_padding_mask` $(B, K)$ (`True` masks a key out).
         - Output: $(B, C, Q)$.
+
+    Example:
+        >>> layer = TransFusionDecoderLayer(
+        ...     16, 2, 32, 0.0, self_posembed=MLP([2, 16, 16], plain_last=True), cross_posembed=MLP([2, 16, 16], plain_last=True)
+        ... ).eval()
+        >>> layer(torch.randn(2, 16, 5), torch.randn(2, 16, 20), torch.rand(2, 5, 2), torch.rand(2, 20, 2)).shape
+        torch.Size([2, 16, 5])
     """
 
     def __init__(
@@ -150,9 +172,11 @@ class TransFusionDecoderLayer(nn.Module):
         num_heads: int,
         mlp_dim: int,
         dropout: float,
-        act: Union[str, Callable, None],
+        *,
         self_posembed: nn.Module,
         cross_posembed: nn.Module,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.self_posembed = self_posembed
@@ -163,6 +187,7 @@ class TransFusionDecoderLayer(nn.Module):
             mlp_dim,
             dropout,
             act=act,
+            act_kwargs=act_kwargs,
             norm_first=False,
             pos_in_value=True,
         )
@@ -193,103 +218,108 @@ class TransFusionHead(nn.Module):
     r"""Query-based TransFusion detection head.
 
     Reference: :arxiv: [TransFusion: Robust LiDAR-Camera Fusion for 3D Object Detection with Transformers](https://arxiv.org/abs/2203.11496) (Bai et al., 2022).
-    Reference implementation: :github: [mit-han-lab/bevfusion](https://github.com/mit-han-lab/bevfusion).
+    Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
     A shared conv produces a BEV feature map and a dense class heatmap; the top `num_proposals` heatmap peaks (after a
-    local-max suppression) initialize object queries that attend to the BEV features, by self-attention and then
-    cross-attention to the whole map or to a $(2r + 1)^2$ window around each query (`query_radius`), through a
-    [`TransformerDecoderLayer`][torch_pointcloud.layers.transformer.TransformerDecoderLayer]. Per-query box
+    local-max suppression) initialize object queries that attend to the BEV features through a
+    [`TransformerDecoderLayer`][torch_pointcloud.layers.transformer.TransformerDecoderLayer]: by default, the queries
+    attend to each other and then to the whole map; with `query_radius`, each query attends alone to the
+    $(2r + 1)^2$ window around its own cell, with no attention between queries. Per-query box
     attributes are regressed by a
-    [`SeparateHeadTransfusion`][torch_pointcloud.layers.transfusion_head.SeparateHeadTransfusion].
+    [`TransFusionPredictionHead`][torch_pointcloud.layers.transfusion_head.TransFusionPredictionHead]. The query and
+    key positions are the BEV cell centers of the input map, so any map size is accepted.
 
     Args:
         in_channels: BEV feature channels feeding the shared conv.
         num_classes: Number of foreground classes.
-        grid_size: Voxel grid extent $(n_x, n_y, n_z)$.
-        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
-        feature_map_stride: BEV stride relating feature pixels to metric coordinates.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        feature_map_stride: Stride from the voxel grid to the BEV feature map.
+        height_code: Box point the `height` code regresses: the gravity center, or the top face ($z + d_z / 2$).
         embed_dim: Query / decoder feature width.
         num_proposals: Number of object queries.
         num_heads: Decoder attention heads.
-        nms_kernel_size: Heatmap local-max pooling kernel.
         mlp_dim: Decoder FFN width.
         dropout: Decoder dropout.
-        act: Decoder FFN activation.
+        head_channels: Hidden channels of the prediction head.
         num_heatmap_layers: Layers in the heatmap branch of the prediction head.
-        bias: Whether the convs and linears followed by a norm carry a bias.
+        nms_kernel_size: Odd kernel of the heatmap local-max suppression.
+        local_max_classes: Class indices whose heatmap peaks skip the local-max suppression (crowded small objects
+            whose centers fall in neighboring cells).
+        query_radius: Half-width, in cells, of the local cross-attention window around each query, which then skips
+            the attention between queries; `None` attends to the whole BEV map.
         use_iou: Add the IoU-rectification branch to the prediction head.
-        query_radius: Half-width, in cells, of the local cross-attention window around each query; `None` attends
-            to the whole BEV map.
-        iou_rectifier: Exponent blending the class score with the predicted IoU at decode, for a head built with
-            `use_iou`.
-        height_code: Box point the `height` code regresses: the gravity center, or the top face
-            ($z + d_z / 2$).
-        local_max_classes: Class indices whose heatmap peaks skip the kernel local-max suppression (crowded small
-            objects whose centers fall in neighboring cells).
-        post_center_range: Box-center range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$ kept at decode;
-            `None` keeps every box.
+        act: Activation of the heatmap conv, the position embeddings, the decoder FFN and the prediction head.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization of the heatmap conv, the position embeddings and the prediction head.
+        norm_kwargs: Extra normalization arguments.
+        bias: Whether the layers preceding a norm in the heatmap conv and the prediction head carry a bias.
 
     Shape:
         - Input: $(B, C, H, W)$ BEV features, with $H$ along $y$ and $W$ along $x$.
         - Output: a [`TransFusionHeadOutput`][torch_pointcloud.layers.transfusion_head.TransFusionHeadOutput].
 
     Example:
-        >>> head = TransFusionHead(16, 3, (32, 64, 1), (-8.0, -16.0, -1.0, 8.0, 16.0, 1.0), (0.5, 0.5, 2.0),
-        ...                        feature_map_stride=2, num_proposals=10).eval()
+        >>> head = TransFusionHead(
+        ...     16, 3, voxel_size=(0.5, 0.5, 2.0), point_cloud_range=(-8.0, -16.0, -1.0, 8.0, 16.0, 1.0),
+        ...     feature_map_stride=2, height_code="center", num_proposals=10,
+        ... ).eval()
         >>> out = head(torch.randn(2, 16, 32, 16))
         >>> out["center"].shape, out["dense_heatmap"].shape
         (torch.Size([2, 2, 10]), torch.Size([2, 3, 32, 16]))
     """
 
-    bev_pos: Tensor
-
     def __init__(
         self,
         in_channels: int,
         num_classes: int,
-        grid_size: Sequence[int],
-        point_cloud_range: Sequence[float],
-        voxel_size: Sequence[float],
         *,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
         feature_map_stride: int,
+        height_code: Literal["center", "top"],
         embed_dim: int = 128,
         num_proposals: int = 200,
         num_heads: int = 8,
-        nms_kernel_size: int = 3,
         mlp_dim: int = 256,
         dropout: float = 0.1,
-        act: Union[str, Callable, None] = "relu",
+        head_channels: int = 64,
         num_heatmap_layers: int = 2,
-        bias: bool = False,
-        use_iou: bool = False,
-        query_radius: Optional[int] = None,
-        iou_rectifier: Optional[float] = None,
-        height_code: Literal["center", "top"] = "center",
+        nms_kernel_size: int = 3,
         local_max_classes: Sequence[int] = (),
-        post_center_range: Optional[Sequence[float]] = None,
+        query_radius: Optional[int] = None,
+        use_iou: bool = False,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = False,
     ) -> None:
-        if iou_rectifier is not None and not use_iou:
-            raise ValueError("`iou_rectifier` needs the `iou` branch of a head built with `use_iou`.")
+        if nms_kernel_size % 2 == 0:
+            raise ValueError(f"`nms_kernel_size` must be odd, got {nms_kernel_size}.")
+        if any(not 0 <= c < num_classes for c in local_max_classes):
+            raise ValueError(
+                f"`local_max_classes` must be class indices in [0, {num_classes}), got {tuple(local_max_classes)}."
+            )
+        if height_code not in ("center", "top"):
+            raise ValueError(f"`height_code` must be 'center' or 'top', got {height_code!r}.")
 
         super().__init__()
         self.num_classes = num_classes
-        self.grid_size = tuple(int(g) for g in grid_size)
-        self.point_cloud_range = tuple(float(p) for p in point_cloud_range)
         self.voxel_size = tuple(float(v) for v in voxel_size)
+        self.point_cloud_range = tuple(float(p) for p in point_cloud_range)
         self.feature_map_stride = feature_map_stride
+        self.height_code = height_code
         self.num_proposals = num_proposals
         self.nms_kernel_size = nms_kernel_size
-        self.use_iou = use_iou
-        self.query_radius = query_radius
-        self.iou_rectifier = iou_rectifier
-        self.height_code = height_code
         self.local_max_classes = tuple(int(c) for c in local_max_classes)
-        self.post_center_range = None if post_center_range is None else tuple(float(p) for p in post_center_range)
+        self.query_radius = query_radius
+        self.use_iou = use_iou
 
+        norm_act_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
         self.shared_conv = nn.Conv2d(in_channels, embed_dim, kernel_size=3, padding=1)
         self.heatmap_head = nn.Sequential(
-            Conv2dBlock(embed_dim, embed_dim, kernel_size=3, padding=1, act="relu", norm="batch_norm", bias=bias),
+            Conv2dBlock(embed_dim, embed_dim, kernel_size=3, padding=1, bias=bias, **norm_act_kwargs),
             nn.Conv2d(embed_dim, num_classes, kernel_size=3, padding=1),
         )
         self.class_encoding = nn.Linear(num_classes, embed_dim)
@@ -298,21 +328,21 @@ class TransFusionHead(nn.Module):
             num_heads,
             mlp_dim,
             dropout,
-            act,
-            self_posembed=MLP([2, embed_dim, embed_dim], act="relu", norm="batch_norm", plain_last=True),
-            cross_posembed=MLP([2, embed_dim, embed_dim], act="relu", norm="batch_norm", plain_last=True),
+            self_posembed=MLP([2, embed_dim, embed_dim], plain_last=True, **norm_act_kwargs),
+            cross_posembed=MLP([2, embed_dim, embed_dim], plain_last=True, **norm_act_kwargs),
+            act=act,
+            act_kwargs=act_kwargs,
         )
-        self.prediction_head = SeparateHeadTransfusion(
-            embed_dim, 64, num_classes, num_heatmap_layers=num_heatmap_layers, bias=bias, use_iou=use_iou
+        self.prediction_head = TransFusionPredictionHead(
+            embed_dim,
+            head_channels,
+            num_classes,
+            num_heatmap_layers=num_heatmap_layers,
+            use_iou=use_iou,
+            bias=bias,
+            **norm_act_kwargs,
         )
         self.reset_parameters()
-
-        # The (x, y) cell center of every BEV position, in the row-major order of the flattened (H, W) map.
-        width = self.grid_size[0] // feature_map_stride
-        height = self.grid_size[1] // feature_map_stride
-        ys, xs = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
-        bev_pos = torch.stack([xs + 0.5, ys + 0.5], dim=-1).to(torch.float32)
-        self.register_buffer("bev_pos", bev_pos.view(1, -1, 2), persistent=False)
 
     def reset_parameters(self) -> None:
         r"""Start the weight matrices of the transformer decoder Xavier-uniform."""
@@ -322,16 +352,24 @@ class TransFusionHead(nn.Module):
 
     def forward(self, x: Tensor) -> TransFusionHeadOutput:
         batch_size, _, height, width = x.shape
+        if min(height, width) < self.nms_kernel_size:
+            raise ValueError(
+                f"The BEV map ({height} x {width}) must be at least `nms_kernel_size` ({self.nms_kernel_size}) cells "
+                "along each axis."
+            )
+
         bev_feat = self.shared_conv(x)
         bev_feat_flatten = bev_feat.view(batch_size, bev_feat.shape[1], -1)
-        bev_pos = self.bev_pos.repeat(batch_size, 1, 1)
+        # The (x, y) cell center of every BEV position, in the row-major order of the flattened (H, W) map.
+        ys, xs = torch.meshgrid(
+            torch.arange(height, device=x.device), torch.arange(width, device=x.device), indexing="ij"
+        )
+        bev_pos = (torch.stack([xs, ys], dim=-1).to(x.dtype) + 0.5).view(1, -1, 2).expand(batch_size, -1, -1)
 
         dense_heatmap = self.heatmap_head(bev_feat)
         heatmap = dense_heatmap.detach().sigmoid()
         padding = self.nms_kernel_size // 2
-        local_max = torch.zeros_like(heatmap)
-        local_max_inner = F.max_pool2d(heatmap, kernel_size=self.nms_kernel_size, stride=1, padding=0)
-        local_max[:, :, padding:(-padding), padding:(-padding)] = local_max_inner
+        local_max = F.pad(F.max_pool2d(heatmap, kernel_size=self.nms_kernel_size, stride=1), (padding,) * 4)
         for cls_idx in self.local_max_classes:
             local_max[:, cls_idx] = heatmap[:, cls_idx]
         heatmap = heatmap * (heatmap == local_max)
@@ -424,82 +462,66 @@ class TransFusionHead(nn.Module):
         return decoded.reshape(batch_size, num_proposals, channels).permute(0, 2, 1)
 
     @torch.no_grad()
-    def decode(self, out: TransFusionHeadOutput) -> Detection3D:
-        r"""Decode raw head predictions into raw candidate detections (no NMS).
+    def decode(
+        self,
+        out: TransFusionHeadOutput,
+        *,
+        iou_rectifier: Optional[Sequence[float]] = None,
+    ) -> Detection3D:
+        r"""Decode the raw head predictions into raw candidate detections (no NMS).
 
-        Multiplies the sigmoid query scores by the gathered dense-heatmap score, recovers oriented boxes, rescores
-        each by its predicted IoU when the head has an `iou_rectifier`, and filters by the post-center range. The
-        predicted BEV velocity $(v_x, v_y)$ of each kept box is returned under `velocity`. The full candidate set is
-        returned, without NMS.
+        Every query is a candidate, scored by its sigmoid class score times the gathered dense-heatmap score and
+        decoded to an oriented box by [`decode_query_codes`][torch_pointcloud.ops.heatmap.decode_query_codes]. With
+        `iou_rectifier`, a head built with `use_iou` rescores every candidate by its predicted IoU
+        ($s^{1 - r_c} \cdot \text{iou}^{r_c}$ with the per-class exponent $r_c$). The full candidate set is returned;
+        the evaluation pipeline applies the range filter, score thresholding and NMS.
 
         Args:
             out: The dict returned by `forward`.
+            iou_rectifier: Per-class IoU-rectification exponent, one entry per class, for a head built with `use_iou`.
 
         Returns:
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
             (PyG layout), plus `"velocity"` $(K, 2)$.
+
+        Example:
+            >>> head = TransFusionHead(
+            ...     16, 3, voxel_size=(0.5, 0.5, 2.0), point_cloud_range=(-8.0, -16.0, -1.0, 8.0, 16.0, 1.0),
+            ...     feature_map_stride=2, height_code="center", num_proposals=10,
+            ... ).eval()
+            >>> det = head.decode(head(torch.randn(2, 16, 32, 16)))
+            >>> det["boxes"].shape, det["batch"].tolist()
+            (torch.Size([20, 7]), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
         """
+        if iou_rectifier is not None and len(iou_rectifier) != self.num_classes:
+            raise ValueError(
+                f"`iou_rectifier` must have one entry per class ({self.num_classes}), got {len(iou_rectifier)}."
+            )
+        if iou_rectifier is not None and "iou" not in out:
+            raise ValueError("`iou_rectifier` needs the `iou` branch of a head built with `use_iou`.")
+
         one_hot = F.one_hot(out["query_labels"], num_classes=self.num_classes).permute(0, 2, 1)
         scores, labels = (out["heatmap"].sigmoid() * out["query_heatmap_score"] * one_hot).max(1)
-        boxes = decode_query_boxes(
-            out, self.voxel_size, self.point_cloud_range, self.feature_map_stride, height_code=self.height_code
+        boxes = decode_query_codes(
+            out["center"].transpose(1, 2),
+            out["height"].transpose(1, 2),
+            out["dim"].transpose(1, 2),
+            out["rot"].transpose(1, 2),
+            voxel_size=self.voxel_size,
+            point_cloud_range=self.point_cloud_range,
+            feature_map_stride=self.feature_map_stride,
+            height_code=self.height_code,
         )
-        if self.iou_rectifier is not None:
+        if iou_rectifier is not None:
             iou = ((out["iou"][:, 0] + 1) * 0.5).clamp(0.0, 1.0)
-            scores = scores.pow(1 - self.iou_rectifier) * iou.pow(self.iou_rectifier)
-
-        keep = torch.ones_like(scores, dtype=torch.bool)
-        if self.post_center_range is not None:
-            low, high = boxes.new_tensor(self.post_center_range).view(2, 3)
-            keep &= (boxes[..., :3] >= low).all(-1) & (boxes[..., :3] <= high).all(-1)
+            rectifier = scores.new_tensor(iou_rectifier)[labels]
+            scores = scores.pow(1 - rectifier) * iou.pow(rectifier)
         batch = torch.arange(scores.shape[0], device=scores.device).view(-1, 1).expand_as(scores)
 
         return {
-            "boxes": boxes[keep],
-            "scores": scores[keep],
-            "labels": labels[keep],
-            "batch": batch[keep],
-            "velocity": out["vel"].transpose(1, 2)[keep],
+            "boxes": boxes.flatten(0, 1),
+            "scores": scores.flatten(),
+            "labels": labels.flatten(),
+            "batch": batch.flatten(),
+            "velocity": out["vel"].transpose(1, 2).flatten(0, 1),
         }
-
-
-def decode_query_boxes(
-    out: TransFusionHeadOutput,
-    voxel_size: Sequence[float],
-    point_cloud_range: Sequence[float],
-    feature_map_stride: int,
-    height_code: Literal["center", "top"] = "center",
-) -> Tensor:
-    r"""Oriented boxes of the TransFusion queries, from their box codes in feature-map cells.
-
-    The `center` code is the absolute cell position, so it is decoded by
-    [`decode_center_codes`][torch_pointcloud.ops.heatmap.decode_center_codes] from the map corner; the `rot` code is
-    $(\sin\theta, \cos\theta)$.
-
-    Args:
-        out: Head output carrying the per-query `center`, `height`, `dim` and `rot` codes.
-        voxel_size: Voxel size $(v_x, v_y, v_z)$ in metric units.
-        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
-        feature_map_stride: Stride from voxel grid to feature map.
-        height_code: Box point the `height` code regresses: the gravity center, or the top face ($z + d_z / 2$).
-
-    Returns:
-        Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(B, Q, 7)$.
-
-    Shape:
-        - out: codes of shape $(B, \cdot, Q)$
-        - output: $(B, Q, 7)$
-
-    Example:
-        >>> out = {"center": torch.full((1, 2, 1), 4.0), "height": torch.zeros(1, 1, 1),
-        ...        "dim": torch.zeros(1, 3, 1), "rot": torch.tensor([[[0.0], [1.0]]])}
-        >>> decode_query_boxes(out, (0.5, 0.5, 0.5), (-4.0, -4.0, -2.0, 4.0, 4.0, 2.0), 2)
-        tensor([[[0., 0., 0., 1., 1., 1., 0.]]])
-    """
-    codes = torch.cat([out["center"], out["height"], out["dim"], out["rot"].flip(1)], dim=1).transpose(1, 2)
-    boxes = decode_center_codes(
-        codes, torch.zeros_like(codes[..., :2]), voxel_size, point_cloud_range, feature_map_stride
-    )
-    if height_code == "top":
-        boxes[..., 2] = boxes[..., 2] - boxes[..., 5] * 0.5
-    return boxes

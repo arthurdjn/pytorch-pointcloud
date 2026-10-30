@@ -30,7 +30,7 @@ class TransFusionDetection(DetectionModel):
     r"""TransFusion-L: query-based LiDAR-only 3D object detector on a sparse voxel backbone (packed point format).
 
     Reference: :arxiv: [TransFusion: Robust LiDAR-Camera Fusion for 3D Object Detection with Transformers](https://arxiv.org/abs/2203.11496) (Bai et al., 2022).
-    Reference implementation: :github: [XuyangBai/TransFusion](https://github.com/XuyangBai/TransFusion).
+    Reference implementation: :github: [open-mmlab/OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
     A residual sparse 3D backbone ([`VoxelResBackbone8x`][torch_pointcloud.models.second.VoxelResBackbone8x])
     encodes the mean-pooled voxels, its output is flattened along height into a dense BEV map refined by the
@@ -58,7 +58,6 @@ class TransFusionDetection(DetectionModel):
         nms_kernel_size: Heatmap local-max pooling kernel of the query initialization.
         local_max_classes: Crowded small-object class indices whose heatmap peaks skip the local-max suppression;
             see [`TransFusionHead`][torch_pointcloud.layers.transfusion_head.TransFusionHead].
-        post_center_range: Box-center range kept at decode; `None` keeps every box.
         act: Activation type or callable for the backbones.
         act_kwargs: Extra activation arguments.
         norm: Normalization type or callable for the backbones.
@@ -85,7 +84,6 @@ class TransFusionDetection(DetectionModel):
         dropout: float = 0.1,
         nms_kernel_size: int = 3,
         local_max_classes: Sequence[int] = (),
-        post_center_range: Optional[Sequence[float]] = None,
         act: Union[str, Callable, None] = "relu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
@@ -107,7 +105,6 @@ class TransFusionDetection(DetectionModel):
         self.dropout = dropout
         self.nms_kernel_size = nms_kernel_size
         self.local_max_classes = local_max_classes
-        self.post_center_range = post_center_range
         self.act = act
         self.act_kwargs = act_kwargs
         self.norm = norm
@@ -160,10 +157,10 @@ class TransFusionDetection(DetectionModel):
         return TransFusionHead(
             self.backbone.num_bev_features,
             self.num_classes,
-            self.grid_size,
-            self.point_cloud_range,
-            self.voxel_size,
+            voxel_size=self.voxel_size,
+            point_cloud_range=self.point_cloud_range,
             feature_map_stride=self.feature_map_stride,
+            height_code="center",
             embed_dim=self.embed_dim,
             num_proposals=self.num_proposals,
             num_heads=self.num_heads,
@@ -171,7 +168,6 @@ class TransFusionDetection(DetectionModel):
             mlp_dim=self.mlp_dim,
             dropout=self.dropout,
             local_max_classes=self.local_max_classes,
-            post_center_range=self.post_center_range,
         )
 
     def forward_features(self, voxels: Tensor, pos_voxel: Tensor, voxel_num_points: Tensor, batch: Tensor) -> Tensor:
@@ -244,7 +240,6 @@ class TransFusionDetection(DetectionModel):
         # nuScenes 10-class order: car, truck, construction_vehicle, bus, trailer, barrier,
         # motorcycle, bicycle, pedestrian, traffic_cone.
         local_max_classes=(8, 9),
-        post_center_range=(-61.2, -61.2, -10.0, 61.2, 61.2, 10.0),
         norm_kwargs={"eps": 1e-3, "momentum": 0.01},
     ),
 )
