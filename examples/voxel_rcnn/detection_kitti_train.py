@@ -355,7 +355,7 @@ def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         det = model.decode(forward(model, data))
-        keep = det["scores"] > SCORE_THRESHOLD
+        keep = det["scores"] >= SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
         idx = nms3d(boxes, scores, NMS_IOU, batch=batch, rotated=True)
         boxes, scores, labels, batch = boxes[idx], scores[idx], labels[idx], batch[idx]
