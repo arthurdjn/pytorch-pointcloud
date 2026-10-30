@@ -89,6 +89,12 @@ class Cylinder3DSegmentation(SemanticSegmentationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if len(point_cloud_range) != 6:
+            raise ValueError(f"Expected 6 range bounds (3 lower then 3 upper), got {len(point_cloud_range)}.")
+        if len(grid_size) != 3 or min(grid_size) < 2:
+            raise ValueError(f"Expected 3 grid sizes of at least 2 cells, got {tuple(grid_size)}.")
+        if len(channels) < 2:
+            raise ValueError(f"Expected the stem width and at least one encoder stage width, got {tuple(channels)}.")
         if len(strides) != len(channels) - 1:
             raise ValueError(f"Expected one stride per encoder stage ({len(channels) - 1}), got {len(strides)}.")
 

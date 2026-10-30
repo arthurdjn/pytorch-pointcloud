@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple
 
 import pytest
 import torch
@@ -110,15 +110,59 @@ def test_cylinder3d_reset_classifier(model: Cylinder3DSegmentation, data: Dict[s
     assert logits.shape == (data["pos"].shape[0], 7)
 
 
-def test_cylinder3d_rejects_a_stride_count_that_does_not_match_the_stages() -> None:
-    with pytest.raises(ValueError, match="one stride per encoder stage"):
+@pytest.mark.parametrize(
+    "point_cloud_range, grid_size, channels, strides, match",
+    [
+        pytest.param(
+            (0.0, -3.0, 50.0, 3.0),
+            (96, 72, 16),
+            (8, 16, 32),
+            ((2, 2, 2), (2, 2, 1)),
+            "6 range bounds",
+            id="point_cloud_range",
+        ),
+        pytest.param(
+            POINT_CLOUD_RANGE,
+            (96, 72),
+            (8, 16, 32),
+            ((2, 2, 2), (2, 2, 1)),
+            "3 grid sizes",
+            id="grid_size_length",
+        ),
+        pytest.param(
+            POINT_CLOUD_RANGE,
+            (96, 1, 16),
+            (8, 16, 32),
+            ((2, 2, 2), (2, 2, 1)),
+            "at least 2 cells",
+            id="grid_size_one_cell",
+        ),
+        pytest.param(POINT_CLOUD_RANGE, (96, 72, 16), (8,), (), "at least one encoder stage", id="channels"),
+        pytest.param(
+            POINT_CLOUD_RANGE,
+            (96, 72, 16),
+            (8, 16, 32),
+            ((2, 2, 2),),
+            "one stride per encoder stage",
+            id="strides",
+        ),
+    ],
+)
+def test_cylinder3d_rejects_invalid_arguments(
+    point_cloud_range: Tuple[float, ...],
+    grid_size: Tuple[int, ...],
+    channels: Tuple[int, ...],
+    strides: Tuple[Tuple[int, int, int], ...],
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
         Cylinder3DSegmentation(
             1,
             5,
-            point_cloud_range=POINT_CLOUD_RANGE,
-            grid_size=(96, 72, 16),
-            channels=(8, 16, 32),
-            strides=((2, 2, 2),),
+            point_cloud_range=point_cloud_range,
+            grid_size=grid_size,
+            channels=channels,
+            strides=strides,
         )
 
 

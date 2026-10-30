@@ -256,6 +256,13 @@ class DynamicMaxVFE(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if len(voxel_size) != 3:
+            raise ValueError(f"Expected 3 voxel sizes, got {len(voxel_size)}.")
+        if len(point_cloud_range) != 6:
+            raise ValueError(f"Expected 6 range bounds (3 lower then 3 upper), got {len(point_cloud_range)}.")
+        if len(grid_size) != 3:
+            raise ValueError(f"Expected 3 grid sizes, got {len(grid_size)}.")
+
         super().__init__()
         norm_kwargs = norm_kwargs or {}
         self.in_channels = in_channels

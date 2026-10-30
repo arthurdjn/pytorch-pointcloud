@@ -1,3 +1,6 @@
+from typing import Tuple
+
+import pytest
 import torch
 from torch_geometric.utils import scatter
 
@@ -100,3 +103,21 @@ def test_dynamic_max_vfe_sends_points_outside_the_range_to_the_border_voxels() -
     pos = torch.tensor([[4.0, 4.0, 4.0], [9.0, -3.0, 2.5], [0.5, 1.5, 3.5]])
     _, voxel_indices, inverse = vfe(torch.empty(3, 0), pos, torch.zeros(3, dtype=torch.long))
     assert torch.equal(voxel_indices[inverse].long(), torch.tensor([[0, 3, 3, 3], [0, 3, 0, 2], [0, 0, 1, 3]]))
+
+
+@pytest.mark.parametrize(
+    "voxel_size, point_cloud_range, grid_size, match",
+    [
+        pytest.param((1.0, 1.0), (0.0, 0.0, 0.0, 4.0, 4.0, 4.0), (4, 4, 4), "3 voxel sizes", id="voxel_size"),
+        pytest.param((1.0, 1.0, 1.0), (0.0, 0.0, 4.0, 4.0), (4, 4, 4), "6 range bounds", id="point_cloud_range"),
+        pytest.param((1.0, 1.0, 1.0), (0.0, 0.0, 0.0, 4.0, 4.0, 4.0), (4, 4), "3 grid sizes", id="grid_size"),
+    ],
+)
+def test_dynamic_max_vfe_rejects_a_grid_that_is_not_3d(
+    voxel_size: Tuple[float, ...],
+    point_cloud_range: Tuple[float, ...],
+    grid_size: Tuple[int, ...],
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        DynamicMaxVFE(1, (8,), 4, voxel_size=voxel_size, point_cloud_range=point_cloud_range, grid_size=grid_size)
