@@ -37,6 +37,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
+- Added `act_first`, `act_last` and `input_transform_uses_features` to the PointNet models, and `in_channels` to `TNet`.
+- Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`; the former key still loads, with a `FutureWarning`.
 
 ## 0.0.18 (2026-10-20)
 

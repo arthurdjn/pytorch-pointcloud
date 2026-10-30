@@ -3,6 +3,7 @@
 {{ paper("1612.00593") }}
 """
 
+import warnings
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union, overload
 
 import torch
@@ -10,15 +11,20 @@ import torch.nn as nn
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import (
     PoolLike,
     TNet,
+    create_act,
+    create_norm,
     create_pool,
 )
 from torch_pointcloud.utils.data import DataKeys
 
 from ._base import ClassificationModel, SemanticSegmentationModel
-from ._registry import register_model
+from ._registry import WeightsDict, register_model
 
 
 class PointNetEncoder(nn.Module):
@@ -70,7 +76,11 @@ class PointNetEncoder(nn.Module):
         tnet_act_kwargs: Keyword arguments for the T-Net activation function.
         tnet_norm: Normalization for T-Net.
         tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
-
+        act_first: Whether to apply the activation before the normalization in every layer.
+        act_last: Whether the last layer of the second MLP applies the activation; `False` returns its normalized
+            linear output. Unlike PyG's `plain_last`, the normalization is kept.
+        input_transform_uses_features: Whether the input T-Net predicts its transform from the coordinates
+            concatenated with the point features, the coordinates alone otherwise.
     """
 
     def __init__(
@@ -90,8 +100,13 @@ class PointNetEncoder(nn.Module):
         tnet_act_kwargs: Optional[Dict[str, Any]] = None,
         tnet_norm: Union[str, Callable, None] = "batch_norm",
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = True,
+        act_last: bool = True,
+        input_transform_uses_features: bool = False,
     ) -> None:
         super().__init__()
+        self.act_first = act_first
+        self.input_transform_uses_features = input_transform_uses_features
         mlp1_channels = [spatial_dim + in_channels] + list(mlp1_channels)
         mlp2_channels = [mlp1_channels[-1]] + list(mlp2_channels)
 
@@ -99,9 +114,10 @@ class PointNetEncoder(nn.Module):
             local_channels=tnet_mlp1_dims,
             global_channels=tnet_mlp2_dims,
             k=spatial_dim,
+            in_channels=mlp1_channels[0] if input_transform_uses_features else None,
             act=tnet_act,
             act_kwargs=tnet_act_kwargs,
-            act_first=True,
+            act_first=act_first,
             norm=tnet_norm,
             norm_kwargs=tnet_norm_kwargs,
         )
@@ -114,7 +130,7 @@ class PointNetEncoder(nn.Module):
                 k=mlp1_channels[-1],
                 act=tnet_act,
                 act_kwargs=tnet_act_kwargs,
-                act_first=True,
+                act_first=act_first,
                 norm=tnet_norm,
                 norm_kwargs=tnet_norm_kwargs,
             )
@@ -125,7 +141,7 @@ class PointNetEncoder(nn.Module):
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
-            act_first=True,
+            act_first=act_first,
             plain_last=False,
         )
         self.mlp2 = MLP(
@@ -134,9 +150,12 @@ class PointNetEncoder(nn.Module):
             act_kwargs=act_kwargs,
             norm=norm,
             norm_kwargs=norm_kwargs,
-            act_first=True,
-            plain_last=False,
+            act_first=act_first,
+            plain_last=True,
         )
+        self.out_norm = create_norm(norm, mlp2_channels[-1], **(norm_kwargs or {})) or nn.Identity()
+        self.out_act = (create_act(act, **(act_kwargs or {})) if act_last else None) or nn.Identity()
+        self.register_load_state_dict_pre_hook(_rename_former_out_norm_keys)  # type: ignore[no-untyped-call]
 
     @overload
     def forward(
@@ -179,7 +198,7 @@ class PointNetEncoder(nn.Module):
                 - `point_features` of shape $(N, C_1)$ where $C_1$ is the last dimension of the first MLP.
         """
 
-        xp = self.stnet(pos, batch)
+        xp = self.stnet(pos, batch, x if self.input_transform_uses_features else None)
         x = xp if x is None else torch.cat([xp, x], dim=1)
 
         point_features = self.mlp1(x)
@@ -188,10 +207,31 @@ class PointNetEncoder(nn.Module):
             point_features = self.ftnet(point_features, batch)
 
         x = self.mlp2(point_features)
+        if self.act_first:
+            x = self.out_act(x)
+            x = self.out_norm(x)
+        else:
+            x = self.out_norm(x)
+            x = self.out_act(x)
 
         if return_point_features:
             return x, point_features
         return x
+
+
+def _rename_former_out_norm_keys(module: nn.Module, state_dict: Dict[str, Any], prefix: str, *args: Any) -> None:
+    assert isinstance(module, PointNetEncoder)
+    former = f"{prefix}mlp2.norms.{module.mlp2.num_layers - 1}."
+    keys = [key for key in state_dict if key.startswith(former)]
+    if keys:
+        warnings.warn(
+            f"The `{former}*` keys of `PointNetEncoder` were renamed to `{prefix}out_norm.*` in 0.0.19 and will stop "
+            "loading in 0.0.20; save the loaded model's `state_dict` again to update the checkpoint.",
+            FutureWarning,
+            stacklevel=2,
+        )
+    for key in keys:
+        state_dict[f"{prefix}out_norm.{key[len(former) :]}"] = state_dict.pop(key)
 
 
 class PointNetClassification(ClassificationModel):
@@ -214,6 +254,11 @@ class PointNetClassification(ClassificationModel):
         You can control the activations, normalization, and dropout rate of the encoder and head.
         To skip them, set them to `None`.
 
+    Tip:
+        The registered checkpoints use `act_first=False` and `act_last=False`. Both layouts share their `state_dict`
+        keys, so a strict load does not tell them apart: build a checkpoint with `create_model`, which sets them from
+        the registry.
+
     Args:
         in_channels: Dimension of additional point features.
         num_classes: Number of output classes.
@@ -234,6 +279,11 @@ class PointNetClassification(ClassificationModel):
         tnet_norm: Normalization for T-Net.
         tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
         head_channels: Hidden dimensions of the classification head MLP.
+        act_first: Whether to apply the activation before the normalization in every layer.
+        act_last: Whether the last encoder layer applies the activation; `False` pools the normalized linear
+            output. Unlike PyG's `plain_last`, the normalization is kept.
+        input_transform_uses_features: Whether the input T-Net predicts its transform from the coordinates
+            concatenated with the point features, the coordinates alone otherwise.
 
     Shape:
         - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape $(N, \text{spatial\_dim})$
@@ -262,6 +312,9 @@ class PointNetClassification(ClassificationModel):
         tnet_norm: Union[str, Callable, None] = "batch_norm",
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
         head_channels: Sequence[int] = (512, 256),
+        act_first: bool = True,
+        act_last: bool = True,
+        input_transform_uses_features: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
@@ -280,6 +333,9 @@ class PointNetClassification(ClassificationModel):
         self.tnet_norm = tnet_norm
         self.tnet_norm_kwargs = tnet_norm_kwargs
         self.head_channels = list(head_channels)
+        self.act_first = act_first
+        self.act_last = act_last
+        self.input_transform_uses_features = input_transform_uses_features
 
         self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
@@ -303,6 +359,9 @@ class PointNetClassification(ClassificationModel):
             tnet_act_kwargs=self.tnet_act_kwargs,
             tnet_norm=self.tnet_norm,
             tnet_norm_kwargs=self.tnet_norm_kwargs,
+            act_first=self.act_first,
+            act_last=self.act_last,
+            input_transform_uses_features=self.input_transform_uses_features,
         )
 
     @property
@@ -320,7 +379,7 @@ class PointNetClassification(ClassificationModel):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             dropout=self.dropout,
-            act_first=True,
+            act_first=self.act_first,
             plain_last=True,
         )
 
@@ -410,6 +469,11 @@ class PointNetSegmentation(SemanticSegmentationModel):
         local geometry and the global shape context. This enables part segmentation that is
         aware of the overall object structure.
 
+    Tip:
+        The registered checkpoints use `act_first=False` and `act_last=False`. Both layouts share their `state_dict`
+        keys, so a strict load does not tell them apart: build a checkpoint with `create_model`, which sets them from
+        the registry.
+
     Args:
         in_channels: Dimension of additional point features.
         num_classes: Number of segmentation classes.
@@ -430,6 +494,11 @@ class PointNetSegmentation(SemanticSegmentationModel):
         tnet_norm: Normalization for T-Net.
         tnet_norm_kwargs: Keyword arguments for the T-Net normalization layers.
         seg_head_dims: Dimensions of segmentation head MLPs.
+        act_first: Whether to apply the activation before the normalization in every layer.
+        act_last: Whether the last encoder layer applies the activation; `False` pools the normalized linear
+            output. Unlike PyG's `plain_last`, the normalization is kept.
+        input_transform_uses_features: Whether the input T-Net predicts its transform from the coordinates
+            concatenated with the point features, the coordinates alone otherwise.
 
     Shape:
         - Input: features of shape $(N, \text{in\_channels})$ (optional), points of shape $(N, \text{spatial\_dim})$
@@ -458,6 +527,9 @@ class PointNetSegmentation(SemanticSegmentationModel):
         tnet_norm: Union[str, Callable, None] = "batch_norm",
         tnet_norm_kwargs: Optional[Dict[str, Any]] = None,
         seg_head_dims: Sequence[int] = (512, 256, 128),
+        act_first: bool = True,
+        act_last: bool = True,
+        input_transform_uses_features: bool = False,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.dropout = dropout
@@ -476,6 +548,9 @@ class PointNetSegmentation(SemanticSegmentationModel):
         self.tnet_norm = tnet_norm
         self.tnet_norm_kwargs = tnet_norm_kwargs
         self.seg_head_dims = list(seg_head_dims)
+        self.act_first = act_first
+        self.act_last = act_last
+        self.input_transform_uses_features = input_transform_uses_features
 
         self.encoder = self.configure_encoder()
         self.global_pool = create_pool(global_pool)
@@ -501,6 +576,9 @@ class PointNetSegmentation(SemanticSegmentationModel):
             tnet_act_kwargs=self.tnet_act_kwargs,
             tnet_norm=self.tnet_norm,
             tnet_norm_kwargs=self.tnet_norm_kwargs,
+            act_first=self.act_first,
+            act_last=self.act_last,
+            input_transform_uses_features=self.input_transform_uses_features,
         )
 
     @property
@@ -518,7 +596,7 @@ class PointNetSegmentation(SemanticSegmentationModel):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             dropout=self.dropout,
-            act_first=True,
+            act_first=self.act_first,
             plain_last=True,
         )
 
@@ -613,7 +691,6 @@ class PointNetSegmentation(SemanticSegmentationModel):
 @register_model(
     "pointnet.modelnet40",
     task="classification",
-    # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=0, num_classes=40, dropout=0.3),
     transform=T.Compose(
@@ -636,7 +713,6 @@ def pointnet_modelnet40(**hparams: Any) -> PointNetClassification:
 @register_model(
     "pointnet.s3dis-area5",
     task="semantic-segmentation",
-    # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=9, num_classes=13),
     transform=T.Compose(
@@ -652,10 +728,119 @@ def pointnet_s3dis_area5(**hparams: Any) -> PointNetSegmentation:
 @register_model(
     "pointnet.shapenetpart",
     task="semantic-segmentation",
-    # No ported pretrained weights for PointNet v1 yet.
     weights=None,
     hparams=dict(in_channels=0, num_classes=50),
     transform=T.Rescale(keys=DataKeys.POS),
 )
 def pointnet_shapenetpart(**hparams: Any) -> PointNetSegmentation:
+    return PointNetSegmentation(**hparams)
+
+
+@register_model(
+    "pointnet.modelnet40.jiawei-ren",
+    task="classification",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet.modelnet40.jiawei-ren/resolve/5a8d19dab6e031ba8daed747ab11d12572450636/model.safetensors",
+        dataset="modelnet40",
+        metrics={"OA": 90.68, "mAcc": 86.54},
+        classes=MODELNET40_CLASSES,
+        author="jiawei-ren",
+        license="Apache-2.0",
+    ),
+    hparams=dict(
+        in_channels=0,
+        num_classes=40,
+        dropout=0.3,
+        mlp1_channels=[64],
+        mlp2_channels=[128, 1024],
+        tnet_mlp1_dims=[64, 128, 1024],
+        tnet_mlp2_dims=[512, 256],
+        head_channels=[512, 256],
+        act_first=False,
+        act_last=False,
+    ),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+            T.Slice(
+                keys=[DataKeys.POS, DataKeys.NORMAL],
+                stop=1024,
+                dst_index_key=DataKeys.INDEX,
+                allow_missing_keys=True,
+            ),
+        ]
+    ),
+)
+def pointnet_jiawei_ren_modelnet40(**hparams: Any) -> PointNetClassification:
+    # from the repo: https://github.com/jiawei-ren/ModelNet-C (SimpleView training code, DGCNN protocol)
+    return PointNetClassification(**hparams)
+
+
+@register_model(
+    "pointnet.scanobjectnn-hardest.openpoints",
+    task="classification",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet.scanobjectnn-hardest.openpoints/resolve/b2b0b456a34418d384cc1d48221988faf902c5a9/model.safetensors",
+        dataset="scanobjectnn-hardest",
+        metrics={"OA": 75.16, "mAcc": 71.44},
+        classes=SCANOBJECTNN_CLASSES,
+        author="openpoints",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=1,
+        num_classes=15,
+        dropout=0.5,
+        mlp1_channels=[64, 64],
+        mlp2_channels=[64, 128, 1024],
+        tnet_mlp1_dims=[64, 128, 1024],
+        tnet_mlp2_dims=[512, 256],
+        head_channels=[512, 256],
+        act_first=False,
+        act_last=False,
+        input_transform_uses_features=True,
+    ),
+    transform=T.Compose(
+        [
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+            T.FarthestPointSample(pos_key=DataKeys.POS, num_samples=1024, dst_index_key=DataKeys.INDEX),
+            T.Slice(keys=DataKeys.POS, start=1, stop=2, dim=1, dst_keys=DataKeys.X),
+            T.Shift(keys=DataKeys.X, method="min"),
+            T.Rescale(keys=DataKeys.POS, method="centroid"),
+        ]
+    ),
+)
+def pointnet_openpoints_scanobjectnn(**hparams: Any) -> PointNetClassification:
+    # from the repo: https://github.com/guochengqian/openpoints (the height is the only point feature)
+    return PointNetClassification(**hparams)
+
+
+@register_model(
+    "pointnet.s3dis-area5.xu-yan",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pointnet.s3dis-area5.xu-yan/resolve/b929f375f615cf4b50139907e3afd7be41c7fe4e/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 43.88, "OA": 79.39},
+        classes=S3DIS_CLASSES,
+        author="xu-yan",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=13,
+        dropout=0.0,
+        mlp1_channels=[64],
+        mlp2_channels=[128, 1024],
+        tnet_mlp1_dims=[64, 128, 1024],
+        tnet_mlp2_dims=[512, 256],
+        seg_head_dims=[512, 256, 128],
+        act_first=False,
+        act_last=False,
+        input_transform_uses_features=True,
+    ),
+    transform=T.Cat(keys=[DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
+)
+def pointnet_yanx27_s3dis_area5(**hparams: Any) -> PointNetSegmentation:
+    # from the repo: https://github.com/yanx27/Pointnet_Pointnet2_pytorch (sem_seg, S3DIS)
     return PointNetSegmentation(**hparams)

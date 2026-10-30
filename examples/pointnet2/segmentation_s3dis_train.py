@@ -1,4 +1,4 @@
-"""Train PointNet++ or PointNet on S3DIS, following yanx27's `train_semseg.py`."""
+"""Train PointNet++ on S3DIS, following yanx27's `train_semseg.py`."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -16,7 +16,6 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS, RepeatSampler
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
-from torch_pointcloud.losses import TNetOrthogonalityRegularizer
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import set_bn_momentum
@@ -26,12 +25,11 @@ from torch_pointcloud.utils.random import seed_everything
 CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
-MODELS = ["pointnet2.s3dis-area5.xu-yan", "pointnet.s3dis-area5"]
+MODELS = ["pointnet2.s3dis-area5.xu-yan"]
 NUM_CLASSES = 13
 NUM_POINTS = 4096
 BLOCK_SIZE = 1.0
 MIN_BLOCK_POINTS = 1024
-REGULARIZER_WEIGHT = 0.001
 POINT_KEYS = [DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT]
 
 # A random 1 m block of 4096 points per room, with the room features.
@@ -88,7 +86,6 @@ def main() -> None:
     model = configure_model(args)
     optimizer, scheduler = configure_optimizers(args, model)
     criterion = configure_criterion(args, _rooms(train_loader.dataset))
-    regularizer = configure_regularizer(args)
 
     num_train, num_val = len(train_loader.sampler), len(val_loader.sampler)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} blocks per epoch, validating on {num_val}.")
@@ -96,7 +93,7 @@ def main() -> None:
     best_loss = float("inf")
     for epoch in range(args.epochs):
         set_bn_momentum(model, max(0.1 * 0.5 ** (epoch // 10), 0.01))
-        loss = train_one_epoch(model, criterion, regularizer, optimizer, train_loader, args.device)
+        loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device)
         lr = optimizer.param_groups[0]["lr"]
         scheduler.step()
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
@@ -184,7 +181,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
 
 
 def configure_model(args: Namespace) -> nn.Module:
-    if args.model.startswith("pointnet2") and args.area != 5:
+    if args.area != 5:
         raise SystemExit("The PointNet++ registry entry is defined for Area 5 only.")
     return create_model(args.model, task="semantic-segmentation", pretrained=False).to(args.device)
 
@@ -212,15 +209,9 @@ def configure_criterion(args: Namespace, dataset: S3DIS) -> nn.Module:
     return nn.CrossEntropyLoss(weight=weights.to(args.device))
 
 
-def configure_regularizer(args: Namespace) -> Optional[nn.Module]:
-    # The reference regularizes the feature transform of PointNet, not its input transform.
-    return TNetOrthogonalityRegularizer() if args.model.startswith("pointnet.") else None
-
-
 def train_one_epoch(
     model: nn.Module,
     criterion: nn.Module,
-    regularizer: Optional[nn.Module],
     optimizer: Optimizer,
     loader: DataLoader,
     device: str,
@@ -231,8 +222,6 @@ def train_one_epoch(
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH])
         loss = criterion(logits, data[DataKeys.SEGMENT])
-        if regularizer is not None:
-            loss = loss + REGULARIZER_WEIGHT * regularizer(model.get_submodule("encoder.ftnet"))
 
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
