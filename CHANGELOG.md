@@ -33,7 +33,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.roi.roi_aware_pool3d`, `ops.roi.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark and training scripts.
-- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois`, `nms3d(max_candidates=...)` and `VoxelBackbone8x(return_intermediates=True)`.
+- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `VoxelBackbone8x(return_intermediates=True)`.
 - Added `datasets.kitti.kitti_difficulty`.
 - `Cat` raises a `ValueError` naming the keys when its inputs differ in rank or lack the `dim` it concatenates along.
 

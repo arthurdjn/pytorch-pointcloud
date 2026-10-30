@@ -8,7 +8,7 @@ in any right-handed frame.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import torch
 from torch import Tensor
@@ -208,9 +208,8 @@ def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> T
     return val - torch.floor(val / period + offset) * period
 
 
-# Slack of `_point_in_box`, the `MARGIN` of the CUDA IoU kernel it ports: a corner this close to a box counts as
-# inside, which makes the rotated IoU reproduce the reference values. The bounds test that prefilters the pairwise
-# overlap carries the same slack so that it never skips a pair the inside test could count.
+# Slack of the bounds test that prefilters rotated BEV overlaps: two boxes whose rotated bounds are this close are
+# still clipped, so rounding in the bounds never skips a pair that overlaps.
 _BEV_MARGIN = 1e-2
 
 
@@ -360,23 +359,6 @@ def _bev_corners(boxes: Tensor) -> Tensor:
     return torch.stack([x, y], dim=-1)
 
 
-def _point_in_box(
-    px: Tensor,
-    py: Tensor,
-    cx: Tensor,
-    cy: Tensor,
-    dx: Tensor,
-    dy: Tensor,
-    cos: Tensor,
-    sin: Tensor,
-) -> Tensor:
-    """Broadcasted test of whether points $(p_x, p_y)$ lie inside oriented BEV boxes (with a small margin)."""
-    ux, uy = px - cx, py - cy
-    lx = ux * cos + uy * sin
-    ly = -ux * sin + uy * cos
-    return (lx.abs() < dx / 2 + _BEV_MARGIN) & (ly.abs() < dy / 2 + _BEV_MARGIN)
-
-
 def _bev_half_extents(boxes: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Half extents of the axis-aligned bounding box of each rotated BEV box, shape $(K,)$ each."""
     cos, sin = torch.cos(boxes[:, 6]).abs(), torch.sin(boxes[:, 6]).abs()
@@ -385,22 +367,19 @@ def _bev_half_extents(boxes: Tensor) -> Tuple[Tensor, Tensor]:
 
 
 def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:
-    r"""BEV intersection area of oriented boxes: pairwise $(N, 7), (M, 7) \to (N, M)$, or per pair with `aligned`.
-
-    Vectorized clip-free polygon intersection: the intersection of two convex quads is the convex hull of
-    (edge-edge crossings) + (corners of one box inside the other). Those candidate points are collected at
-    fixed capacity, sorted counter-clockwise about their centroid, and the shoelace area is taken.
-    """
+    r"""BEV intersection area of oriented boxes: pairwise $(N, 7), (M, 7) \to (N, M)$, or per pair with `aligned`."""
     corners_a, corners_b = _bev_corners(boxes_a), _bev_corners(boxes_b)
+    # The intersection never exceeds the smaller footprint: rounding cannot push the IoU of identical boxes above 1.
+    area_a, area_b = boxes_a[:, 3] * boxes_a[:, 4], boxes_b[:, 3] * boxes_b[:, 4]
     if aligned:
         if boxes_a.shape[0] != boxes_b.shape[0]:
             raise ValueError(
                 f"`aligned` needs as many boxes on both sides, got {boxes_a.shape[0]} and {boxes_b.shape[0]}."
             )
-        return _quad_overlap(corners_a, corners_b, boxes_a, boxes_b)
+        return torch.minimum(_quad_overlap(corners_a, corners_b), torch.minimum(area_a, area_b))
 
-    # Pairwise: two boxes whose axis-aligned bounds do not meet have no intersection, so the polygon arithmetic
-    # runs only on the candidate pairs, written into a zero matrix (the bounds carry the slack of `_point_in_box`).
+    # Pairwise: two boxes whose axis-aligned bounds do not meet have no intersection, so the clipping runs only on
+    # the candidate pairs, written into a zero matrix.
     overlap = boxes_a.new_zeros(boxes_a.shape[0], boxes_b.shape[0])
     half_x_a, half_y_a = _bev_half_extents(boxes_a)
     half_x_b, half_y_b = _bev_half_extents(boxes_b)
@@ -408,74 +387,64 @@ def _rotated_box_bev_overlap(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool 
     meet_y = (boxes_a[:, None, 1] - boxes_b[None, :, 1]).abs() <= half_y_a[:, None] + half_y_b[None, :] + _BEV_MARGIN
     rows, cols = (meet_x & meet_y).nonzero(as_tuple=True)
     if rows.numel() > 0:
-        overlap[rows, cols] = _quad_overlap(corners_a[rows], corners_b[cols], boxes_a[rows], boxes_b[cols])
+        inter = _quad_overlap(corners_a[rows], corners_b[cols])
+        overlap[rows, cols] = torch.minimum(inter, torch.minimum(area_a[rows], area_b[cols]))
 
     return overlap
 
 
-def _quad_overlap(corners_a: Tensor, corners_b: Tensor, boxes_a: Tensor, boxes_b: Tensor) -> Tensor:
-    r"""Intersection area of oriented BEV boxes over broadcast leading dims: $(\ldots, 4, 2)$ corners and $(\ldots, 7)$ boxes."""
-    lead = torch.broadcast_shapes(corners_a.shape[:-2], corners_b.shape[:-2])
-    corners_a = corners_a.expand(*lead, 4, 2)
-    corners_b = corners_b.expand(*lead, 4, 2)
+def _quad_overlap(corners_a: Tensor, corners_b: Tensor) -> Tensor:
+    r"""Intersection area of counter-clockwise convex quads over broadcast leading dims, $(\ldots, 4, 2)$ each.
 
-    def cross2(u: Tensor, v: Tensor) -> Tensor:
-        return u[..., 0] * v[..., 1] - u[..., 1] * v[..., 0]
+    By Green's theorem the area is half the integral of $x\,dy - y\,dx$ along the boundary of the intersection: the
+    edges of each quad clipped to the other quad. An edge $p + t\,d$ kept from $t_0$ to $t_1$ contributes
+    $\frac{1}{2}(t_1 - t_0)\,(p \times d)$. Both clippings read one set of decisions per pair of edges (whether they
+    are parallel, which side one lies on, where they cross), so rounding cannot count a boundary of the other quad
+    once instead of zero or two times.
+    """
+    origin = corners_a.mean(dim=-2, keepdim=True)
+    quad_a, quad_b = corners_a - origin, corners_b - origin
+    edge_a = quad_a.roll(-1, dims=-2) - quad_a
+    edge_b = quad_b.roll(-1, dims=-2) - quad_b
 
-    # Edge-edge crossings: every edge of A against every edge of B, (..., 4, 4) pairs.
-    a0 = corners_a[..., :, None, :]
-    a1 = corners_a.roll(-1, dims=-2)[..., :, None, :]
-    b0 = corners_b[..., None, :, :]
-    b1 = corners_b.roll(-1, dims=-2)[..., None, :, :]
-    r, s, qp = a1 - a0, b1 - b0, b0 - a0
-    denom = cross2(r, s)
-    t = cross2(qp, s) / denom
-    u = cross2(qp, r) / denom
-    edge_valid = (denom.abs() > 1e-12) & (t >= 0) & (t <= 1) & (u >= 0) & (u <= 1)
-    edge_pts = a0 + t[..., None] * r
-    edge_pts = torch.where(edge_valid[..., None], edge_pts, edge_pts.new_zeros(())).reshape(*lead, 16, 2)
-    edge_valid = edge_valid.reshape(*lead, 16)
+    # Pairs of edge i of `quad_a` (rows) and edge k of `quad_b` (columns), (..., 4, 4).
+    start_a, along_a = quad_a[..., :, None, :], edge_a[..., :, None, :]
+    start_b, along_b = quad_b[..., None, :, :], edge_b[..., None, :, :]
+    gap = start_a - start_b
+    # Side of the start of edge i against edge k (positive inside `quad_b`) and its rate along edge i; edge k
+    # crosses the line of edge i at the opposite rate.
+    side = along_b[..., 0] * gap[..., 1] - along_b[..., 1] * gap[..., 0]
+    gap_along_b = gap[..., 0] * along_b[..., 0] + gap[..., 1] * along_b[..., 1]
+    del gap  # the per-pair vectors dominate the memory of a large batch of pairs
+    rate = along_b[..., 0] * along_a[..., 1] - along_b[..., 1] * along_a[..., 0]
+    dot = along_a[..., 0] * along_b[..., 0] + along_a[..., 1] * along_b[..., 1]
+    length_a = torch.linalg.vector_norm(along_a, dim=-1)
+    length_b = torch.linalg.vector_norm(along_b, dim=-1)
+    parallel = rate.abs() <= 16 * torch.finfo(rate.dtype).eps * length_a * length_b
+    same_way = dot > 0
+    # Edges of zero length bound nothing: a degenerate quad keeps no edge of the other one.
+    degenerate_a, degenerate_b = length_a == 0, length_b == 0
 
-    # Corners of each box inside the other one.
-    cos_a, sin_a = torch.cos(boxes_a[..., 6]), torch.sin(boxes_a[..., 6])
-    cos_b, sin_b = torch.cos(boxes_b[..., 6]), torch.sin(boxes_b[..., 6])
-    a_in_b = _point_in_box(
-        corners_a[..., 0],
-        corners_a[..., 1],
-        boxes_b[..., None, 0],
-        boxes_b[..., None, 1],
-        boxes_b[..., None, 3],
-        boxes_b[..., None, 4],
-        cos_b[..., None],
-        sin_b[..., None],
-    )
-    b_in_a = _point_in_box(
-        corners_b[..., 0],
-        corners_b[..., 1],
-        boxes_a[..., None, 0],
-        boxes_a[..., None, 1],
-        boxes_a[..., None, 3],
-        boxes_a[..., None, 4],
-        cos_a[..., None],
-        sin_a[..., None],
-    )
+    # Where edge i crosses the line of edge k, as a fraction of edge i, then of edge k.
+    crossing = -side / torch.where(parallel, torch.ones_like(rate), rate)
+    squared_b = torch.where(degenerate_b, 1.0, length_b * length_b)
+    crossing_b = (gap_along_b + crossing * dot) / squared_b
 
-    # Order the valid candidates counter-clockwise about their centroid and take the shoelace area.
-    pts = torch.cat([edge_pts, corners_a, corners_b], dim=-2)
-    valid = torch.cat([edge_valid, a_in_b, b_in_a], dim=-1)
-    count = valid.sum(-1)
-    weight = valid[..., None].to(pts.dtype)
-    centroid = (pts * weight).sum(-2) / count.clamp(min=1)[..., None]
-    rel = pts - centroid[..., None, :]
-    angle = torch.atan2(rel[..., 1], rel[..., 0])
-    angle = torch.where(valid, angle, torch.full_like(angle, 1e10))
-    order = angle.argsort(dim=-1)
-    pts = torch.gather(pts, -2, order[..., None].expand(*lead, pts.shape[-2], 2))
-    valid = torch.gather(valid, -1, order)
-    pts = torch.where(valid[..., None], pts, pts[..., 0:1, :])
-    x, y = pts[..., 0], pts[..., 1]
-    area = 0.5 * (x * y.roll(-1, dims=-1) - x.roll(-1, dims=-1) * y).sum(-1).abs()
-    return torch.where(count >= 3, area, area.new_zeros(()))
+    enter_a = torch.where(~parallel & (rate > 0), crossing, 0.0).amax(dim=-1)
+    leave_a = torch.where(~parallel & (rate < 0), crossing, 1.0).amin(dim=-1)
+    outside_a = degenerate_b | (parallel & ((side < 0) | ((side == 0) & ~same_way)))
+    kept_a = torch.where(outside_a.any(dim=-1), 0.0, (leave_a - enter_a).clamp_min(0))
+
+    # A boundary the two quads share is counted once, through the edges of `quad_a`.
+    enter_b = torch.where(~parallel & (rate < 0), crossing_b, 0.0).amax(dim=-2)
+    leave_b = torch.where(~parallel & (rate > 0), crossing_b, 1.0).amin(dim=-2)
+    outside_b = degenerate_a | (parallel & torch.where(same_way, side >= 0, side <= 0))
+    kept_b = torch.where(outside_b.any(dim=-2), 0.0, (leave_b - enter_b).clamp_min(0))
+
+    moment_a = quad_a[..., 0] * edge_a[..., 1] - quad_a[..., 1] * edge_a[..., 0]
+    moment_b = quad_b[..., 0] * edge_b[..., 1] - quad_b[..., 1] * edge_b[..., 0]
+    area = 0.5 * ((kept_a * moment_a).sum(dim=-1) + (kept_b * moment_b).sum(dim=-1))
+    return area.clamp_min(0)
 
 
 def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> Tensor:
@@ -607,61 +576,93 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
     return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
 
 
-def _nms3d_single(
-    boxes: Tensor,
-    scores: Tensor,
-    labels: OptTensor,
-    iou_threshold: float,
-    rotated: bool,
+def _overlapping_pairs(lo: Tensor, hi: Tensor, group: Tensor) -> Tuple[Tensor, Tensor]:
+    r"""Pairs $(i, j)$, $i < j$, of intervals $[lo, hi]$ of the same group that overlap or touch, by sort and sweep.
+
+    The starts and ends of the intervals are sorted together by group then value, starts first on ties, and each
+    interval pairs with the intervals that start between its own start and end.
+    """
+    n = len(lo)
+    values = torch.cat([lo, hi])
+    events = values.argsort(stable=True)
+    event_groups = group.repeat(2)[events]
+    events = events[event_groups.argsort(stable=True)]
+    slots = torch.empty_like(events)
+    slots[events] = torch.arange(2 * n, device=lo.device)
+    starts = (events < n).cumsum(0)
+    first, last = starts[slots[:n]], starts[slots[n:]]
+    count = (last - first).clamp_min(0)
+    total = int(count.sum())
+    # The pair lists hold box indices and pair positions: 32 bits are exact below 2**31 and halve their memory.
+    index = torch.int32 if max(n, total) < 2**31 else torch.int64
+    boxes = torch.arange(n, dtype=index, device=lo.device)
+    i = torch.repeat_interleave(boxes, count, output_size=total)
+    run_start = (count.cumsum(0) - count).to(index)
+    offset = torch.arange(total, dtype=index, device=lo.device) - run_start[i]
+    by_start = torch.empty_like(boxes)
+    by_start[first - 1] = boxes
+    j = by_start[first.to(index)[i] + offset]
+    return torch.minimum(i, j), torch.maximum(i, j)
+
+
+def _greedy_suppression(
+    first: Tensor,
+    second: Tensor,
+    group: Tensor,
+    sizes: Tensor,
+    suppresses: Optional[Callable[[Tensor, Tensor], Tensor]],
     max_keep: Optional[int],
-    max_candidates: Optional[int],
 ) -> Tensor:
-    """Greedy 3D NMS within a single scene; see `nms3d`."""
-    limit = boxes.shape[0] if max_keep is None else max_keep
-    if rotated:
-        # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
-        # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
-        # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
-        boxes_bev = boxes.clone()
-        boxes_bev[:, 3:5] = boxes_bev[:, 3:5].clamp_min(1e-2)
-        order = scores.argsort(descending=True)[:max_candidates]
-        keep: List[Tensor] = []
+    r"""Mask of the boxes that greedy suppression keeps, from the pairs of boxes that can suppress each other.
 
-        # One IoU row per kept box keeps the polygon clipping at O(N) memory instead of an N x N matrix.
-        while order.numel() > 0 and len(keep) < limit:
-            i = order[0]
-            keep.append(i)
-            rest = order[1:]
-            suppress = boxes_iou_bev(boxes_bev[i : i + 1], boxes_bev[rest])[0] > iou_threshold
-            if labels is not None:
-                suppress = suppress & (labels[rest] == labels[i])
-            order = rest[~suppress]
-        return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+    The boxes run group by group (`group`, `sizes` boxes each), each group by decreasing score, and box `first[k]` ranks
+    above box `second[k]` in their group. A round keeps every undecided box that no undecided box of its pairs ranks
+    above, and removes the boxes they suppress: all their pairs, or those where `suppresses(first, second)` holds. Each
+    round decides at least the first undecided box of every group. A pair is evaluated once its first box is kept, or
+    earlier when it is the last pair that can suppress its second box.
+    With `max_keep`, a group stops once `max_keep` of its boxes are kept before its first undecided box.
+    """
+    n = len(group)
+    positions = torch.arange(n, device=group.device)
+    end = sizes.cumsum(0)
+    start = end - sizes
+    undecided = torch.ones(n, dtype=torch.bool, device=group.device)
+    kept = torch.zeros(n, dtype=torch.bool, device=group.device)
+    while True:
+        blocked = torch.zeros_like(undecided)
+        blocked[second] = True
+        new = undecided & ~blocked
+        kept |= new
+        undecided &= ~new
 
-    corners = box_corners(boxes)
-    lo, hi = corners.amin(dim=1), corners.amax(dim=1)
-    # Floor degenerate (zero-extent) sides so flat boxes still produce a nonzero self-overlap and
-    # coincident duplicates suppress: 1e-2 per side keeps the floored volume (1e-6) at or above the
-    # union clamp below, so a coincident duplicate reaches IoU 1 instead of ~1e-12.
-    hi = torch.maximum(hi, lo + 1e-2)
-    volume = (hi - lo).prod(dim=-1)
-    order = scores.argsort(descending=True)[:max_candidates]
-    keep = []
+        # Besides the pairs of the kept boxes, the pair of a box that a single undecided box can still suppress is
+        # evaluated early: if it does not suppress, the box is free next round instead of waiting on that box.
+        from_kept = new[first]
+        parents = torch.zeros(n, dtype=second.dtype, device=group.device).index_add_(0, second, torch.ones_like(second))
+        evaluated = (from_kept | (parents[second] == 1)).nonzero().squeeze(-1)
+        source, target, from_kept = first[evaluated], second[evaluated], from_kept[evaluated]
+        suppressed = torch.ones_like(target, dtype=torch.bool) if suppresses is None else suppresses(source, target)
+        suppressors = torch.zeros(n, dtype=torch.long, device=group.device).index_put_(
+            (target,),
+            (suppressed & from_kept).long(),
+            accumulate=True,
+        )
+        undecided &= suppressors == 0
 
-    while order.numel() > 0 and len(keep) < limit:
-        i = order[0]
-        keep.append(i)
-        rest = order[1:]
-        inter_lo = torch.maximum(lo[i], lo[rest])
-        inter_hi = torch.minimum(hi[i], hi[rest])
-        inter = (inter_hi - inter_lo).clamp_min(0).prod(dim=-1)
-        iou = inter / (volume[i] + volume[rest] - inter).clamp_min(1e-6)
-        suppress = iou > iou_threshold
-        if labels is not None:
-            suppress = suppress & (labels[rest] == labels[i])
-        order = rest[~suppress]
+        if max_keep is not None:
+            first_undecided = torch.where(undecided, positions, n)
+            prefix_end = end.scatter_reduce(0, group, first_undecided, "amin")
+            kept_before = torch.cat([kept.new_zeros(1, dtype=torch.long), kept.cumsum(0)])
+            finished = kept_before[prefix_end] - kept_before[start] >= max_keep
+            undecided &= ~finished[group]
 
-    return torch.stack(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+        # The pairs of kept boxes are done, and so are the early pairs that do not suppress.
+        pending = undecided[first] & undecided[second]
+        pending.index_fill_(0, evaluated[from_kept | ~suppressed], False)
+        remaining = pending.nonzero().squeeze(-1)
+        first, second = first[remaining], second[remaining]
+        if first.numel() == 0:
+            return kept | undecided
 
 
 def nms3d(
@@ -685,10 +686,14 @@ def nms3d(
     scene and return a single index tensor over the concatenated input. The heading is counter-clockwise
     about $+z$ from $+x$; boxes are $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$ with full extents.
 
+    Only boxes whose bounds meet can suppress each other: a sort and sweep finds these pairs for all the scenes and
+    classes at once, so memory grows with the number of overlapping boxes. A rotated IoU is computed only for a pair
+    that can still decide whether a box is kept.
+
     Args:
         boxes: Boxes $(N, 7)$ (see `box_corners`).
         scores: Per-box confidence, shape $(N,)$.
-        iou_threshold: IoU above which a lower-scoring box is removed.
+        iou_threshold: Non-negative IoU above which a lower-scoring box is removed.
         labels: Optional per-box class, shape $(N,)$; when given, only same-class boxes suppress each other.
         batch: Optional per-box scene index, shape $(N,)$; when given, NMS runs independently per scene.
         rotated: Suppress on the exact rotated BEV IoU (`boxes_iou_bev`) instead of the axis-aligned 3D IoU.
@@ -703,29 +708,88 @@ def nms3d(
     Shape:
         - boxes: $(N, 7)$
         - output: $(K,)$
+
+    Example:
+        ```pycon
+        >>> boxes = torch.tensor([[0.0, 0, 0, 2, 2, 2, 0], [0.1, 0, 0, 2, 2, 2, 0], [5.0, 0, 0, 2, 2, 2, 0]])
+        >>> scores = torch.tensor([0.9, 0.8, 0.7])
+        >>> nms3d(boxes, scores, 0.5).tolist()
+        [0, 2]
+
+        ```
     """
+    if iou_threshold < 0:
+        raise ValueError(f"`iou_threshold` must be non-negative, got {iou_threshold}.")
+    if (max_keep is not None and max_keep < 0) or (max_candidates is not None and max_candidates < 0):
+        raise ValueError(f"`max_keep` and `max_candidates` must be non-negative, got {max_keep} and {max_candidates}.")
+
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
 
+    # Each scene sorts its own scores, so tied boxes rank as they would in a call on that scene alone.
     if batch is None:
-        return _nms3d_single(boxes, scores, labels, iou_threshold, rotated, max_keep, max_candidates)
+        scene = boxes.new_zeros(len(boxes), dtype=torch.long)
+        orders = [scores.argsort(descending=True)[:max_candidates]]
+    else:
+        _, scene, counts = torch.unique(batch, return_inverse=True, return_counts=True)
+        members = scene.argsort(stable=True).split(counts.tolist())
+        orders = [index[scores[index].argsort(descending=True)][:max_candidates] for index in members]
+    order = torch.cat(orders)
+    if order.numel() == 0:
+        return order
 
-    keep = []
-    for b in torch.unique(batch):
-        scene = (batch == b).nonzero(as_tuple=False).squeeze(-1)
-        scene_labels = None if labels is None else labels[scene]
-        kept = _nms3d_single(
-            boxes[scene],
-            scores[scene],
-            scene_labels,
-            iou_threshold,
-            rotated,
-            max_keep,
-            max_candidates,
-        )
-        keep.append(scene[kept])
+    key = scene[order]
+    if labels is not None:
+        classes, label = torch.unique(labels[order], return_inverse=True)
+        key = key * len(classes) + label
+    _, group, sizes = torch.unique(key, return_inverse=True, return_counts=True)
+    ranks = group.argsort(stable=True)
+    group = group[ranks]
+    # Only indices come out: detached boxes keep the IoU of every compared pair out of the autograd graph.
+    ranked = boxes.detach()[order[ranks]]
 
-    return torch.cat(keep) if keep else boxes.new_zeros((0,), dtype=torch.long)
+    if rotated:
+        # Rotated footprints of angled neighbors overlap far less than their AABBs at low thresholds.
+        # Floor the BEV extents so coincident zero-area duplicates reach IoU 1 and suppress; the floored
+        # area (1e-4) stays above the union clamp of `boxes_iou_bev`, and real boxes are far larger.
+        ranked[:, 3:5] = ranked[:, 3:5].clamp_min(1e-2)
+        half_x, half_y = _bev_half_extents(ranked)
+        # The sweep bounds carry the margin of the meeting test on both sides, so rounding cannot drop a pair.
+        reach = half_x + _BEV_MARGIN
+        first, second = _overlapping_pairs(ranked[:, 0] - reach, ranked[:, 0] + reach, group)
+        # As in `boxes_iou_bev`, only the pairs whose rotated bounds meet can overlap.
+        meet_x = (ranked[first, 0] - ranked[second, 0]).abs() <= half_x[first] + half_x[second] + _BEV_MARGIN
+        meet_y = (ranked[first, 1] - ranked[second, 1]).abs() <= half_y[first] + half_y[second] + _BEV_MARGIN
+        candidates = meet_x & meet_y
+
+        def suppresses(source: Tensor, target: Tensor) -> Tensor:
+            return boxes_iou_bev(ranked[source], ranked[target], aligned=True) > iou_threshold
+
+        suppression: Optional[Callable[[Tensor, Tensor], Tensor]] = suppresses
+    else:
+        corners = box_corners(ranked)
+        lo, hi = corners.amin(dim=1), corners.amax(dim=1)
+        # Floor each AABB extent so zero-size boxes keep a positive volume above the union clamp below, so a
+        # coincident duplicate reaches IoU 1 instead of ~1e-12.
+        hi = torch.maximum(hi, lo + 1e-2)
+        volume = (hi - lo).prod(dim=-1)
+        first, second = _overlapping_pairs(lo[:, 0], hi[:, 0], group)
+        inter = (torch.minimum(hi[first], hi[second]) - torch.maximum(lo[first], lo[second])).clamp_min(0).prod(dim=-1)
+        iou = inter / (volume[first] + volume[second] - inter).clamp_min(1e-6)
+        # The axis-aligned IoU is cheap enough to evaluate on every overlapping pair up front.
+        candidates = iou > iou_threshold
+        suppression = None
+    candidate = candidates.nonzero().squeeze(-1)
+    kept = _greedy_suppression(first[candidate], second[candidate], group, sizes, suppression, max_keep)
+
+    # A scene keeps its first `max_keep` boxes by rank: the ranks run scene by scene, by decreasing score.
+    kept_ranks = ranks[kept].sort().values
+    if max_keep is not None:
+        kept_scene = scene[order[kept_ranks]]
+        scene_start = torch.searchsorted(kept_scene, kept_scene)
+        rank_in_scene = torch.arange(len(kept_ranks), device=kept_ranks.device) - scene_start
+        kept_ranks = kept_ranks[rank_in_scene < max_keep]
+    return order[kept_ranks]
 
 
 def points_in_boxes(pos: Tensor, boxes: Tensor) -> Tensor:
