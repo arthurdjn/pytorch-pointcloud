@@ -106,6 +106,18 @@ def test_pointpillars_create_model_hparams() -> None:
     assert model.head.anchors.shape == (248 * 216 * 6, 7)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("pointpillars.kitti.mmdet3d", id="pointpillars.kitti.mmdet3d"),
+        pytest.param("pointpillars-fpn.nuscenes.mmdet3d", id="pointpillars-fpn.nuscenes.mmdet3d"),
+    ],
+)
+def test_pointpillars_without_classes_raises(name: str) -> None:
+    with pytest.raises(ValueError, match="at least one class"):
+        create_model(name, task="detection", num_classes=0)
+
+
 NUSCENES_RANGE = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)
 
 
