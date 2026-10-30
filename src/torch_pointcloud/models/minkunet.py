@@ -153,6 +153,9 @@ class MinkUNetEncoder(nn.Module):
         *,
         return_intermediates: bool = False,
     ) -> Any:
+        if x is None and self.in_channels != 3:
+            raise ValueError(f"`x` is required unless `in_channels` is 3 (the positions), got {self.in_channels}.")
+
         if x is None:
             x = pos_grid.float()
 
@@ -195,7 +198,8 @@ class MinkUNetSegmentation(SemanticSegmentationModel):
     their mIoU is not comparable with the `mmdet3d` ones.
 
     Args:
-        in_channels: Number of input feature channels. Positions are used as features when `x` is `None`.
+        in_channels: Number of input feature channels. With `in_channels=3`, `x` may be `None` and the grid positions
+            are used as features.
         num_classes: Number of output classes. $0$ replaces the head with `nn.Identity`.
         stem_channels: Number of channels of the stem, also the width of the shallowest skip.
         encoder_channels: Feature width of every encoder stage.

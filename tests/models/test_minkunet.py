@@ -139,6 +139,14 @@ def test_minkunet_rejects_unknown_head_stages(head_stages: Tuple[int, ...]) -> N
         MinkUNetSegmentation(in_channels=4, num_classes=2, head_stages=head_stages)
 
 
+def test_minkunet_requires_x_unless_the_positions_fit_the_stem(
+    model: MinkUNetSegmentation,
+    data: Dict[str, Tensor],
+) -> None:
+    with pytest.raises(ValueError, match="`x` is required"):
+        model(None, data["pos_grid"], data["batch"])
+
+
 @_REQUIRES_CUDA
 def test_minkunet_head_stages_concatenate_the_decoding_stages(data: Dict[str, Tensor]) -> None:
     data = {key: value.cuda() for key, value in data.items()}
