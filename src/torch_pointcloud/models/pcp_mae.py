@@ -366,9 +366,7 @@ class PCPMAEPretraining(PretrainingModel):
         pos_embed = torch.cat([pos_vis, self.mask_pos_token.expand(B, M, -1)], dim=1)
         attn_mask = torch.zeros(V + M, V + M, device=x.device)
         attn_mask[:V, V:] = float("-inf")
-        for block in self.blocks.blocks:
-            x = block(x + pos_embed, attn_mask)
-        x = self.norm_f(x)
+        x = self.norm_f(self.blocks(x, pos_embed, mask=attn_mask))
         x_vis, x_mask = x[:, :V], x[:, V:]
 
         center_pred = self.center_proj(x_mask)

@@ -39,7 +39,8 @@ class TransformerEncoder(nn.Module):
 
     A stack of pre-norm transformer blocks. The positional embedding is added to the tokens
     before every block. The encoder can optionally return the hidden states at a fixed set of
-    block indices (used by the segmentation decoder).
+    block indices (used by the segmentation decoder), and takes an optional additive attention mask of shape
+    $(N, N)$ shared by every block.
 
     Args:
         embed_dim: Token channels.
@@ -96,15 +97,15 @@ class TransformerEncoder(nn.Module):
         )
 
     @overload
-    def forward(self, x: Tensor, pos: Tensor, fetch_idx: Sequence[int]) -> List[Tensor]: ...
+    def forward(self, x: Tensor, pos: Tensor, fetch_idx: Sequence[int], mask: OptTensor = None) -> List[Tensor]: ...
 
     @overload
-    def forward(self, x: Tensor, pos: Tensor, fetch_idx: None = None) -> Tensor: ...
+    def forward(self, x: Tensor, pos: Tensor, fetch_idx: None = None, mask: OptTensor = None) -> Tensor: ...
 
-    def forward(self, x: Tensor, pos: Tensor, fetch_idx: Optional[Sequence[int]] = None) -> Any:
+    def forward(self, x: Tensor, pos: Tensor, fetch_idx: Optional[Sequence[int]] = None, mask: OptTensor = None) -> Any:
         features: List[Tensor] = []
         for i, block in enumerate(self.blocks):
-            x = block(x + pos)
+            x = block(x + pos, mask)
             if fetch_idx is not None and i in fetch_idx:
                 features.append(x)
         if fetch_idx is not None:
