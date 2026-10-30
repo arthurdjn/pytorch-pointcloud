@@ -330,7 +330,7 @@ def train_one_epoch(
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         output = forward_train(model, data)
         roi_loss = roi_criterion(
-            output["rcnn_cls"].view(-1),
+            output["rcnn_cls"],
             output["rcnn_reg"],
             output["rois"],
             output["roi_target_boxes"],

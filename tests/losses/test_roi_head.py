@@ -23,7 +23,7 @@ def test_roi_head_loss_is_zero_on_exact_residuals() -> None:
     rois = _rois()
     targets = rois + torch.tensor([0.3, -0.2, 0.1, 0.2, 0.1, 0.0, 0.2])
     _, box_loss, corner = roi_head_loss(
-        torch.zeros(3),
+        torch.zeros(3, 1),
         encode_roi_residuals(targets, rois),
         rois,
         targets,
@@ -37,7 +37,7 @@ def test_roi_head_loss_is_zero_on_exact_residuals() -> None:
 
 
 def test_roi_head_loss_interpolates_the_confidence_target_between_the_thresholds() -> None:
-    logits = torch.tensor([0.3, -0.2, 1.0])
+    logits = torch.tensor([[0.3], [-0.2], [1.0]])
     iou = torch.tensor([0.9, 0.5, 0.1])
     cls_loss, _, _ = roi_head_loss(
         logits,
@@ -49,7 +49,7 @@ def test_roi_head_loss_interpolates_the_confidence_target_between_the_thresholds
         cls_background_threshold=CLS_BACKGROUND,
         reg_foreground_threshold=REG_FOREGROUND,
     )
-    expected = F.binary_cross_entropy_with_logits(logits, torch.tensor([1.0, 0.5, 0.0]))
+    expected = F.binary_cross_entropy_with_logits(logits, torch.tensor([[1.0], [0.5], [0.0]]))
     assert torch.allclose(cls_loss, expected)
 
 
@@ -58,7 +58,7 @@ def test_roi_head_loss_regresses_only_the_foreground() -> None:
     iou = torch.tensor([0.9, 0.5, 0.1])
     codes = torch.zeros(3, 7)
     reference = roi_head_loss(
-        torch.zeros(3),
+        torch.zeros(3, 1),
         codes,
         rois,
         rois,
@@ -69,7 +69,7 @@ def test_roi_head_loss_regresses_only_the_foreground() -> None:
     )
     codes[1:] = 5.0
     background_changed = roi_head_loss(
-        torch.zeros(3),
+        torch.zeros(3, 1),
         codes,
         rois,
         rois,
@@ -79,6 +79,20 @@ def test_roi_head_loss_regresses_only_the_foreground() -> None:
         reg_foreground_threshold=REG_FOREGROUND,
     )
     assert torch.equal(reference[1], background_changed[1]) and torch.equal(reference[2], background_changed[2])
+
+
+def test_roi_head_loss_rejects_flat_logits() -> None:
+    with pytest.raises(ValueError, match="size"):
+        roi_head_loss(
+            torch.zeros(3),
+            torch.zeros(3, 7),
+            _rois(),
+            _rois(),
+            torch.ones(3),
+            cls_foreground_threshold=CLS_FOREGROUND,
+            cls_background_threshold=CLS_BACKGROUND,
+            reg_foreground_threshold=REG_FOREGROUND,
+        )
 
 
 def test_roi_box_loss_reads_only_the_foreground() -> None:
@@ -106,7 +120,7 @@ def test_roi_head_loss_module_weights_the_terms() -> None:
     )
     rois = _rois()
     targets = rois + 0.1
-    cls_logits = torch.zeros(3, requires_grad=True)
+    cls_logits = torch.zeros(3, 1, requires_grad=True)
     box_codes = torch.zeros(3, 7, requires_grad=True)
     iou = torch.tensor([0.8, 0.0, 0.7])
     losses = criterion(cls_logits, box_codes, rois, targets, iou)

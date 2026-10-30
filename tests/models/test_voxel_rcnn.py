@@ -155,7 +155,7 @@ def test_voxel_rcnn_trains_the_roi_head_on_a_bev_map() -> None:
     roi_loss = RoIHeadLoss(cls_foreground_threshold=0.75, cls_background_threshold=0.25, reg_foreground_threshold=0.55)
     target = {DataKeys.BOX: gt_boxes, DataKeys.LABEL: gt_labels, DataKeys.BATCH_BOX: gt_batch}
     roi_losses = roi_loss(
-        train_out["rcnn_cls"].view(-1),
+        train_out["rcnn_cls"],
         train_out["rcnn_reg"],
         train_out["rois"],
         train_out["roi_target_boxes"],
@@ -234,7 +234,7 @@ def test_voxel_rcnn_training_forward_samples_rois_and_backpropagates() -> None:
     ).cuda()
     target = {DataKeys.BOX: gt_boxes, DataKeys.LABEL: gt_labels, DataKeys.BATCH_BOX: gt_batch}
     roi_losses = roi_loss(
-        out["rcnn_cls"].view(-1), out["rcnn_reg"], out["rois"], out["roi_target_boxes"], out["roi_iou"]
+        out["rcnn_cls"], out["rcnn_reg"], out["rois"], out["roi_target_boxes"], out["roi_iou"]
     )
     loss = anchor_loss(out, target)["loss"] + roi_losses["loss"]
     loss.backward()

@@ -11,7 +11,7 @@ from torch_pointcloud.losses.functional import roi_head_loss
 rois = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0], [20.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
 target_boxes = torch.tensor([[0.2, 0.0, 0.0, 4.0, 2.0, 1.5, 0.1], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
 cls_loss, box_loss, corner = roi_head_loss(
-    torch.zeros(2),
+    torch.zeros(2, 1),
     torch.zeros(2, 7),
     rois,
     target_boxes,
@@ -108,7 +108,7 @@ def roi_head_loss(
     [`roi_box_loss`][torch_pointcloud.losses.roi_head.roi_box_loss].
 
     Args:
-        cls_logits: Confidence logit of every RoI, shape $(R,)$.
+        cls_logits: Confidence logit of every RoI, shape $(R, 1)$.
         box_codes: Predicted residuals of every RoI, shape $(R, 7)$.
         rois: RoIs $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(R, 7)$.
         target_boxes: Matched ground-truth box of every RoI, shape $(R, 7)$; read for the regressed RoIs only.
@@ -123,7 +123,8 @@ def roi_head_loss(
         The scalar confidence, box and corner losses.
 
     Shape:
-        - cls_logits, iou: $(R,)$
+        - cls_logits: $(R, 1)$
+        - iou: $(R,)$
         - box_codes, rois, target_boxes: $(R, 7)$
         - output: three scalars
 
@@ -131,7 +132,7 @@ def roi_head_loss(
         ```pycon
         >>> rois = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
         >>> cls_loss, box_loss, corner = roi_head_loss(
-        ...     torch.zeros(1),
+        ...     torch.zeros(1, 1),
         ...     torch.zeros(1, 7),
         ...     rois,
         ...     rois,
@@ -146,7 +147,7 @@ def roi_head_loss(
         ```
     """
     cls_target = ((iou - cls_background_threshold) / (cls_foreground_threshold - cls_background_threshold)).clamp(0, 1)
-    cls_loss = F.binary_cross_entropy_with_logits(cls_logits, cls_target)
+    cls_loss = F.binary_cross_entropy_with_logits(cls_logits, cls_target.unsqueeze(1))
     box_loss, corner = roi_box_loss(
         box_codes,
         rois,
@@ -181,7 +182,7 @@ class RoIHeadLoss(nn.Module):
         ...     reg_foreground_threshold=0.55,
         ... )
         >>> rois = torch.tensor([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
-        >>> losses = criterion(torch.zeros(1), torch.zeros(1, 7), rois, rois, torch.tensor([1.0]))
+        >>> losses = criterion(torch.zeros(1, 1), torch.zeros(1, 7), rois, rois, torch.tensor([1.0]))
         >>> round(losses["loss"].item(), 4)
         0.6931
 
@@ -226,7 +227,7 @@ class RoIHeadLoss(nn.Module):
         r"""Compute the refinement loss and its terms.
 
         Args:
-            cls_logits: Confidence logit of every RoI, shape $(R,)$.
+            cls_logits: Confidence logit of every RoI, shape $(R, 1)$.
             box_codes: Predicted residuals of every RoI, shape $(R, 7)$.
             rois: RoIs, shape $(R, 7)$.
             target_boxes: Matched ground-truth box of every RoI, shape $(R, 7)$; read for the regressed RoIs only.
