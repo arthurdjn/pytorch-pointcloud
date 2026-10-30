@@ -70,6 +70,13 @@ def test_pct_classification_reset_classifier(model: PCTClassification, data: Dic
     assert model(data["x"], data["pos"], data["batch"]).shape == (2, 42)
 
 
+def test_pct_classification_reset_classifier_keeps_eval_mode(model: PCTClassification, data: Dict[str, Tensor]) -> None:
+    model.reset_classifier(num_classes=7)
+    assert not any(module.training for module in model.modules())
+    single = data["batch"] == 0
+    assert model(data["x"][single], data["pos"][single], data["batch"][single]).shape == (1, 7)
+
+
 def test_pct_classification_num_classes_zero_returns_features(
     model: PCTClassification,
     data: Dict[str, Tensor],

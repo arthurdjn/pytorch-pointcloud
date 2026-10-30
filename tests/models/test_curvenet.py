@@ -198,6 +198,16 @@ def test_curvenet_part_segmentation_reset_classifier(
     assert model_partseg(None, data["pos"], data["batch"], data["category"]).shape == (data["pos"].shape[0], 7)
 
 
+@pytest.mark.parametrize(
+    "model_name",
+    [pytest.param("model_clf", id="classification"), pytest.param("model_partseg", id="part-segmentation")],
+)
+def test_curvenet_reset_classifier_keeps_eval_mode(model_name: str, request: pytest.FixtureRequest) -> None:
+    model = request.getfixturevalue(model_name)
+    model.reset_classifier(num_classes=7)
+    assert not any(module.training for module in model.modules())
+
+
 def test_curvenet_part_segmentation_rejects_mismatched_decoder() -> None:
     with pytest.raises(ValueError, match="decoder_channels"):
         CurveNetPartSegmentation(

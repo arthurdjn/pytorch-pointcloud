@@ -383,6 +383,7 @@ class CurveNetClassification(ClassificationModel):
         if global_pool is not None:
             self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
         self.head = self.configure_head()
+        self.head.train(self.training)
 
     @overload
     def forward_features(
@@ -658,6 +659,7 @@ class CurveNetPartSegmentation(PartSegmentationModel):
     def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
         self.num_classes = num_classes
         self.head = self.configure_head()
+        self.head.train(self.training)
 
     @overload
     def forward_features(

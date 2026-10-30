@@ -216,6 +216,7 @@ class PCTClassification(ClassificationModel):
         if global_pool is not None:
             self.global_pool = CatPool(global_pool) if is_iterable(global_pool) else create_pool(global_pool)  # type: ignore[arg-type]
         self.head = self.configure_head()
+        self.head.train(self.training)
 
     def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         x = torch.cat([x, pos], dim=1) if x is not None else pos
