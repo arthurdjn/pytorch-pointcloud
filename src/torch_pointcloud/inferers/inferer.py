@@ -97,7 +97,9 @@ class SegmentationInferer(Inferer[Tensor]):
 
     The predictor returns per-point scores of shape $(N, C_\text{out})$ and the inferer returns one row per
     point of the input. Rows are indexed by point, not by position, so predictions of the same point from
-    overlapping fragments or rotated views line up and are merged by weighted averaging.
+    overlapping fragments or rotated views line up and are merged per point (averaged, max-pooled, voted or
+    smoothed: see each inferer's `aggregate`). `TTASegmentationInferer` over a `SimpleInferer` merges one row
+    per cloud, $(B, C_\text{out})$, the same way, which is how a classification model votes over views.
 
     The `softmax` parameter controls whether partial predictions are converted to softmax
     probabilities before aggregation, and `aggregate` how they are combined:

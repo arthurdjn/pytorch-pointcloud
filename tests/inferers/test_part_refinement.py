@@ -4,7 +4,12 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.inferers import PartRefinementInferer, SimpleInferer, part_refinement_inference
+from torch_pointcloud.inferers import (
+    PartRefinementInferer,
+    SimpleInferer,
+    TTADetectionInferer,
+    part_refinement_inference,
+)
 from torch_pointcloud.utils.data import DataKeys
 
 _PART_IDS = [[0, 1], [2, 3]]
@@ -101,3 +106,9 @@ def test_part_refinement_keeps_label_when_votes_all_zero() -> None:
     }
     out = part_refinement_inference(data, predictor=predictor, part_ids=[[1, 2]], num_neighbors=8, min_count=10)
     assert bool((out[64:].argmax(dim=-1) == 4).all())
+
+
+def test_part_refinement_base_of_another_task_raises() -> None:
+    """A detection base returns boxes, which the refinement cannot read as per-point scores."""
+    with pytest.raises(TypeError, match="TTADetectionInferer"):
+        PartRefinementInferer(TTADetectionInferer(lambda sample: sample))  # type: ignore[arg-type]

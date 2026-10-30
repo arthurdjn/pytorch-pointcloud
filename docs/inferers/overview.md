@@ -4,7 +4,7 @@ An inferer decides how a model is run at test time: on the whole scene, on fragm
 
 ## Segmentation
 
-Segmentation inferers return one prediction per point, averaged over the fragments and views that cover it.
+Segmentation inferers return one prediction per point, merged over the fragments and views that cover it. `TTASegmentationInferer` over a `SimpleInferer` also merges one row per cloud, which is how a classification model votes over views.
 
 ```python
 import torch
@@ -39,6 +39,7 @@ Detection inferers return the raw boxes of every pass, mapped back to the coordi
 import torch
 from torch_pointcloud import create_model
 from torch_pointcloud.inferers import TTADetectionInferer
+from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, select_inputs
 
 scene = {
@@ -50,7 +51,11 @@ model, info = create_model("pointpillars.kitti.openpcdet", task="detection", ret
 model.eval()
 
 inferer = TTADetectionInferer(info["transform"], flips=[(), (1,)], cat_keys=[DataKeys.POS_VOXEL])
-detections = inferer(scene, predictor=lambda d: model.decode(model(*select_inputs(d, info["input_keys"]))))
+det = inferer(scene, predictor=lambda d: model.decode(model(*select_inputs(d, info["input_keys"]))))
+
+keep = torch.where(det["scores"] > 0.1)[0]
+keep = keep[nms3d(det["boxes"][keep], det["scores"][keep], 0.01, batch=det["batch"][keep], rotated=True)]
+boxes, scores, labels = det["boxes"][keep], det["scores"][keep], det["labels"][keep]
 ```
 
 | Inferer                                          | Description                                                     |

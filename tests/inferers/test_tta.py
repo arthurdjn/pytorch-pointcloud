@@ -1,3 +1,4 @@
+import math
 from typing import Any, Callable, Dict, List, Sequence
 from unittest.mock import Mock
 
@@ -168,6 +169,12 @@ def test_tta_invalid_aggregate_raises() -> None:
         TTASegmentationInferer(base=base, transforms=Compose([]), num_passes=1, aggregate="vote")  # type: ignore[arg-type]
 
 
+def test_tta_base_of_another_task_raises() -> None:
+    """A detection base returns boxes, which the per-point aggregation cannot merge."""
+    with pytest.raises(TypeError, match="TTADetectionInferer"):
+        TTASegmentationInferer(base=TTADetectionInferer(_identity), num_passes=2)  # type: ignore[arg-type]
+
+
 def test_tta_empty_sequence_raises() -> None:
     """An empty augmentation sequence has no passes to run and raises ValueError."""
     base = SimpleInferer()
@@ -242,20 +249,21 @@ def _equivariant_detections(window: Dict[str, Any]) -> Detection3D:
         points = pos[batch == scene]
         center = points.mean(dim=0)
         offset = points[0] - center
-        size = offset.norm() * torch.tensor([1.0, 0.5, 0.25])
+        size = offset.norm() * torch.tensor([1.0, 0.5, 0.25], device=pos.device)
         heading = torch.atan2(offset[1], offset[0]).reshape(1)
         boxes.append(torch.cat([center, size, heading]))
         velocity.append((points[1] - center)[:2])
 
     num_scenes = len(boxes)
+    index = torch.arange(num_scenes, device=pos.device)
     return {
         "boxes": torch.stack(boxes),
-        "scores": torch.arange(1, num_scenes + 1) / num_scenes,
-        "labels": torch.arange(num_scenes),
-        "batch": torch.arange(num_scenes),
-        "ignore_mask": torch.arange(num_scenes) % 2 == 0,
+        "scores": (index + 1) / num_scenes,
+        "labels": index,
+        "batch": index,
+        "ignore_mask": index % 2 == 0,
         "velocity": torch.stack(velocity),
-        "class_probs": torch.softmax(torch.arange(3.0 * num_scenes).reshape(num_scenes, 3), dim=1),
+        "class_probs": torch.softmax(torch.arange(3.0 * num_scenes, device=pos.device).reshape(num_scenes, 3), dim=1),
     }
 
 
@@ -449,6 +457,93 @@ def test_tta_detection_predictor_keys_changing_across_calls_raise() -> None:
         TTADetectionInferer(_identity, flips=((), (1,)))(_scenes(1), predictor=predictor)
 
 
+def test_tta_detection_splits_stacked_keys_by_scene_row() -> None:
+    """Each scene gets its own row of a stacked key, and every predictor call the rows of its scenes."""
+    calib = torch.arange(3.0).view(3, 1, 1).expand(3, 3, 4)
+    data = {**_scenes(3), DataKeys.CALIB: calib}
+    transformed: List[Tensor] = []
+    seen: List[Tensor] = []
+
+    def transform(sample: Dict[str, Any]) -> Dict[str, Any]:
+        transformed.append(sample[DataKeys.CALIB])
+        return sample
+
+    def predictor(packed: Dict[str, Any]) -> Detection3D:
+        seen.append(packed[DataKeys.CALIB])
+        return _equivariant_detections(packed)
+
+    inferer = TTADetectionInferer(transform, sw_batch_size=2, stack_keys=[DataKeys.CALIB])
+    inferer(data, predictor=predictor)
+
+    assert [tuple(value.shape) for value in transformed] == [(3, 4), (3, 4), (3, 4)]
+    assert [value[0, 0].item() for value in transformed] == [0.0, 1.0, 2.0]
+    assert [tuple(value.shape) for value in seen] == [(2, 3, 4), (1, 3, 4)]
+    assert torch.equal(seen[1][0], calib[2])
+
+
+def test_tta_detection_drops_packed_keys_outside_cat_keys() -> None:
+    """Ground truth packed without being listed in `cat_keys` belongs to no scene sample and never reaches the
+    predictor."""
+    data = {
+        **_scenes(2),
+        DataKeys.BOX: torch.zeros(3, 7),
+        f"batch_{DataKeys.BOX}": torch.tensor([0, 0, 1]),
+    }
+    transformed: List[Dict[str, Any]] = []
+
+    def transform(sample: Dict[str, Any]) -> Dict[str, Any]:
+        transformed.append(sample)
+        return sample
+
+    TTADetectionInferer(transform)(data, predictor=_equivariant_detections)
+    assert all(set(sample) == {DataKeys.POS} for sample in transformed)
+
+
+def test_tta_detection_keeps_the_scene_ids_of_a_sparse_unsorted_batch() -> None:
+    """Scenes are the ids present in `batch`, interleaved or not; an id without points gets no predictor call."""
+    pos = torch.randn(20, 3)
+    batch = torch.tensor([0, 5] * 10)
+    data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: batch}
+    out = TTADetectionInferer(_identity, flips=((), (1,)), sw_batch_size=2)(data, predictor=_equivariant_detections)
+
+    assert out["batch"].tolist() == [0, 5, 0, 5]
+    torch.testing.assert_close(out["boxes"][[0, 2], :3], pos[batch == 0].mean(dim=0).expand(2, 3))
+
+
+def test_tta_detection_wraps_the_headings_of_rotated_and_flipped_views() -> None:
+    """An x flip maps a heading t to pi - t and a rotation shifts it, so those views come back wrapped to
+    [-pi, pi); the identity view returns the predictor's heading as is."""
+
+    def predictor(window: Dict[str, Any]) -> Detection3D:
+        det = _equivariant_detections(window)
+        det["boxes"][:, 6] = -3.0
+        return det
+
+    inferer = TTADetectionInferer(_identity, rotations=(0.0, 170.0), flips=((), (0,)))
+    out = inferer(_scenes(1), predictor=predictor)
+
+    headings = out["boxes"][:, 6]
+    assert headings[0].item() == -3.0
+    assert bool(((headings[1:] >= -math.pi) & (headings[1:] < math.pi)).all())
+    torch.testing.assert_close(headings[1], torch.tensor(math.pi + 3.0 - 2 * math.pi))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_tta_detection_predictor_on_another_device_returns_on_the_input_device() -> None:
+    """A scene kept on the CPU with the model on the GPU: the boxes come back on the CPU, equal to a CPU run."""
+    data = _scenes(2)
+
+    def predictor(packed: Dict[str, Any]) -> Detection3D:
+        cuda = {key: value.cuda() if isinstance(value, Tensor) else value for key, value in packed.items()}
+        return _equivariant_detections(cuda)
+
+    inferer = TTADetectionInferer(_identity, flips=((), (1,)), sw_batch_size=2)
+    out = inferer(data, predictor=predictor)
+    expected = inferer(data, predictor=_equivariant_detections)
+
+    torch.testing.assert_close(dict(out), dict(expected))
+
+
 @pytest.mark.parametrize(
     ("kwargs", "match"),
     [
@@ -457,6 +552,9 @@ def test_tta_detection_predictor_keys_changing_across_calls_raise() -> None:
         pytest.param({"flips": ((2,),)}, "distinct axes", id="flip_up_axis"),
         pytest.param({"flips": ((0, 0),)}, "distinct axes", id="repeated_flip_axis"),
         pytest.param({"sw_batch_size": 0}, "sw_batch_size", id="zero_sw_batch_size"),
+        pytest.param({"keys": (DataKeys.NORMAL,)}, "pos_key", id="positions_not_rotated"),
+        pytest.param({"scale_keys": ()}, "pos_key", id="positions_not_scaled"),
+        pytest.param({"pos_key": "coord"}, "pos_key", id="other_pos_key"),
     ],
 )
 def test_tta_detection_invalid_arguments_raise(kwargs: Dict[str, Any], match: str) -> None:

@@ -120,6 +120,9 @@ class PartRefinementInferer(SegmentationInferer):
 
     All parameters are forwarded verbatim to `part_refinement_inference`.
 
+    Raises:
+        TypeError: If `base` is neither a `SegmentationInferer` nor a `SimpleInferer`.
+
     Example:
         ```python
         import torch
@@ -150,6 +153,9 @@ class PartRefinementInferer(SegmentationInferer):
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
     ) -> None:
+        if not isinstance(base, (SegmentationInferer, SimpleInferer)):
+            raise TypeError(f"`base` must be a `SegmentationInferer` or `SimpleInferer`, got {type(base).__name__}.")
+
         self.base = base
         self.part_ids = part_ids
         self.min_count = min_count
