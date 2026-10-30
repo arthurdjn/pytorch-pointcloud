@@ -66,6 +66,9 @@ $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROO
 $RUN examples/point_mae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-mae-base.shapenetpart.yatian-pang
 $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-m2ae-base.shapenetpart.renrui-zhang
 
+# Indoor instance segmentation (ScanNet)
+$RUN examples/spformer/instance_segmentation_scannet_benchmark.py --root "$ROOT" --model spformer.scannet.jiahao-sun
+
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
 $RUN examples/votenet/detection_scannet_benchmark.py --root "$ROOT" --model votenet.scannet.fair

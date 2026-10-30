@@ -49,6 +49,12 @@ BENCHMARKS = [
         marks=_GPU_SPCONV,
         id="spformer_unet/scannet",
     ),
+    pytest.param(
+        "spformer/instance_segmentation_scannet_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="spformer/scannet",
+    ),
     pytest.param("kpconv/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
     pytest.param(
         "kpconv/segmentation_semantickitti_benchmark.py",
@@ -481,6 +487,12 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--batch-size", "2"),
         marks=_GPU_SPCONV,
         id="spunet/scannet",
+    ),
+    pytest.param(
+        "spformer/instance_segmentation_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="spformer/scannet-train",
     ),
     pytest.param(
         "sonata/segmentation_scannet_train.py",

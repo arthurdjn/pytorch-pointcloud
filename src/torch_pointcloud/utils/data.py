@@ -51,6 +51,7 @@ class DataKeys(StrEnum):
     LABEL = "label"
     BATCH = "batch"
     INVERSE = "inverse"
+    BATCH_INVERSE = "batch_inverse"
     INDEX = "index"
     ORIGIN_POS = "origin_pos"
     ORIGIN_SEGMENT = "origin_segment"
@@ -257,7 +258,8 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
         The values to unpack into the model's `forward`.
 
     Raises:
-        KeyError: If a key other than `x` is missing from `data`.
+        KeyError: If a key other than `x` is missing from `data`; a missing `batch_<key>` whose `<key>` is in `data`
+            names the `cat_keys` that emits it.
 
     Example:
         ```python
@@ -277,7 +279,11 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
         value = deep_getattr(data, key, default=_MISSING)
         if value is _MISSING:
             if key != DataKeys.X:
-                raise KeyError(f"Input key {key!r} not found in the batch (available keys: {sorted(data)}).")
+                message = f"Input key {key!r} not found in the batch (available keys: {sorted(data)})."
+                source = key.removeprefix("batch_")
+                if source != key and source in data:
+                    message += f" Collate with `cat_keys=[{source!r}]` to emit it."
+                raise KeyError(message)
 
             value = None
         inputs.append(value)

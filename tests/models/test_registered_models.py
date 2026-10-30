@@ -240,6 +240,9 @@ DETECTION_MODELS = [
     "voxel-mamba.waymo",
     "voxelnext.nuscenes.openpcdet",
 ]
+INSTANCE_SEGMENTATION_MODELS = [
+    "spformer.scannet.jiahao-sun",
+]
 
 
 NON_COMMERCIAL_MODELS = [
@@ -394,6 +397,7 @@ def _check_architecture_or_regen(
         ("classification", CLASSIFICATION_MODELS),
         ("semantic-segmentation", SEMANTIC_SEGMENTATION_MODELS),
         ("part-segmentation", PART_SEGMENTATION_MODELS),
+        ("instance-segmentation", INSTANCE_SEGMENTATION_MODELS),
         ("detection", DETECTION_MODELS),
     ],
 )
@@ -530,6 +534,30 @@ def test_part_segmentation_architecture(model_name: str, force_regen: bool, mode
     )
 
 
+@pytest.mark.parametrize("model_name", INSTANCE_SEGMENTATION_MODELS)
+def test_instance_segmentation_architecture(model_name: str, force_regen: bool, models_dir_factory: Any) -> None:
+    """Test that the state-dict structure of all registered instance segmentation models is unchanged.
+
+    To regenerate the expected architecture as JSON files, run
+
+    ```bash
+    uv run --no-sync pytest tests/models/test_registered_models.py -k test_instance_segmentation_architecture --force-regen
+    ```
+    """
+    _skip_if_model_deps_missing(model_name)
+    models_dir = models_dir_factory("*.json")
+
+    model = create_model(model_name, task="instance-segmentation")
+    assert isinstance(model.num_features, int)
+    _check_architecture_or_regen(
+        model,
+        model_name,
+        task="instance-segmentation",
+        models_dir=models_dir,
+        force_regen=force_regen,
+    )
+
+
 @pytest.mark.skipif(
     not _PYG_LIB_AVAILABLE,
     reason="pyg-lib is not installed",
@@ -599,8 +627,9 @@ def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, 
     """Synthetic sparse-voxel inputs for spconv / superpoint models.
 
     `pos_grid` holds unique integer voxel coords per scene (no duplicates, so submanifold
-    convs are well defined); each point is its own voxel (`inverse`) and superpoint, re-based
-    per scene so ids are globally disjoint. Point-based models ignore these keys.
+    convs are well defined); each point is its own voxel (`inverse`, per scene, with its scene index
+    `batch_inverse`) and superpoint, re-based per scene so ids are globally disjoint. Point-based models
+    ignore these keys.
     """
     gen = torch.Generator().manual_seed(42)
     grid_parts: List[torch.Tensor] = []
@@ -614,7 +643,8 @@ def _make_voxel_inputs(lengths: torch.Tensor, grid_size: int = 16) -> Dict[str, 
     return {
         "pos_grid": torch.cat(grid_parts).long(),
         "superpoint": torch.cat(superpoint_parts).long(),
-        "inverse": torch.arange(int(lengths.sum())),
+        "inverse": torch.cat([torch.arange(length) for length in lengths.tolist()]),
+        "batch_inverse": torch.repeat_interleave(torch.arange(len(lengths)), lengths),
     }
 
 

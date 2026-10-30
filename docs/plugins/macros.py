@@ -60,6 +60,7 @@ MODEL_LABELS = {
     "randlanet": "RandLA-Net",
     "second": "SECOND",
     "sonata": "Sonata",
+    "spformer": "SPFormer",
     "spformer_unet": "SPFormer-UNet",
     "sphereformer": "SphereFormer",
     "spunet": "SpUNet",
@@ -76,6 +77,11 @@ TASKS: Dict[str, Tuple[str, str, str]] = {
     "classification": ("Classification", "models/classification.md", "M-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0Z"),
     "part-segmentation": ("Part segmentation", "models/part-segmentation.md", "M-4,-4h8v8h-8Z"),
     "semantic-segmentation": ("Semantic segmentation", "models/segmentation.md", "M0,-5.5L5.2,3.5H-5.2Z"),
+    "instance-segmentation": (
+        "Instance segmentation",
+        "models/instance-segmentation.md",
+        "M0,-5.5L5.2,-1.7L3.2,4.5H-3.2L-5.2,-1.7Z",
+    ),
     "detection": ("Detection", "models/detection.md", "M0,-5.5L5.5,0L0,5.5L-5.5,0Z"),
     "pretraining": ("Pretraining", "models/features.md", ""),
 }
@@ -240,7 +246,12 @@ def dataset_label(dataset: str) -> str:
 def metric_label(task: str, dataset: str) -> str:
     if task == "detection":
         return {"kitti": "mAP (R11)", "nuscenes": "mAP"}.get(dataset, "mAP@0.25")
-    return {"classification": "OA", "part-segmentation": "Instance mIoU", "semantic-segmentation": "mIoU"}.get(task, "")
+    return {
+        "classification": "OA",
+        "part-segmentation": "Instance mIoU",
+        "semantic-segmentation": "mIoU",
+        "instance-segmentation": "mAP",
+    }.get(task, "")
 
 
 def aligned(value: str, places: int = 2) -> str:

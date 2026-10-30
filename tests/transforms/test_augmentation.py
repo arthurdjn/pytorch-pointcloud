@@ -25,6 +25,27 @@ def test_random_rotate_p_zero_is_noop() -> None:
     assert torch.equal(out["pos"], pos)
 
 
+def test_random_linear_jitter_applies_one_matrix_to_every_key() -> None:
+    pos = torch.randn(50, 3)
+    out = T.RandomLinearJitter(keys=("pos", "pos_copy"), sigma=0.1, seed=0)({"pos": pos, "pos_copy": pos.clone()})
+    matrix = torch.linalg.lstsq(pos, out["pos"]).solution
+    torch.testing.assert_close(out["pos"], out["pos_copy"])
+    torch.testing.assert_close(pos @ matrix, out["pos"])
+    assert not torch.allclose(matrix, torch.eye(3))
+    assert (matrix - torch.eye(3)).abs().max() < 0.6
+
+
+def test_random_linear_jitter_zero_sigma_and_probability_keep_the_input() -> None:
+    pos = torch.randn(10, 3)
+    torch.testing.assert_close(T.RandomLinearJitter(keys="pos", sigma=0.0)({"pos": pos})["pos"], pos)
+    assert T.RandomLinearJitter(keys="pos", sigma=0.1, p=0.0)({"pos": pos})["pos"] is pos
+
+
+def test_random_linear_jitter_rejects_integer_keys() -> None:
+    with pytest.raises(TypeError, match="floating-point tensor at 'pos'"):
+        T.RandomLinearJitter(keys="pos", sigma=0.1, seed=0)({"pos": torch.tensor([[1, 2, 3]])})
+
+
 def test_random_scale_same_factor_across_keys() -> None:
     """Same factor applies to every point-like key. Direction vectors (e.g. `normal`) must not be listed."""
     pos = torch.tensor([[1.0, 2.0, 3.0]])
@@ -160,6 +181,25 @@ def test_random_color_shift_int_dtype_preserved() -> None:
         seed=0,
     )({"color": color})
     assert out["color"].dtype == torch.uint8
+
+
+def test_random_color_shift_normal_offsets() -> None:
+    """With `std`, every point of a channel moves by one offset drawn from a centered normal distribution."""
+    transform = T.RandomColorShift(keys="color", std=0.01, seed=0)
+    color = torch.full((4, 3), 0.5)
+    shifts = []
+    for _ in range(500):
+        out = transform({"color": color})["color"] - color
+        assert torch.equal(out, out[:1].expand_as(out))
+        shifts.append(out[0])
+    shifts_tensor = torch.stack(shifts)
+    assert abs(float(shifts_tensor.mean())) < 1e-3
+    assert float(shifts_tensor.std()) == pytest.approx(0.01, rel=0.1)
+
+
+def test_random_color_shift_negative_std_raises() -> None:
+    with pytest.raises(ValueError, match="std"):
+        T.RandomColorShift(keys="color", std=-1.0)
 
 
 def test_random_color_shift_same_shift_across_keys() -> None:
