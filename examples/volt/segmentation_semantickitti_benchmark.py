@@ -27,10 +27,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.05
 SW_BATCH_SIZE = 8
-MODELS = (
-    "volt-s.semantickitti.kadir-yilmaz",
-    "volt-s-joint.semantickitti.kadir-yilmaz",
-)
+MODELS = ("volt-s.semantickitti.kadir-yilmaz",)
 NUM_CLASSES = 19
 
 INFERER_TRANSFORM = T.Compose(

@@ -155,9 +155,6 @@ $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model p
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-xl.s3dis-area5.openpoints --areas Area_5 --sw-batch-size 2
 $RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-s.nuscenes.kadir-yilmaz --simple
 $RUN examples/volt/segmentation_semantickitti_benchmark.py --root "$ROOT" --model volt-s.semantickitti.kadir-yilmaz --simple
-$RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-s-joint.nuscenes.kadir-yilmaz --simple
-$RUN examples/volt/segmentation_semantickitti_benchmark.py --root "$ROOT" --model volt-s-joint.semantickitti.kadir-yilmaz --simple
-$RUN examples/volt/segmentation_nuscenes_benchmark.py --root "$ROOT" --model volt-b-joint.nuscenes.kadir-yilmaz --simple
 
 # Segmentation with TTA (ScanNet, S3DIS)
 $RUN examples/spunet/segmentation_scannet_benchmark.py --root "$ROOT" --model spunet-v1m1.scannet20.pointcept --sw-batch-size 8

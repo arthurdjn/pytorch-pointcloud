@@ -682,74 +682,6 @@ def volt_s_joint_scannet200(**hparams: Any) -> VoltSegmentation:
 
 
 @register_model(
-    "volt-s-joint.nuscenes.kadir-yilmaz",
-    task="semantic-segmentation",
-    input_keys=("x", "pos_grid", "batch"),
-    weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s-joint.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
-        dataset="nuscenes",
-        metrics={"mIoU": 81.53, "OA": 94.72, "simple/mIoU": 81.53, "simple/OA": 94.72},
-        classes=NUSCENES_LIDARSEG_CLASSES,
-        author="kadir-yilmaz",
-        license="MIT",
-    ),
-    transform=_nuscenes_transforms(),
-    hparams=dict(
-        in_channels=4,
-        num_classes=16,
-        patch_size=5,
-        embed_dim=384,
-        depth=12,
-        num_heads=6,
-        mlp_ratio=4.0,
-        qk_norm=True,
-        drop_path=0.3,
-        decoder_channels=128,
-        rope_frequencies=(12, 12, 8),
-        rope_base=100.0,
-        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
-        use_flash_attn=True,
-    ),
-)
-def volt_s_joint_nuscenes(**hparams: Any) -> VoltSegmentation:
-    return VoltSegmentation(**hparams)
-
-
-@register_model(
-    "volt-s-joint.semantickitti.kadir-yilmaz",
-    task="semantic-segmentation",
-    input_keys=("x", "pos_grid", "batch"),
-    weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-s-joint.semantickitti.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
-        dataset="semantickitti",
-        metrics={"mIoU": 71.52, "OA": 92.97, "simple/mIoU": 71.52, "simple/OA": 92.97},
-        classes=SEMANTIC_KITTI_CLASSES,
-        author="kadir-yilmaz",
-        license="MIT",
-    ),
-    transform=_semantickitti_transforms(),
-    hparams=dict(
-        in_channels=4,
-        num_classes=19,
-        patch_size=5,
-        embed_dim=384,
-        depth=12,
-        num_heads=6,
-        mlp_ratio=4.0,
-        qk_norm=True,
-        drop_path=0.3,
-        decoder_channels=128,
-        rope_frequencies=(12, 12, 8),
-        rope_base=100.0,
-        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
-        use_flash_attn=True,
-    ),
-)
-def volt_s_joint_semantickitti(**hparams: Any) -> VoltSegmentation:
-    return VoltSegmentation(**hparams)
-
-
-@register_model(
     "volt-b-joint.scannet20.kadir-yilmaz",
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
@@ -814,38 +746,4 @@ def volt_b_joint_scannet20(**hparams: Any) -> VoltSegmentation:
     ),
 )
 def volt_b_joint_scannet200(**hparams: Any) -> VoltSegmentation:
-    return VoltSegmentation(**hparams)
-
-
-@register_model(
-    "volt-b-joint.nuscenes.kadir-yilmaz",
-    task="semantic-segmentation",
-    input_keys=("x", "pos_grid", "batch"),
-    weights=WeightsDict(
-        url="hf://torch-pointcloud/volt-b-joint.nuscenes.kadir-yilmaz/resolve/0000000000000000000000000000000000000000/model.safetensors",
-        dataset="nuscenes",
-        metrics={"mIoU": 81.79, "OA": 94.73, "simple/mIoU": 81.79, "simple/OA": 94.73},
-        classes=NUSCENES_LIDARSEG_CLASSES,
-        author="kadir-yilmaz",
-        license="MIT",
-    ),
-    transform=_nuscenes_transforms(),
-    hparams=dict(
-        in_channels=4,
-        num_classes=16,
-        patch_size=5,
-        embed_dim=768,
-        depth=12,
-        num_heads=12,
-        mlp_ratio=4.0,
-        qk_norm=True,
-        drop_path=0.3,
-        decoder_channels=256,
-        rope_frequencies=(12, 12, 8),
-        rope_base=100.0,
-        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
-        use_flash_attn=True,
-    ),
-)
-def volt_b_joint_nuscenes(**hparams: Any) -> VoltSegmentation:
     return VoltSegmentation(**hparams)

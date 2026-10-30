@@ -15,9 +15,9 @@ neither are marked as such.
 | guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 36    | Copyright (c) Guocheng Qian                                                                                                |
 | CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 18    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | isl-org/Open3D-ML                               | `open3d`         | MIT          | 11    | Copyright (c) 2020 www.open3d.org                                                                                          |
-| KadirYilmaz/Volt (Hugging Face)                 | `kadir-yilmaz`   | MIT          | 11    | Copyright (c) 2026 Kadir Yilmaz                                                                                            |
 | antao97/dgcnn.pytorch                           | `an-tao`         | MIT          | 10    | Copyright (c) 2020 An Tao                                                                                                  |
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
+| KadirYilmaz/Volt (Hugging Face)                 | `kadir-yilmaz`   | MIT          | 8     | Copyright (c) 2026 Kadir Yilmaz                                                                                            |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 6     | not stated upstream                                                                                                        |
 | open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 6     | Copyright 2018-2019 Open-MMLab                                                                                             |
@@ -51,8 +51,8 @@ Licenses of the datasets the checkpoints were trained on.
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 18          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 6           |
-| nuScenes                                        | CC BY-NC-SA 4.0                                           | 7           |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 5           |
+| nuScenes                                        | CC BY-NC-SA 4.0                                           | 5           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |

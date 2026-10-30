@@ -160,11 +160,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("volt-s.semantickitti.kadir-yilmaz", "semantic-segmentation", "semantickitti"),
     ("volt-s-joint.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
     ("volt-s-joint.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
-    ("volt-s-joint.nuscenes.kadir-yilmaz", "semantic-segmentation", "nuscenes_lidarseg"),
-    ("volt-s-joint.semantickitti.kadir-yilmaz", "semantic-segmentation", "semantickitti"),
     ("volt-b-joint.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
     ("volt-b-joint.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
-    ("volt-b-joint.nuscenes.kadir-yilmaz", "semantic-segmentation", "nuscenes_lidarseg"),
 ]
 
 
