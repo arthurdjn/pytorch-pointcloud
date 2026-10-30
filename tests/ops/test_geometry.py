@@ -414,6 +414,11 @@ def test_spherical_points_gradient_honors_radius() -> None:
         pytest.param(torch.tensor([[1.0, 0.0, 2.0]]), torch.tensor([[1.0, 0.0, 2.0]]), id="positive-x-axis"),
         pytest.param(torch.tensor([[0.0, 2.0, -1.0]]), torch.tensor([[2.0, math.pi / 2, -1.0]]), id="positive-y-axis"),
         pytest.param(torch.tensor([[-3.0, 0.0, 0.0]]), torch.tensor([[3.0, math.pi, 0.0]]), id="negative-x-axis"),
+        pytest.param(
+            torch.tensor([[-3.0, -0.0, 0.0]]),
+            torch.tensor([[3.0, -math.pi, 0.0]]),
+            id="negative-x-axis-negative-zero-y",
+        ),
         pytest.param(torch.tensor([[0.0, 0.0, 5.0]]), torch.tensor([[0.0, 0.0, 5.0]]), id="on-the-axis"),
     ],
 )
@@ -428,4 +433,4 @@ def test_cartesian_to_cylindrical_round_trip() -> None:
     rho, phi, z = cylindrical.unbind(dim=1)
     restored = torch.stack([rho * torch.cos(phi), rho * torch.sin(phi), z], dim=1)
     assert torch.allclose(restored, pos, atol=1e-5)
-    assert (phi > -math.pi).all() and (phi <= math.pi).all()
+    assert (phi >= -math.pi).all() and (phi <= math.pi).all()

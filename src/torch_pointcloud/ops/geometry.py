@@ -493,7 +493,7 @@ def spherical_points_lloyd(
 def cartesian_to_cylindrical(pos: Tensor) -> Tensor:
     r"""Convert Cartesian coordinates to cylindrical coordinates $(\rho, \phi, z)$.
 
-    The radius $\rho = \sqrt{x^2 + y^2}$ and the azimuth $\phi = \operatorname{atan2}(y, x) \in (-\pi, \pi]$ are
+    The radius $\rho = \sqrt{x^2 + y^2}$ and the azimuth $\phi = \operatorname{atan2}(y, x) \in [-\pi, \pi]$ are
     measured in the $xy$ plane; $z$ is kept as is.
 
     Args:
