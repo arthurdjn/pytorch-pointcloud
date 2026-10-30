@@ -805,7 +805,7 @@ class LitePTSegmentation(SemanticSegmentationModel):
 
     Shape:
         - x: $(N, \text{in\_channels})$ point features.
-        - pos_grid: $(N, 3)$ integer grid coordinates.
+        - pos_grid: $(N, 3)$ non-negative `torch.long` grid coordinates, one row per occupied voxel.
         - batch: $(N,)$ per-point batch index.
         - output: $(N, \text{num\_classes})$ per-point class logits, or $(N, \text{num\_features})$ features when
           `num_classes=0`.
@@ -1017,8 +1017,9 @@ class LitePTSegmentation(SemanticSegmentationModel):
 
         Args:
             x: Per-point features of shape $(N, C)$.
-            pos_grid: Integer grid coordinates of shape $(N, 3)$, used for the sparse convolutions, the serialization
-                and the rotary position embedding.
+            pos_grid: Non-negative `torch.long` grid coordinates of shape $(N, 3)$, used for the sparse convolutions,
+                the serialization and the rotary position embedding. Each occupied voxel appears once, as `Voxelize`
+                produces them: repeated rows are not merged and change the outputs.
             batch: Batch indices for each point of shape $(N,)$.
 
         Returns:

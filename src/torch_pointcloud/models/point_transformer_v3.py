@@ -650,7 +650,8 @@ class PointTransformerV3Encoder(nn.Module):
 
     Inputs:
         x: Float tensor of shape $(N, \text{in\_channels})$.
-        pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
+        pos_grid: Non-negative `torch.long` tensor of shape $(N, 3)$ with voxel-grid coordinates, one row per occupied
+            voxel (repeated rows are not merged and change the outputs).
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -1182,7 +1183,8 @@ class PointTransformerV3Classification(ClassificationModel):
 
     Inputs:
         x: Float tensor of shape $(N, \text{in\_channels})$.
-        pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
+        pos_grid: Non-negative `torch.long` tensor of shape $(N, 3)$ with voxel-grid coordinates, one row per occupied
+            voxel (repeated rows are not merged and change the outputs).
         batch: Long tensor of shape $(N,)$.
         pos: Float tensor of shape $(N, 3)$ with metric coordinates. Required when
             `attn_kind="rope"`.
