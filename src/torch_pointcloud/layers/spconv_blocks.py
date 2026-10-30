@@ -285,7 +285,7 @@ class SparseBasicStage(SparseSequential):
     Args:
         in_channels: Number of input channels.
         out_channels: Number of output channels.
-        depth: Number of residual blocks.
+        depth: Number of residual blocks, at least $1$.
         indice_key: spconv index key shared by the submanifold convolutions of the stage.
         kernel_size: Kernel size of the submanifold convolutions.
         act: Activation passed to `create_act`.
@@ -307,6 +307,9 @@ class SparseBasicStage(SparseSequential):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if depth < 1:
+            raise ValueError(f"`depth` must be at least 1, got {depth}.")
+
         blocks = OrderedDict(
             (
                 f"block{i}",
