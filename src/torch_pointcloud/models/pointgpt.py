@@ -588,7 +588,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
     Clouds](https://arxiv.org/abs/2305.11487), adapted from
     :github: [CGuangyan-BIT/PointGPT](https://github.com/CGuangyan-BIT/PointGPT). Patches are tokenized
     with a mini-PointNet, ordered by a greedy nearest-neighbor ("simplified Morton") traversal of the
-    centers, and consumed by the GPT extractor (causally masked unless `causal=False`) with a start-of-sequence
+    centers, and consumed by the GPT extractor (causally masked when `causal=True`) with a start-of-sequence
     and a class token. The normalized hidden states of the `fetch_idx` extractor blocks are concatenated per patch
     and decoded to every point by a `PartSegmentationDecoder` (feature propagation plus a category-conditioned
     global descriptor) before the per-point classifier.
@@ -609,8 +609,9 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         propagation_channels: Widths of the feature-propagation MLP, the last one being its output width.
         head_channels: Hidden widths of the per-point classifier.
         dropout: The dropout rate after the first layer of the per-point classifier.
-        causal: Whether each token attends only to the tokens before it (the extractor's causal mask); `False`
-            lets every token attend to the whole sequence.
+        causal: Whether each token attends only to the tokens before it (the extractor's causal mask of
+            pre-training); `False`, which the released ShapeNetPart weights use, lets every token attend to the whole
+            sequence.
         act: The activation of the transformer MLPs.
         act_kwargs: Keyword arguments for the activation.
         spatial_dim: The spatial dimension of the input point cloud.
@@ -650,7 +651,7 @@ class PointGPTPartSegmentation(PartSegmentationModel):
         propagation_channels: Sequence[int] = (1536, 1024),
         head_channels: Sequence[int] = (512, 256),
         dropout: float = 0.5,
-        causal: bool = True,
+        causal: bool = False,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
