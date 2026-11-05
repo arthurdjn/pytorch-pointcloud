@@ -53,6 +53,7 @@ from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
+from .transfusion import TransFusionDetection
 from .utonia import UtoniaSegmentation
 from .volt import VoltSegmentation
 from .votenet import VoteNetDetection
@@ -137,6 +138,7 @@ __all__ = [
     "SPVCNNClassification",
     "SPVCNNSegmentation",
     "ThreeDETRDetection",
+    "TransFusionDetection",
     "UtoniaSegmentation",
     "VoltSegmentation",
     "VoteNetDetection",

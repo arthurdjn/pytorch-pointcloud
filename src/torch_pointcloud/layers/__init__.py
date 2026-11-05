@@ -109,6 +109,12 @@ from .transformer import (
     TransformerDecoderLayer,
     TransformerEncoderLayer,
 )
+from .transfusion_head import (
+    TransFusionDecoderLayer,
+    TransFusionHead,
+    TransFusionHeadOutput,
+    TransFusionPredictionHead,
+)
 from .vfe import DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
@@ -221,6 +227,10 @@ __all__ = [
     "TransformerBlock",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
+    "TransFusionDecoderLayer",
+    "TransFusionHead",
+    "TransFusionHeadOutput",
+    "TransFusionPredictionHead",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",
