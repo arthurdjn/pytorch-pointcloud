@@ -65,6 +65,7 @@ MODEL_LABELS = {
     "spunet": "SpUNet",
     "spvcnn": "SPVCNN",
     "threedetr": "3DETR",
+    "transfusion": "TransFusion-L",
     "utonia": "Utonia",
     "votenet": "VoteNet",
     "voxel_mamba": "Voxel-Mamba",
