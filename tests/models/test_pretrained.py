@@ -146,6 +146,18 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("utonia-base.pretrain.pointcept", "pretraining", "scannet20"),
     # SemanticKITTI based models
     ("randlanet.semantickitti.tsung-han-wu", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w16.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w20.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w32.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w16.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w20.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w32.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-minkowski.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-spconv.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-spconv-amp.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-torchsparse.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34v2-w32.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
     ("spvcnn-30gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-47gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
@@ -168,11 +180,11 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "minkunet")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
+    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "minkunet")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 
