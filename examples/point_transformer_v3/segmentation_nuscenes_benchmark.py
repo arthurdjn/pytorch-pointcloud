@@ -12,7 +12,13 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
-from torch_pointcloud.inferers import Inferer, SimpleInferer, TTAInferer, VoxelPartitionInferer
+from torch_pointcloud.inferers import (
+    Inferer,
+    SimpleInferer,
+    TTAInferer,
+    VoxelPartitionInferer,
+    scale_flip_tta_transforms,
+)
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -78,16 +84,6 @@ TRANSFORM = T.Compose(
     ]
 )
 # The authors' precise evaluation: five scales, each with and without an x/y flip.
-TTA_TRANSFORMS = [
-    T.Compose(
-        [
-            T.RandomScale(keys=DataKeys.POS, scale_range=(scale, scale), p=1.0),
-            *([T.RandomFlip(keys=DataKeys.POS, axes=(0, 1), p=1.0)] if flip else []),
-        ]
-    )
-    for flip in (False, True)
-    for scale in (0.9, 0.95, 1.0, 1.05, 1.1)
-]
 
 
 def main() -> None:
@@ -176,7 +172,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         sw_batch_size=args.sw_batch_size,
         seed=args.seed,
     )
-    return TTAInferer(base=base, transforms=TTA_TRANSFORMS, aggregate="mean")
+    return TTAInferer(base=base, transforms=scale_flip_tta_transforms(), aggregate="mean")
 
 
 @torch.no_grad()

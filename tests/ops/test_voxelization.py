@@ -9,6 +9,7 @@ from torch_pointcloud.ops.voxelization import (
     sparse_voxelize,
     trilinear_dense_devoxelize,
     voxel_grid_fnv,
+    voxel_patch_partition,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -210,3 +211,35 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_voxel_patch_partition_known_values() -> None:
+    pos_grid = torch.tensor([[0, 0, 0], [1, 2, 3], [4, 0, 0], [0, 0, 0]])
+    batch = torch.tensor([0, 0, 0, 1])
+
+    patch_grid, patch_batch, inverse, offset = voxel_patch_partition(pos_grid, batch, patch_size=4)
+
+    assert torch.equal(patch_grid, torch.tensor([[0, 0, 0], [1, 0, 0], [0, 0, 0]]))
+    assert torch.equal(patch_batch, torch.tensor([0, 0, 1]))
+    assert torch.equal(inverse, torch.tensor([0, 0, 1, 2]))
+    assert torch.equal(offset, torch.tensor([0, 1 * 16 + 2 * 4 + 3, 0, 0]))
+
+
+def test_voxel_patch_partition_round_trips_the_voxel_coordinates() -> None:
+    torch.manual_seed(0)
+    pos_grid = torch.unique(torch.randint(0, 20, (500, 3)), dim=0)
+    batch = (torch.arange(pos_grid.size(0)) >= pos_grid.size(0) // 2).long()
+    k = 5
+
+    patch_grid, patch_batch, inverse, offset = voxel_patch_partition(pos_grid, batch, patch_size=k)
+
+    local = torch.stack([offset // (k * k), offset // k % k, offset % k], dim=1)
+    assert torch.equal(patch_grid[inverse] * k + local, pos_grid)
+    assert torch.equal(patch_batch[inverse], batch)
+    assert bool((patch_batch.diff() >= 0).all())
+    assert torch.unique(torch.stack([inverse, offset], dim=1), dim=0).size(0) == pos_grid.size(0)
+
+
+def test_voxel_patch_partition_rejects_empty_patches() -> None:
+    with pytest.raises(ValueError, match="patch_size"):
+        voxel_patch_partition(torch.zeros(1, 3, dtype=torch.long), torch.zeros(1, dtype=torch.long), patch_size=0)

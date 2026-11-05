@@ -67,6 +67,7 @@ MODEL_LABELS = {
     "threedetr": "3DETR",
     "transfusion": "TransFusion-L",
     "utonia": "Utonia",
+    "volt": "Volt",
     "votenet": "VoteNet",
     "voxel_mamba": "Voxel-Mamba",
     "voxelnext": "VoxelNeXt",

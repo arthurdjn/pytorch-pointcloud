@@ -11,6 +11,7 @@ import pytest
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _DWCONV_AVAILABLE,
+    _FLASH_ATTN_AVAILABLE,
     _LASPY_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
@@ -31,12 +32,14 @@ _REQUIRES_DWCONV = pytest.mark.skipif(not _DWCONV_AVAILABLE, reason="dwconv is n
 _REQUIRES_MAMBA = pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba-ssm is not installed")
 _REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 _REQUIRES_LASPY = pytest.mark.skipif(not _LASPY_AVAILABLE, reason="laspy is not installed")
+_REQUIRES_FLASH_ATTN = pytest.mark.skipif(not _FLASH_ATTN_AVAILABLE, reason="flash-attn is not installed")
 
 _CLUSTER = (_REQUIRES_PYG_LIB,)
 _GPU_SPCONV = (_REQUIRES_SPCONV, _REQUIRES_CUDA)
 _GPU_TORCHSPARSE = (_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)
 _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
+_GPU_FLASH_ATTN = (_REQUIRES_FLASH_ATTN, _REQUIRES_CUDA)
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
 # dataset here (SUN RGB-D, ModelNet40 HDF5, ScanNet200, the KITTI split files) and the unreleased SphereFormer
@@ -124,6 +127,37 @@ BENCHMARKS = [
         ("--model", "ptv3-base.nuscenes.pointcept", "--split", "mini", "--limit", "1", "--simple"),
         marks=_GPU_SPCONV,
         id="ptv3/nuscenes-simple",
+    ),
+    pytest.param("volt/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_FLASH_ATTN, id="volt/scannet"),
+    pytest.param(
+        "volt/segmentation_scannet_benchmark.py",
+        ("--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/scannet-simple",
+    ),
+    pytest.param(
+        "volt/segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/nuscenes",
+    ),
+    pytest.param(
+        "volt/segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/nuscenes-simple",
+    ),
+    pytest.param(
+        "volt/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/semantickitti",
+    ),
+    pytest.param(
+        "volt/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/semantickitti-simple",
     ),
     pytest.param(
         "point_transformer_v3/segmentation_gridnethd_benchmark.py",
