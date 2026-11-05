@@ -21,6 +21,7 @@ from .focal import (
     poly1_focal_loss,
     sigmoid_focal_loss,
 )
+from .groupfree3d import GroupFree3DLoss
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
 from .matching import hungarian_match, hungarian_match_batched
@@ -37,6 +38,7 @@ __all__ = [
     "ChamferDistance",
     "CornerLoss",
     "GaussianFocalLoss",
+    "GroupFree3DLoss",
     "Poly1FocalLoss",
     "KPConvDeformRegularizer",
     "LovaszLoss",

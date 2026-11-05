@@ -12,8 +12,8 @@ from torch import Tensor
 from torch_geometric.nn import MLP
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES
-from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES
+from torch_pointcloud.datasets.scannet import SCANNET_DETECTION_CLASSES, SCANNET_DETECTION_MEAN_SIZES
+from torch_pointcloud.datasets.sunrgbd import SUNRGBD_CLASSES, SUNRGBD_MEAN_SIZES
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation, PointNet2SetAbstraction
 from torch_pointcloud.ops.box3d import class_to_angle, class_to_size
 from torch_pointcloud.ops.cluster import fps
@@ -137,6 +137,9 @@ class VoteNetBackbone(nn.Module):
         self.out_channels = in_channels
 
     def forward(self, x: Tensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        if pos.size(0) == 0:
+            raise ValueError("`pos` has no points: the backbone needs at least one point per scene.")
+
         # Sample the first two SA blocks here so the seed indices can be traced to the input
         # (`seed_indices = idx1[idx2]`); deeper blocks sample internally as their indices are unused.
         head_idx: List[Tensor] = []
@@ -587,41 +590,6 @@ class VoteNetDetection(DetectionModel):
         }
 
 
-_SCANNET_MEAN_SIZES = [
-    [0.769667, 0.811602, 0.925737],
-    [1.876858, 1.842560, 1.193157],
-    [0.613280, 0.614861, 0.718270],
-    [1.395501, 1.512155, 0.834436],
-    [0.979496, 1.067515, 0.632969],
-    [0.531663, 0.595558, 1.750015],
-    [0.962471, 0.724623, 1.148187],
-    [0.832219, 1.049094, 1.687566],
-    [0.211322, 0.420616, 0.537285],
-    [1.444007, 1.897083, 0.269857],
-    [1.029426, 1.404080, 0.875543],
-    [1.376641, 0.655218, 1.681313],
-    [0.665082, 0.711119, 1.298853],
-    [0.419992, 0.379069, 1.751397],
-    [0.593596, 0.591249, 0.739190],
-    [0.508676, 0.506561, 0.301362],
-    [1.151153, 1.054630, 0.497068],
-    [0.475353, 0.492495, 0.580212],
-]
-
-_SUNRGBD_MEAN_SIZES = [
-    [2.114256, 1.620300, 0.927272],
-    [0.791118, 1.279516, 0.718182],
-    [0.923508, 1.867419, 0.845495],
-    [0.591958, 0.552978, 0.827272],
-    [0.699104, 0.454178, 0.756250],
-    [0.695190, 1.346299, 0.736364],
-    [0.528526, 1.002642, 1.172878],
-    [0.500618, 0.632163, 0.683424],
-    [0.404671, 1.071108, 1.688889],
-    [0.765840, 1.398258, 0.472728],
-]
-
-
 @register_model(
     "votenet.scannet.fair",
     task="detection",
@@ -666,7 +634,7 @@ _SUNRGBD_MEAN_SIZES = [
         vote_factor=1,
         num_heading_bins=1,
         num_size_clusters=18,
-        mean_sizes=_SCANNET_MEAN_SIZES,
+        mean_sizes=SCANNET_DETECTION_MEAN_SIZES,
         sampling="seed_fps",
     ),
 )
@@ -713,7 +681,7 @@ def votenet_fair_base_scannet(**hparams: Any) -> VoteNetDetection:
         vote_factor=1,
         num_heading_bins=12,
         num_size_clusters=10,
-        mean_sizes=_SUNRGBD_MEAN_SIZES,
+        mean_sizes=SUNRGBD_MEAN_SIZES,
         sampling="seed_fps",
     ),
 )

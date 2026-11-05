@@ -47,6 +47,7 @@ DISPLAY_TITLES = {
     "oneformer3d": "OneFormer3D",
     "votenet": "VoteNet",
     "threedetr": "3DETR",
+    "groupfree3d": "Group-Free 3D",
     "pointpillars": "PointPillars",
     "second": "SECOND",
     "parta2": "Part-A2",

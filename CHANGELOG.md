@@ -46,6 +46,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added Group-Free 3D (`GroupFree3DDetection`, `GroupFree3DLoss`) with the authors' ScanNet and SUN RGB-D checkpoints and the MMDetection3D ScanNet ones, and its benchmark and training scripts.
+- Added `InstanceToBox(dst_box_index_key=...)`, which writes each point's box row to `DataKeys.BOX_INDEX`.
 
 ## 0.0.18 (2026-10-20)
 

@@ -57,6 +57,7 @@ class DataKeys(StrEnum):
     ORIGIN_INSTANCE = "origin_instance"
     BOX = "box"
     BATCH_BOX = "batch_box"
+    BOX_INDEX = "box_index"
     VELOCITY = "velocity"
     NUM_POINTS = "num_points"
     ATTRIBUTE = "attribute"

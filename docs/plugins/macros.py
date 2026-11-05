@@ -34,6 +34,7 @@ MODEL_LABELS = {
     "centerpoint": "CenterPoint",
     "concerto": "Concerto",
     "dgcnn": "DGCNN",
+    "groupfree3d": "Group-Free 3D",
     "kpconv": "KPConv",
     "lion": "LION",
     "octformer": "OctFormer",

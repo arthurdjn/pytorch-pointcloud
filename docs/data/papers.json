@@ -129,6 +129,11 @@
     "date": "December 2020",
     "title": "Point Transformer"
   },
+  "2104.00678": {
+    "crop": 0.47,
+    "date": "April 2021",
+    "title": "Group-Free 3D Object Detection via Transformers"
+  },
   "2109.08141": {
     "crop": 0.47,
     "date": "September 2021",

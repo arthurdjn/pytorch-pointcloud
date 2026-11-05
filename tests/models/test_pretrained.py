@@ -345,6 +345,55 @@ def test_pretrained_threedetr(
 
 
 @pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "groupfree3d-l6-o256.scannet.ze-liu",
+        "groupfree3d-l12-o256.scannet.ze-liu",
+        "groupfree3d-w2x-l12-o256.scannet.ze-liu",
+        "groupfree3d-w2x-l12-o512.scannet.ze-liu",
+        "groupfree3d-l6-o256.sunrgbd.ze-liu",
+        "groupfree3d-l6-o256.scannet.mmdet3d",
+        "groupfree3d-l12-o256.scannet.mmdet3d",
+        "groupfree3d-w2x-l12-o256.scannet.mmdet3d",
+        "groupfree3d-w2x-l12-o512.scannet.mmdet3d",
+    ],
+)
+def test_pretrained_groupfree3d(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+) -> None:
+    """Group-Free 3D returns a dict of per-stage candidate predictions, so it needs its own snapshot test.
+
+    There is no in-repo ScanNet / SUN RGB-D *detection* fixture, so a fixed synthetic cloud with deterministic FPS is
+    used. The snapshot is the last stage's `center`, `objectness_scores` and `sem_cls_scores`.
+    """
+    if not _PYG_LIB_AVAILABLE:
+        pytest.skip("pyg-lib is not installed")
+
+    models_dir = models_dir_factory("*.safetensors")
+
+    model, _ = create_model(model_name, task="detection", pretrained=True, return_info=True)
+    model = model.to(DEVICE).eval()
+
+    # Seed the input *after* `create_model`: building a pretrained model random-inits its parameters
+    # (consuming RNG) before loading weights, so seeding earlier would couple the input to that init.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 3000, 2
+    pos = (torch.rand(n_per_scene * batch_size, 3) * 4.0).to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+
+    with torch.no_grad():
+        out = model(None, pos, batch)
+
+    reduced = torch.cat(
+        [out["center"][-1].reshape(-1), out["objectness_scores"][-1].reshape(-1), out["sem_cls_scores"][-1].reshape(-1)]
+    )
+    _check_output(reduced, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
 @pytest.mark.parametrize("model_name", ["pointrcnn.kitti.openpcdet"])
 def test_pretrained_pointrcnn(
     model_name: str,
