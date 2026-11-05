@@ -170,7 +170,7 @@ def _resolve_condition(
 ) -> Optional[str]:
     """Reduce a per-batch condition to a single name, falling back to `default`.
 
-    Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
+    One forward pass applies one condition, so a collated `condition` is a length-$B$ list of the
     same string; take its first entry. A `None` argument falls back to the model's constructor
     `condition` (single-dataset fine-tune or benchmark).
 
@@ -184,11 +184,17 @@ def _resolve_condition(
         The resolved condition name, or `None` when the model was built without conditions.
 
     Raises:
-        ValueError: If a condition is given but the model was built without `pdnorm_conditions`, or
-            if the model was built with `pdnorm_conditions` and no condition resolves.
+        ValueError: If a per-sample `condition` mixes several names, if a condition is given but the
+            model was built without `pdnorm_conditions`, or if the model was built with
+            `pdnorm_conditions` and no condition resolves.
     """
     resolved = condition if condition is not None else default
     if resolved is not None and not isinstance(resolved, str):
+        if len(set(resolved)) > 1:
+            raise ValueError(
+                f"Got the conditions {sorted(set(resolved))!r} in one batch; a forward pass applies one condition, "
+                "so batch the samples of each condition separately."
+            )
         resolved = resolved[0]
     if resolved is not None and conditions is None:
         raise ValueError(
@@ -1774,12 +1780,12 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         pre_logits: bool = False,
         condition: Union[str, Sequence[str], None] = None,
     ) -> Tensor:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         if pre_logits:
             return x
         if isinstance(self.head, (ConditionalLinear, CosineSimilarityHead)):
-            condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
             return self.head(x, condition=condition)
         return self.head(x)
 

@@ -350,6 +350,22 @@ def test_pt_v3_segmentation_one_head_per_condition_routes_the_condition(
     )
 
 
+def test_pt_v3_segmentation_mixed_conditions_in_one_batch_raise(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+) -> None:
+    features = torch.randn(7, model_seg_per_condition.num_features, device=DEVICE)
+    with pytest.raises(ValueError, match=r"conditions \['S3DIS', 'ScanNet'\] in one batch"):
+        model_seg_per_condition.forward_head(features, condition=["S3DIS", "ScanNet"])
+
+
+def test_pt_v3_segmentation_head_rejects_a_condition_without_pdnorm_conditions(
+    model_seg: PointTransformerV3Segmentation,
+) -> None:
+    features = torch.randn(7, model_seg.num_features, device=DEVICE)
+    with pytest.raises(ValueError, match="without conditional norms"):
+        model_seg.forward_head(features, condition="ScanNet")
+
+
 def test_pt_v3_segmentation_cosine_similarity_head_routes_the_condition(
     model_seg_language: PointTransformerV3Segmentation,
 ) -> None:
