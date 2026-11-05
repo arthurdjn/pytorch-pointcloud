@@ -1,13 +1,13 @@
 """Voxel grid subsampling of packed point clouds."""
 
-from typing import Literal, Tuple, overload
+from typing import Literal, Optional, Tuple, overload
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
-from torch_geometric.utils import scatter, segment
+from torch_geometric.utils import scatter
 
 
 class VoxelGridPool(nn.Module):
@@ -16,6 +16,7 @@ class VoxelGridPool(nn.Module):
     Positions are averaged within a cell and features are reduced with `reduce`. The grid origin is either aligned
     to multiples of `grid_size` (`origin="grid"`, so cell boundaries do not depend on the cloud's extent) or placed
     at each cloud's minimum corner (`origin="min"`). Passing `return_inverse=True` also returns the point-to-cell map.
+    Both origins are computed per cloud, so a cloud is pooled the same whether it is alone or in a batch.
 
     Args:
         grid_size: Cell edge length.
@@ -23,7 +24,8 @@ class VoxelGridPool(nn.Module):
         origin: Where the grid starts, `"grid"` or `"min"`.
 
     Shape:
-        - Input: $(N, C)$ features, $(N, 3)$ positions and $(N,)$ batch index.
+        - Input: $(N, C)$ features, $(N, 3)$ positions, $(N,)$ batch index and the optional number of batch elements,
+          which saves a device read.
         - Output: $(M, C)$ features, $(M, 3)$ positions, $(M,)$ batch index and, with `return_inverse`, the $(N,)$
           cell index of every input point.
 
@@ -59,6 +61,7 @@ class VoxelGridPool(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[True],
+        batch_size: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor]: ...
 
     @overload
@@ -68,6 +71,7 @@ class VoxelGridPool(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_inverse: Literal[False] = False,
+        batch_size: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward(
@@ -76,14 +80,12 @@ class VoxelGridPool(nn.Module):
         pos: Tensor,
         batch: Tensor,
         return_inverse: bool = False,
+        batch_size: Optional[int] = None,
     ) -> Tuple[Tensor, ...]:
+        start = scatter(pos, batch, dim=0, dim_size=batch_size, reduce="min")
         if self.origin == "grid":
-            start = torch.floor(pos.min(dim=0).values / self.grid_size) * self.grid_size
-            cluster = voxel_grid(pos, size=self.grid_size, batch=batch, start=start)
-        else:
-            ptr = torch.cat([batch.new_zeros(1), torch.cumsum(batch.bincount(), dim=0)])
-            start = segment(pos, ptr, reduce="min")
-            cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)
+            start = torch.floor(start / self.grid_size) * self.grid_size
+        cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)
 
         # Scatter straight from the input order: sorting the points into cells first would materialize a copy of
         # the features and cost several times the peak memory for no numerical gain.

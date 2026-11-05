@@ -63,6 +63,24 @@ class Detection3D(Boxes3D):
     velocity: NotRequired[Tensor]
 
 
+class Registration3D(TypedDict):
+    r"""Packed rigid registration results of a batch of point cloud pairs (a registration model's `decode` output).
+
+    Attributes:
+        transform: Estimated transform of each source onto its reference, shape $(B, 4, 4)$.
+        src_points: Source point of each correspondence, shape $(K, 3)$.
+        ref_points: Reference point of each correspondence, shape $(K, 3)$.
+        scores: Confidence of each correspondence, shape $(K,)$.
+        batch: Per-correspondence pair index, shape $(K,)$.
+    """
+
+    transform: Tensor
+    src_points: Tensor
+    ref_points: Tensor
+    scores: Tensor
+    batch: Tensor
+
+
 class FeaturesDict(TypedDict):
     r"""Features of one encoder stage on a packed point cloud, as returned in the `return_intermediates` list.
 

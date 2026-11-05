@@ -458,3 +458,8 @@ def test_collate_octrees_in_workers_keeps_the_lookup_table_cache() -> None:
     pytest.importorskip("ocnn")
     loader = PointCloudDataLoader(_OctreeDataset(), batch_size=2, num_workers=1)
     assert [batch["cache_shared"].tolist() for batch in loader] == [[0, 0]] * 6
+
+
+def test_select_inputs_missing_ref_x_is_none() -> None:
+    data = {"pos": torch.rand(4, 3), "ref_pos": torch.rand(5, 3)}
+    assert select_inputs(data, ("x", "pos", "ref_x", "ref_pos"))[2] is None

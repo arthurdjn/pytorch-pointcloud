@@ -1,10 +1,13 @@
 import math
+from typing import Any
 
 import pytest
 import torch
+from scipy.spatial.transform import Rotation
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.ops.geometry import transform_points
 
 
 def test_random_rotate_pos_and_normal_share_rotation() -> None:
@@ -417,3 +420,87 @@ def test_box_augmentations_carry_the_velocity_columns() -> None:
 
     shifted = F.translate_boxes(boxes, torch.tensor([1.0, 1.0, 1.0]))
     assert torch.allclose(shifted[0, 7:9], boxes[0, 7:9])
+
+
+def test_random_jitter_uniform_is_bounded_by_sigma() -> None:
+    pos = torch.zeros(1000, 3)
+    out = T.RandomJitter(keys="pos", sigma=0.1, clip=None, distribution="uniform", seed=0)({"pos": pos})
+    assert out["pos"].abs().max().item() <= 0.1
+    assert out["pos"].abs().max().item() > 0.09
+
+
+def test_random_jitter_rejects_unknown_distribution() -> None:
+    with pytest.raises(ValueError, match="distribution"):
+        T.RandomJitter(keys="pos", distribution="laplace")  # type: ignore[arg-type]
+
+
+def test_random_jitter_keeps_its_positional_parameters() -> None:
+    jitter = T.RandomJitter("pos", 0.02, 0.05, 0.5)
+    assert (jitter.sigma, jitter.clip, jitter.p, jitter.distribution) == (0.02, 0.05, 0.5, "normal")
+
+
+def _pair_rotate(**kwargs: Any) -> T.RandomPairRotate:
+    return T.RandomPairRotate(src_keys=["pos", "normal"], ref_keys=["ref_pos"], transform_key="transform", **kwargs)
+
+
+def test_random_pair_rotate_angles_are_degrees() -> None:
+    pos, ref_pos = torch.rand(10, 3), torch.rand(10, 3)
+    data = {"pos": pos, "ref_pos": ref_pos, "transform": torch.eye(4)}
+    out = _pair_rotate(angle_range=(360.0, 360.0), seed=0, allow_missing_keys=True)(data)
+    assert torch.allclose(out["pos"], pos, atol=1e-5)
+    assert torch.allclose(out["ref_pos"], ref_pos, atol=1e-5)
+    assert torch.allclose(out["transform"], torch.eye(4), atol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "seed",
+    [
+        pytest.param(0, id="seed-0"),
+        pytest.param(1, id="seed-1"),
+        pytest.param(2, id="seed-2"),
+    ],
+)
+def test_random_pair_rotate_keeps_the_pair_and_its_normals_aligned(seed: int) -> None:
+    """Whichever cloud is rotated, the transform still moves the source positions and normals onto the reference."""
+    pos = torch.rand(20, 3)
+    normal = torch.nn.functional.normalize(torch.randn(20, 3), dim=1)
+    transform = torch.eye(4)
+    transform[:3, 3] = torch.tensor([1.0, 2.0, 3.0])
+    data = {
+        "pos": pos,
+        "normal": normal,
+        "ref_pos": transform_points(pos, transform),
+        "ref_normal": normal,
+        "transform": transform,
+    }
+    rotate = T.RandomPairRotate(
+        src_keys=["pos", "normal"], ref_keys=["ref_pos", "ref_normal"], transform_key="transform", seed=seed
+    )
+    out = rotate(data)
+    assert not torch.allclose(out["pos"], pos) or not torch.allclose(out["ref_pos"], data["ref_pos"])
+    assert torch.allclose(transform_points(out["pos"], out["transform"]), out["ref_pos"], atol=1e-5)
+    assert torch.allclose(out["normal"] @ out["transform"][:3, :3].T, out["ref_normal"], atol=1e-5)
+
+
+def test_random_pair_rotate_requires_the_transform() -> None:
+    data = {"pos": torch.rand(5, 3), "normal": torch.rand(5, 3), "ref_pos": torch.rand(5, 3)}
+    with pytest.raises(KeyError, match="transform"):
+        _pair_rotate(seed=0)(data)
+    with pytest.raises(KeyError, match="transform"):
+        _pair_rotate(seed=0, allow_missing_keys=True)(data)
+
+
+def test_random_pair_rotate_missing_field() -> None:
+    data = {"pos": torch.rand(5, 3), "ref_pos": torch.rand(5, 3), "transform": torch.eye(4)}
+    with pytest.raises(KeyError, match="normal"):
+        _pair_rotate(seed=0)(data)
+    assert "normal" not in _pair_rotate(seed=0, allow_missing_keys=True)(data)
+
+
+def test_random_pair_rotate_uses_extrinsic_zyx_euler_angles() -> None:
+    pos = torch.eye(3)
+    data = {"pos": pos, "ref_pos": torch.rand(3, 3), "transform": torch.eye(4)}
+    out = _pair_rotate(angle_range=(30.0, 30.0), seed=0, allow_missing_keys=True)(data)
+    expected = torch.from_numpy(Rotation.from_euler("zyx", [30.0, 30.0, 30.0], degrees=True).as_matrix()).float()
+    rotation = out["transform"][:3, :3] if torch.equal(out["pos"], pos) else out["transform"][:3, :3].T
+    assert torch.allclose(rotation, expected, atol=1e-5)

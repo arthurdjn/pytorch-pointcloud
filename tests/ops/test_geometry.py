@@ -1,8 +1,10 @@
 import math
 from typing import Literal, Tuple, Union
 
+import numpy as np
 import pytest
 import torch
+from scipy.spatial.transform import Rotation
 from torch import Tensor
 
 from torch_pointcloud.ops.geometry import (
@@ -10,9 +12,15 @@ from torch_pointcloud.ops.geometry import (
     cross_product_matrix,
     random_spherical_points,
     rodrigues_rotation_matrix,
+    rotation_matrix_to_quaternion,
     spherical_points_gradient,
     spherical_points_lloyd,
 )
+
+
+def _unit_axes(n: int) -> np.ndarray:
+    axes = np.random.default_rng(0).normal(size=(n, 3))
+    return axes / np.linalg.norm(axes, axis=1, keepdims=True)
 
 
 @pytest.mark.parametrize(
@@ -405,3 +413,20 @@ def test_spherical_points_gradient_honors_radius() -> None:
     points = spherical_points_gradient(radius, 16, max_steps=50)
     distances = torch.norm(points, dim=1)
     assert torch.allclose(torch.mean(distances[1:]), torch.tensor(0.66 * radius), atol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "rotvecs",
+    [
+        pytest.param(Rotation.random(200, random_state=0).as_rotvec(), id="random"),
+        pytest.param(np.eye(3) * np.pi, id="half-turn-about-each-axis"),
+        pytest.param(_unit_axes(50) * np.pi, id="half-turn"),
+        pytest.param(_unit_axes(50) * np.deg2rad(179.99), id="near-half-turn"),
+        pytest.param(np.zeros((1, 3)), id="identity"),
+    ],
+)
+def test_rotation_matrix_to_quaternion_matches_scipy(rotvecs: np.ndarray) -> None:
+    rotations = Rotation.from_rotvec(rotvecs)
+    quaternion = rotation_matrix_to_quaternion(torch.tensor(rotations.as_matrix(), dtype=torch.float64))
+    expected = rotations.as_quat(canonical=True)[:, [3, 0, 1, 2]]
+    assert np.allclose(quaternion.numpy(), expected, atol=1e-12)

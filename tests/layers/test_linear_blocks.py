@@ -48,3 +48,15 @@ def test_linear_block_extra_args_ignored() -> None:
     batch = torch.zeros(10, dtype=torch.long)
     out = block(x, pos=pos, batch=batch)
     assert out.shape == (10, 8)
+
+
+def test_linear_block_normalizes_per_batch_element() -> None:
+    torch.manual_seed(0)
+    block = LinearBlock(in_channels=4, out_channels=8, norm="group_norm", norm_kwargs={"num_groups": 2})
+    x = torch.randn(10, 4)
+    x[6:] = x[6:] * 10 + 5
+    batch = torch.tensor([0] * 6 + [1] * 4)
+    out = block(x, batch=batch, batch_size=2)
+    assert torch.allclose(out[:6], block(x[:6]), atol=1e-5)
+    assert torch.allclose(out[6:], block(x[6:]), atol=1e-5)
+    assert not torch.allclose(block(x)[:6], out[:6], atol=1e-3)
