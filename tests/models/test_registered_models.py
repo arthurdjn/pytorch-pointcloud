@@ -235,6 +235,7 @@ DETECTION_MODELS = [
     "pv-rcnn.kitti.mmdet3d",
     "second-multihead.nuscenes.openpcdet",
     "second.kitti.openpcdet",
+    "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
     "votenet.sunrgbd.fair",
     "voxel-mamba.waymo",
@@ -273,7 +274,9 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
     if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if (
-        model_name.startswith(("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn"))
+        model_name.startswith(
+            ("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn", "transfusion")
+        )
         and not _SPCONV_AVAILABLE
     ):
         pytest.skip("spconv is not installed")
@@ -809,7 +812,7 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
     `model_kwargs` only shrinks sampling sizes (`sa_num_points`, `num_proposals`, `preencoder_num_points`, ...), which
     keeps the state-dict structure identical to the registered configuration while the forward stays fast
     on a few hundred CPU points. The grid-based detectors (pointpillars, second, voxelnext, voxel-mamba,
-    lion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
+    lion, transfusion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
     """
     _skip_if_model_deps_missing(model_name)
     model = create_model(model_name, task="detection", **model_kwargs).eval()
