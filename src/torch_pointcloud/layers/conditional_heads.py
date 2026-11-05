@@ -1,6 +1,6 @@
 """Classification heads holding one class table per condition, selected at forward time."""
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,9 @@ class CosineSimilarityHead(nn.Module):
     Only the projection is learned. The class embeddings, typically text embeddings of the class names computed once
     by a text encoder, are the `class_embedding` buffer stored with the weights; the rows of condition $i$ follow
     those of conditions $0, \ldots, i - 1$. `from_embeddings` builds the head from given embeddings, while the
-    constructor fills the buffer with random unit vectors for a state dict to replace.
+    constructor fills the buffer with random unit vectors for a state dict to replace. `reset_class_embedding` swaps
+    the tables of a trained head and keeps its projection: embeddings of new class names from the same text encoder
+    give a classifier over those names without training.
 
     Introduced in :arxiv: [Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt
     Training](https://arxiv.org/abs/2308.09718)
@@ -128,16 +130,53 @@ class CosineSimilarityHead(nn.Module):
             print(logits.shape)  # torch.Size([32, 13])
             ```
         """
+        num_classes: Union[int, List[int]]
         if isinstance(class_embedding, Tensor):
-            tables = [class_embedding]
-            num_classes: Union[int, Tuple[int, ...]] = class_embedding.shape[0]
+            embed_dim, num_classes = class_embedding.shape[1], class_embedding.shape[0]
         else:
-            tables = list(class_embedding)
-            num_classes = tuple(table.shape[0] for table in tables)
+            embed_dim, num_classes = class_embedding[0].shape[1], [table.shape[0] for table in class_embedding]
 
-        head = cls(in_channels, tables[0].shape[1], num_classes, scale, conditions=conditions)
-        head.class_embedding.copy_(F.normalize(torch.cat(tables).detach(), dim=1))
+        head = cls(in_channels, embed_dim, num_classes, scale, conditions=conditions)
+        head.reset_class_embedding(class_embedding, conditions=conditions)
         return head
+
+    def reset_class_embedding(
+        self,
+        class_embedding: Union[Tensor, Sequence[Tensor]],
+        conditions: Optional[Sequence[str]] = None,
+    ) -> None:
+        r"""Replace the class tables by the given embeddings, $\ell_2$-normalized, keeping the projection.
+
+        The head then scores the classes of the new tables. With embeddings from the text encoder the projection was
+        trained against, this turns a trained head into a classifier over a new vocabulary.
+
+        Args:
+            class_embedding: One $(K, D)$ table, or one $(K_i, D)$ table per condition when `conditions` is given,
+                with $D$ the `embed_dim` of the head.
+            conditions: Ordered condition names, one per table.
+
+        Example:
+            ```python
+            import torch
+            from torch_pointcloud.layers import CosineSimilarityHead
+
+            head = CosineSimilarityHead.from_embeddings(64, torch.randn(13, 512), scale=100.0)
+            head.reset_class_embedding(torch.randn(5, 512))  # five new class names, same projection
+            logits = head(torch.randn(32, 64))
+            print(logits.shape)  # torch.Size([32, 5])
+            ```
+        """
+        tables = [class_embedding] if isinstance(class_embedding, Tensor) else list(class_embedding)
+        widths = sorted({table.shape[1] for table in tables})
+        if widths != [self.embed_dim]:
+            raise ValueError(f"The class tables must have the embedding width {self.embed_dim}, got widths {widths}.")
+        num_classes: Union[int, List[int]]
+        num_classes = tables[0].shape[0] if isinstance(class_embedding, Tensor) else [t.shape[0] for t in tables]
+        counts = _class_counts(num_classes, conditions)
+
+        self.num_classes = counts
+        self.conditions = None if conditions is None else tuple(conditions)
+        self.class_embedding = F.normalize(torch.cat(tables).detach().to(self.class_embedding), dim=1)
 
     def forward(self, x: Tensor, condition: Optional[str] = None) -> Tensor:
         start, num_classes = 0, self.num_classes[0]

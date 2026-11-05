@@ -210,7 +210,7 @@ def _default_num_classes(
     conditions: Optional[Sequence[str]],
     condition: Optional[str],
 ) -> int:
-    """Return the class count of the default `condition`, checking one count per condition was given.
+    """Return the class count of the default `condition`.
 
     Args:
         num_classes: A class count, or one count per entry of `conditions`.
@@ -221,22 +221,18 @@ def _default_num_classes(
         `num_classes` itself when it is a count, otherwise the count of `condition`.
 
     Raises:
-        ValueError: If the counts do not match `conditions` one to one, or `condition` is not one of them.
+        ValueError: If `num_classes` is a sequence and `condition` does not name one of its entries.
     """
-    if isinstance(num_classes, int):
-        return num_classes
-    if conditions is None or len(conditions) != len(num_classes):
+    if not isinstance(num_classes, Sequence):
+        return int(num_classes)
+    if condition is None or conditions is None or condition not in conditions or len(conditions) != len(num_classes):
         raise ValueError(
-            f"`num_classes` has {len(num_classes)} entries; `pdnorm_conditions` must name as many "
-            f"(got {None if conditions is None else list(conditions)!r})."
-        )
-    if condition is None or condition not in conditions:
-        raise ValueError(
-            f"One `num_classes` per condition requires the default `condition` to be one of {list(conditions)!r}, "
-            f"got {condition!r}."
+            f"One `num_classes` per condition takes one count per entry of `pdnorm_conditions` and a default "
+            f"`condition` among them, got num_classes={tuple(num_classes)!r}, "
+            f"pdnorm_conditions={None if conditions is None else tuple(conditions)!r} and condition={condition!r}."
         )
 
-    return num_classes[list(conditions).index(condition)]
+    return int(num_classes[list(conditions).index(condition)])
 
 
 class PointTransformerV3Block(nn.Module):
@@ -1446,7 +1442,10 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
     Training](https://arxiv.org/abs/2308.09718): `pdnorm_conditions` gives every norm one set of statistics per dataset,
     and `num_classes` with one count per entry of `pdnorm_conditions` gives one head per dataset (`ConditionalLinear`),
     both selected by the `condition` argument of `forward`. `text_embed_dim` and `text_scale` replace the linear heads
-    by a `CosineSimilarityHead`, whose class weights are fixed text embeddings of the class names.
+    by a `CosineSimilarityHead`, whose class weights are fixed text embeddings of the class names: random unit vectors
+    until a state dict or `reset_classifier(num_classes, class_embedding=...)` fills them. A registered checkpoint names
+    the classes of its default `condition` (`model_info(name)["weights"]["classes"]`); the other conditions score the
+    label sets they were trained on.
 
     Args:
         in_channels: Number of input channels.
@@ -1490,7 +1489,8 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             structure some released checkpoints were trained with.
         pdnorm_conditions: Ordered condition names; when given, every norm holds one inner norm per condition.
         condition: Default condition used when `forward` receives none.
-        text_embed_dim: Width of the text-embedding space of a `CosineSimilarityHead`. `None` builds linear heads.
+        text_embed_dim: Width of the text-embedding space of a `CosineSimilarityHead`, whose class tables start as
+            random unit vectors. `None` builds linear heads.
         text_scale: Scale of the cosine similarities of the `CosineSimilarityHead`; required with `text_embed_dim`.
     """
 
@@ -1540,7 +1540,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             in_channels=in_channels,
             num_classes=_default_num_classes(num_classes, pdnorm_conditions, condition),
         )
-        self.num_classes_per_condition = None if isinstance(num_classes, int) else tuple(num_classes)
+        self.num_classes_per_condition = tuple(num_classes) if isinstance(num_classes, Sequence) else None
         self.text_embed_dim = text_embed_dim
         self.text_scale = text_scale
         self.condition = condition
@@ -1664,11 +1664,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             )
         return ConditionalLinear(self.num_features, self.num_classes_per_condition, self.pdnorm_conditions)
 
-    def reset_classifier(self, num_classes: Union[int, Sequence[int]], **kwargs: Any) -> None:
-        """Resets the segmentation head with new parameters.
+    def reset_classifier(
+        self,
+        num_classes: Union[int, Sequence[int]],
+        class_embedding: Union[Tensor, Sequence[Tensor], None] = None,
+        **kwargs: Any,
+    ) -> None:
+        r"""Resets the segmentation head with new parameters.
 
-        The new head is linear, also on a model built with `text_embed_dim`: fixed class embeddings only score the
-        classes they were computed for.
+        Without `class_embedding` the new head is linear, also on a model built with `text_embed_dim`: fixed class
+        embeddings only score the classes they were computed for. With `class_embedding`, the `CosineSimilarityHead`
+        keeps its trained projection and scores the given class embeddings instead, which must come from the text
+        encoder the projection was trained against.
 
         Note:
             To set an empty segmentation head, use `num_classes=0`.
@@ -1676,13 +1683,45 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         Args:
             num_classes: Number of output classes, or one count per entry of `pdnorm_conditions` for one head per
                 condition.
+            class_embedding: New class tables of a model built with `text_embed_dim`: one $(K, D)$ table, or one
+                $(K_i, D)$ table per entry of `pdnorm_conditions`, with the row counts of `num_classes`.
             **kwargs: Additional keyword arguments to pass to the segmentation head.
+
+        Example:
+            ```python
+            import torch
+            from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Segmentation
+
+            model = PointTransformerV3Segmentation(6, 20, use_flash_attn=False, text_embed_dim=512, text_scale=100.0)
+            class_embedding = torch.randn(3, 512)  # text embeddings of three class names
+            model.reset_classifier(3, class_embedding=class_embedding)
+            print(model.num_classes)  # 3
+            ```
         """
-        self.num_classes = _default_num_classes(num_classes, self.pdnorm_conditions, self.condition)
-        self.num_classes_per_condition = None if isinstance(num_classes, int) else tuple(num_classes)
-        self.text_embed_dim = None
-        self.text_scale = None
-        self.head = self.configure_head()
+        default_num_classes = _default_num_classes(num_classes, self.pdnorm_conditions, self.condition)
+        num_classes_per_condition = tuple(num_classes) if isinstance(num_classes, Sequence) else None
+        if class_embedding is None:
+            self.num_classes = default_num_classes
+            self.num_classes_per_condition = num_classes_per_condition
+            self.text_embed_dim = None
+            self.text_scale = None
+            self.head = self.configure_head()
+            return
+
+        if not isinstance(self.head, CosineSimilarityHead):
+            raise ValueError(
+                f"`class_embedding` replaces the class tables of a `CosineSimilarityHead`; this model has a "
+                f"`{type(self.head).__name__}` head."
+            )
+        tables = [class_embedding] if isinstance(class_embedding, Tensor) else list(class_embedding)
+        rows = tuple(table.shape[0] for table in tables)
+        if rows != (num_classes_per_condition or (default_num_classes,)):
+            raise ValueError(f"Got num_classes={num_classes!r} for class tables of {list(rows)!r} rows.")
+
+        conditions = None if num_classes_per_condition is None else self.pdnorm_conditions
+        self.head.reset_class_embedding(class_embedding, conditions=conditions)
+        self.num_classes = default_num_classes
+        self.num_classes_per_condition = num_classes_per_condition
 
     @overload
     def forward_features(

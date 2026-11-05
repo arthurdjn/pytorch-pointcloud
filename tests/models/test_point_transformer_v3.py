@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pytest
 import torch
@@ -383,6 +383,58 @@ def test_pt_v3_segmentation_reset_classifier_builds_linear_heads(
     assert model_seg_language.text_embed_dim is None
     features = torch.randn(7, model_seg_language.num_features, device=DEVICE)
     assert model_seg_language.forward_head(features).shape == (7, logits_dim)
+
+
+def test_pt_v3_segmentation_reset_classifier_with_class_embedding_keeps_the_projection(
+    model_seg_language: PointTransformerV3Segmentation,
+) -> None:
+    head = model_seg_language.head
+    assert isinstance(head, CosineSimilarityHead)
+    proj = head.proj.weight.clone()
+    tables = [torch.randn(2, 8), torch.randn(3, 8)]
+    model_seg_language.reset_classifier((2, 3), class_embedding=tables)
+    assert model_seg_language.head is head
+    assert torch.equal(head.proj.weight, proj)
+    assert model_seg_language.num_classes == 3
+    assert model_seg_language.num_classes_per_condition == (2, 3)
+    features = torch.randn(7, model_seg_language.num_features, device=DEVICE)
+    assert model_seg_language.forward_head(features).shape == (7, 3)
+    assert model_seg_language.forward_head(features, condition="ScanNet").shape == (7, 2)
+
+    model_seg_language.reset_classifier(5, class_embedding=torch.randn(5, 8))
+    assert model_seg_language.num_classes == 5
+    assert model_seg_language.num_classes_per_condition is None
+    assert model_seg_language.forward_head(features, condition="ScanNet").shape == (7, 5)
+
+
+@pytest.mark.parametrize(
+    ("num_classes", "class_embedding", "match"),
+    [
+        pytest.param(4, torch.randn(5, 8), "for class tables of \\[5\\] rows", id="rows"),
+        pytest.param(
+            (4, 2),
+            [torch.randn(4, 8), torch.randn(3, 8)],
+            "for class tables of \\[4, 3\\] rows",
+            id="rows-per-condition",
+        ),
+    ],
+)
+def test_pt_v3_segmentation_reset_classifier_with_class_embedding_checks_the_counts(
+    model_seg_language: PointTransformerV3Segmentation,
+    num_classes: Union[int, Tuple[int, ...]],
+    class_embedding: Union[Tensor, List[Tensor]],
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        model_seg_language.reset_classifier(num_classes, class_embedding=class_embedding)
+    assert model_seg_language.num_classes == 4
+
+
+def test_pt_v3_segmentation_reset_classifier_with_class_embedding_requires_a_text_head(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+) -> None:
+    with pytest.raises(ValueError, match="this model has a `ConditionalLinear` head"):
+        model_seg_per_condition.reset_classifier(3, class_embedding=torch.randn(3, 8))
 
 
 @pytest.mark.parametrize(

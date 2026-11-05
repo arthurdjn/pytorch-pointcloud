@@ -1,5 +1,6 @@
 from typing import Any, List, Optional, Tuple, Union
 
+import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
@@ -98,6 +99,42 @@ def test_cosine_similarity_head_from_embeddings_stacks_one_table_per_condition()
     z = F.normalize(head.proj(x), dim=1)
     assert head.num_classes == (5, 3)
     assert torch.allclose(head(x, condition="B"), 2.0 * (z @ F.normalize(tables[1], dim=1).T), atol=1e-5)
+
+
+def test_cosine_similarity_head_from_embeddings_requires_one_embedding_width() -> None:
+    with pytest.raises(ValueError, match="embedding width 8, got widths \\[4, 8\\]"):
+        CosineSimilarityHead.from_embeddings(
+            16, [torch.randn(5, 8), torch.randn(3, 4)], scale=1.0, conditions=["A", "B"]
+        )
+
+
+def test_cosine_similarity_head_accepts_integral_class_counts() -> None:
+    num_classes: Any = np.int64(5)
+    head = CosineSimilarityHead(16, 8, num_classes=num_classes, scale=1.0)
+    assert head.num_classes == (5,)
+    assert head(torch.randn(4, 16)).shape == (4, 5)
+
+
+def test_cosine_similarity_head_reset_class_embedding_keeps_the_projection() -> None:
+    head = CosineSimilarityHead.from_embeddings(16, torch.randn(5, 8), scale=2.0)
+    proj = head.proj.weight.clone()
+    tables = [torch.randn(2, 8), torch.randn(3, 8)]
+    head.reset_class_embedding(tables, conditions=["A", "B"])
+    x = torch.randn(32, 16)
+    z = F.normalize(head.proj(x), dim=1)
+    assert torch.equal(head.proj.weight, proj)
+    assert head.num_classes == (2, 3)
+    assert head.conditions == ("A", "B")
+    assert torch.allclose(head(x, condition="B"), 2.0 * (z @ F.normalize(tables[1], dim=1).T), atol=1e-5)
+
+
+def test_cosine_similarity_head_reset_class_embedding_validates_before_changing_the_head() -> None:
+    head = CosineSimilarityHead.from_embeddings(16, torch.randn(5, 8), scale=1.0)
+    class_embedding = head.class_embedding.clone()
+    with pytest.raises(ValueError, match="pass one per condition"):
+        head.reset_class_embedding(torch.randn(3, 8), conditions=["A", "B"])
+    assert head.num_classes == (5,)
+    assert torch.equal(head.class_embedding, class_embedding)
 
 
 def test_cosine_similarity_head_from_embeddings_keeps_the_tables_out_of_the_graph() -> None:
