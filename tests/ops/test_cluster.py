@@ -11,6 +11,7 @@ from torch_pointcloud.ops.cluster import (
     group,
     knn,
     knn_graph,
+    knn_table,
     radius,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -327,3 +328,26 @@ def test_gather_neighbors_pads_with_zeros() -> None:
     x = torch.arange(6, dtype=torch.float).view(3, 2)
     out = gather_neighbors(x, torch.tensor([[2, 3], [0, 1]]))
     assert out.tolist() == [[[4.0, 5.0], [0.0, 0.0]], [[0.0, 1.0], [2.0, 3.0]]]
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_knn_table_closest_first_within_each_sample() -> None:
+    torch.manual_seed(0)
+    pos = torch.randn(40, 3)
+    batch = torch.arange(2).repeat_interleave(20)
+    table = knn_table(pos, pos, 5, batch_x=batch, batch_y=batch)
+    assert table.shape == (40, 5)
+    assert torch.equal(table[:, 0], torch.arange(40))
+    assert torch.equal(batch[table], batch.unsqueeze(1).expand(-1, 5))
+    distances = (pos[table] - pos.unsqueeze(1)).norm(dim=-1)
+    assert bool((distances[:, 1:] >= distances[:, :-1]).all())
+    expected = torch.cdist(pos[:20], pos[:20]).topk(5, largest=False).values
+    assert torch.allclose(distances[:20], expected, atol=1e-6)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_knn_table_sample_smaller_than_k_raises() -> None:
+    pos = torch.randn(10, 3)
+    batch = torch.tensor([0] * 7 + [1] * 3)
+    with pytest.raises(ValueError, match="at least `k`"):
+        knn_table(pos, pos, 4, batch_x=batch, batch_y=batch)

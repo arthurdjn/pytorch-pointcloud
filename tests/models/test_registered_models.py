@@ -36,10 +36,12 @@ PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 FORMER_NAMES: list[tuple[str, str, str]] = []
 
 CLASSIFICATION_MODELS = [
+    "curvenet.modelnet40.tiange-xiang",
     "dgcnn.modelnet40-1024.an-tao",
     "dgcnn.modelnet40-2048.an-tao",
     "kpfcnn.modelnet40",
     "octformer-base.modelnet40.octree-nn",
+    "pct.modelnet40.strawberry-eat-mango",
     "pointcnn-base",
     "pointconv-density-base",
     "pointconv-density-base.modelnet40.wenxuan-wu",
@@ -212,6 +214,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
 ]
 PART_SEGMENTATION_MODELS = [
+    "curvenet.shapenetpart.tiange-xiang",
     "dgcnn.shapenetpart.an-tao",
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-mae-base.shapenetpart.yatian-pang",

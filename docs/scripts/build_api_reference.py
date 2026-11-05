@@ -27,6 +27,8 @@ DISPLAY_TITLES = {
     "pointnet": "PointNet",
     "pointnet2": "PointNet++",
     "dgcnn": "DGCNN",
+    "pct": "PCT",
+    "curvenet": "CurveNet",
     "pointcnn": "PointCNN",
     "pointconv": "PointConv",
     "pointmlp": "PointMLP",

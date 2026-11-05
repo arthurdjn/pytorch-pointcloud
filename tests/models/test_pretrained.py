@@ -55,6 +55,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointconv-density-base.modelnet40.wenxuan-wu", "classification", "modelnet_resampled"),
     ("dgcnn.modelnet40-1024.an-tao", "classification", "modelnet_resampled"),
     ("dgcnn.modelnet40-2048.an-tao", "classification", "modelnet_resampled"),
+    ("pct.modelnet40.strawberry-eat-mango", "classification", "modelnet_resampled"),
+    ("curvenet.modelnet40.tiange-xiang", "classification", "modelnet_resampled"),
     ("pointnet2-ssg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
     ("pointnet2-msg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
     ("pointnet2.modelnet40.openpoints", "classification", "modelnet_resampled"),
@@ -90,6 +92,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnext-sm-c64.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
     ("pointnext-sm-c160.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
     ("dgcnn.shapenetpart.an-tao", "part-segmentation", "shapenetpart"),
+    ("curvenet.shapenetpart.tiange-xiang", "part-segmentation", "shapenetpart"),
     ("point-mae-base.shapenetpart.yatian-pang", "part-segmentation", "shapenetpart"),
     ("point-m2ae-base.shapenetpart.renrui-zhang", "part-segmentation", "shapenetpart"),
     # ScanObjectNN based models

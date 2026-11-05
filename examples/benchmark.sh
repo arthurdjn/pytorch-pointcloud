@@ -23,6 +23,8 @@ $RUN examples/pointmlp/classification_scanobjectnn_benchmark.py --root "$ROOT" -
 $RUN examples/pointconv/classification_modelnet40_benchmark.py --root "$ROOT" --model pointconv-density-base.modelnet40.wenxuan-wu
 $RUN examples/dgcnn/classification_modelnet40_benchmark.py --root "$ROOT" --model dgcnn.modelnet40-1024.an-tao
 $RUN examples/dgcnn/classification_modelnet40_benchmark.py --root "$ROOT" --model dgcnn.modelnet40-2048.an-tao
+$RUN examples/pct/classification_modelnet40_benchmark.py --root "$ROOT" --model pct.modelnet40.strawberry-eat-mango
+$RUN examples/curvenet/classification_modelnet40_benchmark.py --root "$ROOT" --model curvenet.modelnet40.tiange-xiang
 $RUN examples/point_mae/classification_modelnet40_benchmark.py --root "$ROOT" --model point-mae-base.modelnet40.yatian-pang
 $RUN examples/point_mae/classification_modelnet40_benchmark.py --root "$ROOT" --model point-mae-base.modelnet40-8k.yatian-pang
 $RUN examples/point_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point-mae-base.scanobjectnn-objbg.yatian-pang
@@ -60,6 +62,7 @@ $RUN examples/octformer/classification_modelnet40_benchmark.py --root "$ROOT" --
 
 # Part segmentation (ShapeNetPart)
 $RUN examples/dgcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model dgcnn.shapenetpart.an-tao
+$RUN examples/curvenet/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model curvenet.shapenetpart.tiange-xiang
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm.shapenetpart.openpoints
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm-c64.shapenetpart.openpoints
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm-c160.shapenetpart.openpoints

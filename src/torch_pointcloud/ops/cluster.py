@@ -128,6 +128,46 @@ def knn_graph(
     )
 
 
+def knn_table(x: Tensor, y: Tensor, k: int, batch_x: OptTensor = None, batch_y: OptTensor = None) -> Tensor:
+    r"""The $k$ nearest neighbors in $x$ of every point of $y$ as a $(M, k)$ index table, closest first.
+
+    Wraps `knn`. In `knn_table(pos, pos, k)`, every point heads its own row unless other points share its position:
+    the order among equal distances is unspecified.
+
+    Args:
+        x: Source positions, shape $(N, d)$.
+        y: Query positions, shape $(M, d)$.
+        k: Number of neighbors; every sample of $x$ must hold at least $k$ points.
+        batch_x: Batch index of $x$, shape $(N,)$, sorted.
+        batch_y: Batch index of $y$, shape $(M,)$, sorted.
+
+    Returns:
+        The $(M, k)$ table of source indices, sorted by distance to the query.
+
+    Shape:
+        Input: $(N, d)$ and $(M, d)$
+        Output: $(M, k)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import knn_table
+        >>> pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [3.0, 0.0, 0.0]])
+        >>> knn_table(pos, pos, k=2).tolist()  # doctest: +SKIP
+        [[0, 1], [1, 0], [2, 1]]
+
+        ```
+    """
+    _, col = knn(x, y, k, batch_x=batch_x, batch_y=batch_y)
+    if col.numel() != y.size(0) * k:
+        raise ValueError(f"`knn_table` needs at least `k` ({k}) points in every sample of `x`.")
+
+    table = col.view(-1, k)
+    # Closest first within every row, whatever order the search returned them in.
+    distances = ((x[table] - y.unsqueeze(1)) ** 2).sum(-1)
+    return torch.gather(table, 1, distances.argsort(dim=1, stable=True))
+
+
 def fps(
     src: Tensor,
     batch: Optional[Tensor] = None,
@@ -455,11 +495,7 @@ def group(
     center = pos[idx_center]
     batch_center = batch[idx_center]
 
-    _, col = knn(pos, center, group_size, batch_x=batch, batch_y=batch_center)
-    # Closest first within every group, whatever order the search returned them in.
-    col = col.view(-1, group_size)
-    distances = ((pos[col] - center.unsqueeze(1)) ** 2).sum(-1)
-    col = torch.gather(col, 1, distances.argsort(dim=1, stable=True)).reshape(-1)
+    col = knn_table(pos, center, group_size, batch_x=batch, batch_y=batch_center).reshape(-1)
 
     neighborhood = pos[col].view(batch_size, num_groups, group_size, 3)
     center = center.view(batch_size, num_groups, 3)

@@ -17,10 +17,19 @@ from .anchors import (
     MultiGroupAnchorHead,
     prediction_branch,
 )
+from .attention_gate import AttentionGate
 from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
+from .curvenet_blocks import (
+    CurveAggregation,
+    CurveGrouping,
+    CurveInterventionConv,
+    CurveNetFeaturePropagation,
+    CurveWalk,
+    LocalPointFeatureAggregation,
+)
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -37,6 +46,7 @@ from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .pct_blocks import OffsetAttention, PCTNeighborEmbedding
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -75,6 +85,7 @@ from .pools import (
     create_pool,
 )
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
+from .radius_max_pool import RadiusMaxPool
 from .randlanet_blocks import (
     AttentivePooling,
     LocalFeatureAggregation,
@@ -128,6 +139,7 @@ __all__ = [
     "AnchorHeadOutput",
     "MultiGroupAnchorHead",
     "prediction_branch",
+    "AttentionGate",
     "BEVBackbone",
     "BEVResidualBackbone",
     "ResidualBlock2d",
@@ -136,6 +148,12 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
+    "CurveAggregation",
+    "CurveGrouping",
+    "CurveInterventionConv",
+    "CurveNetFeaturePropagation",
+    "CurveWalk",
+    "LocalPointFeatureAggregation",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -157,6 +175,8 @@ __all__ = [
     "OctreeT",
     "OctreeConvBlock",
     "OctreeDeconvBlock",
+    "OffsetAttention",
+    "PCTNeighborEmbedding",
     "PDNorm",
     "PointPatchEmbed",
     "PointTransformerConv",
@@ -189,6 +209,7 @@ __all__ = [
     "PVConv",
     "SE3d",
     "Voxelization",
+    "RadiusMaxPool",
     "AttentivePooling",
     "LocalFeatureAggregation",
     "LocalSpatialEncoding",

@@ -46,6 +46,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
+- Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
 
 ## 0.0.18 (2026-10-20)
 

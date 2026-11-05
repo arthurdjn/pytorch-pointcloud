@@ -1,0 +1,329 @@
+{
+  "num_params": 2869130,
+  "state_dict": {
+    "stem.lins.0.weight": [
+      64,
+      6
+    ],
+    "stem.lins.1.weight": [
+      64,
+      64
+    ],
+    "stem.norms.0.module.weight": [
+      64
+    ],
+    "stem.norms.0.module.bias": [
+      64
+    ],
+    "stem.norms.0.module.running_mean": [
+      64
+    ],
+    "stem.norms.0.module.running_var": [
+      64
+    ],
+    "stem.norms.0.module.num_batches_tracked": [],
+    "stem.norms.1.module.weight": [
+      64
+    ],
+    "stem.norms.1.module.bias": [
+      64
+    ],
+    "stem.norms.1.module.running_mean": [
+      64
+    ],
+    "stem.norms.1.module.running_var": [
+      64
+    ],
+    "stem.norms.1.module.num_batches_tracked": [],
+    "embed.0.conv.nn.lins.0.weight": [
+      128,
+      128
+    ],
+    "embed.0.conv.nn.lins.1.weight": [
+      128,
+      128
+    ],
+    "embed.0.conv.nn.norms.0.module.weight": [
+      128
+    ],
+    "embed.0.conv.nn.norms.0.module.bias": [
+      128
+    ],
+    "embed.0.conv.nn.norms.0.module.running_mean": [
+      128
+    ],
+    "embed.0.conv.nn.norms.0.module.running_var": [
+      128
+    ],
+    "embed.0.conv.nn.norms.0.module.num_batches_tracked": [],
+    "embed.0.conv.nn.norms.1.module.weight": [
+      128
+    ],
+    "embed.0.conv.nn.norms.1.module.bias": [
+      128
+    ],
+    "embed.0.conv.nn.norms.1.module.running_mean": [
+      128
+    ],
+    "embed.0.conv.nn.norms.1.module.running_var": [
+      128
+    ],
+    "embed.0.conv.nn.norms.1.module.num_batches_tracked": [],
+    "embed.1.conv.nn.lins.0.weight": [
+      256,
+      256
+    ],
+    "embed.1.conv.nn.lins.1.weight": [
+      256,
+      256
+    ],
+    "embed.1.conv.nn.norms.0.module.weight": [
+      256
+    ],
+    "embed.1.conv.nn.norms.0.module.bias": [
+      256
+    ],
+    "embed.1.conv.nn.norms.0.module.running_mean": [
+      256
+    ],
+    "embed.1.conv.nn.norms.0.module.running_var": [
+      256
+    ],
+    "embed.1.conv.nn.norms.0.module.num_batches_tracked": [],
+    "embed.1.conv.nn.norms.1.module.weight": [
+      256
+    ],
+    "embed.1.conv.nn.norms.1.module.bias": [
+      256
+    ],
+    "embed.1.conv.nn.norms.1.module.running_mean": [
+      256
+    ],
+    "embed.1.conv.nn.norms.1.module.running_var": [
+      256
+    ],
+    "embed.1.conv.nn.norms.1.module.num_batches_tracked": [],
+    "attention_in.lins.0.weight": [
+      256,
+      256
+    ],
+    "attention_in.lins.1.weight": [
+      256,
+      256
+    ],
+    "attention_in.norms.0.module.weight": [
+      256
+    ],
+    "attention_in.norms.0.module.bias": [
+      256
+    ],
+    "attention_in.norms.0.module.running_mean": [
+      256
+    ],
+    "attention_in.norms.0.module.running_var": [
+      256
+    ],
+    "attention_in.norms.0.module.num_batches_tracked": [],
+    "attention_in.norms.1.module.weight": [
+      256
+    ],
+    "attention_in.norms.1.module.bias": [
+      256
+    ],
+    "attention_in.norms.1.module.running_mean": [
+      256
+    ],
+    "attention_in.norms.1.module.running_var": [
+      256
+    ],
+    "attention_in.norms.1.module.num_batches_tracked": [],
+    "attention.0.qk.weight": [
+      64,
+      256
+    ],
+    "attention.0.v.weight": [
+      256,
+      256
+    ],
+    "attention.0.v.bias": [
+      256
+    ],
+    "attention.0.proj.weight": [
+      256,
+      256
+    ],
+    "attention.0.proj.bias": [
+      256
+    ],
+    "attention.0.norm.module.weight": [
+      256
+    ],
+    "attention.0.norm.module.bias": [
+      256
+    ],
+    "attention.0.norm.module.running_mean": [
+      256
+    ],
+    "attention.0.norm.module.running_var": [
+      256
+    ],
+    "attention.0.norm.module.num_batches_tracked": [],
+    "attention.1.qk.weight": [
+      64,
+      256
+    ],
+    "attention.1.v.weight": [
+      256,
+      256
+    ],
+    "attention.1.v.bias": [
+      256
+    ],
+    "attention.1.proj.weight": [
+      256,
+      256
+    ],
+    "attention.1.proj.bias": [
+      256
+    ],
+    "attention.1.norm.module.weight": [
+      256
+    ],
+    "attention.1.norm.module.bias": [
+      256
+    ],
+    "attention.1.norm.module.running_mean": [
+      256
+    ],
+    "attention.1.norm.module.running_var": [
+      256
+    ],
+    "attention.1.norm.module.num_batches_tracked": [],
+    "attention.2.qk.weight": [
+      64,
+      256
+    ],
+    "attention.2.v.weight": [
+      256,
+      256
+    ],
+    "attention.2.v.bias": [
+      256
+    ],
+    "attention.2.proj.weight": [
+      256,
+      256
+    ],
+    "attention.2.proj.bias": [
+      256
+    ],
+    "attention.2.norm.module.weight": [
+      256
+    ],
+    "attention.2.norm.module.bias": [
+      256
+    ],
+    "attention.2.norm.module.running_mean": [
+      256
+    ],
+    "attention.2.norm.module.running_var": [
+      256
+    ],
+    "attention.2.norm.module.num_batches_tracked": [],
+    "attention.3.qk.weight": [
+      64,
+      256
+    ],
+    "attention.3.v.weight": [
+      256,
+      256
+    ],
+    "attention.3.v.bias": [
+      256
+    ],
+    "attention.3.proj.weight": [
+      256,
+      256
+    ],
+    "attention.3.proj.bias": [
+      256
+    ],
+    "attention.3.norm.module.weight": [
+      256
+    ],
+    "attention.3.norm.module.bias": [
+      256
+    ],
+    "attention.3.norm.module.running_mean": [
+      256
+    ],
+    "attention.3.norm.module.running_var": [
+      256
+    ],
+    "attention.3.norm.module.num_batches_tracked": [],
+    "proj.lins.0.weight": [
+      1024,
+      1280
+    ],
+    "proj.norms.0.module.weight": [
+      1024
+    ],
+    "proj.norms.0.module.bias": [
+      1024
+    ],
+    "proj.norms.0.module.running_mean": [
+      1024
+    ],
+    "proj.norms.0.module.running_var": [
+      1024
+    ],
+    "proj.norms.0.module.num_batches_tracked": [],
+    "head.lins.0.weight": [
+      512,
+      1024
+    ],
+    "head.lins.0.bias": [
+      512
+    ],
+    "head.lins.1.weight": [
+      256,
+      512
+    ],
+    "head.lins.1.bias": [
+      256
+    ],
+    "head.lins.2.weight": [
+      10,
+      256
+    ],
+    "head.lins.2.bias": [
+      10
+    ],
+    "head.norms.0.module.weight": [
+      512
+    ],
+    "head.norms.0.module.bias": [
+      512
+    ],
+    "head.norms.0.module.running_mean": [
+      512
+    ],
+    "head.norms.0.module.running_var": [
+      512
+    ],
+    "head.norms.0.module.num_batches_tracked": [],
+    "head.norms.1.module.weight": [
+      256
+    ],
+    "head.norms.1.module.bias": [
+      256
+    ],
+    "head.norms.1.module.running_mean": [
+      256
+    ],
+    "head.norms.1.module.running_var": [
+      256
+    ],
+    "head.norms.1.module.num_batches_tracked": []
+  }
+}
