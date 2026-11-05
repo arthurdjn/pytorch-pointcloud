@@ -65,6 +65,9 @@ $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROO
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm-c160.shapenetpart.openpoints
 $RUN examples/point_mae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-mae-base.shapenetpart.yatian-pang
 $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model point-m2ae-base.shapenetpart.renrui-zhang
+$RUN examples/pointgpt/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointgpt-s.shapenetpart.guangyan-chen
+$RUN examples/pointgpt/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointgpt-b.shapenetpart.guangyan-chen
+$RUN examples/pointgpt/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointgpt-l.shapenetpart.guangyan-chen
 
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
