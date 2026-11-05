@@ -1213,7 +1213,7 @@ for _size in ("s", "b", "l"):
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-s.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-s.shapenetpart.guangyan-chen/resolve/35d30b4924d65932b8b8620e2e705137ac29777f/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.98, "cls_mIoU": 84.58},
         author="guangyan-chen",
@@ -1249,7 +1249,7 @@ def pointgpt_s_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-b.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-b.shapenetpart.guangyan-chen/resolve/cecab98bcc42c862ebbaf4df38ef115988a22e04/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 85.91, "cls_mIoU": 84.02},
         author="guangyan-chen",
@@ -1285,7 +1285,7 @@ def pointgpt_b_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-l.shapenetpart.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-l.shapenetpart.guangyan-chen/resolve/607bc4d7dd04cc60ffc972938528c915e450665f/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.80, "cls_mIoU": 84.36},
         author="guangyan-chen",
@@ -1320,7 +1320,7 @@ def pointgpt_l_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
     "pointgpt-b.post-pretrain.guangyan-chen",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-b.post-pretrain.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-b.post-pretrain.guangyan-chen/resolve/7be2dd1d3a22711a034eb6c09b46ef740c44500e/model.safetensors",
         dataset="labeled-hybrid",
         author="guangyan-chen",
         license="MIT",
@@ -1351,7 +1351,7 @@ def pointgpt_b_post_pretrain(**kwargs: Any) -> PointGPTClassification:
     "pointgpt-l.post-pretrain.guangyan-chen",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-l.post-pretrain.guangyan-chen/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-l.post-pretrain.guangyan-chen/resolve/7778985e3ed3b83b187e5469f5ef0e7d126c5135/model.safetensors",
         dataset="labeled-hybrid",
         author="guangyan-chen",
         license="MIT",
