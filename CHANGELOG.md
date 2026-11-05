@@ -37,6 +37,15 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
+- Moved `TransFusionHead`, `TransFusionDecoderLayer` and `TransFusionHeadOutput` from `models.lion` to `layers.transfusion_head`, and renamed `SeparateHeadTransfusion` to `TransFusionPredictionHead`.
+- `TransFusionHead` takes its grid by keyword without `grid_size`, and a required `height_code`; `hidden_channel`, `ffn_channel`, `activation` and `bn_momentum` became `embed_dim`, `mlp_dim`, `act` and `norm_kwargs`.
+- `TransFusionHead` reads the $(y, x)$ BEV layout of any size and adds `use_iou` and whole-map attention (the default); `iou_rectifier` moved to `decode`, which keeps every query, and `nms_radius` and `post_center_range` were removed.
+- `LIONDetection.decode` takes a per-class `iou_rectifier` and no longer drops boxes beyond the 61.2 m range.
+- `TransFusionHeadLoss` takes the `height_code` of its head; omitting it keeps the box-top code until 0.0.20, with a `FutureWarning`, and `num_proposals` is deprecated. Its IoU term applies only to a head with an `iou` branch.
+- Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
+- Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
+- The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
 
 ## 0.0.18 (2026-10-20)
 
