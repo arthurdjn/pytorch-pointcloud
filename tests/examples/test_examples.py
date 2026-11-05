@@ -120,6 +120,24 @@ BENCHMARKS = [
         id="ptv3-ppt-labelmaker/scannet",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_scannet_benchmark.py",
+        ("--model", "ptv3-ppt.scannet20.pointcept", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="ptv3-ppt/scannet-simple",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_s3dis_benchmark.py",
+        ("--model", "ptv3-ppt.s3dis-area5.pointcept", "--limit", "1"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="ptv3-ppt/s3dis",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_s3dis_benchmark.py",
+        ("--model", "ptv3-ppt.s3dis-area5.pointcept", "--limit", "1", "--simple"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="ptv3-ppt/s3dis-simple",
+    ),
+    pytest.param(
         "point_transformer_v3/segmentation_dales_benchmark.py",
         ("--model", "ptv3.dales.jayakumar-pujar", "--limit", "1"),
         marks=_GPU_SPCONV,
@@ -773,7 +791,6 @@ def test_every_script_has_a_row() -> None:
     without_dummy_data = {
         "dgcnn/classification_modelnet40_benchmark.py",
         "octformer/segmentation_scannet200_benchmark.py",
-        "point_transformer_v3/segmentation_s3dis_benchmark.py",
         "point_transformer_v3/segmentation_scannet200_benchmark.py",
         "pointgpt/classification_modelnet40_benchmark.py",
         "pointmlp/classification_modelnet40_benchmark.py",
