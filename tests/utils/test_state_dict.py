@@ -1,10 +1,13 @@
 import functools
+import io
 import pickle
+import zipfile
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Dict, Tuple, Type
 from unittest.mock import Mock, call, sentinel
 
+import numpy as np
 import pytest
 import torch
 from torch import nn
@@ -326,3 +329,27 @@ def test_read_state_dict_reads_other_objects_as_inert_placeholders(tmp_path: Pat
     result = read_state_dict(path)
     assert list(result.keys()) == ["lin.weight"]
     assert torch.equal(result["lin.weight"], torch.ones(2, 2))
+
+
+def test_read_state_dict_allows_numpy_scalars(tmp_path: Path) -> None:
+    """A training checkpoint records its best metric as a numpy scalar next to the tensors."""
+    path = tmp_path / "model_best.pth"
+    torch.save({"state_dict": {"weight": torch.ones(2)}, "best_metric_value": np.float64(0.5)}, path)
+
+    assert torch.equal(read_state_dict(path)["weight"], torch.ones(2))
+
+
+def test_read_state_dict_allows_numpy_1_scalars(tmp_path: Path) -> None:
+    """A checkpoint written under numpy 1 pickles the scalar as `numpy.core.multiarray.scalar`."""
+    buffer = io.BytesIO()
+    torch.save({"state_dict": {"weight": torch.ones(2)}, "best_metric_value": np.float64(0.5)}, buffer)
+    path = tmp_path / "model_best.pth"
+    with zipfile.ZipFile(buffer) as source, zipfile.ZipFile(path, "w") as target:
+        for item in source.infolist():
+            content = source.read(item.filename)
+            if item.filename.endswith("data.pkl"):
+                assert b"cnumpy._core.multiarray\nscalar\n" in content
+                content = content.replace(b"cnumpy._core.multiarray\nscalar\n", b"cnumpy.core.multiarray\nscalar\n")
+            target.writestr(item, content)
+
+    assert torch.equal(read_state_dict(path)["weight"], torch.ones(2))

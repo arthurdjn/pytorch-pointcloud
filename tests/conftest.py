@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 from torch_pointcloud.datasets import (
     DALES,
     S3DIS,
+    GridNetHD,
     ModelNet40,
     ModelNetNormalResampled,
     NuScenesMini,
@@ -128,6 +129,10 @@ def nuscenes_lidarseg_dataset(root: Path, transform: Optional[Callable] = None) 
     )
 
 
+def gridnethd_dataset(transform: Optional[Callable] = None) -> GridNetHD:
+    return GridNetHD(root=DATASETS_DIR, split="val", transform=transform)
+
+
 @pytest.fixture
 def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
@@ -143,6 +148,7 @@ def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
         "semantickitti": semantickitti_dataset,
         "dales": dales_dataset,
         "nuscenes_lidarseg": partial(nuscenes_lidarseg_dataset, tmp_path),
+        "gridnethd": gridnethd_dataset,
     }
 
     def factory(name: str, transform: Optional[Callable] = None) -> Dataset:

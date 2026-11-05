@@ -149,6 +149,11 @@
     "date": "March 2022",
     "title": "Masked Autoencoders for Point Cloud Self-supervised Learning"
   },
+  "2203.11496": {
+    "crop": 0.47,
+    "date": "March 2022",
+    "title": "TransFusion: Robust LiDAR-Camera Fusion for 3D Object Detection with Transformers"
+  },
   "2205.14401": {
     "crop": 0.47,
     "date": "May 2022",
@@ -223,6 +228,11 @@
     "crop": 0.47,
     "date": "October 2025",
     "title": "Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations"
+  },
+  "2601.13052": {
+    "crop": 0.47,
+    "date": "January 2026",
+    "title": "GridNet-HD: A High-Resolution Multi-Modal Dataset for LiDAR-Image Fusion on Power Line Infrastructure"
   },
   "2603.03283": {
     "crop": 0.47,

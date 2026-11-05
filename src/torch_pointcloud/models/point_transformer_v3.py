@@ -12,6 +12,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.dales import DALES_CLASSES
+from torch_pointcloud.datasets.gridnethd import GRIDNETHD_CLASSES
 from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
@@ -1682,6 +1683,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
 
 _ENCODER_CHECKPOINT_MAPPING = {
     "embedding.stem.linear.{param}": "stem.stem.{param}",
+    "embedding.stem.conv.{param}": "stem.stem.{param}",
     "embedding.stem.norm.{param}": "stem.norm.{param}",
     "enc.enc{i}.down.proj.{param}": "blocks.{i}.downsample.proj.{param}",
     "enc.enc{i}.down.norm.0.{param}": "blocks.{i}.downsample.norm.{param}",
@@ -1739,7 +1741,9 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
     the `PointTransformerV3Segmentation` ones, as the `pretrained_filter_fn` of a `WeightsDict`.
 
     The released decoder names its stages after the encoder stage they upsample to, so the deepest runs first;
-    `model` numbers them in execution order: `dec{i}` of `n` stages becomes `decoder.blocks.{n - 1 - i}`.
+    `model` numbers them in execution order: `dec{i}` of `n` stages becomes `decoder.blocks.{n - 1 - i}`. The
+    `module.` prefix of a distributed training checkpoint is stripped, and a `norm="batch_norm"` model holds the
+    `BatchNorm1d` of its stem, pooling and unpooling norms under `module`.
 
     Args:
         state_dict: State dict keyed as in the released checkpoint file.
@@ -1755,6 +1759,15 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
         for source, target in _DECODER_STAGE_CHECKPOINT_MAPPING.items():
             mapping[f"backbone.dec.dec{i}.{source}"] = f"decoder.blocks.{num_stages - 1 - i}.{target}"
     mapping["seg_head.{param}"] = "head.{param}"
+    if model.norm == "batch_norm":
+        mapping = {
+            source: target.replace(".norm.{param}", ".norm.module.{param}").replace(
+                ".norm_skip.{param}", ".norm_skip.module.{param}"
+            )
+            for source, target in mapping.items()
+        }
+
+    state_dict = {key.removeprefix("module."): value for key, value in state_dict.items()}
     return transform_state_dict(state_dict, mapping)
 
 
@@ -1861,7 +1874,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
         steps.append(T.EstimateNormals(keys=DataKeys.POS, dst_keys=DataKeys.NORMAL, orient_to_centroid=True))
     steps.append(T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1))
     if relabel_labels is not None:
-        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1))
+        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1, allow_missing_keys=True))
     steps += [
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
@@ -2053,6 +2066,7 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
                     30: 15,
                 },
                 default=-1,
+                allow_missing_keys=True,
             ),
             # The released weights were trained on intensities in $[0, 1]$.
             T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
@@ -2078,4 +2092,83 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
     hparams=_ptv3_seg_hparams(16, in_channels=4),
 )
 def ptv3_base_nuscenes(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+# The released weights were trained on 20 m chunks of the zones, the colour as the only feature and one point per 5 cm
+# voxel.
+_PTV3_GRIDNETHD_TRANSFORMS = T.Compose(
+    [
+        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
+        T.Cat(keys=[DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        T.CopyItems(
+            keys=[DataKeys.POS, DataKeys.SEGMENT],
+            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+            allow_missing_keys=True,
+        ),
+        T.Voxelize(
+            pos_key=DataKeys.POS,
+            pos_reduce="first",
+            dst_pos_grid_key=DataKeys.POS_GRID,
+            keys=[
+                DataKeys.X,
+                DataKeys.COLOR,
+                DataKeys.INTENSITY,
+                DataKeys.RETURN_NUMBER,
+                DataKeys.NUMBER_OF_RETURNS,
+                DataKeys.SEGMENT,
+            ],
+            reduce="first",
+            size=0.05,
+            method="fnv",
+            allow_missing_keys=True,
+            dst_inverse_key=DataKeys.INVERSE,
+        ),
+    ]
+)
+
+
+@register_model(
+    "ptv3.gridnet-hd.heig-vd-geo",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        # NOTE: the authors' training checkpoint, 554 MB for 185 MB of weights; the rest is optimizer state.
+        url="hf://heig-vd-geo/PTv3_GridNet-HD_baseline/resolve/7bc24896b9b8cddd86335e90422e8834b69202a5/model_best_PTv3.pth",
+        pretrained_filter_fn=segmentation_checkpoint_filter_fn,
+        dataset="gridnet-hd",
+        # NOTE: the paper scores the test zones, whose labels are hidden: 69.32 over ten views, 66.86 in one; this is
+        # the six validation zones, which also selected this checkpoint, through the same chunked pipeline in one view.
+        metrics={"mIoU": 71.61, "OA": 90.78},
+        classes=GRIDNETHD_CLASSES,
+        author="heig-vd-geo",
+        license="MIT",
+    ),
+    transform=_PTV3_GRIDNETHD_TRANSFORMS,
+    hparams=dict(
+        in_channels=3,
+        num_classes=11,
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(32, 64, 128, 256, 512),
+        encoder_num_heads=(2, 4, 8, 16, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(2, 2, 2, 2),
+        decoder_channels=(256, 128, 64, 64),
+        decoder_num_heads=(16, 8, 4, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        attn_kind="default",
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        legacy=False,
+    ),
+)
+def ptv3_gridnethd(**hparams: Any) -> PointTransformerV3Segmentation:
     return PointTransformerV3Segmentation(**hparams)
