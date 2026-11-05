@@ -37,6 +37,7 @@ OPS_MODULES = [
     "math",
     "octree",
     "serialization",
+    "superpoint",
     "voxelization",
 ]
 

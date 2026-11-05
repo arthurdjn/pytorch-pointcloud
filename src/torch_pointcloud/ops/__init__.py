@@ -1,6 +1,20 @@
-"""Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, and serialization."""
+"""Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, superpoints and
+serialization."""
 
-from . import anchors, box3d, cluster, density, geometry, heatmap, hilbert, math, octree, serialization, voxelization
+from . import (
+    anchors,
+    box3d,
+    cluster,
+    density,
+    geometry,
+    heatmap,
+    hilbert,
+    math,
+    octree,
+    serialization,
+    superpoint,
+    voxelization,
+)
 
 __all__ = [
     "anchors",
@@ -13,5 +27,6 @@ __all__ = [
     "math",
     "octree",
     "serialization",
+    "superpoint",
     "voxelization",
 ]

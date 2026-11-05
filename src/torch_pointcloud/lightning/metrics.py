@@ -328,9 +328,9 @@ class NuScenesDetection(Metric):
 class InstanceAveragePrecision(Metric):
     r"""Point-mask instance-segmentation AP as a `torchmetrics` metric.
 
-    A stateful wrapper of `instance_average_precision`: each `update` appends one scene's
-    `instance_matches` record (the compact per-scene reduction of predicted masks against ground-truth
-    instances), and `compute` returns `{"AP/<class>": ..., "mAP": ..., "mAP@0.5": ..., "mAP@0.25": ...}`
+    A stateful wrapper of `instance_average_precision`: each `update` appends the `instance_matches` record of a
+    scene or a packed batch (the compact reduction of predicted masks against ground-truth instances), and
+    `compute` returns `{"AP/<class>": ..., "mAP": ..., "mAP@0.5": ..., "mAP@0.25": ...}`
     following the standard indoor instance-segmentation protocol. The state is a per-process list of
     records (not gathered across processes), so run instance validation on a single device.
 
@@ -361,11 +361,11 @@ class InstanceAveragePrecision(Metric):
         self.add_state("matches", default=[], dist_reduce_fx=None)
 
     def update(self, match: InstanceMatches) -> None:
-        r"""Append one scene's `instance_matches` record.
+        r"""Append the `instance_matches` record of a scene or a packed batch.
 
         Args:
-            match: The per-scene record returned by `instance_matches` (per-instance counts, labels,
-                scores and same-class pairwise intersections).
+            match: The record returned by `instance_matches` (per-instance counts, labels, scores and same-class
+                pairwise intersections).
         """
         self.matches.append(match)
 

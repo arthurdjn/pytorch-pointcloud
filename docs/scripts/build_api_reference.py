@@ -42,6 +42,7 @@ DISPLAY_TITLES = {
     "randlanet": "RandLA-Net",
     "spvcnn": "SPVCNN",
     "spunet": "SpUNet",
+    "spformer": "SPFormer",
     "spformer_unet": "SPFormer-UNet",
     "sphereformer": "SphereFormer",
     "oneformer3d": "OneFormer3D",

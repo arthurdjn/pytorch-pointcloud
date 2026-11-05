@@ -22,7 +22,7 @@ from torch_pointcloud.metrics import (
 )
 from torch_pointcloud.metrics.nuscenes import nuscenes_velocity_attributes
 from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
-from torch_pointcloud.utils.types import Boxes3D, Detection3D
+from torch_pointcloud.utils.types import Boxes3D, Detection3D, InstanceSegmentation3D
 
 pytestmark = pytest.mark.skipif(not _LIGHTNING_AVAILABLE, reason="lightning is not installed")
 
@@ -461,20 +461,20 @@ def test_nuscenes_detection_derives_pred_attributes_from_velocity() -> None:
 
 def test_instance_average_precision_matches_functional_across_updates() -> None:
     """Per-scene records accumulated by `update` equal the functional on the same record list."""
-    scene1 = instance_matches(
-        torch.tensor([[True, True, True, False], [False, False, False, True]]),
-        torch.tensor([0, 1]),
-        torch.tensor([0.9, 0.8]),
-        torch.tensor([0, 0, 0, 1]),
-        torch.tensor([0, 0, 0, 1]),
-    )
-    scene2 = instance_matches(
-        torch.tensor([[True, True, False]]),
-        torch.tensor([0]),
-        torch.tensor([0.7]),
-        torch.tensor([0, 0, 1]),
-        torch.tensor([0, 0, 1]),
-    )
+    preds1: InstanceSegmentation3D = {
+        "mask_index": torch.tensor([[0, 0, 0, 1], [0, 1, 2, 3]]),
+        "labels": torch.tensor([0, 1]),
+        "scores": torch.tensor([0.9, 0.8]),
+        "batch": torch.tensor([0, 0]),
+    }
+    scene1 = instance_matches(preds1, torch.tensor([0, 0, 0, 1]), torch.tensor([0, 0, 0, 1]))
+    preds2: InstanceSegmentation3D = {
+        "mask_index": torch.tensor([[0, 0], [0, 1]]),
+        "labels": torch.tensor([0]),
+        "scores": torch.tensor([0.7]),
+        "batch": torch.tensor([0]),
+    }
+    scene2 = instance_matches(preds2, torch.tensor([0, 0, 1]), torch.tensor([0, 0, 1]))
     metric = InstanceAveragePrecision(num_classes=2, class_names=["chair", "table"], min_points=1)
     metric.update(scene1)
     metric.update(scene2)
