@@ -13,6 +13,11 @@ All notable changes to this project are documented in this file. The format is b
 - Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
 - Added `format_version`, `cache_meta`, `cache_meta_paths` and `process` to `PointCloudDataset`: every processed cache is stamped with `meta.json` and a stale stamp raises.
 - Dataset `process` methods share one signature; the per-dataset work moved to `write_processed_files`.
+- Added the Point Transformer V3 GridNet-HD checkpoint `ptv3.gridnet-hd.heig-vd-geo` (MIT) and its benchmark on the GridNet-HD validation zones.
+- Added the `GridNetHD` dataset, downloaded from the Hub.
+- `SlidingWindowInferer` assigns points to blocks and blends their predictions with a fraction of the host memory it used.
+- Fixed `SlidingWindowInferer` failing on float64 positions with `mode="gaussian"`.
+- Fixed the registered transforms of the PTv3 ScanNet and nuScenes checkpoints failing on clouds without labels.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
@@ -36,6 +41,15 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `VoxelBackbone8x(return_intermediates=True)`.
 - Added `datasets.kitti.kitti_difficulty`.
 - `Cat` raises a `ValueError` naming the keys when its inputs differ in rank or lack the `dim` it concatenates along.
+- Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
+- Moved `TransFusionHead`, `TransFusionDecoderLayer` and `TransFusionHeadOutput` from `models.lion` to `layers.transfusion_head`, and renamed `SeparateHeadTransfusion` to `TransFusionPredictionHead`.
+- `TransFusionHead` takes its grid by keyword without `grid_size`, and a required `height_code`; `hidden_channel`, `ffn_channel`, `activation` and `bn_momentum` became `embed_dim`, `mlp_dim`, `act` and `norm_kwargs`.
+- `TransFusionHead` reads the $(y, x)$ BEV layout of any size and adds `use_iou` and whole-map attention (the default); `iou_rectifier` moved to `decode`, which keeps every query, and `nms_radius` and `post_center_range` were removed.
+- `LIONDetection.decode` takes a per-class `iou_rectifier` and no longer drops boxes beyond the 61.2 m range.
+- `TransFusionHeadLoss` takes the `height_code` of its head; omitting it keeps the box-top code until 0.0.20, with a `FutureWarning`, and `num_proposals` is deprecated. Its IoU term applies only to a head with an `iou` branch.
+- Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
+- Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
+- The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
 
 ## 0.0.18 (2026-10-20)
 
