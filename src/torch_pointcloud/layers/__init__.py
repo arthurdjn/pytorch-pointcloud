@@ -21,6 +21,7 @@ from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
+from .cylinder3d_blocks import AsymmetricResidualBlock, AsymmetricUpsampleBlock, DimensionDecompositionBlock
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -108,7 +109,7 @@ from .transfusion_head import (
     TransFusionHeadOutput,
     TransFusionPredictionHead,
 )
-from .vfe import DynamicMeanVFE, PillarFeatureLayer
+from .vfe import DynamicMaxVFE, DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
 from .xconv import XConv
@@ -136,6 +137,9 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
+    "AsymmetricResidualBlock",
+    "AsymmetricUpsampleBlock",
+    "DimensionDecompositionBlock",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -220,6 +224,7 @@ __all__ = [
     "TransFusionHead",
     "TransFusionHeadOutput",
     "TransFusionPredictionHead",
+    "DynamicMaxVFE",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",
