@@ -1,9 +1,11 @@
-from typing import Any, Dict, Tuple
+import math
+from typing import Any, Dict, Literal, Tuple
 
 import pytest
 import torch
 
 from torch_pointcloud.ops.heatmap import (
+    decode_query_codes,
     draw_gaussian_to_heatmap,
     draw_heatmap_targets,
     draw_sparse_heatmap_targets,
@@ -340,3 +342,40 @@ def test_draw_sparse_heatmap_targets_matches_per_object_loop(seed: int) -> None:
     for got, ref in zip(result, expected):
         assert torch.allclose(got.float(), ref.float(), atol=1e-6, rtol=1e-6), (got - ref).abs().max()
     assert torch.equal(result[2], expected[2]) and torch.equal(result[3], expected[3])
+
+
+_QUERY_GRID: Dict[str, Any] = dict(
+    voxel_size=(0.3, 0.3, 0.25),
+    point_cloud_range=(-54.0, -54.0, -5.0, 54.0, 54.0, 3.0),
+    feature_map_stride=8,
+)
+
+
+@pytest.mark.parametrize("height_code", [pytest.param("center", id="center"), pytest.param("top", id="top")])
+def test_decode_query_codes_inverts_the_box_code(height_code: Literal["center", "top"]) -> None:
+    torch.manual_seed(0)
+    boxes = torch.cat(
+        [
+            torch.rand(2, 5, 2) * 100 - 50,
+            torch.rand(2, 5, 1) * 4 - 3,
+            torch.rand(2, 5, 3) * 4 + 0.5,
+            torch.rand(2, 5, 1) * 6 - 3,
+        ],
+        dim=-1,
+    )
+    boxes[0, 0, 6] = math.pi - 1e-3
+    boxes[0, 1, 6] = -math.pi + 1e-3
+    center = (boxes[..., :2] + 54.0) / (8 * 0.3)
+    height = boxes[..., 2:3] + boxes[..., 5:6] / 2 if height_code == "top" else boxes[..., 2:3]
+    rot = torch.stack([boxes[..., 6].sin(), boxes[..., 6].cos()], dim=-1)
+
+    decoded = decode_query_codes(center, height, boxes[..., 3:6].log(), rot, height_code=height_code, **_QUERY_GRID)
+
+    assert decoded.shape == (2, 5, 7)
+    assert torch.allclose(decoded, boxes, atol=1e-4)
+
+
+def test_decode_query_codes_rejects_an_unknown_height_code() -> None:
+    codes = (torch.zeros(1, 2), torch.zeros(1, 1), torch.zeros(1, 3), torch.tensor([[0.0, 1.0]]))
+    with pytest.raises(ValueError, match="height_code"):
+        decode_query_codes(*codes, height_code="bottom", **_QUERY_GRID)  # type: ignore[arg-type]
