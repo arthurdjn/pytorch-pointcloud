@@ -46,6 +46,11 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
+- Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
+- Added the `CrossAttention` layer, `ops.masking.random_mask`, the `bias` option of `PointPatchEmbed` and the attention `mask` of the Point-MAE `TransformerEncoder`.
+- Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works until 0.0.20, with a `FutureWarning`.
+- `read_state_dict` reads Lightning checkpoints whose module is the network itself.
 
 ## 0.0.18 (2026-10-20)
 

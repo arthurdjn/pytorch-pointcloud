@@ -6,6 +6,7 @@ from torch_pointcloud.models.point_mae import (
     PointMAEClassification,
     PointMAEPartSegmentation,
     PointMAEPretraining,
+    TransformerEncoder,
 )
 from torch_pointcloud.utils.imports import (
     _PYG_LIB_AVAILABLE,
@@ -259,3 +260,17 @@ def test_point_mae_segmentation_num_classes_zero_head_is_identity() -> None:
 def test_point_mae_segmentation_validates_fetch_idx_against_depth() -> None:
     with pytest.raises(ValueError, match="fetch_idx"):
         PointMAEPartSegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)
+
+
+def test_point_mae_transformer_encoder_applies_the_attention_mask_in_every_block() -> None:
+    encoder = TransformerEncoder(embed_dim=32, depth=2, num_heads=4).eval()
+    x, pos = torch.randn(2, 6, 32), torch.randn(2, 6, 32)
+    other_x = torch.cat([x[:, :3], torch.randn(2, 3, 32)], dim=1)
+    other_pos = torch.cat([pos[:, :3], torch.randn(2, 3, 32)], dim=1)
+    mask = torch.zeros(6, 6)
+    mask[:3, 3:] = float("-inf")
+
+    out, other = encoder(x, pos, mask=mask), encoder(other_x, other_pos, mask=mask)
+
+    assert torch.allclose(out[:, :3], other[:, :3], atol=1e-6)
+    assert not torch.allclose(encoder(x, pos)[:, :3], encoder(other_x, other_pos)[:, :3])

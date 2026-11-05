@@ -1,11 +1,15 @@
+import math
+
 import pytest
 import torch
 from torch_geometric.nn import MLP
 
+from torch_pointcloud.layers import positional_encoding
 from torch_pointcloud.models.pointgpt import (
     PointGPTClassification,
     PointGPTExtractor,
     PointGPTPretraining,
+    PositionEmbeddingSine,
     morton_sort,
 )
 from torch_pointcloud.utils.imports import (
@@ -144,6 +148,16 @@ def test_pointgpt_morton_sort_is_permutation() -> None:
     for b in range(2):
         assert torch.equal(order[b].sort().values, torch.arange(64, device=order.device))
     assert (order[:, 0] == 0).all()
+
+
+def test_pointgpt_position_embedding_sine_keeps_the_former_argument_order() -> None:
+    pos = torch.randn(2, 5, 3)
+
+    with pytest.warns(FutureWarning, match="layers.PositionEmbeddingSine"):
+        former = PositionEmbeddingSine(3, 48, temperature=1.0)
+    embed = positional_encoding.PositionEmbeddingSine(48, 3, temperature=1.0, scale=2 * math.pi)
+
+    assert torch.equal(former(pos), embed(pos))
 
 
 def test_pointgpt_generative_pretraining_accepts_features() -> None:

@@ -36,9 +36,9 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
     Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
-    present. Lightning checkpoints (identified by their `pytorch-lightning_version` key) are reduced to the wrapped
-    network: only `model.`-prefixed keys are kept, with the prefix stripped. `torch.save` files load with
-    `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
+    present. A Lightning checkpoint (identified by its `pytorch-lightning_version` key) that holds `model.`-prefixed
+    keys is reduced to them, with the prefix stripped; one with no such key keeps every key. `torch.save` files load
+    with `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
     optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported
     nor called.
 
@@ -49,9 +49,8 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
         The flat parameter-name to tensor mapping.
 
     Raises:
-        ValueError: If the checkpoint, or its `state_dict` entry, is not a mapping, if it holds such an object among
-            the parameters (e.g. a whole module), or if a Lightning checkpoint has no `model.`-prefixed key to
-            extract.
+        ValueError: If the checkpoint, or its `state_dict` entry, is not a mapping, or if it holds such an object
+            among the parameters (e.g. a whole module).
 
     Example:
         ```{.python notest}
@@ -81,14 +80,8 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
 
     if "pytorch-lightning_version" in data:
         extracted = {k.removeprefix("model."): v for k, v in state_dict.items() if k.startswith("model.")}
-        if state_dict and not extracted:
-            sample = ", ".join(list(state_dict)[:5])
-            raise ValueError(
-                f"Lightning checkpoint {path.as_posix()!r} has no 'model.'-prefixed keys (found: {sample}); "
-                "the wrapped network must be stored under `self.model` to be extracted."
-            )
-
-        state_dict = extracted
+        if extracted:
+            state_dict = extracted
 
     pickled = [
         f"{key!r} ({type(value).__name__})" for key, value in state_dict.items() if isinstance(value, _PickledObject)
