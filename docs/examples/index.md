@@ -70,4 +70,16 @@ Your own data and a plain PyTorch training loop.
 
     Turn one sweep into oriented 3D boxes: voxel encoding, decoding, non-maximum suppression.
 
+-   :material-terrain: __[Segment an aerial LiDAR survey](08-large-scale-lidar.md)__
+
+    ![A city block of airborne LiDAR with every point colored by its predicted class](../assets/tutorials/thumbs/08-large-scale-lidar.png)
+
+    Train on 1 km tiles, run a sliding window over a whole tile, and write the classes back into the LAZ.
+
+-   :material-tooth-outline: __[Segment teeth on intraoral scans](09-dental-scans.md)__
+
+    ![A dental arch with every tooth colored by its predicted label](../assets/tutorials/thumbs/09-dental-scans.png)
+
+    Train on 1200 jaw scans, label every vertex of a test scan with its FDI tooth number, and read the confusions.
+
 </div>
