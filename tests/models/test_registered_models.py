@@ -226,6 +226,9 @@ DETECTION_MODELS = [
     "centerpoint-pillar02.nuscenes.mmdet3d",
     "centerpoint-voxel0075.nuscenes.mmdet3d",
     "centerpoint-voxel01.nuscenes.mmdet3d",
+    "fcaf3d.s3dis-area5.mmdet3d",
+    "fcaf3d.scannet.mmdet3d",
+    "fcaf3d.sunrgbd.mmdet3d",
     "lion-mamba.nuscenes.zhe-liu",
     "part-a2.kitti-car.mmdet3d",
     "part-a2.kitti.mmdet3d",
@@ -235,6 +238,9 @@ DETECTION_MODELS = [
     "pv-rcnn.kitti.mmdet3d",
     "second-multihead.nuscenes.openpcdet",
     "second.kitti.openpcdet",
+    "tr3d.s3dis-area5.mmdet3d",
+    "tr3d.scannet.mmdet3d",
+    "tr3d.sunrgbd.mmdet3d",
     "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
     "votenet.sunrgbd.fair",
@@ -275,7 +281,17 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(
-            ("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn", "transfusion")
+            (
+                "second",
+                "voxelnext",
+                "voxel-mamba",
+                "centerpoint-voxel",
+                "part-a2",
+                "pv-rcnn",
+                "fcaf3d",
+                "tr3d",
+                "transfusion",
+            )
         )
         and not _SPCONV_AVAILABLE
     ):

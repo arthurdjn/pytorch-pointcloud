@@ -96,6 +96,7 @@ from .spconv_blocks import (
     SparseConvBlock,
     SparseModule,
     SparseResidualBlock,
+    StridedSparseConv3d,
     SubMConv3dBlock,
     SubMConv3dResidualBlock,
 )
@@ -206,6 +207,7 @@ __all__ = [
     "SparseConvBlock",
     "SparseModule",
     "SparseResidualBlock",
+    "StridedSparseConv3d",
     "SubMConv3dBlock",
     "SubMConv3dResidualBlock",
     "DynamicTNet",

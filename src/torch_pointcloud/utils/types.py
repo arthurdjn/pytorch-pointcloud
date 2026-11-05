@@ -52,6 +52,9 @@ class Detection3D(Boxes3D):
         batch: Per-box scene index, shape $(N,)$.
         ignore_mask: Per-box ignore mask, shape $(N,)$.
         scores: Per-box confidence score, shape $(N,)$.
+        class_scores: Per-box final score of every class, shape $(N, C)$, emitted by detectors whose eval protocol
+            thresholds and suppresses every (box, class) pair on its own score (e.g. FCAF3D / TR3D); `scores` is
+            its maximum.
         class_probs: Per-box class probabilities, shape $(N, C)$, emitted by detectors whose eval protocol
             expands every kept box across all classes (e.g. VoteNet / 3DETR).
         velocity: Per-box BEV velocity $(v_x, v_y)$, shape $(N, 2)$, emitted by detectors whose head
@@ -59,6 +62,7 @@ class Detection3D(Boxes3D):
     """
 
     scores: Tensor
+    class_scores: NotRequired[Tensor]
     class_probs: NotRequired[Tensor]
     velocity: NotRequired[Tensor]
 
