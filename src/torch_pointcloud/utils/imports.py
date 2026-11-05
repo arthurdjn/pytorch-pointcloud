@@ -319,6 +319,7 @@ _SPCONV_GITHUB_URL = "https://github.com/traveller59/spconv"
 _SPTR_GITHUB_URL = "https://github.com/JIA-Lab-research/SparseTransformer"
 _TORCHMETRICS_GITHUB_URL = "https://github.com/Lightning-AI/torchmetrics"
 _TORCHSPARSE_GITHUB_URL = "https://github.com/mit-han-lab/torchsparse"
+_TRANSFORMERS_GITHUB_URL = "https://github.com/huggingface/transformers"
 
 # Availability probes fully import their dependency (spconv alone costs seconds), so the flags are
 # resolved lazily on first attribute access (PEP 562) and cached in the module globals.
@@ -334,6 +335,7 @@ _AVAILABILITY_FLAGS: Dict[str, Callable[[], bool]] = {
     "_SPCONV_AVAILABLE": partial(module_available, "spconv.pytorch"),
     "_SPTR_AVAILABLE": partial(module_available, "sptr"),
     "_TORCHSPARSE_AVAILABLE": partial(module_available, "torchsparse"),
+    "_TRANSFORMERS_AVAILABLE": partial(module_available, "transformers"),
 }
 
 

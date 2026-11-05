@@ -46,6 +46,12 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added the `open-vocabulary-segmentation` task, its `OpenVocabularySegmentationModel` base class and the `text_model`, `text_revision` and `prompt_template` fields of `WeightsDict`.
+- Added `OpenSceneOpenVocabularySegmentation` (Apache-2.0) with the `openscene-openseg.scannet20.songyou-peng`, `openscene-lseg.scannet20.songyou-peng` and `openscene-openseg.nuscenes.songyou-peng` pretrained weights, and their ScanNet and nuScenes benchmarks.
+- Added `layers.CLIPTextEncoder`, a frozen CLIP text tower read with the optional `transformers` package.
+- Added the `down_channels` option of `SparseUNetEncoder`.
+- Added the `transform`, `pos_key`, `batch_key` and `inverse_key` options of `SimpleInferer`.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
 
 ## 0.0.18 (2026-10-20)
 

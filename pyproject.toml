@@ -88,6 +88,7 @@ dev = [
     "zensical>=0.0.50",
     "ipywidgets>=8.1.8",
     "laspy>=2.5.0",
+    "transformers>=4.40.0",
 ]
 
 [tool.uv]

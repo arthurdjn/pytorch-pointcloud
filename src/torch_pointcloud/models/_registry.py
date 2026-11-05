@@ -21,9 +21,22 @@ from torch_pointcloud.utils.hub import HF_ENDPOINT, HF_URL_RE, load_hub_token
 from torch_pointcloud.utils.state_dict import load_state_dict, read_state_dict
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
-from ._base import ClassificationModel, DetectionModel, PartSegmentationModel, SemanticSegmentationModel
+from ._base import (
+    ClassificationModel,
+    DetectionModel,
+    OpenVocabularySegmentationModel,
+    PartSegmentationModel,
+    SemanticSegmentationModel,
+)
 
-Task = Literal["pretraining", "classification", "semantic-segmentation", "part-segmentation", "detection"]
+Task = Literal[
+    "pretraining",
+    "classification",
+    "semantic-segmentation",
+    "part-segmentation",
+    "open-vocabulary-segmentation",
+    "detection",
+]
 
 _INSTALLATION_URL = "https://pytorch-pointcloud.org/latest/installation/"
 F = TypeVar("F", bound=Callable[..., Any])
@@ -44,6 +57,12 @@ class WeightsDict(TypedDict):
         metrics: Scores measured with this package's benchmark scripts, keyed by metric name
             (e.g. `{"OA": 88.20}`, `{"mIoU": 0.7604}`).
         classes: Label names in prediction-channel order, so `classes[i]` names class $i$ of the head.
+        text_model: Hub id of the text encoder the embeddings of an open-vocabulary checkpoint are aligned with
+            (e.g. `openai/clip-vit-large-patch14-336`, read by `layers.CLIPTextEncoder`).
+        text_revision: Commit sha of `text_model` the checkpoint was scored with, passed as the `revision` of
+            `layers.CLIPTextEncoder`.
+        prompt_template: Prompt an open-vocabulary checkpoint was scored with, `{}` standing for the class name
+            (e.g. `a {} in a scene`).
         author: Tag identifying who trained the original checkpoint (e.g. `openpcdet`, `fair`).
         license: License of the weight file (e.g. `CC-BY-NC-4.0`), when the source repository declares one.
     """
@@ -53,6 +72,9 @@ class WeightsDict(TypedDict):
     dataset: NotRequired[str]
     metrics: NotRequired[Dict[str, float]]
     classes: NotRequired[Sequence[str]]
+    text_model: NotRequired[str]
+    text_revision: NotRequired[str]
+    prompt_template: NotRequired[str]
     author: NotRequired[str]
     license: NotRequired[str]
 
@@ -102,6 +124,7 @@ _REGISTERED_MODELS: Dict[Task, Dict[str, ModelDict]] = {
     "classification": {},
     "semantic-segmentation": {},
     "part-segmentation": {},
+    "open-vocabulary-segmentation": {},
     "detection": {},
 }
 
@@ -164,6 +187,18 @@ def register_model(
     transform: Optional[Transform] = None,
     input_keys: Sequence[str] = ("x", "pos", "batch"),
     weights: Union[str, WeightsDict, None] = None,
+    task: Literal["open-vocabulary-segmentation"],
+) -> Callable[[Callable[..., OpenVocabularySegmentationModel]], Callable[..., OpenVocabularySegmentationModel]]: ...
+
+
+@overload
+def register_model(
+    name: str,
+    *,
+    hparams: Optional[Dict[str, Any]] = None,
+    transform: Optional[Transform] = None,
+    input_keys: Sequence[str] = ("x", "pos", "batch"),
+    weights: Union[str, WeightsDict, None] = None,
     task: Literal["detection"],
 ) -> Callable[[Callable[..., DetectionModel]], Callable[..., DetectionModel]]: ...
 
@@ -186,7 +221,7 @@ def register_model(
     Args:
         name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn-hardest.openpoints`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
-            `part-segmentation` or `detection`).
+            `part-segmentation`, `open-vocabulary-segmentation` or `detection`).
         hparams: Default keyword arguments the entry point is called with; `create_model` kwargs override them.
         transform: Evaluation transform reproducing the preprocessing the weights were trained with.
         input_keys: Batch keys `forward` takes positionally, in order; a dotted key reads an attribute (e.g.
@@ -648,6 +683,30 @@ def create_model(
 @overload
 def create_model(
     name: str,
+    task: Literal["open-vocabulary-segmentation"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[True],
+    **kwargs: Any,
+) -> Tuple[OpenVocabularySegmentationModel, ModelInfoDict]: ...
+
+
+@overload
+def create_model(
+    name: str,
+    task: Literal["open-vocabulary-segmentation"],
+    *,
+    pretrained: bool = False,
+    checkpoint_path: Optional[PathLike] = None,
+    return_info: Literal[False] = False,
+    **kwargs: Any,
+) -> OpenVocabularySegmentationModel: ...
+
+
+@overload
+def create_model(
+    name: str,
     task: Literal["detection"],
     *,
     pretrained: bool = False,
@@ -723,7 +782,8 @@ def create_model(
     Args:
         name: Registered model name (see `list_models`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
-            `part-segmentation` or `detection`). Optional when `name` is registered under a single task.
+            `part-segmentation`, `open-vocabulary-segmentation` or `detection`). Optional when `name` is registered
+            under a single task.
         pretrained: Load the registered pretrained weights, warning when their license is non-commercial. Mutually
             exclusive with `checkpoint_path`.
         checkpoint_path: Local checkpoint to load instead of the registered weights. Supports `torch.save`
@@ -765,7 +825,11 @@ def create_model(
     # caller (e.g. a LightningModule) can log exactly what built the model.
     hparams = {**entry["hparams"], **kwargs}
     # Registered weights load into the registered head; an overridden `num_classes` rebuilds it afterwards.
-    rebuild_head = pretrained and task not in ("detection", "pretraining") and "num_classes" in kwargs
+    rebuild_head = (
+        pretrained
+        and task in ("classification", "semantic-segmentation", "part-segmentation")
+        and "num_classes" in kwargs
+    )
     overrides = {key: value for key, value in kwargs.items() if key != "num_classes"} if rebuild_head else kwargs
     try:
         model = entry["fn"](**{**entry["hparams"], **overrides})

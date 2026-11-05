@@ -43,6 +43,7 @@ DISPLAY_TITLES = {
     "spvcnn": "SPVCNN",
     "spunet": "SpUNet",
     "spformer_unet": "SPFormer-UNet",
+    "openscene": "OpenScene",
     "sphereformer": "SphereFormer",
     "oneformer3d": "OneFormer3D",
     "votenet": "VoteNet",

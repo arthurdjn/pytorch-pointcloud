@@ -30,6 +30,7 @@ neither are marked as such.
 | octree-nn/octformer                             | `octree-nn`      | MIT          | 3     | Copyright (c) 2023 Peng-Shuai Wang                                                                                         |
 | yanx27/Pointnet_Pointnet2_pytorch               | `xu-yan`         | MIT          | 3     | Copyright (c) 2019 benny                                                                                                   |
 | facebookresearch/3detr                          | `fair`           | Apache-2.0   | 3     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
+| pengsongyou/openscene                           | `songyou-peng`   | Apache-2.0   | 3     | not stated upstream                                                                                                        |
 | Pointcept/Utonia                                | `pointcept`      | CC BY-NC 4.0 | 2     | not stated upstream                                                                                                        |
 | facebookresearch/sonata                         | `fair`           | CC BY-NC 4.0 | 2     | Copyright (c) Meta Platforms, Inc. and affiliates                                                                          |
 | facebookresearch/votenet                        | `fair`           | MIT          | 2     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
@@ -117,3 +118,4 @@ Installed separately, only for the architectures that need them.
 | `lightning`, `torchmetrics`                                                                      | Apache-2.0                  |
 | `laspy`                                                                                          | BSD-2-Clause                |
 | `lazrs`                                                                                          | MIT                         |
+| `transformers`                                                                                   | Apache-2.0                  |
