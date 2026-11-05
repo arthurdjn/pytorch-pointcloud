@@ -11,7 +11,7 @@ References:
     center-heatmap formulation used by the 3D heads).
 """
 
-from typing import Sequence, Tuple, Union
+from typing import Literal, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -487,3 +487,63 @@ def decode_center_codes(
     return torch.cat(
         [xs.unsqueeze(-1), ys.unsqueeze(-1), codes[..., 2:3], codes[..., 3:6].exp(), angle.unsqueeze(-1)], dim=-1
     )
+
+
+def decode_query_codes(
+    center: Tensor,
+    height: Tensor,
+    dim: Tensor,
+    rot: Tensor,
+    *,
+    voxel_size: Sequence[float],
+    point_cloud_range: Sequence[float],
+    feature_map_stride: int,
+    height_code: Literal["center", "top"],
+) -> Tensor:
+    r"""Boxes from the box codes of query-based heads, whose center is an absolute feature-map position.
+
+    The center, in feature-map cells from the range corner, is scaled back to metric units, the log extents are
+    exponentiated and the heading is recovered from its $(\sin\theta, \cos\theta)$ pair. The height code is the box's
+    gravity center, or its top face $z + d_z / 2$.
+
+    Args:
+        center: BEV center $(x, y)$ in feature-map cells, shape $(\ldots, 2)$.
+        height: Height code, shape $(\ldots, 1)$.
+        dim: Log box size $(\log d_x, \log d_y, \log d_z)$, shape $(\ldots, 3)$.
+        rot: Heading code $(\sin\theta, \cos\theta)$, shape $(\ldots, 2)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$ in metric units.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        feature_map_stride: Stride from voxel grid to feature map.
+        height_code: Box point the height code regresses: the gravity center, or the top face.
+
+    Returns:
+        Boxes $(c_x, c_y, c_z, d_x, d_y, d_z, \theta)$, shape $(\ldots, 7)$.
+
+    Shape:
+        - center: $(\ldots, 2)$
+        - height: $(\ldots, 1)$
+        - dim: $(\ldots, 3)$
+        - rot: $(\ldots, 2)$
+        - output: $(\ldots, 7)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> grid = dict(voxel_size=[0.5, 0.5, 0.5], point_cloud_range=[-4.0, -4.0, -2.0, 4.0, 4.0, 2.0], feature_map_stride=2)
+        >>> decode_query_codes(
+        ...     torch.tensor([[4.0, 4.0]]), torch.zeros(1, 1), torch.zeros(1, 3), torch.tensor([[0.0, 1.0]]),
+        ...     height_code="center", **grid,
+        ... )
+        tensor([[0., 0., 0., 1., 1., 1., 0.]])
+
+        ```
+    """
+    if height_code not in ("center", "top"):
+        raise ValueError(f"`height_code` must be 'center' or 'top', got {height_code!r}.")
+
+    xs = center[..., 0] * feature_map_stride * voxel_size[0] + point_cloud_range[0]
+    ys = center[..., 1] * feature_map_stride * voxel_size[1] + point_cloud_range[1]
+    size = dim.exp()
+    zs = height[..., 0] - size[..., 2] * 0.5 if height_code == "top" else height[..., 0]
+    angle = torch.atan2(rot[..., 0], rot[..., 1])
+    return torch.stack([xs, ys, zs, size[..., 0], size[..., 1], size[..., 2], angle], dim=-1)
