@@ -2320,6 +2320,7 @@ def ptv3_gridnethd(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-ppt.scannet20.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet20",
+        metrics={"simple/mIoU": 77.24, "simple/OA": 91.91},
         classes=SCANNET20_CLASSES,
         author="pointcept",
         license="MIT",
@@ -2349,6 +2350,7 @@ def ptv3_gridnethd(**hparams: Any) -> PointTransformerV3Segmentation:
         legacy=True,
         pdnorm_conditions=("ScanNet", "Structured3D"),
         condition="ScanNet",
+        # The class tables are the CLIP ViT-B/16 text embeddings of the bare class names.
         text_embed_dim=512,
         text_scale=100.0,
     ),
@@ -2364,6 +2366,7 @@ def ptv3_ppt_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-ppt.s3dis-area5.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="s3dis-area5",
+        metrics={"simple/mIoU": 72.71, "simple/OA": 91.74},
         classes=S3DIS_CLASSES,
         author="pointcept",
         license="MIT",
@@ -2396,6 +2399,7 @@ def ptv3_ppt_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
         legacy=True,
         pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
         condition="S3DIS",
+        # The class tables are the CLIP ViT-B/16 text embeddings of the bare class names.
         text_embed_dim=512,
         text_scale=100.0,
     ),
@@ -2411,6 +2415,7 @@ def ptv3_ppt_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-ppt.scannet20.labelmaker/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet20",
+        metrics={"simple/mIoU": 77.35, "simple/OA": 92.03},
         classes=SCANNET20_CLASSES,
         author="labelmaker",
         license="MIT",
@@ -2445,8 +2450,6 @@ def ptv3_ppt_scannet20_labelmaker(**hparams: Any) -> PointTransformerV3Segmentat
     return PointTransformerV3Segmentation(**hparams)
 
 
-# Trained on the ScanNet train and val scenes with their 20-class labels and on the ScanNet200 train scenes, so the
-# ScanNet200 val scenes are not held out.
 @register_model(
     "ptv3-ppt.scannet200.labelmaker",
     task="semantic-segmentation",
@@ -2454,6 +2457,9 @@ def ptv3_ppt_scannet20_labelmaker(**hparams: Any) -> PointTransformerV3Segmentat
     weights=WeightsDict(
         url="hf://torch-pointcloud/ptv3-ppt.scannet200.labelmaker/resolve/0000000000000000000000000000000000000000/model.safetensors",
         dataset="scannet200",
+        # NOTE: trained on the ScanNet train and val scenes with their 20-class labels and on the ScanNet200 train
+        # scenes, so the ScanNet200 val scenes are not held out.
+        metrics={"simple/mIoU": 38.33, "simple/OA": 86.75},
         classes=SCANNET200_CLASSES,
         author="labelmaker",
         license="MIT",
