@@ -119,6 +119,10 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("utonia-base-lp.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     ("ptv3-base.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     ("ptv3-base.scannet200.pointcept", "semantic-segmentation", "scannet20"),
+    ("litept-small.scannet20.prs-eth", "semantic-segmentation", "scannet20"),
+    ("litept-small.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
+    ("litept-base.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
+    ("litept-large.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
     ("octformer-base.scannet20.octree-nn", "semantic-segmentation", "scannet20"),
     ("octformer-base.scannet200.octree-nn", "semantic-segmentation", "scannet20"),
     ("dgcnn.scannet20.an-tao", "semantic-segmentation", "scannet20_blocks"),
@@ -153,6 +157,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
     # nuScenes-lidarseg based models
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("litept-small.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("litept-large.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     # GridNet-HD based models
     ("ptv3.gridnet-hd.heig-vd-geo", "semantic-segmentation", "gridnethd"),
 ]
@@ -164,7 +170,7 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")

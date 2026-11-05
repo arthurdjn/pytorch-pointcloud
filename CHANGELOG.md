@@ -46,6 +46,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added LitePT (`LitePTSegmentation`) with six ScanNet, nuScenes and Structured3D checkpoints (`litept-*.prs-eth`), its ScanNet training script and its ScanNet and nuScenes benchmark scripts.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
+- Fixed Point Transformer V3 inference under `torch.autocast` failing in the sparse convolutions.
 
 ## 0.0.18 (2026-10-20)
 

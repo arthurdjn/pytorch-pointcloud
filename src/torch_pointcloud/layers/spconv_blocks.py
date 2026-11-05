@@ -79,7 +79,8 @@ class SubMConv3dBlock(nn.Module):
         condition: Optional[str] = None,
     ) -> Tensor:
         norm_kwargs = {} if condition is None else {"condition": condition}
-        x_spconv = convert_to_spconv_tensor(x, pos, batch)
+        # spconv's inference path skips autocast, so the features must already have the weight dtype.
+        x_spconv = convert_to_spconv_tensor(x.to(self.stem.weight.dtype), pos, batch)
         x_spconv = self.stem(x_spconv)
 
         x = x_spconv.features

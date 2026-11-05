@@ -13,7 +13,7 @@ from torch import Tensor
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.dales import DALES_CLASSES
 from torch_pointcloud.datasets.gridnethd import GRIDNETHD_CLASSES
-from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
@@ -289,6 +289,8 @@ class PointTransformerV3Block(nn.Module):
     ) -> Tuple[Tensor, Any]:
         norm_kwargs = {} if condition is None else {"condition": condition}
         shortcut = x
+        # spconv's inference path skips autocast, so the features must already have the weight dtype.
+        x_sparse = x_sparse.replace_feature(x_sparse.features.to(self.cpe_conv.weight.dtype))
         x_sparse = self.cpe_conv(x_sparse)
         x = self.cpe_proj(x_sparse.features)
         x = self.cpe_norm(x, **norm_kwargs)
@@ -648,7 +650,8 @@ class PointTransformerV3Encoder(nn.Module):
 
     Inputs:
         x: Float tensor of shape $(N, \text{in\_channels})$.
-        pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
+        pos_grid: Non-negative `torch.long` tensor of shape $(N, 3)$ with voxel-grid coordinates, one row per occupied
+            voxel (repeated rows are not merged and change the outputs).
         batch: Long tensor of shape $(N,)$.
 
     Outputs:
@@ -1180,7 +1183,8 @@ class PointTransformerV3Classification(ClassificationModel):
 
     Inputs:
         x: Float tensor of shape $(N, \text{in\_channels})$.
-        pos_grid: Int tensor of shape $(N, 3)$ with voxel-grid coordinates.
+        pos_grid: Non-negative `torch.long` tensor of shape $(N, 3)$ with voxel-grid coordinates, one row per occupied
+            voxel (repeated rows are not merged and change the outputs).
         batch: Long tensor of shape $(N,)$.
         pos: Float tensor of shape $(N, 3)$ with metric coordinates. Required when
             `attn_kind="rope"`.
@@ -2040,31 +2044,9 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
     ),
     transform=T.Compose(
         [
-            # Raw lidarseg category ids onto the 16 benchmark classes.
             T.Relabel(
                 keys=DataKeys.SEGMENT,
-                labels={
-                    9: 0,
-                    14: 1,
-                    15: 2,
-                    16: 2,
-                    17: 3,
-                    18: 4,
-                    21: 5,
-                    2: 6,
-                    3: 6,
-                    4: 6,
-                    6: 6,
-                    12: 7,
-                    22: 8,
-                    23: 9,
-                    24: 10,
-                    25: 11,
-                    26: 12,
-                    27: 13,
-                    28: 14,
-                    30: 15,
-                },
+                labels=NUSCENES_LIDARSEG_LEARNING_MAP,
                 default=-1,
                 allow_missing_keys=True,
             ),

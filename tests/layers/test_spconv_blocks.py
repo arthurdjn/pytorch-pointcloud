@@ -34,6 +34,19 @@ def test_submconv3d_block_forward() -> None:
     assert out.shape == (20, 16)
 
 
+def test_submconv3d_block_inference_casts_features_to_the_weight_dtype() -> None:
+    block = SubMConv3dBlock(in_channels=8, out_channels=16, kernel_size=3, padding=1).cuda().eval()
+    x = torch.randn(20, 8).cuda()
+    pos = torch.randint(0, 32, (20, 3)).cuda()
+    batch = torch.cat([torch.zeros(8), torch.ones(12)]).long().cuda()
+
+    with torch.no_grad():
+        out = block(x.half(), pos, batch)
+
+    assert out.dtype == torch.float32
+    torch.testing.assert_close(out, block(x, pos, batch), atol=1e-2, rtol=1e-2)
+
+
 def test_sparse_conv_block_state_dict_positions() -> None:
     block = SparseConvBlock(4, 8, 3, indice_key="s1")
     keys = set(block.state_dict().keys())

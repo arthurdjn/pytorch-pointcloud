@@ -197,6 +197,25 @@ def test_pt_v3_segmentation_forward(model_seg: PointTransformerV3Segmentation, d
 
 
 @requires_cuda
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param(torch.float16, id="float16"),
+        pytest.param(torch.bfloat16, id="bfloat16"),
+    ],
+)
+def test_pt_v3_segmentation_inference_under_autocast(
+    dtype: torch.dtype, model_seg: PointTransformerV3Segmentation, data: Dict[str, Tensor]
+) -> None:
+    """The half-precision pooled features reach the sparse convolutions of the next stage, whose weights are float32."""
+    model_seg.eval()
+    with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
+        logits = model_seg(data["x"], data["pos_grid"], data["batch"])
+    assert logits.shape == (data["x"].shape[0], 10)
+    assert torch.isfinite(logits).all()
+
+
+@requires_cuda
 def test_pt_v3_segmentation_forward_features_decoder_head(
     model_seg: PointTransformerV3Segmentation,
     data: Dict[str, Tensor],
