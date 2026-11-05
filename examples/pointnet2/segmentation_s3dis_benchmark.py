@@ -12,7 +12,12 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.inferers import Inferer, SlidingWindowInferer, TTAInferer, VoxelPartitionInferer
+from torch_pointcloud.inferers import (
+    Inferer,
+    SlidingWindowSegmentationInferer,
+    TTASegmentationInferer,
+    VoxelPartitionSegmentationInferer,
+)
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -128,7 +133,7 @@ def configure_model(args: Namespace) -> Module:
 
 def configure_inferer(args: Namespace) -> Inferer:
     if PROTOCOLS[args.model] == "block":
-        blocks = SlidingWindowInferer(
+        blocks = SlidingWindowSegmentationInferer(
             block_size=BLOCK_SIZE,
             overlap=0.5,
             dims=(0, 1),
@@ -141,14 +146,14 @@ def configure_inferer(args: Namespace) -> Inferer:
             inverse_key=DataKeys.INVERSE,
             seed=args.seed,
         )
-        return TTAInferer(base=blocks, num_passes=NUM_VOTES)
+        return TTASegmentationInferer(base=blocks, num_passes=NUM_VOTES)
 
     # The voxel-protocol checkpoints are scored on the voxel partition with the entry's registered transform.
     inferer_transform = model_info(args.model)["transform"]
     if inferer_transform is None:
         raise ValueError(f"{args.model!r} registers no inferer_transform.")
 
-    return VoxelPartitionInferer(
+    return VoxelPartitionSegmentationInferer(
         voxel_size=VOXEL_SIZE,
         transform=inferer_transform,
         sw_batch_size=args.sw_batch_size or VOXEL_SW_BATCH_SIZE,

@@ -11,6 +11,7 @@ from torch_pointcloud.utils.data import (
     DataKeys,
     PointCloudDataLoader,
     collate,
+    decollate,
     offset_index,
     select_inputs,
     set_random_states,
@@ -234,6 +235,101 @@ def test_collate_stack_keys_adds_leading_batch_dim() -> None:
     assert out["center_label"].shape == (2, 64, 3)
     assert out["box_label_mask"].shape == (2, 64)
     assert out["vote_label"].shape == (2, 20, 9)
+
+
+def _scenes() -> list[dict[str, Any]]:
+    return [
+        {
+            DataKeys.POS: torch.randn(num_points, 3),
+            DataKeys.CALIB: torch.randn(3, 4),
+            DataKeys.BOX: torch.randn(num_boxes, 7),
+            DataKeys.FRAME: frame,
+        }
+        for num_points, num_boxes, frame in ((5, 2, "000001"), (3, 0, "000002"), (4, 1, "000003"))
+    ]
+
+
+def test_decollate_inverts_collate() -> None:
+    """Per-point rows, stacked rows, packed rows and listed values all come back to their scene."""
+    samples = _scenes()
+    batch = collate(samples, stack_keys=[DataKeys.CALIB], cat_keys=[DataKeys.BOX])
+    scenes = decollate(batch, stack_keys=[DataKeys.CALIB], cat_keys=[DataKeys.BOX])
+    assert len(scenes) == len(samples)
+    for scene, sample in zip(scenes, samples):
+        assert scene.keys() == sample.keys()
+        for key in (DataKeys.POS, DataKeys.CALIB, DataKeys.BOX):
+            assert torch.equal(scene[key], sample[key])
+        assert scene[DataKeys.FRAME] == sample[DataKeys.FRAME]
+
+
+def test_decollate_unsorted_batch_keeps_point_order_within_scene() -> None:
+    pos = torch.arange(12, dtype=torch.float).view(6, 2)
+    batch = torch.tensor([1, 0, 1, 0, 0, 1])
+    scenes = decollate({DataKeys.POS: pos, DataKeys.BATCH: batch})
+    assert torch.equal(scenes[0][DataKeys.POS], pos[[1, 3, 4]])
+    assert torch.equal(scenes[1][DataKeys.POS], pos[[0, 2, 5]])
+
+
+def test_decollate_splits_stacked_key_by_scene_row_when_points_match_scenes() -> None:
+    """With one point per scene, a stacked key still goes by scene row, not by the (unsorted) point order."""
+    calib = torch.arange(2, dtype=torch.float).view(2, 1, 1).expand(2, 3, 4)
+    data: dict[str, Any] = {
+        DataKeys.POS: torch.zeros(2, 3),
+        DataKeys.BATCH: torch.tensor([1, 0]),
+        DataKeys.CALIB: calib,
+    }
+    scenes = decollate(data, stack_keys=[DataKeys.CALIB])
+    assert [scene[DataKeys.CALIB].shape for scene in scenes] == [(3, 4), (3, 4)]
+    assert [scene[DataKeys.CALIB][0, 0].item() for scene in scenes] == [0.0, 1.0]
+
+
+def test_decollate_missing_scene_gives_empty_sample() -> None:
+    data: dict[str, Any] = {DataKeys.POS: torch.randn(4, 3), DataKeys.BATCH: torch.tensor([0, 0, 2, 2])}
+    scenes = decollate(data)
+    assert [scene[DataKeys.POS].shape[0] for scene in scenes] == [2, 0, 2]
+
+
+def test_decollate_stacked_keys_count_trailing_empty_scenes() -> None:
+    samples = _scenes()
+    samples[-1][DataKeys.POS] = torch.zeros(0, 3)
+    batch = collate(samples, stack_keys=[DataKeys.CALIB])
+    scenes = decollate(batch, stack_keys=[DataKeys.CALIB])
+    assert len(scenes) == 3
+    assert scenes[2][DataKeys.POS].shape == (0, 3)
+    assert torch.equal(scenes[2][DataKeys.CALIB], samples[2][DataKeys.CALIB])
+
+
+def test_decollate_drops_entries_of_no_single_scene() -> None:
+    """A packed key outside `cat_keys` (and its index), and a stacked key outside `stack_keys`, are dropped."""
+    batch = collate(_scenes(), stack_keys=[DataKeys.CALIB], cat_keys=[DataKeys.BOX])
+    scenes = decollate(batch)
+    assert set(scenes[0]) == {DataKeys.POS, DataKeys.FRAME}
+
+
+def test_decollate_raises_on_stacked_key_of_another_size() -> None:
+    data: dict[str, Any] = {
+        DataKeys.POS: torch.randn(4, 3),
+        DataKeys.BATCH: torch.tensor([0, 0, 1, 2]),
+        DataKeys.CALIB: torch.randn(2, 3, 4),
+    }
+    with pytest.raises(ValueError, match="leading size of at least 3"):
+        decollate(data, stack_keys=[DataKeys.CALIB])
+
+
+def test_decollate_raises_on_cat_key_without_index() -> None:
+    data: dict[str, Any] = {
+        DataKeys.POS: torch.randn(4, 3),
+        DataKeys.BATCH: torch.zeros(4, dtype=torch.long),
+        DataKeys.BOX: torch.randn(2, 7),
+    }
+    with pytest.raises(ValueError, match="no `batch_box` index"):
+        decollate(data, cat_keys=[DataKeys.BOX])
+
+
+def test_decollate_raises_on_key_in_both_stack_and_cat_keys() -> None:
+    batch = collate(_scenes(), stack_keys=[DataKeys.CALIB], cat_keys=[DataKeys.BOX])
+    with pytest.raises(ValueError, match="both"):
+        decollate(batch, stack_keys=[DataKeys.BOX], cat_keys=[DataKeys.BOX])
 
 
 class DummyDetectionDataset(Dataset):

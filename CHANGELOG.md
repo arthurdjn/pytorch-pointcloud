@@ -15,8 +15,8 @@ All notable changes to this project are documented in this file. The format is b
 - Dataset `process` methods share one signature; the per-dataset work moved to `write_processed_files`.
 - Added the Point Transformer V3 GridNet-HD checkpoint `ptv3.gridnet-hd.heig-vd-geo` (MIT) and its benchmark on the GridNet-HD validation zones.
 - Added the `GridNetHD` dataset, downloaded from the Hub.
-- `SlidingWindowInferer` assigns points to blocks and blends their predictions with a fraction of the host memory it used.
-- Fixed `SlidingWindowInferer` failing on float64 positions with `mode="gaussian"`.
+- `SlidingWindowSegmentationInferer` assigns points to blocks and blends their predictions with a fraction of the host memory it used.
+- Fixed `SlidingWindowSegmentationInferer` failing on float64 positions with `mode="gaussian"`.
 - Fixed the registered transforms of the PTv3 ScanNet and nuScenes checkpoints failing on clouds without labels.
 - Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
 - Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
@@ -46,6 +46,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Renamed the segmentation inferers to `*SegmentationInferer` (`SlidingWindowInferer` to `SlidingWindowSegmentationInferer`, ...) and their functions to `*_segmentation_inference`; the former names still work until 0.0.20, with a `FutureWarning`.
+- Added `TTADetectionInferer`, the `DetectionInferer` base and `utils.data.decollate`; `LitDetectionModel` runs its `inferer` on test batches, the Lightning modules raise `TypeError` for an inferer of another task, and `SimpleInferer` returns the predictor output of any type.
 
 ## 0.0.18 (2026-10-20)
 

@@ -1,6 +1,7 @@
 r"""K-pass voxel-partition inferer with per-point scatter-back aggregation."""
 
 import math
+import warnings
 from typing import Any, Callable, Dict, List, Literal, Optional
 
 import torch
@@ -11,10 +12,10 @@ from torch_pointcloud.ops.voxelization import voxel_grid_fnv
 from torch_pointcloud.utils.data import DataKeys, collate
 
 from ._utils import apply_transform, check_batch_alignment, index_select_dict
-from .inferer import Inferer
+from .inferer import SegmentationInferer
 
 
-class VoxelPartitionInferer(Inferer):
+class VoxelPartitionSegmentationInferer(SegmentationInferer):
     r"""$K$-pass voxel-partition inferer with scatter-back aggregation.
 
     Partitions each batch element's points into FNV voxel buckets at `voxel_size` and runs the
@@ -24,7 +25,7 @@ class VoxelPartitionInferer(Inferer):
     $\lfloor K / c_v \rfloor$ or $\lfloor K / c_v \rfloor + 1$ times across the $K$ passes, so
     every original point gets at least one prediction.
 
-    For test-time augmentation, wrap in `TTAInferer`: each TTA pass triggers a fresh $K$-pass
+    For test-time augmentation, wrap in `TTASegmentationInferer`: each TTA pass triggers a fresh $K$-pass
     voxel partition under that augmentation.
 
     Predictions are scatter-summed in float64 for stable averaging across passes; the returned
@@ -43,7 +44,7 @@ class VoxelPartitionInferer(Inferer):
         softmax: If `True`, softmax each predictor output before scatter-summing.
         aggregate: `"mean"` divides each point's accumulated predictions by the number of sub-clouds it
             appeared in; `"sum"` returns the plain sum. The argmax is the same within one call, but under
-            `TTAInferer` the counts differ between views (each view is partitioned on its own augmented
+            `TTASegmentationInferer` the counts differ between views (each view is partitioned on its own augmented
             positions), so `"sum"` reproduces the reference protocols that add un-normalized probabilities
             over views and fragments.
         pos_key: Dict key for the position tensor.
@@ -54,7 +55,7 @@ class VoxelPartitionInferer(Inferer):
             predictor is called. Leave `None` when the transform preserves row count.
         seed: RNG seed for the per-pass index shuffle. `None` draws from the global generator, so
             `torch.manual_seed` seeds the inferer together with the transforms. An int is offset by the
-            number of calls the instance has made: repeated calls (e.g. `TTAInferer` views) draw
+            number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` views) draw
             different shuffles, and a fresh instance replays the same sequence.
         progress: If `True`, show a `tqdm` progress bar per batch element.
 
@@ -63,7 +64,7 @@ class VoxelPartitionInferer(Inferer):
         import torch
 
         import torch_pointcloud as tp
-        from torch_pointcloud.inferers import VoxelPartitionInferer
+        from torch_pointcloud.inferers import VoxelPartitionSegmentationInferer
 
         model, info = tp.create_model("pointnet.s3dis-area5", return_info=True)
         model.eval()
@@ -73,7 +74,7 @@ class VoxelPartitionInferer(Inferer):
             "norm_pos": torch.rand(4096, 3),
             "batch": torch.zeros(4096, dtype=torch.long),
         }
-        inferer = VoxelPartitionInferer(voxel_size=0.04, sw_batch_size=4, transform=info["transform"])
+        inferer = VoxelPartitionSegmentationInferer(voxel_size=0.04, sw_batch_size=4, transform=info["transform"])
         logits = inferer(room, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
@@ -203,3 +204,20 @@ class VoxelPartitionInferer(Inferer):
         if self.aggregate == "sum":
             return logits_sum.to(out_dtype)
         return (logits_sum / counts.clamp_min(1).unsqueeze(-1)).to(out_dtype)
+
+
+_RENAMED = {
+    "VoxelPartitionInferer": "VoxelPartitionSegmentationInferer",
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name in _RENAMED:
+        warnings.warn(
+            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return globals()[_RENAMED[name]]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

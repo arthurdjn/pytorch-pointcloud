@@ -1,23 +1,33 @@
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, Type
 
 import pytest
 import torch
 from torch import Tensor
 
 from torch_pointcloud.inferers import (
+    DetectionInferer,
     Inferer,
-    KNNWindowInferer,
-    PotentialSphereInferer,
-    SlidingWindowInferer,
-    VoxelPartitionInferer,
+    KNNWindowSegmentationInferer,
+    PotentialSphereSegmentationInferer,
+    SegmentationInferer,
+    SlidingWindowSegmentationInferer,
+    VoxelPartitionSegmentationInferer,
 )
 from torch_pointcloud.utils.data import DataKeys
 
 
-def test_inferer_is_abstract_and_cannot_be_instantiated() -> None:
-    """Inferer cannot be instantiated directly -- it is an abstract base class."""
+@pytest.mark.parametrize(
+    "base",
+    [
+        pytest.param(Inferer, id="inferer"),
+        pytest.param(SegmentationInferer, id="segmentation"),
+        pytest.param(DetectionInferer, id="detection"),
+    ],
+)
+def test_base_inferers_are_abstract_and_cannot_be_instantiated(base: Type[Inferer[Any]]) -> None:
+    """The base and the task families are abstract: each needs a `forward`."""
     with pytest.raises(TypeError):
-        Inferer()  # type: ignore[abstract]
+        base()
 
 
 def test_subclass_without_forward_cannot_be_instantiated() -> None:
@@ -54,10 +64,14 @@ def test_call_delegates_to_forward_with_same_args_and_returns_its_value() -> Non
 @pytest.mark.parametrize(
     "inferer_fn",
     [
-        pytest.param(lambda: SlidingWindowInferer(block_size=4.0, roi_num_points=16, seed=0), id="sliding_window"),
-        pytest.param(lambda: KNNWindowInferer(roi_num_points=16, seed=0), id="knn_window"),
-        pytest.param(lambda: VoxelPartitionInferer(voxel_size=0.5, seed=0), id="voxel_partition"),
-        pytest.param(lambda: PotentialSphereInferer(radius=1.0, num_votes=1.0, seed=0), id="potential_sphere"),
+        pytest.param(
+            lambda: SlidingWindowSegmentationInferer(block_size=4.0, roi_num_points=16, seed=0), id="sliding_window"
+        ),
+        pytest.param(lambda: KNNWindowSegmentationInferer(roi_num_points=16, seed=0), id="knn_window"),
+        pytest.param(lambda: VoxelPartitionSegmentationInferer(voxel_size=0.5, seed=0), id="voxel_partition"),
+        pytest.param(
+            lambda: PotentialSphereSegmentationInferer(radius=1.0, num_votes=1.0, seed=0), id="potential_sphere"
+        ),
     ],
 )
 def test_seeded_inferer_draws_anew_on_each_call_and_replays_from_a_fresh_instance(
@@ -94,10 +108,10 @@ def test_seeded_inferer_draws_anew_on_each_call_and_replays_from_a_fresh_instanc
 @pytest.mark.parametrize(
     "inferer_fn",
     [
-        pytest.param(lambda: SlidingWindowInferer(block_size=4.0, roi_num_points=16), id="sliding_window"),
-        pytest.param(lambda: KNNWindowInferer(roi_num_points=16), id="knn_window"),
-        pytest.param(lambda: VoxelPartitionInferer(voxel_size=0.5), id="voxel_partition"),
-        pytest.param(lambda: PotentialSphereInferer(radius=1.0, num_votes=1.0), id="potential_sphere"),
+        pytest.param(lambda: SlidingWindowSegmentationInferer(block_size=4.0, roi_num_points=16), id="sliding_window"),
+        pytest.param(lambda: KNNWindowSegmentationInferer(roi_num_points=16), id="knn_window"),
+        pytest.param(lambda: VoxelPartitionSegmentationInferer(voxel_size=0.5), id="voxel_partition"),
+        pytest.param(lambda: PotentialSphereSegmentationInferer(radius=1.0, num_votes=1.0), id="potential_sphere"),
     ],
 )
 def test_unseeded_inferer_follows_the_global_generator(inferer_fn: Callable[[], Inferer]) -> None:

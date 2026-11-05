@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 
+import pytest
 import torch
 from torch import Tensor
 
@@ -37,3 +38,22 @@ def test_simple_inferer_softmax_returns_probabilities() -> None:
     logits = torch.randn(n, 5)
     out = SimpleInferer(softmax=True)(data, predictor=lambda d: logits)
     torch.testing.assert_close(out, torch.softmax(logits, dim=-1))
+
+
+def test_simple_inferer_returns_a_non_tensor_output_unchanged() -> None:
+    """The predictor output of any task (here a detection dict) is returned as is."""
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(8, 3),
+        DataKeys.BATCH: torch.zeros(8, dtype=torch.long),
+    }
+    detections = {"boxes": torch.randn(2, 7), "scores": torch.rand(2)}
+    assert SimpleInferer()(data, predictor=lambda d: detections) is detections
+
+
+def test_simple_inferer_softmax_rejects_a_non_tensor_output() -> None:
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randn(8, 3),
+        DataKeys.BATCH: torch.zeros(8, dtype=torch.long),
+    }
+    with pytest.raises(TypeError, match="tensor predictor output"):
+        SimpleInferer(softmax=True)(data, predictor=lambda d: {"boxes": torch.randn(2, 7)})
