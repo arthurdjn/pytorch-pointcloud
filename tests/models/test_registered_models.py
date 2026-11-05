@@ -161,6 +161,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3-base.s3dis-area5.pointcept",
     "ptv3.dales.jayakumar-pujar",
     "ptv3-base.nuscenes.pointcept",
+    "ptv3.gridnet-hd.heig-vd-geo",
     "pvcnn.s3dis-area5.mit-han-lab",
     "pvcnn-c0p25.s3dis-area5.mit-han-lab",
     "pvcnn-c0p125.s3dis-area5.mit-han-lab",
@@ -240,6 +241,7 @@ DETECTION_MODELS = [
     "tr3d.s3dis-area5.mmdet3d",
     "tr3d.scannet.mmdet3d",
     "tr3d.sunrgbd.mmdet3d",
+    "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
     "votenet.sunrgbd.fair",
     "voxel-mamba.waymo",
@@ -279,7 +281,17 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(
-            ("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn", "fcaf3d", "tr3d")
+            (
+                "second",
+                "voxelnext",
+                "voxel-mamba",
+                "centerpoint-voxel",
+                "part-a2",
+                "pv-rcnn",
+                "fcaf3d",
+                "tr3d",
+                "transfusion",
+            )
         )
         and not _SPCONV_AVAILABLE
     ):
@@ -816,7 +828,7 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
     `model_kwargs` only shrinks sampling sizes (`sa_num_points`, `num_proposals`, `preencoder_num_points`, ...), which
     keeps the state-dict structure identical to the registered configuration while the forward stays fast
     on a few hundred CPU points. The grid-based detectors (pointpillars, second, voxelnext, voxel-mamba,
-    lion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
+    lion, transfusion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
     """
     _skip_if_model_deps_missing(model_name)
     model = create_model(model_name, task="detection", **model_kwargs).eval()

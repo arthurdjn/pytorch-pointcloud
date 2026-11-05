@@ -125,6 +125,7 @@ ptv3-base.s3dis-area5.pointcept,point_transformer_v3,semantic-segmentation,s3dis
 ptv3-base.scannet20.pointcept,point_transformer_v3,semantic-segmentation,scannet20,true,MIT,46.17,mIoU,77.6,77.42,mIoU 77.42 · OA 92.00
 ptv3-base.scannet200.pointcept,point_transformer_v3,semantic-segmentation,scannet200,true,MIT,46.18,mIoU,35.3,35.12,mIoU 35.12 · OA 83.31
 ptv3.dales.jayakumar-pujar,point_transformer_v3,semantic-segmentation,dales,true,MIT,103.77,mIoU,69.29,68.70,mIoU 68.70 · OA 96.47
+ptv3.gridnet-hd.heig-vd-geo,point_transformer_v3,semantic-segmentation,gridnet-hd,true,MIT,46.15,mIoU,,71.61,mIoU 71.61 · OA 90.78
 pvcnn-c0p125.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,0.04,mIoU,48.75,49.25,mIoU 49.25 · OA 83.04 · simple/mIoU 46.36 · simple/OA 80.74
 pvcnn-c0p25.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,0.17,mIoU,53.08,53.31,mIoU 53.31 · OA 84.93 · simple/mIoU 51.05 · simple/OA 83.29
 pvcnn.s3dis-area5.mit-han-lab,pvcnn,semantic-segmentation,s3dis-area5,true,MIT,2.57,mIoU,56.64,57.51,mIoU 57.51 · OA 86.58
@@ -163,7 +164,7 @@ centerpoint-voxel01.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-
 fcaf3d.s3dis-area5.mmdet3d,fcaf3d,detection,s3dis-area5,true,Apache-2.0,70.48,mAP,67.36,66.31,mAP@0.25 66.31 · mAP@0.5 46.71
 fcaf3d.scannet.mmdet3d,fcaf3d,detection,scannet,true,Apache-2.0,70.48,mAP,69.72,69.55,mAP@0.25 69.55 · mAP@0.5 55.10
 fcaf3d.sunrgbd.mmdet3d,fcaf3d,detection,sunrgbd,true,Apache-2.0,70.48,mAP,64.75,64.70,mAP@0.25 64.70 · mAP@0.5 47.93
-lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,68.82,mAP 68.82 · NDS 72.33
+lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,68.84,mAP 68.84 · NDS 72.35
 part-a2.kitti-car.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.86,mAP,79.08,79.08,mAP 79.08 · AP/Car 79.08
 part-a2.kitti.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.89,mAP,68.33,68.34,mAP 68.34 · AP/Car 79.03 · AP/Pedestrian 55.28 · AP/Cyclist 70.70
 pointpillars-multihead.nuscenes.openpcdet,pointpillars,detection,nuscenes,true,Apache-2.0,6.08,mAP,44.63,44.56,mAP 44.56 · NDS 57.21
@@ -175,6 +176,7 @@ second.kitti.openpcdet,second,detection,kitti,true,Apache-2.0,5.33,mAP,66.25,66.
 tr3d.s3dis-area5.mmdet3d,tr3d,detection,s3dis-area5,true,Apache-2.0,14.66,mAP,72.25,71.24,mAP@0.25 71.24 · mAP@0.5 48.37
 tr3d.scannet.mmdet3d,tr3d,detection,scannet,true,Apache-2.0,14.66,mAP,71.99,71.98,mAP@0.25 71.98 · mAP@0.5 58.57
 tr3d.sunrgbd.mmdet3d,tr3d,detection,sunrgbd,true,Apache-2.0,14.66,mAP,66.90,66.67,mAP@0.25 66.67 · mAP@0.5 50.37
+transfusion-lidar.nuscenes.openpcdet,transfusion,detection,nuscenes,true,Apache-2.0,8.31,mAP,64.58,65.32,mAP 65.32 · NDS 69.71
 votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@0.25 57.65 · mAP@0.5 34.10
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
