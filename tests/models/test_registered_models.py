@@ -215,9 +215,16 @@ PART_SEGMENTATION_MODELS = [
     "dgcnn.shapenetpart.an-tao",
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-mae-base.shapenetpart.yatian-pang",
+    "pointnet2-ssg.shapenetpart.mit-han-lab",
+    "pointnet2-msg.shapenetpart.mit-han-lab",
     "pointnext-sm.shapenetpart.openpoints",
     "pointnext-sm-c64.shapenetpart.openpoints",
     "pointnext-sm-c160.shapenetpart.openpoints",
+    "pvcnn.shapenetpart.mit-han-lab",
+    "pvcnn-c0p5.shapenetpart.mit-han-lab",
+    "pvcnn-c0p25.shapenetpart.mit-han-lab",
+    "pvcnn-dml.shapenetpart.mit-han-lab",
+    "pvcnn-c0p25-dml.shapenetpart.mit-han-lab",
 ]
 DETECTION_MODELS = [
     "3detr-m.scannet.fair",

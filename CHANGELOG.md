@@ -46,6 +46,12 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added `PVCNNPartSegmentation` and `PointNet2PartSegmentation` with the PVCNN and PointNet++ ShapeNetPart checkpoints, and their benchmark and training scripts.
+- Added `metrics.part_predictions`, the `"max"` aggregation of `TTAInferer`, and the `block_size=None` (each cloud as one block) and `cloud_keys` options of `SlidingWindowInferer`.
+- `SlidingWindowInferer(aggregate="max")` returns the per-class maximum of the block probabilities instead of the most confident block's distribution.
+- Added the `voxel_act`, `voxel_act_kwargs` and `voxel_norm_kwargs` options of `PVConv` and the PVCNN models, and `PVCNNSegmentation(head_dropout=...)` takes one value per hidden head layer.
+- Fixed the hparams of the `pvcnn*.s3dis-area5.mit-han-lab` checkpoints, which did not rebuild the registered model.
+- `part_intersection_over_union` raises on a one-hot `category` instead of scoring the wrong parts.
 
 ## 0.0.18 (2026-10-20)
 
