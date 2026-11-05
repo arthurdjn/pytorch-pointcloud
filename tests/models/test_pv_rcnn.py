@@ -1,4 +1,3 @@
-import math
 from typing import Dict
 
 import pytest
@@ -6,7 +5,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models.pv_rcnn import PVRCNNDetection, bilinear_interpolate, roi_grid_points
+from torch_pointcloud.models.pv_rcnn import PVRCNNDetection, bilinear_interpolate
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -24,23 +23,6 @@ def _make_inputs(n_per_scene: int = 4000, batch_size: int = 2) -> Dict[str, Tens
         "x": torch.rand(batch_size * n_per_scene, 1).cuda(),
         "batch": torch.arange(batch_size).repeat_interleave(n_per_scene).cuda(),
     }
-
-
-def test_roi_grid_points_fill_the_box_cells() -> None:
-    rois = torch.tensor([[1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 0.0]])
-    grid = roi_grid_points(rois, 2)
-    assert grid.shape == (1, 8, 3)
-    # x varies slowest, z fastest.
-    assert grid[0, 0].tolist() == [0.5, 1.0, 1.5]
-    assert grid[0, 1].tolist() == [0.5, 1.0, 4.5]
-    assert grid[0, 7].tolist() == [1.5, 3.0, 4.5]
-
-
-def test_roi_grid_points_rotate_with_the_heading() -> None:
-    rois = torch.tensor([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, math.pi / 2]])
-    grid = roi_grid_points(rois, 2)
-    # The local (+0.5, -0.5) corner of the cells lands at (+0.5, +0.5) after a quarter turn.
-    assert torch.allclose(grid[0, 4], torch.tensor([0.5, 0.5, -0.5]), atol=1e-6)
 
 
 def test_bilinear_interpolate_interior_and_border() -> None:

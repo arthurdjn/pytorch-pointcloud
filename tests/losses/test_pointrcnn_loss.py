@@ -71,14 +71,16 @@ def test_pointrcnn_loss_perfect_predictions_near_zero() -> None:
 
 
 def test_pointrcnn_loss_perturbed_rcnn_regression_value() -> None:
-    """A 0.2 residual error on the single foreground ROI costs exactly `smooth_l1(0.2)`."""
+    """A 0.2 residual error on the single foreground ROI costs `smooth_l1(0.2)` plus the corner term of its box."""
     output, data = _perfect_data()
     perfect = _loss()(output, data)
     output["rcnn_reg"] = output["rcnn_reg"].clone()
     output["rcnn_reg"][0, 0] = 0.2
     out = _loss()(output, data)
-    expected = 0.2 - _BETA / 2
-    assert torch.isclose(out["rcnn_box_loss"], torch.tensor(expected), atol=1e-6)
+    diagonal = math.sqrt(3.9**2 + 1.6**2)
+    corner_term = 0.5 * (0.2 * diagonal) ** 2  # the decoded box moves 0.2 diagonals, inside the quadratic zone
+    expected = 0.2 - _BETA / 2 + corner_term
+    assert torch.isclose(out["rcnn_box_loss"], torch.tensor(expected), atol=1e-5)
     assert out["loss"] > perfect["loss"]
 
 

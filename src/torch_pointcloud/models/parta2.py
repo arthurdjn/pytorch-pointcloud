@@ -15,7 +15,8 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadOutput
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock
-from torch_pointcloud.ops.box3d import decode_roi_residuals, nms3d, roi_aware_pool3d
+from torch_pointcloud.ops.box3d import nms3d
+from torch_pointcloud.ops.roi import decode_roi_residuals, roi_aware_pool3d
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D
@@ -269,7 +270,7 @@ class PartA2Detection(DetectionModel):
     [`SECONDDetection`][torch_pointcloud.models.second.SECONDDetection] whose best anchors after rotated NMS become
     the RoIs, with a [`SparseUNetDecoder`][torch_pointcloud.models.parta2.SparseUNetDecoder] that decodes the sparse
     stages back to the input voxels. Every voxel predicts a foreground score and its intra-object part location;
-    both are pooled inside every RoI by [`roi_aware_pool3d`][torch_pointcloud.ops.box3d.roi_aware_pool3d] and
+    both are pooled inside every RoI by [`roi_aware_pool3d`][torch_pointcloud.ops.roi.roi_aware_pool3d] and
     aggregated by [`PartA2BoxHead`][torch_pointcloud.models.parta2.PartA2BoxHead].
 
     Args:
@@ -387,6 +388,7 @@ class PartA2Detection(DetectionModel):
         """Build the sparse U-Net decoder."""
         return SparseUNetDecoder(
             self.decoder_channels,
+            self.backbone_3d.stage_channels,
             act=self.act,
             act_kwargs=self.act_kwargs,
             norm=self.norm,
@@ -501,20 +503,15 @@ class PartA2Detection(DetectionModel):
         """
         det = self.head.decode(out)
         class_scores = out["batch_cls"].sigmoid().reshape(-1, self.num_classes)
-        keep_all = []
-        for b in range(int(det["batch"].max().item()) + 1):
-            scene = (det["batch"] == b).nonzero().view(-1)
-            top_scores, top = det["scores"][scene].topk(min(self.proposal_pre_maxsize, scene.numel()))
-            top = scene[top]
-            keep = nms3d(
-                det["boxes"][top],
-                top_scores,
-                self.proposal_nms_thresh,
-                rotated=True,
-                max_keep=self.proposal_post_maxsize,
-            )
-            keep_all.append(top[keep])
-        keep = torch.cat(keep_all)
+        keep = nms3d(
+            det["boxes"],
+            det["scores"],
+            self.proposal_nms_thresh,
+            batch=det["batch"],
+            rotated=True,
+            max_keep=self.proposal_post_maxsize,
+            max_candidates=self.proposal_pre_maxsize,
+        )
         return det["boxes"][keep], det["scores"][keep], det["labels"][keep], class_scores[keep], det["batch"][keep]
 
     def refine(

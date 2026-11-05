@@ -69,6 +69,7 @@ MODEL_LABELS = {
     "utonia": "Utonia",
     "votenet": "VoteNet",
     "voxel_mamba": "Voxel-Mamba",
+    "voxel_rcnn": "Voxel R-CNN",
     "voxelnext": "VoxelNeXt",
 }
 

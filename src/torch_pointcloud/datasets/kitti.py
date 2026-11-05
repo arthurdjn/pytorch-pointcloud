@@ -249,6 +249,40 @@ def load_kitti_boxes(label_file: PathLike, calib: KittiCalib) -> Dict[str, np.nd
     }
 
 
+def kitti_difficulty(bbox_height: torch.Tensor, truncation: torch.Tensor, occlusion: torch.Tensor) -> torch.Tensor:
+    r"""KITTI difficulty level of every box: $0$ easy, $1$ moderate, $2$ hard, $-1$ beyond the hard limits.
+
+    A box is easy with a 2D height of at least 40 px, a truncation of at most 0.15 and no occlusion; moderate with at
+    least 25 px, at most 0.3 and an occlusion of at most 1; hard with at least 25 px, at most 0.5 and an occlusion of at
+    most 2. Every box takes the easiest level it meets.
+
+    Args:
+        bbox_height: Height of the 2D image box in pixels, shape $(K,)$.
+        truncation: Truncation in $[0, 1]$, shape $(K,)$.
+        occlusion: Occlusion state ($0$ visible to $3$ unknown), shape $(K,)$.
+
+    Returns:
+        The difficulty of every box, shape $(K,)$ long.
+
+    Example:
+        ```pycon
+        >>> from torch_pointcloud.datasets.kitti import kitti_difficulty
+        >>> height = torch.tensor([50.0, 30.0, 30.0, 10.0])
+        >>> kitti_difficulty(height, torch.tensor([0.0, 0.2, 0.4, 0.0]), torch.tensor([0, 1, 2, 0])).tolist()
+        [0, 1, 2, -1]
+
+        ```
+    """
+    easy = (bbox_height >= 40) & (truncation <= 0.15) & (occlusion <= 0)
+    moderate = (bbox_height >= 25) & (truncation <= 0.3) & (occlusion <= 1)
+    hard = (bbox_height >= 25) & (truncation <= 0.5) & (occlusion <= 2)
+    level = torch.full_like(bbox_height, -1, dtype=torch.long)
+    level[hard] = 2
+    level[moderate] = 1
+    level[easy] = 0
+    return level
+
+
 def _read_image_shape(image_path: PathLike) -> Tuple[int, int]:
     r"""Read a PNG's `(height, width)` from its IHDR header (no image library needed).
 
