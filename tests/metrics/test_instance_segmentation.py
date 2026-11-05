@@ -5,7 +5,14 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.metrics import instance_average_precision, instance_matches
+from torch_pointcloud.metrics import (
+    instance_average_precision,
+    instance_coverage,
+    instance_f1_score,
+    instance_matches,
+    instance_precision,
+    instance_recall,
+)
 from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
 from torch_pointcloud.utils.types import InstanceSegmentation3D
 
@@ -377,3 +384,50 @@ def test_instance_average_precision_empty_edges() -> None:
     assert instance_average_precision([no_gt], iou_threshold=0.25, num_classes=1, min_points=1) == 0.0
     with pytest.raises(ValueError, match="class_names"):
         instance_average_precision([no_gt], num_classes=1, class_names=["chair", "table"])
+
+
+def _tree_scenes() -> list[InstanceMatches]:
+    """Two scenes of trees: in the first a tree is matched (IoU 3/4), one is split in two (IoU 2/3 and 1/3),
+    and one prediction covers no tree; the second scene has one tree and no prediction."""
+    gt_instance = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1, 1, 1, -1, -1])
+    masks = torch.stack([_mask(12, [0, 1, 2]), _mask(12, [4, 5, 6, 7]), _mask(12, [8, 9]), _mask(12, [10, 11])])
+    first = instance_matches(
+        _preds(masks, torch.zeros(4, dtype=torch.long), torch.ones(4)), gt_instance, torch.zeros(12)
+    )
+    empty = _preds(torch.zeros(0, 3, dtype=torch.bool), torch.zeros(0, dtype=torch.long), torch.zeros(0))
+    second = instance_matches(empty, torch.zeros(3), torch.zeros(3))
+    return [first, second]
+
+
+def test_instance_precision_recall_and_f1_count_matches_at_the_threshold() -> None:
+    matches = _tree_scenes()
+    # true positives: the 3/4 match and the 4/6 half, out of 4 predictions and 3 trees
+    assert instance_precision(matches) == 0.5
+    assert instance_recall(matches) == pytest.approx(2 / 3)
+    assert instance_f1_score(matches) == pytest.approx(4 / 7)
+    assert instance_precision(matches, iou_threshold=0.7) == 0.25
+
+
+def test_instance_recall_counts_each_instance_once() -> None:
+    """Three copies of one of two trees: every copy is a true positive, the tree is matched once."""
+    gt_instance = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1])
+    masks = torch.stack([_mask(8, [0, 1, 2, 3])] * 3)
+    match = instance_matches(
+        _preds(masks, torch.zeros(3, dtype=torch.long), torch.ones(3)), gt_instance, torch.zeros(8)
+    )
+    assert instance_precision([match]) == 1.0
+    assert instance_recall([match]) == 0.5
+    assert instance_f1_score([match]) == pytest.approx(2 / 3)
+
+
+def test_instance_coverage_averages_the_best_iou_per_scene() -> None:
+    matches = _tree_scenes()
+    assert instance_coverage(matches) == pytest.approx(((3 / 4 + 4 / 6) / 2 + 0.0) / 2)
+    assert instance_coverage(matches, weighted=True) == pytest.approx(((3 / 4 * 4 + 4 / 6 * 6) / 10 + 0.0) / 2)
+
+
+def test_instance_detection_metrics_without_instances() -> None:
+    empty = _preds(torch.zeros(0, 3, dtype=torch.bool), torch.zeros(0, dtype=torch.long), torch.zeros(0))
+    match = instance_matches(empty, -torch.ones(3), torch.zeros(3))
+    assert instance_precision([match]) == instance_recall([match]) == instance_f1_score([match]) == 0.0
+    assert instance_coverage([match]) == 0.0

@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 from torch_pointcloud.datasets import (
     DALES,
     S3DIS,
+    FORinstance,
     GridNetHD,
     ModelNet40,
     ModelNetNormalResampled,
@@ -127,6 +128,10 @@ def dales_dataset(transform: Optional[Callable] = None) -> DALES:
     return DALES(root=DATASETS_DIR, train=False, transform=transform)
 
 
+def forinstance_dataset(transform: Optional[Callable] = None) -> FORinstance:
+    return FORinstance(root=DATASETS_DIR, train=False, transform=transform)
+
+
 def nuscenes_lidarseg_dataset(root: Path, transform: Optional[Callable] = None) -> NuScenesMini:
     """Keyframes of a copy of the `NuScenesMini` fixture under `root`, where the dataset writes its cache."""
     shutil.copytree(DATASETS_DIR / "NuScenesMini" / "raw", root / "NuScenesMini" / "raw")
@@ -159,6 +164,7 @@ def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
         "scannet20_superpoint": scannet20_superpoint_dataset,
         "semantickitti": semantickitti_dataset,
         "dales": dales_dataset,
+        "forinstance": forinstance_dataset,
         "nuscenes_lidarseg": partial(nuscenes_lidarseg_dataset, tmp_path),
         "gridnethd": gridnethd_dataset,
     }

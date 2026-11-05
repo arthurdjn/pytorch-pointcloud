@@ -633,3 +633,206 @@ def gather_neighbors(x: Tensor, table: Tensor) -> Tensor:
     # accumulates atomically instead.
     padded = torch.cat([x, x.new_zeros(1, x.size(1))], dim=0)
     return padded.index_select(0, table.reshape(-1)).view(table.size(0), table.size(1), x.size(1))
+
+
+# inspired by: https://github.com/torch-points3d/torch-points-kernels/blob/v0.7.0/torch_points_kernels/cluster.py#L48
+@torch.no_grad()
+def region_grow(
+    pos: Tensor,
+    r: float,
+    batch: OptTensor = None,
+    *,
+    max_num_neighbors: int = 32,
+    min_cluster_size: int = 1,
+) -> Tensor:
+    r"""Cluster points by growing regions from seeds taken in index order.
+
+    Every point links to the first `max_num_neighbors` points of its scene, in index order, that lie within `r` of
+    it. A region grows from every point not yet assigned, in index order, by following the links of its members, so
+    a point joins the region of the smallest-index point from which a chain of links reaches it. The links are
+    directed: a point whose ball holds more than `max_num_neighbors` points links to some of its neighbors only.
+    Regions with fewer than `min_cluster_size` points are dropped.
+
+    Important:
+        If provided, the `batch` tensor must be sorted in non-decreasing order.
+
+    Args:
+        pos: Point positions, shape $(N, D)$.
+        r: Link radius.
+        batch: Scene index of every point, shape $(N,)$. `None` treats the points as one scene.
+        max_num_neighbors: Number of links $k$ of a point.
+        min_cluster_size: Smallest region kept.
+
+    Returns:
+        The region of every point, shape $(N,)$ long: regions are numbered consecutively in the order of their first
+        point, $-1$ marks the points of dropped regions.
+
+    Shape:
+        - pos: $(N, D)$
+        - batch: $(N,)$
+        - output: $(N,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import region_grow
+        >>> pos = torch.tensor([[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [5.0, 0.0], [9.0, 0.0], [9.5, 0.0]])
+        >>> region_grow(pos, 0.6, min_cluster_size=2).tolist()
+        [0, 0, 0, -1, 1, 1]
+
+        ```
+    """
+    _check_packed_2d(pos, "pos")
+    num_points = pos.size(0)
+    if num_points == 0:
+        return torch.empty(0, dtype=torch.long, device=pos.device)
+
+    query, neighbor = radius(pos, pos, r, batch, batch, max_num_neighbors=max_num_neighbors, sort=True)
+    # Every point takes the smallest index that reaches it: the labels flow along the links until they settle, and
+    # each step also jumps to the label of the label, a point reaching the current one.
+    label = torch.arange(num_points, device=pos.device)
+    while True:
+        update = label.scatter_reduce(0, neighbor, label[query], reduce="amin")
+        update = torch.minimum(update, update[update])
+        if torch.equal(update, label):
+            break
+        label = update
+
+    _, inverse, counts = torch.unique(label, return_inverse=True, return_counts=True)
+    kept = counts >= min_cluster_size
+    index = torch.cumsum(kept, dim=0) - 1
+    return torch.where(kept[inverse], index[inverse], -1)
+
+
+def _mean_shift_scene(x: Tensor, bandwidth: float, bin_seeding: bool, min_bin_freq: int, max_iter: int) -> Tensor:
+    """Mean shift of one scene's points $(N, D)$; see `mean_shift`. Returns the mode of every point, $-1$ if none."""
+    seeds = x
+    if bin_seeding:
+        bins, inverse, counts = torch.unique(torch.round(x / bandwidth), dim=0, return_inverse=True, return_counts=True)
+        # The bins in the order their first point appears, as the seeds of a dict filled point by point.
+        first = torch.full((bins.size(0),), x.size(0), dtype=torch.long, device=x.device)
+        first = first.scatter_reduce(0, inverse, torch.arange(x.size(0), device=x.device), reduce="amin")
+        order = torch.argsort(first)
+        bins = bins[order][counts[order] >= min_bin_freq]
+        if bins.size(0) != x.size(0):
+            seeds = bins * bandwidth
+
+    # Distances in float64 and means of the points in reach, as a float64 tree query over the float32 points.
+    points = x.double()
+    mean = seeds.clone()
+    intensity = torch.zeros(seeds.size(0), dtype=torch.long, device=x.device)
+    active = torch.arange(seeds.size(0), device=x.device)
+    stop = 1e-3 * bandwidth
+    for step in range(max_iter + 1):
+        within = torch.cdist(mean[active].double(), points, compute_mode="donot_use_mm_for_euclid_dist") <= bandwidth
+        count = within.sum(dim=1)
+        intensity[active] = count
+        reached = count > 0
+        shifted = (within.double() @ points / count.clamp(min=1).unsqueeze(1)).to(x.dtype)
+        moved = torch.linalg.vector_norm(shifted - mean[active], dim=1)
+        mean[active] = torch.where(reached.unsqueeze(1), shifted, mean[active])
+        settled = ~reached | (moved <= stop) | (step == max_iter)
+        active = active[~settled]
+        if active.numel() == 0:
+            break
+
+    # One mode per distinct centre (the last seed reaching it gives its intensity), strongest first, ties broken by
+    # the larger coordinates; a mode then removes the weaker ones within the bandwidth.
+    found = intensity > 0
+    if not bool(found.any()):
+        return torch.full((x.size(0),), -1, dtype=torch.long, device=x.device)
+
+    centres, inverse = torch.unique(mean[found], dim=0, return_inverse=True)
+    seed = torch.arange(int(found.sum()), device=x.device)
+    last = torch.full((centres.size(0),), -1, dtype=torch.long, device=x.device).scatter_reduce(
+        0, inverse, seed, reduce="amax"
+    )
+    strength = intensity[found][last]
+    order = torch.arange(centres.size(0), device=x.device)
+    for axis in reversed(range(centres.size(1))):
+        order = order[torch.argsort(centres[order, axis], descending=True, stable=True)]
+    order = order[torch.argsort(strength[order], descending=True, stable=True)]
+    centres = centres[order]
+
+    near = (
+        torch.cdist(centres.double(), centres.double(), compute_mode="donot_use_mm_for_euclid_dist") <= bandwidth
+    ).cpu()
+    unique = torch.ones(centres.size(0), dtype=torch.bool)
+    for i in range(centres.size(0)):
+        if unique[i]:
+            unique[near[i]] = False
+            unique[i] = True
+    modes = centres[unique.to(x.device)]
+    return torch.cdist(points, modes.double(), compute_mode="donot_use_mm_for_euclid_dist").argmin(dim=1)
+
+
+# inspired by: https://github.com/scikit-learn/scikit-learn/blob/1.2.2/sklearn/cluster/_mean_shift.py#L263
+@torch.no_grad()
+def mean_shift(
+    x: Tensor,
+    bandwidth: float,
+    batch: OptTensor = None,
+    *,
+    bin_seeding: bool = False,
+    min_bin_freq: int = 1,
+    max_iter: int = 300,
+) -> Tensor:
+    r"""Cluster points by mean shift with a flat kernel, scene by scene.
+
+    The algorithm of `sklearn.cluster.MeanShift`: every seed moves to the mean of the points within `bandwidth` of
+    it until it moves by at most $10^{-3} \cdot \text{bandwidth}$ (or for `max_iter` steps). The seeds are the points
+    themselves, or with `bin_seeding` the centres of the occupied cells of a grid of side `bandwidth` holding at least
+    `min_bin_freq` points (the points again when every point has its own cell). The converged seeds are ranked by the
+    number of points they reached, and each keeps the weaker ones within `bandwidth` out; every point then joins its
+    nearest remaining mode.
+
+    Distances are computed in float64, as sklearn's tree queries do. A scene where no seed reaches a point has no
+    cluster. Every step holds the distances from the moving seeds to the points of their scene: about $9 S N$ bytes
+    for $S$ seeds over $N$ points, $9 N^2$ when every point seeds (1.3 GB at $N = 12\,000$). Pass `bin_seeding`
+    on larger scenes.
+
+    Args:
+        x: Point features to cluster, shape $(N, D)$.
+        bandwidth: Radius of the flat kernel.
+        batch: Scene index of every point, shape $(N,)$. `None` treats the points as one scene.
+        bin_seeding: Seed from the occupied grid cells instead of every point.
+        min_bin_freq: Fewest points of a cell that seeds.
+        max_iter: Largest number of steps of a seed.
+
+    Returns:
+        The cluster of every point, shape $(N,)$ long: clusters are numbered consecutively scene by scene, strongest
+        mode first, $-1$ marks the points of a scene without cluster.
+
+    Shape:
+        - x: $(N, D)$
+        - batch: $(N,)$
+        - output: $(N,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import mean_shift
+        >>> x = torch.tensor([[0.0, 0.0], [0.1, 0.0], [0.0, 0.1], [3.0, 3.0], [3.1, 3.0]])
+        >>> mean_shift(x, bandwidth=0.5).tolist()
+        [0, 0, 0, 1, 1]
+
+        ```
+    """
+    _check_packed_2d(x, "x")
+    if batch is None:
+        batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+    _check_sorted_batch(batch, "batch")
+
+    labels = torch.full((x.size(0),), -1, dtype=torch.long, device=x.device)
+    sizes = torch.bincount(batch).tolist() if batch.numel() else []
+    offset, start = 0, 0
+    for size in sizes:
+        if size:
+            label = _mean_shift_scene(x[start : start + size], bandwidth, bin_seeding, min_bin_freq, max_iter)
+            # Modes no point is nearest to leave gaps in the numbering; close them.
+            clustered = label >= 0
+            _, label[clustered] = torch.unique(label[clustered], return_inverse=True)
+            labels[start : start + size] = torch.where(clustered, label + offset, -1)
+            offset += int(label.max()) + 1 if bool(clustered.any()) else 0
+        start += size
+    return labels

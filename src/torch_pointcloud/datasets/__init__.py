@@ -2,6 +2,7 @@
 
 from .concat import ConcatDataset, SingleDatasetBatchSampler
 from .dales import DALES
+from .forinstance import FORinstance
 from .fractal import FRACTAL
 from .gridnethd import GridNetHD
 from .kitti import KITTI
@@ -24,6 +25,7 @@ __all__ = [
     "ConcatDataset",
     "SingleDatasetBatchSampler",
     "DALES",
+    "FORinstance",
     "FRACTAL",
     "GridNetHD",
     "KITTI",

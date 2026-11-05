@@ -75,6 +75,7 @@ dataloader = PointCloudDataLoader(dataset, batch_size=32)
 | [ParisLille3D](../api/datasets/parislille3d.md)<br><span class="tp-index__detail">:arxiv: [Paris-Lille-3D: a large and high-quality ground truth urban point cloud dataset for automatic segmentation and classification](https://arxiv.org/abs/1712.00032)</span> | 3 scenes | 9 |
 | [DALES](../api/datasets/dales.md)<br><span class="tp-index__detail">:arxiv: [DALES: A Large-scale Aerial LiDAR Data Set for Semantic Segmentation](https://arxiv.org/abs/2004.11985)</span> | 40 tiles | 8 |
 | [FRACTAL](../api/datasets/fractal.md)<br><span class="tp-index__detail">:arxiv: [FRACTAL: An Ultra-Large-Scale Aerial Lidar Dataset for 3D Semantic Segmentation of Diverse Landscapes](https://arxiv.org/abs/2405.04634)</span> | 100k patches | 7 |
+| [FOR-instance](../api/datasets/forinstance.md)<br><span class="tp-index__detail">:arxiv: [FOR-instance: a UAV laser scanning benchmark dataset for semantic and instance segmentation of individual trees](https://arxiv.org/abs/2309.01279)</span> | 32 forest plots | 7, and tree ids |
 | [GridNetHD](../api/datasets/gridnethd.md)<br><span class="tp-index__detail">:arxiv: [GridNet-HD: A High-Resolution Multi-Modal Dataset for LiDAR-Image Fusion on Power Line Infrastructure](https://arxiv.org/abs/2601.13052)</span> | 36 zones | 11 |
 
 </div>

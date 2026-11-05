@@ -69,6 +69,10 @@ $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$RO
 # Indoor instance segmentation (ScanNet)
 $RUN examples/spformer/instance_segmentation_scannet_benchmark.py --root "$ROOT" --model spformer.scannet.jiahao-sun
 
+# Forest instance segmentation (FOR-instance)
+$RUN examples/forainet/instance_segmentation_forinstance_benchmark.py --root "$ROOT" --model segment-any-tree.for-instance.nibio
+$RUN examples/forainet/instance_segmentation_forinstance_benchmark.py --root "$ROOT" --model forainet.for-instance.prs-eth
+
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
 $RUN examples/votenet/detection_scannet_benchmark.py --root "$ROOT" --model votenet.scannet.fair
