@@ -1,9 +1,10 @@
-from typing import Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.layers.conditional_heads import ConditionalLinear, CosineSimilarityHead
 from torch_pointcloud.models import model_info
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
@@ -162,6 +163,48 @@ def model_seg_pdnorm() -> PointTransformerV3Segmentation:
     ).to(DEVICE)
 
 
+@pytest.fixture
+def model_seg_per_condition() -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(
+        in_channels=6,
+        num_classes=(10, 4),
+        strides=(2, 2),
+        encoder_depths=(1, 1, 1),
+        encoder_channels=(16, 32, 64),
+        encoder_num_heads=(2, 4, 8),
+        encoder_patch_size=(16, 16, 16),
+        decoder_depths=(1, 1),
+        decoder_channels=(32, 16),
+        decoder_num_heads=(4, 2),
+        decoder_patch_size=(16, 16),
+        use_flash_attn=False,
+        pdnorm_conditions=("ScanNet", "S3DIS"),
+        condition="ScanNet",
+    ).to(DEVICE)
+
+
+@pytest.fixture
+def model_seg_language() -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(
+        in_channels=6,
+        num_classes=(10, 4),
+        strides=(2, 2),
+        encoder_depths=(1, 1, 1),
+        encoder_channels=(16, 32, 64),
+        encoder_num_heads=(2, 4, 8),
+        encoder_patch_size=(16, 16, 16),
+        decoder_depths=(1, 1),
+        decoder_channels=(32, 16),
+        decoder_num_heads=(4, 2),
+        decoder_patch_size=(16, 16),
+        use_flash_attn=False,
+        pdnorm_conditions=("ScanNet", "S3DIS"),
+        condition="S3DIS",
+        text_embed_dim=8,
+        text_scale=10.0,
+    ).to(DEVICE)
+
+
 @requires_cuda
 def test_pt_v3_classification_forward(model_clf: PointTransformerV3Classification, data: Dict[str, Tensor]) -> None:
     logits = model_clf(data["x"], data["pos_grid"], data["batch"])
@@ -244,6 +287,199 @@ def test_pt_v3_pdnorm_forward_with_condition(
 ) -> None:
     logits = model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
     assert logits.shape == (data["pos_grid"].shape[0], model_seg_pdnorm.num_classes)
+
+
+@requires_cuda
+def test_pt_v3_segmentation_one_head_per_condition(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
+) -> None:
+    logits = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"])
+    assert logits.shape == (data["x"].shape[0], 10)
+    logits = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"], condition="S3DIS")
+    assert logits.shape == (data["x"].shape[0], 4)
+
+
+@requires_cuda
+def test_pt_v3_segmentation_stages_default_to_the_model_condition(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
+) -> None:
+    model_seg_per_condition.eval()
+    with torch.no_grad():
+        x, _, _, intermediates = model_seg_per_condition.forward_features(
+            data["x"], data["pos_grid"], data["batch"], return_intermediates=True
+        )
+        x, _, _ = model_seg_per_condition.forward_decoder(x, intermediates)
+        expected = model_seg_per_condition(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
+    assert torch.allclose(model_seg_per_condition.forward_head(x), expected)
+
+
+@requires_cuda
+def test_pt_v3_segmentation_cosine_similarity_head(
+    model_seg_language: PointTransformerV3Segmentation,
+    data: Dict[str, Tensor],
+) -> None:
+    logits = model_seg_language(data["x"], data["pos_grid"], data["batch"])
+    assert logits.shape == (data["x"].shape[0], 4)
+    assert logits.abs().max() <= 10.0 + 1e-4
+    logits = model_seg_language(data["x"], data["pos_grid"], data["batch"], condition="ScanNet")
+    assert logits.shape == (data["x"].shape[0], 10)
+
+    x, _, _, intermediates = model_seg_language.forward_features(
+        data["x"], data["pos_grid"], data["batch"], return_intermediates=True, condition="S3DIS"
+    )
+    x, _, _ = model_seg_language.forward_decoder(x, intermediates, condition="S3DIS")
+    features = model_seg_language.forward_head(x, pre_logits=True)
+    assert features.shape == (data["x"].shape[0], model_seg_language.num_features)
+
+
+def test_pt_v3_segmentation_one_head_per_condition_routes_the_condition(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+) -> None:
+    head = model_seg_per_condition.head
+    assert isinstance(head, ConditionalLinear)
+    assert head.conditions == ("ScanNet", "S3DIS")
+    assert model_seg_per_condition.num_classes == 10
+    features = torch.randn(7, model_seg_per_condition.num_features, device=DEVICE)
+    assert torch.equal(model_seg_per_condition.forward_head(features), head.layers[0](features))
+    assert torch.equal(model_seg_per_condition.forward_head(features, condition="S3DIS"), head.layers[1](features))
+    assert torch.equal(
+        model_seg_per_condition.forward_head(features, condition=["S3DIS", "S3DIS"]),
+        head.layers[1](features),
+    )
+
+
+def test_pt_v3_segmentation_mixed_conditions_in_one_batch_raise(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+) -> None:
+    features = torch.randn(7, model_seg_per_condition.num_features, device=DEVICE)
+    with pytest.raises(ValueError, match=r"conditions \['S3DIS', 'ScanNet'\] in one batch"):
+        model_seg_per_condition.forward_head(features, condition=["S3DIS", "ScanNet"])
+
+
+def test_pt_v3_segmentation_head_rejects_a_condition_without_pdnorm_conditions(
+    model_seg: PointTransformerV3Segmentation,
+) -> None:
+    features = torch.randn(7, model_seg.num_features, device=DEVICE)
+    with pytest.raises(ValueError, match="without conditional norms"):
+        model_seg.forward_head(features, condition="ScanNet")
+
+
+def test_pt_v3_segmentation_cosine_similarity_head_routes_the_condition(
+    model_seg_language: PointTransformerV3Segmentation,
+) -> None:
+    head = model_seg_language.head
+    assert isinstance(head, CosineSimilarityHead)
+    assert head.conditions == ("ScanNet", "S3DIS")
+    assert model_seg_language.num_classes == 4
+    features = torch.randn(7, model_seg_language.num_features, device=DEVICE)
+    assert torch.equal(model_seg_language.forward_head(features), head(features, condition="S3DIS"))
+    assert model_seg_language.forward_head(features, condition="ScanNet").shape == (7, 10)
+    assert torch.equal(model_seg_language.forward_head(features, pre_logits=True), features)
+
+
+@pytest.mark.parametrize(
+    ("num_classes", "head_type", "logits_dim"),
+    [
+        pytest.param(3, nn.Linear, 3, id="one-count"),
+        pytest.param((3, 5), ConditionalLinear, 5, id="one-count-per-condition"),
+        pytest.param(0, nn.Identity, 16, id="headless"),
+    ],
+)
+def test_pt_v3_segmentation_reset_classifier_builds_linear_heads(
+    model_seg_language: PointTransformerV3Segmentation,
+    num_classes: Union[int, Tuple[int, ...]],
+    head_type: type,
+    logits_dim: int,
+) -> None:
+    model_seg_language.reset_classifier(num_classes)
+    model_seg_language.to(DEVICE)
+    assert type(model_seg_language.head) is head_type
+    assert model_seg_language.text_embed_dim is None
+    features = torch.randn(7, model_seg_language.num_features, device=DEVICE)
+    assert model_seg_language.forward_head(features).shape == (7, logits_dim)
+
+
+def test_pt_v3_segmentation_reset_classifier_with_class_embedding_keeps_the_projection(
+    model_seg_language: PointTransformerV3Segmentation,
+) -> None:
+    head = model_seg_language.head
+    assert isinstance(head, CosineSimilarityHead)
+    proj = head.proj.weight.clone()
+    tables = [torch.randn(2, 8), torch.randn(3, 8)]
+    model_seg_language.reset_classifier((2, 3), class_embedding=tables)
+    assert model_seg_language.head is head
+    assert torch.equal(head.proj.weight, proj)
+    assert model_seg_language.num_classes == 3
+    assert model_seg_language.num_classes_per_condition == (2, 3)
+    features = torch.randn(7, model_seg_language.num_features, device=DEVICE)
+    assert model_seg_language.forward_head(features).shape == (7, 3)
+    assert model_seg_language.forward_head(features, condition="ScanNet").shape == (7, 2)
+
+    model_seg_language.reset_classifier(5, class_embedding=torch.randn(5, 8))
+    assert model_seg_language.num_classes == 5
+    assert model_seg_language.num_classes_per_condition is None
+    assert model_seg_language.forward_head(features, condition="ScanNet").shape == (7, 5)
+
+
+@pytest.mark.parametrize(
+    ("num_classes", "class_embedding", "match"),
+    [
+        pytest.param(4, torch.randn(5, 8), "for class tables of \\[5\\] rows", id="rows"),
+        pytest.param(
+            (4, 2),
+            [torch.randn(4, 8), torch.randn(3, 8)],
+            "for class tables of \\[4, 3\\] rows",
+            id="rows-per-condition",
+        ),
+    ],
+)
+def test_pt_v3_segmentation_reset_classifier_with_class_embedding_checks_the_counts(
+    model_seg_language: PointTransformerV3Segmentation,
+    num_classes: Union[int, Tuple[int, ...]],
+    class_embedding: Union[Tensor, List[Tensor]],
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        model_seg_language.reset_classifier(num_classes, class_embedding=class_embedding)
+    assert model_seg_language.num_classes == 4
+
+
+def test_pt_v3_segmentation_reset_classifier_with_class_embedding_requires_a_text_head(
+    model_seg_per_condition: PointTransformerV3Segmentation,
+) -> None:
+    with pytest.raises(ValueError, match="this model has a `ConditionalLinear` head"):
+        model_seg_per_condition.reset_classifier(3, class_embedding=torch.randn(3, 8))
+
+
+@pytest.mark.parametrize(
+    ("num_classes", "pdnorm_conditions", "condition", "text_embed_dim", "text_scale"),
+    [
+        pytest.param((10, 4), None, None, None, None, id="counts-without-conditions"),
+        pytest.param((10, 4), ("A",), "A", None, None, id="count-condition-mismatch"),
+        pytest.param((10, 4), ("A", "B"), None, None, None, id="counts-without-default-condition"),
+        pytest.param((10, 4), ("A", "B"), "C", None, None, id="counts-with-unknown-default-condition"),
+        pytest.param(10, None, None, 8, None, id="text-embed-dim-without-scale"),
+        pytest.param(10, None, None, None, 10.0, id="text-scale-without-embed-dim"),
+    ],
+)
+def test_pt_v3_segmentation_validates_the_head_arguments(
+    num_classes: Union[int, Tuple[int, ...]],
+    pdnorm_conditions: Optional[Tuple[str, ...]],
+    condition: Optional[str],
+    text_embed_dim: Optional[int],
+    text_scale: Optional[float],
+) -> None:
+    with pytest.raises(ValueError):
+        PointTransformerV3Segmentation(
+            in_channels=6,
+            num_classes=num_classes,
+            pdnorm_conditions=pdnorm_conditions,
+            condition=condition,
+            text_embed_dim=text_embed_dim,
+            text_scale=text_scale,
+        )
 
 
 @requires_cuda
@@ -388,6 +624,10 @@ def test_segmentation_checkpoint_filter_fn_wraps_the_norms_of_a_batch_norm_train
         pytest.param("ptv3-base.scannet200.pointcept", id="scannet200"),
         pytest.param("ptv3.dales.jayakumar-pujar", id="dales"),
         pytest.param("ptv3.gridnet-hd.heig-vd-geo", id="gridnet-hd"),
+        pytest.param("ptv3-ppt.scannet20.pointcept", id="ppt-scannet20"),
+        pytest.param("ptv3-ppt.s3dis-area5.pointcept", id="ppt-s3dis-area5"),
+        pytest.param("ptv3-ppt.scannet20.labelmaker", id="labelmaker-scannet20"),
+        pytest.param("ptv3-ppt.scannet200.labelmaker", id="labelmaker-scannet200"),
     ],
 )
 def test_segmentation_registered_transform_runs_without_labels(name: str) -> None:
@@ -409,3 +649,21 @@ def test_segmentation_registered_transform_runs_without_labels(name: str) -> Non
     assert DataKeys.SEGMENT not in out
     assert out[DataKeys.X].size(0) == out[DataKeys.POS_GRID].size(0)
     assert out[DataKeys.INVERSE].shape == (500,)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("ptv3-ppt.scannet20.pointcept"),
+        pytest.param("ptv3-ppt.s3dis-area5.pointcept"),
+        pytest.param("ptv3-ppt.scannet20.labelmaker"),
+        pytest.param("ptv3-ppt.scannet200.labelmaker"),
+    ],
+)
+def test_ptv3_per_condition_registration_lists_the_default_condition_classes(name: str) -> None:
+    info = model_info(name)
+    hparams = info["hparams"]
+    weights = info["weights"]
+    assert weights is not None and "classes" in weights
+    index = list(hparams["pdnorm_conditions"]).index(hparams["condition"])
+    assert len(weights["classes"]) == hparams["num_classes"][index]

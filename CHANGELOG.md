@@ -37,6 +37,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added `CosineSimilarityHead`, `ConditionalLinear` and the PTv3 PPT and LabelMaker checkpoints.
+- Added `--simple`, a single-pass mode, to the PTv3 ScanNet, ScanNet200 and S3DIS benchmarks.
+- Fixed `forward_features` and `forward_decoder` of the PTv3 models ignoring the default `condition`, and a batch mixing several conditions running with the first.
 - Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
 - Moved `TransFusionHead`, `TransFusionDecoderLayer` and `TransFusionHeadOutput` from `models.lion` to `layers.transfusion_head`, and renamed `SeparateHeadTransfusion` to `TransFusionPredictionHead`.
 - `TransFusionHead` takes its grid by keyword without `grid_size`, and a required `height_code`; `hidden_channel`, `ffn_channel`, `activation` and `bn_momentum` became `embed_dim`, `mlp_dim`, `act` and `norm_kwargs`.

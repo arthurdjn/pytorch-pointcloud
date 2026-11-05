@@ -814,8 +814,12 @@ def create_model(
             state_dict = weights["pretrained_filter_fn"](state_dict, model)
 
         load_state_dict(model, state_dict, source=", ".join(urls))
-        if rebuild_head and model.num_classes != kwargs["num_classes"]:
-            model.reset_classifier(kwargs["num_classes"])
+        if rebuild_head:
+            # A model with one head per condition reports the count of its default condition: either form keeps the head.
+            num_classes = kwargs["num_classes"]
+            registered_num_classes = entry["hparams"].get("num_classes", model.num_classes)
+            if num_classes != model.num_classes and ensure_tuple(num_classes) != ensure_tuple(registered_num_classes):
+                model.reset_classifier(num_classes)
     elif checkpoint_path is not None:
         path = Path(checkpoint_path)
         if not path.exists():
