@@ -57,6 +57,7 @@ DISPLAY_TITLES = {
     "pv_rcnn": "PV-RCNN",
     "voxelnext": "VoxelNeXt",
     "voxel_mamba": "Voxel-Mamba",
+    "transfusion": "TransFusion-L",
     "lion": "LION",
     "point_bert": "Point-BERT",
     "point_mae": "Point-MAE",
