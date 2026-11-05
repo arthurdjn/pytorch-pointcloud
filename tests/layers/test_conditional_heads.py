@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import pytest
 import torch
@@ -111,13 +111,13 @@ def test_conditional_linear_condition_selects_its_layer() -> None:
     head = ConditionalLinear(16, num_classes=(5, 3), conditions=["A", "B"])
     x = torch.randn(32, 16)
     assert head(x, condition="A").shape == (32, 5)
-    assert torch.equal(head(x, condition="B"), head[1](x))
+    assert torch.equal(head(x, condition="B"), head.layers[1](x))
 
 
 def test_conditional_linear_keys_follow_the_conditions() -> None:
     head = ConditionalLinear(16, num_classes=(5, 3), conditions=["A", "B"])
-    assert set(head.state_dict()) == {"0.weight", "0.bias", "1.weight", "1.bias"}
-    assert head[1].weight.shape == (3, 16)
+    assert set(head.state_dict()) == {"layers.0.weight", "layers.0.bias", "layers.1.weight", "layers.1.bias"}
+    assert head.layers[1].weight.shape == (3, 16)
 
 
 def test_conditional_linear_requires_a_known_condition() -> None:
@@ -129,6 +129,13 @@ def test_conditional_linear_requires_a_known_condition() -> None:
         head(x, condition="C")
 
 
-def test_conditional_linear_validates_num_classes() -> None:
-    with pytest.raises(ValueError, match="must name as many"):
-        ConditionalLinear(16, num_classes=(5, 3), conditions=["A"])
+@pytest.mark.parametrize(
+    ("num_classes", "conditions"),
+    [
+        pytest.param((5, 3), ["A"], id="count-condition-mismatch"),
+        pytest.param(5, ["A"], id="single-count"),
+    ],
+)
+def test_conditional_linear_validates_num_classes(num_classes: Any, conditions: List[str]) -> None:
+    with pytest.raises(ValueError):
+        ConditionalLinear(16, num_classes=num_classes, conditions=conditions)

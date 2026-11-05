@@ -342,9 +342,12 @@ def test_pt_v3_segmentation_one_head_per_condition_routes_the_condition(
     assert head.conditions == ("ScanNet", "S3DIS")
     assert model_seg_per_condition.num_classes == 10
     features = torch.randn(7, model_seg_per_condition.num_features, device=DEVICE)
-    assert torch.equal(model_seg_per_condition.forward_head(features), head[0](features))
-    assert torch.equal(model_seg_per_condition.forward_head(features, condition="S3DIS"), head[1](features))
-    assert torch.equal(model_seg_per_condition.forward_head(features, condition=["S3DIS", "S3DIS"]), head[1](features))
+    assert torch.equal(model_seg_per_condition.forward_head(features), head.layers[0](features))
+    assert torch.equal(model_seg_per_condition.forward_head(features, condition="S3DIS"), head.layers[1](features))
+    assert torch.equal(
+        model_seg_per_condition.forward_head(features, condition=["S3DIS", "S3DIS"]),
+        head.layers[1](features),
+    )
 
 
 def test_pt_v3_segmentation_cosine_similarity_head_routes_the_condition(

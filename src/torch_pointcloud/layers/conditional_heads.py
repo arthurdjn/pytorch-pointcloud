@@ -20,6 +20,23 @@ def _condition_index(conditions: Tuple[str, ...], condition: Optional[str]) -> i
     return conditions.index(condition)
 
 
+def _class_counts(num_classes: Union[int, Sequence[int]], conditions: Optional[Sequence[str]]) -> Tuple[int, ...]:
+    if not isinstance(num_classes, Sequence):
+        if conditions is not None:
+            raise ValueError(
+                f"Got conditions={list(conditions)!r} but a single class count ({num_classes}); pass one per condition."
+            )
+        return (int(num_classes),)
+
+    if conditions is None or len(conditions) != len(num_classes):
+        raise ValueError(
+            f"Got {len(num_classes)} class counts; `conditions` must name as many "
+            f"(got {None if conditions is None else list(conditions)!r})."
+        )
+
+    return tuple(int(k) for k in num_classes)
+
+
 # inspired by: https://github.com/Pointcept/Pointcept/blob/v1.5.1/pointcept/models/point_prompt_training/point_prompt_training_v1m1_language_guided.py#L19
 class CosineSimilarityHead(nn.Module):
     r"""Classifier scoring features by cosine similarity against fixed class embeddings, with one class table per
@@ -70,20 +87,12 @@ class CosineSimilarityHead(nn.Module):
         scale: float,
         conditions: Optional[Sequence[str]] = None,
     ) -> None:
-        super().__init__()
-        if isinstance(num_classes, int) and conditions is not None:
-            raise ValueError(
-                f"Got conditions={list(conditions)!r} but a single `num_classes`; pass one count per condition."
-            )
-        if not isinstance(num_classes, int) and (conditions is None or len(conditions) != len(num_classes)):
-            raise ValueError(
-                f"`num_classes` has {len(num_classes)} entries; `conditions` must name as many "
-                f"(got {None if conditions is None else list(conditions)!r})."
-            )
+        counts = _class_counts(num_classes, conditions)
 
+        super().__init__()
         self.in_channels = in_channels
         self.embed_dim = embed_dim
-        self.num_classes: Tuple[int, ...] = (num_classes,) if isinstance(num_classes, int) else tuple(num_classes)
+        self.num_classes = counts
         self.scale = scale
         self.conditions = None if conditions is None else tuple(conditions)
         self.proj = nn.Linear(in_channels, embed_dim)
@@ -142,11 +151,11 @@ class CosineSimilarityHead(nn.Module):
 
 
 # inspired by: https://github.com/Pointcept/Pointcept/blob/v1.5.1/pointcept/models/point_prompt_training/point_prompt_training_v1m2_decoupled.py#L44
-class ConditionalLinear(nn.ModuleList):
+class ConditionalLinear(nn.Module):
     r"""Linear classifier with one independent `nn.Linear` per condition, selected at forward time.
 
     Each condition keeps its own label set: the layer of condition $i$ maps the $C$ input channels to its $K_i$
-    classes. The layers are the children `0, ..., n - 1` of this `nn.ModuleList`, in the order of `conditions`.
+    classes. The layers are `layers[0], ..., layers[n - 1]`, in the order of `conditions`.
 
     Introduced in :arxiv: [Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt
     Training](https://arxiv.org/abs/2308.09718)
@@ -172,17 +181,15 @@ class ConditionalLinear(nn.ModuleList):
     """
 
     def __init__(self, in_channels: int, num_classes: Sequence[int], conditions: Sequence[str]) -> None:
-        if len(num_classes) != len(conditions):
-            raise ValueError(
-                f"`num_classes` has {len(num_classes)} entries; `conditions` must name as many (got {list(conditions)!r})."
-            )
+        counts = _class_counts(num_classes, conditions)
 
-        super().__init__([nn.Linear(in_channels, k) for k in num_classes])
+        super().__init__()
         self.in_channels = in_channels
-        self.num_classes = tuple(num_classes)
+        self.num_classes = counts
         self.conditions = tuple(conditions)
+        self.layers = nn.ModuleList([nn.Linear(in_channels, k) for k in counts])
 
     def forward(self, x: Tensor, condition: Optional[str] = None) -> Tensor:
-        linear = self[_condition_index(self.conditions, condition)]
+        linear = self.layers[_condition_index(self.conditions, condition)]
         logits: Tensor = linear(x)
         return logits
