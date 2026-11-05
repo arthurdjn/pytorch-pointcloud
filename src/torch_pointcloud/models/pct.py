@@ -247,7 +247,7 @@ class PCTClassification(ClassificationModel):
     "pct.modelnet40.strawberry-eat-mango",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pct.modelnet40.strawberry-eat-mango/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/pct.modelnet40.strawberry-eat-mango/resolve/def69eff5c7db1c5fc833c8c3410866d1fd4f577/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.27, "mAcc": 89.99},
         classes=MODELNET40_CLASSES,

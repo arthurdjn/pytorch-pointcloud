@@ -730,7 +730,7 @@ class CurveNetPartSegmentation(PartSegmentationModel):
     "curvenet.modelnet40.tiange-xiang",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/curvenet.modelnet40.tiange-xiang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/curvenet.modelnet40.tiange-xiang/resolve/0599a527053ea101ebefd1b9aceae0595f29db9b/model.safetensors",
         dataset="modelnet40",
         metrics={"OA": 93.84, "mAcc": 91.14},
         classes=MODELNET40_CLASSES,
@@ -784,7 +784,7 @@ def curvenet_tiange_xiang_modelnet40_cls(**hparams: Any) -> CurveNetClassificati
     task="part-segmentation",
     input_keys=("x", "pos", "batch", "category"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/curvenet.shapenetpart.tiange-xiang/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/curvenet.shapenetpart.tiange-xiang/resolve/7af043f52f82c9b10cf71726440cd4871570112c/model.safetensors",
         dataset="shapenetpart",
         metrics={"ins_mIoU": 86.67, "cls_mIoU": 83.79},
         author="tiange-xiang",
