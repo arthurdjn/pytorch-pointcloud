@@ -126,6 +126,12 @@ BENCHMARKS = [
         id="ptv3/nuscenes-simple",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_gridnethd_benchmark.py",
+        ("--model", "ptv3.gridnet-hd.heig-vd-geo", "--limit", "1"),
+        marks=(*_GPU_SPCONV, _REQUIRES_LASPY),
+        id="ptv3/gridnethd",
+    ),
+    pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,
@@ -376,6 +382,12 @@ BENCHMARKS = [
         ("--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
         id="centerpoint-pillars/nuscenes",
+    ),
+    pytest.param(
+        "transfusion/detection_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="transfusion/nuscenes",
     ),
     pytest.param(
         "lion/detection_nuscenes_benchmark.py",
@@ -827,6 +839,12 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
         marks=_GPU_SPCONV,
         id="centerpoint-pillars/nuscenes-train",
+    ),
+    pytest.param(
+        "transfusion/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="transfusion/nuscenes-train",
     ),
     pytest.param(
         "lion/detection_nuscenes_train.py",
