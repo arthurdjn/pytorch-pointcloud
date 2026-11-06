@@ -1,8 +1,7 @@
-"""Benchmark PointPillars on nuScenes with the official detection metrics."""
+"""Benchmark the MMDetection3D PointPillars checkpoints on nuScenes with the official detection metrics."""
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Optional
 
 import torch
 from torch import Tensor
@@ -25,9 +24,12 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+MODELS = ("pointpillars.nuscenes.mmdet3d", "pointpillars-fpn.nuscenes.mmdet3d")
 
-SCORE_THRESHOLD = 0.1
+SCORE_THRESHOLD = 0.05
 NMS_IOU = 0.2
+NMS_PRE = 1000
+MAX_DETECTIONS = 500
 
 
 def main() -> None:
@@ -40,26 +42,15 @@ def main() -> None:
     dataloader = configure_dataloader(args)
 
     print(f"Test set: {len(dataloader.dataset)} frames")  # type: ignore[arg-type]
-    metrics = evaluate(
-        model,
-        dataloader,
-        args.device,
-        score_threshold=args.score_threshold,
-        nms_pre=args.nms_pre,
-        max_detections=args.max_detections,
-        multi_label=args.multi_label,
-        rotated_nms=args.rotated_nms,
-    )
+    metrics = evaluate(model, dataloader, args.device)
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark PointPillars 3D detection on nuScenes.")
-    parser.add_argument(
-        "--model", default="pointpillars-multihead.nuscenes.openpcdet", help="Registered detection model name"
-    )
+    parser = ArgumentParser(description="Benchmark the MMDetection3D anchor detectors on nuScenes.")
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS, help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
@@ -68,17 +59,6 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
-    parser.add_argument("--score-threshold", default=SCORE_THRESHOLD, type=float, help="Lowest score kept.")
-    parser.add_argument(
-        "--nms-pre", default=None, type=int, help="Anchors kept per scene and head level before the NMS, by score."
-    )
-    parser.add_argument("--max-detections", default=None, type=int, help="Detections kept per scene after the NMS.")
-    parser.add_argument(
-        "--multi-label",
-        action="store_true",
-        help="Give every anchor to each class it scores above the threshold in, instead of its top class only.",
-    )
-    parser.add_argument("--rotated-nms", action="store_true", help="Suppress on the rotated BEV IoU.")
     return parser.parse_args()
 
 
@@ -132,37 +112,16 @@ def top_per_group(scores: Tensor, group: Tensor, k: int) -> Tensor:
     return order[rank < k]
 
 
-def select_detections(
-    det: Detection3D,
-    score_threshold: float,
-    nms_pre: Optional[int],
-    max_detections: Optional[int],
-    multi_label: bool,
-    rotated_nms: bool,
-) -> Detection3D:
-    """The detections of the protocol: optional top anchors, score threshold, per-class NMS, optional cap."""
-    index = torch.arange(det["scores"].numel(), device=det["scores"].device)
-    if nms_pre is not None:
-        # The best anchors of every scene and, for a multi-level head, of every pyramid level.
-        group = det["batch"] if "level" not in det else det["batch"] * (int(det["level"].max()) + 1) + det["level"]
-        index = top_per_group(det["scores"], group, nms_pre)
-    if multi_label:
-        anchor, labels = (det["class_probs"][index] > score_threshold).nonzero(as_tuple=True)
-        index = index[anchor]
-        scores = det["class_probs"][index, labels]
-    else:
-        index = index[det["scores"][index] > score_threshold]
-        scores, labels = det["scores"][index], det["labels"][index]
+def select_detections(det: Detection3D) -> Detection3D:
+    """The `NMS_PRE` best anchors of every scene and level, each in every class it scores above the threshold, per-class NMS."""
+    # A multi-level head ranks the anchors of every pyramid level apart.
+    group = det["batch"] if "level" not in det else det["batch"] * (int(det["level"].max()) + 1) + det["level"]
+    index = top_per_group(det["scores"], group, NMS_PRE)
+    anchor, labels = (det["class_probs"][index] > SCORE_THRESHOLD).nonzero(as_tuple=True)
+    index = index[anchor]
+    scores = det["class_probs"][index, labels]
     boxes, batch = det["boxes"][index], det["batch"][index]
-    keep = nms3d(
-        boxes,
-        scores,
-        NMS_IOU,
-        labels=labels,
-        batch=batch,
-        rotated=rotated_nms,
-        max_keep=max_detections,
-    )
+    keep = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch, rotated=True, max_keep=MAX_DETECTIONS)
     return {
         "boxes": boxes[keep],
         "scores": scores[keep],
@@ -183,17 +142,7 @@ def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
 
 
 @torch.no_grad()
-def evaluate(
-    model: DetectionModel,
-    dataloader: DataLoader,
-    device: str,
-    *,
-    score_threshold: float = SCORE_THRESHOLD,
-    nms_pre: Optional[int] = None,
-    max_detections: Optional[int] = None,
-    multi_label: bool = False,
-    rotated_nms: bool = False,
-) -> dict[str, float]:
+def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
     model.to(device).eval()
     preds: list[Detection3D] = []
     targets: list[Boxes3D] = []
@@ -205,14 +154,7 @@ def evaluate(
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
         raw = forward(model, data)
-        det = select_detections(
-            raw,
-            score_threshold,
-            nms_pre,
-            max_detections,
-            multi_label,
-            rotated_nms,
-        )
+        det = select_detections(raw)
         preds.append(
             {
                 "boxes": det["boxes"].cpu(),

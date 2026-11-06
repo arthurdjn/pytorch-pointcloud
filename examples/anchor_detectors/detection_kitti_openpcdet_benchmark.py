@@ -1,8 +1,7 @@
-"""Benchmark SECOND on KITTI with its evaluation protocol."""
+"""Benchmark the OpenPCDet PointPillars, SECOND and SECOND-IoU checkpoints on KITTI with their evaluation protocol."""
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Optional
 
 import torch
 from torch import Tensor
@@ -26,6 +25,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+MODELS = ("pointpillars.kitti.openpcdet", "second.kitti.openpcdet", "second-iou.kitti.openpcdet")
 
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.01
@@ -41,23 +41,15 @@ def main() -> None:
     dataloader = configure_dataloader(args)
 
     print(f"Test set: {len(dataloader.dataset)} frames")  # type: ignore[arg-type]
-    metrics = evaluate(
-        model,
-        dataloader,
-        args.device,
-        configure_classes(args),
-        nms_pre=args.nms_pre,
-        max_detections=args.max_detections,
-        multi_label=args.multi_label,
-    )
+    metrics = evaluate(model, dataloader, args.device, configure_classes(args))
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark SECOND 3D detection on KITTI.")
-    parser.add_argument("--model", default="second.kitti.openpcdet", help="Registered detection model name")
+    parser = ArgumentParser(description="Benchmark the OpenPCDet anchor detectors on KITTI.")
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS, help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split-file", default=None, help="KITTI frame-id list (e.g. ImageSets/val.txt).")
@@ -65,13 +57,6 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
-    parser.add_argument("--nms-pre", default=None, type=int, help="Boxes kept per scene before the NMS, by score.")
-    parser.add_argument("--max-detections", default=None, type=int, help="Detections kept per scene after the NMS.")
-    parser.add_argument(
-        "--multi-label",
-        action="store_true",
-        help="Run one NMS per class over the anchors scoring above the threshold in that class.",
-    )
     return parser.parse_args()
 
 
@@ -144,47 +129,6 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
-def top_per_group(scores: Tensor, group: Tensor, k: int) -> Tensor:
-    """Indices of the `k` best scores of every group, group by group and best first."""
-    order = scores.argsort(descending=True, stable=True)
-    order = order[group[order].argsort(stable=True)]
-    sorted_group = group[order]
-    rank = torch.arange(order.numel(), device=order.device) - torch.searchsorted(sorted_group, sorted_group)
-    return order[rank < k]
-
-
-def select_detections(
-    det: Detection3D,
-    nms_pre: Optional[int],
-    max_detections: Optional[int],
-    multi_label: bool,
-) -> Detection3D:
-    """The detections of the protocol: optional top boxes per scene, score threshold, rotated NMS, optional cap."""
-    if multi_label and "class_probs" not in det:
-        raise ValueError("`--multi-label` needs the per-class probabilities of an anchor head, which this model lacks.")
-    index = torch.arange(det["scores"].numel(), device=det["scores"].device)
-    if nms_pre is not None:
-        index = top_per_group(det["scores"], det["batch"], nms_pre)
-    if multi_label:
-        anchor, labels = (det["class_probs"][index] > SCORE_THRESHOLD).nonzero(as_tuple=True)
-        index = index[anchor]
-        scores = det["class_probs"][index, labels]
-    else:
-        index = index[det["scores"][index] > SCORE_THRESHOLD]
-        scores, labels = det["scores"][index], det["labels"][index]
-    boxes, batch = det["boxes"][index], det["batch"][index]
-    keep = nms3d(
-        boxes,
-        scores,
-        NMS_IOU,
-        labels=labels if multi_label else None,
-        batch=batch,
-        rotated=True,
-        max_keep=max_detections,
-    )
-    return {"boxes": boxes[keep], "scores": scores[keep], "labels": labels[keep], "batch": batch[keep]}
-
-
 def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
     output = model(
         data[DataKeys.VOXEL],
@@ -196,24 +140,17 @@ def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
 
 
 @torch.no_grad()
-def evaluate(
-    model: DetectionModel,
-    dataloader: DataLoader,
-    device: str,
-    classes: tuple[str, ...],
-    *,
-    nms_pre: Optional[int] = None,
-    max_detections: Optional[int] = None,
-    multi_label: bool = False,
-) -> dict[str, float]:
+def evaluate(model: DetectionModel, dataloader: DataLoader, device: str, classes: tuple[str, ...]) -> dict[str, float]:
     model.to(device).eval()
     matches: list[BoxMatches] = []
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        raw = forward(model, data)
-        det = select_detections(raw, nms_pre, max_detections, multi_label)
-        boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
+        det = forward(model, data)
+        keep = det["scores"] > SCORE_THRESHOLD
+        boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
+        idx = nms3d(boxes, scores, NMS_IOU, batch=batch, rotated=True)
+        boxes, scores, labels, batch = boxes[idx], scores[idx], labels[idx], batch[idx]
         ignore_mask = projected_ignore_mask(boxes, data[DataKeys.CALIB][batch], data[DataKeys.IMAGE_SHAPE][batch])
         preds: Detection3D = {
             "boxes": boxes,
