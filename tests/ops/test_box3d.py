@@ -8,6 +8,7 @@ from torch import Tensor
 from torch_pointcloud.ops.box3d import (
     _overlapping_pairs,
     angle_to_class,
+    angle_to_direction_bin,
     box3d_overlap,
     box_corners,
     boxes_iou3d,
@@ -17,6 +18,7 @@ from torch_pointcloud.ops.box3d import (
     class_to_size,
     count_points_in_boxes,
     decode_roi_residuals,
+    direction_bin_to_angle,
     nms3d,
     points_in_boxes,
     projected_ignore_mask,
@@ -712,6 +714,47 @@ def test_class_to_angle_single_bin_decodes_zero() -> None:
     heading_class = torch.zeros(4, dtype=torch.long)
     heading_residual = torch.randn(4)
     assert torch.equal(class_to_angle(heading_class, heading_residual, 1), torch.zeros(4))
+
+
+def test_angle_to_direction_bin_counts_sectors_from_the_offset() -> None:
+    # Two bins from pi / 4: [pi / 4, 5 pi / 4) is bin 0, the other half turn bin 1.
+    angles = torch.tensor([0.0, math.pi / 4 + 1e-3, math.pi / 2, math.pi, 5 * math.pi / 4 + 1e-3, -math.pi / 2])
+    assert angle_to_direction_bin(angles, 2, math.pi / 4).tolist() == [1, 0, 0, 0, 1, 1]
+    # Four bins from 0, and the headings of a whole turn further land in the same bins.
+    angles = torch.tensor([0.1, 1.7, 3.2, 4.8])
+    assert angle_to_direction_bin(angles, 4, 0.0).tolist() == [0, 1, 2, 3]
+    assert angle_to_direction_bin(angles + 2 * math.pi, 4, 0.0).tolist() == [0, 1, 2, 3]
+
+
+@pytest.mark.parametrize("num_dir_bins", [2, 3, 4])
+@pytest.mark.parametrize("dir_offset", [0.78539, -math.pi / 2, 0.0])
+def test_direction_bin_to_angle_inverts_angle_to_direction_bin(num_dir_bins: int, dir_offset: float) -> None:
+    torch.manual_seed(0)
+    angles = torch.randn(1000) * 4
+    bins = angle_to_direction_bin(angles, num_dir_bins, dir_offset)
+    recovered = direction_bin_to_angle(bins, angles, num_dir_bins, dir_offset)
+    wrap = torch.remainder(recovered - angles + math.pi, 2 * math.pi) - math.pi
+    assert wrap.abs().max() < 1e-5
+
+
+@pytest.mark.parametrize("num_dir_bins", [2, 3])
+def test_direction_bin_to_angle_moves_every_heading_into_its_bin(num_dir_bins: int) -> None:
+    torch.manual_seed(0)
+    angles = torch.randn(1000) * 4
+    bins = torch.randint(0, num_dir_bins, (1000,))
+    moved = direction_bin_to_angle(bins, angles, num_dir_bins, 0.78539)
+    assert torch.equal(angle_to_direction_bin(moved, num_dir_bins, 0.78539), bins)
+    # The heading only changes by whole bin widths.
+    steps = (moved - angles) / (2 * math.pi / num_dir_bins)
+    assert torch.allclose(steps, steps.round(), atol=1e-4)
+
+
+def test_direction_bin_to_angle_wraps_with_the_limit_offset() -> None:
+    angles = torch.tensor([0.1, 3.0, -2.0])
+    moved = direction_bin_to_angle(torch.zeros(3, dtype=torch.long), angles, 2, 0.0, dir_limit_offset=0.5)
+    # Wrapped into [-pi / 2, pi / 2) around bin 0.
+    assert torch.all(moved >= -math.pi / 2) and torch.all(moved < math.pi / 2)
+    assert torch.allclose(moved, torch.tensor([0.1, 3.0 - math.pi, -2.0 + math.pi]))
 
 
 def test_class_to_size_adds_residual_to_template() -> None:

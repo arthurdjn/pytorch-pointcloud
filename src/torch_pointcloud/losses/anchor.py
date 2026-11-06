@@ -15,7 +15,7 @@ from torch import Tensor, nn
 from torch_pointcloud.layers.anchors import AnchorHeadMultiOutput, AnchorHeadOutput
 from torch_pointcloud.losses.focal import one_hot_foreground, sigmoid_focal_loss
 from torch_pointcloud.ops.anchors import assign_anchor_targets, generate_anchors
-from torch_pointcloud.ops.box3d import limit_period
+from torch_pointcloud.ops.box3d import angle_to_direction_bin
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -241,9 +241,7 @@ class AnchorHeadLoss(nn.Module):
         r"""Weighted softmax cross-entropy over the discretized heading bin."""
         anchors = self.anchors.view(1, -1, 7)
         rot_gt = box_reg_targets[..., 6] + anchors[..., 6]
-        period = 2 * torch.pi / self.num_dir_bins
-        offset_rot = limit_period(rot_gt - self.dir_offset, 0.0, period * self.num_dir_bins)
-        dir_targets = torch.floor(offset_rot / period).long().clamp(min=0, max=self.num_dir_bins - 1)
+        dir_targets = angle_to_direction_bin(rot_gt, self.num_dir_bins, self.dir_offset)
 
         ce = F.cross_entropy(dir_preds.permute(0, 2, 1), dir_targets, reduction="none") * reg_weights
         return ce.sum() / dir_preds.shape[0]

@@ -39,6 +39,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
 - Added nine MMDetection3D checkpoints for PointPillars, SECOND and VoteNet, and the SECOND-IoU, PointRCNN-IoU and 3DETR-m SUN RGB-D checkpoints.
 - Added `SECONDIoUDetection`, `PointPillarsFPNDetection`, `MultiLevelAnchorHead`, `BEVPyramidBackbone`, `dynamic_voxelize` and `DynamicVoxelize`; `AnchorHead` and `AnchorHeadLoss` take `anchor_range` and `align_center`.
+- Added `ops.box3d.angle_to_direction_bin` and `direction_bin_to_angle`, the direction-bin heading of the anchor heads and their loss.
 - Omitting `dir_offset` from `AnchorHead`, `AnchorHeadLoss` or the PointPillars, SECOND, Part-A2 and PV-RCNN detectors is deprecated, and an error from 0.0.20.
 - `HardVoxelize` raises when its `feature_key` is missing, `Cat` when an input lacks the concatenation dimension, and detectors when `num_classes` is 0.
 - Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.

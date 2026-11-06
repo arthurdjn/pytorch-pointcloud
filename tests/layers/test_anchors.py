@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import torch
 
@@ -7,7 +9,7 @@ from torch_pointcloud.layers.anchors import (
     MultiGroupAnchorHead,
     MultiLevelAnchorHead,
 )
-from torch_pointcloud.ops.box3d import decode_box_residuals, encode_box_residuals
+from torch_pointcloud.ops.box3d import angle_to_direction_bin, decode_box_residuals, encode_box_residuals
 
 RANGE = (0.0, -4.0, -1.0, 8.0, 4.0, 1.0)
 
@@ -135,6 +137,24 @@ def test_anchor_head_without_dir_offset_warns_and_keeps_the_former_default() -> 
             8, 1, (4, 4), RANGE, anchor_sizes=[[4.0, 2.0, 1.5]], anchor_bottom_heights=[0.0], feature_map_stride=1
         )
     assert head.dir_offset == 0.78539
+
+
+def test_anchor_head_heading_lies_in_the_predicted_direction_bin() -> None:
+    torch.manual_seed(0)
+    head = AnchorHead(
+        8,
+        2,
+        (4, 4),
+        RANGE,
+        anchor_sizes=[[4.0, 2.0, 1.5], [1.0, 1.0, 1.0]],
+        anchor_bottom_heights=[0.0, 0.0],
+        feature_map_stride=1,
+        dir_offset=-math.pi / 2,
+    ).eval()
+    with torch.no_grad():
+        out = head(torch.randn(2, 8, 4, 4))
+    dir_labels = out["dir_cls"].reshape(2, -1, 2).argmax(dim=-1)
+    assert torch.equal(angle_to_direction_bin(out["batch_box"][..., 6], 2, -math.pi / 2), dir_labels)
 
 
 def test_anchor_head_needs_one_bottom_height_per_size() -> None:

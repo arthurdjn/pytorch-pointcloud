@@ -18,22 +18,8 @@ from torch import Tensor
 
 from torch_pointcloud.layers.conv2d_blocks import Conv2dBlock
 from torch_pointcloud.ops.anchors import generate_anchors
-from torch_pointcloud.ops.box3d import decode_box_residuals, limit_period
+from torch_pointcloud.ops.box3d import decode_box_residuals, direction_bin_to_angle
 from torch_pointcloud.utils.types import Detection3D
-
-
-def _snap_heading(
-    boxes: Tensor,
-    dir_logits: Tensor,
-    num_dir_bins: int,
-    dir_offset: float,
-    dir_limit_offset: float,
-) -> None:
-    r"""Snap the decoded heading of `boxes` $(B, A, \ge 7)$ in place to the predicted direction bin."""
-    dir_labels = torch.max(dir_logits, dim=-1)[1]
-    period = 2 * math.pi / num_dir_bins
-    dir_rot = limit_period(boxes[..., 6] - dir_offset, dir_limit_offset, period)
-    boxes[..., 6] = dir_rot + dir_offset + period * dir_labels.to(boxes.dtype)
 
 
 def _anchor_detections(batch_cls: Tensor, batch_box: Tensor) -> Detection3D:
@@ -208,8 +194,14 @@ class AnchorHead(nn.Module):
         batch_anchors = self.anchors.view(1, num_anchors, self.code_size).repeat(batch_size, 1, 1)
         batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float()
         batch_box_preds = decode_box_residuals(box_preds.view(batch_size, num_anchors, -1), batch_anchors)
-        dir_preds = dir_cls_preds.view(batch_size, num_anchors, -1)
-        _snap_heading(batch_box_preds, dir_preds, self.num_dir_bins, self.dir_offset, self.dir_limit_offset)
+        dir_labels = torch.max(dir_cls_preds.view(batch_size, num_anchors, -1), dim=-1).indices
+        batch_box_preds[..., 6] = direction_bin_to_angle(
+            dir_labels,
+            batch_box_preds[..., 6],
+            self.num_dir_bins,
+            self.dir_offset,
+            self.dir_limit_offset,
+        )
         return batch_cls_preds, batch_box_preds
 
     @torch.no_grad()
@@ -408,7 +400,13 @@ class MultiLevelAnchorHead(nn.Module):
         dir_preds = torch.cat([d.view(batch_size, -1, self.num_dir_bins) for d in dir_list], dim=1)
         batch_anchors = self.anchors.unsqueeze(0).expand(batch_size, -1, -1)
         batch_box = decode_box_residuals(box_preds, batch_anchors)
-        _snap_heading(batch_box, dir_preds, self.num_dir_bins, self.dir_offset, self.dir_limit_offset)
+        batch_box[..., 6] = direction_bin_to_angle(
+            torch.max(dir_preds, dim=-1).indices,
+            batch_box[..., 6],
+            self.num_dir_bins,
+            self.dir_offset,
+            self.dir_limit_offset,
+        )
         return {
             "cls": cls_list,
             "box": box_list,
