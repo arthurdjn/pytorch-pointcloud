@@ -418,7 +418,8 @@ class Cat(DictTransform):
         This transform is mostly used to concatenate multiple features into a single tensor to feed into your model.
 
     Integer inputs are cast to `float32`; floating inputs keep their dtype. When the inputs mix
-    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast).
+    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast). The inputs must
+    have the same number of dimensions, including `dim`: a per-point scalar is $(N, 1)$, not $(N,)$.
 
     ![Cat diagram](../../assets/transforms/cat.png)
 
@@ -427,6 +428,9 @@ class Cat(DictTransform):
         dst_key: Key under which the result is stored.
         dim: Dimension along which to concatenate.
         allow_missing_keys: If `True`, silently skip absent keys.
+
+    Raises:
+        ValueError: If the tensors do not have the same number of dimensions, or do not have dimension `dim`.
 
     Example:
         If you have a point cloud data containing position, color and normal and want to concatenate them
@@ -462,7 +466,16 @@ class Cat(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in self.iter_keys(data)]
+        keys = list(self.iter_keys(data))
+        ranks = {data[key].dim() for key in keys}
+        if len(ranks) > 1 or any(not -rank <= self.dim < rank for rank in ranks):
+            shapes = ", ".join(f"`{key}` {tuple(data[key].shape)}" for key in keys)
+            raise ValueError(
+                f"Cat needs tensors of one rank that have dimension {self.dim}, got {shapes}; "
+                "a per-point scalar is (N, 1)."
+            )
+
+        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in keys]
         if not tensors:
             return data
 

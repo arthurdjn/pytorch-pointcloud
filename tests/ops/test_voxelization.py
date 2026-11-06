@@ -4,6 +4,7 @@ import torch
 from torch_pointcloud.ops.voxelization import (
     _point_to_voxel_generator,
     dense_voxelize,
+    dynamic_voxelize,
     first_permutation,
     hard_voxelize,
     sparse_voxelize,
@@ -210,3 +211,24 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_dynamic_voxelize_means_points_and_sorts_voxels() -> None:
+    points = torch.tensor([[0.8, 0.8, 0.8, 5.0], [0.2, 0.2, 0.2, 1.0], [0.4, 0.2, 0.2, 3.0], [1.5, 0.2, 0.2, 7.0]])
+    batch = torch.tensor([1, 0, 0, 0])
+    voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, (0.5, 0.5, 0.5), (0, 0, 0, 1, 1, 1))
+    # The out-of-range point is dropped; voxels come out sorted by (batch, z, y, x).
+    assert voxel_indices.tolist() == [[0, 0, 0, 0], [1, 1, 1, 1]]
+    assert num_points.tolist() == [2, 1]
+    assert torch.allclose(voxels, torch.tensor([[0.3, 0.2, 0.2, 2.0], [0.8, 0.8, 0.8, 5.0]]))
+    assert voxel_indices.dtype == torch.int32 and num_points.dtype == torch.int32
+
+
+def test_dynamic_voxelize_assigns_half_precision_points_like_float32() -> None:
+    torch.manual_seed(0)
+    points = (torch.rand(500, 4) * torch.tensor([70.4, 80.0, 4.0, 1.0]) + torch.tensor([0.0, -40.0, -3.0, 0.0])).half()
+    batch = torch.zeros(500, dtype=torch.long)
+    voxel_size, point_cloud_range = (0.05, 0.05, 0.1), (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
+    _, half_indices, half_counts = dynamic_voxelize(points, batch, voxel_size, point_cloud_range)
+    _, indices, counts = dynamic_voxelize(points.float(), batch, voxel_size, point_cloud_range)
+    assert torch.equal(half_indices, indices) and torch.equal(half_counts, counts)
