@@ -178,7 +178,7 @@ class PointPillarsDetection(DetectionModel):
         feature_map_stride: BEV feature-map stride of the head.
         anchor_range: Range the anchor grid spans in $x$ and $y$; `point_cloud_range` when omitted.
         align_center: Place the anchors at the feature-map cell centers instead of on the inclusive range grid.
-        code_size: Length of the box code; channels past the 7 box parameters (e.g. velocity) decode as deltas.
+        code_size: Length of the box code: $7$ for the box, or $9$ with its BEV velocity $(v_x, v_y)$ after it.
         feat_channels: Output channels of the pillar feature net.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level.
@@ -357,7 +357,7 @@ class PointPillarsFPNDetection(DetectionModel):
         anchor_rotations: Yaw angles (radians) shared by all anchor templates.
         anchor_range: Range the anchor grids span in $x$ and $y$; `point_cloud_range` when omitted.
         align_center: Place the anchors at the feature-map cell centers instead of on the inclusive range grid.
-        code_size: Length of the box code; channels past the 7 box parameters (e.g. velocity) decode as deltas.
+        code_size: Length of the box code: $7$ for the box, or $9$ with its BEV velocity $(v_x, v_y)$ after it.
         feat_channels: Output channels of the pillar feature net.
         layer_nums: 2D backbone conv counts per level.
         layer_strides: 2D backbone downsample strides per level; the BEV stride of a pyramid level is their running

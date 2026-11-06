@@ -22,8 +22,8 @@ from torch_pointcloud.ops.box3d import decode_box_residuals, direction_bin_to_an
 from torch_pointcloud.utils.types import Detection3D
 
 
-def _anchor_detections(batch_cls: Tensor, batch_box: Tensor) -> Detection3D:
-    """Score every anchor by its top sigmoid class probability; velocity comes along when the box code holds it."""
+def _anchor_detections(batch_cls: Tensor, batch_box: Tensor, with_velocity: bool) -> Detection3D:
+    """Score every anchor by its top sigmoid class probability; box code columns 7 and 8 are the velocity."""
     class_probs = batch_cls.sigmoid()
     scores, labels = class_probs.max(dim=-1)
     batch_size, num_anchors = scores.shape
@@ -35,7 +35,7 @@ def _anchor_detections(batch_cls: Tensor, batch_box: Tensor) -> Detection3D:
         "batch": batch,
         "class_probs": class_probs.reshape(batch_size * num_anchors, -1),
     }
-    if batch_box.shape[-1] >= 9:
+    if with_velocity:
         det["velocity"] = batch_box[..., 7:9].reshape(-1, 2)
     return det
 
@@ -57,8 +57,8 @@ class AnchorHead(nn.Module):
     bin. At inference the residuals are decoded against the precomputed anchors and the predicted
     heading is snapped to the predicted direction bin (`dir_offset` / `num_dir_bins`). The anchor templates
     are independent of the classes: usually one per class, but any set of templates shared by all classes
-    works. A box code longer than 7 carries extra channels (e.g. the velocity $(v_x, v_y)$) decoded as plain
-    deltas against zero.
+    works. A box code of 9 carries the BEV velocity $(v_x, v_y)$ after the box, decoded as plain deltas against
+    zero.
 
     Args:
         input_channels: Channels of the BEV feature map fed to the head.
@@ -71,7 +71,7 @@ class AnchorHead(nn.Module):
         feature_map_stride: BEV feature-map stride of the head.
         anchor_range: Range the anchor grid spans in $x$ and $y$; `point_cloud_range` when omitted.
         align_center: Place the anchors at the feature-map cell centers (see `generate_anchors`).
-        code_size: Length of the box code; channels past the 7 box parameters decode as plain deltas.
+        code_size: Length of the box code: $7$ for the box, or $9$ with its BEV velocity $(v_x, v_y)$ after it.
         num_dir_bins: Number of direction bins.
         dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
             warns and uses $0.78539$) and an error from 0.0.20.
@@ -104,8 +104,8 @@ class AnchorHead(nn.Module):
                 f"Expected one anchor bottom height per anchor size, got {len(anchor_bottom_heights)} heights for "
                 f"{len(anchor_sizes)} sizes."
             )
-        if code_size < 7:
-            raise ValueError(f"The box code holds at least the 7 box parameters, got code_size={code_size}.")
+        if code_size not in (7, 9):
+            raise ValueError(f"The box code is the 7 box parameters, or 9 with the BEV velocity, got {code_size}.")
         if dir_offset is None:
             warnings.warn(
                 "Omitting `dir_offset` of `AnchorHead` is deprecated since 0.0.19 and an error from 0.0.20; pass the "
@@ -218,7 +218,7 @@ class AnchorHead(nn.Module):
             box code carries it. The anchors come scene by scene, each scene in the order of `anchors`: feature-map
             row ($y$), column ($x$), anchor template, rotation.
         """
-        return _anchor_detections(out["batch_cls"], out["batch_box"])
+        return _anchor_detections(out["batch_cls"], out["batch_box"], with_velocity=self.code_size == 9)
 
 
 class MultiLevelAnchorHeadOutput(TypedDict):
@@ -259,7 +259,7 @@ class MultiLevelAnchorHead(nn.Module):
         anchor_rotations: Yaw angles (radians) shared by all templates.
         anchor_range: Range the anchor grids span in $x$ and $y$; `point_cloud_range` when omitted.
         align_center: Place the anchors at the feature-map cell centers (see `generate_anchors`).
-        code_size: Length of the box code; channels past the 7 box parameters decode as plain deltas.
+        code_size: Length of the box code: $7$ for the box, or $9$ with its BEV velocity $(v_x, v_y)$ after it.
         num_dir_bins: Number of direction bins.
         dir_limit_offset: Offset used when wrapping the decoded heading before snapping.
 
@@ -321,8 +321,8 @@ class MultiLevelAnchorHead(nn.Module):
                 f"Expected one anchor scale per level, got {len(anchor_scales)} scales for "
                 f"{len(feature_map_strides)} levels."
             )
-        if code_size < 7:
-            raise ValueError(f"The box code holds at least the 7 box parameters, got code_size={code_size}.")
+        if code_size not in (7, 9):
+            raise ValueError(f"The box code is the 7 box parameters, or 9 with the BEV velocity, got {code_size}.")
 
         self.num_classes = num_classes
         self.num_dir_bins = num_dir_bins
@@ -426,7 +426,7 @@ class MultiLevelAnchorHead(nn.Module):
             come scene by scene, level by level (finest first), each level in the order of its anchor grid:
             feature-map row ($y$), column ($x$), anchor template, rotation.
         """
-        det = _anchor_detections(out["batch_cls"], out["batch_box"])
+        det = _anchor_detections(out["batch_cls"], out["batch_box"], with_velocity=self.code_size == 9)
         device = det["scores"].device
         level = torch.arange(len(self.num_anchors_per_level), device=device)
         counts = torch.tensor(self.num_anchors_per_level, device=device)

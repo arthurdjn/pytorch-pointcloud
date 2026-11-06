@@ -157,6 +157,22 @@ def test_anchor_head_heading_lies_in_the_predicted_direction_bin() -> None:
     assert torch.equal(angle_to_direction_bin(out["batch_box"][..., 6], 2, -math.pi / 2), dir_labels)
 
 
+@pytest.mark.parametrize("code_size", [6, 8, 10])
+def test_anchor_head_box_code_is_the_box_or_the_box_and_its_velocity(code_size: int) -> None:
+    with pytest.raises(ValueError, match="7 box parameters, or 9"):
+        AnchorHead(
+            8,
+            1,
+            (4, 4),
+            RANGE,
+            anchor_sizes=[[4.0, 2.0, 1.5]],
+            anchor_bottom_heights=[0.0],
+            feature_map_stride=1,
+            code_size=code_size,
+            dir_offset=0.78539,
+        )
+
+
 def test_anchor_head_needs_one_bottom_height_per_size() -> None:
     with pytest.raises(ValueError, match="one anchor bottom height per anchor size"):
         AnchorHead(
