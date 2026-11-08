@@ -1317,10 +1317,10 @@ def pointgpt_l_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
 
 
 @register_model(
-    "pointgpt-b.post-pretrain.guangyan-chen",
+    "pointgpt-b.labeled-hybrid.guangyan-chen",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-b.post-pretrain.guangyan-chen/resolve/7be2dd1d3a22711a034eb6c09b46ef740c44500e/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-b.labeled-hybrid.guangyan-chen/resolve/09af26588aadaca1e3f11f123cc1866f83d4ef7b/model.safetensors",
         dataset="labeled-hybrid",
         author="guangyan-chen",
         license="MIT",
@@ -1343,15 +1343,15 @@ def pointgpt_l_shapenetpart_seg(**kwargs: Any) -> PointGPTPartSegmentation:
         spatial_dim=3,
     ),
 )
-def pointgpt_b_post_pretrain(**kwargs: Any) -> PointGPTClassification:
+def pointgpt_b_labeled_hybrid(**kwargs: Any) -> PointGPTClassification:
     return PointGPTClassification(**kwargs)
 
 
 @register_model(
-    "pointgpt-l.post-pretrain.guangyan-chen",
+    "pointgpt-l.labeled-hybrid.guangyan-chen",
     task="classification",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pointgpt-l.post-pretrain.guangyan-chen/resolve/7778985e3ed3b83b187e5469f5ef0e7d126c5135/model.safetensors",
+        url="hf://torch-pointcloud/pointgpt-l.labeled-hybrid.guangyan-chen/resolve/8ac6c857f32bd1ee6f967546b9482c5c4f8f77b4/model.safetensors",
         dataset="labeled-hybrid",
         author="guangyan-chen",
         license="MIT",
@@ -1374,5 +1374,5 @@ def pointgpt_b_post_pretrain(**kwargs: Any) -> PointGPTClassification:
         spatial_dim=3,
     ),
 )
-def pointgpt_l_post_pretrain(**kwargs: Any) -> PointGPTClassification:
+def pointgpt_l_labeled_hybrid(**kwargs: Any) -> PointGPTClassification:
     return PointGPTClassification(**kwargs)

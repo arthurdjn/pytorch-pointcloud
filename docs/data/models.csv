@@ -25,15 +25,15 @@ point-transformer.modelnet40,point_transformer,classification,modelnet40,false,,
 pointcnn-base,pointcnn,classification,,false,,,OA,,,
 pointconv-density-base,pointconv,classification,,false,,,OA,,,
 pointconv-density-base.modelnet40.wenxuan-wu,pointconv,classification,modelnet40,true,MIT,19.57,OA,92.5,92.30,OA 92.30 · mAcc 89.50
+pointgpt-b.labeled-hybrid.guangyan-chen,pointgpt,classification,labeled-hybrid,true,MIT,120.41,OA,,,
 pointgpt-b.modelnet40-8k.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,120.39,OA,,94.25,OA 94.25 · mAcc 90.99
 pointgpt-b.modelnet40.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,120.39,OA,94.4,94.37,OA 94.37 · mAcc 91.65
-pointgpt-b.post-pretrain.guangyan-chen,pointgpt,classification,labeled-hybrid,true,MIT,120.41,OA,,,
 pointgpt-b.scanobjectnn-hardest.guangyan-chen,pointgpt,classification,scanobjectnn-hardest,true,MIT,120.39,OA,91.9,91.92,OA 91.92 · mAcc 90.80
 pointgpt-b.scanobjectnn-objbg.guangyan-chen,pointgpt,classification,scanobjectnn-objbg,true,MIT,120.39,OA,95.8,97.07,OA 97.07 · mAcc 96.19
 pointgpt-b.scanobjectnn-objonly.guangyan-chen,pointgpt,classification,scanobjectnn-objonly,true,MIT,120.39,OA,95.2,95.18,OA 95.18 · mAcc 94.91
+pointgpt-l.labeled-hybrid.guangyan-chen,pointgpt,classification,labeled-hybrid,true,MIT,360.38,OA,,,
 pointgpt-l.modelnet40-8k.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,360.37,OA,,93.92,OA 93.92 · mAcc 92.06
 pointgpt-l.modelnet40.guangyan-chen,pointgpt,classification,modelnet40,true,MIT,360.37,OA,94.7,93.88,OA 93.88 · mAcc 92.05
-pointgpt-l.post-pretrain.guangyan-chen,pointgpt,classification,labeled-hybrid,true,MIT,360.38,OA,,,
 pointgpt-l.scanobjectnn-hardest.guangyan-chen,pointgpt,classification,scanobjectnn-hardest,true,MIT,360.36,OA,93.4,93.75,OA 93.75 · mAcc 93.66
 pointgpt-l.scanobjectnn-objbg.guangyan-chen,pointgpt,classification,scanobjectnn-objbg,true,MIT,360.36,OA,97.2,98.45,OA 98.45 · mAcc 98.19
 pointgpt-l.scanobjectnn-objonly.guangyan-chen,pointgpt,classification,scanobjectnn-objonly,true,MIT,360.36,OA,96.6,96.90,OA 96.90 · mAcc 96.56

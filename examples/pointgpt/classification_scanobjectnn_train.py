@@ -59,7 +59,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-b.scanobjectnn-hardest.guangyan-chen": dict(
-        pretrain="pointgpt-b.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         background=True,
         variant="augmentedrot_scale75",
         epochs=30,
@@ -67,7 +67,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-b.scanobjectnn-objbg.guangyan-chen": dict(
-        pretrain="pointgpt-b.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         background=True,
         variant=None,
         epochs=30,
@@ -75,7 +75,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-b.scanobjectnn-objonly.guangyan-chen": dict(
-        pretrain="pointgpt-b.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         background=False,
         variant=None,
         epochs=50,
@@ -83,7 +83,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-l.scanobjectnn-hardest.guangyan-chen": dict(
-        pretrain="pointgpt-l.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         background=True,
         variant="augmentedrot_scale75",
         epochs=50,
@@ -91,7 +91,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-l.scanobjectnn-objbg.guangyan-chen": dict(
-        pretrain="pointgpt-l.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         background=True,
         variant=None,
         epochs=50,
@@ -99,7 +99,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-l.scanobjectnn-objonly.guangyan-chen": dict(
-        pretrain="pointgpt-l.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         background=False,
         variant=None,
         epochs=50,

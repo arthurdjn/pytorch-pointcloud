@@ -52,7 +52,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         weight_decay=0.005,
     ),
     "pointgpt-b.modelnet40.guangyan-chen": dict(
-        pretrain="pointgpt-b.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         num_points=1024,
         point_all=1200,
         epochs=50,
@@ -61,7 +61,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         weight_decay=0.05,
     ),
     "pointgpt-b.modelnet40-8k.guangyan-chen": dict(
-        pretrain="pointgpt-b.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         num_points=8192,
         point_all=8192,
         epochs=50,
@@ -70,7 +70,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         weight_decay=0.005,
     ),
     "pointgpt-l.modelnet40.guangyan-chen": dict(
-        pretrain="pointgpt-l.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         num_points=1024,
         point_all=1200,
         epochs=50,
@@ -79,7 +79,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         weight_decay=0.05,
     ),
     "pointgpt-l.modelnet40-8k.guangyan-chen": dict(
-        pretrain="pointgpt-l.post-pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         num_points=8192,
         point_all=8192,
         epochs=50,

@@ -31,8 +31,8 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 # Every entry: the entry its encoder starts from (PointGPT-B and -L fine-tune from the post-pre-training stage).
 MODELS: Dict[str, str] = {
     "pointgpt-s.shapenetpart.guangyan-chen": "pointgpt-s.pretrain.guangyan-chen",
-    "pointgpt-b.shapenetpart.guangyan-chen": "pointgpt-b.post-pretrain.guangyan-chen",
-    "pointgpt-l.shapenetpart.guangyan-chen": "pointgpt-l.post-pretrain.guangyan-chen",
+    "pointgpt-b.shapenetpart.guangyan-chen": "pointgpt-b.labeled-hybrid.guangyan-chen",
+    "pointgpt-l.shapenetpart.guangyan-chen": "pointgpt-l.labeled-hybrid.guangyan-chen",
 }
 NUM_CATEGORIES = 16
 NUM_POINTS = 2048
