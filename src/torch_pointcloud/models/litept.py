@@ -217,7 +217,7 @@ class LitePTBlock(nn.Module):
         return x, x_sparse
 
 
-def _run_blocks(
+def _forward_blocks(
     blocks: nn.ModuleList,
     x: Tensor,
     pos_grid: Tensor,
@@ -338,7 +338,7 @@ class LitePTEncoderBlock(nn.Module):
                 shuffle=self.shuffle_serialization_orders and self.training,
             )
 
-        x = _run_blocks(self.blocks, x, pos_grid, batch, serialized_order, serialized_inverse)
+        x = _forward_blocks(self.blocks, x, pos_grid, batch, serialized_order, serialized_inverse)
         return x, pos_grid, batch, inverse, serialized_order, serialized_inverse
 
 
@@ -426,7 +426,7 @@ class LitePTDecoderBlock(nn.Module):
                 shuffle=self.shuffle_serialization_orders and self.training,
             )
 
-        x = _run_blocks(self.blocks, x, pos_grid_skip, batch_skip, serialized_order_skip, serialized_inverse_skip)
+        x = _forward_blocks(self.blocks, x, pos_grid_skip, batch_skip, serialized_order_skip, serialized_inverse_skip)
         return x, pos_grid_skip, batch_skip
 
 
