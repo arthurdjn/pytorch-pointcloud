@@ -78,7 +78,7 @@ class LitePTBlock(nn.Module):
 
     Shape:
         - Input: $(N, C)$ features, their `SparseConvTensor` (`None` for a block without convolution), $(N, 3)$
-          float grid coordinates (the rotary positions), $(N,)$ batch.
+          integer grid coordinates, $(N,)$ batch.
         - Output: $(N, C)$ features and the `SparseConvTensor` holding them (`None` when none was given).
 
     Example:
@@ -87,10 +87,10 @@ class LitePTBlock(nn.Module):
         >>> from torch_pointcloud.models.litept import LitePTBlock
         >>> block = LitePTBlock(channels=12, num_heads=2, patch_size=16, conv=False, use_flash_attn=False)
         >>> x = torch.randn(40, 12)
-        >>> pos = torch.cartesian_prod(torch.arange(4), torch.arange(5), torch.arange(2)).float()
+        >>> pos_grid = torch.cartesian_prod(torch.arange(4), torch.arange(5), torch.arange(2))
         >>> batch = torch.zeros(40, dtype=torch.long)
         >>> order = torch.randperm(40)
-        >>> y, _ = block(x, None, pos, batch, order, torch.argsort(order))
+        >>> y, _ = block(x, None, pos_grid, batch, order, torch.argsort(order))
         >>> y.shape
         torch.Size([40, 12])
 
@@ -173,7 +173,7 @@ class LitePTBlock(nn.Module):
         self,
         x: Tensor,
         x_sparse: Any,
-        pos: Tensor,
+        pos_grid: Tensor,
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
@@ -191,11 +191,11 @@ class LitePTBlock(nn.Module):
             x = self.norm1(x)
             x = self.attn(
                 x,
-                None,
+                pos_grid,
                 batch,
                 serialized_order=serialized_order,
                 serialized_inverse=serialized_inverse,
-                pos=pos,
+                pos=pos_grid.float(),
                 patch_layout=patch_layout,
             )
             x = shortcut + self.drop_path(x)
@@ -226,7 +226,6 @@ def _forward_blocks(
 
     # Building the `SparseConvTensor` synchronizes with the host, so only a stage that convolves pays for it.
     x_sparse = convert_to_spconv_tensor(x, pos_grid, batch) if conv else None
-    pos = pos_grid.float()
     layout: Optional[PatchLayout] = None
     if attention:
         if serialized_order is None or serialized_inverse is None:
@@ -240,7 +239,7 @@ def _forward_blocks(
         x, x_sparse = block(
             x,
             x_sparse,
-            pos,
+            pos_grid,
             batch,
             serialized_order=serialized_order[order_idx] if serialized_order is not None else None,
             serialized_inverse=serialized_inverse[order_idx] if serialized_inverse is not None else None,
