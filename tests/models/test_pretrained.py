@@ -96,6 +96,13 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointgpt-b.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
     ("pointgpt-l.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
     ("point-m2ae-base.shapenetpart.renrui-zhang", "part-segmentation", "shapenetpart"),
+    ("pvcnn.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-c0p5.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-c0p25.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-dml.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-c0p25-dml.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pointnet2-ssg.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pointnet2-msg.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
     # ScanObjectNN based models
     ("pointmlp-base.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),
     ("pointmlp-elite.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),

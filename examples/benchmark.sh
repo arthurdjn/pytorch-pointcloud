@@ -68,6 +68,13 @@ $RUN examples/point_m2ae/part_segmentation_shapenetpart_benchmark.py --root "$RO
 $RUN examples/pointgpt/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointgpt-s.shapenetpart.guangyan-chen
 $RUN examples/pointgpt/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointgpt-b.shapenetpart.guangyan-chen
 $RUN examples/pointgpt/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointgpt-l.shapenetpart.guangyan-chen
+$RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pvcnn-c0p25.shapenetpart.mit-han-lab
+$RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pvcnn-c0p25-dml.shapenetpart.mit-han-lab
+$RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pvcnn-c0p5.shapenetpart.mit-han-lab
+$RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pvcnn.shapenetpart.mit-han-lab
+$RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pvcnn-dml.shapenetpart.mit-han-lab
+$RUN examples/pointnet2/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnet2-ssg.shapenetpart.mit-han-lab
+$RUN examples/pointnet2/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnet2-msg.shapenetpart.mit-han-lab
 
 # Indoor detection (SUN RGB-D, ScanNet)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
