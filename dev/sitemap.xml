@@ -136,6 +136,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/datasets/shapenetpart/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/datasets/structured3d/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/datasets/sunrgbd/</loc>
       </url>
       <url>
@@ -392,6 +395,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/lion/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/litept/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/octformer/</loc>
