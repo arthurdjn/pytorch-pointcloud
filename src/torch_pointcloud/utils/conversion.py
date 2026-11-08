@@ -596,7 +596,7 @@ def convert_to_spconv_tensor(
         pos: The integer voxel coordinates of shape $(N, 3)$.
         batch: The batch indices of the points of shape $(N,)$.
         spatial_shape: The spatial shape of the sparse tensor. When `None`, it is inferred as the
-            per-axis maximum of `pos` plus `padding`.
+            per-axis maximum of `pos` plus `padding`, which needs at least one point.
         padding: Padding (in voxels) added to the inferred spatial shape.
         batch_size: Number of scenes in the batch. When `None`, it is inferred as `batch.max() + 1`,
             which drops trailing empty scenes; pass it explicitly when those must be preserved.
@@ -610,6 +610,8 @@ def convert_to_spconv_tensor(
         - `batch`: $(N,)$
     """
     if spatial_shape is None:
+        if pos.size(0) == 0:
+            raise ValueError("`spatial_shape` cannot be inferred from zero points; pass it explicitly.")
         spatial_shape = torch.add(torch.max(pos, dim=0).values, padding).tolist()
     if batch_size is None:
         batch_size = int(batch.max().item()) + 1 if batch.numel() > 0 else 0

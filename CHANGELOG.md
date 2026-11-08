@@ -9,6 +9,12 @@ All notable changes to this project are documented in this file. The format is b
 - Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
 - Added `act_first`, `act_last` and `input_transform_uses_features` to the PointNet models, and `in_channels` to `TNet`.
 - Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`; the former key still loads, with a `FutureWarning`.
+- Added LitePT (`LitePTSegmentation`) with six ScanNet, nuScenes and Structured3D checkpoints (`litept-*.prs-eth`), its ScanNet training script and its ScanNet and nuScenes benchmark scripts.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
+- Added `layers.spconv_blocks.SubMConv3d`, a `spconv.SubMConv3d` that casts its features to the weight dtype; it fixes Point Transformer V3 inference under `torch.autocast` failing in the sparse convolutions.
+- Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
+- Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
+- Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 
 ## 0.0.19 (2026-11-08)
 
