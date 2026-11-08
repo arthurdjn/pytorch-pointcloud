@@ -65,6 +65,7 @@ DISPLAY_TITLES = {
     "sonata": "Sonata",
     "concerto": "Concerto",
     "utonia": "Utonia",
+    "volt": "Volt",
     "dales": "DALES",
     "fractal": "FRACTAL",
     "gridnethd": "GridNet-HD",
