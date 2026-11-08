@@ -92,6 +92,9 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnext-sm-c160.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
     ("dgcnn.shapenetpart.an-tao", "part-segmentation", "shapenetpart"),
     ("point-mae-base.shapenetpart.yatian-pang", "part-segmentation", "shapenetpart"),
+    ("pointgpt-s.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
+    ("pointgpt-b.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
+    ("pointgpt-l.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
     ("point-m2ae-base.shapenetpart.renrui-zhang", "part-segmentation", "shapenetpart"),
     # ScanObjectNN based models
     ("pointmlp-base.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),
@@ -133,6 +136,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointgpt-s.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
     ("pointgpt-b.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
     ("pointgpt-l.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
+    ("pointgpt-b.labeled-hybrid.guangyan-chen", "classification", "modelnet_resampled"),
+    ("pointgpt-l.labeled-hybrid.guangyan-chen", "classification", "modelnet_resampled"),
     ("sonata-small.pretrain.fair", "pretraining", "scannet20"),
     ("sonata-base.pretrain.fair", "pretraining", "scannet20"),
     ("concerto-tiny.pretrain.pointcept", "pretraining", "scannet20"),

@@ -37,6 +37,11 @@ All notable changes to this project are documented in this file. The format is b
 - Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
 - Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
 - Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added `PointGPTPartSegmentation` with the ShapeNetPart checkpoints `pointgpt-s.shapenetpart.guangyan-chen`, `pointgpt-b.shapenetpart.guangyan-chen` and `pointgpt-l.shapenetpart.guangyan-chen`, their benchmark and training scripts, and the `PartSegmentationDecoder` layer.
+- Added the PointGPT post-pre-training checkpoints `pointgpt-b.labeled-hybrid.guangyan-chen` and `pointgpt-l.labeled-hybrid.guangyan-chen`.
+- Fixed the dataset of `pointgpt-b.pretrain.guangyan-chen` and `pointgpt-l.pretrain.guangyan-chen`: UnlabeledHybrid, not ShapeNet55.
+- `PointGPTExtractor.forward` takes `fetch_idx`, and its `attn_mask` defaults to `None`.
+- Updated the ShapeNetPart metrics of `point-mae-base.shapenetpart.yatian-pang` and `point-m2ae-base.shapenetpart.renrui-zhang`, re-measured with the argmax over the parts of each shape's category.
 - Added nine MMDetection3D checkpoints for PointPillars, SECOND and VoteNet, and the SECOND-IoU, PointRCNN-IoU and 3DETR-m SUN RGB-D checkpoints.
 - Added `SECONDIoUDetection`, `PointPillarsFPNDetection`, `MultiLevelAnchorHead`, `BEVPyramidBackbone`, `dynamic_voxelize` and `DynamicVoxelize`; `AnchorHead` and `AnchorHeadLoss` take `anchor_range` and `align_center`.
 - Added `ops.box3d.angle_to_direction_bin` and `direction_bin_to_angle`, the direction-bin heading of the anchor heads and their loss.
