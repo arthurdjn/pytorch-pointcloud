@@ -125,6 +125,23 @@ def test_packed_transformer_block_builds_the_given_norm() -> None:
     assert block(x, cu_seqlens, max_seqlen).shape == x.shape
 
 
+@pytest.mark.skipif(not (_CUDA_AVAILABLE and _FLASH_ATTN_AVAILABLE), reason="flash attention needs CUDA and flash-attn")
+def test_packed_attention_flash_attends_in_bfloat16_for_bfloat16_tokens() -> None:
+    torch.manual_seed(0)
+    attn = PackedAttention(64, 4, qk_norm=True, rope=AxialRoPE((3, 3, 2), base=100.0)).cuda().bfloat16()
+    x, pos, cu_seqlens, max_seqlen = _packed_tokens((70, 120, 50), 64)
+    # Values beyond the float16 range overflow if the kernel is fed float16 instead of the tokens' bfloat16.
+    x, pos, cu_seqlens = (x * 1e5).cuda().bfloat16(), pos.cuda(), cu_seqlens.cuda()
+
+    flash = attn(x, cu_seqlens, max_seqlen, pos=pos)
+    attn.use_flash_attn = False
+    reference = attn(x, cu_seqlens, max_seqlen, pos=pos)
+
+    assert flash.dtype == torch.bfloat16
+    assert bool(torch.isfinite(flash).all())
+    torch.testing.assert_close(flash, reference, atol=1e3, rtol=2e-2)
+
+
 def test_packed_transformer_block_requires_a_norm() -> None:
     with pytest.raises(ValueError, match="normalization"):
         PackedTransformerBlock(32, 2, norm=None)

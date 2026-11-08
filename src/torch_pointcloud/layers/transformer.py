@@ -186,10 +186,11 @@ class PackedAttention(nn.Module):
     layer-normalized per head (`qk_norm`), then rotated from the token positions by `rope`, a rotary position embedding
     called as `rope(q, k, pos)` (`AxialRoPE`, `Point3DRoPE`). The samples are given in the variable-length layout of
     flash attention: `cu_seqlens` holds the cumulative token counts $[0, n_0, n_0 + n_1, \ldots]$ of the contiguous
-    samples and `max_seqlen` the largest count (build them once from a sorted batch index with `batch_to_cu_seqlens`).
-    With `use_flash_attn`, attention runs the variable-length flash attention kernel in half precision, which needs the
-    `flash-attn` package and CUDA tensors; otherwise `scaled_dot_product_attention` over the samples padded to
-    `max_seqlen`, in the input precision (in float32, several times slower than the flash kernel on a GPU).
+    samples and `max_seqlen` the largest count, which both paths trust (build them once from a sorted batch index with
+    `batch_to_cu_seqlens`). With `use_flash_attn`, attention runs the variable-length flash attention kernel in the
+    half precision of the tokens (float32 tokens are rounded to float16), which needs the `flash-attn` package and CUDA
+    tensors; otherwise `scaled_dot_product_attention` over the samples padded to `max_seqlen`, in the input precision
+    (in float32, several times slower than the flash kernel on a GPU).
 
     Args:
         embed_dim: Token dimension $C$, divisible by `num_heads`.
@@ -261,7 +262,9 @@ class PackedAttention(nn.Module):
 
         qkv = torch.stack([q, k, v], dim=1)  # (N, 3, H, D)
         if self.use_flash_attn:
-            out = flash_attn.flash_attn_varlen_qkvpacked_func(qkv.half(), cu_seqlens, max_seqlen=max_seqlen)
+            if qkv.dtype == torch.float32:
+                qkv = qkv.half()
+            out = flash_attn.flash_attn_varlen_qkvpacked_func(qkv, cu_seqlens, max_seqlen=max_seqlen)
             out = out.reshape(N, C).to(x.dtype)
         else:
             # Index-based padding, sized from `x` and `max_seqlen`, keeps the fallback free of host synchronizations.
