@@ -228,7 +228,9 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
 def configure_model(args: Namespace) -> nn.Module:
     model = create_model(args.model, task="classification", pretrained=False)
     if not args.from_scratch:
-        load_backbone(model, MODELS[args.model]["pretrain"])
+        state = create_model(MODELS[args.model]["pretrain"], pretrained=True).state_dict()
+        state = {key: value for key, value in state.items() if not key.startswith("head.")}
+        model.load_state_dict(state, strict=False)
 
     return model.to(args.device)
 
@@ -250,14 +252,6 @@ def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, 
 
 def configure_criterion(args: Namespace) -> nn.Module:
     return nn.CrossEntropyLoss()
-
-
-def load_backbone(model: nn.Module, name: str) -> None:
-    """Load the starting entry into the classifier; its head starts fresh."""
-    state = rename_backbone(create_model(name, pretrained=True).state_dict())
-    missing, _ = model.load_state_dict(state, strict=False)
-    fresh = sorted({key.split(".")[0] for key in missing})
-    print(f"Loaded the encoder of {name!r}; freshly initialized: {', '.join(fresh)}.")
 
 
 def train_one_epoch(
@@ -296,11 +290,6 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
     accuracy = confusion.diag().sum() / confusion.sum()
     mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
     return {"acc": accuracy.item(), "mean_acc": mean_accuracy.item()}
-
-
-def rename_backbone(state: Dict[str, Tensor]) -> Dict[str, Tensor]:
-    """The starting entry's keys are the classifier's; the head of a post-pre-training classifier is dropped."""
-    return {key: value for key, value in state.items() if not key.startswith("head.")}
 
 
 if __name__ == "__main__":

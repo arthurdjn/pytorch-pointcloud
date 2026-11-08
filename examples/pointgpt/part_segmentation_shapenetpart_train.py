@@ -165,7 +165,10 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
 def configure_model(args: Namespace) -> nn.Module:
     model = create_model(args.model, task="part-segmentation", pretrained=False)
     if not args.from_scratch:
-        load_backbone(model, MODELS[args.model])
+        state = create_model(MODELS[args.model], pretrained=True).state_dict()
+        # The head is task-specific, and the authors start the norm of the fetched blocks untrained.
+        state = {key: value for key, value in state.items() if not key.startswith(("head.", "blocks.ln_f."))}
+        model.load_state_dict(state, strict=False)
 
     return model.to(args.device)
 
@@ -237,24 +240,6 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
         "ins_mIoU": float(part_mean_intersection_over_union(shape_ious, category)),
         "cls_mIoU": float(part_mean_intersection_over_union(shape_ious, category, average="macro")),
     }
-
-
-def rename_backbone(state: Dict[str, Tensor]) -> Dict[str, Tensor]:
-    """The entry's `norm` normalizes the fetched blocks; a post-pre-training classifier's norm and head are dropped."""
-    renamed: Dict[str, Tensor] = {}
-    for key, value in state.items():
-        if key.startswith(("cls_norm.", "head.", "blocks.ln_f.")):
-            continue
-        renamed["blocks.ln_f." + key.removeprefix("norm.") if key.startswith("norm.") else key] = value
-    return renamed
-
-
-def load_backbone(model: nn.Module, name: str) -> None:
-    """Load the entry's encoder into the segmentation model; its head and propagation start fresh."""
-    state = rename_backbone(create_model(name, pretrained=True).state_dict())
-    missing, _ = model.load_state_dict(state, strict=False)
-    fresh = sorted({key.split(".")[0] for key in missing})
-    print(f"Loaded the encoder of {name!r}; freshly initialized: {', '.join(fresh)}.")
 
 
 if __name__ == "__main__":
