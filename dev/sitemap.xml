@@ -289,6 +289,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/voxel_grid_pool/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/voxel_patch/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/xconv/</loc>
       </url>
       <url>
@@ -488,6 +491,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/utonia/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/volt/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/votenet/</loc>
