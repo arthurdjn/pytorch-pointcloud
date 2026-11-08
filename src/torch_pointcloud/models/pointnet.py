@@ -225,8 +225,8 @@ def _rename_former_out_norm_keys(module: nn.Module, state_dict: Dict[str, Any], 
     keys = [key for key in state_dict if key.startswith(former)]
     if keys:
         warnings.warn(
-            f"The `{former}*` keys of `PointNetEncoder` were renamed to `{prefix}out_norm.*` in 0.0.19 and will stop "
-            "loading in 0.0.20; save the loaded model's `state_dict` again to update the checkpoint.",
+            f"The `{former}*` keys of `PointNetEncoder` were renamed to `{prefix}out_norm.*` in 0.0.20 and will stop "
+            "loading in 0.0.21; save the loaded model's `state_dict` again to update the checkpoint.",
             FutureWarning,
             stacklevel=2,
         )
