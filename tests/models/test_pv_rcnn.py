@@ -1,4 +1,5 @@
 import math
+import warnings
 from typing import Dict
 
 import pytest
@@ -59,6 +60,17 @@ def test_pv_rcnn_create_model_hparams() -> None:
     assert model.num_classes == 3
     assert model.keypoint_encoder.in_channels == 640
     assert model.keypoint_encoder.out_channels == 128
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_pv_rcnn_without_dir_offset_warns() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        create_model("pv-rcnn.kitti.mmdet3d", task="detection")
+    with pytest.warns(FutureWarning, match="PVRCNNDetection"):
+        model = create_model("pv-rcnn.kitti.mmdet3d", task="detection", dir_offset=None)
+    assert isinstance(model, PVRCNNDetection)
+    assert model.dir_offset == 0.78539
 
 
 @pytest.mark.skipif(

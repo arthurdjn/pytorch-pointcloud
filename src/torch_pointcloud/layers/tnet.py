@@ -51,6 +51,8 @@ class TNet(nn.Module):
         aggr: Aggregation method to use.
         track_running_stats: Whether to keep the per-sample transforms of the last forward pass
             (`running_transform`, $(B, k, k)$) for `losses.tnet_orthogonality_regularizer`.
+        in_channels: Channels the transform is predicted from, $k$ when `None`. More than $k$ means `forward`
+            receives the extra channels as `features`, which feed the prediction but are not transformed.
     """
 
     def __init__(
@@ -67,7 +69,11 @@ class TNet(nn.Module):
         dropout: float = 0.0,
         aggr: AggrType = "max",
         track_running_stats: bool = True,
+        in_channels: Optional[int] = None,
     ) -> None:
+        if in_channels is not None and in_channels < k:
+            raise ValueError(f"`in_channels` ({in_channels}) must be at least `k` ({k}).")
+
         super().__init__()
         kwargs = dict(
             plain_last=False,
@@ -81,11 +87,12 @@ class TNet(nn.Module):
         )
 
         self.k = k
+        self.in_channels = k if in_channels is None else in_channels
         self.aggr = aggr
         self.track_running_stats = track_running_stats
         self.running_transform: OptTensor = None
 
-        local_channels = [k] + ensure_list(local_channels)
+        local_channels = [self.in_channels] + ensure_list(local_channels)
         global_channels = [local_channels[-1]] + ensure_list(global_channels)
 
         self.local_nn = MLP(local_channels, **kwargs)
@@ -98,7 +105,7 @@ class TNet(nn.Module):
         nn.init.zeros_(self.transform.weight)
         nn.init.zeros_(self.transform.bias)
 
-    def forward(self, x: Tensor, batch: Tensor) -> Tensor:
+    def forward(self, x: Tensor, batch: Tensor, features: OptTensor = None) -> Tensor:
         r"""Forward pass of the T-Net.
 
         Predicts one $k \times k$ transformation matrix per sample and applies it to the points.
@@ -107,12 +114,15 @@ class TNet(nn.Module):
             x: Input tensor of shape $(N, k)$ where $N$ is the number of points and $k$ is the
                 dimension of the input features.
             batch: Batch indices of shape $(N,)$.
+            features: Extra channels of shape $(N, \text{in\_channels} - k)$ the transform is predicted from, left
+                untransformed.
 
         Returns:
             Transformed features of shape $(N, k)$.
         """
 
-        xt = self.local_nn(x)
+        xt = x if features is None else torch.cat([x, features], dim=1)
+        xt = self.local_nn(xt)
         xt = scatter(xt, batch, dim=0, reduce=self.aggr)
         xt = self.global_nn(xt)
 

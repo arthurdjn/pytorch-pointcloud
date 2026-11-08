@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 
 from torch_pointcloud.layers.act import create_act
@@ -132,6 +133,78 @@ class BEVBackbone(nn.Module):
             x = block(x)
             ups.append(deblock(x))
         return torch.cat(ups, dim=1) if len(ups) > 1 else ups[0]
+
+
+class BEVPyramidBackbone(nn.Module):
+    r"""Multi-scale 2D BEV backbone topped by a feature pyramid, returning one feature map per level.
+
+    The levels are those of [`BEVBackbone`][torch_pointcloud.layers.bev_backbone.BEVBackbone]: a strided
+    $3\times3$ conv followed by `layer_nums` $3\times3$ convs each. The pyramid projects every level to
+    `out_channels` with a $1\times1$ conv, adds each coarser level, upsampled to the finer one by nearest
+    neighbor, top-down, and smooths every sum with a $3\times3$ conv.
+
+    Args:
+        input_channels: Channels of the input BEV feature map.
+        layer_nums: Number of $3\times3$ convs after the strided conv, per level.
+        layer_strides: Downsample stride of the leading conv, per level.
+        num_filters: Channel width, per level.
+        out_channels: Channels of every pyramid output.
+        act: Activation type or callable for every conv block.
+        act_kwargs: Extra activation arguments.
+        norm: Normalization type or callable for every conv block.
+        norm_kwargs: Extra normalization arguments.
+
+    Shape:
+        - Input: $(B, C_\text{in}, H, W)$.
+        - Output: one $(B, C_\text{out}, H_l, W_l)$ map per level, finest first.
+    """
+
+    def __init__(
+        self,
+        input_channels: int,
+        layer_nums: Sequence[int],
+        layer_strides: Sequence[int],
+        num_filters: Sequence[int],
+        out_channels: int,
+        *,
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        block_kwargs: Dict[str, Any] = dict(act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs)
+        c_in_list = [input_channels, *num_filters[:-1]]
+
+        self.blocks = nn.ModuleList()
+        self.lateral_convs = nn.ModuleList()
+        self.fpn_convs = nn.ModuleList()
+        for idx in range(len(layer_nums)):
+            level: List[nn.Module] = [
+                nn.ZeroPad2d(1),
+                Conv2dBlock(c_in_list[idx], num_filters[idx], 3, stride=layer_strides[idx], padding=0, **block_kwargs),
+            ]
+            for _ in range(layer_nums[idx]):
+                level.append(Conv2dBlock(num_filters[idx], num_filters[idx], 3, padding=1, **block_kwargs))
+            self.blocks.append(nn.Sequential(*level))
+            self.lateral_convs.append(Conv2dBlock(num_filters[idx], out_channels, 1, **block_kwargs))
+            self.fpn_convs.append(Conv2dBlock(out_channels, out_channels, 3, padding=1, **block_kwargs))
+
+        self.num_bev_features = out_channels
+
+    def forward(self, spatial_features: Tensor) -> List[Tensor]:
+        levels = []
+        x = spatial_features
+        for block in self.blocks:
+            x = block(x)
+            levels.append(x)
+
+        laterals = [conv(level) for conv, level in zip(self.lateral_convs, levels)]
+        for i in range(len(laterals) - 1, 0, -1):
+            laterals[i - 1] = laterals[i - 1] + F.interpolate(
+                laterals[i], size=laterals[i - 1].shape[2:], mode="nearest"
+            )
+        return [conv(lateral) for conv, lateral in zip(self.fpn_convs, laterals)]
 
 
 class BEVResidualBackbone(nn.Module):
