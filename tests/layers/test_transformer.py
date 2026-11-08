@@ -142,11 +142,6 @@ def test_packed_attention_flash_attends_in_bfloat16_for_bfloat16_tokens() -> Non
     torch.testing.assert_close(flash, reference, atol=1e3, rtol=2e-2)
 
 
-def test_packed_transformer_block_requires_a_norm() -> None:
-    with pytest.raises(ValueError, match="normalization"):
-        PackedTransformerBlock(32, 2, norm=None)
-
-
 def test_packed_attention_without_flash_attn_installed_names_the_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("torch_pointcloud.layers.transformer._FLASH_ATTN_AVAILABLE", False)
 

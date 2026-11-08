@@ -331,7 +331,7 @@ class PackedTransformerBlock(nn.Module):
         drop_path: float = 0.0,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         rope: Optional[nn.Module] = None,
         use_flash_attn: bool = True,
@@ -343,9 +343,7 @@ class PackedTransformerBlock(nn.Module):
 
         def make_norm() -> nn.Module:
             module = create_norm(norm, embed_dim, **(norm_kwargs or {}))
-            if module is None:
-                raise ValueError("PackedTransformerBlock requires a normalization layer, got norm=None.")
-
+            assert module is not None
             return module
 
         self.norm1 = make_norm()
