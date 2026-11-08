@@ -15,9 +15,11 @@ from .anchors import (
     AnchorHeadMultiOutput,
     AnchorHeadOutput,
     MultiGroupAnchorHead,
+    MultiLevelAnchorHead,
+    MultiLevelAnchorHeadOutput,
     prediction_branch,
 )
-from .bev_backbone import BEVBackbone, BEVResidualBackbone, ResidualBlock2d
+from .bev_backbone import BEVBackbone, BEVPyramidBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
@@ -37,6 +39,7 @@ from .linear_blocks import LinearBlock
 from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .part_segmentation_decoder import PartSegmentationDecoder
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -135,8 +138,11 @@ __all__ = [
     "AnchorHeadMultiOutput",
     "AnchorHeadOutput",
     "MultiGroupAnchorHead",
+    "MultiLevelAnchorHead",
+    "MultiLevelAnchorHeadOutput",
     "prediction_branch",
     "BEVBackbone",
+    "BEVPyramidBackbone",
     "BEVResidualBackbone",
     "ResidualBlock2d",
     "CenterHead",
@@ -165,6 +171,7 @@ __all__ = [
     "OctreeT",
     "OctreeConvBlock",
     "OctreeDeconvBlock",
+    "PartSegmentationDecoder",
     "PDNorm",
     "PointPatchEmbed",
     "PointTransformerConv",

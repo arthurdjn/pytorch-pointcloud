@@ -604,10 +604,10 @@ class NuScenes(PointCloudDataset):
         and `raw/lidarseg/<version>/` exist.
 
     Note:
-        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose a
-        `torch_pointcloud.transforms.Relabel` to project them onto the 16 benchmark classes
-        (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that mapping in their
-        transform.
+        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose
+        `Relabel(keys="segment", labels=NUSCENES_LIDARSEG_LEARNING_MAP, default=-1)` to project them onto the 16
+        benchmark classes (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that
+        mapping in their transform.
 
     Tip:
         The processed cache is keyed by `version`, `split` and `max_sweeps`, so different sweep counts coexist.

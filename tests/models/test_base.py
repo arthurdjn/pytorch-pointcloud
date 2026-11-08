@@ -78,6 +78,9 @@ def test_detection_subclass_with_full_contract_instantiates() -> None:
     assert model.num_classes == 5
     assert model.num_features == 3
 
+    with pytest.raises(ValueError, match="forward_features"):
+        MinimalDetection(in_channels=3, num_classes=0)
+
 
 @pytest.mark.parametrize(
     "model_cls",

@@ -36,6 +36,7 @@ MODEL_LABELS = {
     "dgcnn": "DGCNN",
     "kpconv": "KPConv",
     "lion": "LION",
+    "litept": "LitePT",
     "octformer": "OctFormer",
     "point_bert": "Point-BERT",
     "point_m2ae": "Point-M2AE",
@@ -96,9 +97,12 @@ DATASET_LABELS = {
     "gridnet-hd": "GridNet-HD",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
+    "structured3d": "Structured3D",
     "scannet": "ScanNet",
     "sunrgbd": "SUN RGB-D",
     "shapenet55": "ShapeNet55",
+    "labeled-hybrid": "LabeledHybrid",
+    "unlabeled-hybrid": "UnlabeledHybrid",
     "pretrain": "Multi-dataset",
 }
 LICENSE_LABELS = {"Apache-2.0": "Apache 2.0", "CC-BY-NC-4.0": "CC BY-NC 4.0", "etalab-2.0": "Etalab 2.0"}

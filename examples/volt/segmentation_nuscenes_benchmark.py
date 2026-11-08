@@ -63,7 +63,6 @@ TRANSFORM = T.Compose(
         ),
     ]
 )
-# The authors' precise evaluation: five scales, each with and without an x/y flip.
 
 
 def main() -> None:

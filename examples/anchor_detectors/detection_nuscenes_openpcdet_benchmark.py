@@ -1,4 +1,4 @@
-"""Benchmark SECOND on nuScenes with the official detection metrics."""
+"""Benchmark the OpenPCDet multihead PointPillars and SECOND checkpoints on nuScenes with the official metrics."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -24,6 +24,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+MODELS = ("pointpillars-multihead.nuscenes.openpcdet", "second-multihead.nuscenes.openpcdet")
 
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
@@ -46,10 +47,8 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark SECOND 3D detection on nuScenes.")
-    parser.add_argument(
-        "--model", default="second-multihead.nuscenes.openpcdet", help="Registered detection model name"
-    )
+    parser = ArgumentParser(description="Benchmark the OpenPCDet multihead anchor detectors on nuScenes.")
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS, help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
