@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <metadata>
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:cc="http://creativecommons.org/ns#">
+            <cc:Work rdf:about="">
+                <dc:title>favicon - torch-pointcloud</dc:title>
+                <dc:description>Project mark of torch-pointcloud.</dc:description>
+                <dc:creator><cc:Agent><dc:title>Arthur Dujardin</dc:title></cc:Agent></dc:creator>
+                <dc:rights><cc:Agent><dc:title>Copyright (c) 2024-2026 Arthur Dujardin</dc:title></cc:Agent></dc:rights>
+                <dc:source>https://github.com/arthurdjn/pytorch-pointcloud</dc:source>
+                <cc:license rdf:resource="https://www.apache.org/licenses/LICENSE-2.0"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <g fill="#EE4C2C">
+        <circle cx="164.97" cy="85.49" r="11.73" />
+        <circle cx="171.62" cy="112.94" r="12.01" />
+        <circle cx="167.17" cy="140.84" r="12.24" />
+        <circle cx="152.26" cy="164.84" r="12.41" />
+        <circle cx="129.25" cy="181.23" r="12.52" />
+        <circle cx="101.70" cy="187.45" r="12.55" />
+        <circle cx="73.89" cy="182.55" r="12.50" />
+        <circle cx="50.12" cy="167.28" r="12.38" />
+        <circle cx="34.09" cy="144.01" r="12.20" />
+        <circle cx="28.31" cy="116.36" r="11.95" />
+        <circle cx="33.66" cy="88.62" r="11.66" />
+        <circle cx="49.31" cy="65.10" r="11.33" />
+        <circle cx="68.06" cy="46.34" r="11.04" />
+        <circle cx="83.78" cy="30.63" r="8.78" />
+        <circle cx="97.97" cy="16.43" r="6.65" />
+        <circle cx="110.14" cy="4.27" r="4.27" />
+        <circle cx="137.75" cy="41.69" r="14.05" />
+    </g>
+</svg>
