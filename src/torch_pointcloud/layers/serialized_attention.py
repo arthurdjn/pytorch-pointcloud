@@ -505,11 +505,12 @@ class SerializedAttentionRoPE(nn.Module):
 
         q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
         if self.use_flash_attn and self.qkv_dtype is not None:
-            q, k, v = (t.to(self.qkv_dtype).float() for t in (q, k, v))
+            q, k = q.to(self.qkv_dtype).float(), k.to(self.qkv_dtype).float()
         q, k = self.rope(q, k, pos_ordered)
 
         if self.use_flash_attn:
-            qkv_packed = torch.stack([q, k, v], dim=1).to(self.qkv_dtype or torch.bfloat16)
+            dtype = self.qkv_dtype or torch.bfloat16
+            qkv_packed = torch.stack([q.to(dtype), k.to(dtype), v.to(dtype)], dim=1)
             feat = _flash_attend_qkv(
                 qkv_packed, layout["cu_seqlens"], patch_size, self.scale, self.attn_drop, self.training
             )

@@ -3,7 +3,8 @@
 {{ paper("2312.10035") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+import warnings
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -29,21 +30,15 @@ from torch_pointcloud.layers.serialized_attention import (
     SerializedAttentionRPE,
 )
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
-from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
+from torch_pointcloud.layers.spconv_blocks import SubMConv3d, SubMConv3dBlock
 from torch_pointcloud.models._base import ClassificationModel, SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
+from torch_pointcloud.ops import serialization
+from torch_pointcloud.ops.serialization import SerializationOrder
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
-
-if TYPE_CHECKING:
-    import spconv.pytorch as spconv
-
-
-spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 
 class SerializedFeaturesDict(PooledFeaturesDict):
@@ -129,37 +124,14 @@ def serialize(
     orders: Sequence[SerializationOrder],
     shuffle: bool = False,
 ) -> Tuple[Tensor, Tensor, Tensor]:
-    """Encode voxel-grid coordinates along one or more space-filling curves and sort the points by each code.
-
-    Args:
-        pos_grid: Non-negative integer grid coordinates of shape $(N, 3)$.
-        batch: Per-point batch index of shape $(N,)$.
-        orders: The $L$ space-filling curves to encode along, one code row per order.
-        shuffle: Whether to permute `orders` before encoding, so consecutive blocks pick different curves.
-
-    Returns:
-        The serialization codes, the permutation sorting the points by code, and its inverse, each of
-        shape $(L, N)$.
-
-    Raises:
-        ValueError: If `pos_grid` holds a negative coordinate, which would silently wrap around to a valid code.
-    """
-    if shuffle:
-        perm = torch.randperm(len(orders))
-        orders = [orders[i] for i in perm]
-
-    if pos_grid.numel() and bool(pos_grid.min() < 0):
-        raise ValueError(
-            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
-            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
-        )
-
-    # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
-    depth = max(int(pos_grid.max()).bit_length(), 1)
-    serialized_code = torch.stack([serialize_pos(pos_grid, batch, depth=depth, order=order) for order in orders])
-    serialized_order = torch.argsort(serialized_code, dim=1)
-    serialized_inverse = torch.argsort(serialized_order, dim=1)
-    return serialized_code, serialized_order, serialized_inverse
+    """Deprecated alias of `torch_pointcloud.ops.serialization.serialize`."""
+    warnings.warn(
+        "`torch_pointcloud.models.point_transformer_v3.serialize` is deprecated since 0.0.20 and will be removed in "
+        "0.0.21; use `torch_pointcloud.ops.serialization.serialize` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return serialization.serialize(pos_grid, batch, orders, shuffle)
 
 
 def _resolve_condition(
@@ -236,7 +208,7 @@ class PointTransformerV3Block(nn.Module):
         act_kwargs = act_kwargs or {}
         norm_kwargs = norm_kwargs or {}
 
-        self.cpe_conv = spconv.SubMConv3d(
+        self.cpe_conv = SubMConv3d(
             channels,
             channels,
             kernel_size=3,
@@ -289,8 +261,6 @@ class PointTransformerV3Block(nn.Module):
     ) -> Tuple[Tensor, Any]:
         norm_kwargs = {} if condition is None else {"condition": condition}
         shortcut = x
-        # spconv's inference path skips autocast, so the features must already have the weight dtype.
-        x_sparse = x_sparse.replace_feature(x_sparse.features.to(self.cpe_conv.weight.dtype))
         x_sparse = self.cpe_conv(x_sparse)
         x = self.cpe_proj(x_sparse.features)
         x = self.cpe_norm(x, **norm_kwargs)
@@ -441,7 +411,7 @@ class PointTransformerV3EncoderBlock(nn.Module):
             if isinstance(self.downsample, GridPool):
                 assert self.serialization_orders is not None, "serialization_orders must be provided for grid pooling"
                 x, pos_grid, batch, inverse, pos = self.downsample(x, pos_grid, batch, pos=pos, condition=condition)
-                serialized_code, serialized_order, serialized_inverse = serialize(
+                serialized_code, serialized_order, serialized_inverse = serialization.serialize(
                     pos_grid,
                     batch,
                     orders=self.serialization_orders,
@@ -890,7 +860,7 @@ class PointTransformerV3Encoder(nn.Module):
     ) -> Any:
         x = x if x is not None else pos_grid.float()
 
-        serialized_code, serialized_order, serialized_inverse = serialize(
+        serialized_code, serialized_order, serialized_inverse = serialization.serialize(
             pos_grid,
             batch,
             orders=self.serialization_orders,
@@ -1071,7 +1041,7 @@ class PointTransformerV3Decoder(nn.Module):
         skip_channels = ensure_tuple_size(skip_channels, size=n)
         num_heads = ensure_tuple_size(num_heads, size=n)
         patch_sizes = ensure_tuple_size(patch_sizes, size=n)
-        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
+        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths[::-1]))[::-1]
         cpe_from_skip = pooling != "grid"
 
         blocks = nn.ModuleList()
@@ -1858,21 +1828,32 @@ def _ptv3_seg_hparams(
     )
 
 
-def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimate_normals: bool = False) -> T.Compose:
-    """Color+normal feature pipeline shared by the PT-v3m1 segmentation models.
+def segmentation_transforms(
+    relabel_labels: Optional[Sequence[int]] = None,
+    estimate_normals: bool = False,
+    color_mean: float = 127.5,
+    color_std: float = 127.5,
+) -> T.Compose:
+    r"""The color and normal inference pipeline of the indoor Point Transformer V3 and LitePT segmentation checkpoints,
+    on a 2 cm grid.
 
-    `relabel_labels` shifts the dataset's $1..K$ class labels (0 reserved for unknown) down to $0..K-1$ and
-    sends everything else to the ignore index: `range(1, 21)` for ScanNet20, `range(1, 201)` for ScanNet200.
-    Pass `None` when labels are already 0-based (S3DIS).
+    Args:
+        relabel_labels: Dataset labels mapped to $0..K-1$, everything else to the ignore index: `range(1, 21)` shifts
+            the ScanNet20 labels $1..K$ (0 for unknown) down, `range(1, 201)` the ScanNet200 ones. `None` keeps labels
+            that are already 0-based (S3DIS).
+        estimate_normals: Whether to estimate the normals by local PCA, for datasets without normals (S3DIS). They
+            approximate, but do not equal, the mesh normals the released weights were trained on.
+        color_mean: Value subtracted from the 0-255 colors.
+        color_std: Value the centered colors are divided by. The defaults map the colors to $[-1, 1]$; `color_mean=0`
+            and `color_std=255` map them to $[0, 1]$.
 
-    Set `estimate_normals=True` for datasets without normals (S3DIS): normals are estimated by local PCA, which
-    approximates (does not equal) the mesh normals the released weights were trained on.
+    Returns:
+        The `T.Compose` pipeline, which also runs on clouds without labels.
     """
     steps: List[Any] = [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        # The released weights were trained on colors in $[-1, 1]$.
-        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
+        T.Normalize(keys=DataKeys.COLOR, mean=[color_mean] * 3, std=[color_std] * 3),
     ]
     if estimate_normals:
         steps.append(T.EstimateNormals(keys=DataKeys.POS, dst_keys=DataKeys.NORMAL, orient_to_centroid=True))
@@ -1900,6 +1881,43 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
     return T.Compose(steps)
 
 
+def nuscenes_segmentation_transforms() -> T.Compose:
+    r"""The inference pipeline of the nuScenes Point Transformer V3 and LitePT segmentation checkpoints: the lidarseg
+    labels mapped to the 16 benchmark classes, the position and the intensity in $[0, 1]$ as features, on a 5 cm grid.
+
+    Returns:
+        The `T.Compose` pipeline, which also runs on scans without labels.
+    """
+    return T.Compose(
+        [
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels=NUSCENES_LIDARSEG_LEARNING_MAP,
+                default=-1,
+                allow_missing_keys=True,
+            ),
+            T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
+            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY],
+                reduce="first",
+                size=0.05,
+                method="fnv",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    )
+
+
 @register_model(
     "ptv3-base.scannet20.pointcept",
     task="semantic-segmentation",
@@ -1912,7 +1930,7 @@ def _ptv3_seg_transforms(relabel_labels: Optional[Sequence[int]] = None, estimat
         author="pointcept",
         license="MIT",
     ),
-    transform=_ptv3_seg_transforms(range(1, 21)),
+    transform=segmentation_transforms(range(1, 21)),
     hparams=_ptv3_seg_hparams(20),
 )
 def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
@@ -1931,7 +1949,7 @@ def ptv3_base_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
         author="pointcept",
         license="MIT",
     ),
-    transform=_ptv3_seg_transforms(range(1, 201)),
+    transform=segmentation_transforms(range(1, 201)),
     hparams=_ptv3_seg_hparams(200),
 )
 def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
@@ -1950,7 +1968,7 @@ def ptv3_base_scannet200(**hparams: Any) -> PointTransformerV3Segmentation:
         author="pointcept",
         license="MIT",
     ),
-    transform=_ptv3_seg_transforms(None, estimate_normals=True),
+    transform=segmentation_transforms(None, estimate_normals=True),
     hparams=_ptv3_seg_hparams(13, attn_kind="rpe", patch_size=128),
 )
 def ptv3_base_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:
@@ -2042,35 +2060,7 @@ def ptv3_dales(**hparams: Any) -> PointTransformerV3Segmentation:
         author="pointcept",
         license="MIT",
     ),
-    transform=T.Compose(
-        [
-            T.Relabel(
-                keys=DataKeys.SEGMENT,
-                labels=NUSCENES_LIDARSEG_LEARNING_MAP,
-                default=-1,
-                allow_missing_keys=True,
-            ),
-            # The released weights were trained on intensities in $[0, 1]$.
-            T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
-            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
-            T.CopyItems(
-                keys=[DataKeys.POS, DataKeys.SEGMENT],
-                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
-                allow_missing_keys=True,
-            ),
-            T.Voxelize(
-                pos_key=DataKeys.POS,
-                pos_reduce="first",
-                dst_pos_grid_key=DataKeys.POS_GRID,
-                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY],
-                reduce="first",
-                size=0.05,
-                method="fnv",
-                allow_missing_keys=True,
-                dst_inverse_key=DataKeys.INVERSE,
-            ),
-        ]
-    ),
+    transform=nuscenes_segmentation_transforms(),
     hparams=_ptv3_seg_hparams(16, in_channels=4),
 )
 def ptv3_base_nuscenes(**hparams: Any) -> PointTransformerV3Segmentation:

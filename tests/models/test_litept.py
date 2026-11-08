@@ -1,12 +1,20 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import Mock
 
 import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.layers.serialized_attention import SerializedAttentionRoPE
 from torch_pointcloud.models import model_info
-from torch_pointcloud.models.litept import LitePTBlock, LitePTSegmentation, segmentation_checkpoint_filter_fn
+from torch_pointcloud.models.litept import (
+    LitePTBlock,
+    LitePTDecoder,
+    LitePTDecoderBlock,
+    LitePTSegmentation,
+    segmentation_checkpoint_filter_fn,
+)
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -66,7 +74,8 @@ def _litept(decoder_depths: Tuple[int, ...], use_flash_attn: bool = False, **kwa
 def data() -> Dict[str, Tensor]:
     torch.manual_seed(42)
     lengths = torch.tensor([256, 512])
-    pos_grid = torch.randint(0, 64, (int(lengths.sum()), 3))
+    voxels = [torch.randperm(64**3)[:n] for n in lengths.tolist()]
+    pos_grid = torch.cat([torch.stack(torch.unravel_index(v, (64, 64, 64)), dim=1) for v in voxels])
     x = torch.randn(int(lengths.sum()), 6)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
     return dict(
@@ -155,6 +164,58 @@ def test_litept_segmentation_batch_norm_kwargs(
 def test_litept_segmentation_layer_norm_builds_without_batch_norm_kwargs() -> None:
     model = _litept((1, 1), norm="layer_norm")
     assert not any(isinstance(m, nn.BatchNorm1d) for m in model.modules())
+
+
+@pytest.mark.parametrize(
+    "decoder_depths,expected",
+    [
+        pytest.param((2, 1, 1, 1), [[0.3, 0.225], [0.15], [0.075], [0.0]], id="coarse-heavy"),
+        pytest.param((1, 1, 1, 2), [[0.3], [0.225], [0.15], [0.075, 0.0]], id="fine-heavy"),
+    ],
+)
+def test_litept_decoder_drop_path_follows_the_reference_order(
+    decoder_depths: Tuple[int, ...],
+    expected: List[List[float]],
+) -> None:
+    """The reference spreads the rates over the stages finest first, each stage in reverse."""
+    decoder = LitePTDecoder(
+        encoder_channels=(12, 12, 12, 12, 12),
+        decoder_depths=decoder_depths,
+        decoder_channels=(12, 12, 12, 12),
+        decoder_num_heads=(2, 2, 2, 2),
+        decoder_patch_size=(16, 16, 16, 16),
+        decoder_attention=(True, True, True, True),
+        drop_path=0.3,
+        use_flash_attn=False,
+    )
+    rates = []
+    for stage in decoder.blocks:
+        assert isinstance(stage, LitePTDecoderBlock)
+        rates.append([b.drop_path.drop_prob if isinstance(b.drop_path, DropPath) else 0.0 for b in stage.blocks])
+    assert rates == [pytest.approx(r) for r in expected]
+
+
+def test_litept_decoder_needs_a_stage() -> None:
+    with pytest.raises(ValueError, match="at least one stage"):
+        LitePTDecoder(encoder_channels=(12,), decoder_depths=(), decoder_channels=())
+
+
+@requires_spconv
+def test_litept_decoder_convolutions_share_the_key_of_their_encoder_stage() -> None:
+    model = _litept((1, 1))
+    stage = model.decoder.blocks[1]
+    assert isinstance(stage, LitePTDecoderBlock)
+    block = stage.blocks[0]
+    assert isinstance(block, LitePTBlock)
+    assert block.cpe_conv.indice_key == "stage0"
+
+
+@requires_spconv
+def test_litept_segmentation_qkv_dtype_reaches_every_attention() -> None:
+    model = _litept((1, 1), qkv_dtype=torch.bfloat16)
+    attentions = [m for m in model.modules() if isinstance(m, SerializedAttentionRoPE)]
+    assert len(attentions) == 3
+    assert all(m.qkv_dtype == torch.bfloat16 for m in attentions)
 
 
 def test_litept_block_requires_conv_or_attention() -> None:

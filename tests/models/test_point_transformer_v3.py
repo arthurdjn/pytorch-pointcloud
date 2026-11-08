@@ -1,17 +1,21 @@
-from typing import Dict
+from typing import Dict, List, Tuple
 
 import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.models import model_info
 from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
+    PointTransformerV3Decoder,
+    PointTransformerV3DecoderBlock,
     PointTransformerV3Segmentation,
     encoder_checkpoint_filter_fn,
     segmentation_checkpoint_filter_fn,
     serialize,
 )
+from torch_pointcloud.ops import serialization
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -295,21 +299,40 @@ def test_pt_v3_segmentation_condition_is_keyword_only(
         model_seg_pdnorm(data["x"], data["pos_grid"], data["batch"], None, "ScanNet")
 
 
-def test_serialize_single_voxel_scene() -> None:
-    """An all-zero grid has `bit_length() == 0`; the depth floor keeps the encoders valid."""
-    grid = torch.zeros(6, 3, dtype=torch.long)
-    batch = torch.zeros(6, dtype=torch.long)
-    code, order, inverse = serialize(grid, batch, orders=["hilbert"])
-    assert code.shape == (1, 6)
-    assert torch.equal(order.gather(1, inverse), torch.arange(6).unsqueeze(0))
-
-
-def test_serialize_negative_grid_raises() -> None:
-    """Negative grid coordinates would silently wrap to valid codes; serialize rejects them."""
-    grid = torch.tensor([[-1, 0, 0], [1, 2, 3]], dtype=torch.long)
+def test_serialize_is_deprecated() -> None:
+    grid = torch.tensor([[0, 0, 0], [1, 2, 3]], dtype=torch.long)
     batch = torch.zeros(2, dtype=torch.long)
-    with pytest.raises(ValueError, match="non-negative"):
-        serialize(grid, batch, orders=["hilbert"])
+    with pytest.warns(FutureWarning, match="ops.serialization.serialize"):
+        code, _, _ = serialize(grid, batch, orders=["hilbert"])
+    assert torch.equal(code, serialization.serialize(grid, batch, orders=["hilbert"])[0])
+
+
+@pytest.mark.parametrize(
+    "decoder_depths,expected",
+    [
+        pytest.param((2, 1, 1, 1), [[0.3, 0.225], [0.15], [0.075], [0.0]], id="coarse-heavy"),
+        pytest.param((1, 1, 1, 2), [[0.3], [0.225], [0.15], [0.075, 0.0]], id="fine-heavy"),
+    ],
+)
+def test_pt_v3_decoder_drop_path_follows_the_reference_order(
+    decoder_depths: Tuple[int, ...],
+    expected: List[List[float]],
+) -> None:
+    """The reference spreads the rates over the stages finest first, each stage in reverse."""
+    decoder = PointTransformerV3Decoder(
+        encoder_channels=(12, 12, 12, 12, 12),
+        decoder_depths=decoder_depths,
+        decoder_channels=(12, 12, 12, 12),
+        decoder_num_heads=(2, 2, 2, 2),
+        decoder_patch_size=(16, 16, 16, 16),
+        drop_path=0.3,
+        use_flash_attn=False,
+    )
+    rates = []
+    for stage in decoder.blocks:
+        assert isinstance(stage, PointTransformerV3DecoderBlock)
+        rates.append([b.drop_path.drop_prob if isinstance(b.drop_path, DropPath) else 0.0 for b in stage.blocks])
+    assert rates == [pytest.approx(r) for r in expected]
 
 
 _RELEASED_ENCODER_KEYS = {

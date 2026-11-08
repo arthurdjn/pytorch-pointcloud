@@ -3,7 +3,7 @@
 {{ paper("2512.13689") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, overload
 
 import torch
 import torch.nn as nn
@@ -11,8 +11,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing_extensions import NotRequired
 
-import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.datasets.structured3d import STRUCTURED3D_CLASSES
 from torch_pointcloud.layers.act import create_act
@@ -21,22 +20,14 @@ from torch_pointcloud.layers.grid_pool import GridPool
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.layers.serialized_attention import PatchLayout, SerializedAttentionRoPE
 from torch_pointcloud.layers.serialized_pool import SerializedUpsample
-from torch_pointcloud.layers.spconv_blocks import SubMConv3dBlock
+from torch_pointcloud.layers.spconv_blocks import SubMConv3d, SubMConv3dBlock
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.models.point_transformer_v3 import serialize
-from torch_pointcloud.ops.serialization import SerializationOrder
+from torch_pointcloud.models.point_transformer_v3 import nuscenes_segmentation_transforms, segmentation_transforms
+from torch_pointcloud.ops.serialization import SerializationOrder, serialize
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
-
-if TYPE_CHECKING:
-    import spconv.pytorch as spconv
-
-
-spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 
 class LitePTFeaturesDict(PooledFeaturesDict):
@@ -59,8 +50,8 @@ class LitePTBlock(nn.Module):
     The early (fine) stages of LitePT keep only the residual sparse convolution of a Point Transformer V3 block
     (`conv=True`, `attention=False`); the late (coarse) stages keep only its attention and MLP, preceded by a layer
     norm in place of the convolution (`conv=False`, `attention=True`). The attention rotates $Q$ and $K$ with
-    `Point3DRoPE` indexed by the integer grid coordinates of the stage; with flash attention it rounds $Q$, $K$, $V$
-    to float16 before the rotation and attends in float16, as the released checkpoints were evaluated.
+    `Point3DRoPE` indexed by the grid coordinates of the stage; with flash attention it rounds $Q$, $K$, $V$ to
+    `qkv_dtype` before the rotation and attends in it (float16, as the released checkpoints were evaluated).
 
     Args:
         channels: Feature width.
@@ -81,10 +72,13 @@ class LitePTBlock(nn.Module):
         rope_base: Frequency base of the rotary position embedding.
         conv: Whether the block starts with the residual sparse convolution; otherwise with a layer norm.
         attention: Whether the block has the attention and MLP branches.
+        qkv_dtype: `torch.float16`, `torch.bfloat16` or `None`: flash attention rounds $Q$, $K$, $V$ to it before the
+            rotation and attends in it. `None` attends in bfloat16 without the rounding. The manual attention path
+            ignores it.
 
     Shape:
         - Input: $(N, C)$ features, their `SparseConvTensor` (`None` for a block without convolution), $(N, 3)$
-          integer grid coordinates, $(N,)$ batch.
+          float grid coordinates (the rotary positions), $(N,)$ batch.
         - Output: $(N, C)$ features and the `SparseConvTensor` holding them (`None` when none was given).
 
     Example:
@@ -93,10 +87,10 @@ class LitePTBlock(nn.Module):
         >>> from torch_pointcloud.models.litept import LitePTBlock
         >>> block = LitePTBlock(channels=12, num_heads=2, patch_size=16, conv=False, use_flash_attn=False)
         >>> x = torch.randn(40, 12)
-        >>> pos_grid = torch.randint(0, 8, (40, 3))
+        >>> pos = torch.cartesian_prod(torch.arange(4), torch.arange(5), torch.arange(2)).float()
         >>> batch = torch.zeros(40, dtype=torch.long)
         >>> order = torch.randperm(40)
-        >>> y, _ = block(x, None, pos_grid, batch, order, torch.argsort(order))
+        >>> y, _ = block(x, None, pos, batch, order, torch.argsort(order))
         >>> y.shape
         torch.Size([40, 12])
 
@@ -123,6 +117,7 @@ class LitePTBlock(nn.Module):
         rope_base: float = 100.0,
         conv: bool = True,
         attention: bool = True,
+        qkv_dtype: Optional[torch.dtype] = torch.float16,
     ) -> None:
         if not conv and not attention:
             raise ValueError(
@@ -136,7 +131,7 @@ class LitePTBlock(nn.Module):
         self.use_attention = attention
 
         if conv:
-            self.cpe_conv = spconv.SubMConv3d(
+            self.cpe_conv = SubMConv3d(
                 channels,
                 channels,
                 kernel_size=3,
@@ -162,7 +157,7 @@ class LitePTBlock(nn.Module):
                 upcast_attn=upcast_attn,
                 upcast_softmax=upcast_softmax,
                 rope_base=rope_base,
-                qkv_dtype=torch.float16,
+                qkv_dtype=qkv_dtype,
             )
             self.norm2: nn.Module = create_norm("layer_norm", channels, mode="node") or nn.Identity()
             self.mlp = nn.Sequential(
@@ -178,15 +173,13 @@ class LitePTBlock(nn.Module):
         self,
         x: Tensor,
         x_sparse: Any,
-        pos_grid: Tensor,
+        pos: Tensor,
         batch: Tensor,
         serialized_order: OptTensor = None,
         serialized_inverse: OptTensor = None,
         patch_layout: Optional[PatchLayout] = None,
     ) -> Tuple[Tensor, Any]:
         if self.use_conv:
-            # spconv's inference path skips autocast, so the features must already have the weight dtype.
-            x_sparse = x_sparse.replace_feature(x_sparse.features.to(self.cpe_conv.weight.dtype))
             x_sparse = self.cpe_conv(x_sparse)
             x_conv = self.cpe_proj(x_sparse.features)
             x = x + self.cpe_norm(x_conv)
@@ -198,11 +191,11 @@ class LitePTBlock(nn.Module):
             x = self.norm1(x)
             x = self.attn(
                 x,
-                pos_grid,
+                None,
                 batch,
                 serialized_order=serialized_order,
                 serialized_inverse=serialized_inverse,
-                pos=pos_grid.float(),
+                pos=pos,
                 patch_layout=patch_layout,
             )
             x = shortcut + self.drop_path(x)
@@ -224,27 +217,30 @@ def _forward_blocks(
     batch: Tensor,
     serialized_order: OptTensor,
     serialized_inverse: OptTensor,
+    conv: bool,
+    attention: bool,
 ) -> Tensor:
-    """Run the `LitePTBlock` units of one stage, cycling the attention blocks through the serialization orders."""
+    """Forward the `LitePTBlock` units of one stage, cycling the attention blocks through the serialization orders."""
     if len(blocks) == 0:
         return x
 
     # Building the `SparseConvTensor` synchronizes with the host, so only a stage that convolves pays for it.
-    use_conv = any(isinstance(block, LitePTBlock) and block.use_conv for block in blocks)
-    x_sparse = convert_to_spconv_tensor(x, pos_grid, batch) if use_conv else None
+    x_sparse = convert_to_spconv_tensor(x, pos_grid, batch) if conv else None
+    pos = pos_grid.float()
     layout: Optional[PatchLayout] = None
-    attention_blocks = [block for block in blocks if isinstance(block, LitePTBlock) and block.use_attention]
-    if attention_blocks:
+    if attention:
         if serialized_order is None or serialized_inverse is None:
             raise ValueError("A stage with attention blocks needs `serialized_order` and `serialized_inverse`.")
 
-        layout = attention_blocks[0].attn.patch_layout(batch)
+        first = blocks[0]
+        assert isinstance(first, LitePTBlock)
+        layout = first.attn.patch_layout(batch)
     for i, block in enumerate(blocks):
         order_idx = i % len(serialized_order) if serialized_order is not None else 0
         x, x_sparse = block(
             x,
             x_sparse,
-            pos_grid,
+            pos,
             batch,
             serialized_order=serialized_order[order_idx] if serialized_order is not None else None,
             serialized_inverse=serialized_inverse[order_idx] if serialized_inverse is not None else None,
@@ -284,9 +280,11 @@ class LitePTEncoderBlock(nn.Module):
         downsample: Optional[GridPool] = None,
         serialization_orders: Sequence[SerializationOrder] = ("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders: bool = False,
+        qkv_dtype: Optional[torch.dtype] = torch.float16,
     ) -> None:
         super().__init__()
         self.channels = channels
+        self.use_conv = conv
         self.use_attention = attention
         self.downsample = downsample
         self.serialization_orders = ensure_tuple(serialization_orders)
@@ -315,6 +313,7 @@ class LitePTEncoderBlock(nn.Module):
                     rope_base=rope_base,
                     conv=conv,
                     attention=attention,
+                    qkv_dtype=qkv_dtype,
                 )
             )
 
@@ -338,7 +337,16 @@ class LitePTEncoderBlock(nn.Module):
                 shuffle=self.shuffle_serialization_orders and self.training,
             )
 
-        x = _forward_blocks(self.blocks, x, pos_grid, batch, serialized_order, serialized_inverse)
+        x = _forward_blocks(
+            self.blocks,
+            x,
+            pos_grid,
+            batch,
+            serialized_order,
+            serialized_inverse,
+            conv=self.use_conv,
+            attention=self.use_attention,
+        )
         return x, pos_grid, batch, inverse, serialized_order, serialized_inverse
 
 
@@ -373,9 +381,11 @@ class LitePTDecoderBlock(nn.Module):
         cpe_indice_key: Optional[str] = None,
         serialization_orders: Sequence[SerializationOrder] = ("z", "z-trans", "hilbert", "hilbert-trans"),
         shuffle_serialization_orders: bool = False,
+        qkv_dtype: Optional[torch.dtype] = torch.float16,
     ) -> None:
         super().__init__()
         self.channels = channels
+        self.use_conv = conv
         self.use_attention = attention
         self.upsample = upsample
         self.serialization_orders = ensure_tuple(serialization_orders)
@@ -404,6 +414,7 @@ class LitePTDecoderBlock(nn.Module):
                     rope_base=rope_base,
                     conv=conv,
                     attention=attention,
+                    qkv_dtype=qkv_dtype,
                 )
             )
 
@@ -426,7 +437,16 @@ class LitePTDecoderBlock(nn.Module):
                 shuffle=self.shuffle_serialization_orders and self.training,
             )
 
-        x = _forward_blocks(self.blocks, x, pos_grid_skip, batch_skip, serialized_order_skip, serialized_inverse_skip)
+        x = _forward_blocks(
+            self.blocks,
+            x,
+            pos_grid_skip,
+            batch_skip,
+            serialized_order_skip,
+            serialized_inverse_skip,
+            conv=self.use_conv,
+            attention=self.use_attention,
+        )
         return x, pos_grid_skip, batch_skip
 
 
@@ -450,8 +470,7 @@ class LitePTEncoder(nn.Module):
         norm: Normalization of the stem and poolings, passed to `create_norm`.
         act: Activation, passed to `create_act`.
         act_kwargs: Extra keyword arguments for the activation.
-        norm_kwargs: Extra keyword arguments for the normalization; `None` gives `"batch_norm"` the authors'
-            `eps=1e-3` and `momentum=0.01`.
+        norm_kwargs: Extra keyword arguments for the normalization.
         mlp_ratio: Hidden-to-input width ratio of the block MLPs.
         qkv_bias: Whether the QKV projections have a bias.
         qk_scale: Attention logit scale; `None` uses $1 / \sqrt{\text{head\_dim}}$.
@@ -463,6 +482,8 @@ class LitePTEncoder(nn.Module):
             device; pass `use_flash_attn=False` to run without it.
         upcast_attn: Whether the manual attention path computes the logits in fp32.
         upcast_softmax: Whether the manual attention path computes the softmax in fp32.
+        qkv_dtype: `torch.float16` (the released checkpoints), `torch.bfloat16` or `None`: flash attention rounds $Q$,
+            $K$, $V$ to it before the rotation and attends in it. `None` attends in bfloat16 without the rounding.
 
     Shape:
         - Input: $(N, \text{in\_channels})$ features, $(N, 3)$ integer grid coordinates, $(N,)$ batch.
@@ -495,10 +516,9 @@ class LitePTEncoder(nn.Module):
         use_flash_attn: bool = True,
         upcast_attn: bool = False,
         upcast_softmax: bool = False,
+        qkv_dtype: Optional[torch.dtype] = torch.float16,
     ) -> None:
         super().__init__()
-        if norm_kwargs is None and norm == "batch_norm":
-            norm_kwargs = {"eps": 1e-3, "momentum": 0.01}
         depths = ensure_tuple(encoder_depths)
         n = len(depths)
         channels = ensure_tuple_size(encoder_channels, size=n)
@@ -563,12 +583,13 @@ class LitePTEncoder(nn.Module):
                     downsample=downsample,
                     serialization_orders=self.serialization_orders,
                     shuffle_serialization_orders=shuffle_serialization_orders,
+                    qkv_dtype=qkv_dtype,
                 )
             )
 
     @property
     def embedding_dim(self) -> int:
-        """Feature dimension $C$ of the encoder output."""
+        r"""Feature dimension $C$ of the encoder output."""
         last = self.blocks[-1]
         assert isinstance(last, LitePTEncoderBlock)
         return last.channels
@@ -638,8 +659,7 @@ class LitePTDecoder(nn.Module):
         norm: Normalization of the unpooling projections, passed to `create_norm`.
         act: Activation, passed to `create_act`.
         act_kwargs: Extra keyword arguments for the activation.
-        norm_kwargs: Extra keyword arguments for the normalization; `None` gives `"batch_norm"` the authors'
-            `eps=1e-3` and `momentum=0.01`.
+        norm_kwargs: Extra keyword arguments for the normalization.
         mlp_ratio: Hidden-to-input width ratio of the block MLPs.
         qkv_bias: Whether the QKV projections have a bias.
         qk_scale: Attention logit scale; `None` uses $1 / \sqrt{\text{head\_dim}}$.
@@ -650,6 +670,11 @@ class LitePTDecoder(nn.Module):
         use_flash_attn: Whether attention runs through flash attention.
         upcast_attn: Whether the manual attention path computes the logits in fp32.
         upcast_softmax: Whether the manual attention path computes the softmax in fp32.
+        qkv_dtype: `torch.float16` (the released checkpoints), `torch.bfloat16` or `None`: flash attention rounds $Q$,
+            $K$, $V$ to it before the rotation and attends in it. `None` attends in bfloat16 without the rounding.
+
+    Raises:
+        ValueError: If `decoder_depths` is empty: the decoder unpools through at least one encoder skip.
 
     Shape:
         - Input: $(N_L, C_L)$ coarsest encoder features and the encoder intermediates.
@@ -681,10 +706,14 @@ class LitePTDecoder(nn.Module):
         use_flash_attn: bool = True,
         upcast_attn: bool = False,
         upcast_softmax: bool = False,
+        qkv_dtype: Optional[torch.dtype] = torch.float16,
     ) -> None:
+        if len(decoder_depths) == 0:
+            raise ValueError(
+                "LitePTDecoder needs at least one stage, so the encoder needs at least two; got decoder_depths=()."
+            )
+
         super().__init__()
-        if norm_kwargs is None and norm == "batch_norm":
-            norm_kwargs = {"eps": 1e-3, "momentum": 0.01}
         depths = ensure_tuple(decoder_depths)
         n = len(depths)
         encoder_channels = ensure_tuple_size(encoder_channels, size=n + 1)
@@ -694,7 +723,7 @@ class LitePTDecoder(nn.Module):
         patch_sizes = ensure_tuple_size(decoder_patch_size, size=n)
         convs = ensure_tuple_size(decoder_conv, size=n)
         attentions = ensure_tuple_size(decoder_attention, size=n)
-        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths))[::-1]
+        drop_paths = torch.split(torch.linspace(0, drop_path, sum(depths)), list(depths[::-1]))[::-1]
 
         self.blocks = nn.ModuleList()
         for i in range(n):
@@ -728,15 +757,16 @@ class LitePTDecoder(nn.Module):
                     rope_base=rope_base,
                     conv=convs[i],
                     attention=attentions[i],
-                    cpe_indice_key=f"stage{i}",
+                    cpe_indice_key=f"stage{n - 1 - i}",
                     serialization_orders=serialization_orders,
                     shuffle_serialization_orders=shuffle_serialization_orders,
+                    qkv_dtype=qkv_dtype,
                 )
             )
 
     @property
     def out_channels(self) -> int:
-        """Feature dimension $C$ of the decoder output."""
+        r"""Feature dimension $C$ of the decoder output."""
         last = self.blocks[-1]
         assert isinstance(last, LitePTDecoderBlock)
         return last.channels
@@ -798,6 +828,8 @@ class LitePTSegmentation(SemanticSegmentationModel):
             to run without it (the sparse convolutions still need a `spconv` build matching the device).
         upcast_attn: Whether the manual attention path computes the logits in fp32.
         upcast_softmax: Whether the manual attention path computes the softmax in fp32.
+        qkv_dtype: `torch.float16` (the released checkpoints), `torch.bfloat16` or `None`: flash attention rounds $Q$,
+            $K$, $V$ to it before the rotation and attends in it. `None` attends in bfloat16 without the rounding.
         dropout: Dropout on the per-point features entering the head.
         act_kwargs: Extra keyword arguments for the activation.
         norm_kwargs: Extra keyword arguments for the normalization; `None` gives `"batch_norm"` the authors'
@@ -818,7 +850,7 @@ class LitePTSegmentation(SemanticSegmentationModel):
 
         model = LitePTSegmentation(in_channels=6, num_classes=20, use_flash_attn=False).cuda()
         x = torch.randn(1000, 6).cuda()
-        pos_grid = torch.randint(0, 100, (1000, 3)).cuda()
+        pos_grid = torch.cartesian_prod(torch.arange(10), torch.arange(10), torch.arange(10)).cuda()
         batch = torch.zeros(1000, dtype=torch.long).cuda()
         logits = model(x, pos_grid, batch)  # (1000, 20)
         ```
@@ -855,11 +887,15 @@ class LitePTSegmentation(SemanticSegmentationModel):
         use_flash_attn: bool = True,
         upcast_attn: bool = False,
         upcast_softmax: bool = False,
+        qkv_dtype: Optional[torch.dtype] = torch.float16,
         dropout: float = 0.0,
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if norm_kwargs is None and norm == "batch_norm":
+            norm_kwargs = {"eps": 1e-3, "momentum": 0.01}
+
         self.serialization_orders = serialization_orders
         self.shuffle_serialization_orders = shuffle_serialization_orders
         self.strides = strides
@@ -887,6 +923,7 @@ class LitePTSegmentation(SemanticSegmentationModel):
         self.use_flash_attn = use_flash_attn
         self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
+        self.qkv_dtype = qkv_dtype
         self.dropout = dropout
         self.act_kwargs = act_kwargs
         self.norm_kwargs = norm_kwargs
@@ -922,6 +959,7 @@ class LitePTSegmentation(SemanticSegmentationModel):
             use_flash_attn=self.use_flash_attn,
             upcast_attn=self.upcast_attn,
             upcast_softmax=self.upcast_softmax,
+            qkv_dtype=self.qkv_dtype,
         )
 
     def configure_decoder(self) -> LitePTDecoder:
@@ -950,11 +988,12 @@ class LitePTSegmentation(SemanticSegmentationModel):
             use_flash_attn=self.use_flash_attn,
             upcast_attn=self.upcast_attn,
             upcast_softmax=self.upcast_softmax,
+            qkv_dtype=self.qkv_dtype,
         )
 
     @property
     def num_features(self) -> int:
-        """Channel count $C$ of the per-point decoder features entering the head."""
+        r"""Channel count $C$ of the per-point decoder features entering the head."""
         return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
@@ -1097,73 +1136,6 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
     return state_dict
 
 
-def _litept_indoor_transforms(relabel_labels: Optional[Sequence[int]] = None) -> T.Compose:
-    """Color + normal feature pipeline of the released indoor checkpoints, on a 2 cm grid.
-
-    `relabel_labels` shifts the dataset's $1..K$ class labels (0 reserved for unknown) down to $0..K-1$ and sends
-    everything else to the ignore index (`range(1, 21)` for ScanNet20); `None` keeps labels that are already 0-based.
-    """
-    steps: List[Any] = [
-        T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
-        T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        # The released weights were trained on colors in $[0, 1]$.
-        T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
-        T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-    ]
-    if relabel_labels is not None:
-        steps.append(T.Relabel(keys=DataKeys.SEGMENT, labels=relabel_labels, default=-1, allow_missing_keys=True))
-    steps += [
-        T.CopyItems(
-            keys=[DataKeys.POS, DataKeys.SEGMENT],
-            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
-            allow_missing_keys=True,
-        ),
-        T.Voxelize(
-            pos_key=DataKeys.POS,
-            pos_reduce="first",
-            dst_pos_grid_key=DataKeys.POS_GRID,
-            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
-            reduce="first",
-            size=0.02,
-            method="fnv",
-            allow_missing_keys=True,
-            dst_inverse_key=DataKeys.INVERSE,
-        ),
-    ]
-    return T.Compose(steps)
-
-
-_LITEPT_NUSCENES_TRANSFORM = T.Compose(
-    [
-        T.Relabel(
-            keys=DataKeys.SEGMENT,
-            labels=NUSCENES_LIDARSEG_LEARNING_MAP,
-            default=-1,
-            allow_missing_keys=True,
-        ),
-        # The released weights were trained on intensities in $[0, 1]$.
-        T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
-        T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
-        T.CopyItems(
-            keys=[DataKeys.POS, DataKeys.SEGMENT],
-            dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
-            allow_missing_keys=True,
-        ),
-        T.Voxelize(
-            pos_key=DataKeys.POS,
-            pos_reduce="first",
-            dst_pos_grid_key=DataKeys.POS_GRID,
-            keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY],
-            reduce="first",
-            size=0.05,
-            method="fnv",
-            allow_missing_keys=True,
-            dst_inverse_key=DataKeys.INVERSE,
-        ),
-    ]
-)
-
-
 @register_model(
     "litept-small.scannet20.prs-eth",
     task="semantic-segmentation",
@@ -1176,7 +1148,7 @@ _LITEPT_NUSCENES_TRANSFORM = T.Compose(
         author="prs-eth",
         license="MIT",
     ),
-    transform=_litept_indoor_transforms(range(1, 21)),
+    transform=segmentation_transforms(range(1, 21), color_mean=0.0, color_std=255.0),
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -1220,7 +1192,7 @@ def litept_small_scannet20(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=_LITEPT_NUSCENES_TRANSFORM,
+    transform=nuscenes_segmentation_transforms(),
     hparams=dict(
         in_channels=4,
         num_classes=16,
@@ -1264,7 +1236,7 @@ def litept_small_nuscenes(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=_LITEPT_NUSCENES_TRANSFORM,
+    transform=nuscenes_segmentation_transforms(),
     hparams=dict(
         in_channels=4,
         num_classes=16,
@@ -1307,7 +1279,7 @@ def litept_large_nuscenes(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=_litept_indoor_transforms(),
+    transform=segmentation_transforms(color_mean=0.0, color_std=255.0),
     hparams=dict(
         in_channels=6,
         num_classes=25,
@@ -1350,7 +1322,7 @@ def litept_small_structured3d(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=_litept_indoor_transforms(),
+    transform=segmentation_transforms(color_mean=0.0, color_std=255.0),
     hparams=dict(
         in_channels=6,
         num_classes=25,
@@ -1393,7 +1365,7 @@ def litept_base_structured3d(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=_litept_indoor_transforms(),
+    transform=segmentation_transforms(color_mean=0.0, color_std=255.0),
     hparams=dict(
         in_channels=6,
         num_classes=25,
