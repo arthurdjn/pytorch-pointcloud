@@ -39,8 +39,7 @@ _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
-# dataset here (SUN RGB-D, ModelNet40 HDF5, ScanNet200, the KITTI split files) and the unreleased SphereFormer
-# weights have no row.
+# dataset here (SUN RGB-D, ScanNet200, the KITTI split files) and the unreleased SphereFormer weights have no row.
 BENCHMARKS = [
     pytest.param("spunet/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="spunet/scannet"),
     pytest.param(
@@ -71,6 +70,14 @@ BENCHMARKS = [
         marks=_CLUSTER,
         id="pointnext/scanobjectnn",
     ),
+    pytest.param("pointnet/segmentation_s3dis_benchmark.py", ("--limit", "1"), id="pointnet/s3dis"),
+    pytest.param("pointnet/classification_modelnet40_benchmark.py", ("--limit", "4"), id="pointnet/modelnet40"),
+    pytest.param(
+        "pointnet/classification_scanobjectnn_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="pointnet/scanobjectnn",
+    ),
     pytest.param(
         "pointnet2/segmentation_s3dis_benchmark.py",
         ("--model", "pointnet2.s3dis-area5.xu-yan", "--limit", "1"),
@@ -96,6 +103,18 @@ BENCHMARKS = [
         id="pointnet2/scanobjectnn",
     ),
     pytest.param("pvcnn/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="pvcnn/s3dis"),
+    pytest.param(
+        "pvcnn/part_segmentation_shapenetpart_benchmark.py",
+        ("--limit", "4", "--num-votes", "2"),
+        marks=_CLUSTER,
+        id="pvcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointnet2/part_segmentation_shapenetpart_benchmark.py",
+        ("--model", "pointnet2-msg.shapenetpart.mit-han-lab", "--limit", "4", "--num-votes", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/shapenetpart",
+    ),
     pytest.param("sonata/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="sonata/scannet"),
     pytest.param(
         "concerto/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="concerto/scannet"
@@ -130,6 +149,24 @@ BENCHMARKS = [
         ("--model", "ptv3.gridnet-hd.heig-vd-geo", "--limit", "1"),
         marks=(*_GPU_SPCONV, _REQUIRES_LASPY),
         id="ptv3/gridnethd",
+    ),
+    pytest.param(
+        "litept/segmentation_scannet_benchmark.py",
+        ("--model", "litept-small.scannet20.prs-eth", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes-simple",
     ),
     pytest.param(
         "point_transformer/segmentation_s3dis_benchmark.py",
@@ -296,6 +333,12 @@ BENCHMARKS = [
         id="pointgpt/scanobjectnn",
     ),
     pytest.param(
+        "pointgpt/part_segmentation_shapenetpart_benchmark.py",
+        ("--model", "pointgpt-s.shapenetpart.guangyan-chen", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointgpt/shapenetpart",
+    ),
+    pytest.param(
         "point_mamba/classification_modelnet40_benchmark.py",
         ("--model", "point-mamba-base.modelnet40.dingkang-liang", "--limit", "8"),
         marks=_GPU_MAMBA,
@@ -317,36 +360,108 @@ BENCHMARKS = [
         id="votenet/scannet",
     ),
     pytest.param(
+        "votenet/detection_scannet_benchmark.py",
+        ("--model", "votenet.scannet.mmdet3d", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/scannet-mmdet3d",
+    ),
+    pytest.param(
+        "votenet/detection_sunrgbd_benchmark.py",
+        ("--model", "votenet.sunrgbd.mmdet3d", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/sunrgbd-mmdet3d",
+    ),
+    pytest.param(
+        "threedetr/detection_sunrgbd_benchmark.py",
+        ("--model", "3detr-m.sunrgbd.fair", "--limit", "2"),
+        marks=_CLUSTER,
+        id="3detr/sunrgbd",
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
         id="3detr/scannet",
     ),
     pytest.param(
-        "second/detection_kitti_benchmark.py",
+        "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
         ("--model", "second.kitti.openpcdet", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="second/kitti",
+        id="anchor_detectors/second.kitti.openpcdet",
     ),
     pytest.param(
-        "second/detection_nuscenes_benchmark.py",
+        "anchor_detectors/detection_nuscenes_openpcdet_benchmark.py",
         ("--model", "second-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="second/nuscenes",
+        id="anchor_detectors/second-multihead.nuscenes.openpcdet",
     ),
     pytest.param(
-        "pointpillars/detection_kitti_benchmark.py",
+        "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
         ("--model", "pointpillars.kitti.openpcdet", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="pointpillars/kitti",
+        id="anchor_detectors/pointpillars.kitti.openpcdet",
     ),
     pytest.param(
-        "pointpillars/detection_nuscenes_benchmark.py",
+        "anchor_detectors/detection_nuscenes_openpcdet_benchmark.py",
         ("--model", "pointpillars-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="pointpillars/nuscenes",
+        id="anchor_detectors/pointpillars-multihead.nuscenes.openpcdet",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_nuscenes_mmdet3d_benchmark.py",
+        ("--model", "pointpillars.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars.nuscenes.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_nuscenes_mmdet3d_benchmark.py",
+        ("--model", "pointpillars-fpn.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars-fpn.nuscenes.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "pointpillars.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars.kitti.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "pointpillars.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars.kitti-car.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "second.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second.kitti.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "second.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second.kitti-car.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "second-dynamic-voxel.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second-dynamic-voxel.kitti.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
+        ("--model", "second-iou.kitti.openpcdet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second-iou.kitti.openpcdet",
     ),
     pytest.param("pointrcnn/detection_kitti_benchmark.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
+    pytest.param(
+        "pointrcnn/detection_kitti_benchmark.py",
+        ("--model", "pointrcnn-iou.kitti.openpcdet", "--limit", "2"),
+        marks=_CLUSTER,
+        id="pointrcnn/kitti-iou",
+    ),
     pytest.param(
         "parta2/detection_kitti_benchmark.py",
         ("--model", "part-a2.kitti.mmdet3d", "--limit", "2"),
@@ -477,6 +592,12 @@ TRAININGS = [
         id="pointgpt/scanobjectnn",
     ),
     pytest.param(
+        "pointgpt/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointgpt/shapenetpart-train",
+    ),
+    pytest.param(
         "pointmlp/classification_scanobjectnn_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2"),
         marks=_CLUSTER,
@@ -501,23 +622,28 @@ TRAININGS = [
         id="pointnet2/s3dis-xu-yan",
     ),
     pytest.param(
-        "pointnet2/segmentation_s3dis_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.s3dis-area5", "--batch-size", "2"),
-        marks=_CLUSTER,
-        id="pointnet2/s3dis-pointnet",
-    ),
-    pytest.param(
         "pointnet2/classification_modelnet40_train.py",
         (*_SMOKE_RECIPE, "--model", "pointnet2-msg.modelnet40.xu-yan", "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointnet2/modelnet40-msg",
     ),
     pytest.param(
-        "pointnet2/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2"),
-        marks=_CLUSTER,
+        "pointnet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        id="pointnet/modelnet40-jiawei-ren",
+    ),
+    pytest.param(
+        "pointnet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2", "--val-batch-size", "2"),
         id="pointnet/modelnet40",
     ),
+    pytest.param(
+        "pointnet/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet/scanobjectnn",
+    ),
+    pytest.param("pointnet/segmentation_s3dis_train.py", (*_SMOKE_RECIPE, "--batch-size", "2"), id="pointnet/s3dis"),
     pytest.param(
         "pointnext/classification_scanobjectnn_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
@@ -597,6 +723,12 @@ TRAININGS = [
         id="point_transformer_v3/s3dis",
     ),
     pytest.param(
+        "litept/segmentation_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet-train",
+    ),
+    pytest.param(
         "pvcnn/segmentation_s3dis_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
@@ -607,6 +739,26 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--model", "pvcnn2.s3dis-area5.mit-han-lab", "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="pvcnn/s3dis-pvcnn2",
+    ),
+    pytest.param(
+        "pvcnn/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pvcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointnet2/part_segmentation_shapenetpart_train.py",
+        (
+            *_SMOKE_RECIPE,
+            "--model",
+            "pointnet2-msg.shapenetpart.mit-han-lab",
+            "--batch-size",
+            "2",
+            "--val-batch-size",
+            "2",
+        ),
+        marks=_CLUSTER,
+        id="pointnet2/shapenetpart",
     ),
     pytest.param(
         "randlanet/segmentation_semantickitti_train.py",
@@ -882,8 +1034,6 @@ def test_every_script_has_a_row() -> None:
         "pointmlp/classification_modelnet40_benchmark.py",
         "pointnext/classification_modelnet40_benchmark.py",
         "sphereformer/segmentation_semantickitti_benchmark.py",
-        "threedetr/detection_sunrgbd_benchmark.py",
-        "votenet/detection_sunrgbd_benchmark.py",
     }
     covered = {str(param.values[0]) for param in BENCHMARKS + TRAININGS}
     scripts = {path.relative_to(EXAMPLES_DIR).as_posix() for path in EXAMPLES_DIR.glob("*/*.py")}

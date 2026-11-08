@@ -51,6 +51,19 @@ SUNRGBD_CLASSES = (
 )
 SUNRGBD_CLASS_TO_IDX = {name: i for i, name in enumerate(SUNRGBD_CLASSES)}
 
+SUNRGBD_MEAN_SIZES = [
+    [2.114256, 1.620300, 0.927272],
+    [0.791118, 1.279516, 0.718182],
+    [0.923508, 1.867419, 0.845495],
+    [0.591958, 0.552978, 0.827272],
+    [0.699104, 0.454178, 0.756250],
+    [0.695190, 1.346299, 0.736364],
+    [0.528526, 1.002642, 1.172878],
+    [0.500618, 0.632163, 0.683424],
+    [0.404671, 1.071108, 1.688889],
+    [0.765840, 1.398258, 0.472728],
+]
+
 
 def rebase_sequence(path: str) -> str:
     r"""Rebase an absolute SUN RGB-D scene path to a sequence id relative to `SUNRGBD/`.

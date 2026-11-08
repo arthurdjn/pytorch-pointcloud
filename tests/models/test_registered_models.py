@@ -87,6 +87,8 @@ CLASSIFICATION_MODELS = [
     "pointgpt-l.scanobjectnn-hardest.guangyan-chen",
     "pointgpt-l.scanobjectnn-objbg.guangyan-chen",
     "pointgpt-l.scanobjectnn-objonly.guangyan-chen",
+    "pointgpt-b.labeled-hybrid.guangyan-chen",
+    "pointgpt-l.labeled-hybrid.guangyan-chen",
     "pointmlp-base",
     "pointmlp-base.modelnet40.xu-ma",
     "pointmlp-base.scanobjectnn-hardest.xu-ma",
@@ -94,6 +96,8 @@ CLASSIFICATION_MODELS = [
     "pointmlp-elite.modelnet40.xu-ma",
     "pointmlp-elite.scanobjectnn-hardest.xu-ma",
     "pointnet.modelnet40",
+    "pointnet.modelnet40.jiawei-ren",
+    "pointnet.scanobjectnn-hardest.openpoints",
     "pointnet2.modelnet40.openpoints",
     "pointnet2.scanobjectnn-hardest.openpoints",
     "pointnet2-msg.modelnet40.xu-yan",
@@ -166,6 +170,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "pointmlp-base",
     "pointmlp-elite",
     "pointnet.s3dis-area5",
+    "pointnet.s3dis-area5.xu-yan",
     "pointnet.shapenetpart",
     "pointnet2.s3dis-area1.openpoints",
     "pointnet2.s3dis-area2.openpoints",
@@ -182,6 +187,12 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3.dales.jayakumar-pujar",
     "ptv3-base.nuscenes.pointcept",
     "ptv3.gridnet-hd.heig-vd-geo",
+    "litept-small.scannet20.prs-eth",
+    "litept-small.nuscenes.prs-eth",
+    "litept-large.nuscenes.prs-eth",
+    "litept-small.structured3d.prs-eth",
+    "litept-base.structured3d.prs-eth",
+    "litept-large.structured3d.prs-eth",
     "pvcnn.s3dis-area5.mit-han-lab",
     "pvcnn-c0p25.s3dis-area5.mit-han-lab",
     "pvcnn-c0p125.s3dis-area5.mit-han-lab",
@@ -236,13 +247,24 @@ PART_SEGMENTATION_MODELS = [
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-mae-base.shapenetpart.yatian-pang",
     "point2vec.shapenetpart.karim-knaebel",
+    "pointgpt-s.shapenetpart.guangyan-chen",
+    "pointgpt-b.shapenetpart.guangyan-chen",
+    "pointgpt-l.shapenetpart.guangyan-chen",
+    "pointnet2-ssg.shapenetpart.mit-han-lab",
+    "pointnet2-msg.shapenetpart.mit-han-lab",
     "pointnext-sm.shapenetpart.openpoints",
     "pointnext-sm-c64.shapenetpart.openpoints",
     "pointnext-sm-c160.shapenetpart.openpoints",
+    "pvcnn.shapenetpart.mit-han-lab",
+    "pvcnn-c0p5.shapenetpart.mit-han-lab",
+    "pvcnn-c0p25.shapenetpart.mit-han-lab",
+    "pvcnn-dml.shapenetpart.mit-han-lab",
+    "pvcnn-c0p25-dml.shapenetpart.mit-han-lab",
     "recon.shapenetpart.zekun-qi",
 ]
 DETECTION_MODELS = [
     "3detr-m.scannet.fair",
+    "3detr-m.sunrgbd.fair",
     "3detr.scannet.fair",
     "3detr.sunrgbd.fair",
     "centerpoint-pillar02.nuscenes.mmdet3d",
@@ -251,15 +273,26 @@ DETECTION_MODELS = [
     "lion-mamba.nuscenes.zhe-liu",
     "part-a2.kitti-car.mmdet3d",
     "part-a2.kitti.mmdet3d",
+    "pointpillars-fpn.nuscenes.mmdet3d",
     "pointpillars-multihead.nuscenes.openpcdet",
+    "pointpillars.kitti-car.mmdet3d",
+    "pointpillars.kitti.mmdet3d",
     "pointpillars.kitti.openpcdet",
+    "pointpillars.nuscenes.mmdet3d",
+    "pointrcnn-iou.kitti.openpcdet",
     "pointrcnn.kitti.openpcdet",
     "pv-rcnn.kitti.mmdet3d",
+    "second-dynamic-voxel.kitti.mmdet3d",
+    "second-iou.kitti.openpcdet",
     "second-multihead.nuscenes.openpcdet",
+    "second.kitti-car.mmdet3d",
+    "second.kitti.mmdet3d",
     "second.kitti.openpcdet",
     "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
+    "votenet.scannet.mmdet3d",
     "votenet.sunrgbd.fair",
+    "votenet.sunrgbd.mmdet3d",
     "voxel-mamba.waymo",
     "voxelnext.nuscenes.openpcdet",
 ]
@@ -289,7 +322,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -325,7 +358,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3", "litept"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
@@ -333,7 +366,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
         if not torch.cuda.is_available():
             pytest.skip(f"{model_name} requires CUDA, none available")
         pytest.importorskip("sptr")
-    if model_name.startswith("ptv3") and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("ptv3", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
@@ -924,6 +957,7 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
             for url in ensure_tuple(weights["url"]):
                 match = HF_URL_RE.fullmatch(url)
                 assert match is not None and re.fullmatch(r"[0-9a-f]{40}", match["revision"]), (name, url)
+                assert match["revision"] != "0" * 40, ("placeholder revision, upload and re-pin", name, url)
                 if match["namespace"] == "torch-pointcloud":
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
             assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
@@ -944,7 +978,9 @@ def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
 
 
 def test_registered_weights_urls_exist_on_the_hub() -> None:
-    """Every registered weight file answers a HEAD request at its pinned revision (401/403 means gated, not missing)."""
+    """Every registered weight file answers a HEAD request at its pinned revision. The Hub answers 401 to an anonymous
+    request for a missing repository too, so 401/403 (gated) passes only outside the public `torch-pointcloud`
+    organisation."""
     for name in list_models(pretrained=True):
         weights = model_info(name)["weights"]
         assert weights is not None, name
@@ -955,7 +991,7 @@ def test_registered_weights_urls_exist_on_the_hub() -> None:
                 with urllib.request.urlopen(request, timeout=30) as response:
                     assert response.status == 200, (name, url, response.status)
             except urllib.error.HTTPError as e:
-                assert e.code in (401, 403), (name, url, e.code)
+                assert e.code in (401, 403) and not url.startswith("hf://torch-pointcloud/"), (name, url, e.code)
 
 
 @pytest.mark.skipif(

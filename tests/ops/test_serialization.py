@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.ops.serialization import serialize_pos
+from torch_pointcloud.ops.serialization import serialize, serialize_pos
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
 
 
@@ -102,3 +102,20 @@ def test_batch_shift_zero_batch_supports_full_depth(pos_grid: Tensor) -> None:
 def test_z_order_depth_above_max_raises() -> None:
     with pytest.raises(ValueError, match="z-order maximum"):
         serialize_pos(torch.tensor([[1, 2, 3]]), None, depth=17, order="z")
+
+
+def test_serialize_single_voxel_scene() -> None:
+    """An all-zero grid has `bit_length() == 0`; the depth floor keeps the encoders valid."""
+    grid = torch.zeros(6, 3, dtype=torch.long)
+    batch = torch.zeros(6, dtype=torch.long)
+    code, order, inverse = serialize(grid, batch, orders=["hilbert"])
+    assert code.shape == (1, 6)
+    assert torch.equal(order.gather(1, inverse), torch.arange(6).unsqueeze(0))
+
+
+def test_serialize_negative_grid_raises() -> None:
+    """Negative grid coordinates would silently wrap to valid codes; serialize rejects them."""
+    grid = torch.tensor([[-1, 0, 0], [1, 2, 3]], dtype=torch.long)
+    batch = torch.zeros(2, dtype=torch.long)
+    with pytest.raises(ValueError, match="non-negative"):
+        serialize(grid, batch, orders=["hilbert"])

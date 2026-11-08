@@ -1,4 +1,4 @@
-"""PVCNN classification and segmentation models.
+"""PVCNN classification, semantic segmentation and part segmentation models.
 
 {{ paper("1907.03739") }}
 """
@@ -14,20 +14,20 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
-from torch_pointcloud.layers.conv3d_blocks import Conv3dBlock
 from torch_pointcloud.layers.pvcnn_blocks import PVConv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
-from ._base import ClassificationModel, SemanticSegmentationModel
+from ._base import ClassificationModel, PartSegmentationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
 
 
 class PVConvBlock(nn.Module):
     """Stack of `depth` point-voxel convolutions, all at the same voxel resolution.
 
-    A `resolution` of $0$ or `None` disables voxelization and falls back to per-point MLP layers.
+    A `resolution` of $0$ or `None` disables voxelization and falls back to per-point MLP layers. `voxel_act`,
+    `voxel_act_kwargs` and `voxel_norm_kwargs` set the voxel convolutions of `PVConv` apart from its point MLP.
     """
 
     def __init__(
@@ -44,6 +44,9 @@ class PVConvBlock(nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -69,6 +72,9 @@ class PVConvBlock(nn.Module):
                     resolution=resolution,
                     use_se=use_se,
                     normalize=normalize,
+                    voxel_act=voxel_act,
+                    voxel_act_kwargs=voxel_act_kwargs,
+                    voxel_norm_kwargs=voxel_norm_kwargs,
                     **kwargs,  # type: ignore[arg-type]
                 )
 
@@ -130,6 +136,10 @@ class PVCNNClassification(ClassificationModel):
         act_first: Apply the activation before the normalization.
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Keyword arguments for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Keyword arguments for the normalization of the voxel convolutions. `None` uses
+            `norm_kwargs`.
     """
 
     def __init__(
@@ -151,6 +161,9 @@ class PVCNNClassification(ClassificationModel):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
 
@@ -167,6 +180,9 @@ class PVCNNClassification(ClassificationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.voxel_act = voxel_act
+        self.voxel_act_kwargs = voxel_act_kwargs
+        self.voxel_norm_kwargs = voxel_norm_kwargs
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -192,6 +208,9 @@ class PVCNNClassification(ClassificationModel):
                 act_first=self.act_first,
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
+                voxel_act=self.voxel_act,
+                voxel_act_kwargs=self.voxel_act_kwargs,
+                voxel_norm_kwargs=self.voxel_norm_kwargs,
             )
             blocks.append(block)
         return blocks
@@ -289,15 +308,19 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         spatial_dim: Spatial dimensionality of the point clouds.
         use_se: Add a squeeze-and-excitation gate to every voxel branch.
         normalize: Normalize coordinates into the unit voxel grid before voxelization.
-        dropout: Dropout applied to the concatenated point features before the head.
+        dropout: Dropout applied to the concatenated point features before a single linear head (`head_channels=None`).
         global_pool: Global pooling producing the cloud-level feature that is broadcast back to the points.
         act: Activation function.
         act_kwargs: Keyword arguments for the activation function.
         act_first: Apply the activation before the normalization.
         norm: Normalization function.
         norm_kwargs: Keyword arguments for the normalization function.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Keyword arguments for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Keyword arguments for the normalization of the voxel convolutions. `None` uses
+            `norm_kwargs`.
         head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
-        head_dropout: Dropout between the hidden head layers.
+        head_dropout: Dropout after each hidden head layer: one value for all of them, or one per `head_channels` entry.
     """
 
     def __init__(
@@ -320,8 +343,11 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
         head_channels: Optional[Sequence[int]] = None,
-        head_dropout: float = 0.0,
+        head_dropout: Union[float, Sequence[float]] = 0.0,
     ):
         super().__init__(in_channels=max(in_channels, spatial_dim), num_classes=num_classes)
 
@@ -338,8 +364,15 @@ class PVCNNSegmentation(SemanticSegmentationModel):
         self.act_first = act_first
         self.norm = norm
         self.norm_kwargs = norm_kwargs
+        self.voxel_act = voxel_act
+        self.voxel_act_kwargs = voxel_act_kwargs
+        self.voxel_norm_kwargs = voxel_norm_kwargs
         self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
-        self.head_dropout = head_dropout
+        self.head_dropout = ensure_tuple_size(
+            head_dropout,
+            size=len(self.head_channels),
+            extra_msg="`head_dropout` takes one value per `head_channels` entry.",
+        )
 
         self.blocks = self.configure_blocks()
         self.global_mlp = self.configure_global_mlp()
@@ -365,6 +398,9 @@ class PVCNNSegmentation(SemanticSegmentationModel):
                 act_first=self.act_first,
                 norm=self.norm,
                 norm_kwargs=self.norm_kwargs,
+                voxel_act=self.voxel_act,
+                voxel_act_kwargs=self.voxel_act_kwargs,
+                voxel_norm_kwargs=self.voxel_norm_kwargs,
             )
             blocks.append(block)
         return blocks
@@ -398,7 +434,6 @@ class PVCNNSegmentation(SemanticSegmentationModel):
             return nn.Linear(self.num_features, self.num_classes)
 
         channels = [self.num_features, *self.head_channels, self.num_classes]
-        dropout = [self.head_dropout] * (len(channels) - 2) + [0.0]
         return MLP(
             channels,
             act=self.act,
@@ -406,7 +441,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
             act_first=self.act_first,
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
-            dropout=dropout,
+            dropout=[*self.head_dropout, 0.0],
             plain_last=True,
         )
 
@@ -449,7 +484,7 @@ class PVCNNSegmentation(SemanticSegmentationModel):
 
     def forward_decoder(self, x: Tensor, batch: Tensor, intermediates: List[FeaturesDict]) -> Tensor:
         x_global = self.global_pool(x, batch)
-        if self.global_mlp:
+        if self.global_mlp is not None:
             x_global = self.global_mlp(x_global)
 
         return torch.cat([*(skip["x"] for skip in intermediates), x_global[batch]], dim=1)
@@ -462,6 +497,234 @@ class PVCNNSegmentation(SemanticSegmentationModel):
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
         x, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x = self.forward_decoder(x, batch, intermediates)
+        x = self.forward_head(x)
+        return x
+
+
+class PVCNNPartSegmentation(PartSegmentationModel):
+    r"""PVCNN part segmentation model from
+    :arxiv: [Point-Voxel CNN for Efficient 3D Deep Learning](https://arxiv.org/abs/1907.03739)
+    by Zhijian Liu, Haotian Tang, Yujun Lin, Song Han.
+
+    The flat stack of point-voxel conv blocks of `PVCNNSegmentation`, conditioned on the object category: every
+    layer output is concatenated with the broadcast global feature and the broadcast one-hot category before the
+    head.
+
+    Args:
+        in_channels: Number of input feature channels. Raised to `spatial_dim` when smaller.
+        num_classes: Number of output part classes. $0$ replaces the head with `nn.Identity`.
+        num_categories: Number of object categories of the one-hot `category` input.
+        channels: Output feature width of each block.
+        global_channels: MLP channels applied to the pooled feature. `None` skips the global MLP.
+        depths: Number of point-voxel conv layers per block.
+        kernel_sizes: Voxel conv kernel size per block.
+        resolutions: Voxel grid resolution per block; $0$ or `None` uses MLP layers instead.
+        spatial_dim: Spatial dimensionality of the point clouds.
+        use_se: Add a squeeze-and-excitation gate to every voxel branch.
+        normalize: Normalize coordinates into the unit voxel grid before voxelization.
+        dropout: Dropout applied to the concatenated point features before a single linear head (`head_channels=None`).
+        global_pool: Global pooling producing the cloud-level feature that is broadcast back to the points.
+        act: Activation function.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Apply the activation before the normalization.
+        norm: Normalization function.
+        norm_kwargs: Keyword arguments for the normalization function.
+        voxel_act: Activation of the voxel convolutions. `None` uses `act`.
+        voxel_act_kwargs: Keyword arguments for `voxel_act`. `None` uses `act_kwargs`.
+        voxel_norm_kwargs: Keyword arguments for the normalization of the voxel convolutions. `None` uses
+            `norm_kwargs`.
+        head_channels: Hidden MLP channels of the head. `None` uses a single linear layer.
+        head_dropout: Dropout after each hidden head layer: one value for all of them, or one per `head_channels` entry.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        *,
+        num_categories: int,
+        channels: Sequence[int],
+        global_channels: Optional[Sequence[int]] = None,
+        depths: Sequence[int],
+        kernel_sizes: Sequence[int],
+        resolutions: Sequence[int],
+        spatial_dim: int = 3,
+        use_se: bool = False,
+        normalize: bool = True,
+        dropout: float = 0.0,
+        global_pool: PoolLike = "max",
+        act: Union[str, Callable, None] = "relu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        act_first: bool = False,
+        norm: Union[str, Callable, None] = "batch_norm",
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_act: Union[str, Callable, None] = None,
+        voxel_act_kwargs: Optional[Dict[str, Any]] = None,
+        voxel_norm_kwargs: Optional[Dict[str, Any]] = None,
+        head_channels: Optional[Sequence[int]] = None,
+        head_dropout: Union[float, Sequence[float]] = 0.0,
+    ):
+        super().__init__(
+            in_channels=max(in_channels, spatial_dim),
+            num_classes=num_classes,
+            num_categories=num_categories,
+        )
+
+        self.depths = ensure_tuple(depths)
+        self.channels = ensure_tuple_size([self.in_channels] + list(channels), size=len(self.depths) + 1)
+        self.global_channels = ensure_tuple(global_channels, none_as_empty=True)
+        self.kernel_sizes = ensure_tuple_size(kernel_sizes, size=len(self.depths))
+        self.resolutions = ensure_tuple_size(resolutions, size=len(self.depths))
+        self.use_se = use_se
+        self.normalize = normalize
+        self.dropout = dropout
+        self.act = act
+        self.act_kwargs = act_kwargs
+        self.act_first = act_first
+        self.norm = norm
+        self.norm_kwargs = norm_kwargs
+        self.voxel_act = voxel_act
+        self.voxel_act_kwargs = voxel_act_kwargs
+        self.voxel_norm_kwargs = voxel_norm_kwargs
+        self.head_channels = ensure_tuple(head_channels, none_as_empty=True)
+        self.head_dropout = ensure_tuple_size(
+            head_dropout,
+            size=len(self.head_channels),
+            extra_msg="`head_dropout` takes one value per `head_channels` entry.",
+        )
+
+        self.blocks = self.configure_blocks()
+        self.global_mlp = self.configure_global_mlp()
+        self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
+
+    def configure_blocks(self) -> nn.ModuleList:
+        """Builds the point-voxel conv blocks, one per entry of `depths`."""
+        blocks = nn.ModuleList()
+        for i in range(len(self.depths)):
+            in_channels = self.channels[i]
+            out_channels = self.channels[i + 1]
+            block = PVConvBlock(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                depth=self.depths[i],
+                kernel_size=self.kernel_sizes[i],
+                resolution=self.resolutions[i],
+                use_se=self.use_se,
+                normalize=self.normalize,
+                act=self.act,
+                act_kwargs=self.act_kwargs,
+                act_first=self.act_first,
+                norm=self.norm,
+                norm_kwargs=self.norm_kwargs,
+                voxel_act=self.voxel_act,
+                voxel_act_kwargs=self.voxel_act_kwargs,
+                voxel_norm_kwargs=self.voxel_norm_kwargs,
+            )
+            blocks.append(block)
+        return blocks
+
+    def configure_global_mlp(self) -> Optional[MLP]:
+        """Builds the MLP applied to the pooled global feature, or `None` when `global_channels` is empty."""
+        if not self.global_channels:
+            return None
+        return MLP(
+            [self.channels[-1]] + list(self.global_channels),
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            plain_last=False,
+        )
+
+    @property
+    def num_features(self) -> int:
+        """Channel count $C$ entering the head: every layer output, the global feature and the one-hot category."""
+        global_channels = self.global_channels[-1] if self.global_channels else self.channels[-1]
+        return (
+            sum(channels * depth for channels, depth in zip(self.channels[1:], self.depths))
+            + global_channels
+            + self.num_categories
+        )
+
+    def configure_head(self) -> nn.Module:
+        if self.num_classes == 0:
+            return nn.Identity()
+
+        if not self.head_channels:
+            return nn.Linear(self.num_features, self.num_classes)
+
+        channels = [self.num_features, *self.head_channels, self.num_classes]
+        return MLP(
+            channels,
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            dropout=[*self.head_dropout, 0.0],
+            plain_last=True,
+        )
+
+    def reset_classifier(self, num_classes: int, global_pool: Optional[PoolLike] = None, **kwargs: Any) -> None:
+        self.num_classes = num_classes
+        if global_pool is not None:
+            self.global_pool = create_pool(global_pool)
+        self.head = self.configure_head()
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[True],
+    ) -> Tuple[Tensor, List[FeaturesDict]]: ...
+
+    @overload
+    def forward_features(
+        self,
+        x: OptTensor,
+        pos: Tensor,
+        batch: Tensor,
+        return_intermediates: Literal[False] = False,
+    ) -> Tensor: ...
+
+    def forward_features(self, x: OptTensor, pos: Tensor, batch: Tensor, return_intermediates: bool = False) -> Any:
+        x = x if x is not None else pos
+        intermediates: List[FeaturesDict] = []
+        for block in self.blocks:
+            x = block(x, pos, batch, return_intermediates=return_intermediates)
+            if return_intermediates:
+                x, x_inters = x
+                intermediates.extend(x_inters)
+
+        if return_intermediates:
+            return x, intermediates
+        return x
+
+    def forward_decoder(self, x: Tensor, batch: Tensor, category: Tensor, intermediates: List[FeaturesDict]) -> Tensor:
+        x_global = self.global_pool(x, batch)
+        if self.global_mlp is not None:
+            x_global = self.global_mlp(x_global)
+
+        return torch.cat([*(skip["x"] for skip in intermediates), x_global[batch], category[batch]], dim=1)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        if self.dropout and not self.head_channels:
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        if category.dim() != 2:
+            raise ValueError(
+                f"`category` must be one-hot of shape (B, num_categories), got shape {tuple(category.shape)}; "
+                "pass `F.one_hot(category, num_categories).float()` for category indices."
+            )
+
+        x, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
+        x = self.forward_decoder(x, batch, category, intermediates)
         x = self.forward_head(x)
         return x
 
@@ -491,29 +754,17 @@ def _pvcnn_s3dis_hparams(
         head_channels=head_channels,
         head_dropout=0.3,
         act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
     )
-
-
-def _patch_pvcnn_segmentation_mit_han_lab(model: PVCNNSegmentation) -> PVCNNSegmentation:
-    """Give the voxel branch upstream's `LeakyReLU(0.1)` and `nn.BatchNorm3d` with $\\epsilon=10^{-4}$."""
-    for pv in model.modules():
-        if not isinstance(pv, PVConv):
-            continue
-
-        for block in pv.voxel_layers:
-            if isinstance(block, Conv3dBlock):
-                if isinstance(block.norm, nn.BatchNorm3d):
-                    block.norm.eps = 1e-4
-                if isinstance(block.act, nn.ReLU):
-                    block.act = nn.LeakyReLU(negative_slope=0.1, inplace=True)
-    return model
 
 
 @register_model(
     "pvcnn.s3dis-area5.mit-han-lab",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn.s3dis-area5.mit-han-lab/resolve/5bf99bd6c088f52bc61842109acf14e7d098207e/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn.s3dis-area5.mit-han-lab/resolve/9a514893b0de83953715145f8a02f2ec48aa9558/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 57.51, "OA": 86.58},
         classes=S3DIS_CLASSES,
@@ -528,15 +779,14 @@ def _patch_pvcnn_segmentation_mit_han_lab(model: PVCNNSegmentation) -> PVCNNSegm
     transform=_PVCNN_S3DIS_TRANSFORMS,
 )
 def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    model = PVCNNSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    return PVCNNSegmentation(**hparams)
 
 
 @register_model(
     "pvcnn-c0p25.s3dis-area5.mit-han-lab",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn-c0p25.s3dis-area5.mit-han-lab/resolve/324aeb44c166b3f99ce5ded6060d16f364e32106/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn-c0p25.s3dis-area5.mit-han-lab/resolve/f55247f2de855e7a6bccf27b6bdfa4396d551f5a/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 53.31, "OA": 84.93, "simple/mIoU": 51.05, "simple/OA": 83.29},
         classes=S3DIS_CLASSES,
@@ -551,15 +801,14 @@ def pvcnn_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     transform=_PVCNN_S3DIS_TRANSFORMS,
 )
 def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    model = PVCNNSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    return PVCNNSegmentation(**hparams)
 
 
 @register_model(
     "pvcnn-c0p125.s3dis-area5.mit-han-lab",
     task="semantic-segmentation",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/pvcnn-c0p125.s3dis-area5.mit-han-lab/resolve/22d4dd68f1ce35d3553eec14f4770c2ba164fea6/model.safetensors",
+        url="hf://torch-pointcloud/pvcnn-c0p125.s3dis-area5.mit-han-lab/resolve/fab742e07c7b572aa8f470c6855e1a5f0a02df60/model.safetensors",
         dataset="s3dis-area5",
         metrics={"mIoU": 49.25, "OA": 83.04, "simple/mIoU": 46.36, "simple/OA": 80.74},
         classes=S3DIS_CLASSES,
@@ -574,5 +823,183 @@ def pvcnn_c0p25_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
     transform=_PVCNN_S3DIS_TRANSFORMS,
 )
 def pvcnn_c0p125_mit_han_lab_s3dis_area5(**hparams: Any) -> PVCNNSegmentation:
-    model = PVCNNSegmentation(**hparams)
-    return _patch_pvcnn_segmentation_mit_han_lab(model)
+    return PVCNNSegmentation(**hparams)
+
+
+_PVCNN_SHAPENETPART_TRANSFORMS = T.Compose(
+    [
+        T.Rescale(keys=DataKeys.POS, method="centroid"),
+        T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL], dst_key=DataKeys.X),
+        T.OneHot(keys=DataKeys.CATEGORY, num_classes=16),
+    ]
+)
+
+
+@register_model(
+    "pvcnn.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn.shapenetpart.mit-han-lab/resolve/38616ac13c591763f0f2e1cc44995f2c68115908/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.88, "cls_mIoU": 84.14},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[64, 128, 512, 2048],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[256, 256, 128],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    ),
+    transform=_PVCNN_SHAPENETPART_TRANSFORMS,
+)
+def pvcnn_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(**hparams)
+
+
+@register_model(
+    "pvcnn-c0p5.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn-c0p5.shapenetpart.mit-han-lab/resolve/da761507636bbb47be6918bb06221307167b8a29/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.46, "cls_mIoU": 83.37},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[32, 64, 256, 1024],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[128, 128, 64],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    ),
+    transform=_PVCNN_SHAPENETPART_TRANSFORMS,
+)
+def pvcnn_c0p5_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(**hparams)
+
+
+@register_model(
+    "pvcnn-c0p25.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn-c0p25.shapenetpart.mit-han-lab/resolve/3d5245c85856ffe723c28624bfbba47ffbd39424/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 84.85, "cls_mIoU": 81.65},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[16, 32, 128, 512],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[64, 64, 32],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    ),
+    transform=_PVCNN_SHAPENETPART_TRANSFORMS,
+)
+def pvcnn_c0p25_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(**hparams)
+
+
+@register_model(
+    "pvcnn-dml.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn-dml.shapenetpart.mit-han-lab/resolve/62fe31e5ed77bb76ca97f6e060a56abce72b3708/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 86.01, "cls_mIoU": 84.44},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[64, 128, 512, 2048],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[256, 256, 128],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    ),
+    transform=_PVCNN_SHAPENETPART_TRANSFORMS,
+)
+def pvcnn_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(**hparams)
+
+
+@register_model(
+    "pvcnn-c0p25-dml.shapenetpart.mit-han-lab",
+    task="part-segmentation",
+    input_keys=("x", "pos", "batch", "category"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/pvcnn-c0p25-dml.shapenetpart.mit-han-lab/resolve/dec6e4a3df4d2f44dd6232ad9705df72ed373933/model.safetensors",
+        dataset="shapenetpart",
+        metrics={"ins_mIoU": 85.10, "cls_mIoU": 82.12},
+        author="mit-han-lab",
+        license="MIT",
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=50,
+        num_categories=16,
+        channels=[16, 32, 128, 512],
+        depths=[1, 2, 1, 1],
+        kernel_sizes=[3, 3, 3, 3],
+        resolutions=[32, 16, 0, 0],
+        use_se=True,
+        normalize=False,
+        head_channels=[64, 64, 32],
+        head_dropout=[0.2, 0.2, 0.0],
+        act="relu",
+        voxel_act="leaky_relu",
+        voxel_act_kwargs={"negative_slope": 0.1},
+        voxel_norm_kwargs={"eps": 1e-4},
+    ),
+    transform=_PVCNN_SHAPENETPART_TRANSFORMS,
+)
+def pvcnn_c0p25_dml_mit_han_lab_shapenetpart(**hparams: Any) -> PVCNNPartSegmentation:
+    return PVCNNPartSegmentation(**hparams)
