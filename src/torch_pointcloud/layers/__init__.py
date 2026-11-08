@@ -85,7 +85,7 @@ from .randlanet_blocks import (
     LocalSpatialEncoding,
     RandLANetResidualBlock,
 )
-from .rope import Point3DRoPE
+from .rope import AxialRoPE, Point3DRoPE
 from .serialized_attention import (
     PatchLayout,
     RelativePositionalEncoding,
@@ -105,7 +105,15 @@ from .spconv_blocks import (
 )
 from .tnet import DynamicTNet, TNet
 from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
-from .transformer import Attention, CrossAttention, TransformerBlock, TransformerDecoderLayer, TransformerEncoderLayer
+from .transformer import (
+    Attention,
+    CrossAttention,
+    PackedAttention,
+    PackedTransformerBlock,
+    TransformerBlock,
+    TransformerDecoderLayer,
+    TransformerEncoderLayer,
+)
 from .transfusion_head import (
     TransFusionDecoderLayer,
     TransFusionHead,
@@ -115,6 +123,7 @@ from .transfusion_head import (
 from .vfe import DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
+from .voxel_patch import VoxelPatchEmbed, VoxelPatchExpand
 from .xconv import XConv
 
 __all__ = [
@@ -201,6 +210,7 @@ __all__ = [
     "LocalFeatureAggregation",
     "LocalSpatialEncoding",
     "RandLANetResidualBlock",
+    "AxialRoPE",
     "Point3DRoPE",
     "PatchLayout",
     "RelativePositionalEncoding",
@@ -223,6 +233,8 @@ __all__ = [
     "TorchSparseResidualBlock",
     "Attention",
     "CrossAttention",
+    "PackedAttention",
+    "PackedTransformerBlock",
     "TransformerBlock",
     "TransformerDecoderLayer",
     "TransformerEncoderLayer",
@@ -234,5 +246,7 @@ __all__ = [
     "PillarFeatureLayer",
     "View",
     "VoxelGridPool",
+    "VoxelPatchEmbed",
+    "VoxelPatchExpand",
     "XConv",
 ]

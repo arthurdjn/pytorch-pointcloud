@@ -60,6 +60,7 @@ from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
 from .transfusion import TransFusionDetection
 from .utonia import UtoniaSegmentation
+from .volt import VoltSegmentation
 from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
 from .voxelnext import VoxelNeXtDetection
@@ -160,6 +161,7 @@ __all__ = [
     "ThreeDETRDetection",
     "TransFusionDetection",
     "UtoniaSegmentation",
+    "VoltSegmentation",
     "VoteNetDetection",
     "VoxelMambaDetection",
     "VoxelNeXtDetection",

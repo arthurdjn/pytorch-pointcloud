@@ -64,6 +64,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added `ops.box3d.angle_to_direction_bin` and `direction_bin_to_angle`, the direction-bin heading of the anchor heads and their loss.
 - Omitting `dir_offset` from `AnchorHead`, `AnchorHeadLoss` or the PointPillars, SECOND, Part-A2 and PV-RCNN detectors is deprecated, and an error from 0.0.20.
 - `HardVoxelize` raises when its `feature_key` is missing, `Cat` when an input lacks the concatenation dimension, and detectors when `num_classes` is 0.
+- Added Volt (`VoltSegmentation`) with the authors' ScanNet, ScanNet200, nuScenes and SemanticKITTI checkpoints, and their benchmark scripts.
+- Added the `PackedAttention`, `PackedTransformerBlock`, `AxialRoPE` and voxel patch layers, `ops.voxelization.voxel_patch_partition` and the `ClampNorm` transform.
+- Added `inferers.scale_flip_tta_transforms`, the scaled and mirrored test-time views of the outdoor and S3DIS benchmarks.
 - Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
 - Moved `TransFusionHead`, `TransFusionDecoderLayer` and `TransFusionHeadOutput` from `models.lion` to `layers.transfusion_head`, and renamed `SeparateHeadTransfusion` to `TransFusionPredictionHead`.
 - `TransFusionHead` takes its grid by keyword without `grid_size`, and a required `height_code`; `hidden_channel`, `ffn_channel`, `activation` and `bn_momentum` became `embed_dim`, `mlp_dim`, `act` and `norm_kwargs`.
