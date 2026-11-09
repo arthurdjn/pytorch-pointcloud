@@ -587,7 +587,7 @@ def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
     Returns:
         The rotated tensor with the same shape as `x`.
     """
-    triples = x.reshape(*x.shape[:-1], -1, 3)
+    triples = x.reshape(*x.shape[:-1], x.shape[-1] // 3, 3)
     triples = triples @ rotation.to(x).transpose(-1, -2)
     return triples.reshape(x.shape)
 

@@ -417,3 +417,10 @@ def test_box_augmentations_carry_the_velocity_columns() -> None:
 
     shifted = F.translate_boxes(boxes, torch.tensor([1.0, 1.0, 1.0]))
     assert torch.allclose(shifted[0, 7:9], boxes[0, 7:9])
+
+
+def test_random_rotate_empty_cloud() -> None:
+    out = T.RandomRotate(keys="pos", seed=0)({"pos": torch.zeros(0, 3)})
+    assert out["pos"].shape == (0, 3)
+    out = T.RandomRotateChoice(keys="pos", angles=(0.0, 90.0), seed=0)({"pos": torch.zeros(0, 3)})
+    assert out["pos"].shape == (0, 3)

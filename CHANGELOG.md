@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
+- Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
 
 ## 0.0.19 (2026-11-08)
 
