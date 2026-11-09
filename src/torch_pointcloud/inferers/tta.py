@@ -318,12 +318,13 @@ def scale_flip_tta_transforms(
 
 def _check_detection_keys(det: Detection3D) -> None:
     """Raise when the predictor returns a per-box entry the view inversion does not know how to map back."""
-    unknown = sorted(set(det) - {"boxes", "scores", "labels", "batch", "ignore_mask", "class_probs", "velocity"})
+    known = {"boxes", "scores", "labels", "batch", "ignore_mask", "class_probs", "velocity", "level"}
+    unknown = sorted(set(det) - known)
     if unknown:
         raise ValueError(
             f"The predictor returned {unknown}, which `TTADetectionInferer` cannot map back to the input scene: it "
-            f"maps `boxes` and `velocity` back and keeps `scores`, `labels`, `batch`, `ignore_mask` and "
-            f"`class_probs` as they are."
+            f"maps `boxes` and `velocity` back and keeps `scores`, `labels`, `batch`, `ignore_mask`, `class_probs` "
+            f"and `level` as they are."
         )
 
 
@@ -354,6 +355,8 @@ def _cat_detections(parts: List[Detection3D], like: Tensor) -> Detection3D:
         merged["class_probs"] = torch.cat([part["class_probs"] for part in parts]).to(like.device)
     if "velocity" in keys:
         merged["velocity"] = torch.cat([part["velocity"] for part in parts]).to(like.device)
+    if "level" in keys:
+        merged["level"] = torch.cat([part["level"] for part in parts]).to(like.device)
     return merged
 
 

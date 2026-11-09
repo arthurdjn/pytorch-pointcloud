@@ -449,6 +449,20 @@ def test_tta_detection_splits_packed_keys_by_their_scene_index() -> None:
     assert all(f"batch_{DataKeys.BOX}" not in sample for sample in transformed)
 
 
+def test_tta_detection_keeps_the_pyramid_level_of_each_box() -> None:
+    """The `level` of a multi-level head is a per-box label of no geometry, so every view returns it unchanged."""
+
+    def predictor(window: Dict[str, Any]) -> Detection3D:
+        det = _equivariant_detections(window)
+        det["level"] = det["batch"] + 1
+        return det
+
+    out = TTADetectionInferer(_identity, flips=((), (1,)), sw_batch_size=2)(_scenes(2), predictor=predictor)
+
+    assert out["batch"].tolist() == [0, 1, 0, 1]
+    assert out["level"].tolist() == [1, 2, 1, 2]
+
+
 def test_tta_detection_unknown_predictor_key_raises() -> None:
     """A per-box entry the inversion does not know could be geometric, so it raises instead of passing through."""
 
