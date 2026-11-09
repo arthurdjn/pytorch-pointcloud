@@ -15,6 +15,15 @@ All notable changes to this project are documented in this file. The format is b
 - Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
+- Fixed `MetricCallback` failing at the second epoch with `BoxMeanAveragePrecision`, `BoxAveragePrecision` and `InstanceAveragePrecision`.
+- `confusion_matrix` raises on predictions or targets outside `[0, num_classes)` instead of counting them in another cell.
+- Fixed `accuracy` and `intersection_over_union` returning NaN instead of `zero_division` with `average="macro"` when every class is ignored.
+- Fixed `part_mean_intersection_over_union` failing on float64 IoUs with `average="macro"` and `"none"`.
+- `part_intersection_over_union` raises on part labels outside `part_ids`, and `InstancePartMeanIntersectionOverUnion` no longer scores a shape id missing from `batch`.
+- Fixed `load_safetensors` failing on a file written without metadata.
+- `KNNWindowInferer` rejects an `overlap` of `1e-3` or less, which left points unpredicted.
+- Fixed `SlidingWindowInferer` giving an empty `cloud_keys` row to clouds with non-contiguous batch ids.
+- `SlidingWindowInferer` no longer passes the `block_bbox_key` entry to the predictor; it was sliced like a per-point tensor in blocks with as many points as the box has values.
 
 ## 0.0.19 (2026-11-08)
 
