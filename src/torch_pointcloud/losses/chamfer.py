@@ -4,9 +4,9 @@ from typing import Callable, Literal, Optional
 
 import torch
 from torch import Tensor, nn
-from torch_geometric.nn import knn
 from torch_geometric.utils import to_dense_batch
 
+from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.imports import _KAOLIN_GITHUB_URL, _PYG_LIB_AVAILABLE, optional_import
 
 __all__ = ["ChamferDistance"]
@@ -107,6 +107,9 @@ def chamfer_distance(
     Returns:
         Scalar Chamfer distance averaged over all points.
 
+    Raises:
+        ValueError: If `pred_batch` and `target_batch` do not cover the same sets.
+
     Shape:
         - pred: $(N, 3)$
         - target: $(M, 3)$
@@ -136,6 +139,10 @@ def chamfer_distance(
     if target_batch is None:
         target_batch = target.new_zeros(target.shape[0], dtype=torch.long)
     num_sets = 1 if single_set else int(torch.maximum(pred_batch.max(), target_batch.max())) + 1
+    pred_sets = pred_batch.bincount(minlength=num_sets) > 0
+    target_sets = target_batch.bincount(minlength=num_sets) > 0
+    if not torch.equal(pred_sets, target_sets):
+        raise ValueError("`pred_batch` and `target_batch` must cover the same sets.")
 
     # Nearest neighbors found without autograd, then only the matched pairs differentiated.
     nearest_target = target[_nearest_index(pred, pred_batch, target, target_batch, num_sets)]
