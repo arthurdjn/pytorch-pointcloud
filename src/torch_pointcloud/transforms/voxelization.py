@@ -522,7 +522,7 @@ def _reduce_voxels(tensor: Tensor, reduce: str, cluster: Tensor, perm: Tensor) -
         return scatter(tensor, cluster, dim=0, reduce=reduce)
 
     # Mean (and any bool reduction) needs float input; cast back so the key keeps its dtype.
-    out = scatter(tensor.float(), cluster, dim=0, reduce=reduce)
+    out = scatter(tensor if tensor.is_floating_point() else tensor.float(), cluster, dim=0, reduce=reduce)
     return out if tensor.is_floating_point() else out.to(tensor.dtype)
 
 

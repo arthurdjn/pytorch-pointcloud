@@ -633,7 +633,8 @@ class SphereCrop(DictTransform, Randomizable):
             return data
 
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
-        pos = data[self.pos_key].float()
+        pos = data[self.pos_key]
+        pos = pos if pos.is_floating_point() else pos.float()
         center = self._resolve_center(pos)
         if self.dst_center_key is not None:
             data[self.dst_center_key] = center.clone()
