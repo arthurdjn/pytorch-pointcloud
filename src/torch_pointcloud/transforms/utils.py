@@ -173,7 +173,7 @@ def relabel(
         Remapped tensor with the same shape and dtype as `labels`.
 
     Raises:
-        ValueError: If `mapping` is empty.
+        ValueError: If `mapping` is empty, or if `default` or a target label does not fit the dtype of `labels`.
     """
     if isinstance(mapping, dict):
         table: Dict[int, int] = {int(k): int(v) for k, v in mapping.items()}
@@ -181,6 +181,15 @@ def relabel(
         table = {int(v): i for i, v in enumerate(mapping)}
     if not table:
         raise ValueError("relabel requires at least one source value in `mapping`.")
+
+    if not labels.is_floating_point() and labels.dtype != torch.bool:
+        info = torch.iinfo(labels.dtype)
+        overflow = sorted({value for value in (default, *table.values()) if not info.min <= value <= info.max})
+        if overflow:
+            raise ValueError(
+                f"relabel cannot store {overflow[:5]} in {labels.dtype} labels (range [{info.min}, {info.max}]); "
+                "cast the labels to a wider dtype first."
+            )
 
     sorted_sources = sorted(table.keys())
     src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)

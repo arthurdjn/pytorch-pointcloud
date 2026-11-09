@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
 - Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
 - `KITTI(fov=True)` raises a `FileNotFoundError` for a frame without its `image_2` image; the frame was cached uncropped.
+- `relabel` raises a `ValueError` when `default` or a target label does not fit the dtype of the labels; the value wrapped silently.
 
 ## 0.0.19 (2026-11-08)
 

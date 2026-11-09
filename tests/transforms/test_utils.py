@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 from unittest.mock import sentinel
 
 import pytest
@@ -434,3 +434,23 @@ def test_add() -> None:
     assert torch.equal(result["a"], torch.tensor([1.0, 2.0]))
     assert torch.equal(result["b"], torch.tensor([[-1.0]]))
     assert result["other"] is sentinel.other
+
+
+@pytest.mark.parametrize(
+    "dtype, mapping, default",
+    [
+        pytest.param(torch.uint8, {1: 0}, -1, id="uint8-negative-default"),
+        pytest.param(torch.int8, {1: 0}, 255, id="int8-default-255"),
+        pytest.param(torch.uint8, {1: 300}, 0, id="uint8-target-300"),
+    ],
+)
+def test_relabel_value_out_of_dtype_range_raises(dtype: torch.dtype, mapping: Dict[int, int], default: int) -> None:
+    labels = torch.tensor([1, 7], dtype=dtype)
+    with pytest.raises(ValueError, match="cannot store"):
+        F.relabel(labels, mapping=mapping, default=default)
+
+
+def test_relabel_narrow_dtype_in_range() -> None:
+    labels = torch.tensor([1, 7], dtype=torch.uint8)
+    out = F.relabel(labels, mapping={1: 3}, default=255)
+    assert out.dtype == torch.uint8 and out.tolist() == [3, 255]
