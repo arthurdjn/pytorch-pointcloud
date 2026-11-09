@@ -1,6 +1,8 @@
 """Kernel point convolution, its kernel point placement, and the normalized and residual blocks built on it."""
 
 import math
+import os
+import uuid
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
@@ -61,7 +63,10 @@ def create_kernel_points(
             )
 
         kernel_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(kernel_points, kernel_path)
+        # A concurrent process must never load a partially written file: write aside, then rename atomically.
+        tmp_path = kernel_path.with_name(f"{kernel_path.name}.{uuid.uuid4().hex}.tmp")
+        torch.save(kernel_points, tmp_path)
+        os.replace(tmp_path, kernel_path)
 
     # Random rotations for the kernel
     R = torch.eye(3)
