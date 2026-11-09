@@ -16,14 +16,47 @@ from .norms import create_norm
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
     from spconv.pytorch import SparseConv3d, SparseSequential
+    from spconv.pytorch import SubMConv3d as SpconvSubMConv3d
 else:
     SparseConv3d, _ = optional_import("spconv.pytorch", "SparseConv3d", url=_SPCONV_GITHUB_URL)
     SparseSequential, _ = optional_import("spconv.pytorch", "SparseSequential", url=_SPCONV_GITHUB_URL)
+    SpconvSubMConv3d, _ = optional_import("spconv.pytorch", "SubMConv3d", url=_SPCONV_GITHUB_URL)
 
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 SparseModule: Any = spconv.SparseModule if _SPCONV_AVAILABLE else nn.Module
+
+
+class SubMConv3d(SpconvSubMConv3d):
+    r"""`spconv.SubMConv3d` that casts its input features to the weight dtype.
+
+    spconv's inference path does not follow `torch.autocast`, so the half-precision features of an autocast layer
+    would meet float32 weights and fail. The parameters and their `state_dict` keys are those of `spconv.SubMConv3d`,
+    and so are the arguments.
+
+    Shape:
+        - Input: `SparseConvTensor` with $(N, C_\text{in})$ features.
+        - Output: `SparseConvTensor` with $(N, C_\text{out})$ features in the weight dtype.
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.layers.spconv_blocks import SubMConv3d
+        >>> from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
+        >>> conv = SubMConv3d(8, 16, kernel_size=3).cuda().eval()  # doctest: +SKIP
+        >>> pos = torch.cartesian_prod(torch.arange(4), torch.arange(5), torch.arange(1)).cuda()  # doctest: +SKIP
+        >>> batch = torch.zeros(20, dtype=torch.long).cuda()  # doctest: +SKIP
+        >>> x = convert_to_spconv_tensor(torch.randn(20, 8).half().cuda(), pos, batch)  # doctest: +SKIP
+        >>> conv(x).features.dtype  # doctest: +SKIP
+        torch.float32
+
+        ```
+    """
+
+    def forward(self, input: Any, add_input: Any = None) -> Any:
+        input = input.replace_feature(input.features.to(self.weight.dtype))
+        return super().forward(input, add_input)
 
 
 class SubMConv3dBlock(nn.Module):
@@ -63,7 +96,7 @@ class SubMConv3dBlock(nn.Module):
         norm_kwargs = norm_kwargs or {}
         act_kwargs = act_kwargs or {}
 
-        self.stem = spconv.SubMConv3d(
+        self.stem = SubMConv3d(
             in_channels,
             out_channels,
             kernel_size=kernel_size,

@@ -19,6 +19,7 @@ __all__ = [
     "Add",
     "Cat",
     "Clamp",
+    "ClampNorm",
     "CopyItems",
     "Divide",
     "DivideItems",
@@ -418,7 +419,8 @@ class Cat(DictTransform):
         This transform is mostly used to concatenate multiple features into a single tensor to feed into your model.
 
     Integer inputs are cast to `float32`; floating inputs keep their dtype. When the inputs mix
-    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast).
+    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast). The inputs must
+    have the same number of dimensions, including `dim`: a per-point scalar is $(N, 1)$, not $(N,)$.
 
     ![Cat diagram](../../assets/transforms/cat.png)
 
@@ -427,6 +429,9 @@ class Cat(DictTransform):
         dst_key: Key under which the result is stored.
         dim: Dimension along which to concatenate.
         allow_missing_keys: If `True`, silently skip absent keys.
+
+    Raises:
+        ValueError: If the tensors do not have the same number of dimensions, or do not have dimension `dim`.
 
     Example:
         If you have a point cloud data containing position, color and normal and want to concatenate them
@@ -462,7 +467,16 @@ class Cat(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in self.iter_keys(data)]
+        keys = list(self.iter_keys(data))
+        ranks = {data[key].dim() for key in keys}
+        if len(ranks) > 1 or any(not -rank <= self.dim < rank for rank in ranks):
+            shapes = ", ".join(f"`{key}` {tuple(data[key].shape)}" for key in keys)
+            raise ValueError(
+                f"Cat needs tensors of one rank that have dimension {self.dim}, got {shapes}; "
+                "a per-point scalar is (N, 1)."
+            )
+
+        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in keys]
         if not tensors:
             return data
 
@@ -963,4 +977,86 @@ class Clamp(DictTransform):
             low = self.min.to(x) if isinstance(self.min, Tensor) else self.min
             high = self.max.to(x) if isinstance(self.max, Tensor) else self.max
             data[dst_key] = x.clamp(min=low, max=high)
+        return data
+
+
+def clamp_norm(x: Tensor, max_norm: float) -> Tensor:
+    r"""Scale the rows of `x` whose Euclidean norm exceeds `max_norm` back onto that norm, keeping their direction.
+
+    A row $x_i$ with $\lVert x_i \rVert > m$ becomes $x_i \cdot m / \lVert x_i \rVert$; the other rows are unchanged.
+    This is `torch.renorm(x, p=2, dim=0, maxnorm=m)` without its $10^{-7}$ epsilon, so the ratio
+    $m / \lVert x_i \rVert$ is exact.
+
+    Args:
+        x: Input tensor of shape $(N, D)$.
+        max_norm: Largest Euclidean norm $m$ of a row.
+
+    Returns:
+        The clamped tensor, same shape and dtype as `x`.
+
+    Raises:
+        ValueError: If `max_norm` is not positive.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms.functional as F
+
+        pos = torch.tensor([[3.0, 4.0, 0.0], [0.3, 0.4, 0.0]])
+        F.clamp_norm(pos, max_norm=1.0)  # tensor([[0.6000, 0.8000, 0.0000], [0.3000, 0.4000, 0.0000]])
+        ```
+    """
+    if max_norm <= 0.0:
+        raise ValueError(f"`max_norm` must be > 0, got {max_norm}.")
+
+    scale = (max_norm / torch.linalg.vector_norm(x, dim=-1, keepdim=True)).clamp(max=1.0)
+    return x * scale
+
+
+class ClampNorm(DictTransform):
+    r"""Clamp the Euclidean norm of every row of tensor entries, keeping each row's direction (see `clamp_norm`).
+
+    === "Object"
+
+        ![ClampNorm on an object](../../assets/transforms/clamp_norm.png)
+
+    === "Scene"
+
+        ![ClampNorm on a room](../../assets/transforms/clamp_norm_scene.png)
+
+    Args:
+        keys: Keys holding tensors of shape $(N, D)$.
+        max_norm: Largest Euclidean norm of a row.
+        dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import ClampNorm
+
+        transform = ClampNorm(keys="pos", max_norm=50.0)
+        data = transform({"pos": torch.tensor([[60.0, 80.0, 0.0], [3.0, 4.0, 0.0]])})
+        data["pos"]  # tensor([[30., 40.,  0.], [ 3.,  4.,  0.]])
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        max_norm: float,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if max_norm <= 0.0:
+            raise ValueError(f"`max_norm` must be > 0, got {max_norm}.")
+
+        self.max_norm = max_norm
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = clamp_norm(data[key], self.max_norm)
         return data

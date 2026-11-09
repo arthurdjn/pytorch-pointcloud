@@ -39,6 +39,7 @@ DISPLAY_TITLES = {
     "point_mamba": "Point-Mamba",
     "octformer": "OctFormer",
     "kpconv": "KPConv",
+    "litept": "LitePT",
     "randlanet": "RandLA-Net",
     "spvcnn": "SPVCNN",
     "spunet": "SpUNet",
@@ -66,6 +67,7 @@ DISPLAY_TITLES = {
     "sonata": "Sonata",
     "concerto": "Concerto",
     "utonia": "Utonia",
+    "volt": "Volt",
     "dales": "DALES",
     "fractal": "FRACTAL",
     "gridnethd": "GridNet-HD",
@@ -81,6 +83,7 @@ DISPLAY_TITLES = {
     "sunrgbd": "SUN RGB-D",
     "kitti": "KITTI",
     "nuscenes": "nuScenes",
+    "structured3d": "Structured3D",
 }
 
 
