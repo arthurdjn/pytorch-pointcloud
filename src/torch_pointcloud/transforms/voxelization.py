@@ -657,7 +657,8 @@ class Voxelize(DictTransform, Randomizable):
             their dtype: non-`first` reductions compute in float and cast back. The `first`
             representative is the first point of each voxel in input order, deterministic across
             devices (unless `random_first=True`).
-        keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
+        keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`). `pos_key` is always reduced
+            with `pos_reduce`, also when listed here.
         dst_inverse_key: Key for the source-to-voxel row map (see the module docs on sampling keys); composes
             with any prior value at the same key. `None` (the default) disables it.
         dst_pos_grid_key: When set, also store the integer voxel-grid coordinates under this key. Useful when a
@@ -742,6 +743,8 @@ class Voxelize(DictTransform, Randomizable):
         pos = data[self.pos_key]
 
         if pos.shape[0] == 0:
+            if self.pos_reduce == "grid":
+                data[self.pos_key] = pos.long()
             if self.dst_inverse_key is not None:
                 data[self.dst_inverse_key] = torch.empty(0, dtype=torch.long, device=pos.device)
             if self.dst_pos_grid_key is not None:
@@ -764,6 +767,9 @@ class Voxelize(DictTransform, Randomizable):
             data[self.dst_pos_grid_key] = pos_grid
 
         for key, reduce in self.iter_keys(data, self.reduce):
+            if key == self.pos_key:
+                continue
+
             tensor = data[key]
             if reduce is None:
                 reduce = "mean" if tensor.is_floating_point() else "first"

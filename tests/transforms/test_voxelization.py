@@ -646,3 +646,20 @@ def test_voxelize_keeps_float64_precision() -> None:
     out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys="x")({"pos": pos, "x": pos.clone()})
     assert out["pos"].dtype == torch.float64 and out["x"].dtype == torch.float64
     assert torch.allclose(out["pos"], expected, rtol=0.0, atol=1e-6)
+
+
+def test_voxelize_empty_grid_positions_are_long() -> None:
+    data = {"pos": torch.empty(0, 3), "segment": torch.empty(0, dtype=torch.long)}
+    out = T.Voxelize(pos_key="pos", pos_reduce="grid", size=0.5, keys="segment")(data)
+    assert out["pos"].shape == (0, 3) and out["pos"].dtype == torch.long
+    assert data["pos"].dtype == torch.float32
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_voxelize_accepts_pos_key_in_keys() -> None:
+    generator = torch.Generator().manual_seed(0)
+    data = {"pos": torch.rand(100, 3, generator=generator) * 3, "x": torch.rand(100, 3, generator=generator)}
+    expected = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys="x")(data)
+    out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys=("pos", "x"))(data)
+    assert torch.equal(out["pos"], expected["pos"])
+    assert torch.equal(out["x"], expected["x"])

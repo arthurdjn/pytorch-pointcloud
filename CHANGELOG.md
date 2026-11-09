@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file. The format is b
 - `KITTI(fov=True)` raises a `FileNotFoundError` for a frame without its `image_2` image; the frame was cached uncropped.
 - `relabel` raises a `ValueError` when `default` or a target label does not fit the dtype of the labels; the value wrapped silently.
 - Fixed `flip_boxes(boxes, axis=2)` failing on boxes with a velocity.
+- Fixed `Voxelize` returning float positions for an empty cloud with `pos_reduce="grid"`, and failing when `keys` lists `pos_key`.
 
 ## 0.0.19 (2026-11-08)
 
