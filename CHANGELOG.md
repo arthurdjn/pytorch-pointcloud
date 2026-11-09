@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
 - Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
+- Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
 
 ## 0.0.19 (2026-11-08)
 

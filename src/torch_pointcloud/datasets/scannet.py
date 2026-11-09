@@ -1415,9 +1415,9 @@ class ScanNet(PointCloudDataset):
             DataKeys.SCENE: path.name,
         }
         if (path / "segment.npy").exists():
-            scene[DataKeys.SEGMENT] = torch.from_numpy(np.load(path / "segment.npy"))
+            scene[DataKeys.SEGMENT] = torch.from_numpy(np.load(path / "segment.npy")).long()
         if (path / "instance.npy").exists():
-            scene[DataKeys.INSTANCE] = torch.from_numpy(np.load(path / "instance.npy"))
+            scene[DataKeys.INSTANCE] = torch.from_numpy(np.load(path / "instance.npy")).long()
         if self.return_superpoint:
             scene[DataKeys.SUPERPOINT] = self._load_superpoint(path.name, scene[DataKeys.POS].shape[0])
         if self.relabel is not None:
