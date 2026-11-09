@@ -639,7 +639,7 @@ class PointNeXtPartSegmentation(PartSegmentationModel):
         return self.decoder(x, pos, batch, category, intermediates)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        if self.dropout and not isinstance(self.head, MLP):
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
 
         x_max = global_max_pool(x, batch)[batch]  # (N, C)
@@ -865,7 +865,7 @@ class PointNeXtClassification(ClassificationModel):
         if self.global_sa is not None:
             x = self.global_sa(torch.cat([pos, x], dim=1))
         x = self.global_pool(x, batch)
-        if self.dropout and not isinstance(self.head, MLP):
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
@@ -1097,7 +1097,7 @@ class PointNeXtSegmentation(SemanticSegmentationModel):
         return self.decoder(x, pos, batch, intermediates)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-        if self.dropout and not isinstance(self.head, MLP):
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
