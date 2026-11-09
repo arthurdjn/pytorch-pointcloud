@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `box3d_overlap` returning an IoU above 1 for a box with an empty footprint inside another box, which `box_average_precision` counted as a match.
 - Fixed `CenterHead.decode` returning an unsorted `batch` with several class groups and scenes: the detections come scene by scene.
 - `AnchorHeadLoss` raises a `ValueError` on the output of a head built with `code_size=9`, which it does not supervise.
+- `generate_anchors` raises a `ValueError` instead of a `ZeroDivisionError` for a one-cell feature map axis with `align_center=False`.
 
 ## 0.0.19 (2026-11-08)
 

@@ -44,8 +44,17 @@ def generate_anchors(
 
     Returns:
         Anchors $(1, n_y, n_x, n_\text{size}, n_\text{rot}, 7)$ as $(x, y, z, dx, dy, dz, \theta)$.
+
+    Raises:
+        ValueError: If `feature_map_size` has fewer than $2$ cells along $x$ or $y$ with `align_center=False`.
     """
     nx, ny = feature_map_size
+    if not align_center and min(nx, ny) < 2:
+        raise ValueError(
+            "`feature_map_size` needs at least 2 cells along x and y for the grid to span the range with "
+            f"`align_center=False`, got {tuple(feature_map_size)}."
+        )
+
     x_min, y_min, _, x_max, y_max, _ = point_cloud_range
     if align_center:
         x_stride = (x_max - x_min) / nx
