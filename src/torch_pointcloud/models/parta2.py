@@ -4,6 +4,7 @@
 """
 
 import math
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
@@ -287,7 +288,8 @@ class PartA2Detection(DetectionModel):
         upsample_strides: 2D backbone upsample strides per level.
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the anchor head.
-        dir_offset: Direction-classifier angle offset.
+        dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
+            warns and uses $0.78539$) and an error from 0.0.20.
         dir_limit_offset: Heading wrap offset used during decoding.
         proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
         proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
@@ -319,7 +321,7 @@ class PartA2Detection(DetectionModel):
         upsample_strides: Sequence[int] = (1, 2),
         num_upsample_filters: Sequence[int] = (256, 256),
         num_dir_bins: int = 2,
-        dir_offset: float = 0.78539,
+        dir_offset: Optional[float] = None,
         dir_limit_offset: float = 0.0,
         proposal_pre_maxsize: int = 1024,
         proposal_post_maxsize: int = 100,
@@ -333,6 +335,15 @@ class PartA2Detection(DetectionModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        if dir_offset is None:
+            warnings.warn(
+                "Omitting `dir_offset` of `PartA2Detection` is deprecated since 0.0.19 and an error from 0.0.20; "
+                "pass the direction offset the weights were trained with (0.78539 was the default).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            dir_offset = 0.78539
+
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.voxel_size = tuple(voxel_size)
         self.point_cloud_range = tuple(point_cloud_range)
