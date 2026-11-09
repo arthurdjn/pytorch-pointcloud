@@ -374,7 +374,18 @@ class OnesLike(DictTransform):
 
     Args:
         keys: Reference keys used to determine tensor shape.
-        dst_keys: Keys under which the ones tensors are stored.
+        memory_format: Memory format of the ones tensors, one value or one per key. `None` (the default) keeps
+            the format of the reference tensor.
+        dtype: Data type of the ones tensors, one value or one per key. `None` (the default) keeps the dtype of
+            the reference tensor.
+        layout: Layout of the ones tensors, one value or one per key. `None` (the default) keeps the layout of
+            the reference tensor.
+        device: Device of the ones tensors, one value or one per key. `None` (the default) keeps the device of
+            the reference tensor.
+        pin_memory: Whether the ones tensors are allocated in pinned memory, one value or one per key.
+        requires_grad: Whether autograd records operations on the ones tensors, one value or one per key.
+        dst_keys: Keys under which the ones tensors are stored. Defaults to `keys`.
+        allow_missing_keys: If `True`, silently skip absent keys.
     """
 
     def __init__(
@@ -513,7 +524,7 @@ class OneHot(DictTransform):
 
     Shape:
         Input class tensor of shape $(N,)$ becomes $(N, C)$. A scalar input
-        becomes shape $(C,)$, which after batched collate stacks to $(B, C)$.
+        becomes shape $(1, C)$, which collation concatenates to $(B, C)$.
     """
 
     def __init__(
@@ -870,6 +881,7 @@ def absolute(x: Tensor, inplace: bool = False) -> Tensor:
 
     Args:
         x: The input tensor.
+        inplace: If `True`, overwrite `x` with its absolute value and return it.
 
     Returns:
         The absolute tensor.

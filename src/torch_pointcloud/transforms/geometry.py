@@ -247,8 +247,7 @@ class Shift(DictTransform):
         allow_missing_keys: If `True`, skip missing keys silently.
 
     Example:
-        XY shifted by the bbox midpoint, Z shifted by its minimum (equivalent
-        to the old `CenterShift(apply_z=True)`):
+        XY shifted by the bbox midpoint, Z shifted by its minimum:
 
         ```python
         from torch_pointcloud.transforms import Compose, Shift
@@ -259,8 +258,7 @@ class Shift(DictTransform):
         ])
         ```
 
-        Without the Z step (equivalent to the old `CenterShift(apply_z=False)`),
-        a single `Shift` suffices:
+        Without the Z step, a single `Shift` suffices:
 
         ```python
         from torch_pointcloud.transforms import Shift
@@ -486,8 +484,7 @@ class AxisMinOffset(DictTransform):
     estimate.
 
     The result has the same shape as the input with the coordinate dimension
-    reduced to size 1 (e.g. $(N, 3) \to (N, 1)$ or $(B, N, 3) \to (B, N, 1)$).
-    For batched inputs, the minimum is computed per-sample.
+    reduced to size 1, $(N, 3) \to (N, 1)$.
 
     === "Object"
 
@@ -609,7 +606,7 @@ class Translate(DictTransform):
         ```python
         import torch
         from torch_pointcloud.transforms import Translate
-        Translate(keys="pos", offset=(1.0, 0.0, -1.0))({"pos": torch.zeros(2, 3)})["pos"]  # tensor([[ 1.,  0., -1.],  # [ 1.,  0., -1.]])
+        Translate(keys="pos", offset=(1.0, 0.0, -1.0))({"pos": torch.zeros(2, 3)})["pos"]  # tensor([[ 1.,  0., -1.], [ 1.,  0., -1.]])
         ```
     """
 

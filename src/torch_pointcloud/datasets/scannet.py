@@ -64,7 +64,7 @@ SCANNET20_CLASSES = [
     "otherfurniture",
 ]
 
-# 18-class ScanNet detection taxonomy (the standard votenet / 3DETR benchmark set): the SCANNET20 NYU40
+# 18-class ScanNet detection taxonomy (the standard detection benchmark set): the SCANNET20 NYU40
 # ids minus the two "stuff" classes wall (1) and floor (2). Feed `SCANNET_DETECTION_LABELS` to `Relabel`
 # (with `default=-1`) so the segmentation labels map to 0..17 and everything else to -1, then `InstanceToBox`
 # (with `ignore_index=-1`) derives one box per remaining instance.
@@ -755,6 +755,7 @@ def load_scannet_scene(
         label_to_idx: A dictionary mapping object labels to contiguous positive indices. The labels correspond to the `raw_category` column
             in the labels CSV file, or to the `label` key in the aggregation JSON file.
             This mapping is used to map object labels to their associated target indices.
+        scene_id: Scene name stored under the `scene` key of the returned dictionary; `None` omits the key.
         use_axis_alignment: Whether to apply the axis alignment transformation from the
             scene metadata.  Set to `False` to keep the raw PLY coordinates.
 
@@ -775,8 +776,8 @@ def load_scannet_scene(
         ...     label_to_idx=label_to_idx,
         ... )
         >>> scene  # doctest: +SKIP
-        {'points': tensor([[...]]), 'color': tensor([[...]]), 'normal': tensor([[...]]),
-         'instance': tensor([...]), 'labels': tensor([...])}}
+        {'pos': tensor([[...]]), 'color': tensor([[...]]), 'normal': tensor([[...]]),
+         'instance': tensor([...]), 'segment': tensor([...])}
 
         ```
     """

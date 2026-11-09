@@ -314,7 +314,7 @@ class DivisiblePad(DictTransform, Randomizable):
 class HardVoxelize(DictTransform):
     r"""Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.
 
-    Moves the `transform_points_to_voxels` step of voxel detectors (PointPillars, SECOND) out of the
+    Moves the point-to-voxel step of voxel detectors (PointPillars, SECOND) out of the
     model and into the data pipeline, mirroring how `BuildOctree` produces an octree for OctFormer.
     The model then receives already-voxelized input and focuses on the network math.
 

@@ -207,8 +207,7 @@ def random_sample_face_vertices(
     return_normals: bool = False,
     generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face),
-    using:
+    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face).
 
     Note:
         The data is sampled uniformly from the mesh.
