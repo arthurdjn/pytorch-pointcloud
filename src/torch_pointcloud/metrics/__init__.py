@@ -12,7 +12,12 @@ from .instance_segmentation import (
 )
 from .kitti import kitti_average_precision
 from .nuscenes import nuscenes_detection_metrics
-from .segmentation import intersection_over_union, part_intersection_over_union, part_mean_intersection_over_union
+from .segmentation import (
+    intersection_over_union,
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
+    part_predictions,
+)
 
 __all__ = [
     "accuracy",
@@ -30,4 +35,5 @@ __all__ = [
     "nuscenes_detection_metrics",
     "part_intersection_over_union",
     "part_mean_intersection_over_union",
+    "part_predictions",
 ]

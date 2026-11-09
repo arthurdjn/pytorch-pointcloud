@@ -91,6 +91,7 @@ from .utils import (
     Add,
     Cat,
     Clamp,
+    ClampNorm,
     CopyItems,
     Divide,
     DivideItems,
@@ -111,6 +112,7 @@ from .utils import (
 )
 from .voxelization import (
     DivisiblePad,
+    DynamicVoxelize,
     HardVoxelize,
     Voxelize,
 )
@@ -170,6 +172,7 @@ __all__ = [
     "Add",
     "Cat",
     "Clamp",
+    "ClampNorm",
     "CopyItems",
     "Divide",
     "DivideItems",
@@ -188,6 +191,7 @@ __all__ = [
     "ToFloat",
     "ToTensor",
     "DivisiblePad",
+    "DynamicVoxelize",
     "HardVoxelize",
     "Voxelize",
 ]
