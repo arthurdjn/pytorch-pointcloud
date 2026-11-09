@@ -193,6 +193,18 @@ def angle_to_class(angle: Tensor, num_heading_bins: int) -> Tuple[Tensor, Tensor
 
     Returns:
         A tuple of the per-angle class indices (long, shape $(K,)$) and residual angles (shape $(K,)$).
+
+    Shape:
+        - angle: $(K,)$
+        - output: $(K,)$, $(K,)$
+
+    Example:
+        ```pycon
+        >>> cls, residual = angle_to_class(torch.tensor([0.0, 1.0, 3.5]), num_heading_bins=4)
+        >>> cls.tolist(), [round(r, 4) for r in residual.tolist()]
+        ([0, 1, 2], [0.0, -0.5708, 0.3584])
+
+        ```
     """
     two_pi = 2 * math.pi
     angle_per_class = two_pi / num_heading_bins
@@ -217,6 +229,19 @@ def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_
 
     Returns:
         The recovered heading angles of shape $(K,)$.
+
+    Shape:
+        - heading_class: $(K,)$
+        - heading_residual: $(K,)$
+        - output: $(K,)$
+
+    Example:
+        ```pycon
+        >>> heading_class, heading_residual = torch.tensor([0, 1, 2]), torch.tensor([0.0, -0.5708, 0.3584])
+        >>> [round(a, 4) for a in class_to_angle(heading_class, heading_residual, num_heading_bins=4).tolist()]
+        [0.0, 1.0, 3.5]
+
+        ```
     """
     if num_heading_bins == 1:
         return torch.zeros_like(heading_residual)
@@ -305,12 +330,48 @@ def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor)
 
     Returns:
         The recovered full edge lengths of shape $(K, 3)$.
+
+    Shape:
+        - size_class: $(K,)$
+        - size_residual: $(K, 3)$
+        - mean_sizes: $(C, 3)$
+        - output: $(K, 3)$
+
+    Example:
+        ```pycon
+        >>> mean_sizes = torch.tensor([[4.0, 2.0, 1.5], [0.8, 0.6, 1.7]])
+        >>> size_residual = torch.tensor([[0.1, 0.0, -0.1], [0.0, 0.2, 0.0]])
+        >>> class_to_size(torch.tensor([1, 0]), size_residual, mean_sizes)
+        tensor([[0.9000, 0.6000, 1.6000],
+                [4.0000, 2.2000, 1.5000]])
+
+        ```
     """
     return mean_sizes.to(size_residual)[size_class.long()] + size_residual
 
 
 def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> Tensor:
-    r"""Wrap an angle to $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$."""
+    r"""Wrap angles into the interval $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$.
+
+    Args:
+        val: Angles in radians, any shape.
+        offset: Fraction of the period that lies below zero: $0.5$ centers the interval on zero, $0$ starts it there.
+        period: Length of the interval.
+
+    Returns:
+        The wrapped angles, shaped like `val`.
+
+    Shape:
+        - val: $(*)$
+        - output: $(*)$
+
+    Example:
+        ```pycon
+        >>> [round(a, 4) for a in limit_period(torch.tensor([0.5, 2.0, -2.0, 3.5])).tolist()]
+        [0.5, -1.1416, 1.1416, 0.3584]
+
+        ```
+    """
     return val - torch.floor(val / period + offset) * period
 
 
@@ -512,12 +573,12 @@ def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) ->
         aligned: With `True`, `boxes_a` and `boxes_b` pair up row by row ($N = M$) and the result is $(N,)$.
 
     Returns:
-        Pairwise BEV IoU in $[0, 1]$, shape $(N, M)$.
+        Pairwise BEV IoU in $[0, 1]$, shape $(N, M)$, or the IoU of every pair of rows, shape $(N,)$, with `aligned`.
 
     Shape:
         - boxes_a: $(N, 7)$
         - boxes_b: $(M, 7)$
-        - output: $(N, M)$
+        - output: $(N, M)$, or $(N,)$ with `aligned`
 
     Example:
         ```pycon
@@ -598,12 +659,12 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
         aligned: With `True`, `boxes_a` and `boxes_b` pair up row by row ($N = M$) and the result is $(N,)$.
 
     Returns:
-        Pairwise 3D IoU in $[0, 1]$, shape $(N, M)$.
+        Pairwise 3D IoU in $[0, 1]$, shape $(N, M)$, or the IoU of every pair of rows, shape $(N,)$, with `aligned`.
 
     Shape:
         - boxes_a: $(N, 7)$
         - boxes_b: $(M, 7)$
-        - output: $(N, M)$
+        - output: $(N, M)$, or $(N,)$ with `aligned`
 
     Example:
         ```pycon
