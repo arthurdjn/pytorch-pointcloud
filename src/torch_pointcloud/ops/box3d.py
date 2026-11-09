@@ -8,7 +8,8 @@ in any right-handed frame.
 """
 
 import math
-from typing import Callable, Optional, Tuple
+import warnings
+from typing import Callable, Literal, Optional, Tuple
 
 import torch
 from torch import Tensor
@@ -1017,3 +1018,48 @@ def projected_ignore_mask(
     max_row = (image_shape[..., 0].to(y.dtype) - 1)[..., None]
     y = torch.minimum(y.clamp(min=0.0), max_row)
     return y.amax(dim=-1) - y.amin(dim=-1) < min_height
+
+
+def decode_roi_residuals(encodings: Tensor, rois: Tensor) -> Tensor:
+    """Deprecated alias of `torch_pointcloud.ops.roi.decode_roi_residuals`."""
+    from torch_pointcloud.ops import roi
+
+    warnings.warn(
+        "`torch_pointcloud.ops.box3d.decode_roi_residuals` is deprecated; use "
+        "`torch_pointcloud.ops.roi.decode_roi_residuals` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return roi.decode_roi_residuals(encodings, rois)
+
+
+def roi_aware_pool3d(
+    x: Tensor,
+    pos: Tensor,
+    boxes: Tensor,
+    out_size: int,
+    *,
+    pos_batch: OptTensor = None,
+    box_batch: OptTensor = None,
+    max_points_per_cell: int = 127,
+    reduce: Literal["max", "mean"] = "max",
+) -> Tensor:
+    """Deprecated alias of `torch_pointcloud.ops.roi.roi_aware_pool3d`."""
+    from torch_pointcloud.ops import roi
+
+    warnings.warn(
+        "`torch_pointcloud.ops.box3d.roi_aware_pool3d` is deprecated; use "
+        "`torch_pointcloud.ops.roi.roi_aware_pool3d` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return roi.roi_aware_pool3d(
+        x,
+        pos,
+        boxes,
+        out_size,
+        pos_batch=pos_batch,
+        box_batch=box_batch,
+        max_points_per_cell=max_points_per_cell,
+        reduce=reduce,
+    )

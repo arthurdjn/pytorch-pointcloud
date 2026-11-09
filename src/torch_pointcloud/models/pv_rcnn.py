@@ -15,9 +15,10 @@ import torch_pointcloud.transforms as T
 from torch_pointcloud.layers.anchors import AnchorHead, AnchorHeadOutput
 from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2QuerySetAbstraction
+from torch_pointcloud.ops import roi
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.ops.cluster import fps
-from torch_pointcloud.ops.roi import decode_roi_residuals, roi_grid_points
+from torch_pointcloud.ops.roi import decode_roi_residuals
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D, FeaturesDict
@@ -80,6 +81,17 @@ def bilinear_interpolate(image: Tensor, x: Tensor, y: Tensor) -> Tensor:
         + image[y0, x1] * wc.unsqueeze(1)
         + image[y1, x1] * wd.unsqueeze(1)
     )
+
+
+def roi_grid_points(rois: Tensor, grid_size: int) -> Tensor:
+    """Deprecated alias of `torch_pointcloud.ops.roi.roi_grid_points`."""
+    warnings.warn(
+        "`torch_pointcloud.models.pv_rcnn.roi_grid_points` is deprecated; use "
+        "`torch_pointcloud.ops.roi.roi_grid_points` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return roi.roi_grid_points(rois, grid_size)
 
 
 class VoxelSetAbstraction(nn.Module):
@@ -305,7 +317,7 @@ class PVRCNNBoxHead(nn.Module):
     ) -> Tuple[Tensor, Tensor]:
         r"""Pool every RoI and predict its confidence logit $(R, 1)$ and box residuals $(R, 7)$."""
         num_points = self.grid_size**3
-        grid = roi_grid_points(rois, self.grid_size).view(-1, 3)
+        grid = roi.roi_grid_points(rois, self.grid_size).view(-1, 3)
         grid_batch = roi_batch.repeat_interleave(num_points)
         pooled = self.grid_pool(keypoint_features, keypoint_pos, keypoint_batch, grid, grid_batch)
 

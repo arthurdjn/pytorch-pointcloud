@@ -5,6 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.ops import box3d, roi
 from torch_pointcloud.ops.box3d import (
     _overlapping_pairs,
     angle_to_class,
@@ -796,3 +797,20 @@ def test_boxes_iou_nearest_bev_snaps_each_box_to_its_nearest_axis() -> None:
     assert torch.allclose(boxes_iou_nearest_bev(box, slightly_rotated), torch.ones(1, 1))
     assert torch.allclose(boxes_iou_nearest_bev(box, box), boxes_iou_bev(box, box))
     assert boxes_iou_bev(box, slightly_rotated).item() < 1.0
+
+
+def test_decode_roi_residuals_is_deprecated() -> None:
+    rois = _boxes([[10.0, 5.0, 0.0, 4.0, 2.0, 1.5, math.pi / 2]])
+    encodings = _boxes([[0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+    with pytest.warns(FutureWarning, match="ops.roi.decode_roi_residuals"):
+        boxes = box3d.decode_roi_residuals(encodings, rois)
+    assert torch.equal(boxes, roi.decode_roi_residuals(encodings, rois))
+
+
+def test_roi_aware_pool3d_is_deprecated() -> None:
+    x = torch.tensor([[1.0], [3.0], [5.0]])
+    pos = torch.tensor([[-0.5, 0.0, 0.0], [-0.4, 0.0, 0.0], [0.5, 0.0, 0.0]])
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]])
+    with pytest.warns(FutureWarning, match="ops.roi.roi_aware_pool3d"):
+        pooled = box3d.roi_aware_pool3d(x, pos, boxes, 2, reduce="mean")
+    assert torch.equal(pooled, roi.roi_aware_pool3d(x, pos, boxes, 2, reduce="mean"))

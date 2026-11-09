@@ -17,7 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark and training scripts.
 - Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `VoxelBackbone8x(return_intermediates=True)`.
-- Moved `roi_aware_pool3d` and `decode_roi_residuals` from `ops.box3d`, and `roi_grid_points` from `models.pv_rcnn`, to `ops.roi`.
+- Moved `roi_aware_pool3d` and `decode_roi_residuals` from `ops.box3d`, and `roi_grid_points` from `models.pv_rcnn`, to `ops.roi`; the former locations still work, with a `FutureWarning`.
 - Added `datasets.kitti.kitti_difficulty`.
 
 ## 0.0.19 (2026-11-08)

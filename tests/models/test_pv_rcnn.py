@@ -6,7 +6,8 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models.pv_rcnn import PVRCNNDetection, bilinear_interpolate
+from torch_pointcloud.models.pv_rcnn import PVRCNNDetection, bilinear_interpolate, roi_grid_points
+from torch_pointcloud.ops import roi
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -24,6 +25,13 @@ def _make_inputs(n_per_scene: int = 4000, batch_size: int = 2) -> Dict[str, Tens
         "x": torch.rand(batch_size * n_per_scene, 1).cuda(),
         "batch": torch.arange(batch_size).repeat_interleave(n_per_scene).cuda(),
     }
+
+
+def test_roi_grid_points_is_deprecated() -> None:
+    rois = torch.tensor([[1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 0.0]])
+    with pytest.warns(FutureWarning, match="ops.roi.roi_grid_points"):
+        grid = roi_grid_points(rois, 2)
+    assert torch.equal(grid, roi.roi_grid_points(rois, 2))
 
 
 def test_bilinear_interpolate_interior_and_border() -> None:
