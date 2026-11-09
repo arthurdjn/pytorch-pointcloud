@@ -1754,7 +1754,8 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         pre_logits: bool = False,
         condition: Union[str, Sequence[str], None] = None,
     ) -> Tensor:
-        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
+        if condition is not None or self.num_classes_per_condition is not None:
+            condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         if pre_logits:

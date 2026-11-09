@@ -389,6 +389,13 @@ def test_pt_v3_segmentation_head_rejects_a_condition_without_pdnorm_conditions(
         model_seg.forward_head(features, condition="ScanNet")
 
 
+def test_pt_v3_segmentation_plain_head_needs_no_condition(model_seg_pdnorm: PointTransformerV3Segmentation) -> None:
+    model_seg_pdnorm.condition = None
+    features = torch.randn(7, model_seg_pdnorm.num_features, device=DEVICE)
+    assert model_seg_pdnorm.forward_head(features).shape == (7, model_seg_pdnorm.num_classes)
+    assert torch.equal(model_seg_pdnorm.forward_head(features, pre_logits=True), features)
+
+
 def test_pt_v3_segmentation_cosine_similarity_head_routes_the_condition(
     model_seg_language: PointTransformerV3Segmentation,
 ) -> None:
