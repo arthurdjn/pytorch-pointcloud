@@ -283,10 +283,19 @@ class DetectionModel(nn.Module, metaclass=ABCMeta):
 
     Args:
         in_channels: Number of input feature channels.
-        num_classes: Number of object classes.
+        num_classes: Number of object classes, at least 1.
+
+    Raises:
+        ValueError: If `num_classes` is below 1.
     """
 
     def __init__(self, in_channels: int, num_classes: int) -> None:
+        if num_classes < 1:
+            raise ValueError(
+                f"A detector needs at least one class, got num_classes={num_classes}; detectors have no headless "
+                "mode, take the backbone features from `forward_features`."
+            )
+
         super().__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes

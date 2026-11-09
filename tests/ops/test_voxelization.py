@@ -6,12 +6,14 @@ import torch
 from torch_pointcloud.ops.voxelization import (
     _point_to_voxel_generator,
     dense_voxelize,
+    dynamic_voxelize,
     first_permutation,
     hard_voxelize,
     majority_label,
     sparse_voxelize,
     trilinear_dense_devoxelize,
     voxel_grid_fnv,
+    voxel_patch_partition,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -246,3 +248,56 @@ def test_majority_label_empty_clusters(ignore_index: Optional[int], expected: li
         ignore_index=ignore_index,
     )
     assert torch.equal(result, torch.tensor(expected))
+
+
+def test_voxel_patch_partition_known_values() -> None:
+    pos_grid = torch.tensor([[0, 0, 0], [1, 2, 3], [4, 0, 0], [0, 0, 0]])
+    batch = torch.tensor([0, 0, 0, 1])
+
+    patch_grid, patch_batch, inverse, offset = voxel_patch_partition(pos_grid, batch, patch_size=4)
+
+    assert torch.equal(patch_grid, torch.tensor([[0, 0, 0], [1, 0, 0], [0, 0, 0]]))
+    assert torch.equal(patch_batch, torch.tensor([0, 0, 1]))
+    assert torch.equal(inverse, torch.tensor([0, 0, 1, 2]))
+    assert torch.equal(offset, torch.tensor([0, 1 * 16 + 2 * 4 + 3, 0, 0]))
+
+
+def test_voxel_patch_partition_round_trips_the_voxel_coordinates() -> None:
+    torch.manual_seed(0)
+    pos_grid = torch.unique(torch.randint(0, 20, (500, 3)), dim=0)
+    batch = (torch.arange(pos_grid.size(0)) >= pos_grid.size(0) // 2).long()
+    k = 5
+
+    patch_grid, patch_batch, inverse, offset = voxel_patch_partition(pos_grid, batch, patch_size=k)
+
+    local = torch.stack([offset // (k * k), offset // k % k, offset % k], dim=1)
+    assert torch.equal(patch_grid[inverse] * k + local, pos_grid)
+    assert torch.equal(patch_batch[inverse], batch)
+    assert bool((patch_batch.diff() >= 0).all())
+    assert torch.unique(torch.stack([inverse, offset], dim=1), dim=0).size(0) == pos_grid.size(0)
+
+
+def test_voxel_patch_partition_rejects_empty_patches() -> None:
+    with pytest.raises(ValueError, match="patch_size"):
+        voxel_patch_partition(torch.zeros(1, 3, dtype=torch.long), torch.zeros(1, dtype=torch.long), patch_size=0)
+
+
+def test_dynamic_voxelize_means_points_and_sorts_voxels() -> None:
+    points = torch.tensor([[0.8, 0.8, 0.8, 5.0], [0.2, 0.2, 0.2, 1.0], [0.4, 0.2, 0.2, 3.0], [1.5, 0.2, 0.2, 7.0]])
+    batch = torch.tensor([1, 0, 0, 0])
+    voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, (0.5, 0.5, 0.5), (0, 0, 0, 1, 1, 1))
+    # The out-of-range point is dropped; voxels come out sorted by (batch, z, y, x).
+    assert voxel_indices.tolist() == [[0, 0, 0, 0], [1, 1, 1, 1]]
+    assert num_points.tolist() == [2, 1]
+    assert torch.allclose(voxels, torch.tensor([[0.3, 0.2, 0.2, 2.0], [0.8, 0.8, 0.8, 5.0]]))
+    assert voxel_indices.dtype == torch.int32 and num_points.dtype == torch.int32
+
+
+def test_dynamic_voxelize_assigns_half_precision_points_like_float32() -> None:
+    torch.manual_seed(0)
+    points = (torch.rand(500, 4) * torch.tensor([70.4, 80.0, 4.0, 1.0]) + torch.tensor([0.0, -40.0, -3.0, 0.0])).half()
+    batch = torch.zeros(500, dtype=torch.long)
+    voxel_size, point_cloud_range = (0.05, 0.05, 0.1), (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
+    _, half_indices, half_counts = dynamic_voxelize(points, batch, voxel_size, point_cloud_range)
+    _, indices, counts = dynamic_voxelize(points.float(), batch, voxel_size, point_cloud_range)
+    assert torch.equal(half_indices, indices) and torch.equal(half_counts, counts)
