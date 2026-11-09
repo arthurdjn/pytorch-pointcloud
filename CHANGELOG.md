@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `ops.hilbert.encode` returning a 0-dim tensor for one point and `serialize` failing on an empty cloud.
 - `create_norm("layer_norm", ..., dim=2)` and `dim=3` raise a `ValueError`: the `nn.LayerNorm` they returned failed on channel-first inputs.
 - Fixed `PackedTransformerBlock` mixing the samples of a batch with `norm="LayerNorm"` and the other spellings of `"layer_norm"`.
+- Fixed `PointConvSetAbstraction` and `PointConvDensitySetAbstraction` failing on `x=None` with `downsample`.
 
 ## 0.0.19 (2026-11-08)
 
