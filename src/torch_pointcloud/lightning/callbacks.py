@@ -115,7 +115,7 @@ class MetricCallback(Callback):
         self.target_key = target_key
         self.batch_key = batch_key
         self.prog_bar = prog_bar
-        self.metric: Optional[Metric] = metric
+        self.metric = metric
         self._update_keys = frozenset(
             param.name
             for param in inspect.signature(metric.update).parameters.values()
@@ -123,12 +123,10 @@ class MetricCallback(Callback):
         )
 
     def _reset(self, pl_module: "L.LightningModule") -> None:
-        assert self.metric is not None
-        self.metric = self.metric.to(pl_module.device)
         self.metric.reset()
+        self.metric = self.metric.to(pl_module.device)
 
     def _update(self, outputs: Any) -> None:
-        assert self.metric is not None
         if not isinstance(outputs, dict):
             raise TypeError(
                 f"MetricCallback expects the step output to be a dict holding {self.preds_key!r} and "
@@ -147,7 +145,6 @@ class MetricCallback(Callback):
             self.metric.update(outputs[self.preds_key], outputs[self.target_key], **extras)
 
     def _compute(self, pl_module: "L.LightningModule", stage: str) -> None:
-        assert self.metric is not None
         value = self.metric.compute()
         if isinstance(value, dict):
             for i, (key, sub) in enumerate(value.items()):
