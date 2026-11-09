@@ -371,6 +371,12 @@ class GroupFree3DDetection(DetectionModel):
         counts = mask.sum(dim=1)
         start = counts.cumsum(0) - counts
         dense_index = torch.arange(batch.numel(), device=batch.device) - start[batch] + batch * num_seeds  # (N_s,)
+        padded = x.size(0) != batch_size * num_seeds
+        if padded and int(counts.min()) < self.num_proposals:
+            raise ValueError(
+                f"Every scene needs at least `num_proposals` ({self.num_proposals}) seeds, got {int(counts.min())}."
+            )
+
         pos_dense = _to_dense(pos, dense_index, batch_size, num_seeds)  # (B, S, 3)
         # Ranked by logit: the sigmoid saturates to exactly 1 in float32 and would leave the top seeds tied.
         logits_dense = _to_dense(seed_logits, dense_index, batch_size, num_seeds, fill_value=-math.inf)  # (B, S)
@@ -383,7 +389,7 @@ class GroupFree3DDetection(DetectionModel):
         stages = [self.proposal_head(x_query, pos_query, self.mean_sizes)]
         query = self.query_proj(x_query).transpose(0, 1)  # (Q, B, C)
         key = self.key_proj(x_dense).transpose(0, 1)  # (S, B, C)
-        padding_mask = None if x.size(0) == batch_size * num_seeds else ~mask
+        padding_mask = ~mask if padded else None
         for layer, query_pos_embed, key_pos_embed, head in zip(
             self.decoder, self.query_pos_embeds, self.key_pos_embeds, self.prediction_heads
         ):

@@ -115,6 +115,23 @@ def test_groupfree3d_forward_head_pads_scenes_of_different_seed_counts() -> None
         assert torch.allclose(both[key][:, 0], alone[key][:, 0], atol=1e-5), key
 
 
+@pytest.mark.parametrize(
+    "counts",
+    [
+        pytest.param((10, 200), id="first-scene"),
+        pytest.param((200, 10), id="last-scene"),
+    ],
+)
+def test_groupfree3d_forward_head_rejects_a_scene_with_fewer_seeds_than_proposals(counts: Tuple[int, int]) -> None:
+    model = _create_groupfree3d().eval()
+    num_seeds = sum(counts)
+    x = torch.randn(num_seeds, model.num_features)
+    pos = torch.rand(num_seeds, 3)
+    batch = torch.arange(2).repeat_interleave(torch.tensor(counts))
+    with pytest.raises(ValueError, match="num_proposals"):
+        model.forward_head(x, pos, batch, torch.arange(num_seeds))
+
+
 @requires_pyg_lib
 def test_groupfree3d_eval_is_deterministic() -> None:
     model = _create_groupfree3d().to(DEVICE).eval()
