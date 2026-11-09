@@ -394,6 +394,6 @@ def load_safetensors(file_path: PathLike) -> Dict[str, Tensor | str]:
         The file's tensors and string metadata, keyed by name.
     """
     with safe_open(file_path, framework="pt") as f:
-        metadata = f.metadata()
+        metadata = f.metadata() or {}
         tensors = {k: f.get_tensor(k) for k in f.keys()}
     return {**metadata, **tensors}
