@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -184,17 +184,99 @@ def _block_confidence_predictor(window: Dict[str, Any]) -> Tensor:
     return torch.stack([torch.zeros(pos.size(0)), logit.expand(pos.size(0))], dim=1)
 
 
-def test_sliding_window_aggregate_max_keeps_the_most_confident_block() -> None:
-    """`aggregate="max"` gives every point the softmax of the covering block that is most confident about
-    it, instead of a blend: x=1 (blocks 0 and 1) takes block 1, x=2 (blocks 1 and 2) takes block 2."""
+def test_sliding_window_aggregate_max_keeps_the_elementwise_maximum() -> None:
+    """`aggregate="max"` keeps, per class, the highest probability of the blocks covering a point: x=0 sees block 0
+    only, x=1 blocks 0 and 1, x=2 blocks 1 and 2."""
     data = _line_data()
     out = sliding_window_inference(
         data, predictor=_block_confidence_predictor, block_size=2.0, overlap=0.5, aggregate="max"
     )
     block_probs = [torch.softmax(torch.tensor([0.0, m * 4.0]), dim=0) for m in (0.5, 1.5, 2.0)]
     assert torch.allclose(out[0], block_probs[0])
-    assert torch.allclose(out[1], block_probs[1])
-    assert torch.allclose(out[2], block_probs[2])
+    assert torch.allclose(out[1], torch.maximum(block_probs[0], block_probs[1]))
+    assert torch.allclose(out[2], torch.maximum(block_probs[1], block_probs[2]))
+
+
+def test_sliding_window_aggregate_max_restricted_argmax_follows_the_most_confident_block() -> None:
+    """Over classes 0 and 1 only, x=1 takes class 0 from block 1 (0.45) over class 1 from block 0 (0.20), although
+    block 0 is the more confident of the two over all the classes (0.69)."""
+    data = _line_data()
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        pos = window[DataKeys.POS]
+        probs = [0.10, 0.20, 0.69, 0.01] if pos[:, 0].mean() < 1.0 else [0.45, 0.15, 0.20, 0.20]
+        return torch.tensor(probs).log().expand(pos.size(0), -1)
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="max")
+    assert int(out[1, :2].argmax()) == 0
+
+
+@pytest.mark.parametrize(
+    "roi_num_points, sizes",
+    [
+        pytest.param(None, [4, 6], id="whole_cloud"),
+        pytest.param(2, [2, 2, 2, 2, 2], id="chunks"),
+    ],
+)
+def test_sliding_window_without_block_size_takes_each_cloud_as_one_block(
+    roi_num_points: Optional[int], sizes: List[int]
+) -> None:
+    """`block_size=None` gives the predictor each cloud whole, however large, or its `roi_num_points` chunks; every
+    point is predicted exactly once."""
+    pos = torch.rand(10, 3) * 100.0
+    batch = torch.tensor([0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+    blocks: List[Tensor] = []
+    calls: List[int] = []
+
+    def transform(window: Dict[str, Any]) -> Dict[str, Any]:
+        blocks.append(window[DataKeys.BLOCK_BBOX])
+        return window
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        calls.append(window[DataKeys.POS].size(0))
+        return window[DataKeys.POS][:, :2]
+
+    out = sliding_window_inference(
+        {DataKeys.POS: pos, DataKeys.BATCH: batch},
+        predictor=predictor,
+        block_size=None,
+        roi_num_points=roi_num_points,
+        transform=transform,
+        seed=0,
+    )
+    assert torch.allclose(out, pos[:, :2])
+    assert calls == sizes
+    assert len(blocks) == 2
+    assert torch.equal(blocks[1], torch.cat([pos[4:].amin(dim=0), pos[4:].amax(dim=0)]))
+
+
+@pytest.mark.parametrize(
+    "block_size, roi_num_points, sw_batch_size",
+    [
+        pytest.param(None, None, 1, id="whole_cloud"),
+        pytest.param(None, None, 4, id="whole_cloud_packed"),
+        pytest.param(None, 2, 8, id="chunks_packed"),
+        pytest.param(0.5, None, 4, id="blocks_packed"),
+    ],
+)
+def test_sliding_window_cloud_keys_give_each_element_its_own_cloud_row(
+    block_size: Optional[float], roi_num_points: Optional[int], sw_batch_size: int
+) -> None:
+    """A per-cloud key reaches every block, chunk and pack with the row of the cloud the points come from."""
+    batch = torch.tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1])
+    category = torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(12, 3), DataKeys.BATCH: batch, DataKeys.CATEGORY: category}
+
+    out = sliding_window_inference(
+        data,
+        predictor=lambda d: d[DataKeys.CATEGORY][d[DataKeys.BATCH]],
+        block_size=block_size,
+        roi_num_points=roi_num_points,
+        sw_batch_size=sw_batch_size,
+        cloud_keys=DataKeys.CATEGORY,
+        seed=0,
+    )
+    assert torch.equal(out, category[batch])
 
 
 def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:
@@ -470,6 +552,10 @@ def test_sliding_window_validates_args() -> None:
         sliding_window_inference({DataKeys.POS: pos}, predictor=fake, block_size=1.0)
     with pytest.raises(ValueError, match="`block_size`"):
         sliding_window_inference(data, predictor=fake, block_size=0.0)
+    with pytest.raises(ValueError, match="need a `block_size`"):
+        sliding_window_inference(data, predictor=fake, block_size=None, overlap=0.5)
+    with pytest.raises(ValueError, match="need a `block_size`"):
+        sliding_window_inference(data, predictor=fake, block_size=None, dims=(0, 1))
     with pytest.raises(ValueError, match="`overlap`"):
         sliding_window_inference(data, predictor=fake, block_size=1.0, overlap=1.0)
     with pytest.raises(ValueError, match="`mode`"):

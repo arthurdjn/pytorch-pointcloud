@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock, SubMConv3dBlock
+from torch_pointcloud.layers.spconv_blocks import SparseBasicBlock, SparseConvBlock, SubMConv3d, SubMConv3dBlock
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -32,6 +32,32 @@ def test_submconv3d_block_forward() -> None:
 
     out = block(x, pos, batch)
     assert out.shape == (20, 16)
+
+
+def test_submconv3d_block_inference_casts_features_to_the_weight_dtype() -> None:
+    block = SubMConv3dBlock(in_channels=8, out_channels=16, kernel_size=3, padding=1).cuda().eval()
+    x = torch.randn(20, 8).cuda()
+    pos = torch.randint(0, 32, (20, 3)).cuda()
+    batch = torch.cat([torch.zeros(8), torch.ones(12)]).long().cuda()
+
+    with torch.no_grad():
+        out = block(x.half(), pos, batch)
+
+    assert out.dtype == torch.float32
+    torch.testing.assert_close(out, block(x, pos, batch), atol=1e-2, rtol=1e-2)
+
+
+def test_submconv3d_inference_casts_features_to_the_weight_dtype() -> None:
+    conv = SubMConv3d(8, 16, kernel_size=3, indice_key="subm").cuda().eval()
+    pos = torch.cartesian_prod(torch.arange(4), torch.arange(5), torch.arange(1)).cuda()
+    batch = torch.zeros(20, dtype=torch.long).cuda()
+    x = torch.randn(20, 8).cuda()
+
+    with torch.no_grad():
+        out = conv(convert_to_spconv_tensor(x.half(), pos, batch)).features
+
+    assert out.dtype == torch.float32
+    torch.testing.assert_close(out, conv(convert_to_spconv_tensor(x, pos, batch)).features, atol=1e-2, rtol=1e-2)
 
 
 def test_sparse_conv_block_state_dict_positions() -> None:

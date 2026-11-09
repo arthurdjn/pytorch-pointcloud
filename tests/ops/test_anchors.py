@@ -17,6 +17,15 @@ def test_generate_anchors_layout_and_center_lift() -> None:
     assert torch.all(anchors[..., 0, 6] == 0.0) and torch.all(anchors[..., 1, 6] == 1.57)
 
 
+def test_generate_anchors_align_center() -> None:
+    anchors = generate_anchors(RANGE, (4, 4), [[4.0, 2.0, 1.5]], [0.0, 1.57], [0.0], align_center=True)
+    assert anchors.shape == (1, 4, 4, 1, 2, 7)
+    # The range is cut into four cells per axis and every anchor sits at a cell center.
+    assert torch.allclose(anchors[0, 0, :, 0, 0, 0], torch.tensor([1.0, 3.0, 5.0, 7.0]))
+    assert torch.allclose(anchors[0, :, 0, 0, 0, 1], torch.tensor([-3.0, -1.0, 1.0, 3.0]))
+    assert torch.all(anchors[..., 2] == 0.75)
+
+
 def test_assign_single_overlapping_gt() -> None:
     anchors = torch.tensor(
         [

@@ -19,6 +19,8 @@ from .pointcloud import PointCloudDataset
 
 KITTI_CLASSES = ("Car", "Van", "Truck", "Pedestrian", "Person_sitting", "Cyclist", "Tram", "Misc")
 KITTI_CLASS_TO_INDEX = {name: i for i, name in enumerate(KITTI_CLASSES)}
+# The evaluation ignores a box of the neighbouring class instead of counting it as a miss or a false positive.
+KITTI_IGNORE_CLASSES = {"Van": "Car", "Person_sitting": "Pedestrian"}
 
 
 class KittiCalib(TypedDict):

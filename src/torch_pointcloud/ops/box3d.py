@@ -189,6 +189,78 @@ def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_
     return heading_class.to(heading_residual.dtype) * (2 * math.pi / num_heading_bins) + heading_residual
 
 
+def angle_to_direction_bin(angle: Tensor, num_dir_bins: int, dir_offset: float) -> Tensor:
+    r"""Direction bin of every heading: which of $N$ equal sectors of the turn, counted from `dir_offset`, holds it.
+
+    Bin $k$ covers $[\text{dir\_offset} + k \cdot 2\pi / N, \text{dir\_offset} + (k + 1) \cdot 2\pi / N)$ modulo
+    $2\pi$. With $N = 2$ the bin tells the two directions of a box axis apart, which a regressed heading leaves
+    ambiguous; `direction_bin_to_angle` puts a heading back into a given bin.
+
+    Args:
+        angle: Headings in radians, any shape.
+        num_dir_bins: Number of direction bins $N$.
+        dir_offset: Angle at which bin $0$ starts.
+
+    Returns:
+        The bin index (long) of every heading, in $[0, N)$, shaped like `angle`.
+
+    Shape:
+        - angle: $(*)$
+        - output: $(*)$
+
+    Example:
+        ```pycon
+        >>> angle_to_direction_bin(torch.tensor([0.0, 1.5708, 3.1416, -1.5708]), 2, 0.7854).tolist()
+        [1, 0, 0, 1]
+
+        ```
+    """
+    period = 2 * math.pi / num_dir_bins
+    offset_angle = limit_period(angle - dir_offset, 0.0, 2 * math.pi)
+    return torch.floor(offset_angle / period).long().clamp(min=0, max=num_dir_bins - 1)
+
+
+def direction_bin_to_angle(
+    direction_bin: Tensor,
+    angle: Tensor,
+    num_dir_bins: int,
+    dir_offset: float,
+    dir_limit_offset: float = 0.0,
+) -> Tensor:
+    r"""Move every heading into its direction bin, keeping the heading modulo the bin width $2\pi / N$.
+
+    The heading is first wrapped into one bin width with `limit_period(angle - dir_offset, dir_limit_offset, 2 pi / N)`,
+    then shifted by `dir_offset` and by `direction_bin` bin widths. With `dir_limit_offset` $= 0$ the result lies in
+    the bin, so it inverts `angle_to_direction_bin`.
+
+    Args:
+        direction_bin: Bin index of every heading (long), shaped like `angle`.
+        angle: Headings in radians, any shape.
+        num_dir_bins: Number of direction bins $N$.
+        dir_offset: Angle at which bin $0$ starts.
+        dir_limit_offset: `offset` of `limit_period` when the heading is wrapped into one bin width.
+
+    Returns:
+        The headings moved into their bins, shaped like `angle`.
+
+    Shape:
+        - direction_bin: $(*)$
+        - angle: $(*)$
+        - output: $(*)$
+
+    Example:
+        ```pycon
+        >>> angle = torch.tensor([0.3, 0.3])
+        >>> [round(a, 4) for a in direction_bin_to_angle(torch.tensor([0, 1]), angle, 2, 0.7854).tolist()]
+        [3.4416, 6.5832]
+
+        ```
+    """
+    period = 2 * math.pi / num_dir_bins
+    wrapped = limit_period(angle - dir_offset, dir_limit_offset, period)
+    return wrapped + dir_offset + period * direction_bin.to(angle.dtype)
+
+
 def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor) -> Tensor:
     r"""Recover full box edge lengths from a size class index and residual (inverse of the size encoding).
 

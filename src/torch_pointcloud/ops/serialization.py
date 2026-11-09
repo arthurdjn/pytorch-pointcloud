@@ -1,6 +1,6 @@
 """Space-filling curve serialization of voxel coordinates using Z-order and Hilbert encodings."""
 
-from typing import TYPE_CHECKING, Literal, Tuple
+from typing import TYPE_CHECKING, Literal, Sequence, Tuple
 
 import torch
 from torch import Tensor
@@ -109,3 +109,58 @@ def serialize_pos(
         serialized_code = batch << depth * 3 | serialized_code
 
     return serialized_code
+
+
+def serialize(
+    pos_grid: Tensor,
+    batch: Tensor,
+    orders: Sequence[SerializationOrder],
+    shuffle: bool = False,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Encode voxel-grid coordinates along one or more space-filling curves and sort the points by each code.
+
+    Args:
+        pos_grid: Non-negative integer grid coordinates of shape $(N, 3)$.
+        batch: Per-point batch index of shape $(N,)$.
+        orders: The $L$ space-filling curves to encode along, one code row per order.
+        shuffle: Whether to permute `orders` before encoding, so consecutive blocks pick different curves.
+
+    Returns:
+        The serialization codes, the permutation sorting the points by code, and its inverse.
+
+    Raises:
+        ValueError: If `pos_grid` holds a negative coordinate, which would silently wrap around to a valid code.
+
+    Shape:
+        - pos_grid: $(N, 3)$
+        - batch: $(N,)$
+        - output: three tensors of shape $(L, N)$.
+
+    Example:
+        ```pycon
+        >>> pos_grid = torch.tensor([[0, 0, 0], [3, 1, 2], [1, 1, 1]])
+        >>> batch = torch.zeros(3, dtype=torch.long)
+        >>> code, order, inverse = serialize(pos_grid, batch, orders=["hilbert", "hilbert-trans"])
+        >>> order.shape
+        torch.Size([2, 3])
+        >>> torch.equal(order.gather(1, inverse), torch.arange(3).expand(2, 3))
+        True
+
+        ```
+    """
+    if shuffle:
+        perm = torch.randperm(len(orders))
+        orders = [orders[i] for i in perm]
+
+    if pos_grid.numel() and bool(pos_grid.min() < 0):
+        raise ValueError(
+            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
+            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
+        )
+
+    # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
+    depth = max(int(pos_grid.max()).bit_length(), 1)
+    serialized_code = torch.stack([serialize_pos(pos_grid, batch, depth=depth, order=order) for order in orders])
+    serialized_order = torch.argsort(serialized_code, dim=1)
+    serialized_inverse = torch.argsort(serialized_order, dim=1)
+    return serialized_code, serialized_order, serialized_inverse
