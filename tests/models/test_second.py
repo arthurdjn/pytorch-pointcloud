@@ -318,6 +318,7 @@ def test_second_multihead_create_model_hparams() -> None:
     assert "second-multihead.nuscenes.openpcdet" in list_models("second*", task="detection")
 
 
+@SPCONV
 def test_voxel_backbone_stage_widths_and_strides_follow_the_convs() -> None:
     backbone = VoxelBackbone8x(4)
     assert backbone.stage_channels == (16, 32, 64, 64)
