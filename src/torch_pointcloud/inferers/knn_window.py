@@ -25,6 +25,8 @@ from .inferer import Inferer
 WindowMode = Literal["constant", "gaussian"]
 AggregateMode = Literal["mean", "ema"]
 
+_POSSIBILITY_NOISE = 1e-3  # upper bound of the initial per-point coverage scores
+
 
 def _knn_centers(pos_src: Tensor, centers: Tensor, k: int) -> Tensor:
     r"""Per-center $k$-nearest indices into `pos_src`.
@@ -102,11 +104,11 @@ def knn_window_inference(
         roi_num_points: Number of points per window (the window size $k$).
         sw_batch_size: Number of windows packed into one `predictor` call.
             Higher values reduce launch overhead at the cost of more memory.
-        overlap: Coverage threshold in $(0, 1)$. The loop stops once every point
+        overlap: Coverage threshold in $(10^{-3}, 1)$. The loop stops once every point
             has accumulated at least `overlap` possibility mass. Higher values give
-            more thorough coverage at the cost of more iterations. `0.0` is rejected:
-            the initial coverage scores already satisfy a zero threshold, so no
-            window would ever be predicted.
+            more thorough coverage at the cost of more iterations. Values up to $10^{-3}$
+            are rejected: the initial coverage scores already reach such a threshold, so
+            some points would never be predicted.
         mode: Distance weighting for each window. `"constant"` gives equal weight
             to every point; `"gaussian"` weights by $\exp(-d^2 / 2\sigma^2)$ with
             $\sigma = \text{sigma\_scale} \cdot \max_i d_i$. `"gaussian"` requires
@@ -151,8 +153,8 @@ def knn_window_inference(
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
 
-    if not 0.0 < overlap < 1.0:
-        raise ValueError(f"`overlap` must be in (0, 1), got {overlap}.")
+    if not _POSSIBILITY_NOISE < overlap < 1.0:
+        raise ValueError(f"`overlap` must be in ({_POSSIBILITY_NOISE}, 1), got {overlap}.")
 
     if mode not in ("constant", "gaussian"):
         raise ValueError(f"`mode` must be 'constant' or 'gaussian', got {mode!r}.")
@@ -201,7 +203,7 @@ def knn_window_inference(
         scores_b: Optional[Tensor] = None
         weights_b: Optional[Tensor] = None
 
-        possibility = torch.rand(n_b, generator=rng, device=device, dtype=torch.float32) * 1e-3
+        possibility = torch.rand(n_b, generator=rng, device=device, dtype=torch.float32) * _POSSIBILITY_NOISE
 
         prev_covered = 0
         steps = 0
