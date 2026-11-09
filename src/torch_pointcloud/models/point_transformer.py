@@ -456,11 +456,8 @@ class PointTransformerDecoder(torch.nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        upsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        self.upsample = upsample
-        self.blocks = nn.ModuleList()
 
         depths = ensure_tuple(depths)
         n = len(depths)

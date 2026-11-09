@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file. The format is b
 - Changed `DGCNNSegmentation.forward_head` and `DGCNNPartSegmentation.forward_head` to `forward_head(x, pre_logits=False)`: the unused `batch` argument is gone.
 - Fixed `DGCNNSegmentation` applying the head `dropout` inside its input T-Net.
 - Fixed the Point Transformer models ignoring `act` and `norm` in their embedding MLP.
+- Removed the unused `upsample` argument of `PointTransformerDecoder`.
 
 ## 0.0.19 (2026-11-08)
 
