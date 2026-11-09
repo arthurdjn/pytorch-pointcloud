@@ -39,7 +39,6 @@ def load_off(file_path: PathLike) -> Tuple[np.ndarray, np.ndarray]:
     with open(file_path, "r") as f:
         file_content = f.read()
 
-    # Use re to remove comments (both inline and full-line comments)
     file_content = re.sub(r"#.*", "", file_content)  # Remove everything after '#'
     file_content = re.sub(r"\s*\n\s*\n+", "\n", file_content)  # Remove extra newlines
     lines = file_content.splitlines()
@@ -63,10 +62,8 @@ def load_off(file_path: PathLike) -> Tuple[np.ndarray, np.ndarray]:
     if not lines:
         raise ValueError("OFF file is empty")
 
-    # Parse number of vertices, face, and edges (metadata)
     num_nodes, num_faces, *_ = map(int, lines[0].split())
 
-    # Load nodes (vertices) using numpy
     nodes = np.array([list(map(float, line.split())) for line in lines[1 : 1 + num_nodes]])
 
     faces = []

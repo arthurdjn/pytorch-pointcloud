@@ -31,10 +31,7 @@ _POSSIBILITY_NOISE = 1e-3  # upper bound of the initial per-point coverage score
 def _knn_centers(pos_src: Tensor, centers: Tensor, k: int) -> Tensor:
     r"""Per-center $k$-nearest indices into `pos_src`.
 
-    Uses `cdist + topk` directly instead of `torch_pointcloud.ops.cluster.knn`
-    because the latter falls back to `torch_geometric.nn.pool.knn` for large source clouds,
-    which has a hard $k \leq 100$ ceiling on CUDA. Since $M = \text{sw\_batch\_size}$
-    is always small, the dense $(M, N)$ distance matrix is cheap.
+    Since $M = \text{sw\_batch\_size}$ is always small, the dense $(M, N)$ distance matrix is cheap.
 
     Returns:
         Indices tensor of shape $(M, k)$.
@@ -87,8 +84,9 @@ def knn_window_inference(
     - `"mean"`: accumulates distance-weighted logits and divides by total
       weight at the end, producing a weighted-average logit tensor.
     - `"ema"`: per-update softmax EMA
-      ($\text{new} = \alpha \cdot \text{old} + (1 - \alpha) \cdot \text{softmax}(\text{logits})$),
-      outputting calibrated probabilities without a final softmax step.
+      ($\text{new} = \alpha \cdot \text{old} + (1 - \alpha) \cdot \text{softmax}(\text{logits})$)
+      starting from zero, so a point predicted $n$ times holds a probability vector scaled by
+      $1 - \alpha^n$: its argmax is the predicted class, and its rows do not sum to $1$.
 
     Args:
         data: Dict of per-point tensors. Must contain `pos` (shape $(N, D)$) and
@@ -143,7 +141,8 @@ def knn_window_inference(
     Returns:
         Per-point output tensor of shape $(N, C_\text{out})$. Aggregation produces
         logits when `aggregate="mean"` (probabilities with `softmax=True`)
-        and probabilities when `aggregate="ema"`. An empty scene ($N = 0$) returns
+        and probabilities scaled by $1 - \alpha^n$ when `aggregate="ema"`, for a point
+        predicted $n$ times. An empty scene ($N = 0$) returns
         a $(0, 0)$ tensor: the predictor is never called, so the channel count
         cannot be inferred.
     """
@@ -327,9 +326,9 @@ class KNNWindowInferer(Inferer):
             "batch": torch.zeros(4096, dtype=torch.long),
         }
 
-        # EMA aggregation: outputs calibrated probabilities directly.
+        # EMA aggregation: each row is a probability vector scaled by how often the point was predicted.
         inferer = KNNWindowInferer(roi_num_points=65_536, overlap=0.5, aggregate="ema")
-        probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
+        scores = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
 

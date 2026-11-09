@@ -101,7 +101,7 @@ class BoxAveragePrecision(Metric):
 
     Args:
         iou_per_class: Mapping of class index to the IoU threshold used to match its boxes. Keys are
-            coerced to `int` (YAML / OmegaConf mappings may arrive with string keys).
+            coerced to `int`.
         class_names: Optional class names used in the returned keys (defaults to the class index).
         interpolation: AP interpolation: `"all"` integrates the full precision-recall curve; `"r11"` /
             `"r40"` sample the KITTI 11- / 40-point recall grids.
