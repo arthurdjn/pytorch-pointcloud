@@ -683,45 +683,23 @@ class DGCNNPartSegmentation(PartSegmentationModel):
         return self.forward_head(x)
 
 
-_S3DIS_REVISIONS = {
-    1: "29b230cfa3bfe1a5ed64a2e657d6648345d24c27",
-    2: "e3e348e10e62cc54f7889a15d95374acee33f397",
-    3: "70eb433b95f6688f1ba40d163be157918ec7b187",
-    4: "ca61a2189de6e6f3b2ebe0cda18ebc3838016a78",
-    5: "927f38e410d457f13ed14dde67ef1e2be27efafa",
-    6: "4fbb78ed5a74e3651e011f0f09aa0e631ec3660f",
-}
+_S3DIS_HPARAMS = dict(
+    in_channels=6,
+    num_classes=13,
+    spatial_dim=3,
+    proj_channels=1024,
+    channels=[[64, 64], [64, 64], [64]],
+    head_channels=[512, 256],
+    num_neighbors=20,
+    act="leaky_relu",
+    act_kwargs={"negative_slope": 0.2},
+    act_first=False,
+    norm="batch_norm",
+    bias=True,
+    dropout=0.5,
+)
 
-
-def _dgcnn_antao_s3dis_cfg(area: int, miou: float, oa: float) -> dict[str, Any]:
-    return dict(
-        name=f"dgcnn.s3dis-area{area}.an-tao",
-        task="semantic-segmentation",
-        weights=WeightsDict(
-            url=f"hf://torch-pointcloud/dgcnn.s3dis-area{area}.an-tao/resolve/{_S3DIS_REVISIONS[area]}/model.safetensors",
-            dataset=f"s3dis-area{area}",
-            metrics={"mIoU": miou, "OA": oa},
-            classes=S3DIS_CLASSES,
-            author="an-tao",
-            license="MIT",
-        ),
-        hparams=dict(
-            in_channels=6,
-            num_classes=13,
-            spatial_dim=3,
-            proj_channels=1024,
-            channels=[[64, 64], [64, 64], [64]],
-            head_channels=[512, 256],
-            num_neighbors=20,
-            act="leaky_relu",
-            act_kwargs={"negative_slope": 0.2},
-            act_first=False,
-            norm="batch_norm",
-            bias=True,
-            dropout=0.5,
-        ),
-        transform=T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
-    )
+_S3DIS_TRANSFORM = T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X)
 
 
 @register_model(
@@ -862,32 +840,110 @@ def dgcnn_antao_shapenet_partseg(**hparams: Any) -> DGCNNPartSegmentation:
     return DGCNNPartSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(1, miou=69.19, oa=89.69))
+@register_model(
+    "dgcnn.s3dis-area1.an-tao",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn.s3dis-area1.an-tao/resolve/29b230cfa3bfe1a5ed64a2e657d6648345d24c27/model.safetensors",
+        dataset="s3dis-area1",
+        metrics={"mIoU": 69.19, "OA": 89.69},
+        classes=S3DIS_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
+    hparams=dict(**_S3DIS_HPARAMS),
+    transform=_S3DIS_TRANSFORM,
+)
 def dgcnn_antao_s3dis_area1_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(2, miou=43.50, oa=81.69))
+@register_model(
+    "dgcnn.s3dis-area2.an-tao",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn.s3dis-area2.an-tao/resolve/e3e348e10e62cc54f7889a15d95374acee33f397/model.safetensors",
+        dataset="s3dis-area2",
+        metrics={"mIoU": 43.50, "OA": 81.69},
+        classes=S3DIS_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
+    hparams=dict(**_S3DIS_HPARAMS),
+    transform=_S3DIS_TRANSFORM,
+)
 def dgcnn_antao_s3dis_area2_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(3, miou=68.73, oa=90.86))
+@register_model(
+    "dgcnn.s3dis-area3.an-tao",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn.s3dis-area3.an-tao/resolve/70eb433b95f6688f1ba40d163be157918ec7b187/model.safetensors",
+        dataset="s3dis-area3",
+        metrics={"mIoU": 68.73, "OA": 90.86},
+        classes=S3DIS_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
+    hparams=dict(**_S3DIS_HPARAMS),
+    transform=_S3DIS_TRANSFORM,
+)
 def dgcnn_antao_s3dis_area3_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(4, miou=50.68, oa=85.06))
+@register_model(
+    "dgcnn.s3dis-area4.an-tao",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn.s3dis-area4.an-tao/resolve/ca61a2189de6e6f3b2ebe0cda18ebc3838016a78/model.safetensors",
+        dataset="s3dis-area4",
+        metrics={"mIoU": 50.68, "OA": 85.06},
+        classes=S3DIS_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
+    hparams=dict(**_S3DIS_HPARAMS),
+    transform=_S3DIS_TRANSFORM,
+)
 def dgcnn_antao_s3dis_area4_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(5, miou=50.30, oa=84.92))
+@register_model(
+    "dgcnn.s3dis-area5.an-tao",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn.s3dis-area5.an-tao/resolve/927f38e410d457f13ed14dde67ef1e2be27efafa/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"mIoU": 50.30, "OA": 84.92},
+        classes=S3DIS_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
+    hparams=dict(**_S3DIS_HPARAMS),
+    transform=_S3DIS_TRANSFORM,
+)
 def dgcnn_antao_s3dis_area5_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
 
-@register_model(**_dgcnn_antao_s3dis_cfg(6, miou=75.60, oa=92.10))
+@register_model(
+    "dgcnn.s3dis-area6.an-tao",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/dgcnn.s3dis-area6.an-tao/resolve/4fbb78ed5a74e3651e011f0f09aa0e631ec3660f/model.safetensors",
+        dataset="s3dis-area6",
+        metrics={"mIoU": 75.60, "OA": 92.10},
+        classes=S3DIS_CLASSES,
+        author="an-tao",
+        license="MIT",
+    ),
+    hparams=dict(**_S3DIS_HPARAMS),
+    transform=_S3DIS_TRANSFORM,
+)
 def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
 
