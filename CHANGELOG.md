@@ -23,6 +23,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `PackedTransformerBlock` mixing the samples of a batch with `norm="LayerNorm"` and the other spellings of `"layer_norm"`.
 - Fixed `PointConvSetAbstraction` and `PointConvDensitySetAbstraction` failing on `x=None` with `downsample`.
 - `chamfer_distance` raises a `ValueError` when `pred_batch` and `target_batch` do not cover the same sets.
+- `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
 
 ## 0.0.19 (2026-11-08)
 
