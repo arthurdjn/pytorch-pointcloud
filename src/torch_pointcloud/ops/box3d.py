@@ -48,7 +48,7 @@ def box_corners(boxes: Tensor) -> Tensor:
 
 
 def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos: bool = False) -> Tensor:
-    r"""Decode predicted box residuals against anchors (OpenPCDet's `ResidualCoder`).
+    r"""Decode predicted box residuals against anchors (inverse of `encode_box_residuals`).
 
     Residuals encode the center offset normalized by the anchor base diagonal, log-size ratios, and an
     angle term: a plain delta by default, or a $(\cos, \sin)$ pair when `angle_by_sincos` (one extra
@@ -398,10 +398,9 @@ def _ring_area(ring: Tensor) -> Tensor:
 def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Pairwise 3D intersection volume and IoU of two sets of boxes given as corners.
 
-    Signature-compatible with `pytorch3d.ops.box3d_overlap`, so the exact CUDA implementation can be
-    swapped in behind this interface. Boxes are assumed gravity-aligned (as produced by `box_corners`):
-    the bird's-eye polygons are intersected exactly (the edges of each one clipped to the other) and scaled
-    by the vertical overlap, entirely on the input device. A box with an empty footprint overlaps nothing.
+    Boxes are assumed gravity-aligned (as produced by `box_corners`): the bird's-eye polygons are intersected
+    exactly (the edges of each one clipped to the other) and scaled by the vertical overlap, entirely on the input
+    device. A box with an empty footprint overlaps nothing.
 
     Args:
         boxes1: Corners of the first set, shape $(M, 8, 3)$ (see `box_corners`).
