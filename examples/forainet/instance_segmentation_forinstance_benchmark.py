@@ -262,8 +262,8 @@ def full_resolution_labels(
     """Semantic class and tree of every original point, from its nearest sampled point.
 
     A point takes the summed votes of its nearest sampled point and the tree of its nearest point in a tree, unless
-    its class is not a tree class or that point lies more than `MAX_DISTANCE` away; trees left with `MIN_POINTS`
-    points or fewer are dropped.
+    its class is not a tree class or that point lies more than `MAX_DISTANCE` away; trees left with fewer than
+    `MIN_POINTS` points are dropped.
     """
     semantic = instances["semantic_logits"][nearest_point(pos, origin_pos)].argmax(dim=1)
 
