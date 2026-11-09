@@ -9,7 +9,7 @@ from torch_geometric.utils import to_dense_batch
 from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.imports import _KAOLIN_GITHUB_URL, _PYG_LIB_AVAILABLE, optional_import
 
-__all__ = ["ChamferDistance"]
+__all__ = ["ChamferDistance", "chamfer_distance"]
 
 sided_distance, _KAOLIN_AVAILABLE = optional_import(
     "kaolin.metrics.pointcloud",
