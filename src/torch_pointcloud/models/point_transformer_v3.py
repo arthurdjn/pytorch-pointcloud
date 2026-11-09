@@ -1160,7 +1160,7 @@ class PointTransformerV3Classification(ClassificationModel):
             `attn_kind="rope"`.
 
     Outputs:
-        logits: Float tensor of shape $(N, \text{num\_classes})$.
+        logits: Float tensor of shape $(B, \text{num\_classes})$.
     """
 
     def __init__(
