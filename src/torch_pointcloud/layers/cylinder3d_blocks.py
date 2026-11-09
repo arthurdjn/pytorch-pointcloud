@@ -11,10 +11,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 import torch.nn as nn
 from torch import Tensor
 
-from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE, _SPCONV_GITHUB_URL, optional_import
+from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 
 from .act import create_act
 from .norms import create_norm
+from .spconv_blocks import SparseModule
 
 if TYPE_CHECKING:
     import spconv.pytorch as spconv
@@ -22,8 +23,6 @@ if TYPE_CHECKING:
 
 
 spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
-
-SparseModule: Any = spconv.SparseModule if _SPCONV_AVAILABLE else nn.Module
 
 KernelSize = Tuple[int, int, int]
 
