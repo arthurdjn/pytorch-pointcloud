@@ -454,3 +454,16 @@ def test_relabel_narrow_dtype_in_range() -> None:
     labels = torch.tensor([1, 7], dtype=torch.uint8)
     out = F.relabel(labels, mapping={1: 3}, default=255)
     assert out.dtype == torch.uint8 and out.tolist() == [3, 255]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param(torch.zeros(1, 3), id="tensor-first-dim-matches-keys"),
+        pytest.param(torch.zeros(3), id="tensor-vector"),
+        pytest.param([1, 2, 3], id="list-longer-than-keys"),
+    ],
+)
+def test_set_value_stores_single_value_as_is(value: object) -> None:
+    result = T.SetValue(keys="x", values=value)({})
+    assert result["x"] is value

@@ -50,13 +50,14 @@ class SetValue(DictTransform):
 
     Args:
         keys: The keys to set.
-        values: The values to set. Either a single value broadcast to every key,
-            or a sequence of values the same length as `keys`.
+        values: The values to set. Either a single value stored under every key,
+            or a list or tuple with one value per key (as long as `keys`).
     """
 
     def __init__(self, keys: KeyCollection, values: Any) -> None:
         super().__init__(keys, allow_missing_keys=False)
-        self.values = ensure_tuple_size(values, len(self.keys))
+        per_key = isinstance(values, (list, tuple)) and len(values) == len(self.keys)
+        self.values = tuple(values) if per_key else (values,) * len(self.keys)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
