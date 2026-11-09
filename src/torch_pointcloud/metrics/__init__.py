@@ -14,7 +14,12 @@ from .registration import (
     rotation_error,
     translation_error,
 )
-from .segmentation import intersection_over_union, part_intersection_over_union, part_mean_intersection_over_union
+from .segmentation import (
+    intersection_over_union,
+    part_intersection_over_union,
+    part_mean_intersection_over_union,
+    part_predictions,
+)
 
 __all__ = [
     "accuracy",
@@ -31,6 +36,7 @@ __all__ = [
     "nuscenes_detection_metrics",
     "part_intersection_over_union",
     "part_mean_intersection_over_union",
+    "part_predictions",
     "registration_recall",
     "root_mean_square_alignment_error",
     "rotation_error",

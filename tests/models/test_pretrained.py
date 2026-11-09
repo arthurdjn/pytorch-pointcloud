@@ -26,7 +26,8 @@ from torch.utils.data import DataLoader, Dataset
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.parta2 import PartA2Detection
 from torch_pointcloud.models.pv_rcnn import PVRCNNDetection
-from torch_pointcloud.ops.voxelization import hard_voxelize
+from torch_pointcloud.models.second import SECONDIoUDetection
+from torch_pointcloud.ops.voxelization import dynamic_voxelize, hard_voxelize
 from torch_pointcloud.utils.data import collate, select_inputs
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
@@ -58,6 +59,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnet2-ssg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
     ("pointnet2-msg.modelnet40.xu-yan", "classification", "modelnet_resampled"),
     ("pointnet2.modelnet40.openpoints", "classification", "modelnet_resampled"),
+    ("pointnet.modelnet40.jiawei-ren", "classification", "modelnet_resampled"),
     ("octformer-base.modelnet40.octree-nn", "classification", "modelnet40"),
     ("point-mae-base.modelnet40.yatian-pang", "classification", "modelnet_resampled"),
     ("point-mae-base.modelnet40-8k.yatian-pang", "classification", "modelnet_resampled"),
@@ -78,6 +80,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     *[(f"pointnext-xl.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 6)],
     *[(f"dgcnn.s3dis-area{i}.an-tao", "semantic-segmentation", "s3dis_hdf5") for i in range(1, 7)],
     ("pointnet2.s3dis-area5.xu-yan", "semantic-segmentation", "s3dis_hdf5"),
+    ("pointnet.s3dis-area5.xu-yan", "semantic-segmentation", "s3dis_hdf5"),
     *[(f"pointnet2.s3dis-area{i}.openpoints", "semantic-segmentation", "s3dis") for i in range(1, 7)],
     ("pvcnn.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
     ("pvcnn-c0p25.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
@@ -91,7 +94,17 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointnext-sm-c160.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
     ("dgcnn.shapenetpart.an-tao", "part-segmentation", "shapenetpart"),
     ("point-mae-base.shapenetpart.yatian-pang", "part-segmentation", "shapenetpart"),
+    ("pointgpt-s.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
+    ("pointgpt-b.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
+    ("pointgpt-l.shapenetpart.guangyan-chen", "part-segmentation", "shapenetpart"),
     ("point-m2ae-base.shapenetpart.renrui-zhang", "part-segmentation", "shapenetpart"),
+    ("pvcnn.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-c0p5.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-c0p25.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-dml.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pvcnn-c0p25-dml.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pointnet2-ssg.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
+    ("pointnet2-msg.shapenetpart.mit-han-lab", "part-segmentation", "shapenetpart"),
     # ScanObjectNN based models
     ("pointmlp-base.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),
     ("pointmlp-elite.scanobjectnn-hardest.xu-ma", "classification", "scanobjectnn"),
@@ -100,6 +113,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("point-mamba-base.scanobjectnn-hardest.dingkang-liang", "classification", "scanobjectnn"),
     ("pointnext-sm.scanobjectnn-hardest.openpoints", "classification", "scanobjectnn"),
     ("pointnet2.scanobjectnn-hardest.openpoints", "classification", "scanobjectnn"),
+    ("pointnet.scanobjectnn-hardest.openpoints", "classification", "scanobjectnn"),
     ("point-mae-base.scanobjectnn-objbg.yatian-pang", "classification", "scanobjectnn"),
     ("point-mae-base.scanobjectnn-objonly.yatian-pang", "classification", "scanobjectnn"),
     ("point-mae-base.scanobjectnn-hardest.yatian-pang", "classification", "scanobjectnn"),
@@ -119,6 +133,10 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("utonia-base-lp.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     ("ptv3-base.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     ("ptv3-base.scannet200.pointcept", "semantic-segmentation", "scannet20"),
+    ("litept-small.scannet20.prs-eth", "semantic-segmentation", "scannet20"),
+    ("litept-small.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
+    ("litept-base.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
+    ("litept-large.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
     ("octformer-base.scannet20.octree-nn", "semantic-segmentation", "scannet20"),
     ("octformer-base.scannet200.octree-nn", "semantic-segmentation", "scannet20"),
     ("dgcnn.scannet20.an-tao", "semantic-segmentation", "scannet20_blocks"),
@@ -132,6 +150,8 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pointgpt-s.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
     ("pointgpt-b.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
     ("pointgpt-l.pretrain.guangyan-chen", "pretraining", "modelnet_resampled"),
+    ("pointgpt-b.labeled-hybrid.guangyan-chen", "classification", "modelnet_resampled"),
+    ("pointgpt-l.labeled-hybrid.guangyan-chen", "classification", "modelnet_resampled"),
     ("sonata-small.pretrain.fair", "pretraining", "scannet20"),
     ("sonata-base.pretrain.fair", "pretraining", "scannet20"),
     ("concerto-tiny.pretrain.pointcept", "pretraining", "scannet20"),
@@ -153,8 +173,19 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
     # nuScenes-lidarseg based models
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("litept-small.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("litept-large.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     # GridNet-HD based models
     ("ptv3.gridnet-hd.heig-vd-geo", "semantic-segmentation", "gridnethd"),
+    # Volt (all four datasets)
+    ("volt-s.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-s.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-s.nuscenes.kadir-yilmaz", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("volt-s.semantickitti.kadir-yilmaz", "semantic-segmentation", "semantickitti"),
+    ("volt-s-joint.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-s-joint.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-b-joint.scannet20.kadir-yilmaz", "semantic-segmentation", "scannet20"),
+    ("volt-b-joint.scannet200.kadir-yilmaz", "semantic-segmentation", "scannet20"),
 ]
 
 
@@ -164,7 +195,7 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "litept", "volt")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
@@ -172,7 +203,7 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet")) and not torch.cuda.is_available():
+    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "volt")) and not torch.cuda.is_available():
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 
@@ -263,7 +294,10 @@ def test_pretrained_model(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["votenet.scannet.fair", "votenet.sunrgbd.fair"])
+@pytest.mark.parametrize(
+    "model_name",
+    ["votenet.scannet.fair", "votenet.sunrgbd.fair", "votenet.scannet.mmdet3d", "votenet.sunrgbd.mmdet3d"],
+)
 def test_pretrained_votenet(
     model_name: str,
     force_regen: bool,
@@ -301,7 +335,9 @@ def test_pretrained_votenet(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["3detr.scannet.fair", "3detr.sunrgbd.fair", "3detr-m.scannet.fair"])
+@pytest.mark.parametrize(
+    "model_name", ["3detr.scannet.fair", "3detr.sunrgbd.fair", "3detr-m.scannet.fair", "3detr-m.sunrgbd.fair"]
+)
 def test_pretrained_threedetr(
     model_name: str,
     force_regen: bool,
@@ -345,7 +381,7 @@ def test_pretrained_threedetr(
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name", ["pointrcnn.kitti.openpcdet"])
+@pytest.mark.parametrize("model_name", ["pointrcnn.kitti.openpcdet", "pointrcnn-iou.kitti.openpcdet"])
 def test_pretrained_pointrcnn(
     model_name: str,
     force_regen: bool,
@@ -623,22 +659,30 @@ def test_pretrained_centerpoint(
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
-ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int]] = [
-    ("pointpillars.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000),
-    ("second.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000),
-    ("pointpillars-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 30000),
-    ("second-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 60000),
+# The last column subsamples the flattened head maps, which reach tens of MB for the nuScenes grids.
+ANCHOR_DETECTION_MODELS: List[Tuple[str, Tuple[float, ...], Tuple[float, ...], int, int, int]] = [
+    ("pointpillars.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000, 1),
+    ("second.kitti.openpcdet", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.05, 0.05, 0.1), 5, 40000, 1),
+    ("pointpillars-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.2, 0.2, 8.0), 20, 30000, 1),
+    ("second-multihead.nuscenes.openpcdet", (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0), (0.1, 0.1, 0.2), 10, 60000, 1),
+    ("pointpillars.kitti.mmdet3d", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000, 97),
+    ("pointpillars.kitti-car.mmdet3d", (0.0, -39.68, -3.0, 69.12, 39.68, 1.0), (0.16, 0.16, 4.0), 32, 40000, 97),
+    ("second.kitti.mmdet3d", (0.0, -40.0, -3.0, 70.4, 40.0, 1.0), (0.05, 0.05, 0.1), 5, 40000, 97),
+    ("second.kitti-car.mmdet3d", (0.0, -40.0, -3.0, 70.4, 40.0, 1.0), (0.05, 0.05, 0.1), 5, 40000, 97),
+    ("pointpillars.nuscenes.mmdet3d", (-50.0, -50.0, -5.0, 50.0, 50.0, 3.0), (0.25, 0.25, 8.0), 64, 40000, 97),
+    ("pointpillars-fpn.nuscenes.mmdet3d", (-50.0, -50.0, -5.0, 50.0, 50.0, 3.0), (0.25, 0.25, 8.0), 64, 40000, 97),
 ]
 
 
 @pytest.mark.pretrained
-@pytest.mark.parametrize("model_name,pc_range,voxel_size,max_num_points,max_num_voxels", ANCHOR_DETECTION_MODELS)
+@pytest.mark.parametrize("model_name,pc_range,voxel_size,max_num_points,max_num_voxels,stride", ANCHOR_DETECTION_MODELS)
 def test_pretrained_anchor_detection(
     model_name: str,
     pc_range: Tuple[float, ...],
     voxel_size: Tuple[float, ...],
     max_num_points: int,
     max_num_voxels: int,
+    stride: int,
     force_regen: bool,
     models_dir_factory: Callable[..., Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -684,11 +728,14 @@ def test_pretrained_anchor_detection(
     parts: List[Tensor] = []
     for key in ("cls", "box"):
         value = out[key]
-        parts += [t.reshape(-1) for t in value] if isinstance(value, (list, tuple)) else [value.reshape(-1)]
+        tensors = value if isinstance(value, (list, tuple)) else [value]
+        parts += [t.reshape(-1)[::stride] for t in tensors]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
 KITTI_RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
+
+
 # Fixed RoIs (four per scene) so the second stage is pinned without depending on the proposal NMS, whose near-ties
 # flip under float noise on a random cloud.
 KITTI_ROIS = [
@@ -720,6 +767,37 @@ def _kitti_two_stage_inputs(in_channels: int) -> Tuple[Tensor, ...]:
     rois = torch.tensor(KITTI_ROIS * batch_size, device=DEVICE)
     roi_batch = torch.arange(batch_size, device=DEVICE).repeat_interleave(len(KITTI_ROIS))
     return voxels, voxel_indices[:, 1:], num_points, voxel_indices[:, 0], x, pos, batch, rois, roi_batch
+
+
+@pytest.mark.pretrained
+def test_pretrained_dynamic_voxel_detection(
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SECOND on dynamic voxels: a strided sample of the anchor head maps, the input voxelized as `DynamicVoxelize`."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("SECOND needs spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "second-dynamic-voxel.kitti.mmdet3d"
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 8000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3)
+    for d in range(3):
+        pos[:, d] = pos[:, d] * (KITTI_RANGE[d + 3] - KITTI_RANGE[d]) + KITTI_RANGE[d]
+    points = torch.cat([pos, torch.rand(n_per_scene * batch_size, model.in_channels - 3)], dim=1).to(DEVICE)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene).to(DEVICE)
+    voxels, voxel_indices, _ = dynamic_voxelize(points, batch, (0.05, 0.05, 0.1), KITTI_RANGE)
+    num_points = torch.ones(voxels.shape[0], dtype=torch.int32, device=DEVICE)
+    with torch.no_grad():
+        out = model(voxels.unsqueeze(1), voxel_indices[:, 1:], num_points, voxel_indices[:, 0])
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97]]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
 @pytest.mark.pretrained
@@ -782,6 +860,32 @@ def test_pretrained_geotransformer_3dmatch(
 
     reduced = torch.cat([out["ref_feats_c"].reshape(-1), registration["transform"].reshape(-1)])
     _check_output(reduced, model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+def test_pretrained_second_iou(
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SECOND-IoU: a strided sample of the anchor head maps and the IoU head on fixed RoIs."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("SECOND-IoU needs spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model_name = "second-iou.kitti.openpcdet"
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+    assert isinstance(model, SECONDIoUDetection)
+
+    voxels, pos_voxel, num_points, batch_voxel, _, _, _, rois, roi_batch = _kitti_two_stage_inputs(model.in_channels)
+    with torch.no_grad():
+        features = model.forward_features(voxels, pos_voxel, num_points, batch_voxel)
+        out = model.forward_head(features)
+        rcnn_cls = model.roi_head(rois, roi_batch, features)
+
+    parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
 
 
 @pytest.mark.pretrained

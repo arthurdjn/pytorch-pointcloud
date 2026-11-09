@@ -1051,7 +1051,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.shapenetpart.yatian-pang/resolve/7f283670e1997fdf385132a835c3d14ca159bbee/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.05, "cls_mIoU": 84.12},
+        metrics={"ins_mIoU": 86.20, "cls_mIoU": 84.22},
         author="yatian-pang",
         license="MIT",
     ),

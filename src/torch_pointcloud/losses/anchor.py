@@ -5,7 +5,8 @@ Each loss reads the output dict of its head, rebuilds the anchors from the head 
 [`functional`][torch_pointcloud.losses.functional] primitives.
 """
 
-from typing import Any, Dict, List, Sequence, Tuple
+import warnings
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -14,7 +15,7 @@ from torch import Tensor, nn
 from torch_pointcloud.layers.anchors import AnchorHeadMultiOutput, AnchorHeadOutput
 from torch_pointcloud.losses.focal import one_hot_foreground, sigmoid_focal_loss
 from torch_pointcloud.ops.anchors import assign_anchor_targets, generate_anchors
-from torch_pointcloud.ops.box3d import limit_period
+from torch_pointcloud.ops.box3d import angle_to_direction_bin
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -49,12 +50,15 @@ class AnchorHeadLoss(nn.Module):
         matched_thresholds: Per-class IoU at or above which an anchor is a positive.
         unmatched_thresholds: Per-class IoU below which an anchor is background.
         anchor_rotations: Yaw angles (radians) shared by all classes.
+        anchor_range: Range the anchor grid spans in $x$ and $y$; `point_cloud_range` when omitted.
+        align_center: Place the anchors at the feature-map cell centers (see `generate_anchors`).
         code_weights: Per-code regression weights, shape $(7,)$.
         cls_weight: Weight of the classification term in the total.
         loc_weight: Weight of the box-regression term in the total.
         dir_weight: Weight of the direction term in the total.
         num_dir_bins: Number of direction bins.
-        dir_offset: Direction-target angle offset.
+        dir_offset: Direction-target angle offset, the head's. Omitting it is deprecated since 0.0.19 (it warns and
+            uses $0.78539$) and an error from 0.0.20.
         dir_limit_offset: Offset used when wrapping the heading before binning.
         focal_alpha: Focal-loss positive/negative balance.
         focal_gamma: Focal-loss focusing exponent.
@@ -79,12 +83,14 @@ class AnchorHeadLoss(nn.Module):
         matched_thresholds: Sequence[float],
         unmatched_thresholds: Sequence[float],
         anchor_rotations: Sequence[float] = (0.0, 1.57),
+        anchor_range: Optional[Sequence[float]] = None,
+        align_center: bool = False,
         code_weights: Sequence[float] = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
         cls_weight: float = 1.0,
         loc_weight: float = 2.0,
         dir_weight: float = 0.2,
         num_dir_bins: int = 2,
-        dir_offset: float = 0.78539,
+        dir_offset: Optional[float] = None,
         dir_limit_offset: float = 0.0,
         focal_alpha: float = 0.25,
         focal_gamma: float = 2.0,
@@ -97,6 +103,15 @@ class AnchorHeadLoss(nn.Module):
 
         if len(matched_thresholds) != num_classes or len(unmatched_thresholds) != num_classes:
             raise ValueError("`matched_thresholds` and `unmatched_thresholds` must have one entry per class.")
+
+        if dir_offset is None:
+            warnings.warn(
+                "Omitting `dir_offset` of `AnchorHeadLoss` is deprecated since 0.0.19 and an error from 0.0.20; pass "
+                "the direction offset of the head (0.78539 was the default).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            dir_offset = 0.78539
 
         self.num_classes = num_classes
         self.matched_thresholds = tuple(matched_thresholds)
@@ -115,8 +130,16 @@ class AnchorHeadLoss(nn.Module):
 
         grid = [int(round((point_cloud_range[i + 3] - point_cloud_range[i]) / voxel_size[i])) for i in range(3)]
         feature_map_size = (grid[0] // feature_map_stride, grid[1] // feature_map_stride)
+        anchor_range = point_cloud_range if anchor_range is None else anchor_range
         per_class_anchors = [
-            generate_anchors(point_cloud_range, feature_map_size, [size], anchor_rotations, [bottom])
+            generate_anchors(
+                anchor_range,
+                feature_map_size,
+                [size],
+                anchor_rotations,
+                [bottom],
+                align_center=align_center,
+            )
             for size, bottom in zip(anchor_sizes, anchor_bottom_heights)
         ]
         anchors = torch.cat(per_class_anchors, dim=-3).view(-1, 7)
@@ -218,9 +241,7 @@ class AnchorHeadLoss(nn.Module):
         r"""Weighted softmax cross-entropy over the discretized heading bin."""
         anchors = self.anchors.view(1, -1, 7)
         rot_gt = box_reg_targets[..., 6] + anchors[..., 6]
-        period = 2 * torch.pi / self.num_dir_bins
-        offset_rot = limit_period(rot_gt - self.dir_offset, 0.0, period * self.num_dir_bins)
-        dir_targets = torch.floor(offset_rot / period).long().clamp(min=0, max=self.num_dir_bins - 1)
+        dir_targets = angle_to_direction_bin(rot_gt, self.num_dir_bins, self.dir_offset)
 
         ce = F.cross_entropy(dir_preds.permute(0, 2, 1), dir_targets, reduction="none") * reg_weights
         return ce.sum() / dir_preds.shape[0]
