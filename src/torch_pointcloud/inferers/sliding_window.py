@@ -658,7 +658,7 @@ _RENAMED = {
 def __getattr__(name: str) -> Any:
     if name in _RENAMED:
         warnings.warn(
-            f"`{name}` is deprecated since 0.0.19 and will be removed in 0.0.20; use `{_RENAMED[name]}` instead.",
+            f"`{name}` is deprecated; use `{_RENAMED[name]}` instead.",
             FutureWarning,
             stacklevel=2,
         )
