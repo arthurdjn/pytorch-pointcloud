@@ -424,3 +424,9 @@ def test_random_rotate_empty_cloud() -> None:
     assert out["pos"].shape == (0, 3)
     out = T.RandomRotateChoice(keys="pos", angles=(0.0, 90.0), seed=0)({"pos": torch.zeros(0, 3)})
     assert out["pos"].shape == (0, 3)
+
+
+def test_color_grayscale_ignores_int_color() -> None:
+    color = torch.randint(0, 256, (16, 3), dtype=torch.uint8, generator=torch.Generator().manual_seed(0))
+    assert torch.equal(F.color_grayscale(color, int_color=True), F.color_grayscale(color, int_color=False))
+    assert torch.equal(F.color_grayscale(color.float(), int_color=True), F.color_grayscale(color.float()))
