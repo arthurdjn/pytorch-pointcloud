@@ -463,8 +463,9 @@ class InstancePartMeanIntersectionOverUnion(Metric):
             )
 
         ious = part_intersection_over_union(preds, target, self.part_ids, category, batch)
-        self.iou_sum.index_add_(0, category, ious)
-        self.count += torch.bincount(category, minlength=self.count.numel())
+        present = torch.bincount(batch, minlength=category.numel()) > 0
+        self.iou_sum.index_add_(0, category[present], ious[present])
+        self.count += torch.bincount(category[present], minlength=self.count.numel())
 
     def compute(self) -> Dict[str, Tensor]:
         """Reduce the accumulated per-category IoU sums into `ins_mIoU` and `cls_mIoU`."""
