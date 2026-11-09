@@ -399,7 +399,6 @@ class DGCNNSegmentation(SemanticSegmentationModel):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            dropout=self.dropout,
             aggr="max",
         )
 
@@ -475,12 +474,12 @@ class DGCNNSegmentation(SemanticSegmentationModel):
 
         return x, pos, batch
 
-    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tensor:
-        x, _, batch = self.forward_features(x, pos, batch)
-        return self.forward_head(x, batch)
+        x, _, _ = self.forward_features(x, pos, batch)
+        return self.forward_head(x)
 
 
 class DGCNNPartSegmentation(PartSegmentationModel):
@@ -676,12 +675,12 @@ class DGCNNPartSegmentation(PartSegmentationModel):
         x = torch.cat([x_global, x], dim=1)
         return x, pos, batch
 
-    def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
-        x, _, batch = self.forward_features(x, pos, batch, category)
-        return self.forward_head(x, batch)
+        x, _, _ = self.forward_features(x, pos, batch, category)
+        return self.forward_head(x)
 
 
 _S3DIS_REVISIONS = {

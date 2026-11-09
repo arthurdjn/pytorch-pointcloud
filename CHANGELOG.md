@@ -16,6 +16,8 @@ All notable changes to this project are documented in this file. The format is b
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Fixed the headless PointNeXt models (`num_classes=0`) applying dropout to their features when `head_channels` is set.
+- Changed `DGCNNSegmentation.forward_head` and `DGCNNPartSegmentation.forward_head` to `forward_head(x, pre_logits=False)`: the unused `batch` argument is gone.
+- Fixed `DGCNNSegmentation` applying the head `dropout` inside its input T-Net.
 
 ## 0.0.19 (2026-11-08)
 
