@@ -21,7 +21,7 @@ from torch_pointcloud.utils.types import KeyCollection
 
 from .inferer import Inferer
 
-AggregateMode = Literal["mean", "ema"]
+AggregateMode = Literal["mean", "max", "ema"]
 TransformFn = Callable[[Dict[str, Any]], Dict[str, Any]]
 
 
@@ -56,8 +56,10 @@ class TTAInferer(Inferer):
             before the augmented passes (the "clean + N random views" voting
             protocol), so the total pass count is `num_passes + 1`.
         aggregate: How per-point predictions are combined across passes.
-            `"mean"` averages per-pass outputs. `"ema"` maintains an exponential
-            moving average of them.
+            `"mean"` averages per-pass outputs. `"max"` keeps their elementwise maximum, so on
+            probabilities the argmax of a point is the class of the pass most confident about it;
+            it reads probabilities, so set `softmax=True` unless the base returns them.
+            `"ema"` maintains an exponential moving average of them.
         ema_smoothing: EMA factor $\alpha \in [0, 1)$ used when `aggregate="ema"`.
         softmax: If `True`, softmax each pass's output before aggregating. Leave
             `False` when the base inferer already returns probabilities (e.g.
@@ -141,8 +143,8 @@ class TTAInferer(Inferer):
             self._sample = None
             self.num_passes = len(seq)
 
-        if aggregate not in ("mean", "ema"):
-            raise ValueError(f"`aggregate` must be 'mean' or 'ema', got {aggregate!r}.")
+        if aggregate not in ("mean", "max", "ema"):
+            raise ValueError(f"`aggregate` must be 'mean', 'max' or 'ema', got {aggregate!r}.")
 
         if not 0.0 <= ema_smoothing < 1.0:
             raise ValueError(f"`ema_smoothing` must be in [0, 1), got {ema_smoothing}.")
@@ -183,6 +185,11 @@ class TTAInferer(Inferer):
                     output = pass_output.clone()
                 else:
                     output = self.ema_smoothing * output + (1.0 - self.ema_smoothing) * pass_output
+            elif self.aggregate == "max":
+                if output is None:
+                    output = pass_output.clone()
+                else:
+                    output = torch.maximum(output, pass_output)
             else:
                 if output is None:
                     output = pass_output.clone()
@@ -243,4 +250,46 @@ def simple_tta_transforms(
         transforms.append(Compose(steps))
     if flip:
         transforms.append(Compose([RandomFlip(keys=keys, axes=(0, 1), p=1.0, allow_missing_keys=True)]))
+    return transforms
+
+
+def scale_flip_tta_transforms(
+    scales: Sequence[float] = (0.9, 0.95, 1.0, 1.05, 1.1),
+    flip_axes: Sequence[int] = (0, 1),
+    keys: KeyCollection = (DataKeys.POS, DataKeys.NORMAL),
+    scale_keys: KeyCollection = DataKeys.POS,
+) -> List[Compose]:
+    r"""Test-time augmentation transforms over scales, each view taken as is and mirrored.
+
+    One view per scale, then the same scales mirrored along `flip_axes`: the defaults give the 10-view protocol of the
+    outdoor (nuScenes, SemanticKITTI) and S3DIS benchmarks. The mirror acts on every key in `keys` (positions and
+    normals); scales act on `scale_keys` only. Missing keys are skipped, and a scale of $1$ adds no transform.
+
+    Args:
+        scales: Isotropic scale factors.
+        flip_axes: Axes negated by the mirrored views.
+        keys: Keys mirrored.
+        scale_keys: Keys scaled.
+
+    Returns:
+        A list of `2 * len(scales)` composed transforms for `TTAInferer`.
+
+    Example:
+        ```python
+        from torch_pointcloud.inferers import TTAInferer, VoxelPartitionInferer, scale_flip_tta_transforms
+
+        inferer = TTAInferer(
+            base=VoxelPartitionInferer(voxel_size=0.05, softmax=True, aggregate="sum"),
+            transforms=scale_flip_tta_transforms(),
+        )
+        ```
+    """
+    transforms: List[Compose] = []
+    for flip, scale in itertools.product((False, True), scales):
+        steps: List[Transform] = []
+        if scale != 1.0:
+            steps.append(RandomScale(keys=scale_keys, scale_range=(scale, scale), p=1.0, allow_missing_keys=True))
+        if flip:
+            steps.append(RandomFlip(keys=keys, axes=flip_axes, p=1.0, allow_missing_keys=True))
+        transforms.append(Compose(steps))
     return transforms

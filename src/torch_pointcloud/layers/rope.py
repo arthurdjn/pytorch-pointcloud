@@ -1,13 +1,10 @@
-"""3D rotary position embedding for point-cloud attention.
+"""3D rotary position embeddings for point-cloud attention.
 
-Introduced in :arxiv: [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283).
-Splits each attention head's channel dimension into three equal chunks (one per
-spatial axis) and rotates the query/key vectors by a per-axis sinusoidal phase
-indexed by the real-valued coordinate. This injects continuous 3D position
-into attention without any learnable parameters.
+They rotate the query and key channels of each attention head by phases that grow with the token position along each
+spatial axis, so the attention logits depend on relative positions, without any learnable parameter.
 """
 
-from typing import Tuple
+from typing import Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -16,6 +13,10 @@ from torch import Tensor
 
 class Point3DRoPE(nn.Module):
     r"""3D Rotary Position Embedding for point cloud attention.
+
+    Introduced in :arxiv: [Utonia: Toward One Encoder for All Point Clouds](https://arxiv.org/abs/2603.03283). Splits
+    each attention head's channel dimension into three equal chunks (one per spatial axis) and rotates the query/key
+    vectors by a per-axis sinusoidal phase indexed by the real-valued coordinate.
 
     Args:
         head_dim: Channel dimension of a single attention head. Must be divisible by 6: the head splits
@@ -74,3 +75,71 @@ class Point3DRoPE(nn.Module):
             q_out.append(qi * ci + self._rotate_half(qi) * si)
             k_out.append(ki * ci + self._rotate_half(ki) * si)
         return torch.cat(q_out, dim=-1), torch.cat(k_out, dim=-1)
+
+
+class AxialRoPE(nn.Module):
+    r"""Axial 3D rotary position embedding with one frequency band per axis.
+
+    The head channels form adjacent pairs $(2i, 2i + 1)$; the first $F_x$ pairs rotate with the x coordinate, the next
+    $F_y$ with y and the last $F_z$ with z, so the head dimension is $2 (F_x + F_y + F_z)$. Pair $j$ of a band of $F$
+    pairs turns by the angle $p \, \theta^{-j / (F - 1)}$ for the coordinate $p$: frequencies are log-spaced from $1$
+    down to $1 / \theta$. `Point3DRoPE` instead splits the head into three equal chunks, rotates the two halves of each
+    chunk and spaces its frequencies as $\theta^{-2j / D_c}$ for a chunk of $D_c$ channels; the two embeddings are not
+    interchangeable on trained weights, and only this one lets the bands differ in size.
+
+    Args:
+        num_frequencies: Number of channel pairs $(F_x, F_y, F_z)$ rotated by each axis.
+        base: Frequency base $\theta$.
+
+    Shape:
+        - Input: queries and keys of shape $(N, H, D)$ and positions of shape $(N, 3)$.
+        - Output: rotated queries and keys of shape $(N, H, D)$, in the input dtype (angles and rotation run in
+          float32, also in a half-precision module).
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.layers import AxialRoPE
+
+        rope = AxialRoPE(num_frequencies=(12, 12, 8), base=100.0)
+        q, k = torch.randn(2, 128, 6, 64).unbind(0)
+        q, k = rope(q, k, torch.randint(0, 64, (128, 3)))
+        ```
+    """
+
+    axis: Tensor
+
+    def __init__(self, num_frequencies: Sequence[int], base: float) -> None:
+        if len(num_frequencies) != 3 or min(num_frequencies) < 1:
+            raise ValueError(f"`num_frequencies` must hold three positive counts, got {tuple(num_frequencies)}.")
+
+        super().__init__()
+        self.num_frequencies = tuple(num_frequencies)
+        self.base = base
+        self.head_dim = 2 * sum(self.num_frequencies)
+
+        axis = torch.repeat_interleave(torch.arange(3), torch.tensor(self.num_frequencies))
+        self.register_buffer("axis", axis, persistent=False)
+
+    @staticmethod
+    def _rotate(x: Tensor, rotation: Tensor) -> Tensor:
+        rotated = torch.view_as_complex(x.float().unflatten(-1, (-1, 2))) * rotation
+        return torch.view_as_real(rotated).flatten(-2).type_as(x)
+
+    def forward(self, q: Tensor, k: Tensor, pos: Tensor) -> Tuple[Tensor, Tensor]:
+        if q.size(-1) != self.head_dim:
+            raise ValueError(
+                f"`num_frequencies` {self.num_frequencies} rotate {self.head_dim} channels, got {q.size(-1)}."
+            )
+
+        # Rebuilt in float32 on every call: a floating-point buffer would follow the module into half precision.
+        inv_freq = torch.cat(
+            [1.0 / self.base ** torch.linspace(0, 1, n, device=pos.device) for n in self.num_frequencies]
+        )
+        angle = pos.float()[:, self.axis] * inv_freq
+        # Each pair rotates as one complex product, with fewer elementwise kernels than the real-valued form.
+        rotation = torch.polar(torch.ones_like(angle), angle).unsqueeze(1)
+        return self._rotate(q, rotation), self._rotate(k, rotation)
+
+    def extra_repr(self) -> str:
+        return f"num_frequencies={self.num_frequencies}, base={self.base}"

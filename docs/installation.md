@@ -8,18 +8,18 @@ This installs the library with :pytorch: [`torch`](https://pytorch.org) and :pyg
 The kernels below ship as prebuilt wheels that must match your torch and CUDA build, so install torch first. The
 selector writes the commands.
 
-| Dependency     | Needed by                                                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `pyg-lib`      | FPS, kNN and radius search: nearly every point-based model                                                                           |
-| `spconv`       | Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, OpenScene, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION |
-| `flash-attn`   | Point Transformer V3, Sonata, Concerto, Utonia (`use_flash_attn=False` runs the dense attention instead)                             |
-| `mamba`        | PointMamba, Voxel-Mamba, LION (`mamba-ssm` and `causal-conv1d`)                                                                      |
-| `ocnn`         | OctFormer and the octree transforms, with `dwconv` for its depthwise convolutions                                                    |
-| `torchsparse`  | SPVCNN (built from source, needs `libsparsehash-dev`)                                                                                |
-| `sptr`         | SphereFormer (with `torch-scatter`, up to torch 2.12)                                                                                |
-| `kaolin`       | A faster nearest-neighbor kernel for the Chamfer distance                                                                            |
-| `lightning`    | The Lightning training modules (with `torchmetrics`)                                                                                 |
-| `transformers` | `CLIPTextEncoder`, the prompt embeddings of the open-vocabulary models                                                               |
+| Dependency     | Needed by                                                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pyg-lib`      | FPS, kNN and radius search: nearly every point-based model                                                                                   |
+| `spconv`       | Point Transformer V3, Sonata, Concerto, Utonia, LitePT, SpUNet, OpenScene, SPFormer-UNet, SphereFormer, SECOND, VoxelNeXt, Voxel-Mamba, LION |
+| `flash-attn`   | Point Transformer V3, Sonata, Concerto, Utonia, LitePT, Volt (`use_flash_attn=False` runs the dense attention instead)                       |
+| `mamba`        | PointMamba, Voxel-Mamba, LION (`mamba-ssm` and `causal-conv1d`)                                                                              |
+| `ocnn`         | OctFormer and the octree transforms, with `dwconv` for its depthwise convolutions                                                            |
+| `torchsparse`  | SPVCNN (built from source, needs `libsparsehash-dev`)                                                                                        |
+| `sptr`         | SphereFormer (with `torch-scatter`, up to torch 2.12)                                                                                        |
+| `kaolin`       | A faster nearest-neighbor kernel for the Chamfer distance                                                                                    |
+| `lightning`    | The Lightning training modules (with `torchmetrics`)                                                                                         |
+| `transformers` | `CLIPTextEncoder`, the prompt embeddings of the open-vocabulary models                                                                       |
 
 <div class="install-selector" id="install-selector" markdown="0">
   <div class="isel-row"><span class="isel-label">Package manager</span><span class="isel-opts">
@@ -72,8 +72,8 @@ uv pip install pyg-lib \
 - Python 3.10+ and `torch>=2.8`. CI runs the tests on CPU with `torch==2.8.0`; the benchmarks use `torch==2.10.0`
   with CUDA 12.8.
 - The point-based families (PointNet, PointNet++, DGCNN, PointNeXt, RandLA-Net, ...) run on CPU. The sparse-voxel and
-  flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, SpUNet, SPVCNN, OctFormer, the voxel-based
-  detectors) need a CUDA device.
+  flash-attention families (Point Transformer V3, Sonata, Concerto, Utonia, LitePT, SpUNet, SPVCNN, OctFormer, the
+  voxel-based detectors) need a CUDA device.
 
 To work on the library itself, see
 [`CONTRIBUTING.md`](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/CONTRIBUTING.md).

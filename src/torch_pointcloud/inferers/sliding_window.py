@@ -27,7 +27,9 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate
+from torch_pointcloud.utils.types import KeyCollection
 
 from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
@@ -262,7 +264,7 @@ def sliding_window_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
-    block_size: float,
+    block_size: Optional[float],
     overlap: float = 0.0,
     mode: WindowMode = "constant",
     sigma_scale: float = 0.125,
@@ -273,6 +275,7 @@ def sliding_window_inference(
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     dims: Optional[Sequence[int]] = None,
     padding: float = 0.0,
+    cloud_keys: KeyCollection = (),
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
     block_bbox_key: str = DataKeys.BLOCK_BBOX,
@@ -285,23 +288,25 @@ def sliding_window_inference(
     Places block centers on a regular grid with step
     $\text{block\_size} \cdot (1 - \text{overlap})$ and calls `predictor` once
     per non-empty block. Each point's predictions from all covering blocks are
-    combined by `aggregate`: a distance-weighted average (`"mean"`), the single
-    most confident prediction (`"max"`), or a count of hard votes (`"vote"`).
+    combined by `aggregate`: a distance-weighted average (`"mean"`), the elementwise
+    maximum of the probabilities (`"max"`), or a count of hard votes (`"vote"`).
 
     With `overlap=0` and `mode="constant"`, each point lands in exactly one
-    block and the weight division is a no-op.
+    block and the weight division is a no-op. With `block_size=None`, each cloud
+    is one block, which `roi_num_points` splits into random chunks.
 
     Args:
         data: Dict of per-point tensors. Must contain `pos` (shape $(N, D)$)
             and `batch` (shape $(N,)$). Extra per-point tensors are sliced to
             the active block automatically. Non-tensor entries and tensors with
-            a different leading dim flow through unchanged.
+            a different leading dim flow through unchanged, except `cloud_keys`.
         predictor: Callable taking a per-block data dict and returning logits
             of shape $(M, C_\text{out})$, where $M$ is the number of points in
             the block. The output channel count $C_\text{out}$ is inferred from
             the first call.
         block_size: Side length of each cubic block, in the same units as
-            `data[pos_key]`.
+            `data[pos_key]`. `None` makes every cloud a single block, and then
+            `overlap`, `mode`, `dims` and `padding` must keep their defaults.
         overlap: Fraction of `block_size` shared between adjacent blocks, in
             $[0, 1)$. `0.0` gives a strict non-overlapping partition;
             `0.5` means adjacent block centers are spaced half a block apart.
@@ -333,11 +338,13 @@ def sliding_window_inference(
             `"vote"` aggregation always read confidences off the softmax.
         aggregate: How the predictions of the blocks covering a point are
             combined. `"mean"`: distance-weighted average of the (softmax)
-            predictions. `"max"`: winner-takes-all, each point keeps the
-            prediction of the block that is most confident about it (the
-            PVCNN / PointCNN scene merge). `"vote"`: each block casts one hard
-            vote (its argmax) per point and the output holds the weighted vote
-            fractions, so `argmax` is the majority label (the PointNet++ protocol).
+            predictions. `"max"`: elementwise maximum of the block
+            probabilities, so the argmax of a point, over all the classes or a
+            subset of them, is the class of the block most confident about it
+            (the PVCNN / PointCNN scene merge). `"vote"`: each block casts one
+            hard vote (its argmax) per point and the output holds the weighted
+            vote fractions, so `argmax` is the majority label (the PointNet++
+            protocol).
         transform: Optional callable applied to each block's data dict before
             the predictor. The transform sees the whole block; if it changes the
             row count (pad, voxelize, ...) it must record a source-to-predictor
@@ -348,6 +355,9 @@ def sliding_window_inference(
             the third axis spanning the full scene height.
         padding: Extra margin (in `pos` units) extending each block's membership
             on every tiled axis. Useful for including a thin context guard band.
+        cloud_keys: Keys of per-cloud tensors of shape $(B, \ldots)$, such as a
+            one-hot `category` or a `label`. Every element of cloud $b$ gets row
+            $b$, of shape $(1, \ldots)$, which collation concatenates once per element.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
         block_bbox_key: Dict key under which the block bounding box is exposed to
@@ -370,7 +380,7 @@ def sliding_window_inference(
         Per-point output tensor of shape $(N, C_\text{out})$: with
         `aggregate="mean"` a distance-weighted average of softmax probabilities
         when `softmax=True` or of raw logits when `softmax=False`; with
-        `"max"` the most confident block's probabilities; with `"vote"` the
+        `"max"` the elementwise maximum of the block probabilities; with `"vote"` the
         per-class vote fractions. An empty scene ($N = 0$) returns
         a $(0, 0)$ tensor: the predictor is never called, so the channel count
         cannot be inferred.
@@ -381,8 +391,8 @@ def sliding_window_inference(
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
 
-    if block_size <= 0.0:
-        raise ValueError(f"`block_size` must be > 0, got {block_size}.")
+    if block_size is not None and block_size <= 0.0:
+        raise ValueError(f"`block_size` must be > 0 or None, got {block_size}.")
 
     if not 0.0 <= overlap < 1.0:
         raise ValueError(f"`overlap` must be in [0, 1), got {overlap}.")
@@ -401,6 +411,12 @@ def sliding_window_inference(
 
     if padding < 0.0:
         raise ValueError(f"`padding` must be >= 0, got {padding}.")
+
+    if block_size is None and (overlap != 0.0 or mode != "constant" or dims is not None or padding != 0.0):
+        raise ValueError(
+            "`block_size=None` predicts each cloud as one block: `overlap`, `mode`, `dims` and `padding` need a "
+            "`block_size`."
+        )
 
     pos = data[pos_key]
     batch = data[batch_key]
@@ -421,20 +437,25 @@ def sliding_window_inference(
         # A single batch element is the whole scene: no copy of every per-point tensor.
         pos_b = pos if n_b == n_total else pos[idx_b]
         data_b = data if n_b == n_total else index_select_dict(data, idx_b, n_total)
+        data_b = {**data_b, **{key: data[key][b : b + 1] for key in ensure_tuple(cloud_keys)}}
 
-        point_groups, weight_groups, bbox_groups = _assign_point_blocks(
-            pos_b,
-            block_size=block_size,
-            overlap=overlap,
-            mode=mode,
-            sigma_scale=sigma_scale,
-            dims=dims,
-            padding=padding,
-        )
+        if block_size is None:
+            point_groups = [torch.arange(n_b, device=device)]
+            weight_groups = [torch.ones(n_b, device=device, dtype=torch.float32)]
+            bbox_groups = [torch.cat([pos_b.amin(dim=0), pos_b.amax(dim=0)])]
+        else:
+            point_groups, weight_groups, bbox_groups = _assign_point_blocks(
+                pos_b,
+                block_size=block_size,
+                overlap=overlap,
+                mode=mode,
+                sigma_scale=sigma_scale,
+                dims=dims,
+                padding=padding,
+            )
 
         scores_b: Optional[Tensor] = None
         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
-        confidence_b = torch.full((n_b,), -1.0, device=device, dtype=torch.float32)
 
         blocks = list(zip(point_groups, weight_groups, bbox_groups))
         for start in tqdm(
@@ -490,10 +511,7 @@ def sliding_window_inference(
                 preds_at_block = block_preds if inverse_map is None else block_preds[inverse_map]
 
                 if aggregate == "max":
-                    confidence, _ = preds_at_block.max(dim=-1)
-                    better = confidence > confidence_b[point_ids]
-                    scores_b[point_ids[better]] = preds_at_block[better]
-                    confidence_b[point_ids[better]] = confidence[better]
+                    scores_b[point_ids] = torch.maximum(scores_b[point_ids], preds_at_block)
                     weights_b[point_ids] = 1.0
                     continue
 
@@ -560,7 +578,7 @@ class SlidingWindowInferer(Inferer):
 
     def __init__(
         self,
-        block_size: float,
+        block_size: Optional[float],
         overlap: float = 0.0,
         mode: WindowMode = "constant",
         sigma_scale: float = 0.125,
@@ -571,6 +589,7 @@ class SlidingWindowInferer(Inferer):
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         dims: Optional[Sequence[int]] = None,
         padding: float = 0.0,
+        cloud_keys: KeyCollection = (),
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
         block_bbox_key: str = DataKeys.BLOCK_BBOX,
@@ -589,6 +608,7 @@ class SlidingWindowInferer(Inferer):
         self.transform = transform
         self.dims = dims
         self.padding = padding
+        self.cloud_keys = cloud_keys
         self.pos_key = pos_key
         self.batch_key = batch_key
         self.block_bbox_key = block_bbox_key
@@ -618,6 +638,7 @@ class SlidingWindowInferer(Inferer):
             transform=self.transform,
             dims=self.dims,
             padding=self.padding,
+            cloud_keys=self.cloud_keys,
             pos_key=self.pos_key,
             batch_key=self.batch_key,
             block_bbox_key=self.block_bbox_key,
