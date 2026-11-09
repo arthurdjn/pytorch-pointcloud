@@ -151,6 +151,7 @@ def test_voxel_rcnn_trains_the_roi_head_on_a_bev_map() -> None:
         feature_map_stride=8,
         matched_thresholds=(0.6,),
         unmatched_thresholds=(0.45,),
+        dir_offset=hparams["dir_offset"],
     )
     roi_loss = RoIHeadLoss(cls_foreground_threshold=0.75, cls_background_threshold=0.25, reg_foreground_threshold=0.55)
     target = {DataKeys.BOX: gt_boxes, DataKeys.LABEL: gt_labels, DataKeys.BATCH_BOX: gt_batch}
@@ -244,6 +245,7 @@ def test_voxel_rcnn_training_forward_samples_rois_and_backpropagates() -> None:
         feature_map_stride=8,
         matched_thresholds=(0.6,),
         unmatched_thresholds=(0.45,),
+        dir_offset=hparams["dir_offset"],
     ).cuda()
     roi_loss = RoIHeadLoss(
         cls_foreground_threshold=0.75,

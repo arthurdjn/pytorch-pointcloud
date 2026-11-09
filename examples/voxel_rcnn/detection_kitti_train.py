@@ -248,6 +248,7 @@ def configure_criterion(args: Namespace) -> AnchorHeadLoss:
         cls_weight=1.0,
         loc_weight=2.0,
         dir_weight=0.2,
+        dir_offset=hparams["dir_offset"],
     ).to(args.device)
 
 
