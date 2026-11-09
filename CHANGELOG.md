@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Fixed `VoxelGridPool(origin="min")` building wrong cells for an unsorted `batch`.
 - `ops.cluster.fps` and `knn_interpolate` raise a `ValueError` for an unsorted batch, which returned wrong results.
+- Fixed `gaussian_kernel_density` returning a 0-dim tensor for one point; an unsorted `batch` raises a `ValueError`.
 
 ## 0.0.19 (2026-11-08)
 
