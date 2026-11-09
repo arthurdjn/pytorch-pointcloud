@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file. The format is b
 - `ops.cluster.fps` and `knn_interpolate` raise a `ValueError` for an unsorted batch, which returned wrong results.
 - Fixed `gaussian_kernel_density` returning a 0-dim tensor for one point; an unsorted `batch` raises a `ValueError`.
 - Fixed `ops.hilbert.encode` returning a 0-dim tensor for one point and `serialize` failing on an empty cloud.
+- `create_norm("layer_norm", ..., dim=2)` and `dim=3` raise a `ValueError`: the `nn.LayerNorm` they returned failed on channel-first inputs.
 
 ## 0.0.19 (2026-11-08)
 
