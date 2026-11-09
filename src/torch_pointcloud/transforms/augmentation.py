@@ -330,7 +330,7 @@ def flip_boxes(boxes: Tensor, axis: int) -> Tensor:
     """
     boxes = boxes.clone()
     boxes[:, axis] = -boxes[:, axis]
-    if boxes.shape[1] >= 9:
+    if boxes.shape[1] >= 9 and axis < 2:
         boxes[:, 7 + axis] = -boxes[:, 7 + axis]
     if axis == 0:
         boxes[:, 6] = math.pi - boxes[:, 6]
