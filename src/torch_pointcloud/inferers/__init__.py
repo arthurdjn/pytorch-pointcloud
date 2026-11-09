@@ -6,7 +6,7 @@ from .part_refinement import PartRefinementInferer, part_refinement_inference
 from .potential_sphere import PotentialSphereInferer, potential_sphere_inference
 from .simple import SimpleInferer
 from .sliding_window import SlidingWindowInferer, sliding_window_inference
-from .tta import TTAInferer, simple_tta_transforms
+from .tta import TTAInferer, scale_flip_tta_transforms, simple_tta_transforms
 from .voxel_partition import VoxelPartitionInferer
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "SlidingWindowInferer",
     "sliding_window_inference",
     "TTAInferer",
+    "scale_flip_tta_transforms",
     "simple_tta_transforms",
     "VoxelPartitionInferer",
 ]

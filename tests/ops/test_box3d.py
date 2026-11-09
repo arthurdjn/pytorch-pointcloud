@@ -1,12 +1,14 @@
 import math
-from typing import List
+from typing import List, Optional, Tuple
 
 import pytest
 import torch
 from torch import Tensor
 
 from torch_pointcloud.ops.box3d import (
+    _overlapping_pairs,
     angle_to_class,
+    angle_to_direction_bin,
     box3d_overlap,
     box_corners,
     boxes_iou3d,
@@ -16,6 +18,7 @@ from torch_pointcloud.ops.box3d import (
     class_to_size,
     count_points_in_boxes,
     decode_roi_residuals,
+    direction_bin_to_angle,
     nms3d,
     points_in_boxes,
     projected_ignore_mask,
@@ -45,6 +48,70 @@ def test_boxes_iou_self_diag_is_one() -> None:
     diag_3d = torch.diag(boxes_iou3d(boxes, boxes))
     assert torch.allclose(diag_bev, torch.ones(3), atol=1e-5)
     assert torch.allclose(diag_3d, torch.ones(3), atol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "dtype", [pytest.param(torch.float32, id="float32"), pytest.param(torch.float64, id="float64")]
+)
+def test_boxes_iou_bev_square_turned_by_45_degrees_overlaps_in_an_octagon(dtype: torch.dtype) -> None:
+    a = _boxes([[0.0, 0, 0, 1, 1, 1, 0]]).to(dtype)
+    b = _boxes([[0.0, 0, 0, 1, 1, 1, math.pi / 4]]).to(dtype)
+    assert boxes_iou_bev(a, b).item() == pytest.approx(1 / math.sqrt(2), abs=1e-6)
+
+
+@pytest.mark.parametrize("heading", [pytest.param(0.0, id="axis-aligned"), pytest.param(0.7, id="rotated")])
+def test_boxes_iou_bev_of_boxes_sharing_an_edge(heading: float) -> None:
+    boxes = _boxes([[3.0, -2, 0, 4, 2, 1, heading]] * 3)
+    boxes[1, :2] += 4 * torch.tensor([math.cos(heading), math.sin(heading)])  # touches box 0 front to back
+    boxes[2, 3] = 2.0  # back half of box 0
+    boxes[2, :2] -= torch.tensor([math.cos(heading), math.sin(heading)])
+    iou = boxes_iou_bev(boxes[:1], boxes)[0]
+    assert iou[0].item() == pytest.approx(1.0, abs=1e-6)
+    assert iou[0].item() <= 1.0
+    assert iou[1].item() == pytest.approx(0.0, abs=1e-6)
+    assert iou[2].item() == pytest.approx(0.5, abs=1e-6)
+
+
+def test_boxes_iou_bev_nested_and_zero_area_boxes() -> None:
+    outer = _boxes([[1.0, 1, 0, 4, 4, 1, 0.3]])
+    inner = _boxes([[1.0, 1, 0, 2, 1, 1, 1.1], [1.0, 1, 0, 0, 0, 1, 0], [1.0, 1, 0, 3, 0, 1, 0.2]])
+    iou = boxes_iou_bev(outer, inner)[0]
+    assert iou.tolist() == pytest.approx([2 / 16, 0.0, 0.0], abs=1e-6)
+    assert boxes_iou_bev(inner[1:], inner[1:]).abs().max().item() == 0.0
+
+
+@pytest.mark.parametrize(
+    "shift",
+    [pytest.param(0.0, id="identical"), pytest.param(4.0, id="touching"), pytest.param(1.0, id="overlapping")],
+)
+def test_boxes_iou3d_aligned_gradients_are_finite(shift: float) -> None:
+    a = _boxes([[3.0, -2, 0, 4, 2, 1, 0.7]] * 4).requires_grad_()
+    b = (a.detach() + torch.tensor([shift * math.cos(0.7), shift * math.sin(0.7), 0, 0, 0, 0, 0])).requires_grad_()
+    boxes_iou3d(a, b, aligned=True).sum().backward()
+    assert a.grad is not None and b.grad is not None
+    assert torch.isfinite(a.grad).all() and torch.isfinite(b.grad).all()
+
+
+@pytest.mark.parametrize(
+    "turn",
+    [pytest.param(0.0, id="parallel"), pytest.param(1e-3, id="near-parallel"), pytest.param(0.5, id="turned")],
+)
+def test_boxes_iou_bev_matches_the_exact_corner_overlap(turn: float) -> None:
+    generator = torch.Generator().manual_seed(0)
+    a = torch.cat(
+        [
+            torch.rand(40, 2, generator=generator, dtype=torch.float64) * 3,
+            torch.zeros(40, 1, dtype=torch.float64),
+            torch.rand(40, 2, generator=generator, dtype=torch.float64) * 3 + 0.5,
+            torch.ones(40, 1, dtype=torch.float64),
+            torch.rand(40, 1, generator=generator, dtype=torch.float64) * math.pi,
+        ],
+        dim=1,
+    )
+    b = a.roll(1, 0)
+    b[:, 6] = a[:, 6] + turn
+    expected = box3d_overlap(box_corners(a), box_corners(b))[1]
+    assert torch.allclose(boxes_iou_bev(a, b), expected, atol=1e-5)
 
 
 def test_box3d_overlap_degenerate_boxes_finite_zero_iou() -> None:
@@ -338,6 +405,296 @@ def test_nms3d_max_keep_matches_uncapped_prefix_per_scene(rotated: bool) -> None
     )
 
 
+def _nms3d_iou_matrix(boxes: Tensor, rotated: bool) -> Tensor:
+    if rotated:
+        footprint = boxes.clone()
+        footprint[:, 3:5] = footprint[:, 3:5].clamp_min(1e-2)
+        return boxes_iou_bev(footprint, footprint)
+
+    corners = box_corners(boxes)
+    lo, hi = corners.amin(dim=1), corners.amax(dim=1)
+    hi = torch.maximum(hi, lo + 1e-2)
+    inter = (torch.minimum(hi[:, None], hi[None]) - torch.maximum(lo[:, None], lo[None])).clamp_min(0).prod(dim=-1)
+    volume = (hi - lo).prod(dim=-1)
+    return inter / (volume[:, None] + volume[None] - inter).clamp_min(1e-6)
+
+
+def _greedy_nms3d(
+    boxes: Tensor,
+    scores: Tensor,
+    iou_threshold: float,
+    labels: Optional[Tensor] = None,
+    batch: Optional[Tensor] = None,
+    rotated: bool = False,
+    max_keep: Optional[int] = None,
+    max_candidates: Optional[int] = None,
+) -> List[int]:
+    batch = torch.zeros_like(scores, dtype=torch.long) if batch is None else batch
+    keep: List[int] = []
+    for scene in torch.unique(batch).tolist():
+        index = (batch == scene).nonzero().squeeze(-1)
+        order = index[scores[index].argsort(descending=True)][:max_candidates]
+        iou = _nms3d_iou_matrix(boxes[order], rotated)
+        same_class = torch.ones_like(iou, dtype=torch.bool)
+        if labels is not None:
+            same_class = labels[order][:, None] == labels[order][None]
+        suppressed = torch.zeros(len(order), dtype=torch.bool, device=boxes.device)
+        scene_keep: List[int] = []
+        for i in range(len(order)):
+            if max_keep is not None and len(scene_keep) == max_keep:
+                break
+            if not suppressed[i]:
+                scene_keep.append(int(order[i]))
+                suppressed |= (iou[i] > iou_threshold) & same_class[i]
+        keep += scene_keep
+    return keep
+
+
+def _nms3d_inputs(dtype: torch.dtype = torch.float32, device: str = "cpu") -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    """Clustered boxes with duplicates, zero-size boxes and tied scores, in the unsorted scenes 5, 0 and 2."""
+    generator = torch.Generator().manual_seed(0)
+    centers = torch.rand(8, 3, generator=generator) * 6
+    boxes = torch.cat(
+        [
+            centers[torch.randint(8, (120,), generator=generator)] + 0.4 * torch.randn(120, 3, generator=generator),
+            torch.rand(120, 3, generator=generator) * 2 + 0.2,
+            torch.rand(120, 1, generator=generator) * 6.28,
+        ],
+        dim=1,
+    )
+    boxes[:30, 6] = 0.0
+    boxes[90:100] = boxes[80:90]
+    boxes[100:, 3:6] = 0.0
+    boxes[110:] = boxes[100:110]
+    scores = torch.randint(0, 8, (120,), generator=generator) / 8
+    labels = torch.randint(0, 3, (120,), generator=generator)
+    batch = torch.tensor([5, 0, 2])[torch.randint(0, 3, (120,), generator=generator)]
+    return boxes.to(device, dtype), scores.to(device, dtype), labels.to(device), batch.to(device)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    "iou_threshold",
+    [pytest.param(0.0, id="iou-0"), pytest.param(0.5, id="iou-0.5"), pytest.param(1.0, id="iou-1")],
+)
+@pytest.mark.parametrize("per_class", [pytest.param(False, id="class-agnostic"), pytest.param(True, id="per-class")])
+@pytest.mark.parametrize("batched", [pytest.param(False, id="one-scene"), pytest.param(True, id="three-scenes")])
+@pytest.mark.parametrize(
+    "dtype",
+    [pytest.param(torch.float32, id="float32"), pytest.param(torch.float64, id="float64")],
+)
+def test_nms3d_matches_greedy_reference(
+    rotated: bool,
+    iou_threshold: float,
+    per_class: bool,
+    batched: bool,
+    dtype: torch.dtype,
+) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs(dtype)
+    scene_labels = labels if per_class else None
+    scene_batch = batch if batched else None
+    keep = nms3d(boxes, scores, iou_threshold, labels=scene_labels, batch=scene_batch, rotated=rotated)
+    expected = _greedy_nms3d(boxes, scores, iou_threshold, labels=scene_labels, batch=scene_batch, rotated=rotated)
+    assert keep.dtype == torch.long
+    assert keep.tolist() == expected
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize("batched", [pytest.param(False, id="one-scene"), pytest.param(True, id="three-scenes")])
+@pytest.mark.parametrize(
+    ("max_keep", "max_candidates"),
+    [
+        pytest.param(0, None, id="keep-0"),
+        pytest.param(1, None, id="keep-1"),
+        pytest.param(3, None, id="keep-3"),
+        pytest.param(10, None, id="keep-10"),
+        pytest.param(None, 0, id="candidates-0"),
+        pytest.param(None, 1, id="candidates-1"),
+        pytest.param(None, 12, id="candidates-12"),
+        pytest.param(3, 12, id="keep-3-candidates-12"),
+    ],
+)
+def test_nms3d_caps_match_greedy_reference(
+    rotated: bool,
+    batched: bool,
+    max_keep: Optional[int],
+    max_candidates: Optional[int],
+) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    scene_batch = batch if batched else None
+    keep = nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=scene_batch,
+        rotated=rotated,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+    )
+    expected = _greedy_nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=scene_batch,
+        rotated=rotated,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+    )
+    assert keep.dtype == torch.long
+    assert keep.tolist() == expected
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize(
+    "iou_threshold",
+    [pytest.param(0.0, id="iou-0"), pytest.param(0.5, id="iou-0.5"), pytest.param(1.0, id="iou-1")],
+)
+def test_nms3d_identical_boxes_match_greedy_reference(rotated: bool, iou_threshold: float) -> None:
+    boxes = _boxes([[1.0, 2, 0, 2, 1, 1, 0.3]] * 5)
+    scores = torch.tensor([0.5, 0.9, 0.5, 0.9, 0.1])
+    keep = nms3d(boxes, scores, iou_threshold, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, iou_threshold, rotated=rotated)
+    if iou_threshold < 1.0:
+        assert len(keep) == 1
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_one_box_is_kept(rotated: bool) -> None:
+    boxes = _boxes([[1.0, 2, 0, 2, 1, 1, 0.3]])
+    scores = torch.tensor([0.4])
+    assert nms3d(boxes, scores, 0.0, rotated=rotated).tolist() == [0]
+    assert nms3d(boxes, scores, 0.5, batch=torch.tensor([3]), labels=torch.tensor([1]), rotated=rotated).tolist() == [0]
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_tied_scores_match_greedy_reference(rotated: bool) -> None:
+    boxes, _, labels, batch = _nms3d_inputs()
+    scores = torch.full((len(boxes),), 0.5)
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize("max_keep", [pytest.param(None, id="uncapped"), pytest.param(2, id="keep-2")])
+def test_nms3d_chain_of_overlapping_boxes_matches_greedy_reference(rotated: bool, max_keep: Optional[int]) -> None:
+    # Neighbors overlap with an IoU of 1/7, below the threshold, so each decision waits on the box before it.
+    boxes = _boxes([[1.5 * k, 0, 0, 2, 2, 2, 0] for k in range(12)])
+    scores = torch.linspace(1.0, 0.1, 12)
+    keep = nms3d(boxes, scores, 0.5, rotated=rotated, max_keep=max_keep)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.5, rotated=rotated, max_keep=max_keep)
+    assert keep.tolist() == list(range(12))[:max_keep]
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_nan_boxes_match_greedy_reference(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    boxes[::7] = float("nan")
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_half_precision_boxes_match_greedy_reference(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    boxes, scores = boxes.half(), scores.half()
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert keep.tolist() == _greedy_nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+def test_nms3d_non_contiguous_inputs_match_contiguous_ones() -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    strided = [torch.stack([t, t], dim=1)[:, 1] for t in (boxes, scores, labels, batch)]
+    assert not any(t.is_contiguous() for t in strided)
+    keep = nms3d(strided[0], strided[1], 0.3, labels=strided[2], batch=strided[3], rotated=True)
+    assert torch.equal(keep, nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=True))
+
+
+def test_nms3d_returns_the_scenes_in_increasing_id_order() -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch)
+    assert torch.equal(batch[keep], batch[keep].sort(stable=True).values)
+    assert batch[keep].unique().tolist() == [0, 2, 5]
+
+
+def test_nms3d_without_candidates_returns_empty_long_indices() -> None:
+    boxes, scores, _, batch = _nms3d_inputs()
+    keep = nms3d(boxes, scores, 0.3, batch=batch, max_candidates=0)
+    assert keep.dtype == torch.long and keep.numel() == 0
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_keeps_boxes_that_require_grad_out_of_the_autograd_graph(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    boxes.requires_grad_()
+    saved: List[Tensor] = []
+
+    def pack(tensor: Tensor) -> Tensor:
+        saved.append(tensor)
+        return tensor
+
+    with torch.autograd.graph.saved_tensors_hooks(pack, lambda tensor: tensor):
+        keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+    assert saved == []
+    assert keep.tolist() == _greedy_nms3d(boxes.detach(), scores, 0.3, labels=labels, batch=batch, rotated=rotated)
+
+
+@pytest.mark.parametrize(
+    ("iou_threshold", "max_keep", "max_candidates"),
+    [
+        pytest.param(-0.1, None, None, id="negative-threshold"),
+        pytest.param(0.5, -1, None, id="negative-max-keep"),
+        pytest.param(0.5, None, -1, id="negative-max-candidates"),
+    ],
+)
+def test_nms3d_rejects_negative_arguments(
+    iou_threshold: float,
+    max_keep: Optional[int],
+    max_candidates: Optional[int],
+) -> None:
+    boxes, scores, _, _ = _nms3d_inputs()
+    with pytest.raises(ValueError, match="non-negative"):
+        nms3d(boxes, scores, iou_threshold, max_keep=max_keep, max_candidates=max_candidates)
+
+
+@pytest.mark.parametrize("seed", [pytest.param(0, id="seed-0"), pytest.param(1, id="seed-1")])
+def test_overlapping_pairs_matches_brute_force(seed: int) -> None:
+    generator = torch.Generator().manual_seed(seed)
+    lo = torch.randint(0, 20, (60,), generator=generator).float() / 2
+    hi = lo + torch.randint(0, 6, (60,), generator=generator).float() / 2
+    group = torch.randint(0, 3, (60,), generator=generator).sort().values
+    first, second = _overlapping_pairs(lo, hi, group)
+    found = sorted(zip(first.tolist(), second.tolist()))
+    expected = [
+        (i, j)
+        for i in range(60)
+        for j in range(i + 1, 60)
+        if group[i] == group[j] and bool(lo[i] <= hi[j]) and bool(lo[j] <= hi[i])
+    ]
+    assert found == expected
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_matches_greedy_reference_on_cuda(rotated: bool) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs(device="cuda")
+    keep = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, rotated=rotated, max_keep=10, max_candidates=30)
+    expected = _greedy_nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=batch,
+        rotated=rotated,
+        max_keep=10,
+        max_candidates=30,
+    )
+    assert keep.device.type == "cuda"
+    assert keep.tolist() == expected
+    assert nms3d(boxes, scores, 0.0, rotated=rotated).tolist() == _greedy_nms3d(boxes, scores, 0.0, rotated=rotated)
+
+
 def test_angle_to_class_roundtrip() -> None:
     angles = torch.tensor([0.0, 0.6, 2.5, math.pi])
     cls, residual = angle_to_class(angles, 12)
@@ -357,6 +714,47 @@ def test_class_to_angle_single_bin_decodes_zero() -> None:
     heading_class = torch.zeros(4, dtype=torch.long)
     heading_residual = torch.randn(4)
     assert torch.equal(class_to_angle(heading_class, heading_residual, 1), torch.zeros(4))
+
+
+def test_angle_to_direction_bin_counts_sectors_from_the_offset() -> None:
+    # Two bins from pi / 4: [pi / 4, 5 pi / 4) is bin 0, the other half turn bin 1.
+    angles = torch.tensor([0.0, math.pi / 4 + 1e-3, math.pi / 2, math.pi, 5 * math.pi / 4 + 1e-3, -math.pi / 2])
+    assert angle_to_direction_bin(angles, 2, math.pi / 4).tolist() == [1, 0, 0, 0, 1, 1]
+    # Four bins from 0, and the headings of a whole turn further land in the same bins.
+    angles = torch.tensor([0.1, 1.7, 3.2, 4.8])
+    assert angle_to_direction_bin(angles, 4, 0.0).tolist() == [0, 1, 2, 3]
+    assert angle_to_direction_bin(angles + 2 * math.pi, 4, 0.0).tolist() == [0, 1, 2, 3]
+
+
+@pytest.mark.parametrize("num_dir_bins", [2, 3, 4])
+@pytest.mark.parametrize("dir_offset", [0.78539, -math.pi / 2, 0.0])
+def test_direction_bin_to_angle_inverts_angle_to_direction_bin(num_dir_bins: int, dir_offset: float) -> None:
+    torch.manual_seed(0)
+    angles = torch.randn(1000) * 4
+    bins = angle_to_direction_bin(angles, num_dir_bins, dir_offset)
+    recovered = direction_bin_to_angle(bins, angles, num_dir_bins, dir_offset)
+    wrap = torch.remainder(recovered - angles + math.pi, 2 * math.pi) - math.pi
+    assert wrap.abs().max() < 1e-5
+
+
+@pytest.mark.parametrize("num_dir_bins", [2, 3])
+def test_direction_bin_to_angle_moves_every_heading_into_its_bin(num_dir_bins: int) -> None:
+    torch.manual_seed(0)
+    angles = torch.randn(1000) * 4
+    bins = torch.randint(0, num_dir_bins, (1000,))
+    moved = direction_bin_to_angle(bins, angles, num_dir_bins, 0.78539)
+    assert torch.equal(angle_to_direction_bin(moved, num_dir_bins, 0.78539), bins)
+    # The heading only changes by whole bin widths.
+    steps = (moved - angles) / (2 * math.pi / num_dir_bins)
+    assert torch.allclose(steps, steps.round(), atol=1e-4)
+
+
+def test_direction_bin_to_angle_wraps_with_the_limit_offset() -> None:
+    angles = torch.tensor([0.1, 3.0, -2.0])
+    moved = direction_bin_to_angle(torch.zeros(3, dtype=torch.long), angles, 2, 0.0, dir_limit_offset=0.5)
+    # Wrapped into [-pi / 2, pi / 2) around bin 0.
+    assert torch.all(moved >= -math.pi / 2) and torch.all(moved < math.pi / 2)
+    assert torch.allclose(moved, torch.tensor([0.1, 3.0 - math.pi, -2.0 + math.pi]))
 
 
 def test_class_to_size_adds_residual_to_template() -> None:

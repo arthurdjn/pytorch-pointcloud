@@ -229,6 +229,11 @@
     "date": "October 2025",
     "title": "Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations"
   },
+  "2512.13689": {
+    "crop": 0.47,
+    "date": "December 2025",
+    "title": "LitePT: Lighter Yet Stronger Point Transformer"
+  },
   "2601.13052": {
     "crop": 0.47,
     "date": "January 2026",
@@ -238,6 +243,11 @@
     "crop": 0.47,
     "date": "March 2026",
     "title": "Utonia: Toward One Encoder for All Point Clouds"
+  },
+  "2604.19609": {
+    "crop": 0.47,
+    "date": "April 2026",
+    "title": "Volume Transformer: Revisiting Vanilla Transformers for 3D Scene Understanding"
   },
   "kitti-2012": {
     "crop": 0.47,

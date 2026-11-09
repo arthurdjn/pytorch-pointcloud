@@ -304,6 +304,32 @@ NUSCENES_LIDARSEG_LABEL_NAMES: Dict[int, str] = {
     31: "vehicle.ego",
 }
 
+# Raw lidarseg label id to 16-class index, the learning map of the lidarseg benchmark: the pedestrian kinds merge, so do
+# the two buses. Noise, animal, the rare movable and static objects, the emergency vehicles, `static.other` and the ego
+# vehicle are absent, so a `Relabel` with this map sends them to its `default`.
+NUSCENES_LIDARSEG_LEARNING_MAP: Dict[int, int] = {
+    9: 0,  # barrier
+    14: 1,  # bicycle
+    15: 2,  # bus (bendy)
+    16: 2,  # bus (rigid)
+    17: 3,  # car
+    18: 4,  # construction vehicle
+    21: 5,  # motorcycle
+    2: 6,  # pedestrian (adult)
+    3: 6,  # pedestrian (child)
+    4: 6,  # pedestrian (construction worker)
+    6: 6,  # pedestrian (police officer)
+    12: 7,  # traffic cone
+    22: 8,  # trailer
+    23: 9,  # truck
+    24: 10,  # driveable surface
+    25: 11,  # other flat
+    26: 12,  # sidewalk
+    27: 13,  # terrain
+    28: 14,  # manmade
+    30: 15,  # vegetation
+}
+
 # 16-class lidarseg benchmark taxonomy: `NUSCENES_LIDARSEG_CLASSES[i]` names learning-map index i.
 NUSCENES_LIDARSEG_CLASSES = (
     "barrier",
@@ -578,10 +604,10 @@ class NuScenes(PointCloudDataset):
         and `raw/lidarseg/<version>/` exist.
 
     Note:
-        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose a
-        `torch_pointcloud.transforms.Relabel` to project them onto the 16 benchmark classes
-        (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that mapping in their
-        transform.
+        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose
+        `Relabel(keys="segment", labels=NUSCENES_LIDARSEG_LEARNING_MAP, default=-1)` to project them onto the 16
+        benchmark classes (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that
+        mapping in their transform.
 
     Tip:
         The processed cache is keyed by `version`, `split` and `max_sweeps`, so different sweep counts coexist.
