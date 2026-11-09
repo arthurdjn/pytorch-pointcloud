@@ -130,10 +130,10 @@ def encode(locs: Tensor, num_dims: int, num_bits: int) -> Tensor:
     padded = torch.nn.functional.pad(hh_bin, (extra_dims, 0), "constant", 0)
 
     # Convert binary values into uint8s.
-    hh_uint8 = (padded.flip(-1).reshape((-1, 8, 8)) * bitpack_mask).sum(2).squeeze().type(torch.uint8)
+    hh_uint8 = (padded.flip(-1).reshape((-1, 8, 8)) * bitpack_mask).sum(2).type(torch.uint8)
 
     # Convert uint8s into uint64s.
-    hh_uint64 = hh_uint8.view(torch.int64).squeeze()
+    hh_uint64 = hh_uint8.view(torch.int64).squeeze(-1)
 
     return hh_uint64
 
