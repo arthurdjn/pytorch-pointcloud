@@ -178,6 +178,7 @@ nav = [
             { "grouped_vector_attention" = "api/layers/grouped_vector_attention.md" },
             { "kpconv_blocks" = "api/layers/kpconv_blocks.md" },
             { "linear_blocks" = "api/layers/linear_blocks.md" },
+            { "masked_query_decoder_layer" = "api/layers/masked_query_decoder_layer.md" },
             { "norms" = "api/layers/norms.md" },
             { "octree_attention" = "api/layers/octree_attention.md" },
             { "octree_blocks" = "api/layers/octree_blocks.md" },
