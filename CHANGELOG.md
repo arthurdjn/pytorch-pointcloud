@@ -16,7 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
-- Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `lookup_coordinates`, `trilinear_sparse_devoxelize`, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")`, `box3d_overlap(aligned=True)`, `RandomTranslate(distribution="normal")` and the S3DIS detection classes.
+- Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `lookup_coordinates`, `trilinear_sparse_devoxelize`, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")`, `RandomTranslate(distribution="normal")` and the S3DIS detection classes.
 
 ## 0.0.19 (2026-11-08)
 
