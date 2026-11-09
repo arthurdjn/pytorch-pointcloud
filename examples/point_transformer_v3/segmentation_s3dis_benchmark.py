@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.inferers import Inferer, TTAInferer, VoxelPartitionInferer
+from torch_pointcloud.inferers import Inferer, TTAInferer, VoxelPartitionInferer, scale_flip_tta_transforms
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -34,11 +34,6 @@ INFERER_TRANSFORM = T.Compose(
         T.Quantize(keys=DataKeys.POS, size=VOXEL_SIZE, dst_keys=DataKeys.POS_GRID),
     ]
 )
-VIEWS = [
-    T.Compose([T.RandomScale(keys=DataKeys.POS, scale_range=(scale, scale), p=1.0), *flip])
-    for scale in (0.9, 0.95, 1.0, 1.05, 1.1)
-    for flip in ([], [T.RandomFlip(keys=[DataKeys.POS, DataKeys.NORMAL], axes=(0, 1), p=1.0)])
-]
 TRANSFORM = T.Compose(
     [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
@@ -119,7 +114,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         sw_batch_size=args.sw_batch_size,
         seed=args.seed,
     )
-    return TTAInferer(base=base, transforms=VIEWS, aggregate="mean")
+    return TTAInferer(base=base, transforms=scale_flip_tta_transforms(), aggregate="mean")
 
 
 @torch.no_grad()
