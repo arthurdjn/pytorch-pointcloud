@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pytest
 import torch
@@ -10,6 +10,7 @@ from torch_pointcloud.models import create_model
 from torch_pointcloud.models.geotransformer import (
     GeometricStructureEmbedding,
     GeometricTransformer,
+    GeoTransformerOutput,
     GeoTransformerRegistration,
     KPConvFPN,
 )
@@ -59,6 +60,22 @@ def _pair(num_src: int = 600, num_ref: int = 700, seed: int = 0) -> Dict[str, Te
         DataKeys.BATCH_REF_POS: torch.zeros(num_ref, dtype=torch.long),
         DataKeys.TRANSFORM: transform.unsqueeze(0),
     }
+
+
+def _patch_assignments(output: GeoTransformerOutput, selected: Optional[Tensor] = None) -> Tensor:
+    """Patch assignments with the slots of every patch ordered by point, zero on the padding.
+
+    A superpoint averaging two points is equidistant from both, so their order in its patch follows the rounding.
+    """
+    selected = torch.ones_like(output["node_corr_batch"], dtype=torch.bool) if selected is None else selected
+    scores = output["matching_scores"][selected][:, :-1, :-1]
+    ref_masks, src_masks = output["ref_patch_masks"][selected], output["src_patch_masks"][selected]
+    ref_order = output["ref_patch_points"][selected][:, :, 0].masked_fill(~ref_masks, float("inf")).argsort(dim=1)
+    src_order = output["src_patch_points"][selected][:, :, 0].masked_fill(~src_masks, float("inf")).argsort(dim=1)
+    scores = scores.gather(1, ref_order.unsqueeze(2).expand_as(scores))
+    scores = scores.gather(2, src_order.unsqueeze(1).expand_as(scores))
+    valid = ref_masks.gather(1, ref_order).unsqueeze(2) & src_masks.gather(1, src_order).unsqueeze(1)
+    return scores * valid
 
 
 def test_geometric_structure_embedding_is_rigid_invariant() -> None:
@@ -227,11 +244,15 @@ def test_geotransformer_batch_matches_single_pairs() -> None:
             torch.cat([first[DataKeys.REF_POS], second[DataKeys.REF_POS]]),
             torch.cat([first[DataKeys.BATCH_REF_POS], second[DataKeys.BATCH_REF_POS] + 1]),
         )
-    assert torch.allclose(out["matching_scores"][out["node_corr_batch"] == 0], out_first["matching_scores"], atol=1e-4)
-    assert torch.allclose(out["matching_scores"][out["node_corr_batch"] == 1], out_second["matching_scores"], atol=1e-4)
-    transforms = model.decode(out)["transform"]
-    assert transforms.shape == (2, 4, 4)
-    assert torch.allclose(transforms[1], model.decode(out_second)["transform"][0], atol=1e-4)
+    registration = model.decode(out)
+    assert registration["transform"].shape == (2, 4, 4)
+    for pair, out_alone in enumerate((out_first, out_second)):
+        selected = out["node_corr_batch"] == pair
+        assert torch.equal(out["src_node_corr_indices"][selected], out_alone["src_node_corr_indices"])
+        assert torch.equal(out["ref_node_corr_indices"][selected], out_alone["ref_node_corr_indices"])
+        assert torch.allclose(_patch_assignments(out, selected), _patch_assignments(out_alone), atol=1e-4)
+        scores = registration["scores"][registration["batch"] == pair]
+        assert torch.allclose(scores.sort().values, model.decode(out_alone)["scores"].sort().values, atol=1e-4)
 
 
 def test_geotransformer_decode_without_point_correspondences_is_identity() -> None:
