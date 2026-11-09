@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
 - Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
 - Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
+- `KITTI(fov=True)` raises a `FileNotFoundError` for a frame without its `image_2` image; the frame was cached uncropped.
 
 ## 0.0.19 (2026-11-08)
 
