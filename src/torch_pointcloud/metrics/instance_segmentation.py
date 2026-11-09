@@ -72,8 +72,7 @@ def instance_matches(
         gt_instance: Per-point ground-truth instance ids, shape $(N,)$; negative marks no instance.
         gt_label: Per-point semantic labels in the instance-class space, shape $(N,)$.
         *args: Ground truth of the deprecated call `instance_matches(pred_masks, pred_labels, pred_scores,
-            gt_instance, gt_label)` with dense $(K, N)$ boolean masks of one scene, accepted until 0.0.20 with a
-            `FutureWarning`.
+            gt_instance, gt_label)` with dense $(K, N)$ boolean masks of one scene, accepted with a `FutureWarning`.
         batch: Per-point scene index of a packed batch, shape $(N,)$. `None` scores the points as one scene.
         ignore_index: Semantic label marking void points.
 
@@ -101,10 +100,9 @@ def instance_matches(
     """
     if isinstance(preds, Tensor):
         warnings.warn(
-            "`instance_matches(pred_masks, pred_labels, pred_scores, gt_instance, gt_label)` is deprecated since "
-            "0.0.19 and will be removed in 0.0.20; pass the `decode` output instead, e.g. `instance_matches("
-            "{'mask_index': pred_masks.nonzero().t(), 'labels': pred_labels, 'scores': pred_scores, 'batch': "
-            "torch.zeros_like(pred_labels)}, gt_instance, gt_label)`.",
+            "`instance_matches(pred_masks, pred_labels, pred_scores, gt_instance, gt_label)` is deprecated; pass "
+            "the `decode` output instead, e.g. `instance_matches({'mask_index': pred_masks.nonzero().t(), 'labels': "
+            "pred_labels, 'scores': pred_scores, 'batch': torch.zeros_like(pred_labels)}, gt_instance, gt_label)`.",
             FutureWarning,
             stacklevel=2,
         )

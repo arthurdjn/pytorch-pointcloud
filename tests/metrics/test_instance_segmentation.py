@@ -256,7 +256,7 @@ def test_instance_matches_dense_masks_are_deprecated() -> None:
     """The 0.0.18 call with dense masks warns and gives the record of the `decode` form."""
     inputs = _random_inputs([200], 6, 10, with_batch=False)
     masks, labels, scores = inputs["pred_masks"], inputs["pred_labels"], inputs["pred_scores"]
-    with pytest.warns(FutureWarning, match="removed in 0.0.20"):
+    with pytest.warns(FutureWarning, match="is deprecated"):
         legacy = instance_matches(masks.int(), labels, scores, inputs["gt_instance"], inputs["gt_label"])
     expected = instance_matches(_preds(masks, labels, scores), inputs["gt_instance"], inputs["gt_label"])
     for key in expected:

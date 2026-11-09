@@ -17,7 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Added the `instance-segmentation` task with SPFormer (`spformer.scannet.jiahao-sun`), its loss and its ScanNet benchmark and train scripts.
 - Added `ops.superpoint`, the dice and mask score losses, `mask_matching_cost`, the `MaskedQueryDecoderLayer` layer and the `RandomLinearJitter` transform.
-- `instance_matches` takes a model's `decode` output (sparse masks, optional `ignore_mask`) and a `batch` to score a packed batch, and counts the points without an instance as void; the dense-mask call still works until 0.0.20, with a `FutureWarning`.
+- `instance_matches` takes a model's `decode` output (sparse masks, optional `ignore_mask`) and a `batch` to score a packed batch, and counts the points without an instance as void; the dense-mask call is deprecated, with a `FutureWarning`.
 - Added a `std` option to `RandomColorShift` for normal per-channel offsets.
 - `select_inputs` names the `cat_keys` to collate with when a `batch_<key>` input is missing.
 
