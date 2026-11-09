@@ -146,7 +146,8 @@ def fps(
     with the `num_nodes` argument.
 
     Important:
-        If provided, the `batch` tensor is expected to be sorted.
+        If provided, the `batch` tensor must be sorted in non-decreasing order; an unsorted batch raises a
+        `ValueError`.
 
     Args:
         src: The source tensor to sample from of shape $(N, *)$.
@@ -183,6 +184,8 @@ def fps(
     _check_packed_2d(src, "src")
     if batch is not None and src.size(0) != batch.numel():
         raise ValueError(f"Size of `src` ({src.size(0)}) must match size of `batch` ({batch.numel()}).")
+    if batch is not None:
+        _check_sorted_batch(batch, "batch")
 
     if batch is not None and batch.numel() > 0:
         sample_counts = batch.bincount()
@@ -502,6 +505,10 @@ def knn_interpolate(
     - `"inverse"` (PointNet++ `three_interpolation` convention):
       $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))$
 
+    Important:
+        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order; unsorted batches
+        raise a `ValueError`.
+
     Note:
         Adapted from the `torch_geometric` package.
 
@@ -527,7 +534,7 @@ def knn_interpolate(
     weighting = ensure_option(weighting, ("squared", "inverse"), name="weighting")
 
     with torch.no_grad():
-        assign_index = pool.knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
+        assign_index = knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
         y_idx, x_idx = assign_index[0], assign_index[1]
         diff = pos_x[x_idx] - pos_y[y_idx]
         squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
