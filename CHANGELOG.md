@@ -20,6 +20,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `DGCNNSegmentation` applying the head `dropout` inside its input T-Net.
 - Fixed the Point Transformer models ignoring `act` and `norm` in their embedding MLP.
 - Removed the unused `upsample` argument of `PointTransformerDecoder`.
+- Fixed the registered transforms of `sonata-base-lp.scannet20.fair`, `concerto-large-lp.scannet20.pointcept` and `utonia-base-lp.scannet20.pointcept` raising `KeyError` on a cloud without labels.
 
 ## 0.0.19 (2026-11-08)
 
