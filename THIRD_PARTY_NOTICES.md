@@ -14,13 +14,15 @@ neither are marked as such.
 | ----------------------------------------------- | ---------------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------- |
 | guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 36    | Copyright (c) Guocheng Qian                                                                                                |
 | CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 18    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
-| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 15    | Copyright 2018-2019 Open-MMLab                                                                                             |
+| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 24    | Copyright 2018-2019 Open-MMLab                                                                                             |
 | isl-org/Open3D-ML                               | `open3d`         | MIT          | 11    | Copyright (c) 2020 www.open3d.org                                                                                          |
-| mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 11    | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
+| mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 18    | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
 | antao97/dgcnn.pytorch                           | `an-tao`         | MIT          | 10    | Copyright (c) 2020 An Tao                                                                                                  |
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
+| KadirYilmaz/Volt (Hugging Face)                 | `kadir-yilmaz`   | MIT          | 8     | Copyright (c) 2026 Kadir Yilmaz                                                                                            |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 7     | not stated upstream                                                                                                        |
+| prs-eth/LitePT                                  | `prs-eth`        | MIT          | 6     | Copyright (c) 2025 Photogrammetry and Remote Sensing Lab                                                                   |
 | Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |
@@ -49,10 +51,12 @@ Licenses of the datasets the checkpoints were trained on.
 | S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 18          |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 19          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
-| ScanNet                                         | terms of use, non-commercial research and educational use | 12          |
-| nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
+| ScanNet                                         | terms of use, non-commercial research and educational use | 19          |
+| nuScenes                                        | CC BY-NC-SA 4.0                                           | 7           |
+| ScanNet++, ARKitScenes (joint training)         | non-commercial                                            | 4           |
+| Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
@@ -71,7 +75,9 @@ Files adapted from other implementations, with the copyright notice each source 
 | facebookresearch/3detr            | Apache-2.0 | `models/threedetr.py`                                                                                                                                                      | Copyright (c) Facebook, Inc. and its affiliates                               |
 | facebookresearch/votenet          | MIT        | `models/votenet.py`, `lightning/callbacks.py`                                                                                                                              | Copyright (c) Facebook, Inc. and its affiliates                               |
 | Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `ops/hilbert.py`                                                                                                                         | Copyright (c) 2023 Pointcept                                                  |
+| prs-eth/LitePT                    | MIT        | `models/litept.py`                                                                                                                                                         | Copyright (c) 2025 Photogrammetry and Remote Sensing Lab                      |
 | PrincetonLIPS/numpy-hilbert-curve | MIT        | `ops/hilbert.py`                                                                                                                                                           | Copyright (c) 2020 Princeton Laboratory for Intelligent Probabilistic Systems |
+| YilmazKadir/Volt                  | MIT        | `models/volt.py`, `layers/voxel_patch.py`, `layers/rope.py`, `layers/transformer.py`                                                                                       | Copyright (c) 2026 Kadir Yilmaz                                               |
 | pyg-team/pytorch_geometric        | MIT        | `models/point_transformer.py`                                                                                                                                              | Copyright (c) 2023 PyG Team <team@pyg.org>                                    |
 | Project-MONAI/MONAI               | Apache-2.0 | `datasets/utils.py`                                                                                                                                                        | Copyright (c) MONAI Consortium                                                |
 | mit-han-lab/pvcnn                 | MIT        | `ops/voxelization.py`                                                                                                                                                      | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin                       |

@@ -38,6 +38,26 @@ def test_tnet_reset_parameters() -> None:
     torch.testing.assert_close(tnet.transform.weight, torch.zeros_like(tnet.transform.weight))
 
 
+def test_tnet_predicts_from_extra_features() -> None:
+    torch.manual_seed(0)
+    tnet = TNet(local_channels=[16], global_channels=[8], k=3, in_channels=5).eval()
+    torch.nn.init.normal_(tnet.transform.weight)
+    x = torch.randn(20, 3)
+    batch = torch.cat([torch.zeros(8), torch.ones(12)]).long()
+
+    out = tnet(x, batch, torch.randn(20, 2))
+    other = tnet(x, batch, torch.randn(20, 2))
+
+    assert tnet.local_nn.channel_list[0] == 5
+    assert out.shape == x.shape
+    assert not torch.allclose(out, other)
+
+
+def test_tnet_in_channels_below_k_raises() -> None:
+    with pytest.raises(ValueError, match="at least `k`"):
+        TNet(local_channels=[16], global_channels=[8], k=3, in_channels=2)
+
+
 def test_dynamic_tnet_forward() -> None:
     tnet = DynamicTNet(
         edge_channels=[16],
