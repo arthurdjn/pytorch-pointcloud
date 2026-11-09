@@ -115,12 +115,8 @@ def test_pct_classification_rejects_mismatched_stages() -> None:
     ],
 )
 def test_registered_transform_runs_without_labels(name: str) -> None:
-    info = model_info(name)
-    sample = {DataKeys.POS: torch.rand(3000, 3)}
-    if info["task"] == "part-segmentation":
-        sample[DataKeys.CATEGORY] = torch.tensor(3)
-    transform = info["transform"]
+    transform = model_info(name)["transform"]
     assert transform is not None
-    data = transform(sample)
+    data = transform({DataKeys.POS: torch.rand(3000, 3)})
     assert DataKeys.SEGMENT not in data and DataKeys.NORMAL not in data
     assert data[DataKeys.POS].shape[1] == 3
