@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
+- Fixed `box3d_overlap` returning an IoU above 1 for a box with an empty footprint inside another box, which `box_average_precision` counted as a match.
 
 ## 0.0.19 (2026-11-08)
 
