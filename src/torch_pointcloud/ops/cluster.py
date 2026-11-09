@@ -295,9 +295,8 @@ def radius(
     With `sort=False` (default) this just delegates to `torch_geometric.nn.pool.radius` and
     returns edges in kernel-traversal order. With `sort=True`, when more than
     `max_num_neighbors` source points lie inside a ball, the $k$ smallest source
-    indices are kept (PointNet++'s reference `query_ball_point` behavior). Pretrained
-    PointNet++ checkpoints from yanx27 / charlesq34 overfit to this selection rule,
-    so reproducing their accuracy requires `sort=True`.
+    indices are kept (PointNet++'s reference `query_ball_point` behavior). Weights
+    trained with this selection rule need `sort=True` to reproduce their accuracy.
 
     Important:
         If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
@@ -325,7 +324,7 @@ def radius(
         _check_sorted_batch(batch_y, "batch_y")
     # The CUDA kernel scans the sources of every query in index order and keeps the first `max_num_neighbors` it
     # finds, which is exactly the sorted selection, so the sort below is only needed on the CPU (whose kernel does
-    # not): on 3DETR-sized inputs it is 25x slower and materializes the full distance matrix.
+    # not): on large inputs it is 25x slower and materializes the full distance matrix.
     if not sort or x.is_cuda:
         edge_index = pool.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
         return edge_index[0], edge_index[1]

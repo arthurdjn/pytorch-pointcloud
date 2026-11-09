@@ -1,7 +1,7 @@
 """Hilbert curve encoding and decoding between coordinates and curve indices."""
 
-# Mostly copied from https://github.com/Pointcept/Pointcept/blob/main/pointcept/models/utils/serialization/hilbert.py
-# Original code from https://github.com/PrincetonLIPS/numpy-hilbert-curve
+# Adapted from https://github.com/Pointcept/Pointcept/blob/main/pointcept/models/utils/serialization/hilbert.py
+# and https://github.com/PrincetonLIPS/numpy-hilbert-curve
 
 import torch
 from torch import Tensor
