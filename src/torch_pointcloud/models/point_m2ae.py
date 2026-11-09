@@ -99,32 +99,35 @@ def local_attention_mask(mask: Tensor) -> Tensor:
     return (mask * -100000.0).unsqueeze(1)
 
 
-def local_att_mask(pos: Tensor, radius: float, dist: OptTensor = None) -> Tuple[Tensor, Tensor]:
+def local_att_mask(pos: Tensor, radius: float) -> Tensor:
     r"""Compute the boolean local-attention mask of a center set from a pairwise-distance threshold.
 
-    A pair of centers is masked (`True`) when their Euclidean distance is at least `radius`. The
-    pairwise-distance matrix is recomputed only when the cached `dist` does not match the current
-    number of centers, so consecutive stages with the same token count share it.
+    A pair of centers is masked (`True`) when their Euclidean distance is at least `radius`.
 
     Args:
         pos: Center coordinates of shape $(B, N, 3)$.
         radius: The local-attention radius.
-        dist: An optional cached pairwise-distance matrix from a previous call.
 
     Returns:
-        A tuple `(mask, dist)` with the boolean mask of shape $(B, N, N)$ and the pairwise-distance
-        matrix of shape $(B, N, N)$.
+        The boolean mask of shape $(B, N, N)$.
 
     Shape:
         - `pos`: $(B, N, 3)$
-        - `mask`: $(B, N, N)$
-        - `dist`: $(B, N, N)$
+        - Output: $(B, N, N)$
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models.point_m2ae import local_att_mask
+
+        pos = torch.tensor([[[0.0, 0.0, 0.0], [0.1, 0.0, 0.0], [1.0, 0.0, 0.0]]])
+        mask = local_att_mask(pos, radius=0.5)
+        print(mask[0].tolist())  # [[False, False, True], [False, False, True], [True, True, False]]
+        ```
     """
     with torch.no_grad():
-        if dist is None or dist.shape[1] != pos.shape[1]:
-            dist = torch.cdist(pos, pos, p=2)
-        mask = dist >= radius
-    return mask, dist
+        dist = torch.cdist(pos, pos, p=2)
+    return dist >= radius
 
 
 def dense_centers_to_packed(centers: Tensor) -> Tuple[Tensor, Tensor]:
@@ -355,7 +358,6 @@ class HierarchicalEncoder(nn.Module):
         return_stages: bool = False,
     ) -> Union[Tensor, List[Tensor]]:
         x_vis_list: List[Tensor] = []
-        xyz_dist: OptTensor = None
         x_vis = torch.empty(0)
         for i in range(len(centers)):
             if i == 0:
@@ -367,7 +369,7 @@ class HierarchicalEncoder(nn.Module):
                 group_input_tokens = self.token_embed[i](x_vis_neighborhoods)
 
             if self.local_radius[i] > 0:
-                mask_vis_att, xyz_dist = local_att_mask(centers[i], self.local_radius[i], xyz_dist)
+                mask_vis_att = local_att_mask(centers[i], self.local_radius[i])
                 attn_mask: OptTensor = local_attention_mask(mask_vis_att.float())
             else:
                 attn_mask = None
@@ -1068,7 +1070,6 @@ class HierarchicalEncoderMAE(nn.Module):
         bool_masked_pos.reverse()
         x_vis_list: List[Tensor] = []
         mask_vis_list: List[Tensor] = []
-        xyz_dist: OptTensor = None
         x_vis = torch.empty(0)
         for i in range(len(centers)):
             if i == 0:
@@ -1096,7 +1097,7 @@ class HierarchicalEncoderMAE(nn.Module):
                 mask_vis[bz][0 : vis_tokens_len[bz], 0 : vis_tokens_len[bz]] = 0
 
             if self.local_radius[i] > 0:
-                mask_radius, xyz_dist = local_att_mask(masked_center, self.local_radius[i], xyz_dist)
+                mask_radius = local_att_mask(masked_center, self.local_radius[i])
                 mask_vis_att = mask_radius * mask_vis
             else:
                 mask_vis_att = mask_vis

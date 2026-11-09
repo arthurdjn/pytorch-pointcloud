@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed the Point Transformer models ignoring `act` and `norm` in their embedding MLP.
 - Removed the unused `upsample` argument of `PointTransformerDecoder`.
 - Fixed the registered transforms of `sonata-base-lp.scannet20.fair`, `concerto-large-lp.scannet20.pointcept` and `utonia-base-lp.scannet20.pointcept` raising `KeyError` on a cloud without labels.
+- Fixed the Point-M2AE encoders masking a stage with the center distances of the previous one when both have the same number of centers; `local_att_mask` takes `(pos, radius)` and returns the mask.
 
 ## 0.0.19 (2026-11-08)
 
