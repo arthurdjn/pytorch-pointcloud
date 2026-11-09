@@ -9,7 +9,7 @@ from .part_refinement import PartRefinementInferer, part_refinement_inference
 from .potential_sphere import PotentialSphereSegmentationInferer, potential_sphere_segmentation_inference
 from .simple import SimpleInferer
 from .sliding_window import SlidingWindowSegmentationInferer, sliding_window_segmentation_inference
-from .tta import TTADetectionInferer, TTASegmentationInferer, simple_tta_transforms
+from .tta import TTADetectionInferer, TTASegmentationInferer, scale_flip_tta_transforms, simple_tta_transforms
 from .voxel_partition import VoxelPartitionSegmentationInferer
 
 __all__ = [
@@ -27,6 +27,7 @@ __all__ = [
     "sliding_window_segmentation_inference",
     "TTADetectionInferer",
     "TTASegmentationInferer",
+    "scale_flip_tta_transforms",
     "simple_tta_transforms",
     "VoxelPartitionSegmentationInferer",
 ]

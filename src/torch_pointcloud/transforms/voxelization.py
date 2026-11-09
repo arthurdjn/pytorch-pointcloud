@@ -8,7 +8,7 @@ from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.ops.voxelization import first_permutation, hard_voxelize, voxel_grid_fnv
+from torch_pointcloud.ops.voxelization import dynamic_voxelize, first_permutation, hard_voxelize, voxel_grid_fnv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.random import Randomizable
@@ -36,6 +36,7 @@ VoxelPosReduce = Literal["mean", "min", "max", "sum", "first", "grid"]
 
 __all__ = [
     "DivisiblePad",
+    "DynamicVoxelize",
     "HardVoxelize",
     "Voxelize",
 ]
@@ -397,7 +398,7 @@ class HardVoxelize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feat = d.get(self.feature_key) if self.feature_key is not None else None
+        feat = d[self.feature_key] if self.feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = hard_voxelize(
@@ -411,6 +412,82 @@ class HardVoxelize(DictTransform):
         d[self.dst_voxel_key] = voxels
         d[self.dst_pos_voxel_key] = voxel_indices[:, 1:]
         d[self.dst_num_points_key] = num_points
+        return d
+
+
+class DynamicVoxelize(DictTransform):
+    r"""Dynamically voxelize a single scene into one mean point per occupied voxel.
+
+    The dynamic counterpart of `HardVoxelize`: every voxel keeps the mean of all its points instead of a capped,
+    padded stack, so the result does not depend on the point order or on a voxel budget. The output uses the same
+    keys and layout as `HardVoxelize` with a single point per voxel (the mean), which is what the mean voxel
+    encoders of the voxel detectors consume. Unlike `Voxelize`, which keeps one representative point per voxel of
+    a grid set by the cloud itself, the grid here is the fixed one of `point_cloud_range`, so the indices address
+    the spatial shape of a detector.
+
+    Args:
+        pos_key: Key holding the point positions $(N, 3)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        feature_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
+        dst_voxel_key: Output key for the per-voxel mean point.
+        dst_pos_voxel_key: Output key for the integer voxel grid indices.
+        dst_num_points_key: Output key for the per-voxel point counts: one for every voxel on purpose, since the
+            voxel already holds the mean and a mean voxel encoder divides by this count.
+        allow_missing_keys: Unused (`pos_key` is always required); kept for interface parity.
+
+    Shape:
+        - `dst_voxel_key`: $(V, 1, 3 + C)$.
+        - `dst_pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
+        - `dst_num_points_key`: $(V,)$, all ones.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+        low, high = torch.tensor([0.0, -40.0, -3.0]), torch.tensor([70.4, 40.0, 1.0])
+        data = {"pos": low + torch.rand(1000, 3) * (high - low), "x": torch.rand(1000, 1)}
+        transform = T.DynamicVoxelize(
+            pos_key="pos",
+            feature_key="x",
+            voxel_size=(0.05, 0.05, 0.1),
+            point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        )
+        data = transform(data)
+        print(data["voxel"].shape, data["pos_voxel"].shape, data["voxel_num_points"].shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
+        feature_key: Optional[str] = None,
+        dst_voxel_key: str = DataKeys.VOXEL,
+        dst_pos_voxel_key: str = DataKeys.POS_VOXEL,
+        dst_num_points_key: str = DataKeys.VOXEL_NUM_POINTS,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys=pos_key, allow_missing_keys=allow_missing_keys)
+        self.pos_key = pos_key
+        self.voxel_size = voxel_size
+        self.point_cloud_range = point_cloud_range
+        self.feature_key = feature_key
+        self.dst_voxel_key = dst_voxel_key
+        self.dst_pos_voxel_key = dst_pos_voxel_key
+        self.dst_num_points_key = dst_num_points_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        pos = d[self.pos_key]
+        feat = d[self.feature_key] if self.feature_key is not None else None
+        points = pos if feat is None else torch.cat([pos, feat], dim=1)
+        batch = pos.new_zeros(points.shape[0], dtype=torch.long)
+        voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, self.voxel_size, self.point_cloud_range)
+        d[self.dst_voxel_key] = voxels.unsqueeze(1)
+        d[self.dst_pos_voxel_key] = voxel_indices[:, 1:]
+        d[self.dst_num_points_key] = torch.ones_like(num_points)
         return d
 
 

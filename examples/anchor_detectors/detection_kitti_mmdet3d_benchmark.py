@@ -1,4 +1,4 @@
-"""Benchmark PointPillars on KITTI with its evaluation protocol."""
+"""Benchmark the MMDetection3D PointPillars and SECOND checkpoints on KITTI with their evaluation protocol."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -11,8 +11,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI
-from torch_pointcloud.datasets.kitti import KITTI_CLASSES
-from torch_pointcloud.inferers import Inferer, SimpleInferer, TTADetectionInferer
+from torch_pointcloud.datasets.kitti import KITTI_CLASSES, KITTI_IGNORE_CLASSES
 from torch_pointcloud.metrics import box_matches, kitti_average_precision
 from torch_pointcloud.metrics.detection import BoxMatches
 from torch_pointcloud.models import DetectionModel, create_model, model_info
@@ -26,17 +25,18 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+MODELS = (
+    "pointpillars.kitti.mmdet3d",
+    "pointpillars.kitti-car.mmdet3d",
+    "second.kitti.mmdet3d",
+    "second.kitti-car.mmdet3d",
+    "second-dynamic-voxel.kitti.mmdet3d",
+)
 
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.01
-KITTI_DETECTION_CLASSES = ("Car", "Pedestrian", "Cyclist")
-# Van / Person_sitting and harder-than-moderate boxes (occlusion > 1, truncation > 0.3, 2D height < 25 px) are ignored.
-KITTI_TRANSFORM = T.RelabelBoxes(
-    keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
-    mapping={KITTI_CLASSES.index(name): index for index, name in enumerate(KITTI_DETECTION_CLASSES)},
-    ignore_mapping={KITTI_CLASSES.index("Van"): 0, KITTI_CLASSES.index("Person_sitting"): 1},
-    ignore_fields={DataKeys.OCCLUSION: (None, 1), DataKeys.TRUNCATION: (None, 0.3), DataKeys.BBOX_HEIGHT: (25, None)},
-)
+NMS_PRE = 100
+MAX_DETECTIONS = 50
 
 
 def main() -> None:
@@ -47,18 +47,17 @@ def main() -> None:
     print(f"Benchmarking model {args.model!r} on KITTI!")
     model = configure_model(args)
     dataloader = configure_dataloader(args)
-    inferer = configure_inferer(args)
 
     print(f"Test set: {len(dataloader.dataset)} frames")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, inferer, args.device)
+    metrics = evaluate(model, dataloader, args.device, configure_classes(args))
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark PointPillars 3D detection on KITTI.")
-    parser.add_argument("--model", default="pointpillars.kitti.openpcdet", help="Registered detection model name")
+    parser = ArgumentParser(description="Benchmark the MMDetection3D anchor detectors on KITTI.")
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS, help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split-file", default=None, help="KITTI frame-id list (e.g. ImageSets/val.txt).")
@@ -66,14 +65,36 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
-    parser.add_argument("--tta", action="store_true", help="Add the frame mirrored along y as a second view.")
     return parser.parse_args()
+
+
+def configure_classes(args: Namespace) -> tuple[str, ...]:
+    """The detection classes of the model, in its label order."""
+    weights = model_info(args.model, task="detection")["weights"]
+    assert weights is not None and weights["classes"] is not None
+    return tuple(weights["classes"])
 
 
 def configure_dataset(args: Namespace) -> Dataset:
     dataset: Dataset
-    model_transform = configure_transform(args)
-    transform = T.Compose([KITTI_TRANSFORM, model_transform])
+    classes = configure_classes(args)
+    # Van / Person_sitting and harder-than-moderate boxes (occlusion > 1, truncation > 0.3, 2D height < 25 px) are
+    # ignored.
+    relabel = T.RelabelBoxes(
+        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.TRUNCATION, DataKeys.OCCLUSION, DataKeys.BBOX_HEIGHT),
+        mapping={KITTI_CLASSES.index(name): index for index, name in enumerate(classes)},
+        ignore_mapping={
+            KITTI_CLASSES.index(ignored): classes.index(name)
+            for ignored, name in KITTI_IGNORE_CLASSES.items()
+            if name in classes
+        },
+        ignore_fields={
+            DataKeys.OCCLUSION: (None, 1),
+            DataKeys.TRUNCATION: (None, 0.3),
+            DataKeys.BBOX_HEIGHT: (25, None),
+        },
+    )
+    transform = T.Compose([relabel, configure_transform(args)])
     dataset = KITTI(
         root=args.root,
         train=True,
@@ -116,15 +137,24 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
-def configure_inferer(args: Namespace) -> Inferer[Detection3D]:
-    if not args.tta:
-        return SimpleInferer()
-    return TTADetectionInferer(
-        configure_transform(args),
-        flips=[(), (1,)],
-        sw_batch_size=args.batch_size,
-        cat_keys=[DataKeys.POS_VOXEL],
-    )
+def top_per_group(scores: Tensor, group: Tensor, k: int) -> Tensor:
+    """Indices of the `k` best scores of every group, group by group and best first."""
+    order = scores.argsort(descending=True, stable=True)
+    order = order[group[order].argsort(stable=True)]
+    sorted_group = group[order]
+    rank = torch.arange(order.numel(), device=order.device) - torch.searchsorted(sorted_group, sorted_group)
+    return order[rank < k]
+
+
+def select_detections(det: Detection3D) -> Detection3D:
+    """The `NMS_PRE` best anchors of every scene, each in every class it scores above the threshold, per-class NMS."""
+    index = top_per_group(det["scores"], det["batch"], NMS_PRE)
+    anchor, labels = (det["class_probs"][index] > SCORE_THRESHOLD).nonzero(as_tuple=True)
+    index = index[anchor]
+    scores = det["class_probs"][index, labels]
+    boxes, batch = det["boxes"][index], det["batch"][index]
+    keep = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch, rotated=True, max_keep=MAX_DETECTIONS)
+    return {"boxes": boxes[keep], "scores": scores[keep], "labels": labels[keep], "batch": batch[keep]}
 
 
 def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
@@ -138,19 +168,15 @@ def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
 
 
 @torch.no_grad()
-def evaluate(
-    model: DetectionModel, dataloader: DataLoader, inferer: Inferer[Detection3D], device: str
-) -> dict[str, float]:
+def evaluate(model: DetectionModel, dataloader: DataLoader, device: str, classes: tuple[str, ...]) -> dict[str, float]:
     model.to(device).eval()
     matches: list[BoxMatches] = []
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        det = inferer(data, predictor=lambda batch: forward(model, batch))
-        keep = det["scores"] > SCORE_THRESHOLD
-        boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, batch=batch, rotated=True)
-        boxes, scores, labels, batch = boxes[idx], scores[idx], labels[idx], batch[idx]
+        raw = forward(model, data)
+        det = select_detections(raw)
+        boxes, scores, labels, batch = det["boxes"], det["scores"], det["labels"], det["batch"]
         ignore_mask = projected_ignore_mask(boxes, data[DataKeys.CALIB][batch], data[DataKeys.IMAGE_SHAPE][batch])
         preds: Detection3D = {
             "boxes": boxes,
@@ -167,7 +193,7 @@ def evaluate(
         }
         matches.append(box_matches(preds, target))
 
-    return kitti_average_precision(matches, class_names=KITTI_DETECTION_CLASSES)
+    return kitti_average_precision(matches, class_names=classes)
 
 
 if __name__ == "__main__":

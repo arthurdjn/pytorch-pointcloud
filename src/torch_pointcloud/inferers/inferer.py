@@ -110,7 +110,7 @@ class SegmentationInferer(Inferer[Tensor]):
     | `KNNWindowSegmentationInferer`       | `False`   | raw logits (`"mean"`); always probabilities (`"ema"`)       |
     | `VoxelPartitionSegmentationInferer`  | `False`   | raw logits per pass                                         |
     | `PotentialSphereSegmentationInferer` | none      | always an EMA of softmax probabilities                      |
-    | `TTASegmentationInferer`             | `False`   | base output as-is                                           |
+    | `TTASegmentationInferer`             | `False`   | base output as-is; probabilities expected with `"max"`      |
     | `PartRefinementInferer`              | none      | one-hot refined labels of the base output's argmax          |
 
     When the input scene is empty ($N = 0$), inferers that never call the predictor

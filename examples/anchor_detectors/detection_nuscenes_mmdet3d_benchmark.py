@@ -1,4 +1,4 @@
-"""Benchmark PointPillars on nuScenes with the official detection metrics."""
+"""Benchmark the MMDetection3D PointPillars checkpoints on nuScenes with the official detection metrics."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -24,9 +24,12 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
+MODELS = ("pointpillars.nuscenes.mmdet3d", "pointpillars-fpn.nuscenes.mmdet3d")
 
-SCORE_THRESHOLD = 0.1
+SCORE_THRESHOLD = 0.05
 NMS_IOU = 0.2
+NMS_PRE = 1000
+MAX_DETECTIONS = 500
 
 
 def main() -> None:
@@ -46,10 +49,8 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark PointPillars 3D detection on nuScenes.")
-    parser.add_argument(
-        "--model", default="pointpillars-multihead.nuscenes.openpcdet", help="Registered detection model name"
-    )
+    parser = ArgumentParser(description="Benchmark the MMDetection3D anchor detectors on nuScenes.")
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS, help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
@@ -102,6 +103,34 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
+def top_per_group(scores: Tensor, group: Tensor, k: int) -> Tensor:
+    """Indices of the `k` best scores of every group, group by group and best first."""
+    order = scores.argsort(descending=True, stable=True)
+    order = order[group[order].argsort(stable=True)]
+    sorted_group = group[order]
+    rank = torch.arange(order.numel(), device=order.device) - torch.searchsorted(sorted_group, sorted_group)
+    return order[rank < k]
+
+
+def select_detections(det: Detection3D) -> Detection3D:
+    """The `NMS_PRE` best anchors of every scene and level, each in every class it scores above the threshold, per-class NMS."""
+    # A multi-level head ranks the anchors of every pyramid level apart.
+    group = det["batch"] if "level" not in det else det["batch"] * (int(det["level"].max()) + 1) + det["level"]
+    index = top_per_group(det["scores"], group, NMS_PRE)
+    anchor, labels = (det["class_probs"][index] > SCORE_THRESHOLD).nonzero(as_tuple=True)
+    index = index[anchor]
+    scores = det["class_probs"][index, labels]
+    boxes, batch = det["boxes"][index], det["batch"][index]
+    keep = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch, rotated=True, max_keep=MAX_DETECTIONS)
+    return {
+        "boxes": boxes[keep],
+        "scores": scores[keep],
+        "labels": labels[keep],
+        "batch": batch[keep],
+        "velocity": det["velocity"][index][keep],
+    }
+
+
 def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
     output = model(
         data[DataKeys.VOXEL],
@@ -124,17 +153,15 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        det = forward(model, data)
-        keep = det["scores"] > SCORE_THRESHOLD
-        boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
+        raw = forward(model, data)
+        det = select_detections(raw)
         preds.append(
             {
-                "boxes": boxes[idx].cpu(),
-                "scores": scores[idx].cpu(),
-                "labels": labels[idx].cpu(),
-                "batch": batch[idx].cpu(),
-                "velocity": det["velocity"][keep][idx].cpu(),
+                "boxes": det["boxes"].cpu(),
+                "scores": det["scores"].cpu(),
+                "labels": det["labels"].cpu(),
+                "batch": det["batch"].cpu(),
+                "velocity": det["velocity"].cpu(),
             }
         )
         targets.append(
