@@ -16,7 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Added Cylinder3D (`Cylinder3DSegmentation`) with SemanticKITTI and nuScenes checkpoints and their scripts.
-- Added `DynamicMaxVFE`, `majority_label` and `cartesian_to_cylindrical`.
+- Added `DynamicMaxVFE`, `majority_label`, `cartesian_to_cylindrical` and `RandomTranslate(distribution="normal")`.
 
 ## 0.0.19 (2026-11-08)
 
