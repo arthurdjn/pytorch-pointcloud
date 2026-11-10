@@ -7,7 +7,7 @@ from torch import Tensor, nn
 
 NoDecayRule = Union[bool, Sequence[str], Callable[[str, Tensor], bool]]
 
-__all__: list = []
+__all__ = ["generate_param_groups"]
 
 
 def _contains(keyword: str) -> Callable[[str, Tensor], bool]:

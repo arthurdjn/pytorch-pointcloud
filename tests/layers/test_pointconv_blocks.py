@@ -132,3 +132,31 @@ def test_pointconv_density_global_set_abstraction_forward() -> None:
     batch = torch.cat([torch.zeros(32), torch.ones(32)]).long()
     out_x, out_pos, out_batch = sa(x, pos, batch)
     assert out_x.shape == (2, 32)
+
+
+def test_pointconv_set_abstraction_without_features() -> None:
+    sa = PointConvSetAbstraction(
+        in_channels=0,
+        num_neighbors=4,
+        channels=[8],
+        downsample=FPS(ratio=0.5, random_start=False),
+    )
+    pos = torch.randn(32, 3)
+    batch = torch.zeros(32, dtype=torch.long)
+    out_x, out_pos, out_batch = sa(None, pos, batch)
+    assert out_x.shape == (16, 8)
+    assert out_pos.shape == (16, 3) and out_batch.shape == (16,)
+
+
+def test_pointconv_density_set_abstraction_without_features() -> None:
+    sa = PointConvDensitySetAbstraction(
+        in_channels=0,
+        num_neighbors=4,
+        channels=[8],
+        downsample=FPS(ratio=0.5, random_start=False),
+    )
+    pos = torch.randn(32, 3)
+    batch = torch.zeros(32, dtype=torch.long)
+    out_x, out_pos, out_batch = sa(None, pos, batch)
+    assert out_x.shape == (16, 8)
+    assert out_pos.shape == (16, 3) and out_batch.shape == (16,)
