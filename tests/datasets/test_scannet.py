@@ -744,3 +744,22 @@ def test_scannet_detection_mean_sizes_have_one_template_per_class() -> None:
     mean_sizes = torch.tensor(SCANNET_DETECTION_MEAN_SIZES)
     assert mean_sizes.shape == (len(SCANNET_DETECTION_CLASSES), 3)
     assert (mean_sizes > 0).all()
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+@pytest.mark.parametrize(
+    "dataset_cls",
+    [
+        pytest.param(ScanNet, id="scannet"),
+        pytest.param(ScanNet20, id="scannet20"),
+        pytest.param(ScanNet200, id="scannet200"),
+    ],
+)
+def test_scannet_dataset_labels_are_int64(
+    datasets_dir_factory: Callable[..., Path],
+    dataset_cls: type[ScanNet],
+) -> None:
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    sample = dataset_cls(root=datasets_dir, split="val", show_progress=False)[0]
+    assert sample[DataKeys.SEGMENT].dtype == torch.int64
+    assert sample[DataKeys.INSTANCE].dtype == torch.int64

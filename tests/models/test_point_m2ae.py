@@ -3,11 +3,13 @@ import torch
 from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers import PointPatchEmbed
+from torch_pointcloud.models import point_m2ae
 from torch_pointcloud.models.point_m2ae import (
     HierarchicalEncoder,
     PointM2AEClassification,
     PointM2AEPartSegmentation,
     PointM2AEPretraining,
+    local_attention_mask,
     multi_scale_group,
 )
 from torch_pointcloud.utils.imports import (
@@ -76,6 +78,34 @@ def test_hierarchical_encoder_custom_token_channels() -> None:
     neighborhoods, centers, idxs = multi_scale_group(pos, batch, (512, 128), (16, 8))
     out = model(neighborhoods, centers, idxs)
     assert out.shape == (2, 128, 128)
+
+
+def test_hierarchical_encoder_masks_each_stage_with_its_own_centers(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = HierarchicalEncoder(
+        encoder_depths=(1, 1),
+        encoder_dims=(32, 64),
+        local_radius=(0.5, 0.5),
+        num_heads=4,
+        token_local_channels=(16, 32),
+        token_global_channels=(32,),
+    )
+    model.eval()
+    torch.manual_seed(0)
+    pos, batch = _packed(2, 256)
+    neighborhoods, centers, idxs = multi_scale_group(pos, batch, (64, 64), (8, 8))
+    centers[1] = torch.randn_like(centers[1])
+    masks: list[torch.Tensor] = []
+
+    def recording_mask(mask: torch.Tensor) -> torch.Tensor:
+        masks.append(mask)
+        return local_attention_mask(mask)
+
+    monkeypatch.setattr(point_m2ae, "local_attention_mask", recording_mask)
+    model(neighborhoods, centers, idxs)
+
+    assert len(masks) == 2
+    for mask, center in zip(masks, centers):
+        assert torch.equal(mask.bool(), torch.cdist(center, center) >= 0.5)
 
 
 def test_point_m2ae_classification_modelnet() -> None:

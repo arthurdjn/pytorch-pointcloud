@@ -116,6 +116,27 @@ def test_instance_part_mean_iou_derives_category_from_target() -> None:
     assert out["cls_mIoU"].item() == pytest.approx(1.0 / 3.0)
 
 
+def test_instance_part_mean_iou_scores_only_the_shapes_present() -> None:
+    """A shape id missing from `batch` (ids 0 and 2) is no shape: it adds neither an IoU nor a count."""
+    part_ids = [[0, 1], [2, 3]]
+    preds = torch.tensor([0, 1, 2, 2])
+    target = torch.tensor([0, 0, 2, 3])
+    gapped = InstancePartMeanIntersectionOverUnion(part_ids=part_ids)
+    gapped.update(preds, target, torch.tensor([0, 0, 2, 2]))
+    contiguous = InstancePartMeanIntersectionOverUnion(part_ids=part_ids)
+    contiguous.update(preds, target, torch.tensor([0, 0, 1, 1]))
+
+    assert gapped.count.tolist() == [1, 1]
+    assert torch.equal(gapped.iou_sum, contiguous.iou_sum)
+    assert gapped.compute()["ins_mIoU"].item() == pytest.approx(0.25)
+
+
+def test_instance_part_mean_iou_rejects_an_ignore_label() -> None:
+    metric = InstancePartMeanIntersectionOverUnion(part_ids=[[0, 1], [2, 3]])
+    with pytest.raises(ValueError, match="part labels"):
+        metric.update(torch.tensor([0, 1, 1]), torch.tensor([0, 1, -1]), torch.tensor([0, 0, 0]))
+
+
 def test_instance_part_mean_iou_accepts_logits() -> None:
     """A `(N, num_classes)` prediction is argmaxed, matching the per-point label input."""
     metric = InstancePartMeanIntersectionOverUnion(part_ids=[[0, 1], [2, 3]])

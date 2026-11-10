@@ -73,7 +73,7 @@ class ScanObjectNN(PointCloudDataset):
     by Mikaela Angelina Uy, Quang-Hieu Pham, Binh-Son Hua, Duc Thanh Nguyen, Sai-Kit Yeung (submitted on 2019).
 
     The dataset is released under a terms-of-use agreement (`terms_url`): accept it, then pass
-    `download=True, accept_terms=True` (or answer the prompt `download=True` alone raises on the terminal), or place
+    `download=True, accept_terms=True` (`download=True` alone asks for the confirmation on the terminal), or place
     the `h5_files` folder under `raw` by hand.
 
     The registered checkpoints name the benchmark splits by tag (`*.scanobjectnn-<tag>.*`):
@@ -83,6 +83,35 @@ class ScanObjectNN(PointCloudDataset):
     | `objbg`   | `background=True`                                 |
     | `objonly` | `background=False`                                |
     | `hardest` | `background=True, variant="augmentedrot_scale75"` |
+
+    Args:
+        root: The root directory of the dataset, where the raw and processed data will be stored.
+        train: If `True`, loads the training objects, otherwise the test objects.
+        partition: The train / test partition of the objects: `main` (the benchmark split) or `split1` to `split4`.
+        background: If `True`, loads the objects with their background points, otherwise the objects alone.
+        variant: The perturbed variant of the objects (`augmented25_norot`, `augmented25rot`, `augmentedrot` or
+            `augmentedrot_scale75`); `None` (the default) loads the unperturbed objects.
+        classes: The classes to load, either a class name, a list of class names or "all". Objects of other
+            classes are dropped and the labels index the listed classes in order.
+        transform: A callable that transforms the data when retrieved from the dataset.
+        download: Whether to download the raw data.
+        force_download: Whether to force the download of the raw data.
+        force_process: Whether to force the processing of the raw data.
+        show_progress: Whether to show a progress bar during processing.
+        accept_terms: Confirm that you have accepted the ScanObjectNN terms of use (`terms_url`). When left
+            `False`, `download` asks for the confirmation on the terminal.
+
+    Example:
+        Assuming the content of `h5_files` is extracted under `data/ScanObjectNN/raw`:
+
+        ```python
+        from torch_pointcloud.datasets import ScanObjectNN
+
+        dataset = ScanObjectNN(root="data", train=False, background=True, variant="augmentedrot_scale75")
+        sample = dataset[0]
+        sample["pos"].shape  # (2048, 3)
+        sample["label"]  # tensor(...)
+        ```
     """
 
     data_url = "https://hkust-vgd.ust.hk/scanobjectnn/"

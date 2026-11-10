@@ -47,3 +47,29 @@ def test_voxel_grid_pool_rejects_bad_arguments() -> None:
         VoxelGridPool(grid_size=1.0, reduce="median")
     with pytest.raises(ValueError, match="origin"):
         VoxelGridPool(grid_size=1.0, origin="center")  # type: ignore[arg-type]
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize(
+    "origin",
+    [
+        pytest.param("grid", id="grid"),
+        pytest.param("min", id="min"),
+    ],
+)
+def test_voxel_grid_pool_unsorted_batch_matches_sorted(origin: Literal["grid", "min"]) -> None:
+    torch.manual_seed(0)
+    x = torch.randn(40, 5)
+    pos = torch.rand(40, 3) * 4.0
+    pos[20:] += 100.0
+    batch = torch.cat([torch.zeros(20), torch.ones(20)]).long()
+    perm = torch.randperm(40)
+
+    pool = VoxelGridPool(grid_size=1.0, reduce="mean", origin=origin)
+    x_pooled, pos_pooled, _ = pool(x, pos, batch)
+    x_shuffled, pos_shuffled, _ = pool(x[perm], pos[perm], batch[perm])
+
+    cells = torch.cat([pos_pooled, x_pooled], dim=1)
+    cells_shuffled = torch.cat([pos_shuffled, x_shuffled], dim=1)
+    assert cells.shape == cells_shuffled.shape
+    assert torch.allclose(cells[cells[:, 0].argsort()], cells_shuffled[cells_shuffled[:, 0].argsort()], atol=1e-5)

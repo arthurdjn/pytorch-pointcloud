@@ -24,8 +24,7 @@ def seed_everything(seed: Optional[int] = None) -> int:
     Returns:
         The seed that was set.
     """
-    # Mostly copied from pytorch-lightning [1]
-    # [1] https://github.com/Lightning-AI/pytorch-lightning/blob/1f5add327fd88fe288a2f889d720e5d5e06bd7d2/src/lightning/fabric/utilities/seed.py#L19
+    # inspired by: https://github.com/Lightning-AI/pytorch-lightning/blob/1f5add327fd88fe288a2f889d720e5d5e06bd7d2/src/lightning/fabric/utilities/seed.py#L19
     if seed is None:
         seed = random.randint(min_seed_value, max_seed_value)
 

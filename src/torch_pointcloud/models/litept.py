@@ -11,7 +11,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing_extensions import NotRequired
 
-from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES
+import torch_pointcloud.transforms as T
+from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_CLASSES, NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
 from torch_pointcloud.datasets.structured3d import STRUCTURED3D_CLASSES
 from torch_pointcloud.layers.act import create_act
@@ -23,9 +24,9 @@ from torch_pointcloud.layers.serialized_pool import SerializedUpsample
 from torch_pointcloud.layers.spconv_blocks import SubMConv3d, SubMConv3dBlock
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.models.point_transformer_v3 import nuscenes_segmentation_transforms, segmentation_transforms
 from torch_pointcloud.ops.serialization import SerializationOrder, serialize
 from torch_pointcloud.utils.conversion import convert_to_spconv_tensor, ensure_tuple, ensure_tuple_size
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import OptTensor, PooledFeaturesDict, ValueCollection
 
@@ -1135,6 +1136,95 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
     return state_dict
 
 
+def _scannet_transforms() -> T.Compose:
+    """Color and normal features of the ScanNet checkpoint, one point per 2 cm voxel."""
+    return T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
+            T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1, allow_missing_keys=True),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+                reduce="first",
+                size=0.02,
+                method="fnv",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    )
+
+
+def _structured3d_transforms() -> T.Compose:
+    """Color and normal features of the Structured3D checkpoints, one point per 2 cm voxel."""
+    return T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
+            T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+                reduce="first",
+                size=0.02,
+                method="fnv",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    )
+
+
+def _nuscenes_transforms() -> T.Compose:
+    """Position and intensity features of the nuScenes checkpoints, one point per 5 cm voxel."""
+    return T.Compose(
+        [
+            T.Relabel(
+                keys=DataKeys.SEGMENT,
+                labels=NUSCENES_LIDARSEG_LEARNING_MAP,
+                default=-1,
+                allow_missing_keys=True,
+            ),
+            T.Normalize(keys=DataKeys.INTENSITY, mean=[0.0], std=[255.0]),
+            T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY],
+                reduce="first",
+                size=0.05,
+                method="fnv",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    )
+
+
 @register_model(
     "litept-small.scannet20.prs-eth",
     task="semantic-segmentation",
@@ -1147,7 +1237,7 @@ def segmentation_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Modu
         author="prs-eth",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 21), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(),
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -1191,7 +1281,7 @@ def litept_small_scannet20(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=nuscenes_segmentation_transforms(),
+    transform=_nuscenes_transforms(),
     hparams=dict(
         in_channels=4,
         num_classes=16,
@@ -1235,7 +1325,7 @@ def litept_small_nuscenes(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=nuscenes_segmentation_transforms(),
+    transform=_nuscenes_transforms(),
     hparams=dict(
         in_channels=4,
         num_classes=16,
@@ -1278,7 +1368,7 @@ def litept_large_nuscenes(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=segmentation_transforms(color_mean=0.0, color_std=255.0),
+    transform=_structured3d_transforms(),
     hparams=dict(
         in_channels=6,
         num_classes=25,
@@ -1321,7 +1411,7 @@ def litept_small_structured3d(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=segmentation_transforms(color_mean=0.0, color_std=255.0),
+    transform=_structured3d_transforms(),
     hparams=dict(
         in_channels=6,
         num_classes=25,
@@ -1364,7 +1454,7 @@ def litept_base_structured3d(**hparams: Any) -> LitePTSegmentation:
         author="prs-eth",
         license="MIT",
     ),
-    transform=segmentation_transforms(color_mean=0.0, color_std=255.0),
+    transform=_structured3d_transforms(),
     hparams=dict(
         in_channels=6,
         num_classes=25,

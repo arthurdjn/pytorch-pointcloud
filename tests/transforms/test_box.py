@@ -388,3 +388,10 @@ def test_paste_boxes_appends_the_attributes_of_the_pasted_objects() -> None:
 
     with pytest.raises(ValueError, match="cut_boxes"):
         T.PasteBoxes(objects, num_samples={0: 2}, attribute_keys=DataKeys.OCCLUSION)
+
+
+def test_flip_boxes_vertical_axis_keeps_velocity() -> None:
+    boxes = torch.arange(1.0, 19.0).reshape(2, 9)
+    flipped = F.flip_boxes(boxes, axis=2)
+    assert torch.equal(flipped[:, 2], -boxes[:, 2])
+    assert torch.equal(flipped[:, [0, 1, 3, 4, 5, 6, 7, 8]], boxes[:, [0, 1, 3, 4, 5, 6, 7, 8]])

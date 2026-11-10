@@ -337,7 +337,7 @@ def offset_to_batch(offset: Tensor) -> Tensor:
 @torch.no_grad()
 def offset_to_cu_seqlens(offset: Tensor) -> Tensor:
     """Convert an offset tensor to a cumulative sequence lengths tensor.
-    A cumulative sequence length is a tensor of shape $ (N + 2,)$ where $N$ is the size of the batch.
+    A cumulative sequence length is a tensor of shape $(B + 1,)$ where $B$ is the size of the batch.
     The first element is 0 and the last element is the size of the batch.
     The other elements are the cumulative sum of the batch sizes.
 
@@ -415,7 +415,7 @@ def batch_to_bincount(batch: Tensor) -> Tensor:
 @torch.no_grad()
 def batch_to_cu_seqlens(batch: Tensor) -> Tensor:
     """Convert a batch index tensor to a cumulative sequence lengths tensor.
-    A cumulative sequence length is a tensor of shape $ (N + 2,)$ where $N$ is the size of the batch.
+    A cumulative sequence length is a tensor of shape $(B + 1,)$ where $B$ is the size of the batch.
     The first element is 0 and the last element is the size of the batch.
     The other elements are the cumulative sum of the batch sizes.
 
