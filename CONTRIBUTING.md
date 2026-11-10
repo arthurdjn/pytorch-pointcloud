@@ -92,9 +92,22 @@ Every time you send a Pull Request, your commit will be built and checked agains
    `fix: handle empty batches in nms3d`. The allowed types are `feat`, `fix`, `docs`, `chore`, `refactor`, `perf`,
    `test`, `build`, `ci` and `revert`, and the subject starts with a lowercase character.
 
-1. Add your feature / bugfix to the [`CHANGELOG.md`](CHANGELOG.md), under the `Unreleased` section.
+1. Add your feature / bugfix to the [`CHANGELOG.md`](CHANGELOG.md), under the `Unreleased` section: one short line
+   per change that starts with what happened (`Added`, `Changed`, `Renamed`, `Moved`, `Removed`, `Fixed`).
    If multiple PRs move towards integrating a single feature, it is advised to group them together into one bullet
-   point.
+   point. A change of the public API (a renamed or removed public name, a signature, a registered model name, a
+   `state_dict` key or a `DataKeys` member) states its migration on the same line, *e.g.*,
+   ``Renamed `layers.separate_branch` to `prediction_branch`.`` A deprecation names the replacement, never the release
+   that removes the former name.
+
+1. If `state_dict` keys change, every registered checkpoint that holds them must still load strictly: rename the
+   former keys at load (the `pretrained_filter_fn` of the registry entry), or convert the released file with a
+   key-rename script and pin the registry entry to its new Hub revision. Then regenerate the architecture snapshots
+   under `tests/data/models/` and check that the diff is exactly the intended key change:
+
+   ```bash
+   uv run --no-sync pytest tests/models/test_registered_models.py -k architecture --force-regen
+   ```
 
 ## Building Documentation
 

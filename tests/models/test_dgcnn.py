@@ -138,7 +138,7 @@ def test_dgcnn_classification_num_classes_zero_returns_features(
 
 def test_dgcnn_segmentation_forward_head_pre_logits(model_seg: DGCNNSegmentation, data: Dict[str, Tensor]) -> None:
     x, _, batch = model_seg.forward_features(data["x"], data["pos"], data["batch"])
-    feats = model_seg.forward_head(x, batch, pre_logits=True)
+    feats = model_seg.forward_head(x, pre_logits=True)
     assert torch.equal(feats, x)
     assert feats.shape[1] == model_seg.num_features
 
@@ -156,7 +156,7 @@ def test_dgcnn_classification_forward_features_and_head(
 def test_dgcnn_segmentation_forward_features_and_head(model_seg: DGCNNSegmentation, data: Dict[str, Tensor]) -> None:
     x, _, batch = model_seg.forward_features(data["x"], data["pos"], data["batch"])
     assert x.shape[0] == batch.shape[0] == data["pos"].shape[0]
-    logits = model_seg.forward_head(x, batch)
+    logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
 
 
@@ -219,7 +219,7 @@ def test_dgcnn_part_segmentation_forward_features_and_head(
 ) -> None:
     x, _, batch = model_partseg.forward_features(data["x"], data["pos"], data["batch"], partseg_category)
     assert x.shape[0] == data["pos"].shape[0]
-    logits = model_partseg.forward_head(x, batch)
+    logits = model_partseg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_partseg.num_classes)
 
 
@@ -229,7 +229,7 @@ def test_dgcnn_part_segmentation_forward_head_pre_logits(
     partseg_category: Tensor,
 ) -> None:
     x, _, batch = model_partseg.forward_features(data["x"], data["pos"], data["batch"], partseg_category)
-    feats = model_partseg.forward_head(x, batch, pre_logits=True)
+    feats = model_partseg.forward_head(x, pre_logits=True)
     assert torch.equal(feats, x)
     assert feats.shape[1] == model_partseg.num_features
 
@@ -240,3 +240,20 @@ def test_dgcnn_reset_classifier_keeps_current_pooling(model_clf: DGCNNClassifica
     model_clf.reset_classifier(5)
     assert model_clf.global_pool is pool
     assert type(pool).__name__ == "CatPool"
+
+
+def test_dgcnn_segmentation_stnet_has_no_head_dropout() -> None:
+    model = DGCNNSegmentation(
+        in_channels=3,
+        num_classes=10,
+        stnet_local_channels=[16],
+        stnet_global_channels=[16],
+        proj_channels=64,
+        channels=[32, 64],
+        head_channels=[32],
+        num_neighbors=8,
+        dropout=0.5,
+    )
+    assert model.stnet is not None
+    assert model.stnet.local_nn.dropout == [0.0]
+    assert model.stnet.global_nn.dropout == [0.0]

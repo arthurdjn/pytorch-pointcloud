@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+from safetensors.torch import save_file
 
 from torch_pointcloud.utils.io import load_json, load_off, load_ply, load_safetensors, save_ply, save_safetensors
 
@@ -64,6 +65,16 @@ def test_safetensors_roundtrip(tmp_path: Path) -> None:
     flag = loaded["flag"]
     assert isinstance(flag, torch.Tensor)
     assert torch.equal(flag, torch.tensor(True))
+
+
+def test_load_safetensors_reads_a_file_without_metadata(tmp_path: Path) -> None:
+    file_path = tmp_path / "sample.safetensors"
+    pos = torch.randn(4, 3)
+    save_file({"pos": pos}, file_path)
+
+    loaded = load_safetensors(file_path)
+    assert set(loaded.keys()) == {"pos"}
+    torch.testing.assert_close(loaded["pos"], pos)
 
 
 def test_save_safetensors_accepts_non_contiguous_tensors(tmp_path: Path) -> None:
