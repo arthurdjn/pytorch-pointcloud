@@ -185,7 +185,7 @@ class SparseConvBlock(SparseSequential):
 
 
 class SparseResidualBlock(SparseModule):
-    r"""Pre-activation sparse residual block shared by the SPFormer and SphereFormer SpConv U-Nets.
+    r"""Pre-activation sparse residual block of SpConv U-Nets.
 
     The convolutional branch applies $\text{norm} \to \text{act} \to \text{conv} \to \text{norm} \to \text{act} \to \text{conv}$
     over two $3\times3\times3$ submanifold convolutions; the identity branch is `nn.Identity` when the channels match,

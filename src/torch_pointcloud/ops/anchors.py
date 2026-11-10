@@ -44,8 +44,31 @@ def generate_anchors(
 
     Returns:
         Anchors $(1, n_y, n_x, n_\text{size}, n_\text{rot}, 7)$ as $(x, y, z, dx, dy, dz, \theta)$.
+
+    Raises:
+        ValueError: If `feature_map_size` has fewer than $2$ cells along $x$ or $y$ with `align_center=False`.
+
+    Shape:
+        - output: $(1, n_y, n_x, n_\text{size}, n_\text{rot}, 7)$
+
+    Example:
+        ```pycon
+        >>> anchors = generate_anchors((0.0, -4.0, -1.0, 8.0, 4.0, 1.0), (4, 2), [[4.0, 2.0, 1.5]], [0.0, 1.57], [-1.0])
+        >>> anchors.shape
+        torch.Size([1, 2, 4, 1, 2, 7])
+        >>> anchors[0, 0, 0, 0]
+        tensor([[ 0.0000, -4.0000, -0.2500,  4.0000,  2.0000,  1.5000,  0.0000],
+                [ 0.0000, -4.0000, -0.2500,  4.0000,  2.0000,  1.5000,  1.5700]])
+
+        ```
     """
     nx, ny = feature_map_size
+    if not align_center and min(nx, ny) < 2:
+        raise ValueError(
+            "`feature_map_size` needs at least 2 cells along x and y for the grid to span the range with "
+            f"`align_center=False`, got {tuple(feature_map_size)}."
+        )
+
     x_min, y_min, _, x_max, y_max, _ = point_cloud_range
     if align_center:
         x_stride = (x_max - x_min) / nx
