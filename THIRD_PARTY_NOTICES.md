@@ -51,7 +51,7 @@ Licenses of the datasets the checkpoints were trained on.
 | S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 19          |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 20          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 19          |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 7           |
