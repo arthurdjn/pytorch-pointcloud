@@ -206,6 +206,13 @@ def test_instance_to_box_all_ignored_is_empty() -> None:
     assert out["label"].dtype == torch.long
 
 
+def test_instance_to_box_without_boxes_gives_no_point_a_box_row() -> None:
+    data = {"pos": torch.rand(4, 3), "instance": torch.tensor([0, 0, 1, 1]), "segment": torch.tensor([-1, -1, -1, -1])}
+    out = T.InstanceToBox(dst_box_index_key=DataKeys.BOX_INDEX)(data)
+    assert out["box"].shape == (0, 7)
+    assert out[DataKeys.BOX_INDEX].tolist() == [-1, -1, -1, -1]
+
+
 def test_relabel_boxes_maps_drops_and_ignores() -> None:
     # raw 0 -> det 0, raw 3 -> det 1 (foreground); raw 1 is an ignore class attributed to det 0;
     # raw 7 is dropped.
