@@ -158,10 +158,10 @@ def test_center_head_decode_velocity_and_rectifier() -> None:
     det = head.decode(out, top_k=5)
     assert det["boxes"].shape == (2 * 2 * 5, 7)
     assert det["velocity"].shape == (20, 2)
-    # Candidates come group by group, scene by scene: 5 per scene of group 0, then 5 per scene of group 1.
-    assert det["labels"][:10].tolist() == [0] * 10
-    assert set(det["labels"][10:].tolist()) <= {1, 2}
-    assert det["batch"].tolist() == [0] * 5 + [1] * 5 + [0] * 5 + [1] * 5
+    # Candidates come scene by scene, group by group: 5 of group 0 then 5 of group 1, for each scene.
+    assert det["batch"].tolist() == [0] * 10 + [1] * 10
+    assert det["labels"].view(2, 10)[:, :5].tolist() == [[0] * 5] * 2
+    assert set(det["labels"].view(2, 10)[:, 5:].flatten().tolist()) <= {1, 2}
     # The decoded centers lie inside the 8 x 8 grid, give or take the (unbounded) sub-cell offsets.
     margin = max(float(t.abs().max()) for t in out["center"])
     assert (det["boxes"][:, :2].abs() <= 4.0 + margin).all()
@@ -171,6 +171,15 @@ def test_center_head_decode_velocity_and_rectifier() -> None:
     rescored = head.decode(out, top_k=5, iou_rectifier=(0.5, 0.5, 0.5))
     assert ((rescored["scores"] >= 0) & (rescored["scores"] <= 1)).all()
     assert not torch.allclose(rescored["scores"], det["scores"])
+
+    threshold = float(det["scores"].median())
+    partial = head.decode(out, top_k=5, score_threshold=threshold)
+    kept = det["scores"] > threshold
+    assert 0 < int(kept.sum()) < 20
+    assert torch.equal(partial["batch"], det["batch"][kept])
+    assert torch.equal(partial["boxes"], det["boxes"][kept])
+    assert torch.equal(partial["labels"], det["labels"][kept])
+    assert torch.equal(partial["velocity"], det["velocity"][kept])
 
     filtered = head.decode(out, top_k=5, score_threshold=1.0)
     assert filtered["boxes"].shape == (0, 7) and filtered["velocity"].shape == (0, 2)

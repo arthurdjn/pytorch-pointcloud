@@ -327,3 +327,15 @@ def test_translate_adds_a_constant_offset() -> None:
     )
     assert torch.equal(T.Translate(keys="pos", offset=2.0)(data)["pos"], torch.full((4, 3), 2.0))
     assert "offset=" in repr(T.Translate(keys="pos", offset=1.0))
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((0, 3), id="vectors"),
+        pytest.param((0, 9), id="tiled"),
+    ],
+)
+def test_rotate_vectors_empty(shape: tuple[int, int]) -> None:
+    rotated = F.rotate_vectors(torch.zeros(shape), F.rotation_matrix(0.5, axis=2))
+    assert rotated.shape == shape

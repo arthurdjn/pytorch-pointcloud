@@ -2,7 +2,7 @@
 
 Clusters points by quantized grid coordinates and reduces features
 via scatter operations.  This is an alternative to code-space pooling
-(`SerializedPooling`) used in PTV3 Mode 2 (Sonata) and Mode 3 (Utonia).
+(`SerializedPool`).
 """
 
 from typing import Any, Callable, Dict, Optional, Tuple, Union

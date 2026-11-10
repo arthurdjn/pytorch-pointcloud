@@ -27,6 +27,38 @@ All notable changes to this project are documented in this file. The format is b
 - Removed the unused `upsample` argument of `PointTransformerDecoder`.
 - Fixed the registered transforms of `sonata-base-lp.scannet20.fair`, `concerto-large-lp.scannet20.pointcept` and `utonia-base-lp.scannet20.pointcept` raising `KeyError` on a cloud without labels.
 - Fixed the Point-M2AE encoders masking a stage with the center distances of the previous one when both have the same number of centers; `local_att_mask` takes `(pos, radius)` and returns the mask.
+- Fixed `box3d_overlap` returning an IoU above 1 for a box with an empty footprint inside another box, which `box_average_precision` counted as a match.
+- Fixed `CenterHead.decode` returning an unsorted `batch` with several class groups and scenes: the detections come scene by scene.
+- `AnchorHeadLoss` raises a `ValueError` on the output of a head built with `code_size=9`, which it does not supervise.
+- `generate_anchors` raises a `ValueError` instead of a `ZeroDivisionError` for a one-cell feature map axis with `align_center=False`.
+- Fixed `VoxelGridPool(origin="min")` building wrong cells for an unsorted `batch`.
+- `ops.cluster.fps` and `knn_interpolate` raise a `ValueError` for an unsorted batch, which returned wrong results.
+- Fixed `gaussian_kernel_density` returning a 0-dim tensor for one point; an unsorted `batch` raises a `ValueError`.
+- Fixed `ops.hilbert.encode` returning a 0-dim tensor for one point and `serialize` failing on an empty cloud.
+- `create_norm("layer_norm", ..., dim=2)` and `dim=3` raise a `ValueError`: the `nn.LayerNorm` they returned failed on channel-first inputs.
+- Fixed `PackedTransformerBlock` mixing the samples of a batch with `norm="LayerNorm"` and the other spellings of `"layer_norm"`.
+- Fixed `PointConvSetAbstraction` and `PointConvDensitySetAbstraction` failing on `x=None` with `downsample`.
+- `chamfer_distance` raises a `ValueError` when `pred_batch` and `target_batch` do not cover the same sets.
+- `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
+- Fixed `safe_divide` returning float32 for float16 inputs.
+- Added the changelog convention and the `state_dict` migration step to `CONTRIBUTING.md`.
+- Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
+- Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
+- Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
+- `KITTI(fov=True)` raises a `FileNotFoundError` for a frame without its `image_2` image; the frame was cached uncropped.
+- `relabel` raises a `ValueError` when `default` or a target label does not fit the dtype of the labels; the value wrapped silently.
+- Fixed `flip_boxes(boxes, axis=2)` failing on boxes with a velocity.
+- Fixed `Voxelize` returning float positions for an empty cloud with `pos_reduce="grid"`, and failing when `keys` lists `pos_key`.
+- Fixed `SetValue` converting a tensor value to a list or rejecting it; only a list or tuple as long as `keys` is spread over the keys.
+- Fixed `MetricCallback` failing at the second epoch with `BoxMeanAveragePrecision`, `BoxAveragePrecision` and `InstanceAveragePrecision`.
+- `confusion_matrix` raises on predictions or targets outside `[0, num_classes)` instead of counting them in another cell.
+- Fixed `accuracy` and `intersection_over_union` returning NaN instead of `zero_division` with `average="macro"` when every class is ignored.
+- Fixed `part_mean_intersection_over_union` failing on float64 IoUs with `average="macro"` and `"none"`.
+- `part_intersection_over_union` raises on part labels outside `part_ids`, and `InstancePartMeanIntersectionOverUnion` no longer scores a shape id missing from `batch`.
+- Fixed `load_safetensors` failing on a file written without metadata.
+- `KNNWindowInferer` rejects an `overlap` of `1e-3` or less, which left points unpredicted.
+- Fixed `SlidingWindowInferer` giving an empty `cloud_keys` row to clouds with non-contiguous batch ids.
+- `SlidingWindowInferer` no longer passes the `block_bbox_key` entry to the predictor; it was sliced like a per-point tensor in blocks with as many points as the box has values.
 
 ## 0.0.19 (2026-11-08)
 

@@ -736,3 +736,22 @@ def test_scannet20_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(ScanNet20, "write_processed_files", incomplete)
     ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+@pytest.mark.parametrize(
+    "dataset_cls",
+    [
+        pytest.param(ScanNet, id="scannet"),
+        pytest.param(ScanNet20, id="scannet20"),
+        pytest.param(ScanNet200, id="scannet200"),
+    ],
+)
+def test_scannet_dataset_labels_are_int64(
+    datasets_dir_factory: Callable[..., Path],
+    dataset_cls: type[ScanNet],
+) -> None:
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    sample = dataset_cls(root=datasets_dir, split="val", show_progress=False)[0]
+    assert sample[DataKeys.SEGMENT].dtype == torch.int64
+    assert sample[DataKeys.INSTANCE].dtype == torch.int64

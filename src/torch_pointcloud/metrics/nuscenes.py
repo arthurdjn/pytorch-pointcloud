@@ -139,6 +139,11 @@ def filter_boxes_by_range(boxes: Tensor, labels: Tensor, ranges: Sequence[float]
     Returns:
         Boolean keep mask of shape $(N,)$.
 
+    Shape:
+        - boxes: $(N, 7)$ or $(N, 9)$
+        - labels: $(N,)$
+        - output: $(N,)$
+
     Example:
         ```pycon
         >>> boxes = torch.tensor([[3.0, 4, 0, 4, 2, 1.5, 0], [0, 41, 0, 0.5, 0.5, 1, 0]])
