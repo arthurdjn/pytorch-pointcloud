@@ -95,3 +95,46 @@ def test_simple_inferer_transform_returns_an_empty_tensor_on_an_empty_batch() ->
     out = SimpleInferer(transform=_merge_duplicates, inverse_key=DataKeys.INVERSE)(data, predictor=predictor)
     assert out.shape == (0, 0)
     predictor.assert_not_called()
+
+
+def test_simple_inferer_row_preserving_transform_needs_no_inverse_key() -> None:
+    """A transform that keeps the rows sees each cloud alone and its predictions return in input order."""
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.arange(15, dtype=torch.float).view(5, 3),
+        DataKeys.BATCH: torch.tensor([0, 1, 0, 1, 1]),
+    }
+    sizes: List[int] = []
+
+    def center(d: Dict[str, Any]) -> Dict[str, Any]:
+        sizes.append(d[DataKeys.POS].size(0))
+        return {**d, DataKeys.POS: d[DataKeys.POS] - d[DataKeys.POS].mean(dim=0)}
+
+    out = SimpleInferer(softmax=True, transform=center)(data, predictor=lambda d: d[DataKeys.POS])
+    expected = data[DataKeys.POS].clone()
+    for b in range(2):
+        mask = data[DataKeys.BATCH] == b
+        expected[mask] -= expected[mask].mean(dim=0)
+    assert sizes == [2, 3]
+    torch.testing.assert_close(out, torch.softmax(expected, dim=-1))
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        pytest.param(DataKeys.POS, id="pos"),
+        pytest.param(DataKeys.BATCH, id="batch"),
+    ],
+)
+def test_simple_inferer_transform_rejects_a_missing_key(key: str) -> None:
+    data: Dict[str, Any] = {DataKeys.POS: torch.zeros(4, 3), DataKeys.BATCH: torch.zeros(4, dtype=torch.long)}
+    del data[key]
+    predictor = Mock()
+    with pytest.raises(KeyError, match=key):
+        SimpleInferer(transform=_merge_duplicates, inverse_key=DataKeys.INVERSE)(data, predictor=predictor)
+    predictor.assert_not_called()
+
+
+def test_simple_inferer_transform_rejects_a_misaligned_batch() -> None:
+    data: Dict[str, Any] = {DataKeys.POS: torch.zeros(4, 3), DataKeys.BATCH: torch.zeros(3, dtype=torch.long)}
+    with pytest.raises(ValueError, match="must be aligned to the positions"):
+        SimpleInferer(transform=_merge_duplicates, inverse_key=DataKeys.INVERSE)(data, predictor=Mock())
