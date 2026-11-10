@@ -57,6 +57,7 @@ def test_act_discrete_vae_group_features_keep_the_patch_tokens() -> None:
     assert features.shape == (2, 16, 24)
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_act_discrete_vae_group_features_are_the_hard_sampled_features() -> None:
     model = ACTDiscreteVAE(in_channels=0, **SMALL_DVAE).eval()
     neighborhood, center = torch.randn(2, 16, 8, 3), torch.randn(2, 16, 3)
