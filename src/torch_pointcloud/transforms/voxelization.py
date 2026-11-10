@@ -314,7 +314,7 @@ class DivisiblePad(DictTransform, Randomizable):
 class HardVoxelize(DictTransform):
     r"""Hard-voxelize a single scene into the per-voxel point stack consumed by voxel detectors.
 
-    Moves the `transform_points_to_voxels` step of voxel detectors (PointPillars, SECOND) out of the
+    Moves the point-to-voxel step of voxel detectors (PointPillars, SECOND) out of the
     model and into the data pipeline, mirroring how `BuildOctree` produces an octree for OctFormer.
     The model then receives already-voxelized input and focuses on the network math.
 
@@ -522,7 +522,7 @@ def _reduce_voxels(tensor: Tensor, reduce: str, cluster: Tensor, perm: Tensor) -
         return scatter(tensor, cluster, dim=0, reduce=reduce)
 
     # Mean (and any bool reduction) needs float input; cast back so the key keeps its dtype.
-    out = scatter(tensor.float(), cluster, dim=0, reduce=reduce)
+    out = scatter(tensor if tensor.is_floating_point() else tensor.float(), cluster, dim=0, reduce=reduce)
     return out if tensor.is_floating_point() else out.to(tensor.dtype)
 
 
@@ -657,7 +657,8 @@ class Voxelize(DictTransform, Randomizable):
             their dtype: non-`first` reductions compute in float and cast back. The `first`
             representative is the first point of each voxel in input order, deterministic across
             devices (unless `random_first=True`).
-        keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`).
+        keys: Additional per-point keys to sub-sample (e.g. `color`, `segment`). `pos_key` is always reduced
+            with `pos_reduce`, also when listed here.
         dst_inverse_key: Key for the source-to-voxel row map (see the module docs on sampling keys); composes
             with any prior value at the same key. `None` (the default) disables it.
         dst_pos_grid_key: When set, also store the integer voxel-grid coordinates under this key. Useful when a
@@ -742,6 +743,8 @@ class Voxelize(DictTransform, Randomizable):
         pos = data[self.pos_key]
 
         if pos.shape[0] == 0:
+            if self.pos_reduce == "grid":
+                data[self.pos_key] = pos.long()
             if self.dst_inverse_key is not None:
                 data[self.dst_inverse_key] = torch.empty(0, dtype=torch.long, device=pos.device)
             if self.dst_pos_grid_key is not None:
@@ -764,6 +767,9 @@ class Voxelize(DictTransform, Randomizable):
             data[self.dst_pos_grid_key] = pos_grid
 
         for key, reduce in self.iter_keys(data, self.reduce):
+            if key == self.pos_key:
+                continue
+
             tensor = data[key]
             if reduce is None:
                 reduce = "mean" if tensor.is_floating_point() else "first"

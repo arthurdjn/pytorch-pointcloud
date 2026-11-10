@@ -137,3 +137,10 @@ def test_polar_mix_masks_sector_wraps_at_pi() -> None:
     seam = torch.tensor([[math.cos(-3.1), math.sin(-3.1), 0.0]])
     _, seam_mask = F.polar_mix_masks(seam, seam, generator=torch.Generator().manual_seed(seed))
     assert seam_mask.tolist() == [True]
+
+
+def test_polar_mix_without_instance_points() -> None:
+    a = {"pos": torch.randn(50, 3), "segment": torch.zeros(50, dtype=torch.long)}
+    b = {"pos": torch.randn(60, 3), "segment": torch.zeros(60, dtype=torch.long)}
+    out = T.PolarMix(keys=("pos", "segment"), instance_classes=(1, 2), swap_ratio=0.0, seed=0)(a, b)
+    assert torch.equal(out["pos"], a["pos"]) and torch.equal(out["segment"], a["segment"])

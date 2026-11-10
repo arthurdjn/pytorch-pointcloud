@@ -126,6 +126,24 @@ def test_anchor_loss_backward() -> None:
     assert output["box"].grad is not None
 
 
+def test_anchor_loss_rejects_the_output_of_a_head_with_velocity_codes() -> None:
+    loss_fn = _single_loss()
+    head = AnchorHead(
+        8,
+        1,
+        (8, 8),
+        _POINT_CLOUD_RANGE,
+        anchor_sizes=[[3.0, 1.5, 1.5]],
+        anchor_bottom_heights=[-1.0],
+        feature_map_stride=1,
+        dir_offset=0.78539,
+        code_size=9,
+    )
+    _, data, _ = _perfect_single(loss_fn)
+    with pytest.raises(ValueError, match="7 box codes per anchor, got 9"):
+        loss_fn(head(torch.rand(1, 8, 8, 8)), data)
+
+
 def test_anchor_loss_validates_per_class_geometry() -> None:
     with pytest.raises(ValueError, match="anchor_sizes"):
         AnchorHeadLoss(

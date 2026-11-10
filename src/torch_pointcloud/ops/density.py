@@ -4,17 +4,27 @@ import torch
 from torch import Tensor
 from torch_geometric.utils import to_dense_batch
 
+from torch_pointcloud.ops.cluster import _check_sorted_batch
+
 
 def gaussian_kernel_density(x: Tensor, batch: Tensor, bandwidth: float) -> Tensor:
     r"""Computes the Gaussian Kernel Density (KDE) for a given tensor.
 
     Args:
         x: The input tensor of shape $(N, C)$.
-        batch: The batch tensor of shape $(N,)$.
+        batch: The batch tensor of shape $(N,)$, sorted in non-decreasing order.
         bandwidth: The bandwidth of the Gaussian kernel.
 
     Returns:
         The Gaussian Kernel Density of shape $(N,)$.
+
+    Raises:
+        ValueError: If `batch` is not sorted.
+
+    Shape:
+        - x: $(N, C)$
+        - batch: $(N,)$
+        - output: $(N,)$
 
     Example:
         ```python
@@ -30,9 +40,8 @@ def gaussian_kernel_density(x: Tensor, batch: Tensor, bandwidth: float) -> Tenso
         # torch.Size([100])
         ```
     """
+    _check_sorted_batch(batch, "batch")
 
-    # TODO: Maybe avoid the expansive 'to_dense_batch' operation by using a better suited approach for packed data,
-    # TODO: like a custom CUDA kernel to compute directly the KDE?
     x_dense, mask = to_dense_batch(x, batch)
 
     dist = -2 * torch.matmul(x_dense, x_dense.transpose(1, 2))
@@ -47,4 +56,4 @@ def gaussian_kernel_density(x: Tensor, batch: Tensor, bandwidth: float) -> Tenso
     density_sum = density.sum(dim=-1)
     num_nodes = mask.sum(dim=-1).float().clamp(min=1.0)
     x_density = density_sum / num_nodes.unsqueeze(1)
-    return x_density[mask].squeeze()
+    return x_density[mask]

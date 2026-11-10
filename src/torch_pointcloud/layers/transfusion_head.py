@@ -74,10 +74,13 @@ class TransFusionPredictionHead(nn.Module):
         - Output: dict of $(B, C_\text{attr}, Q)$ tensors keyed by attribute.
 
     Example:
+        ```pycon
         >>> head = TransFusionPredictionHead(32, 16, 3).eval()
         >>> out = head(torch.randn(2, 32, 10))
         >>> out["center"].shape, out["heatmap"].shape
         (torch.Size([2, 2, 10]), torch.Size([2, 3, 10]))
+
+        ```
     """
 
     def __init__(
@@ -159,11 +162,14 @@ class TransFusionDecoderLayer(nn.Module):
         - Output: $(B, C, Q)$.
 
     Example:
+        ```pycon
         >>> layer = TransFusionDecoderLayer(
         ...     16, 2, 32, 0.0, self_posembed=MLP([2, 16, 16], plain_last=True), cross_posembed=MLP([2, 16, 16], plain_last=True)
         ... ).eval()
         >>> layer(torch.randn(2, 16, 5), torch.randn(2, 16, 20), torch.rand(2, 5, 2), torch.rand(2, 20, 2)).shape
         torch.Size([2, 16, 5])
+
+        ```
     """
 
     def __init__(
@@ -260,6 +266,7 @@ class TransFusionHead(nn.Module):
         - Output: a [`TransFusionHeadOutput`][torch_pointcloud.layers.transfusion_head.TransFusionHeadOutput].
 
     Example:
+        ```pycon
         >>> head = TransFusionHead(
         ...     16, 3, voxel_size=(0.5, 0.5, 2.0), point_cloud_range=(-8.0, -16.0, -1.0, 8.0, 16.0, 1.0),
         ...     feature_map_stride=2, height_code="center", num_proposals=10,
@@ -267,6 +274,8 @@ class TransFusionHead(nn.Module):
         >>> out = head(torch.randn(2, 16, 32, 16))
         >>> out["center"].shape, out["dense_heatmap"].shape
         (torch.Size([2, 2, 10]), torch.Size([2, 3, 32, 16]))
+
+        ```
     """
 
     def __init__(
@@ -485,6 +494,7 @@ class TransFusionHead(nn.Module):
             (PyG layout), plus `"velocity"` $(K, 2)$.
 
         Example:
+            ```pycon
             >>> head = TransFusionHead(
             ...     16, 3, voxel_size=(0.5, 0.5, 2.0), point_cloud_range=(-8.0, -16.0, -1.0, 8.0, 16.0, 1.0),
             ...     feature_map_stride=2, height_code="center", num_proposals=10,
@@ -492,6 +502,8 @@ class TransFusionHead(nn.Module):
             >>> det = head.decode(head(torch.randn(2, 16, 32, 16)))
             >>> det["boxes"].shape, det["batch"].tolist()
             (torch.Size([20, 7]), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+
+            ```
         """
         if iou_rectifier is not None and len(iou_rectifier) != self.num_classes:
             raise ValueError(

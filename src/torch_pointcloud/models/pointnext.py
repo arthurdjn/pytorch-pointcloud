@@ -250,7 +250,7 @@ class PointNeXtDecoder(nn.Module):
             This is usually the same as the first $N-1$ channels of the encoder, in reverse order.
         depths: List of depths for each FP block.
         spatial_dim: Spatial dimension of the input point cloud.
-        dropout: Dropout rate before the classification head.
+        dropout: Dropout rate of the FP block MLPs.
         act: Activation function to use for the FP blocks.
         act_kwargs: Keyword arguments for the activation function.
         act_first: Whether to apply the activation function before the normalization.
@@ -316,26 +316,29 @@ class PointNeXtDecoder(nn.Module):
 
 
 class PointNeXtPartDecoder(nn.Module):
-    r"""PointNeXt decoder for part segmentation (ShapeNetPart).
+    r"""PointNeXt decoder for part segmentation.
 
-    Uses the same FP block layout as `PointNeXtDecoder`, with two
-    global feature convolutions and shape-category conditioning. At the
-    shallowest decoder stage, the skip features are augmented with max-pooled
-    global features from two encoder levels and a shape-category one-hot
-    vector before the FP layer.
-
-    This matches the reference `PointNextPartDecoder` with
-    `cls_map='curvenet'`.
+    Uses the same FP block layout as `PointNeXtDecoder`, with two global feature layers and shape-category
+    conditioning. At the shallowest decoder stage, the skip features are augmented with max-pooled global features
+    from the two deepest encoder levels and the shape-category one-hot vector before the FP layer.
 
     Args:
         channels: List of channels for each FP block.
+            The first element should correspond to the last channel of the encoder.
         skip_channels: List of channels for the skip connections.
         depths: List of depths for each FP block.
-        global_conv1_in: Input channels for global_conv1 (typically
-            `encoder_channels[-2]`).
-        global_conv2_in: Input channels for global_conv2 (typically
-            `encoder_channels[-1]`).
-        num_categories: Number of shape categories (16 for ShapeNetPart).
+        global_conv1_in: Input channels of `global_conv1` (typically `encoder_channels[-2]`).
+        global_conv2_in: Input channels of `global_conv2` (typically `encoder_channels[-1]`).
+        num_categories: Number of shape categories $K$ of the one-hot conditioning vector.
+        spatial_dim: Spatial dimension of the input point cloud.
+        dropout: Dropout rate of the FP block MLPs.
+        act: Activation function to use for the FP blocks.
+        act_kwargs: Keyword arguments for the activation function.
+        act_first: Whether to apply the activation function before the normalization.
+        norm: Normalization function to use for the FP blocks.
+        norm_kwargs: Keyword arguments for the normalization function.
+        bias: Whether to use a bias for the FP blocks.
+        plain_last: Leave the last MLP layer of each FP block without normalization and activation.
     """
 
     def __init__(
@@ -639,7 +642,7 @@ class PointNeXtPartSegmentation(PartSegmentationModel):
         return self.decoder(x, pos, batch, category, intermediates)
 
     def forward_head(self, x: Tensor, batch: Tensor, pre_logits: bool = False) -> Tensor:
-        if self.dropout and not isinstance(self.head, MLP):
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
 
         x_max = global_max_pool(x, batch)[batch]  # (N, C)
@@ -865,7 +868,7 @@ class PointNeXtClassification(ClassificationModel):
         if self.global_sa is not None:
             x = self.global_sa(torch.cat([pos, x], dim=1))
         x = self.global_pool(x, batch)
-        if self.dropout and not isinstance(self.head, MLP):
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
@@ -1097,7 +1100,7 @@ class PointNeXtSegmentation(SemanticSegmentationModel):
         return self.decoder(x, pos, batch, intermediates)
 
     def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-        if self.dropout and not isinstance(self.head, MLP):
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 
