@@ -184,6 +184,24 @@ def test_cylinder_inferer_merges_each_tree_across_cylinders(sw_batch_size: int) 
     torch.testing.assert_close(out["semantic_logits"][:, 0], covering.sum(dim=1).float())
 
 
+def test_cylinder_inferer_keeps_the_scenes_of_a_batch_apart() -> None:
+    """Two copies of the scene at the same coordinates: each keeps its own two trees."""
+    scene = _two_trees()
+    num_points = len(scene[DataKeys.POS])
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.cat([scene[DataKeys.POS], scene[DataKeys.POS]]),
+        DataKeys.BATCH: torch.arange(2).repeat_interleave(num_points),
+    }
+    inferer = CylinderInstanceSegmentationInferer(radius=8.0, spacing=8.0, merge_threshold=0.1, sw_batch_size=4)
+    out = inferer(data, _column_predictor)
+
+    assert out["batch"].tolist() == [0, 0, 1, 1]
+    masks = _dense(out, 2 * num_points)
+    assert torch.equal(masks.any(dim=0), data[DataKeys.POS][:, 2] > 0.5)
+    assert not masks[:2, num_points:].any() and not masks[2:, :num_points].any()
+    assert torch.equal(masks[:2, :num_points], masks[2:, num_points:])
+
+
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_cylinder_inferer_maps_rows_back_through_the_inverse() -> None:
     data = _two_trees()
