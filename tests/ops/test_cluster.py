@@ -12,7 +12,11 @@ from torch_pointcloud.ops.cluster import (
     knn,
     knn_graph,
     knn_interpolate,
+    mean_shift,
+    nearest,
+    nearest_label,
     radius,
+    region_grow,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
@@ -346,3 +350,124 @@ def test_gather_neighbors_pads_with_zeros() -> None:
     x = torch.arange(6, dtype=torch.float).view(3, 2)
     out = gather_neighbors(x, torch.tensor([[2, 3], [0, 1]]))
     assert out.tolist() == [[[4.0, 5.0], [0.0, 0.0]], [[0.0, 1.0], [2.0, 3.0]]]
+
+
+def _depth_first_regions(pos: Tensor, r: float, k: int, min_size: int) -> Tensor:
+    """Region growing as a depth-first walk over the first `k` points within `r` of every point."""
+    distances = torch.cdist(pos, pos)
+    links = [torch.nonzero(distances[i] <= r).squeeze(1)[:k].tolist() for i in range(len(pos))]
+    visited = [False] * len(pos)
+    label = torch.full((len(pos),), -1, dtype=torch.long)
+    count = 0
+    for seed in range(len(pos)):
+        if visited[seed]:
+            continue
+        stack, members = [seed], []
+        visited[seed] = True
+        while stack:
+            i = stack.pop()
+            members.append(i)
+            for j in links[i]:
+                if not visited[j]:
+                    visited[j] = True
+                    stack.append(j)
+        if len(members) >= min_size:
+            label[members] = count
+            count += 1
+    return label
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize("max_num_neighbors", [pytest.param(4, id="capped"), pytest.param(64, id="uncapped")])
+def test_region_grow_matches_a_depth_first_walk(max_num_neighbors: int) -> None:
+    """Capped links are directed, so a region is what a walk from its first point reaches."""
+    pos = torch.rand(300, 3, generator=torch.Generator().manual_seed(0)) * 3
+    expected = _depth_first_regions(pos, 0.3, max_num_neighbors, 4)
+    out = region_grow(pos, 0.3, max_num_neighbors=max_num_neighbors, min_cluster_size=4)
+    assert torch.equal(out, expected)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_region_grow_keeps_scenes_apart() -> None:
+    pos = torch.tensor([[0.0, 0.0], [0.1, 0.0], [0.0, 0.0], [0.1, 0.0], [0.2, 0.0]])
+    out = region_grow(pos, 0.15, torch.tensor([0, 0, 1, 1, 1]), min_cluster_size=3)
+    assert out.tolist() == [-1, -1, 0, 0, 0]
+
+
+def test_region_grow_empty() -> None:
+    assert region_grow(torch.zeros(0, 3), 0.3).shape == (0,)
+
+
+def test_mean_shift_separates_blobs_and_scenes() -> None:
+    generator = torch.Generator().manual_seed(0)
+    centres = torch.tensor([[0.0, 0.0], [5.0, 5.0], [0.0, 5.0]])
+    x = centres.repeat_interleave(20, dim=0) + 0.1 * torch.randn(60, 2, generator=generator)
+    batch = torch.tensor([0] * 40 + [1] * 20)
+    out = mean_shift(x, 1.0, batch, bin_seeding=True)
+    # two equally strong modes rank by their coordinates, the larger first
+    assert out.tolist() == [1] * 20 + [0] * 20 + [2] * 20
+
+
+def test_mean_shift_labels_no_cluster_without_a_reached_seed() -> None:
+    """A cell centre can lie farther than the bandwidth from every point of its cell, where sklearn raises."""
+    out = mean_shift(torch.full((2, 5), 0.49), 1.0, bin_seeding=True)
+    assert out.tolist() == [-1, -1]
+
+
+def test_mean_shift_matches_sklearn() -> None:
+    sklearn_cluster = pytest.importorskip("sklearn.cluster")
+    generator = torch.Generator().manual_seed(1)
+    for bin_seeding in (False, True):
+        centres = torch.randn(6, 5, generator=generator) * 2
+        x = centres[torch.randint(0, 6, (400,), generator=generator)] + 0.25 * torch.randn(400, 5, generator=generator)
+        expected = sklearn_cluster.MeanShift(bandwidth=0.6, bin_seeding=bin_seeding).fit(x.numpy()).labels_
+        assert mean_shift(x, 0.6, bin_seeding=bin_seeding).tolist() == expected.tolist()
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_nearest_matches_the_pairwise_distances() -> None:
+    generator = torch.Generator().manual_seed(0)
+    x, y = torch.rand(200, 3, generator=generator), torch.rand(50, 3, generator=generator)
+    assert torch.equal(nearest(x, y), torch.cdist(x, y).argmin(dim=1))
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_nearest_keeps_scenes_apart() -> None:
+    x = torch.tensor([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+    y = torch.tensor([[5.0, 0.0], [0.1, 0.0]])
+    out = nearest(x, y, torch.tensor([0, 1, 2]), torch.tensor([0, 1]))
+    assert out.tolist() == [0, 1, -1]
+
+
+def test_nearest_without_points() -> None:
+    assert nearest(torch.zeros(0, 3), torch.zeros(4, 3)).shape == (0,)
+    assert nearest(torch.zeros(2, 3), torch.zeros(0, 3)).tolist() == [-1, -1]
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize(
+    ("max_distance", "expected"),
+    [
+        pytest.param(None, [7, 4, 4], id="unbounded"),
+        pytest.param(1.0, [7, 4, -1], id="bounded"),
+    ],
+)
+def test_nearest_label_skips_unlabelled_points(max_distance: float | None, expected: list[int]) -> None:
+    """The middle point is the nearest of the second query but carries no label."""
+    pos = torch.tensor([[0.0, 0.0], [0.4, 0.0], [1.0, 0.0]])
+    query = torch.tensor([[0.1, 0.0], [0.6, 0.0], [3.0, 0.0]])
+    out = nearest_label(torch.tensor([7, -1, 4]), pos, query, max_distance=max_distance)
+    assert out.tolist() == expected
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_nearest_label_keeps_scenes_apart() -> None:
+    pos = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 0.0]])
+    query = torch.tensor([[0.9, 0.0], [0.9, 0.0], [0.9, 0.0]])
+    out = nearest_label(torch.tensor([3, -1, 5]), pos, query, torch.tensor([0, 0, 1]), torch.tensor([0, 1, 2]))
+    assert out.tolist() == [3, 5, -1]
+
+
+def test_nearest_label_without_labelled_points() -> None:
+    out = nearest_label(torch.tensor([-1, -1]), torch.rand(2, 3), torch.rand(5, 3))
+    assert out.tolist() == [-1] * 5

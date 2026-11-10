@@ -1,5 +1,5 @@
-"""Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, superpoints and
-serialization."""
+"""Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, sparse masks, superpoints
+and serialization."""
 
 from . import (
     anchors,
@@ -9,6 +9,7 @@ from . import (
     geometry,
     heatmap,
     hilbert,
+    mask,
     masking,
     math,
     octree,
@@ -25,6 +26,7 @@ __all__ = [
     "geometry",
     "heatmap",
     "hilbert",
+    "mask",
     "masking",
     "math",
     "octree",

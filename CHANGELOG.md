@@ -12,6 +12,9 @@ All notable changes to this project are documented in this file. The format is b
 - `instance_matches` takes a model's `decode` output (sparse masks, optional `ignore_mask`) and a `batch` to score a packed batch, and counts the points without an instance as void; the dense-mask call is deprecated, with a `FutureWarning`.
 - Added a `std` option to `RandomColorShift` for normal per-channel offsets.
 - `select_inputs` names the `cat_keys` to collate with when a `batch_<key>` input is missing.
+- Added ForAINet with the `forainet.for-instance.prs-eth` and `segment-any-tree.for-instance.nibio` checkpoints, the `FORinstance` dataset and their benchmark.
+- Added `CylinderInstanceSegmentationInferer`, `ops.cluster.region_grow`, `ops.cluster.mean_shift`, `ops.cluster.nearest`, `ops.cluster.nearest_label` and `ops.mask`.
+- Added the instance precision, recall, F1 and coverage metrics.
 
 ## 0.0.20 (2026-11-10)
 

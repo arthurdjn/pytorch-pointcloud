@@ -25,5 +25,6 @@ scores = inferer(scene, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
 | [`VoxelPartitionInferer`](../api/inferers/voxel_partition.md)   | Passes of one point per voxel, each over the whole scene         |
 | [`KNNWindowInferer`](../api/inferers/knn_window.md)             | Crops of the $k$ nearest points around a center                  |
 | [`PotentialSphereInferer`](../api/inferers/potential_sphere.md) | Spheres of fixed radius around a center                          |
+| [`CylinderInstanceSegmentationInferer`](../api/inferers/cylinder.md) | Vertical cylinders on a grid, their instances merged across overlaps |
 | [`TTAInferer`](../api/inferers/tta.md)                          | Another inferer run under several views, scores averaged         |
 | [`PartRefinementInferer`](../api/inferers/part_refinement.md)   | Another inferer, then a neighbor vote on implausible part labels |

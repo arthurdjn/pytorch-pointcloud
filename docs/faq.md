@@ -28,7 +28,8 @@
     The point-based families: PointNet, PointNet++, DGCNN, PointNeXt, PointMLP, KPConv, RandLA-Net, PointConv,
     Point Transformer V1 and V2, the masked point modeling backbones, and Volt with `use_flash_attn=False`. The
     sparse-voxel and flash-attention families need a CUDA device: Point Transformer V3, Sonata, Concerto, Utonia,
-    LitePT, SpUNet, SPFormer-UNet, SPFormer, SPVCNN, OctFormer, SphereFormer, PointMamba and the voxel-based detectors.
+    LitePT, SpUNet, SPFormer-UNet, SPFormer, ForAINet, SPVCNN, OctFormer, SphereFormer, PointMamba and the
+    voxel-based detectors.
 
 ## Pretrained weights
 

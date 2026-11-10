@@ -305,6 +305,8 @@ DETECTION_MODELS = [
     "voxelnext.nuscenes.openpcdet",
 ]
 INSTANCE_SEGMENTATION_MODELS = [
+    "forainet.for-instance.prs-eth",
+    "segment-any-tree.for-instance.nibio",
     "spformer.scannet.jiahao-sun",
 ]
 
@@ -337,7 +339,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "spformer", "forainet", "segment-any-tree")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(
@@ -1022,7 +1024,7 @@ def test_registered_weights_urls_pin_a_hub_revision() -> None:
                 assert match["revision"] != "0" * 40, ("placeholder revision, upload and re-pin", name, url)
                 if match["namespace"] == "torch-pointcloud":
                     assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
-            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
+            assert weights["license"] in {"MIT", "Apache-2.0", "BSD-3-Clause", "CC-BY-NC-4.0", "etalab-2.0"}, name
             assert weights["author"], name
 
 

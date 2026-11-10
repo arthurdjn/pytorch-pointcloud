@@ -7,6 +7,7 @@ from torch_pointcloud.ops.voxelization import (
     dynamic_voxelize,
     first_permutation,
     hard_voxelize,
+    lookup_coordinates,
     sparse_voxelize,
     trilinear_dense_devoxelize,
     voxel_grid_fnv,
@@ -212,6 +213,34 @@ def test_first_permutation_empty() -> None:
     perm = first_permutation(cluster)
     assert perm.shape == (0,)
     assert perm.dtype == torch.long
+
+
+def test_lookup_coordinates_finds_rows_and_flags_missing() -> None:
+    coordinates = torch.tensor([[0, 1, 2], [0, -3, 0], [1, 1, 2], [0, 0, 7]])
+    query = torch.tensor([[1, 1, 2], [0, 1, 3], [0, -3, 0], [0, 0, 7], [2, 1, 2]])
+    assert lookup_coordinates(coordinates, query).tolist() == [2, -1, 1, 3, -1]
+
+
+def test_lookup_coordinates_matches_brute_force() -> None:
+    generator = torch.Generator().manual_seed(0)
+    coordinates = torch.unique(torch.randint(-20, 20, (300, 4), generator=generator), dim=0)
+    query = torch.randint(-20, 20, (500, 4), generator=generator)
+    expected = [next((j for j, row in enumerate(coordinates.tolist()) if row == q), -1) for q in query.tolist()]
+    assert lookup_coordinates(coordinates, query).tolist() == expected
+
+
+def test_lookup_coordinates_empty_inputs() -> None:
+    assert lookup_coordinates(torch.zeros(0, 4, dtype=torch.long), torch.zeros(3, 4, dtype=torch.long)).tolist() == [
+        -1,
+        -1,
+        -1,
+    ]
+    assert lookup_coordinates(torch.zeros(2, 4, dtype=torch.long), torch.zeros(0, 4, dtype=torch.long)).shape == (0,)
+
+
+def test_lookup_coordinates_rejects_width_mismatch() -> None:
+    with pytest.raises(ValueError, match="same width"):
+        lookup_coordinates(torch.zeros(1, 4, dtype=torch.long), torch.zeros(1, 3, dtype=torch.long))
 
 
 def test_voxel_patch_partition_known_values() -> None:

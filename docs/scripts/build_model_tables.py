@@ -56,9 +56,13 @@ DEFAULT_METRIC: Dict[Task, str] = {
 }
 
 
+# Benchmarks whose headline metric is not the task's: forest plots score trees by their detection F1, not by mask AP.
+DATASET_METRIC: Dict[str, str] = {"for-instance": "F1"}
+
+
 def metric_name(task: Task, dataset: str) -> str:
     """The catalog keeps one metric name per task; the paper refines it per dataset (instance mIoU, KITTI R11)."""
-    return DEFAULT_METRIC[task]
+    return DATASET_METRIC.get(dataset, DEFAULT_METRIC[task])
 
 
 def param_count(name: str, task: Task) -> str:
