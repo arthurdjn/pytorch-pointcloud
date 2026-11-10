@@ -17,6 +17,11 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Added Cylinder3D (`Cylinder3DSegmentation`) with SemanticKITTI and nuScenes checkpoints and their scripts.
 - Added `DynamicMaxVFE`, `majority_label`, `cartesian_to_cylindrical` and `RandomTranslate(distribution="normal")`.
+- Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
+- Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
+- Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
+- Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
+- `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
 
 ## 0.0.19 (2026-11-08)
 
