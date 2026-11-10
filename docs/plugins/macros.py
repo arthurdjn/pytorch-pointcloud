@@ -31,6 +31,7 @@ MODELS_DIR = DOCS_DIR.parent / "src" / "torch_pointcloud" / "models"
 
 # Display name of each architecture, keyed by its module in `torch_pointcloud.models`.
 MODEL_LABELS = {
+    "act": "ACT",
     "centerpoint": "CenterPoint",
     "concerto": "Concerto",
     "dgcnn": "DGCNN",
@@ -38,6 +39,8 @@ MODEL_LABELS = {
     "lion": "LION",
     "litept": "LitePT",
     "octformer": "OctFormer",
+    "pcp_mae": "PCP-MAE",
+    "point2vec": "point2vec",
     "point_bert": "Point-BERT",
     "point_m2ae": "Point-M2AE",
     "point_mae": "Point-MAE",
@@ -59,6 +62,7 @@ MODEL_LABELS = {
     "pvcnn": "PVCNN",
     "pvcnn2": "PVCNN++",
     "randlanet": "RandLA-Net",
+    "recon": "ReCon",
     "second": "SECOND",
     "sonata": "Sonata",
     "spformer": "SPFormer",

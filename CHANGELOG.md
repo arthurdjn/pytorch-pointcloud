@@ -20,6 +20,11 @@ All notable changes to this project are documented in this file. The format is b
 - `instance_matches` takes a model's `decode` output (sparse masks, optional `ignore_mask`) and a `batch` to score a packed batch, and counts the points without an instance as void; the dense-mask call is deprecated, with a `FutureWarning`.
 - Added a `std` option to `RandomColorShift` for normal per-channel offsets.
 - `select_inputs` names the `cat_keys` to collate with when a `batch_<key>` input is missing.
+- Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
+- Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
+- Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
+- Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
+- `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
 
 ## 0.0.19 (2026-11-08)
 
