@@ -2,7 +2,7 @@
 
 import math
 import os
-import uuid
+import tempfile
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
@@ -64,9 +64,9 @@ def create_kernel_points(
 
         kernel_path.parent.mkdir(parents=True, exist_ok=True)
         # A concurrent process must never load a partially written file: write aside, then rename atomically.
-        tmp_path = kernel_path.with_name(f"{kernel_path.name}.{uuid.uuid4().hex}.tmp")
-        torch.save(kernel_points, tmp_path)
-        os.replace(tmp_path, kernel_path)
+        with tempfile.NamedTemporaryFile(dir=kernel_path.parent, suffix=".tmp", delete=False) as tmp_file:
+            torch.save(kernel_points, tmp_file)
+        os.replace(tmp_file.name, kernel_path)
 
     # Random rotations for the kernel
     R = torch.eye(3)
