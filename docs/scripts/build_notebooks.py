@@ -76,7 +76,7 @@ def main() -> None:
     # A cell tagged `hide` renders nothing on the site: the card thumbnails are drawn by such cells.
     exporter.register_preprocessor(TagRemovePreprocessor(remove_cell_tags={"hide"}), enabled=True)
 
-    notebooks = sorted(path for path in args.dir.glob("*/*.ipynb") if path.parent.name != "executed")
+    notebooks = sorted(args.dir.glob("*/*.ipynb"))
     for path in notebooks:
         out = render(path, exporter)
         print(f"Rendered: {out.relative_to(REPO_DIR)}")
