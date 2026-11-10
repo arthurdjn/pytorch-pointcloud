@@ -7,6 +7,11 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+- Added the `open-vocabulary-segmentation` task, its `OpenVocabularySegmentationModel` base class and the `text_model`, `text_revision` and `prompt_template` fields of `WeightsDict`.
+- Added `OpenSceneOpenVocabularySegmentation` (Apache-2.0) with the `openscene-openseg.scannet20.songyou-peng`, `openscene-lseg.scannet20.songyou-peng` and `openscene-openseg.nuscenes.songyou-peng` pretrained weights, and their ScanNet and nuScenes benchmarks.
+- Added `layers.CLIPTextEncoder`, a frozen CLIP text tower read with the optional `transformers` package.
+- Added the `down_channels` option of `SparseUNetEncoder`.
+- Added the `transform`, `pos_key`, `batch_key` and `inverse_key` options of `SimpleInferer`.
 
 ## 0.0.20 (2026-11-10)
 

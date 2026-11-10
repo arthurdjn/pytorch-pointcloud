@@ -3,6 +3,7 @@
 from ._base import (
     ClassificationModel,
     DetectionModel,
+    OpenVocabularySegmentationModel,
     PartSegmentationModel,
     PretrainingModel,
     SemanticSegmentationModel,
@@ -27,6 +28,7 @@ from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .litept import LitePTSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
+from .openscene import OpenSceneOpenVocabularySegmentation
 from .parta2 import PartA2Detection
 from .pcp_mae import PCPMAEClassification, PCPMAEPretraining
 from .point2vec import Point2VecClassification, Point2VecPartSegmentation, Point2VecPretraining
@@ -69,6 +71,7 @@ __all__ = [
     "ClassificationModel",
     "DetectionModel",
     "PartA2Detection",
+    "OpenVocabularySegmentationModel",
     "PartSegmentationModel",
     "PretrainingModel",
     "SemanticSegmentationModel",
@@ -94,6 +97,7 @@ __all__ = [
     "LitePTSegmentation",
     "OctFormerClassification",
     "OctFormerSegmentation",
+    "OpenSceneOpenVocabularySegmentation",
     "PointBERTClassification",
     "PointBERTDiscreteVAE",
     "PointBERTPretraining",

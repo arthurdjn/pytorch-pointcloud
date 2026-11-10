@@ -5,6 +5,7 @@ from torch import Tensor, nn
 from torch_pointcloud.models import (
     ClassificationModel,
     DetectionModel,
+    OpenVocabularySegmentationModel,
     PartSegmentationModel,
     SemanticSegmentationModel,
 )
@@ -170,3 +171,55 @@ def test_part_segmentation_subclass_stores_num_categories() -> None:
     assert model.num_categories == 16
     category = torch.nn.functional.one_hot(torch.tensor([2]), 16).float()
     assert model(torch.randn(4, 3), category).shape == (4, 5)
+
+
+def test_open_vocabulary_segmentation_abc_cannot_be_instantiated() -> None:
+    with pytest.raises(TypeError, match="abstract"):
+        OpenVocabularySegmentationModel(in_channels=3, embed_dim=8)  # type: ignore[abstract]
+
+
+@pytest.mark.parametrize("method", ["num_features", "configure_head", "forward_features", "forward_head"])
+def test_open_vocabulary_segmentation_subclass_missing_member_raises(method: str) -> None:
+    class ForwardOnlyOpenVocabularySegmentation(OpenVocabularySegmentationModel):
+        def forward(self, x: Tensor) -> Tensor:
+            return x
+
+    with pytest.raises(TypeError, match=method):
+        ForwardOnlyOpenVocabularySegmentation(in_channels=3, embed_dim=8)  # type: ignore[abstract]
+
+
+def test_open_vocabulary_segmentation_subclass_with_full_contract_instantiates() -> None:
+    class MinimalOpenVocabularySegmentation(OpenVocabularySegmentationModel):
+        def __init__(self, in_channels: int, embed_dim: int) -> None:
+            super().__init__(in_channels=in_channels, embed_dim=embed_dim)
+            self.head = self.configure_head()
+
+        @property
+        def num_features(self) -> int:
+            return self.in_channels
+
+        def configure_head(self) -> nn.Module:
+            return nn.Linear(self.num_features, self.embed_dim, bias=False)
+
+        def forward_features(self, x: Tensor) -> Tensor:
+            return x
+
+        def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+            return x if pre_logits else torch.nn.functional.normalize(self.head(x), dim=1)
+
+        def forward(self, x: Tensor) -> Tensor:
+            features = self.forward_features(x)
+            return self.forward_head(features)
+
+    model = MinimalOpenVocabularySegmentation(in_channels=3, embed_dim=8)
+    assert model.in_channels == 3
+    assert model.embed_dim == 8
+    assert model.num_features == 3
+    with pytest.raises(NotImplementedError, match="forward_decoder"):
+        model.forward_decoder()
+
+    x = torch.randn(4, 3)
+    embeddings = model(x)
+    assert embeddings.shape == (4, 8)
+    assert torch.allclose(embeddings.norm(dim=1), torch.ones(4), atol=1e-5)
+    assert model.forward_head(x, pre_logits=True).shape == (4, model.num_features)

@@ -219,3 +219,8 @@ $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt
 $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s-joint.scannet200.kadir-yilmaz --sw-batch-size 4
 $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet20.kadir-yilmaz --sw-batch-size 2
 $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet200.kadir-yilmaz --sw-batch-size 2
+
+# Open-vocabulary segmentation (ScanNet, nuScenes, zero-shot)
+$RUN examples/openscene/open_vocabulary_segmentation_scannet_benchmark.py --root "$ROOT" --model openscene-openseg.scannet20.songyou-peng
+$RUN examples/openscene/open_vocabulary_segmentation_scannet_benchmark.py --root "$ROOT" --model openscene-lseg.scannet20.songyou-peng
+$RUN examples/openscene/open_vocabulary_segmentation_nuscenes_benchmark.py --root "$ROOT" --model openscene-openseg.nuscenes.songyou-peng
