@@ -34,7 +34,8 @@ class LitModel(LightningModule):
         name: Registered model name; built via `create_model(name, task=...)`.
         task: Registry of the model (`"classification"`, `"semantic-segmentation"`, `"part-segmentation"`,
             `"detection"`); set by the subclass.
-        optimizer: A callable that takes parameters and returns an optimizer (a `_partial_` target).
+        optimizer: A callable that takes parameters and returns an optimizer, e.g.
+            `functools.partial(torch.optim.AdamW, lr=1e-3)`.
         scheduler: An optional callable that takes an optimizer and returns a learning-rate scheduler.
         criterion: The loss module; defaults to `CrossEntropyLoss`.
         inferer: Test-time inference strategy (e.g. `TTAInferer`, `SlidingWindowInferer`) run in place of the
@@ -332,7 +333,7 @@ class LitDetectionModel(LitModel):
     wiring, `training_step`):
 
     - the loss is either a ready-built `nn.Module` (the general case: an anchor / center / set-matching loss
-      whose geometry params are set explicitly in config) or a factory completed at build time with the
+      built with its geometry params) or a factory completed at build time with the
       model's head-geometry params (the `VoteNetLoss` carve-out, which reads `num_heading_bins`,
       `num_size_clusters`, `num_classes`, `mean_sizes` off the model); without a `criterion` the module is
       evaluation-only (no loss is logged, training raises);
@@ -358,7 +359,7 @@ class LitDetectionModel(LitModel):
     Args:
         name: Registered detection model name; built via `create_model(name, task="detection")`.
         criterion: The training loss, in one of two forms. A ready-built `nn.Module` is used as-is (the
-            general case: instantiate it in config with its geometry params, e.g. `AnchorHeadLoss`). A callable
+            general case: build it with its geometry params, e.g. `AnchorHeadLoss`). A callable
             factory is completed with the model's head-geometry params, i.e. called as
             `criterion(num_heading_bins=..., num_size_clusters=..., num_classes=..., mean_sizes=...)` (the
             `VoteNetLoss` carve-out). Either way its `forward(output, data)` returns a dict whose `loss`

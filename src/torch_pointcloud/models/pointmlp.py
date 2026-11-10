@@ -107,17 +107,17 @@ class ResidualLinearBlock(nn.Module):
         identity = x
 
         x = self.lin1(x)
-        if self.act is not None and self.act_first:
+        if self.act_first:
             x = self.act(x)
         x = self.norm1(x)
-        if self.act is not None and not self.act_first:
+        if not self.act_first:
             x = self.act(x)
 
         x = self.lin2(x)
-        if self.act is not None and self.act_first:
+        if self.act_first:
             x = self.act(x + identity)
         x = self.norm2(x)
-        if self.act is not None and not self.act_first:
+        if not self.act_first:
             x = self.act(x + identity)
 
         return x

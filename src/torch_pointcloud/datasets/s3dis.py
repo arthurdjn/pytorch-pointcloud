@@ -282,15 +282,16 @@ class S3DIS(PointCloudDataset):
 
     You can download the raw dataset from https://cvg-data.inf.ethz.ch/s3dis/ official website. The dataset is
     released under a terms-of-use agreement (`terms_url`): accept it, then pass `download=True, accept_terms=True`
-    (or answer the prompt `download=True` alone raises on the terminal), or place the archive under `raw` by hand.
+    (`download=True` alone asks for the confirmation on the terminal), or place the archive under `raw` by hand.
 
     The S3DIS dataset contains 6 diverse areas (one used for testing) covering a total of 6020 square meters.
     Each area contains multiple rooms (e.g. office, conference room, etc.), and each room contains multiple segment regions
     (e.g. wall, floor, ceiling, etc.) with instance-level annotations.
 
     The dataset will be processed automatically and saved in the `S3DIS/processed` directory.
-    Each room is stored as its own folder:
-    `<processed_dir>/<Area_i>/<room_name>/{coord,color,segment,instance}.npy`. If the processed
+    Each area is stored as one folder of packed arrays,
+    `<processed_dir>/<Area_i>/{pos,color,segment,instance,offset}.npy`: the rooms of the area are
+    concatenated and `offset.npy` holds the row at which each room starts. If the processed
     data already exists, it will be loaded from the `S3DIS/processed` directory and processing
     will be skipped.
 

@@ -330,7 +330,7 @@ def flip_boxes(boxes: Tensor, axis: int) -> Tensor:
     """
     boxes = boxes.clone()
     boxes[:, axis] = -boxes[:, axis]
-    if boxes.shape[1] >= 9:
+    if boxes.shape[1] >= 9 and axis < 2:
         boxes[:, 7 + axis] = -boxes[:, 7 + axis]
     if axis == 0:
         boxes[:, 6] = math.pi - boxes[:, 6]
@@ -878,16 +878,12 @@ def color_grayscale(color: Tensor, int_color: bool = False) -> Tensor:
 
     Args:
         color: Color tensor of shape $(N, 3)$.
-        int_color: If `True`, treat colors as `[0, 255]` ints; otherwise `[0, 1]` floats.
+        int_color: Has no effect: the luminance weights apply to `[0, 255]` and `[0, 1]` colors alike.
 
     Returns:
         Tensor with the same shape and dtype as `color`, with R=G=B = luminance.
     """
     weights = torch.tensor([0.299, 0.587, 0.114], device=color.device)
-    if int_color:
-        lum = (color.float() * weights).sum(dim=-1, keepdim=True)
-        return lum.expand_as(color).to(color.dtype)
-
     lum = (color * weights).sum(dim=-1, keepdim=True)
     return lum.expand_as(color).to(color.dtype)
 

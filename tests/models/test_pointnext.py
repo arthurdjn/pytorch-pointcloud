@@ -327,3 +327,66 @@ def test_pointnext_segmentation_reset_classifier_keeps_head_channels() -> None:
     )
     model.reset_classifier(num_classes=7)
     assert model.head.channel_list == [model.num_features, 16, 7]
+
+
+def test_pointnext_classification_headless_keeps_features_in_train_mode() -> None:
+    model = PointNeXtClassification(
+        in_channels=6,
+        num_classes=0,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+        dropout=0.9,
+    )
+    model.train()
+    x = torch.ones(64, model.num_features)
+    pos = torch.zeros(64, 3)
+    batch = torch.arange(64)
+    assert torch.equal(model.forward_head(x, pos, batch, pre_logits=True), x)
+
+
+def test_pointnext_segmentation_headless_keeps_features_in_train_mode() -> None:
+    model = PointNeXtSegmentation(
+        in_channels=6,
+        num_classes=0,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+        dropout=0.9,
+    )
+    model.train()
+    x = torch.ones(64, model.num_features)
+    assert torch.equal(model.forward_head(x, pre_logits=True), x)
+
+
+def test_pointnext_part_segmentation_headless_keeps_features_in_train_mode() -> None:
+    model = PointNeXtPartSegmentation(
+        in_channels=6,
+        num_classes=0,
+        num_categories=4,
+        stem_channels=32,
+        encoder_channels=[32, 64, 128],
+        encoder_depths=[2, 2, 2],
+        sa_layers=1,
+        decoder_channels=[128, 64, 32],
+        decoder_depths=[2, 2, 2],
+        ratios=[0.5, 0.5, 0.5],
+        radiuses=[0.1, 0.2, 0.4, 0.8],
+        num_neighbors=[16, 16, 16, 16],
+        head_channels=[16],
+        dropout=0.9,
+    )
+    model.train()
+    x = torch.ones(64, model.num_features // 3)
+    batch = torch.zeros(64, dtype=torch.long)
+    assert torch.equal(model.forward_head(x, batch, pre_logits=True), torch.ones(64, model.num_features))

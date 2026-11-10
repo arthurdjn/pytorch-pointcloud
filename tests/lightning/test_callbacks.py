@@ -339,6 +339,27 @@ def test_metric_callback_logs_detection_map(trainer: L.Trainer, monkeypatch: pyt
     assert logged["val/mAP@0.5"] == pytest.approx(1.0)
 
 
+def test_metric_callback_scores_a_record_metric_over_two_epochs(
+    trainer: L.Trainer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A metric holding a list of records is reset and moved at every epoch start, and scores each epoch alone."""
+    module = _det_module()
+    log = Mock()
+    monkeypatch.setattr(module, "log", log)
+    callback = MetricCallback(metric=BoxMeanAveragePrecision(iou_thresholds=(0.5,)), name="mAP", stages=("val",))
+    box = torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]])
+    target = {"boxes": box, "labels": torch.tensor([0]), "batch": torch.tensor([0])}
+    hit = {"boxes": box, "scores": torch.tensor([0.9]), "labels": torch.tensor([0]), "batch": torch.tensor([0])}
+    miss = {**hit, "boxes": box + 10.0}
+
+    for preds in (miss, hit):
+        callback.on_validation_epoch_start(trainer, module)
+        callback.on_validation_batch_end(trainer, module, {"preds": preds, "target": target}, {}, 0)
+        callback.on_validation_epoch_end(trainer, module)
+
+    assert [call.args[1] for call in log.call_args_list] == pytest.approx([0.0, 1.0])
+
+
 def test_metric_callback_raises_on_non_dict_step_output(trainer: L.Trainer) -> None:
     """A `*_step` returning a bare tensor would silently skip the metric update; it must fail loudly."""
     module = _cls_module(num_classes=3)
