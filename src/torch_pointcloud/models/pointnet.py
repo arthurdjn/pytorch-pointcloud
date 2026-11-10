@@ -395,7 +395,7 @@ class PointNetClassification(ClassificationModel):
             num_classes: Number of output classes.
             global_pool: Pooling method to aggregate point features ("max" or "mean"); `None` keeps the
                 current pooling.
-            **kwargs: Additional keyword arguments to pass to the classification head.
+            **kwargs: Ignored.
         """
         self.num_classes = num_classes
         if global_pool is not None:
@@ -639,7 +639,6 @@ class PointNetSegmentation(SemanticSegmentationModel):
                 where `pre_pooling_features` is of shape $(N, \text{mlp2\_dims}[-1])$
                 and `point_features` is of shape $(N, \text{mlp1\_dims}[-1])$.
         """
-        # TODO: Actually do the global pooling in the encoder
         x, point_features = self.encoder(x, pos, batch, return_point_features=True)
         return x, point_features
 

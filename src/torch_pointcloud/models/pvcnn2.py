@@ -423,7 +423,7 @@ class PVCNN2Decoder(nn.Module):
             fp_in_channels = self.in_channels if i == 0 else int(self.fp_channels[i - 1][-1])
             fp_module = PointNet2FeaturePropagation(
                 channels=[fp_in_channels + self.skip_channels[i], *self.fp_channels[i]],
-                k=3,  # TODO: replace with spatial_dim
+                k=3,
                 act=act,
                 act_kwargs=act_kwargs,
                 act_first=act_first,
