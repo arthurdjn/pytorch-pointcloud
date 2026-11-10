@@ -77,6 +77,7 @@ from .pools import (
     create_adaptive_pool,
     create_pool,
 )
+from .positional_encoding import PositionEmbeddingSine
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
 from .randlanet_blocks import (
     AttentivePooling,
@@ -106,6 +107,7 @@ from .tnet import DynamicTNet, TNet
 from .torchsparse_blocks import TorchSparseConvBlock, TorchSparseResidualBlock
 from .transformer import (
     Attention,
+    CrossAttention,
     PackedAttention,
     PackedTransformerBlock,
     TransformerBlock,
@@ -212,6 +214,7 @@ __all__ = [
     "Point3DRoPE",
     "PatchLayout",
     "RelativePositionalEncoding",
+    "PositionEmbeddingSine",
     "SerializedAttention",
     "SerializedAttentionRoPE",
     "SerializedAttentionRPE",
@@ -229,6 +232,7 @@ __all__ = [
     "TorchSparseConvBlock",
     "TorchSparseResidualBlock",
     "Attention",
+    "CrossAttention",
     "PackedAttention",
     "PackedTransformerBlock",
     "TransformerBlock",
