@@ -190,6 +190,19 @@ def test_sample_rois_without_rois_draws_nothing() -> None:
     assert samples["index"].dtype == torch.long and samples["iou"].dtype == boxes.dtype
 
 
+def test_sample_rois_groups_the_samples_of_unsorted_scenes() -> None:
+    boxes = _boxes([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0], [0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+    rois = boxes[[0, 0, 0, 0]] + torch.tensor([[0.0], [30.0], [0.0], [30.0]]) * torch.eye(7)[0]
+    roi_batch = torch.tensor([1, 0, 0, 1])
+    zero = torch.zeros(4, dtype=torch.long)
+    samples = _sample(rois, zero, roi_batch, boxes, zero[:2], torch.tensor([1, 0]))
+    assert roi_batch[samples["index"]].tolist() == [0] * 8 + [1] * 8
+    # Every overlapping RoI is matched to the box of its own scene.
+    matched = samples["target_index"] >= 0
+    assert matched.any()
+    assert torch.equal(torch.tensor([1, 0])[samples["target_index"][matched]], roi_batch[samples["index"]][matched])
+
+
 def test_sample_rois_draws_the_same_samples_from_the_same_generator() -> None:
     boxes = _boxes([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
     rois = boxes + torch.rand(40, 7) * torch.tensor([3.0, 3.0, 0.5, 0.0, 0.0, 0.0, 0.5])
