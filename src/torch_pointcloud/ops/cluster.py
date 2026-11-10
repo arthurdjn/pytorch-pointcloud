@@ -186,7 +186,8 @@ def fps(
     with the `num_nodes` argument.
 
     Important:
-        If provided, the `batch` tensor is expected to be sorted.
+        If provided, the `batch` tensor must be sorted in non-decreasing order; an unsorted batch raises a
+        `ValueError`.
 
     Args:
         src: The source tensor to sample from of shape $(N, *)$.
@@ -223,6 +224,8 @@ def fps(
     _check_packed_2d(src, "src")
     if batch is not None and src.size(0) != batch.numel():
         raise ValueError(f"Size of `src` ({src.size(0)}) must match size of `batch` ({batch.numel()}).")
+    if batch is not None:
+        _check_sorted_batch(batch, "batch")
 
     if batch is not None and batch.numel() > 0:
         sample_counts = batch.bincount()
@@ -332,9 +335,8 @@ def radius(
     With `sort=False` (default) this just delegates to `torch_geometric.nn.pool.radius` and
     returns edges in kernel-traversal order. With `sort=True`, when more than
     `max_num_neighbors` source points lie inside a ball, the $k$ smallest source
-    indices are kept (PointNet++'s reference `query_ball_point` behavior). Pretrained
-    PointNet++ checkpoints from yanx27 / charlesq34 overfit to this selection rule,
-    so reproducing their accuracy requires `sort=True`.
+    indices are kept (PointNet++'s reference `query_ball_point` behavior). Weights
+    trained with this selection rule need `sort=True` to reproduce their accuracy.
 
     Important:
         If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order
@@ -362,7 +364,7 @@ def radius(
         _check_sorted_batch(batch_y, "batch_y")
     # The CUDA kernel scans the sources of every query in index order and keeps the first `max_num_neighbors` it
     # finds, which is exactly the sorted selection, so the sort below is only needed on the CPU (whose kernel does
-    # not): on 3DETR-sized inputs it is 25x slower and materializes the full distance matrix.
+    # not): on large inputs it is 25x slower and materializes the full distance matrix.
     if not sort or x.is_cuda:
         edge_index = pool.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
         return edge_index[0], edge_index[1]
@@ -538,6 +540,10 @@ def knn_interpolate(
     - `"inverse"` (PointNet++ `three_interpolation` convention):
       $w(x_i) = 1 / d(\mathbf{p}(y), \mathbf{p}(x_i))$
 
+    Important:
+        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order; unsorted batches
+        raise a `ValueError`.
+
     Note:
         Adapted from the `torch_geometric` package.
 
@@ -563,7 +569,7 @@ def knn_interpolate(
     weighting = ensure_option(weighting, ("squared", "inverse"), name="weighting")
 
     with torch.no_grad():
-        assign_index = pool.knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
+        assign_index = knn(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y, num_workers=num_workers)
         y_idx, x_idx = assign_index[0], assign_index[1]
         diff = pos_x[x_idx] - pos_y[y_idx]
         squared_distance = (diff * diff).sum(dim=-1, keepdim=True)

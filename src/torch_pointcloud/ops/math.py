@@ -32,12 +32,10 @@ def safe_divide(a: Tensor, b: Tensor, /, default: Union[float, Tensor] = float("
 
         ```
     """
-    if not isinstance(default, Tensor):
-        default = torch.full(a.shape, default, device=a.device)
-
     a = a if torch.is_floating_point(a) else a.float()
     b = b if torch.is_floating_point(b) else b.float()
-    default = default if torch.is_floating_point(default) else default.float()
+    if isinstance(default, Tensor) and not torch.is_floating_point(default):
+        default = default.float()
     return torch.where(b != 0, a / b, default)
 
 

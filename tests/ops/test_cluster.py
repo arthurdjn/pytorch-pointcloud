@@ -11,6 +11,7 @@ from torch_pointcloud.ops.cluster import (
     group,
     knn,
     knn_graph,
+    knn_interpolate,
     knn_table,
     radius,
 )
@@ -214,6 +215,24 @@ def test_knn_graph_unsorted_batch_raises() -> None:
     batch = torch.tensor([0, 1, 0, 1, 0, 1])
     with pytest.raises(ValueError, match="`batch` must be sorted"):
         knn_graph(pos, k=2, batch=batch)
+
+
+def test_fps_unsorted_batch_raises() -> None:
+    pos = torch.randn(6, 3)
+    batch = torch.tensor([0, 1, 0, 1, 0, 1])
+    with pytest.raises(ValueError, match="`batch` must be sorted"):
+        fps(pos, batch, num_nodes=2)
+    with pytest.raises(ValueError, match="`batch` must be sorted"):
+        fps(pos, batch, ratio=0.5)
+
+
+def test_knn_interpolate_unsorted_batch_raises() -> None:
+    x, pos = torch.randn(6, 2), torch.randn(6, 3)
+    batch = torch.tensor([0, 1, 0, 1, 0, 1])
+    with pytest.raises(ValueError, match="`batch_x` must be sorted"):
+        knn_interpolate(x, pos, pos, batch_x=batch, batch_y=torch.zeros(6, dtype=torch.long), k=1)
+    with pytest.raises(ValueError, match="`batch_y` must be sorted"):
+        knn_interpolate(x, pos, pos, batch_x=torch.zeros(6, dtype=torch.long), batch_y=batch, k=1)
 
 
 def test_radius_unsorted_batch_raises() -> None:
