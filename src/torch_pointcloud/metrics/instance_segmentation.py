@@ -417,26 +417,26 @@ def _pair_iou(match: InstanceMatches) -> Tensor:
 
 def _num_matched(matches: Sequence[InstanceMatches], iou_threshold: float, *, by_instance: bool) -> int:
     """Number of predictions, or of ground-truth instances with `by_instance`, whose IoU with some instance or
-    prediction of their class reaches `iou_threshold`."""
+    prediction of their class exceeds `iou_threshold`."""
     count = 0
     for match in matches:
         index = match["pair_gt"] if by_instance else match["pair_pred"]
         size = match["gt_labels"].numel() if by_instance else match["pred_labels"].numel()
         best = torch.zeros(size, dtype=torch.float64).scatter_reduce(0, index, _pair_iou(match), reduce="amax")
-        count += int((best >= iou_threshold).sum())
+        count += int((best > iou_threshold).sum())
     return count
 
 
 def instance_precision(matches: Sequence[InstanceMatches], *, iou_threshold: float = 0.5) -> float:
     r"""Fraction of the predicted instances that match a ground-truth instance.
 
-    A prediction is a true positive when its IoU with some ground-truth instance of its class reaches
+    A prediction is a true positive when its IoU with some ground-truth instance of its class exceeds
     `iou_threshold`, whatever its score; counts are pooled over the records and the classes. Overlapping
     predictions of one instance all count as true positives.
 
     Args:
         matches: The `instance_matches` record of every evaluated scene.
-        iou_threshold: IoU a prediction must reach to be a true positive.
+        iou_threshold: IoU a prediction must exceed to be a true positive.
 
     Returns:
         The precision, $0$ without predictions.
@@ -459,13 +459,13 @@ def instance_precision(matches: Sequence[InstanceMatches], *, iou_threshold: flo
 def instance_recall(matches: Sequence[InstanceMatches], *, iou_threshold: float = 0.5) -> float:
     r"""Fraction of the ground-truth instances that a predicted instance matches.
 
-    A ground-truth instance is matched when its IoU with some prediction of its class reaches `iou_threshold`;
+    A ground-truth instance is matched when its IoU with some prediction of its class exceeds `iou_threshold`;
     counts are pooled over the records and the classes, so the recall stays in $[0, 1]$ however many predictions
     overlap one instance.
 
     Args:
         matches: The `instance_matches` record of every evaluated scene.
-        iou_threshold: IoU an instance must reach to be matched.
+        iou_threshold: IoU an instance must exceed to be matched.
 
     Returns:
         The recall, $0$ without ground truth.

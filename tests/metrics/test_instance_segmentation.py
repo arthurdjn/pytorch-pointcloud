@@ -399,13 +399,21 @@ def _tree_scenes() -> list[InstanceMatches]:
     return [first, second]
 
 
-def test_instance_precision_recall_and_f1_count_matches_at_the_threshold() -> None:
+def test_instance_precision_recall_and_f1_count_matches_above_the_threshold() -> None:
     matches = _tree_scenes()
     # true positives: the 3/4 match and the 4/6 half, out of 4 predictions and 3 trees
     assert instance_precision(matches) == 0.5
     assert instance_recall(matches) == pytest.approx(2 / 3)
     assert instance_f1_score(matches) == pytest.approx(4 / 7)
     assert instance_precision(matches, iou_threshold=0.7) == 0.25
+
+
+def test_instance_precision_and_recall_leave_out_an_iou_equal_to_the_threshold() -> None:
+    """The 3/4 match is not one at a threshold of 0.75, as in `instance_average_precision`."""
+    matches = _tree_scenes()
+    assert instance_precision(matches, iou_threshold=0.75) == 0.0
+    assert instance_recall(matches, iou_threshold=0.75) == 0.0
+    assert instance_f1_score(matches, iou_threshold=0.75) == 0.0
 
 
 def test_instance_recall_counts_each_instance_once() -> None:
