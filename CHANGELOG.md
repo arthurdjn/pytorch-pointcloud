@@ -20,6 +20,13 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
 - Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
 - `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
+- Fixed the headless PointNeXt models (`num_classes=0`) applying dropout to their features when `head_channels` is set.
+- Changed `DGCNNSegmentation.forward_head` and `DGCNNPartSegmentation.forward_head` to `forward_head(x, pre_logits=False)`: the unused `batch` argument is gone.
+- Fixed `DGCNNSegmentation` applying the head `dropout` inside its input T-Net.
+- Fixed the Point Transformer models ignoring `act` and `norm` in their embedding MLP.
+- Removed the unused `upsample` argument of `PointTransformerDecoder`.
+- Fixed the registered transforms of `sonata-base-lp.scannet20.fair`, `concerto-large-lp.scannet20.pointcept` and `utonia-base-lp.scannet20.pointcept` raising `KeyError` on a cloud without labels.
+- Fixed the Point-M2AE encoders masking a stage with the center distances of the previous one when both have the same number of centers; `local_att_mask` takes `(pos, radius)` and returns the mask.
 - Fixed `box3d_overlap` returning an IoU above 1 for a box with an empty footprint inside another box, which `box_average_precision` counted as a match.
 - Fixed `CenterHead.decode` returning an unsorted `batch` with several class groups and scenes: the detections come scene by scene.
 - `AnchorHeadLoss` raises a `ValueError` on the output of a head built with `code_size=9`, which it does not supervise.
