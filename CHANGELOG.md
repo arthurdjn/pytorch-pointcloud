@@ -42,6 +42,7 @@ All notable changes to this project are documented in this file. The format is b
 - `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
 - Fixed `safe_divide` returning float32 for float16 inputs.
 - Added the changelog convention and the `state_dict` migration step to `CONTRIBUTING.md`.
+- Changed `PointM2AEPretraining` to draw its mask with `ops.masking.random_mask`: a given seed masks different tokens than in 0.0.19.
 - Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
 - Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
 - Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
