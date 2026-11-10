@@ -15,6 +15,11 @@ All notable changes to this project are documented in this file. The format is b
 - Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
+- Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
+- Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
+- Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
+- Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
+- `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
 - Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `lookup_coordinates`, `trilinear_sparse_devoxelize`, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")`, `RandomTranslate(distribution="normal")` and the S3DIS detection classes.
 
