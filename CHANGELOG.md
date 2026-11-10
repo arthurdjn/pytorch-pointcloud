@@ -20,6 +20,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
 - Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
 - `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
+- Added the aerial LiDAR survey and dental scan tutorials.
 
 ## 0.0.19 (2026-11-08)
 

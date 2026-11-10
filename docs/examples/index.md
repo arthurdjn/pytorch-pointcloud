@@ -60,7 +60,7 @@ Your own data and a plain PyTorch training loop.
 
 ## Advanced
 
-3D object detection on driving LiDAR.
+Detection on driving LiDAR, and training on your own survey tiles and mesh scans.
 
 <div class="grid cards tutorial-cards" markdown>
 
