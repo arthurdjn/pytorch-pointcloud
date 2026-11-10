@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+- Added the `registration` task, its data keys and the registration metrics.
+- Added GeoTransformer with the authors' 3DMatch, KITTI and ModelNet40 weights, its loss, and its benchmark and training scripts.
+- Added the `ThreeDMatch`, `KITTIOdometry` and `ModelNet40Registration` datasets.
+- Added `ops.registration`, `rotation_matrix_to_quaternion`, `load_pickle`, `sinusoidal_embedding`, the packed `GroupNorm`, `LogOptimalTransport`, `WeightedCircleLoss`, `assignment_negative_log_likelihood` and the `RandomPairRotate` transform.
+- `transform_points` broadcasts batched transforms over batched point sets.
+- `RandomJitter(distribution="uniform")` draws the noise uniformly in `[-sigma, sigma]`.
+- `VoxelGridPool` pools each cloud of a batch as it would alone.
+- `KPConvBlock`, `KPResidualBlock` and `LinearBlock` pass the batch index to the normalizations that take one; `KPResidualBlock` takes `normalize_by_positive_neighbors` and `max_num_neighbors`.
+- `extract_zip` takes a `prefix` limiting the extracted members.
+
+## 0.0.20 (2026-11-10)
+
 - Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
 - Added `act_first`, `act_last` and `input_transform_uses_features` to the PointNet models, and `in_channels` to `TNet`.
 - Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`; the former key still loads, with a `FutureWarning`.
@@ -20,6 +33,13 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
 - Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
 - `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
+- Fixed the headless PointNeXt models (`num_classes=0`) applying dropout to their features when `head_channels` is set.
+- Changed `DGCNNSegmentation.forward_head` and `DGCNNPartSegmentation.forward_head` to `forward_head(x, pre_logits=False)`: the unused `batch` argument is gone.
+- Fixed `DGCNNSegmentation` applying the head `dropout` inside its input T-Net.
+- Fixed the Point Transformer models ignoring `act` and `norm` in their embedding MLP.
+- Removed the unused `upsample` argument of `PointTransformerDecoder`.
+- Fixed the registered transforms of `sonata-base-lp.scannet20.fair`, `concerto-large-lp.scannet20.pointcept` and `utonia-base-lp.scannet20.pointcept` raising `KeyError` on a cloud without labels.
+- Fixed the Point-M2AE encoders masking a stage with the center distances of the previous one when both have the same number of centers; `local_att_mask` takes `(pos, radius)` and returns the mask.
 - Fixed `box3d_overlap` returning an IoU above 1 for a box with an empty footprint inside another box, which `box_average_precision` counted as a match.
 - Fixed `CenterHead.decode` returning an unsorted `batch` with several class groups and scenes: the detections come scene by scene.
 - `AnchorHeadLoss` raises a `ValueError` on the output of a head built with `code_size=9`, which it does not supervise.
@@ -35,15 +55,24 @@ All notable changes to this project are documented in this file. The format is b
 - `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
 - Fixed `safe_divide` returning float32 for float16 inputs.
 - Added the changelog convention and the `state_dict` migration step to `CONTRIBUTING.md`.
-- Added the `registration` task, its data keys and the registration metrics.
-- Added GeoTransformer with the authors' 3DMatch, KITTI and ModelNet40 weights, its loss, and its benchmark and training scripts.
-- Added the `ThreeDMatch`, `KITTIOdometry` and `ModelNet40Registration` datasets.
-- Added `ops.registration`, `rotation_matrix_to_quaternion`, `load_pickle`, `sinusoidal_embedding`, the packed `GroupNorm`, `LogOptimalTransport`, `WeightedCircleLoss`, `assignment_negative_log_likelihood` and the `RandomPairRotate` transform.
-- `transform_points` broadcasts batched transforms over batched point sets.
-- `RandomJitter(distribution="uniform")` draws the noise uniformly in `[-sigma, sigma]`.
-- `VoxelGridPool` pools each cloud of a batch as it would alone.
-- `KPConvBlock`, `KPResidualBlock` and `LinearBlock` pass the batch index to the normalizations that take one; `KPResidualBlock` takes `normalize_by_positive_neighbors` and `max_num_neighbors`.
-- `extract_zip` takes a `prefix` limiting the extracted members.
+- Changed `PointM2AEPretraining` to draw its mask with `ops.masking.random_mask`: a given seed masks different tokens than in 0.0.19.
+- Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
+- Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
+- Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
+- `KITTI(fov=True)` raises a `FileNotFoundError` for a frame without its `image_2` image; the frame was cached uncropped.
+- `relabel` raises a `ValueError` when `default` or a target label does not fit the dtype of the labels; the value wrapped silently.
+- Fixed `flip_boxes(boxes, axis=2)` failing on boxes with a velocity.
+- Fixed `Voxelize` returning float positions for an empty cloud with `pos_reduce="grid"`, and failing when `keys` lists `pos_key`.
+- Fixed `SetValue` converting a tensor value to a list or rejecting it; only a list or tuple as long as `keys` is spread over the keys.
+- Fixed `MetricCallback` failing at the second epoch with `BoxMeanAveragePrecision`, `BoxAveragePrecision` and `InstanceAveragePrecision`.
+- `confusion_matrix` raises on predictions or targets outside `[0, num_classes)` instead of counting them in another cell.
+- Fixed `accuracy` and `intersection_over_union` returning NaN instead of `zero_division` with `average="macro"` when every class is ignored.
+- Fixed `part_mean_intersection_over_union` failing on float64 IoUs with `average="macro"` and `"none"`.
+- `part_intersection_over_union` raises on part labels outside `part_ids`, and `InstancePartMeanIntersectionOverUnion` no longer scores a shape id missing from `batch`.
+- Fixed `load_safetensors` failing on a file written without metadata.
+- `KNNWindowInferer` rejects an `overlap` of `1e-3` or less, which left points unpredicted.
+- Fixed `SlidingWindowInferer` giving an empty `cloud_keys` row to clouds with non-contiguous batch ids.
+- `SlidingWindowInferer` no longer passes the `block_bbox_key` entry to the predictor; it was sliced like a per-point tensor in blocks with as many points as the box has values.
 
 ## 0.0.19 (2026-11-08)
 

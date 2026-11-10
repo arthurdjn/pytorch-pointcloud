@@ -528,3 +528,16 @@ def test_random_pair_rotate_uses_extrinsic_zyx_euler_angles() -> None:
     expected = torch.from_numpy(Rotation.from_euler("zyx", [30.0, 30.0, 30.0], degrees=True).as_matrix()).float()
     rotation = out["transform"][:3, :3] if torch.equal(out["pos"], pos) else out["transform"][:3, :3].T
     assert torch.allclose(rotation, expected, atol=1e-5)
+
+
+def test_random_rotate_empty_cloud() -> None:
+    out = T.RandomRotate(keys="pos", seed=0)({"pos": torch.zeros(0, 3)})
+    assert out["pos"].shape == (0, 3)
+    out = T.RandomRotateChoice(keys="pos", angles=(0.0, 90.0), seed=0)({"pos": torch.zeros(0, 3)})
+    assert out["pos"].shape == (0, 3)
+
+
+def test_color_grayscale_ignores_int_color() -> None:
+    color = torch.randint(0, 256, (16, 3), dtype=torch.uint8, generator=torch.Generator().manual_seed(0))
+    assert torch.equal(F.color_grayscale(color, int_color=True), F.color_grayscale(color, int_color=False))
+    assert torch.equal(F.color_grayscale(color.float(), int_color=True), F.color_grayscale(color.float()))

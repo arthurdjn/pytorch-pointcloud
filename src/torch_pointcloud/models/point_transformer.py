@@ -456,11 +456,8 @@ class PointTransformerDecoder(torch.nn.Module):
         act_first: bool = False,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
-        upsample: Optional[nn.Module] = None,
     ):
         super().__init__()
-        self.upsample = upsample
-        self.blocks = nn.ModuleList()
 
         depths = ensure_tuple(depths)
         n = len(depths)
@@ -616,7 +613,15 @@ class PointTransformerClassification(ClassificationModel):
 
     def configure_embeddings(self) -> MLP:
         """Build the embedding MLP lifting the input features to the first encoder width."""
-        return MLP([self.in_channels, self.encoder_channels[0]], plain_last=False)
+        return MLP(
+            [self.in_channels, self.encoder_channels[0]],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            plain_last=False,
+        )
 
     def configure_encoder(self) -> PointTransformerEncoder:
         """Build the `PointTransformerEncoder` backbone."""
@@ -781,7 +786,15 @@ class PointTransformerSegmentation(SemanticSegmentationModel):
 
     def configure_embeddings(self) -> MLP:
         """Build the embedding MLP lifting the input features to the first encoder width."""
-        return MLP([self.in_channels, self.encoder_channels[0]], plain_last=False)
+        return MLP(
+            [self.in_channels, self.encoder_channels[0]],
+            act=self.act,
+            act_kwargs=self.act_kwargs,
+            act_first=self.act_first,
+            norm=self.norm,
+            norm_kwargs=self.norm_kwargs,
+            plain_last=False,
+        )
 
     def configure_encoder(self) -> PointTransformerEncoder:
         """Build the `PointTransformerEncoder` backbone."""

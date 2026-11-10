@@ -267,10 +267,6 @@ class RandLANetDecoder(nn.Module):
         norm: Normalization passed to each `PointNet2FeaturePropagation` MLP.
         norm_kwargs: Normalization kwargs.
         bias: Whether to use bias in the MLP layers.
-
-    Note:
-        No paper-specific defaults are baked in here; callers (typically the
-        registered model factory) supply them.
     """
 
     def __init__(

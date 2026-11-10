@@ -327,3 +327,10 @@ def test_kitti_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(KITTI, "write_processed_files", incomplete)
     KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_kitti_dataset_fov_missing_image_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    (datasets_dir / "KITTI" / "raw" / "training" / "image_2" / "000001.png").unlink()
+    with pytest.raises(FileNotFoundError, match="000001.png"):
+        _ = KITTI(root=datasets_dir, train=True, fov=True)

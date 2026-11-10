@@ -1187,3 +1187,27 @@ def test_model_pre_logits_matches_headless_forward(
 
     if device == "cuda":
         torch.cuda.empty_cache()
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        pytest.param("sonata-base-lp.scannet20.fair", id="sonata"),
+        pytest.param("concerto-large-lp.scannet20.pointcept", id="concerto"),
+        pytest.param("utonia-base-lp.scannet20.pointcept", id="utonia"),
+    ],
+)
+def test_registered_transform_runs_without_labels(model_name: str) -> None:
+    transform = model_info(model_name)["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    data = {
+        "pos": torch.rand(500, 3) * 2.0,
+        "color": torch.randint(0, 256, (500, 3)).float(),
+        "normal": nn.functional.normalize(torch.randn(500, 3), dim=1),
+    }
+
+    out = transform(data)
+
+    assert "segment" not in out
+    assert out["x"].shape == (out["pos_grid"].size(0), 9)

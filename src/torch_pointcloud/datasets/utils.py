@@ -136,7 +136,8 @@ def download_url(
     Args:
         url: The URL to download the file from.
         file_path: The local path to save the file to (including the file name).
-            If not provided, the file will be saved in the current working directory with the name taken from `Path
+            If not provided, the file will be saved in the current working directory with the name taken from
+            the URL.
         chunk_size: The size of the chunks to download in bytes.
         description: The description to display in the progress bar.
         show_progress: Whether to display a progress bar.
