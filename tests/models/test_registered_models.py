@@ -36,6 +36,10 @@ PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 FORMER_NAMES: list[tuple[str, str, str]] = []
 
 CLASSIFICATION_MODELS = [
+    "act.modelnet40.runpei-dong",
+    "act.scanobjectnn-hardest.runpei-dong",
+    "act.scanobjectnn-objbg.runpei-dong",
+    "act.scanobjectnn-objonly.runpei-dong",
     "curvenet.modelnet40.tiange-xiang",
     "dgcnn.modelnet40-1024.an-tao",
     "dgcnn.modelnet40-2048.an-tao",
@@ -45,6 +49,12 @@ CLASSIFICATION_MODELS = [
     "pointcnn-base",
     "pointconv-density-base",
     "pointconv-density-base.modelnet40.wenxuan-wu",
+    "pcp-mae.modelnet40.xiangdong-zhang",
+    "pcp-mae.scanobjectnn-hardest.xiangdong-zhang",
+    "pcp-mae.scanobjectnn-objbg.xiangdong-zhang",
+    "pcp-mae.scanobjectnn-objonly.xiangdong-zhang",
+    "point2vec.modelnet40.karim-knaebel",
+    "point2vec.scanobjectnn-hardest.karim-knaebel",
     "point-bert-base.modelnet40.xumin-yu",
     "point-bert-base.modelnet40-4k.xumin-yu",
     "point-bert-base.modelnet40-8k.xumin-yu",
@@ -100,8 +110,15 @@ CLASSIFICATION_MODELS = [
     "pointnext-sm-c64.modelnet40.openpoints",
     "pointnext-sm.scanobjectnn-hardest.openpoints",
     "pointnext-xl",
+    "recon.modelnet40.zekun-qi",
+    "recon.modelnet40-8k.zekun-qi",
+    "recon.scanobjectnn-hardest.zekun-qi",
+    "recon.scanobjectnn-objbg.zekun-qi",
+    "recon.scanobjectnn-objonly.zekun-qi",
 ]
 PRETRAINING_MODELS = [
+    "act.dvae.runpei-dong",
+    "act.pretrain.runpei-dong",
     "concerto-base.pretrain.pointcept",
     "concerto-base-origin.pretrain.pointcept",
     "concerto-base-siglip.pretrain.pointcept",
@@ -109,6 +126,8 @@ PRETRAINING_MODELS = [
     "concerto-large-origin.pretrain.pointcept",
     "concerto-small.pretrain.pointcept",
     "concerto-tiny.pretrain.pointcept",
+    "pcp-mae.pretrain.xiangdong-zhang",
+    "point2vec.pretrain.karim-knaebel",
     "point-bert-base.dvae.xumin-yu",
     "point-bert-base.pretrain.xumin-yu",
     "point-m2ae-base.pretrain.renrui-zhang",
@@ -122,6 +141,7 @@ PRETRAINING_MODELS = [
     "utonia-base.pretrain.pointcept",
     "utonia-small.pretrain.pointcept",
     "utonia-tiny.pretrain.pointcept",
+    "recon.pretrain.zekun-qi",
 ]
 SEMANTIC_SEGMENTATION_MODELS = [
     "spformer-unet.scannet",
@@ -237,6 +257,7 @@ PART_SEGMENTATION_MODELS = [
     "dgcnn.shapenetpart.an-tao",
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-mae-base.shapenetpart.yatian-pang",
+    "point2vec.shapenetpart.karim-knaebel",
     "pointgpt-s.shapenetpart.guangyan-chen",
     "pointgpt-b.shapenetpart.guangyan-chen",
     "pointgpt-l.shapenetpart.guangyan-chen",
@@ -250,6 +271,7 @@ PART_SEGMENTATION_MODELS = [
     "pvcnn-c0p25.shapenetpart.mit-han-lab",
     "pvcnn-dml.shapenetpart.mit-han-lab",
     "pvcnn-c0p25-dml.shapenetpart.mit-han-lab",
+    "recon.shapenetpart.zekun-qi",
 ]
 DETECTION_MODELS = [
     "3detr-m.scannet.fair",
