@@ -123,6 +123,7 @@ def test_sparse_voxelize_grid_origin_keeps_the_first_point_of_each_cell() -> Non
     assert x_voxel[inverse].view(-1).tolist() == [1.0, 1.0, 3.0, 4.0]
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_sparse_voxelize_first_point_follows_the_input_order_of_an_unsorted_batch() -> None:
     x = torch.tensor([[1.0], [2.0], [3.0], [4.0], [5.0]])
     pos = torch.tensor([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [0.9, 0.9, 0.9], [0.2, 0.1, 0.1]])
