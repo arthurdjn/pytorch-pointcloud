@@ -119,3 +119,16 @@ def test_serialize_negative_grid_raises() -> None:
     batch = torch.zeros(2, dtype=torch.long)
     with pytest.raises(ValueError, match="non-negative"):
         serialize(grid, batch, orders=["hilbert"])
+
+
+def test_serialize_single_point() -> None:
+    code, order, inverse = serialize(torch.tensor([[1, 2, 3]]), torch.zeros(1, dtype=torch.long), orders=["hilbert"])
+    assert code.shape == order.shape == inverse.shape == (1, 1)
+    assert torch.equal(serialize_pos(torch.tensor([[1, 2, 3]]), None, depth=2, order="hilbert"), code[0])
+
+
+def test_serialize_empty_cloud() -> None:
+    grid = torch.zeros(0, 3, dtype=torch.long)
+    batch = torch.zeros(0, dtype=torch.long)
+    code, order, inverse = serialize(grid, batch, orders=["hilbert", "hilbert-trans"])
+    assert code.shape == order.shape == inverse.shape == (2, 0)
