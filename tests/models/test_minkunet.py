@@ -5,7 +5,9 @@ import pytest
 import torch
 from torch import Tensor, nn
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.minkunet import MinkUNetSegmentation
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
@@ -171,3 +173,38 @@ def test_minkunet_headless(data: Dict[str, Tensor]) -> None:
     model = MinkUNetSegmentation(in_channels=4, num_classes=0).cuda()
     features = model(data["x"], data["pos_grid"], data["batch"])
     assert features.shape == (data["pos_grid"].shape[0], model.num_features)
+
+
+@pytest.mark.parametrize(
+    ("name", "bus"),
+    [
+        pytest.param("minkunet18-w32.semantickitti.mmdet3d", 4, id="mmdet3d-merges-bus"),
+        pytest.param("minkunet18-w32.semantickitti.mit-han-lab", 255, id="mit-han-lab-ignores-bus"),
+    ],
+)
+def test_minkunet_registered_transform_rounds_to_the_grid(name: str, bus: int) -> None:
+    transform = model_info(name, task="semantic-segmentation")["transform"]
+    pos = torch.tensor([[0.06, 0.0, 0.0], [0.04, 0.0, 0.0], [0.13, -0.07, 1.0]])
+    data = transform(
+        {
+            DataKeys.POS: pos,
+            DataKeys.INTENSITY: torch.tensor([[0.5], [0.7], [0.9]]),
+            DataKeys.SEGMENT: torch.tensor([10, 13, 50]),  # car, bus, building
+        }
+    )
+
+    # 0.06 and 0.04 round to the same 5 cm cell although a floor separates them; the cells (1, 0, 0) and (3, -1, 20)
+    # are indexed from their minimum.
+    assert data[DataKeys.POS_GRID].tolist() == [[0, 1, 0], [2, 0, 20]]
+    assert data[DataKeys.INVERSE].tolist() == [0, 0, 1]
+    assert torch.equal(data[DataKeys.ORIGIN_POS], pos)
+    assert data[DataKeys.ORIGIN_SEGMENT].tolist() == [0, bus, 12]
+    assert data[DataKeys.X].shape == (2, 4)
+
+
+def test_minkunet_registered_transform_runs_without_labels() -> None:
+    transform = model_info("minkunet18-w32.semantickitti.mmdet3d", task="semantic-segmentation")["transform"]
+    data = transform({DataKeys.POS: torch.rand(64, 3), DataKeys.INTENSITY: torch.rand(64, 1)})
+    assert DataKeys.SEGMENT not in data
+    assert data[DataKeys.X].shape == (data[DataKeys.POS_GRID].shape[0], 4)
+    assert data[DataKeys.INVERSE].shape == (64,)
