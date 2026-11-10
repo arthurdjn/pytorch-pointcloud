@@ -355,3 +355,10 @@ def test_kitti_difficulty_levels_at_the_limits(
     result = kitti_difficulty(torch.tensor([bbox_height]), torch.tensor([truncation]), torch.tensor([occlusion]))
     assert result.dtype == torch.long
     assert result.tolist() == [level]
+
+
+def test_kitti_dataset_fov_missing_image_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    (datasets_dir / "KITTI" / "raw" / "training" / "image_2" / "000001.png").unlink()
+    with pytest.raises(FileNotFoundError, match="000001.png"):
+        _ = KITTI(root=datasets_dir, train=True, fov=True)

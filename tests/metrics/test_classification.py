@@ -188,3 +188,30 @@ def test_metrics_ignore_several_indices() -> None:
         intersection_over_union(kept, average="none", ignore_index=[0, 3]),
     )
     assert intersection_over_union(cm, ignore_index=255) == intersection_over_union(cm)
+
+
+@pytest.mark.parametrize(
+    ("preds", "target"),
+    [
+        pytest.param([4], [0], id="preds_above"),
+        pytest.param([-1], [1], id="preds_below"),
+        pytest.param([0], [3], id="target_above"),
+        pytest.param([2], [-1], id="target_below"),
+    ],
+)
+def test_confusion_matrix_rejects_out_of_range_indices(preds: list[int], target: list[int]) -> None:
+    with pytest.raises(ValueError, match="class indices"):
+        confusion_matrix(torch.tensor(preds), torch.tensor(target), num_classes=3)
+
+
+def test_confusion_matrix_accepts_out_of_range_predictions_of_ignored_points() -> None:
+    cm = confusion_matrix(torch.tensor([7, 1]), torch.tensor([-1, 1]), num_classes=3, ignore_index=-1)
+    assert cm.tolist() == [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
+
+
+def test_macro_averages_are_zero_division_when_every_class_is_ignored() -> None:
+    cm = torch.eye(2, dtype=torch.long)
+    assert accuracy(cm, average="macro", ignore_index=[0, 1]) == 0.0
+    assert accuracy(cm, average="macro", ignore_index=[0, 1], zero_division=1.0) == 1.0
+    assert intersection_over_union(cm, ignore_index=[0, 1]) == 0.0
+    assert intersection_over_union(cm, ignore_index=[0, 1], zero_division=1.0) == 1.0

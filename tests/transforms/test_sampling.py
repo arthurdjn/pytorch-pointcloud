@@ -533,3 +533,19 @@ def test_sphere_crop_stores_its_center() -> None:
     out = T.SphereCrop(pos_key="pos", radius=1.0, center="random_point", dst_center_key="center", seed=0)(data)
     assert out["center"].shape == (3,) and torch.any(torch.all(data["pos"] == out["center"], dim=1))
     assert torch.all((out["pos"] - out["center"]).norm(dim=1) <= 1.0)
+
+
+def test_sphere_crop_keeps_float64_precision() -> None:
+    generator = torch.Generator().manual_seed(0)
+    offset = torch.tensor([650000.0, 6500000.0, 100.0], dtype=torch.float64)
+    pos = offset + torch.rand(1000, 3, dtype=torch.float64, generator=generator) * 5
+    out = T.SphereCrop(pos_key="pos", radius=1.0, center="centroid", dst_index_key="index")({"pos": pos})
+    expected = torch.where((pos - pos.mean(dim=0)).norm(dim=-1) <= 1.0)[0]
+    assert out["pos"].dtype == torch.float64
+    assert torch.equal(out["index"], expected)
+
+
+def test_sphere_crop_integer_positions() -> None:
+    pos = torch.tensor([[0, 0, 0], [1, 0, 0], [5, 5, 5]])
+    out = T.SphereCrop(pos_key="pos", radius=2.0, center=(0, 0, 0))({"pos": pos})
+    assert out["pos"].dtype == torch.long and out["pos"].tolist() == [[0, 0, 0], [1, 0, 0]]

@@ -511,8 +511,8 @@ class ModelNetNormalResampled(PointCloudDataset):
         file_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
         if not zipfile.is_zipfile(file_path):
             raise RuntimeError(
-                f"Stale processed cache at {file_path.as_posix()!r}: it was written with pickle by an older "
-                "version of this dataset. Pass force_process=True to regenerate it."
+                f"Unreadable processed cache at {file_path.as_posix()!r}: it is not a `torch.save` zip archive. "
+                "Pass force_process=True to regenerate it."
             )
 
         # Sample dicts are keyed by the DataKeys enum, which `weights_only=True` only unpickles when allowlisted.

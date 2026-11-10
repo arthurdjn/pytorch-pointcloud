@@ -496,14 +496,22 @@ class KITTI(PointCloudDataset):
 
         Args:
             frame: Frame id, e.g. `"000000"`.
+
+        Raises:
+            FileNotFoundError: If `fov=True` and the camera image of the frame is missing.
         """
         points = np.fromfile(self.raw_split_dir / "velodyne" / f"{frame}.bin", dtype=np.float32).reshape(-1, 4)
         calib = load_kitti_calib(self.raw_split_dir / "calib" / f"{frame}.txt")
 
         if self.fov:
             image_path = self.raw_split_dir / "image_2" / f"{frame}.png"
-            if image_path.exists():
-                points = points[fov_flag(points, _read_image_shape(image_path), calib)]
+            if not image_path.exists():
+                raise FileNotFoundError(
+                    f"`fov=True` crops frame {frame!r} to its camera image, which is missing: "
+                    f"{image_path.as_posix()!r}. Add the `image_2` folder or pass `fov=False`."
+                )
+
+            points = points[fov_flag(points, _read_image_shape(image_path), calib)]
 
         annotations = load_kitti_boxes(self.raw_split_dir / "label_2" / f"{frame}.txt", calib)
         frame_dir = self.processed_split_dir / frame
