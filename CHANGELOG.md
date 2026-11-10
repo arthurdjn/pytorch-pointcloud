@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+
 ## 0.0.20 (2026-11-10)
 
 - Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
