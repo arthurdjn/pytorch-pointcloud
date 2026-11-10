@@ -11,6 +11,7 @@ from torch_pointcloud.layers.curvenet_blocks import (
     LocalPointFeatureAggregation,
     crossover_suppression,
 )
+from torch_pointcloud.ops.cluster import knn_interpolate
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 _REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -110,6 +111,16 @@ def test_curve_aggregation_shape() -> None:
     assert aggregation(x, batch, torch.randn(2, 5, 3, 8)).shape == (60, 8)
 
 
+def test_curve_aggregation_follows_point_order() -> None:
+    x, _, batch = _cloud(num_points=30, batch_size=2, channels=8)
+    aggregation = CurveAggregation(8).eval()
+    curves = torch.randn(2, 5, 3, 8)
+    perm = torch.randperm(60)
+    out = aggregation(x, batch, curves)
+    assert torch.allclose(aggregation(x[perm], batch[perm], curves), out[perm], atol=1e-6)
+    assert not torch.allclose(aggregation(x, batch, curves.flip(0)), out)
+
+
 def test_curve_intervention_conv_requires_paired_arguments() -> None:
     with pytest.raises(ValueError, match="num_points"):
         CurveInterventionConv(8, 8, num_neighbors=4, num_points=8)
@@ -155,3 +166,17 @@ def test_curvenet_feature_propagation_forward() -> None:
     fp = CurveNetFeaturePropagation(32, 16, channels=[24, 24], gate_channels=8).eval()
     out, pos_out, batch_out = fp(x, pos, batch, x_skip, pos_skip, batch_skip)
     assert out.shape == (64, 24) and pos_out is pos_skip and batch_out is batch_skip
+
+
+@_REQUIRES_PYG_LIB
+def test_curvenet_feature_propagation_without_gate_concatenates_skip_first() -> None:
+    x, pos, batch = _cloud(num_points=8, batch_size=2, channels=16)
+    x_skip, pos_skip, batch_skip = _cloud(num_points=32, batch_size=2, channels=16)
+    fp = CurveNetFeaturePropagation(16, 16, channels=[24]).eval()
+    assert fp.gate is None
+    out, _, _ = fp(x, pos, batch, x_skip, pos_skip, batch_skip)
+    interpolated = knn_interpolate(
+        x, pos, pos_skip, batch_x=batch, batch_y=batch_skip, k=3, weighting="squared", eps=1e-8
+    )
+    assert torch.allclose(out, fp.mlp(torch.cat([x_skip, interpolated], dim=1)), atol=1e-6)
+    assert not torch.allclose(out, fp.mlp(torch.cat([interpolated, x_skip], dim=1)), atol=1e-6)

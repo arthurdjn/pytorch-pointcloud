@@ -18,3 +18,14 @@ def test_radius_max_pool_takes_ball_maximum() -> None:
     for i in range(16):
         inside = (batch == batch_out[i]) & ((pos - pos_out[i]).norm(dim=1) <= 0.3)
         assert torch.allclose(out[i], x[inside].amax(dim=0))
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_radius_max_pool_caps_ball_to_smallest_indices() -> None:
+    pos = torch.zeros(6, 3)
+    x = torch.arange(6, dtype=torch.float).unsqueeze(1)
+    batch = torch.tensor([0, 0, 0, 0, 1, 1])
+    pool = RadiusMaxPool(num_points=1, radius=1.0, max_num_neighbors=2)
+    out, pos_out, batch_out = pool(x, pos, batch)
+    assert out.tolist() == [[1.0], [5.0]]
+    assert pos_out.shape == (2, 3) and batch_out.tolist() == [0, 1]
