@@ -105,6 +105,28 @@ def test_dynamic_max_vfe_sends_points_outside_the_range_to_the_border_voxels() -
     assert torch.equal(voxel_indices[inverse].long(), torch.tensor([[0, 3, 3, 3], [0, 3, 0, 2], [0, 0, 1, 3]]))
 
 
+def test_dynamic_max_vfe_does_not_depend_on_the_order_of_the_points() -> None:
+    vfe = DynamicMaxVFE(
+        1,
+        (8, 16),
+        4,
+        voxel_size=(1.0, 1.0, 1.0),
+        point_cloud_range=(0.0, 0.0, 0.0, 4.0, 4.0, 4.0),
+        grid_size=(4, 4, 4),
+    ).eval()
+    torch.manual_seed(0)
+    pos = torch.rand(300, 3) * 4.0
+    x = torch.randn(300, 1)
+    batch = torch.cat([torch.zeros(100), torch.ones(200)]).long()
+    perm = torch.randperm(300)
+    voxel_x, voxel_indices, inverse = vfe(x, pos, batch)
+    shuffled_x, shuffled_indices, shuffled_inverse = vfe(x[perm], pos[perm], batch[perm])
+
+    assert torch.equal(shuffled_indices, voxel_indices)
+    assert torch.equal(shuffled_inverse, inverse[perm])
+    assert torch.allclose(shuffled_x, voxel_x, atol=1e-6)
+
+
 @pytest.mark.parametrize(
     "voxel_size, point_cloud_range, grid_size, match",
     [
