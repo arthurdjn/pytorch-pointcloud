@@ -65,7 +65,7 @@ def load_semantic3d_data(path_txt: PathLike, /, path_labels: Optional[PathLike] 
     | `pos`       | $(N, 3)$ | float32 |
     | `intensity` | $(N, 1)$ | float32 |
     | `color`     | $(N, 3)$ | uint8   |
-    | `segment`   | $(N,)$   | int64   | (optional)
+    | `segment`   | $(N,)$   | int64   |
     """
     arr = np.loadtxt(Path(path_txt).as_posix(), dtype=np.float64)
     pos = arr[:, 0:3].astype(np.float32, copy=True)

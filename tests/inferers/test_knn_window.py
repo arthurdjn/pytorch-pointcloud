@@ -143,6 +143,8 @@ def test_knn_window_inference_validates_args() -> None:
         knn_window_segmentation_inference(data, predictor=fake, overlap=1.5)
     with pytest.raises(ValueError, match="`overlap`"):
         knn_window_segmentation_inference(data, predictor=fake, overlap=0.0)
+    with pytest.raises(ValueError, match="`overlap`"):
+        knn_window_segmentation_inference(data, predictor=fake, overlap=1e-4)
     with pytest.raises(ValueError, match="`mode`"):
         knn_window_segmentation_inference(data, predictor=fake, mode="other")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="`aggregate`"):
@@ -338,3 +340,19 @@ def test_knn_window_with_divisible_pad_matches_unpadded_scores() -> None:
     )
     assert all(torch.equal(batch, torch.arange(3).repeat_interleave(32)) for batch in batches_seen)
     assert torch.equal(out_pad, out)
+
+
+def test_knn_window_smallest_overlap_predicts_every_point() -> None:
+    """A threshold just above the initial coverage noise leaves no point unpredicted."""
+    torch.manual_seed(0)
+    n = 500
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.rand(n, 3) * 4.0,
+        DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
+    }
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        return torch.ones(window[DataKeys.POS].size(0), 2)
+
+    out = knn_window_segmentation_inference(data, predictor=predictor, roi_num_points=16, overlap=1.1e-3, seed=0)
+    assert torch.equal(out, torch.ones(n, 2))

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import pytest
 import torch
 
@@ -24,6 +26,20 @@ def test_generate_anchors_align_center() -> None:
     assert torch.allclose(anchors[0, 0, :, 0, 0, 0], torch.tensor([1.0, 3.0, 5.0, 7.0]))
     assert torch.allclose(anchors[0, :, 0, 0, 0, 1], torch.tensor([-3.0, -1.0, 1.0, 3.0]))
     assert torch.all(anchors[..., 2] == 0.75)
+
+
+@pytest.mark.parametrize(
+    "feature_map_size",
+    [
+        pytest.param((1, 4), id="one_cell_along_x"),
+        pytest.param((4, 1), id="one_cell_along_y"),
+    ],
+)
+def test_generate_anchors_single_cell_axis(feature_map_size: Tuple[int, int]) -> None:
+    with pytest.raises(ValueError, match="at least 2 cells"):
+        generate_anchors(RANGE, feature_map_size, [[1.0, 1.0, 1.0]], [0.0], [0.0])
+    anchors = generate_anchors(RANGE, feature_map_size, [[1.0, 1.0, 1.0]], [0.0], [0.0], align_center=True)
+    assert anchors.shape == (1, feature_map_size[1], feature_map_size[0], 1, 1, 7)
 
 
 def test_assign_single_overlapping_gt() -> None:
