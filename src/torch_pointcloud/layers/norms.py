@@ -46,7 +46,7 @@ def create_norm(
 
     Args:
         norm: Norm name (`"batch_norm"`, `"instance_norm"`, `"group_norm"`,
-            `"layer_norm"`), a class, an instance, or `None`.
+            `"layer_norm"`), a class, an instance, or `None`. `"layer_norm"` is only resolved for `dim == 1`.
         channels: Number of feature channels.
         dim: Spatial dimensionality of the feature map. $1$ for packed / graph
             tensors $(N, C)$, $2$ for $(B, C, H, W)$, $3$ for $(B, C, H, W, D)$.
@@ -56,6 +56,9 @@ def create_norm(
 
     Returns:
         The instantiated norm module, or `None` if `norm is None`.
+
+    Raises:
+        ValueError: If `norm` is a name that has no variant for `dim`.
     """
     if norm is None:
         return None
@@ -86,11 +89,14 @@ def create_norm(
             return nn.GroupNorm(num_channels=channels, **norm_kwargs)
 
         if key in {"layer_norm", "layernorm", "ln"}:
-            return nn.LayerNorm(channels, **norm_kwargs)
+            raise ValueError(
+                f"{norm!r} is not supported for dim={dim}: `nn.LayerNorm` normalizes the last axis, not the channel "
+                "axis of a channel-first feature map. Pass a class / callable instead."
+            )
 
         raise ValueError(
             f"Unknown norm string {norm!r} for dim={dim}. Use 'batch_norm', 'instance_norm', "
-            "'group_norm', 'layer_norm', or pass a class / callable."
+            "'group_norm', or pass a class / callable."
         )
 
     return norm(channels, **norm_kwargs)
