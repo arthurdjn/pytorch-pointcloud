@@ -212,6 +212,15 @@ def test_load_state_dict_missing_keys_raise_by_default() -> None:
         load_state_dict(model, {}, source="empty.ckpt")
 
 
+@pytest.mark.parametrize("strict", [pytest.param(True, id="strict"), pytest.param(False, id="non-strict")])
+def test_load_state_dict_checkpoint_sharing_no_key_raises(strict: bool) -> None:
+    model = nn.Linear(3, 4)
+    checkpoint = {f"net.{key}": value for key, value in nn.Linear(3, 4).state_dict().items()}
+
+    with pytest.raises(RuntimeError, match="shares no key with the model"):
+        load_state_dict(model, checkpoint, source="wrapped.ckpt", strict=strict)
+
+
 def test_load_state_dict_strict_false_warm_starts_from_partial_checkpoint() -> None:
     """A backbone-only checkpoint loads its keys and keeps the head's fresh initialization."""
     backbone = nn.Linear(3, 4)
@@ -297,12 +306,13 @@ def test_read_state_dict_unwraps_model_state_dict(tmp_path: Path) -> None:
     assert list(result.keys()) == ["lin.weight"]
 
 
-def test_read_state_dict_lightning_checkpoint_without_model_prefix_raises(tmp_path: Path) -> None:
+def test_read_state_dict_lightning_checkpoint_without_model_prefix_keeps_every_key(tmp_path: Path) -> None:
     path = tmp_path / "lit.ckpt"
     torch.save({"pytorch-lightning_version": "2.0", "state_dict": {"net.lin.weight": torch.zeros(2, 2)}}, path)
 
-    with pytest.raises(ValueError, match="no 'model.'-prefixed keys"):
-        read_state_dict(path)
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["net.lin.weight"]
 
 
 def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path) -> None:
