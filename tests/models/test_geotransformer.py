@@ -8,6 +8,7 @@ from torch_pointcloud.layers import sinusoidal_embedding
 from torch_pointcloud.losses import GeoTransformerLoss
 from torch_pointcloud.models import create_model
 from torch_pointcloud.models.geotransformer import (
+    GeometricAttention,
     GeometricStructureEmbedding,
     GeometricTransformer,
     GeoTransformerOutput,
@@ -147,6 +148,27 @@ def test_geometric_transformer_padded_sets_match_single_sets() -> None:
             src_alone, ref_alone = transformer(*sets[i])
             assert torch.allclose(src_feats[i, :n], src_alone[0], atol=1e-3)
             assert torch.allclose(ref_feats[i, :m], ref_alone[0], atol=1e-3)
+
+
+def test_geometric_attention_ignores_masked_keys() -> None:
+    torch.manual_seed(0)
+    attention = GeometricAttention(16, 4, relative_pos=True)
+    query, key, pos_embed = torch.randn(2, 5, 16), torch.randn(2, 7, 16), torch.randn(2, 5, 7, 16)
+    key_mask = torch.ones(2, 7, dtype=torch.bool)
+    key_mask[:, 4:] = False
+    out = attention(query, key, key, pos_embed=pos_embed, key_mask=key_mask)
+    expected = attention(query, key[:, :4], key[:, :4], pos_embed=pos_embed[:, :, :4])
+    assert out.shape == (2, 5, 16)
+    assert torch.allclose(out, expected, atol=1e-6)
+    assert not torch.allclose(out, attention(query, key, key, pos_embed=pos_embed), atol=1e-6)
+
+
+def test_geometric_attention_rejects_invalid_inputs() -> None:
+    with pytest.raises(ValueError, match="multiple of `num_heads`"):
+        GeometricAttention(10, 4)
+    tokens = torch.randn(1, 3, 16)
+    with pytest.raises(ValueError, match="pos_embed"):
+        GeometricAttention(16, 4, relative_pos=True)(tokens, tokens, tokens)
 
 
 def test_geometric_transformer_runs_on_a_single_superpoint() -> None:

@@ -482,6 +482,30 @@ def test_random_pair_rotate_keeps_the_pair_and_its_normals_aligned(seed: int) ->
     assert torch.allclose(out["normal"] @ out["transform"][:3, :3].T, out["ref_normal"], atol=1e-5)
 
 
+@pytest.mark.parametrize(
+    "rotate_ref",
+    [
+        pytest.param(False, id="source"),
+        pytest.param(True, id="reference"),
+    ],
+)
+def test_rotate_pair_transform_follows_the_rotated_cloud(rotate_ref: bool) -> None:
+    pos = torch.rand(20, 3)
+    transform = torch.eye(4)
+    transform[:3, :3] = F.rotation_matrix(0.3, axis=0)
+    transform[:3, 3] = torch.tensor([1.0, 2.0, 3.0])
+    ref_pos = transform_points(pos, transform)
+    rotation = F.rotation_matrix(math.pi / 3, axis=2)
+
+    out = F.rotate_pair_transform(transform, rotation, rotate_ref=rotate_ref)
+    if rotate_ref:
+        ref_pos = F.rotate_vectors(ref_pos, rotation)
+    else:
+        pos = F.rotate_vectors(pos, rotation)
+    assert not torch.allclose(out, transform)
+    assert torch.allclose(transform_points(pos, out), ref_pos, atol=1e-5)
+
+
 def test_random_pair_rotate_requires_the_transform() -> None:
     data = {"pos": torch.rand(5, 3), "normal": torch.rand(5, 3), "ref_pos": torch.rand(5, 3)}
     with pytest.raises(KeyError, match="transform"):

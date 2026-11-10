@@ -152,6 +152,8 @@ def test_mutual_topk_correspondences_keeps_mutual_entries_above_threshold() -> N
     assert not mutual_topk_correspondences(scores, k=1, threshold=0.95).any()
     masked = mutual_topk_correspondences(scores, k=2, threshold=0.05, row_mask=torch.tensor([[True, False, True]]))
     assert not masked[0, 1].any()
+    masked = mutual_topk_correspondences(scores, k=2, threshold=0.05, col_mask=torch.tensor([[False, True, True]]))
+    assert not masked[0, :, 0].any() and masked[0, 2, 1]
     assert mutual_topk_correspondences(scores, k=10, threshold=0.0).shape == (1, 3, 3)
 
 
