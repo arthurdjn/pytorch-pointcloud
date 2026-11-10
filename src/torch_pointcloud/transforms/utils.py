@@ -50,13 +50,14 @@ class SetValue(DictTransform):
 
     Args:
         keys: The keys to set.
-        values: The values to set. Either a single value broadcast to every key,
-            or a sequence of values the same length as `keys`.
+        values: The values to set. Either a single value stored under every key,
+            or a list or tuple with one value per key (as long as `keys`).
     """
 
     def __init__(self, keys: KeyCollection, values: Any) -> None:
         super().__init__(keys, allow_missing_keys=False)
-        self.values = ensure_tuple_size(values, len(self.keys))
+        per_key = isinstance(values, (list, tuple)) and len(values) == len(self.keys)
+        self.values = tuple(values) if per_key else (values,) * len(self.keys)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
@@ -173,7 +174,7 @@ def relabel(
         Remapped tensor with the same shape and dtype as `labels`.
 
     Raises:
-        ValueError: If `mapping` is empty.
+        ValueError: If `mapping` is empty, or if `default` or a target label does not fit the dtype of `labels`.
     """
     if isinstance(mapping, dict):
         table: Dict[int, int] = {int(k): int(v) for k, v in mapping.items()}
@@ -181,6 +182,15 @@ def relabel(
         table = {int(v): i for i, v in enumerate(mapping)}
     if not table:
         raise ValueError("relabel requires at least one source value in `mapping`.")
+
+    if not labels.is_floating_point() and labels.dtype != torch.bool:
+        info = torch.iinfo(labels.dtype)
+        overflow = sorted({value for value in (default, *table.values()) if not info.min <= value <= info.max})
+        if overflow:
+            raise ValueError(
+                f"relabel cannot store {overflow[:5]} in {labels.dtype} labels (range [{info.min}, {info.max}]); "
+                "cast the labels to a wider dtype first."
+            )
 
     sorted_sources = sorted(table.keys())
     src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)
@@ -364,7 +374,18 @@ class OnesLike(DictTransform):
 
     Args:
         keys: Reference keys used to determine tensor shape.
-        dst_keys: Keys under which the ones tensors are stored.
+        memory_format: Memory format of the ones tensors, one value or one per key. `None` (the default) keeps
+            the format of the reference tensor.
+        dtype: Data type of the ones tensors, one value or one per key. `None` (the default) keeps the dtype of
+            the reference tensor.
+        layout: Layout of the ones tensors, one value or one per key. `None` (the default) keeps the layout of
+            the reference tensor.
+        device: Device of the ones tensors, one value or one per key. `None` (the default) keeps the device of
+            the reference tensor.
+        pin_memory: Whether the ones tensors are allocated in pinned memory, one value or one per key.
+        requires_grad: Whether autograd records operations on the ones tensors, one value or one per key.
+        dst_keys: Keys under which the ones tensors are stored. Defaults to `keys`.
+        allow_missing_keys: If `True`, silently skip absent keys.
     """
 
     def __init__(
@@ -503,7 +524,7 @@ class OneHot(DictTransform):
 
     Shape:
         Input class tensor of shape $(N,)$ becomes $(N, C)$. A scalar input
-        becomes shape $(C,)$, which after batched collate stacks to $(B, C)$.
+        becomes shape $(1, C)$, which collation concatenates to $(B, C)$.
     """
 
     def __init__(
@@ -860,6 +881,7 @@ def absolute(x: Tensor, inplace: bool = False) -> Tensor:
 
     Args:
         x: The input tensor.
+        inplace: If `True`, overwrite `x` with its absolute value and return it.
 
     Returns:
         The absolute tensor.

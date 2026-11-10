@@ -35,6 +35,14 @@ All notable changes to this project are documented in this file. The format is b
 - `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
 - Fixed `safe_divide` returning float32 for float16 inputs.
 - Added the changelog convention and the `state_dict` migration step to `CONTRIBUTING.md`.
+- Fixed `Voxelize`, `voxelize` and `SphereCrop` computing on float32 copies of float64 positions.
+- Fixed `rotate_vectors` failing on zero rows, which broke `RandomRotate` on an empty cloud and `PolarMix` when the second scan has no point of `instance_classes`.
+- Fixed `ScanNet`, `ScanNet20` and `ScanNet200` returning `segment` and `instance` as int32; they are int64 now.
+- `KITTI(fov=True)` raises a `FileNotFoundError` for a frame without its `image_2` image; the frame was cached uncropped.
+- `relabel` raises a `ValueError` when `default` or a target label does not fit the dtype of the labels; the value wrapped silently.
+- Fixed `flip_boxes(boxes, axis=2)` failing on boxes with a velocity.
+- Fixed `Voxelize` returning float positions for an empty cloud with `pos_reduce="grid"`, and failing when `keys` lists `pos_key`.
+- Fixed `SetValue` converting a tensor value to a list or rejecting it; only a list or tuple as long as `keys` is spread over the keys.
 - Fixed `MetricCallback` failing at the second epoch with `BoxMeanAveragePrecision`, `BoxAveragePrecision` and `InstanceAveragePrecision`.
 - `confusion_matrix` raises on predictions or targets outside `[0, num_classes)` instead of counting them in another cell.
 - Fixed `accuracy` and `intersection_over_union` returning NaN instead of `zero_division` with `average="macro"` when every class is ignored.
