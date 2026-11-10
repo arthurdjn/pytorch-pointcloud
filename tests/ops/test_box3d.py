@@ -180,6 +180,34 @@ def test_count_points_in_boxes_rejects_lone_batch_argument() -> None:
 
 
 @pytest.mark.parametrize(
+    "size",
+    [
+        pytest.param(0.0, id="zero"),
+        pytest.param(1e-7, id="below_float32_resolution"),
+        pytest.param(1e-3, id="small"),
+    ],
+)
+def test_box3d_overlap_tiny_footprint_inside_a_box_matches_boxes_iou3d(size: float) -> None:
+    box = _boxes([[0.3, 0.2, 0, size, size, 2, 0.4]])
+    other = _boxes([[0.0, 0, 0, 2, 2, 2, 0]])
+    inter, iou = box3d_overlap(box_corners(box), box_corners(other))
+    assert inter.item() == pytest.approx(size * size * 2, abs=1e-9)
+    assert torch.allclose(iou, boxes_iou3d(box, other), atol=1e-7)
+    assert iou.item() <= 1.0
+
+
+def test_box3d_overlap_matches_boxes_iou3d_on_random_boxes() -> None:
+    generator = torch.Generator().manual_seed(0)
+    center = torch.rand(200, 3, generator=generator) * torch.tensor([8.0, 8.0, 2.0])
+    size = torch.rand(200, 3, generator=generator) * 4 + 0.1
+    heading = torch.rand(200, 1, generator=generator) * 2 * math.pi - math.pi
+    boxes = torch.cat([center, size, heading], dim=1)
+    a, b = boxes[:100], boxes[100:]
+    iou = box3d_overlap(box_corners(a), box_corners(b))[1]
+    assert torch.allclose(iou, boxes_iou3d(a, b), atol=1e-5)
+
+
+@pytest.mark.parametrize(
     "heading",
     [
         pytest.param(0.0, id="axis-aligned"),

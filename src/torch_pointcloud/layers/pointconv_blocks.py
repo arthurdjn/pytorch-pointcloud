@@ -165,10 +165,6 @@ class PointConvDensity(MessagePassing):
         return f"{self.__class__.__name__}({self.extra_repr()})"
 
 
-# ! IMPORTANT: In original PointConv, the density net has a sigmoid activation function in the last layer,
-# ! but is never called due to a bug in the code. For reproducibility, this behavior is replicated here.
-
-
 class PointConvSetAbstraction(nn.Module):
     r"""PointConv set-abstraction block: optional downsampling, $k$-NN grouping, and a
     weight-net continuous convolution.
@@ -223,7 +219,8 @@ class PointConvSetAbstraction(nn.Module):
         x_dst, pos_dst, batch_dst = x, pos, batch
         if self.downsample is not None:
             idx = self.downsample(pos, batch)
-            x_dst, pos_dst, batch_dst = x[idx], pos[idx], batch[idx]
+            x_dst = x[idx] if x is not None else None
+            pos_dst, batch_dst = pos[idx], batch[idx]
 
         row, col = knn(pos, pos_dst, k=self.num_neighbors, batch_x=batch, batch_y=batch_dst)
         edge_index = torch.stack([col, row], dim=0)
@@ -298,7 +295,8 @@ class PointConvDensitySetAbstraction(nn.Module):
         x_dst, pos_dst, batch_dst, density_dst = x, pos, batch, density
         if self.downsample is not None:
             idx = self.downsample(pos, batch)
-            x_dst, pos_dst, batch_dst = x[idx], pos[idx], batch[idx]
+            x_dst = x[idx] if x is not None else None
+            pos_dst, batch_dst = pos[idx], batch[idx]
             density_dst = density[idx]
 
         row, col = knn(pos, pos_dst, k=self.num_neighbors, batch_x=batch, batch_y=batch_dst)

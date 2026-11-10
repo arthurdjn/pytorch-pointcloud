@@ -108,7 +108,7 @@ class PointNet2SetAbstraction(nn.Module):
         in_channels: Number of input feature channels.
         channels: Per-scale MLP channel sizes; a nested sequence enables Multi-Scale Grouping.
         ratio: Fractional farthest-point-sampling rate. Mutually exclusive with `num_points`.
-        num_points: Absolute number of centroids to sample (e.g. VoteNet's fixed $2048, 1024, \ldots$).
+        num_points: Absolute number of centroids to sample (e.g. $2048, 1024, \ldots$).
             Exactly one of `ratio` / `num_points` must be given. A sample with fewer than `num_points`
             points yields repeated centroids (FPS samples with replacement to keep shapes stable).
         radii: Ball-query radius per scale.
@@ -119,8 +119,7 @@ class PointNet2SetAbstraction(nn.Module):
         use_pos: Concatenate the relative position to the grouped features.
         normalize_pos: Divide the relative position by the ball-query radius.
         pos_first: Concatenate the relative position *before* the grouped features
-            (`cat([rel_pos, x])`) instead of after. VoteNet and the reference PointNet++ kernels use
-            this order; keeping it a flag lets weights convert as a pure rename without a column swap.
+            (`cat([rel_pos, x])`) instead of after. Weights trained with this order load without a column swap.
         aggr: Aggregation of the messages of each centroid.
         sort_neighbors: Keep the smallest source indices when a ball holds more than `num_neighbors` points, as the
             reference `query_ball_point` does.
