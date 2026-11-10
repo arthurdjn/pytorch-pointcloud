@@ -52,6 +52,12 @@ def test_cosine_similarity_head_ignores_condition_without_conditions() -> None:
     assert torch.equal(head(x, condition="A"), head(x))
 
 
+def test_cosine_similarity_head_scores_an_empty_cloud() -> None:
+    head = CosineSimilarityHead(16, 8, num_classes=(5, 3), scale=1.0, conditions=["A", "B"])
+    logits = head(torch.empty(0, 16), condition="B")
+    assert logits.shape == (0, 3)
+
+
 def test_cosine_similarity_head_trains_only_the_projection() -> None:
     head = CosineSimilarityHead(16, 8, num_classes=5, scale=1.0)
     head(torch.randn(4, 16)).sum().backward()
@@ -149,6 +155,12 @@ def test_conditional_linear_condition_selects_its_layer() -> None:
     x = torch.randn(32, 16)
     assert head(x, condition="A").shape == (32, 5)
     assert torch.equal(head(x, condition="B"), head.layers[1](x))
+
+
+def test_conditional_linear_scores_an_empty_cloud() -> None:
+    head = ConditionalLinear(16, num_classes=(5, 3), conditions=["A", "B"])
+    logits = head(torch.empty(0, 16), condition="B")
+    assert logits.shape == (0, 3)
 
 
 def test_conditional_linear_keys_follow_the_conditions() -> None:
