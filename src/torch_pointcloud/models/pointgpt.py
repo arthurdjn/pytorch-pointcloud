@@ -88,8 +88,8 @@ class PositionEmbeddingSine(positional_encoding.PositionEmbeddingSine):
     ) -> None:
         warnings.warn(
             "`models.pointgpt.PositionEmbeddingSine(spatial_dim, embed_dim, temperature, scale)` is deprecated since "
-            "0.0.20 and will be removed in 0.0.21; use `layers.PositionEmbeddingSine(embed_dim, spatial_dim, "
-            "temperature, scale=2 * math.pi * scale)`.",
+            "0.0.20 and will be removed in a future release; use `layers.PositionEmbeddingSine(embed_dim, "
+            "spatial_dim, temperature, scale=2 * math.pi * scale)`.",
             FutureWarning,
             stacklevel=2,
         )
