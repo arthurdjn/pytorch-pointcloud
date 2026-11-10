@@ -48,7 +48,7 @@ def box_corners(boxes: Tensor) -> Tensor:
 
 
 def decode_box_residuals(encodings: Tensor, anchors: Tensor, *, angle_by_sincos: bool = False) -> Tensor:
-    r"""Decode predicted box residuals against anchors (OpenPCDet's `ResidualCoder`).
+    r"""Decode predicted box residuals against anchors (inverse of `encode_box_residuals`).
 
     Residuals encode the center offset normalized by the anchor base diagonal, log-size ratios, and an
     angle term: a plain delta by default, or a $(\cos, \sin)$ pair when `angle_by_sincos` (one extra
@@ -193,6 +193,18 @@ def angle_to_class(angle: Tensor, num_heading_bins: int) -> Tuple[Tensor, Tensor
 
     Returns:
         A tuple of the per-angle class indices (long, shape $(K,)$) and residual angles (shape $(K,)$).
+
+    Shape:
+        - angle: $(K,)$
+        - output: $(K,)$, $(K,)$
+
+    Example:
+        ```pycon
+        >>> cls, residual = angle_to_class(torch.tensor([0.0, 1.0, 3.5]), num_heading_bins=4)
+        >>> cls.tolist(), [round(r, 4) for r in residual.tolist()]
+        ([0, 1, 2], [0.0, -0.5708, 0.3584])
+
+        ```
     """
     two_pi = 2 * math.pi
     angle_per_class = two_pi / num_heading_bins
@@ -217,6 +229,19 @@ def class_to_angle(heading_class: Tensor, heading_residual: Tensor, num_heading_
 
     Returns:
         The recovered heading angles of shape $(K,)$.
+
+    Shape:
+        - heading_class: $(K,)$
+        - heading_residual: $(K,)$
+        - output: $(K,)$
+
+    Example:
+        ```pycon
+        >>> heading_class, heading_residual = torch.tensor([0, 1, 2]), torch.tensor([0.0, -0.5708, 0.3584])
+        >>> [round(a, 4) for a in class_to_angle(heading_class, heading_residual, num_heading_bins=4).tolist()]
+        [0.0, 1.0, 3.5]
+
+        ```
     """
     if num_heading_bins == 1:
         return torch.zeros_like(heading_residual)
@@ -305,12 +330,48 @@ def class_to_size(size_class: Tensor, size_residual: Tensor, mean_sizes: Tensor)
 
     Returns:
         The recovered full edge lengths of shape $(K, 3)$.
+
+    Shape:
+        - size_class: $(K,)$
+        - size_residual: $(K, 3)$
+        - mean_sizes: $(C, 3)$
+        - output: $(K, 3)$
+
+    Example:
+        ```pycon
+        >>> mean_sizes = torch.tensor([[4.0, 2.0, 1.5], [0.8, 0.6, 1.7]])
+        >>> size_residual = torch.tensor([[0.1, 0.0, -0.1], [0.0, 0.2, 0.0]])
+        >>> class_to_size(torch.tensor([1, 0]), size_residual, mean_sizes)
+        tensor([[0.9000, 0.6000, 1.6000],
+                [4.0000, 2.2000, 1.5000]])
+
+        ```
     """
     return mean_sizes.to(size_residual)[size_class.long()] + size_residual
 
 
 def limit_period(val: Tensor, offset: float = 0.5, period: float = math.pi) -> Tensor:
-    r"""Wrap an angle to $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$."""
+    r"""Wrap angles into the interval $[-\text{offset} \cdot \text{period}, (1 - \text{offset}) \cdot \text{period})$.
+
+    Args:
+        val: Angles in radians, any shape.
+        offset: Fraction of the period that lies below zero: $0.5$ centers the interval on zero, $0$ starts it there.
+        period: Length of the interval.
+
+    Returns:
+        The wrapped angles, shaped like `val`.
+
+    Shape:
+        - val: $(*)$
+        - output: $(*)$
+
+    Example:
+        ```pycon
+        >>> [round(a, 4) for a in limit_period(torch.tensor([0.5, 2.0, -2.0, 3.5])).tolist()]
+        [0.5, -1.1416, 1.1416, 0.3584]
+
+        ```
+    """
     return val - torch.floor(val / period + offset) * period
 
 
@@ -328,83 +389,18 @@ def _sort_ring_ccw(ring: Tensor) -> Tensor:
 
 def _ring_area(ring: Tensor) -> Tensor:
     r"""Shoelace area of counter-clockwise rings of shape $(\ldots, V, 2)$."""
+    # About the centroid the products stay of the order of the area, so a ring far from the origin loses no digits.
+    ring = ring - ring.mean(dim=-2, keepdim=True)
     nxt = ring.roll(-1, dims=-2)
     return 0.5 * (ring[..., 0] * nxt[..., 1] - ring[..., 1] * nxt[..., 0]).sum(dim=-1).abs()
-
-
-def _convex_quad_intersection_area(quads_a: Tensor, quads_b: Tensor, eps: float = 1e-6) -> Tensor:
-    """Pairwise intersection area of counter-clockwise convex quads $(M, 4, 2)$ and $(N, 4, 2)$.
-
-    The polygon arithmetic runs only on the pairs whose axis-aligned bounds meet: the other pairs have no
-    intersection, so their area is zero without any tolerance.
-    """
-    m, n = quads_a.shape[0], quads_b.shape[0]
-    area = quads_a.new_zeros(m, n)
-    if m == 0 or n == 0:
-        return area
-
-    lo_a, hi_a = quads_a.amin(dim=1), quads_a.amax(dim=1)
-    lo_b, hi_b = quads_b.amin(dim=1), quads_b.amax(dim=1)
-    meet = (lo_a[:, None] <= hi_b[None, :]) & (lo_b[None, :] <= hi_a[:, None])
-    rows, cols = meet.all(dim=-1).nonzero(as_tuple=True)
-    if rows.numel() > 0:
-        area[rows, cols] = _quad_rings_intersection_area(quads_a[rows], quads_b[cols], eps)
-
-    return area
-
-
-def _quad_rings_intersection_area(a: Tensor, b: Tensor, eps: float = 1e-6) -> Tensor:
-    r"""Intersection area of counter-clockwise convex quads paired over broadcast leading dims, $(\ldots, 4, 2)$."""
-    lead = torch.broadcast_shapes(a.shape[:-2], b.shape[:-2])
-    a = a.expand(*lead, 4, 2)
-    b = b.expand(*lead, 4, 2)
-    edge_a, edge_b = a.roll(-1, dims=-2) - a, b.roll(-1, dims=-2) - b
-
-    # Candidate vertices of the intersection polygon: each quad's corners inside the other quad
-    # (cross-product half-plane test against every CCW edge) plus all pairwise edge crossings.
-    rel_ab = a.unsqueeze(-2) - b.unsqueeze(-3)  # (..., 4 verts, 4 edges, 2)
-    cross_ab = edge_b.unsqueeze(-3)[..., 0] * rel_ab[..., 1] - edge_b.unsqueeze(-3)[..., 1] * rel_ab[..., 0]
-    a_in_b = (cross_ab >= -eps).all(dim=-1)  # (..., 4)
-    rel_ba = b.unsqueeze(-2) - a.unsqueeze(-3)
-    cross_ba = edge_a.unsqueeze(-3)[..., 0] * rel_ba[..., 1] - edge_a.unsqueeze(-3)[..., 1] * rel_ba[..., 0]
-    b_in_a = (cross_ba >= -eps).all(dim=-1)  # (..., 4)
-
-    p, r = a.unsqueeze(-2), edge_a.unsqueeze(-2)  # segments of A vs segments of B: (..., 4, 1, 2)
-    q, s = b.unsqueeze(-3), edge_b.unsqueeze(-3)  # (..., 1, 4, 2)
-    denom = r[..., 0] * s[..., 1] - r[..., 1] * s[..., 0]  # (..., 4, 4)
-    qp = q - p
-    safe = denom.where(denom.abs() > eps, torch.ones_like(denom))
-    t = (qp[..., 0] * s[..., 1] - qp[..., 1] * s[..., 0]) / safe
-    u = (qp[..., 0] * r[..., 1] - qp[..., 1] * r[..., 0]) / safe
-    crossing = (denom.abs() > eps) & (t >= -eps) & (t <= 1 + eps) & (u >= -eps) & (u <= 1 + eps)
-    crossing_points = p + t.unsqueeze(-1) * r  # (..., 4, 4, 2)
-
-    candidates = torch.cat([a, b, crossing_points.reshape(*lead, 16, 2)], dim=-2)  # (..., 24, 2)
-    valid = torch.cat([a_in_b, b_in_a, crossing.reshape(*lead, 16)], dim=-1)  # (..., 24)
-    count = valid.sum(dim=-1)
-
-    # Sort the valid candidates counter-clockwise about their centroid (invalid ones to the end), then
-    # take the shoelace sum over the first `count` entries with a per-pair wrap-around.
-    centroid = (candidates * valid[..., None]).sum(dim=-2) / count.clamp(min=1)[..., None]
-    rel = candidates - centroid.unsqueeze(-2)
-    angles = torch.atan2(rel[..., 1], rel[..., 0]).where(valid, candidates.new_tensor(math.inf))
-    order = angles.argsort(dim=-1)
-    ring = candidates.gather(-2, order[..., None].expand(*lead, 24, 2))
-    index = torch.arange(24, device=candidates.device).expand(*lead, 24)
-    wrapped = torch.where(index + 1 < count[..., None], index + 1, torch.zeros_like(index))
-    nxt = ring.gather(-2, wrapped[..., None].expand(*lead, 24, 2))
-    terms = (ring[..., 0] * nxt[..., 1] - ring[..., 1] * nxt[..., 0]) * (index < count[..., None])
-
-    return torch.where(count >= 3, 0.5 * terms.sum(dim=-1).abs(), terms.new_zeros(lead))
 
 
 def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     r"""Pairwise 3D intersection volume and IoU of two sets of boxes given as corners.
 
-    Signature-compatible with `pytorch3d.ops.box3d_overlap`, so the exact CUDA implementation can be
-    swapped in behind this interface. Boxes are assumed gravity-aligned (as produced by `box_corners`):
-    the bird's-eye polygons are intersected exactly (corner containment plus edge crossings) and scaled
-    by the vertical overlap, entirely on the input device.
+    Boxes are assumed gravity-aligned (as produced by `box_corners`): the bird's-eye polygons are intersected
+    exactly (the edges of each one clipped to the other) and scaled by the vertical overlap, entirely on the input
+    device. A box with an empty footprint overlaps nothing.
 
     Args:
         boxes1: Corners of the first set, shape $(M, 8, 3)$ (see `box_corners`).
@@ -428,7 +424,17 @@ def box3d_overlap(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     top1, bot1 = boxes1[..., 2].amax(dim=-1), boxes1[..., 2].amin(dim=-1)
     top2, bot2 = boxes2[..., 2].amax(dim=-1), boxes2[..., 2].amin(dim=-1)
 
-    bev = _convex_quad_intersection_area(ring1, ring2)
+    # Two quads whose axis-aligned bounds do not meet have no intersection: the clipping runs on the other pairs. The
+    # intersection never exceeds the smaller footprint, so the IoU of a degenerate box cannot exceed 1.
+    bev = boxes1.new_zeros(m, n)
+    lo1, hi1 = ring1.amin(dim=1), ring1.amax(dim=1)
+    lo2, hi2 = ring2.amin(dim=1), ring2.amax(dim=1)
+    meet = (lo1[:, None] <= hi2[None, :]) & (lo2[None, :] <= hi1[:, None])
+    rows, cols = meet.all(dim=-1).nonzero(as_tuple=True)
+    if rows.numel() > 0:
+        clipped = _quad_overlap(ring1[rows], ring2[cols])
+        bev[rows, cols] = torch.minimum(clipped, torch.minimum(area1[rows], area2[cols]))
+
     height = (torch.minimum(top1[:, None], top2[None, :]) - torch.maximum(bot1[:, None], bot2[None, :])).clamp_min(0)
     inter = bev * height
     vol1 = area1 * (top1 - bot1)
@@ -566,12 +572,12 @@ def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) ->
         aligned: With `True`, `boxes_a` and `boxes_b` pair up row by row ($N = M$) and the result is $(N,)$.
 
     Returns:
-        Pairwise BEV IoU in $[0, 1]$, shape $(N, M)$.
+        Pairwise BEV IoU in $[0, 1]$, shape $(N, M)$, or the IoU of every pair of rows, shape $(N,)$, with `aligned`.
 
     Shape:
         - boxes_a: $(N, 7)$
         - boxes_b: $(M, 7)$
-        - output: $(N, M)$
+        - output: $(N, M)$, or $(N,)$ with `aligned`
 
     Example:
         ```pycon
@@ -652,12 +658,12 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
         aligned: With `True`, `boxes_a` and `boxes_b` pair up row by row ($N = M$) and the result is $(N,)$.
 
     Returns:
-        Pairwise 3D IoU in $[0, 1]$, shape $(N, M)$.
+        Pairwise 3D IoU in $[0, 1]$, shape $(N, M)$, or the IoU of every pair of rows, shape $(N,)$, with `aligned`.
 
     Shape:
         - boxes_a: $(N, 7)$
         - boxes_b: $(M, 7)$
-        - output: $(N, M)$
+        - output: $(N, M)$, or $(N,)$ with `aligned`
 
     Example:
         ```pycon

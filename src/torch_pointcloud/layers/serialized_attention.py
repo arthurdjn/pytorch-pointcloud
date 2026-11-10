@@ -300,7 +300,7 @@ class SerializedAttention(nn.Module):
 
 
 class SerializedAttentionRPE(nn.Module):
-    r"""Serialized attention with the relative position bias from PT-V3.
+    r"""Serialized attention with a learned relative position bias.
 
     Adds a learned per-head bias indexed by the integer voxel-grid offset
     between query and key inside each patch. Flash Attention does not support
@@ -397,8 +397,8 @@ class SerializedAttentionRoPE(nn.Module):
     :arxiv: [Utonia](https://arxiv.org/abs/2603.03283).
 
     Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
-    position of each token. Flash Attention is supported and attends in bfloat16
-    (matching upstream Utonia's reference implementation), or in `qkv_dtype`.
+    position of each token. Flash Attention is supported and attends in bfloat16,
+    or in `qkv_dtype`.
 
     Args:
         channels: Feature width $C$, divisible by `num_heads`.

@@ -6,7 +6,7 @@ from torch import Tensor
 
 from torch_pointcloud.layers.kpconv_blocks import KPConv
 
-__all__ = ["KPConvDeformRegularizer"]
+__all__ = ["KPConvDeformRegularizer", "kpconv_deform_regularizer"]
 
 
 def kpconv_deform_regularizer(module: nn.Module, fitting_power: float = 1.0, repulse_extent: float = 1.0) -> Tensor:
