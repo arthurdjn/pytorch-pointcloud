@@ -1,6 +1,6 @@
 """Mini-PointNet patch embedding turning local point groups into tokens."""
 
-from typing import Any, Callable, Dict, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -28,6 +28,8 @@ class PointPatchEmbed(nn.Module):
         act_kwargs: Extra arguments for the activation.
         norm: Normalization of the MLPs.
         norm_kwargs: Extra arguments for the normalization.
+        bias: Whether the linear layers followed by a normalization carry a bias; the last layer of each MLP always
+            does.
 
     Shape:
         - Input: $(B, G, M, C)$ where $B$ is the batch size, $G$ the number of groups, $M$ the group size, and $C$ = `in_channels`.
@@ -54,6 +56,7 @@ class PointPatchEmbed(nn.Module):
         act_kwargs: Optional[Dict[str, Any]] = None,
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
+        bias: bool = True,
     ) -> None:
         super().__init__()
         self.embed_dim = embed_dim
@@ -61,8 +64,10 @@ class PointPatchEmbed(nn.Module):
         factory_kwargs: Dict[str, Any] = dict(
             act=act, act_kwargs=act_kwargs, norm=norm, norm_kwargs=norm_kwargs, plain_last=True
         )
-        self.local_mlp = MLP([in_channels, *local_channels], **factory_kwargs)
-        self.global_mlp = MLP([2 * self.mid_channels, *global_channels, embed_dim], **factory_kwargs)
+        local_bias: List[bool] = [bias] * (len(local_channels) - 1) + [True]
+        global_bias: List[bool] = [bias] * len(global_channels) + [True]
+        self.local_mlp = MLP([in_channels, *local_channels], bias=local_bias, **factory_kwargs)
+        self.global_mlp = MLP([2 * self.mid_channels, *global_channels, embed_dim], bias=global_bias, **factory_kwargs)
 
     def forward(self, neighborhood: Tensor) -> Tensor:
         B, G, M, C = neighborhood.shape
