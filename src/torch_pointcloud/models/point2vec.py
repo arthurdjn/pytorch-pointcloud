@@ -391,9 +391,8 @@ class Point2VecPretraining(PretrainingModel):
     A student encodes the visible group tokens, and a shallow decoder fills learnable mask tokens at the positions of
     the masked groups before a linear regressor predicts their teacher representation. The teacher, an exponential
     moving average of the student blocks kept in `teacher` and moved by `update_teacher` after each optimizer step,
-    encodes every token without gradient; its target
-    is the layer-normalized mean of its layer-normalized hidden states at `target_layers`. `forward` returns the
-    predictions and targets of the masked tokens.
+    encodes every token without gradient; its target is the layer-normalized mean of its layer-normalized hidden states
+    at `target_layers`. `forward` returns the predictions and targets of the masked tokens.
 
     Args:
         in_channels: Number of input channels (unused beyond coordinates; kept for the registry contract).
@@ -447,8 +446,14 @@ class Point2VecPretraining(PretrainingModel):
         super().__init__(in_channels=in_channels)
         if not 0.0 < mask_ratio < 1.0:
             raise ValueError(f"`mask_ratio` must be in (0, 1), got {mask_ratio}.")
-        if not target_layers or max(target_layers) >= encoder_depth:
-            raise ValueError(f"`target_layers` must index blocks below {encoder_depth}, got {list(target_layers)}.")
+        if (
+            not target_layers
+            or len(set(target_layers)) != len(target_layers)
+            or not all(0 <= layer < encoder_depth for layer in target_layers)
+        ):
+            raise ValueError(
+                f"`target_layers` must be distinct block indices in [0, {encoder_depth}), got {list(target_layers)}."
+            )
 
         self.embed_dim = embed_dim
         self.encoder_depth = encoder_depth
@@ -608,9 +613,8 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
     The $1 \times 1$ convolution weights become linear weights, the first feature-propagation layer swaps its input
     columns from `[coordinates, interpolated]` to the `[interpolated, coordinates]` order of
     `PointNet2FeaturePropagation`, and the encoder's final normalization is dropped for a `Point2VecPartSegmentation`
-    (which normalizes its hidden states without parameters). In a pretraining checkpoint the
-    student becomes the encoder, and the copy of the student and the moving-average counters held by the teacher are
-    dropped.
+    (which normalizes its hidden states without parameters). In a pretraining checkpoint the student becomes the
+    encoder, and the copy of the student and the moving-average counters held by the teacher are dropped.
 
     Args:
         state_dict: State dict keyed as in the released checkpoint file.

@@ -122,7 +122,7 @@ class ACTDiscreteVAE(PretrainingModel):
             norm_kwargs=norm_kwargs,
         )
         self.dgcnn_1 = TokenDGCNN(in_channels=encoder_dims, out_channels=num_tokens)
-        self.codebook = nn.Parameter(torch.zeros(num_tokens, tokens_dims))
+        self.codebook = nn.Parameter(torch.randn(num_tokens, tokens_dims))
         self.image_proj_in = nn.Linear(tokens_dims, image_dim)
         self.image_pos_embed = MLP([3, 128, image_dim], act="gelu", norm=None, plain_last=True)
         self.prompt_token = nn.Parameter(torch.zeros(1, num_prompt_tokens, image_dim))
@@ -177,6 +177,24 @@ class ACTDiscreteVAE(PretrainingModel):
             x = block(x + pos)
         return self.image_proj_out(self.image_norm(x)[:, P:])
 
+    def sample_features(self, logits: Tensor, center: Tensor, temperature: float = 1.0, hard: bool = False) -> Tensor:
+        r"""Sample codebook embeddings from the patch logits and map them to patch features, through the image
+        transformer and the second DGCNN.
+
+        Args:
+            logits: Codebook logits of shape $(B, G, \text{num\_tokens})$.
+            center: Patch centers of shape $(B, G, 3)$.
+            temperature: Temperature of the Gumbel-softmax sampling of the codebook.
+            hard: Sample one codebook entry per patch instead of a soft mixture of them.
+
+        Returns:
+            Patch features of shape $(B, G, \text{decoder\_dims})$.
+        """
+        soft_one_hot = F.gumbel_softmax(logits, tau=temperature, dim=2, hard=hard)
+        sampled = torch.einsum("bgn,nc->bgc", soft_one_hot, self.codebook)
+        features = self.dgcnn_2(self.embed_image(sampled, center), center)
+        return features
+
     def group_features(self, neighborhood: Tensor, center: Tensor, temperature: float = 1.0) -> Tensor:
         r"""Return the patch features of the teacher: hard-sampled codebook entries through the image transformer
         and the second DGCNN.
@@ -190,9 +208,8 @@ class ACTDiscreteVAE(PretrainingModel):
             Patch features of shape $(B, G, \text{decoder\_dims})$.
         """
         logits = self.dgcnn_1(self.encoder(neighborhood), center)
-        soft_one_hot = F.gumbel_softmax(logits, tau=temperature, dim=2, hard=True)
-        sampled = torch.einsum("bgn,nc->bgc", soft_one_hot, self.codebook)
-        return self.dgcnn_2(self.embed_image(sampled, center), center)
+        features = self.sample_features(logits, center, temperature=temperature, hard=True)
+        return features
 
     def forward(
         self,
@@ -204,9 +221,7 @@ class ACTDiscreteVAE(PretrainingModel):
     ) -> Dict[str, Tensor]:
         neighborhood, center = group(pos, batch, self.num_groups, self.group_size, random_start=self.training)
         logits = self.dgcnn_1(self.encoder(neighborhood), center)
-        soft_one_hot = F.gumbel_softmax(logits, tau=temperature, dim=2, hard=hard)
-        sampled = torch.einsum("bgn,nc->bgc", soft_one_hot, self.codebook)
-        feature = self.dgcnn_2(self.embed_image(sampled, center), center)
+        feature = self.sample_features(logits, center, temperature=temperature, hard=hard)
         coarse, fine = self.decoder(feature)
         return {
             "logits": logits,

@@ -3,7 +3,7 @@
 {{ paper("2408.08753") }}
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import Tensor, nn
@@ -12,7 +12,8 @@ from torch_geometric.nn import MLP
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
-from torch_pointcloud.layers import PointPatchEmbed, PositionEmbeddingSine
+from torch_pointcloud.layers import Attention, DropPath, PointPatchEmbed, PositionEmbeddingSine
+from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.utils.data import DataKeys
@@ -207,6 +208,173 @@ class PCPMAEClassification(ClassificationModel):
         return self.forward_head(x)
 
 
+class PCPMAEEncoderBlock(nn.Module):
+    r"""Transformer block over visible and masked tokens, as in :arxiv: [PCP-MAE: Learning to Predict Centers for Point
+    Masked Autoencoders](https://arxiv.org/abs/2408.08753), adapted from
+    :github: [aHapBean/PCP-MAE](https://github.com/aHapBean/PCP-MAE).
+
+    A pre-norm transformer block whose weights are shared by two token groups: the visible tokens attend to each other
+    only, and the masked tokens to every token. Stochastic depth drops the residual branches of the two groups
+    independently.
+
+    Args:
+        dim: Token dimension $C$.
+        num_heads: Number of attention heads.
+        mlp_ratio: Hidden-to-input ratio of the feed-forward MLP.
+        qkv_bias: Whether the attention projection uses a bias.
+        qk_scale: Override for the attention logit scale.
+        dropout: Dropout used in the MLP and the attention output projection.
+        attn_dropout: Dropout applied to the attention weights.
+        drop_path: Stochastic-depth rate of the residual branches.
+        act: Activation of the feed-forward MLP.
+        act_kwargs: Extra arguments for the activation.
+        norm: Normalization applied before each sub-block.
+        norm_kwargs: Extra arguments for the normalization.
+
+    Shape:
+        - Input: visible tokens $(B, V, C)$ and masked tokens $(B, M, C)$.
+        - Output: $(B, V, C)$ and $(B, M, C)$.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models.pcp_mae import PCPMAEEncoderBlock
+
+        block = PCPMAEEncoderBlock(384, num_heads=6, drop_path=0.1)
+        x, y = torch.randn(2, 26, 384), torch.randn(2, 38, 384)
+        x, y = block(x, y)
+        print(x.shape, y.shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = False,
+        qk_scale: Optional[float] = None,
+        dropout: float = 0.0,
+        attn_dropout: float = 0.0,
+        drop_path: float = 0.0,
+        act: Union[str, Callable, None] = "gelu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable] = nn.LayerNorm,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.norm1 = create_norm(norm, dim, **(norm_kwargs or {})) or nn.Identity()
+        self.attn = Attention(
+            dim,
+            num_heads=num_heads,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_dropout=attn_dropout,
+            proj_dropout=dropout,
+        )
+        self.drop_path = DropPath(drop_path)
+        self.norm2 = create_norm(norm, dim, **(norm_kwargs or {})) or nn.Identity()
+        self.mlp = MLP(
+            [dim, int(dim * mlp_ratio), dim],
+            act=act,
+            act_kwargs=act_kwargs,
+            norm=None,
+            dropout=dropout,
+            plain_last=True,
+        )
+
+    def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor]:
+        V, M = x.shape[1], y.shape[1]
+        mask = x.new_zeros(V + M, V + M)
+        mask[:V, V:] = float("-inf")
+
+        out = self.attn(self.norm1(torch.cat([x, y], dim=1)), mask)
+        x, y = x + self.drop_path(out[:, :V]), y + self.drop_path(out[:, V:])
+        out = self.mlp(self.norm2(torch.cat([x, y], dim=1)))
+        x, y = x + self.drop_path(out[:, :V]), y + self.drop_path(out[:, V:])
+        return x, y
+
+
+class PCPMAEEncoder(nn.Module):
+    r"""Transformer encoder of PCP-MAE pretraining over visible and masked tokens, as in :arxiv: [PCP-MAE: Learning
+    to Predict Centers for Point Masked Autoencoders](https://arxiv.org/abs/2408.08753), adapted from
+    :github: [aHapBean/PCP-MAE](https://github.com/aHapBean/PCP-MAE).
+
+    A stack of `PCPMAEEncoderBlock`: the visible tokens attend to each other only, and the masked tokens to every
+    token. Each group adds its own positional embedding before every block.
+
+    Args:
+        embed_dim: Token channels.
+        depth: Number of transformer blocks.
+        num_heads: Number of attention heads.
+        mlp_ratio: Hidden-channel expansion ratio of the MLP.
+        qkv_bias: Whether to use a bias term in the query / key / value projection.
+        dropout: Dropout rate inside the blocks.
+        attn_dropout: Dropout rate applied to the attention matrix.
+        drop_path: Stochastic-depth drop-path rate(s). A float applies to every block.
+        act: Activation function of the MLP.
+        act_kwargs: Extra arguments for the activation.
+        norm: Normalization applied before attention and before the MLP.
+        norm_kwargs: Extra arguments for the normalization.
+
+    Shape:
+        - Input: visible tokens and their positional embedding $(B, V, C)$, masked tokens and theirs $(B, M, C)$.
+        - Output: the encoded visible $(B, V, C)$ and masked $(B, M, C)$ tokens.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.models.pcp_mae import PCPMAEEncoder
+
+        encoder = PCPMAEEncoder(embed_dim=96, depth=2, num_heads=2)
+        x, pos = torch.randn(2, 10, 96), torch.randn(2, 10, 96)
+        y, pos_y = torch.randn(2, 6, 96), torch.randn(2, 6, 96)
+        x, y = encoder(x, pos, y, pos_y)
+        print(x.shape, y.shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        embed_dim: int = 384,
+        depth: int = 12,
+        num_heads: int = 6,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = False,
+        dropout: float = 0.0,
+        attn_dropout: float = 0.0,
+        drop_path: Union[float, List[float]] = 0.0,
+        act: Union[str, Callable, None] = "gelu",
+        act_kwargs: Optional[Dict[str, Any]] = None,
+        norm: Union[str, Callable] = nn.LayerNorm,
+        norm_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.blocks = nn.ModuleList(
+            [
+                PCPMAEEncoderBlock(
+                    dim=embed_dim,
+                    num_heads=num_heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    dropout=dropout,
+                    attn_dropout=attn_dropout,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                    act=act,
+                    act_kwargs=act_kwargs,
+                    norm=norm,
+                    norm_kwargs=norm_kwargs,
+                )
+                for i in range(depth)
+            ]
+        )
+
+    def forward(self, x: Tensor, pos: Tensor, y: Tensor, pos_y: Tensor) -> Tuple[Tensor, Tensor]:
+        for block in self.blocks:
+            x, y = block(x + pos, y + pos_y)
+        return x, y
+
+
 class PCPMAEPretraining(PretrainingModel):
     r"""PCP-MAE masked-autoencoder pretraining model, as in :arxiv: [PCP-MAE: Learning to Predict Centers for Point
     Masked Autoencoders](https://arxiv.org/abs/2408.08753), adapted from
@@ -264,7 +432,7 @@ class PCPMAEPretraining(PretrainingModel):
         drop_path: float = 0.1,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
     ) -> None:
@@ -316,10 +484,10 @@ class PCPMAEPretraining(PretrainingModel):
         self.increase_dim = MLP([embed_dim, 3 * group_size], act=None, norm=None, bias=True, plain_last=True)
         self.reset_parameters()
 
-    def configure_blocks(self) -> TransformerEncoder:
+    def configure_blocks(self) -> PCPMAEEncoder:
         """Build the transformer encoder with a linearly scaled stochastic-depth schedule."""
         dpr = [x.item() for x in torch.linspace(0, self.drop_path, self.encoder_depth)]
-        return TransformerEncoder(
+        return PCPMAEEncoder(
             embed_dim=self.embed_dim,
             depth=self.encoder_depth,
             drop_path=dpr,
@@ -362,12 +530,8 @@ class PCPMAEPretraining(PretrainingModel):
         V, M = x_vis.shape[1], x_mask.shape[1]
         pos_vis = self.pos_embed(center[~mask].reshape(B, V, self.spatial_dim))
 
-        x = torch.cat([x_vis, x_mask], dim=1)
-        pos_embed = torch.cat([pos_vis, self.mask_pos_token.expand(B, M, -1)], dim=1)
-        attn_mask = torch.zeros(V + M, V + M, device=x.device)
-        attn_mask[:V, V:] = float("-inf")
-        x = self.norm_f(self.blocks(x, pos_embed, mask=attn_mask))
-        x_vis, x_mask = x[:, :V], x[:, V:]
+        x_vis, x_mask = self.blocks(x_vis, pos_vis, x_mask, self.mask_pos_token.expand(B, M, -1))
+        x_vis, x_mask = self.norm_f(x_vis), self.norm_f(x_mask)
 
         center_pred = self.center_proj(x_mask)
         center_target = self.pos_embed[0](center[mask].reshape(B, M, self.spatial_dim))

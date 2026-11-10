@@ -2,8 +2,7 @@
 
 NOTE: the released OBJ_ONLY file is the last (300th) epoch of the authors' fine-tuning run (`python main.py --config
 cfgs/finetune_classification/full/finetune_scan_objonly.yaml --finetune_model`, RunpeiDong/ACT@d580115): it stores a
-test accuracy of 91.05, while the published 91.91 is the run's best epoch; it was not re-run. This script scores the
-file 91.22.
+test accuracy of 91.05, while the published 91.91 is the run's best epoch; it was not re-run.
 """
 
 import os

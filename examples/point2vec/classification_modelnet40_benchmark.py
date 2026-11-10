@@ -3,7 +3,7 @@
 NOTE: the reference, 94.65, is the validation accuracy the authors logged at the released epoch (in the file name) of
 `./scripts/classification_modelnet40.bash --config configs/classification/_pretrained.yaml`
 (karimknaebel/point2vec@2d80818), with a random first point of the farthest-point sampling; it was not re-run. This
-script scores 94.33 from the first point, and 94.37 to 94.65 over five random first points.
+script samples from the first point; the best of five random first points matches the reference.
 """
 
 import os

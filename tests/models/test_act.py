@@ -57,6 +57,25 @@ def test_act_discrete_vae_group_features_keep_the_patch_tokens() -> None:
     assert features.shape == (2, 16, 24)
 
 
+def test_act_discrete_vae_group_features_are_the_hard_sampled_features() -> None:
+    model = ACTDiscreteVAE(in_channels=0, **SMALL_DVAE).eval()
+    neighborhood, center = torch.randn(2, 16, 8, 3), torch.randn(2, 16, 3)
+    logits = model.dgcnn_1(model.encoder(neighborhood), center)
+
+    torch.manual_seed(0)
+    features = model.group_features(neighborhood, center)
+    torch.manual_seed(0)
+    sampled = model.sample_features(logits, center, hard=True)
+
+    torch.testing.assert_close(features, sampled)
+
+
+def test_act_discrete_vae_codebook_starts_from_a_normal_draw() -> None:
+    model = ACTDiscreteVAE(in_channels=0, **{**SMALL_DVAE, "num_tokens": 512})
+
+    assert 0.9 < model.codebook.std() < 1.1
+
+
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_act_pretraining_regresses_the_frozen_teacher() -> None:
     model = ACTPretraining(

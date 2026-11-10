@@ -134,3 +134,12 @@ def test_recon_pretraining_returns_the_reconstruction_and_the_cross_modal_querie
     assert torch.equal(pred_batch, target_batch)
     assert image.shape == (2, 24)
     assert text.shape == (2, 16)
+
+
+def test_recon_pretraining_initializes_the_cross_modal_projections() -> None:
+    model = ReConPretraining(in_channels=0, image_dim=512, text_dim=512, embed_dim=48, encoder_depth=1, num_heads=2)
+
+    for proj in (model.image_proj, model.text_proj):
+        assert torch.all(proj.bias == 0)
+        assert abs(proj.weight.mean() - 0.02) < 1e-3
+        assert abs(proj.weight.std() - 0.01) < 1e-3

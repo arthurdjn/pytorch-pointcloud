@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import pytest
 import torch
 
@@ -149,6 +151,15 @@ def test_point2vec_pretraining_update_teacher_moves_toward_the_student_blocks() 
     assert not teacher.requires_grad
 
 
-def test_point2vec_pretraining_validates_the_target_layers() -> None:
+@pytest.mark.parametrize(
+    "target_layers",
+    [
+        pytest.param((), id="empty"),
+        pytest.param((2,), id="beyond-depth"),
+        pytest.param((-1,), id="negative"),
+        pytest.param((1, 1), id="duplicate"),
+    ],
+)
+def test_point2vec_pretraining_validates_the_target_layers(target_layers: Tuple[int, ...]) -> None:
     with pytest.raises(ValueError, match="target_layers"):
-        Point2VecPretraining(in_channels=0, target_layers=(2,), embed_dim=48, encoder_depth=2, num_heads=2)
+        Point2VecPretraining(in_channels=0, target_layers=target_layers, embed_dim=48, encoder_depth=2, num_heads=2)

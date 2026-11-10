@@ -3,7 +3,7 @@
 NOTE: the reference, 87.47, is the validation accuracy the authors logged at the released epoch (in the file name) of
 `./scripts/classification_scanobjectnn.bash --config configs/classification/_pretrained.yaml`
 (karimknaebel/point2vec@2d80818), with a random first point of the patch sampling; it was not re-run. This script
-scores 86.92 from the first point, and 86.36 to 86.78 over five random first points, in float32 and float16 alike.
+samples from the first point; five random first points, in float32 and float16 alike, stay below the reference too.
 """
 
 import os

@@ -44,8 +44,8 @@ class PositionEmbeddingSine(nn.Module):
     ) -> None:
         if embed_dim < 2 * spatial_dim:
             raise ValueError(
-                f"`embed_dim` must be at least `2 * spatial_dim` = {2 * spatial_dim} to hold one sine / cosine pair per "
-                f"axis, got {embed_dim}."
+                f"`embed_dim` must be at least `2 * spatial_dim` = {2 * spatial_dim} to hold one sine / cosine pair "
+                f"per axis, got {embed_dim}."
             )
 
         super().__init__()
@@ -70,4 +70,4 @@ class PositionEmbeddingSine(nn.Module):
         pos_sin = pos_divided[..., 0::2].sin()
         pos_cos = pos_divided[..., 1::2].cos()
         emb = torch.stack([pos_sin, pos_cos], dim=-1).reshape(*pos.shape[:-1], -1)
-        return F.pad(emb, (0, self.padding))
+        return F.pad(emb, (0, self.padding)).to(pos.dtype)

@@ -15,7 +15,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNetNormalResampled
-from torch_pointcloud.metrics import confusion_matrix
+from torch_pointcloud.metrics import accuracy, confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -108,9 +108,8 @@ def configure_train_transform(args: Namespace) -> T.Transform:
     if point_all > num_points:
         steps.append(T.RandomSample(keys=DataKeys.POS, num_samples=num_points))
 
-    # `PointcloudScaleAndTranslate`: per-axis scale in [2/3, 3/2] and shift in [-0.2, 0.2].
-    steps.append(T.RandomScale(keys=DataKeys.POS, scale_range=(2.0 / 3.0, 3.0 / 2.0), anisotropic=True))
-    steps.append(T.RandomTranslate(keys=DataKeys.POS, translation_range=(-0.2, 0.2)))
+    # `PointcloudRotate`: a random rotation around the vertical axis.
+    steps.append(T.RandomRotate(keys=DataKeys.POS, axis=1))
     return T.Compose(steps)
 
 
@@ -219,16 +218,13 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH])
-        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], num_classes=NUM_CLASSES)
+        cm += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], num_classes=NUM_CLASSES)
 
-    present = confusion.sum(dim=1) > 0
-    accuracy = confusion.diag().sum() / confusion.sum()
-    mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
-    return {"acc": accuracy.item(), "mean_acc": mean_accuracy.item()}
+    return {"acc": accuracy(cm), "mean_acc": accuracy(cm, average="macro")}
 
 
 def load_backbone(model: nn.Module, name: str) -> None:

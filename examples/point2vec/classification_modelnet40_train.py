@@ -16,7 +16,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40Hdf5
-from torch_pointcloud.metrics import confusion_matrix
+from torch_pointcloud.metrics import accuracy, confusion_matrix
 from torch_pointcloud.models import create_model
 from torch_pointcloud.optim import CosineWarmupLR
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -40,6 +40,8 @@ MIN_LR = 1e-6
 # The transformer blocks and their final norm stay frozen until this epoch; the tokenizer and the head train from
 # the start.
 ENCODER_UNFREEZE_EPOCH = 100
+# Without the pretraining encoder, the base config trains every block from the start at a higher learning rate.
+SCRATCH_LR = 1e-3
 
 # The reference draws one augmentation per batch; these transforms draw one per object.
 TRAIN_TRANSFORM = T.Compose(
@@ -105,10 +107,15 @@ def parse_args() -> Namespace:
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--epochs", default=EPOCHS, type=int)
     parser.add_argument("--batch-size", default=BATCH_SIZE, type=int)
-    parser.add_argument("--lr", default=LR, type=float)
+    parser.add_argument("--lr", default=None, type=float, help=f"Default: {LR}, or {SCRATCH_LR} from scratch.")
     parser.add_argument("--weight-decay", default=WEIGHT_DECAY, type=float)
     parser.add_argument("--warmup-epochs", default=WARMUP_EPOCHS, type=int)
-    parser.add_argument("--encoder-unfreeze-epoch", default=ENCODER_UNFREEZE_EPOCH, type=int)
+    parser.add_argument(
+        "--encoder-unfreeze-epoch",
+        default=None,
+        type=int,
+        help=f"Default: {ENCODER_UNFREEZE_EPOCH}, or 0 from scratch.",
+    )
     parser.add_argument("--no-amp", action="store_true", help="Disable the float16 autocast of the reference.")
     parser.add_argument("--from-scratch", action="store_true", help="Do not load the pretraining encoder.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
@@ -117,6 +124,10 @@ def parse_args() -> Namespace:
     parser.add_argument("--limit-val-batches", default=None, type=int)
     parser.add_argument("--download", action="store_true", help="Download the dataset if missing.")
     args = parser.parse_args()
+    if args.lr is None:
+        args.lr = SCRATCH_LR if args.from_scratch else LR
+    if args.encoder_unfreeze_epoch is None:
+        args.encoder_unfreeze_epoch = 0 if args.from_scratch else ENCODER_UNFREEZE_EPOCH
     args.warmup_epochs = min(args.warmup_epochs, max(args.epochs - 1, 0))  # a shortened run keeps a valid schedule
     return args
 
@@ -217,16 +228,13 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH])
-        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], num_classes=NUM_CLASSES)
+        cm += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], num_classes=NUM_CLASSES)
 
-    present = confusion.sum(dim=1) > 0
-    accuracy = confusion.diag().sum() / confusion.sum()
-    mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
-    return {"acc": accuracy.item(), "mean_acc": mean_accuracy.item()}
+    return {"acc": accuracy(cm), "mean_acc": accuracy(cm, average="macro")}
 
 
 def load_backbone(model: nn.Module, name: str) -> None:

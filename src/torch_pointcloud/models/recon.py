@@ -80,7 +80,7 @@ class ReConEncoderBlock(nn.Module):
         detach_tokens: bool = False,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -88,11 +88,7 @@ class ReConEncoderBlock(nn.Module):
         self.detach_tokens = detach_tokens
 
         def make_norm() -> nn.Module:
-            module = create_norm(norm, dim, **(norm_kwargs or {}))
-            if module is None:
-                raise ValueError("ReConEncoderBlock requires a normalization layer, got norm=None.")
-
-            return module
+            return create_norm(norm, dim, **(norm_kwargs or {})) or nn.Identity()
 
         def make_mlp() -> MLP:
             return MLP(
@@ -177,7 +173,7 @@ class ReConEncoder(nn.Module):
         detach_tokens: bool = False,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
@@ -269,7 +265,7 @@ class ReConClassification(ClassificationModel):
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
     ) -> None:
@@ -460,7 +456,7 @@ class ReConPartSegmentation(PartSegmentationModel):
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
     ) -> None:
@@ -673,7 +669,7 @@ class ReConPretraining(PretrainingModel):
         drop_path: float = 0.1,
         act: Union[str, Callable, None] = "gelu",
         act_kwargs: Optional[Dict[str, Any]] = None,
-        norm: Union[str, Callable, None] = nn.LayerNorm,
+        norm: Union[str, Callable] = nn.LayerNorm,
         norm_kwargs: Optional[Dict[str, Any]] = None,
         spatial_dim: int = 3,
     ) -> None:
@@ -766,6 +762,9 @@ class ReConPretraining(PretrainingModel):
     def reset_parameters(self) -> None:
         for param in (self.image_token, self.text_token, self.cls_pos, self.image_pos, self.text_pos, self.mask_token):
             nn.init.trunc_normal_(param, std=0.02)
+        for proj in (self.image_proj, self.text_proj):
+            nn.init.normal_(proj.weight, mean=0.02, std=0.01)
+            nn.init.zeros_(proj.bias)
 
     def forward(
         self, x: OptTensor, pos: Tensor, batch: Tensor

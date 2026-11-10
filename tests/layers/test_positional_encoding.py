@@ -41,6 +41,18 @@ def test_position_embedding_sine_scale_multiplies_the_coordinates() -> None:
     assert torch.allclose(scaled, PositionEmbeddingSine(12)(pos * 2 * math.pi), atol=1e-6)
 
 
+@pytest.mark.parametrize(
+    "dtype", [pytest.param(torch.float16, id="float16"), pytest.param(torch.bfloat16, id="bfloat16")]
+)
+def test_position_embedding_sine_keeps_the_dtype_of_the_coordinates(dtype: torch.dtype) -> None:
+    pos = torch.randn(4, 3)
+
+    out = PositionEmbeddingSine(12)(pos.to(dtype))
+
+    assert out.dtype == dtype
+    assert torch.allclose(out.float(), PositionEmbeddingSine(12)(pos.to(dtype).float()), atol=1e-2)
+
+
 def test_position_embedding_sine_rejects_too_few_channels_per_axis() -> None:
     with pytest.raises(ValueError, match="embed_dim"):
         PositionEmbeddingSine(3, spatial_dim=384)

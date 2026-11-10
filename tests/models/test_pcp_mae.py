@@ -1,9 +1,12 @@
+from typing import List, Tuple
+
 import pytest
 import torch
+from torch import Tensor, nn
 
 from torch_pointcloud.layers import PositionEmbeddingSine
 from torch_pointcloud.models import pcp_mae
-from torch_pointcloud.models.pcp_mae import PCPMAEClassification, PCPMAEPretraining
+from torch_pointcloud.models.pcp_mae import PCPMAEClassification, PCPMAEEncoder, PCPMAEPretraining
 from torch_pointcloud.ops.cluster import group
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
@@ -33,6 +36,36 @@ def test_pcp_mae_classification_reset_classifier_rejects_global_pool() -> None:
 
     with pytest.raises(ValueError, match="global_pool"):
         model.reset_classifier(5, global_pool="mean")
+
+
+class RecordShapes(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.shapes: List[Tuple[int, ...]] = []
+
+    def forward(self, x: Tensor) -> Tensor:
+        self.shapes.append(tuple(x.shape))
+        return x
+
+
+def test_pcp_mae_encoder_visible_tokens_ignore_the_masked_ones() -> None:
+    encoder = PCPMAEEncoder(embed_dim=32, depth=2, num_heads=4).eval()
+    x, pos = torch.randn(2, 4, 32), torch.randn(2, 4, 32)
+
+    out, _ = encoder(x, pos, torch.randn(2, 3, 32), torch.randn(2, 3, 32))
+    other, _ = encoder(x, pos, torch.randn(2, 3, 32), torch.randn(2, 3, 32))
+
+    torch.testing.assert_close(out, other)
+
+
+def test_pcp_mae_encoder_drops_the_paths_of_each_group_separately() -> None:
+    encoder = PCPMAEEncoder(embed_dim=32, depth=1, num_heads=4, drop_path=0.1)
+    recorder = RecordShapes()
+    encoder.blocks[0].drop_path = recorder
+
+    encoder(torch.randn(2, 4, 32), torch.randn(2, 4, 32), torch.randn(2, 3, 32), torch.randn(2, 3, 32))
+
+    assert recorder.shapes == [(2, 4, 32), (2, 3, 32), (2, 4, 32), (2, 3, 32)]
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")

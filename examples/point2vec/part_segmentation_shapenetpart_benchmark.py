@@ -2,8 +2,8 @@
 
 NOTE: the reference, 86.3 instance mIoU (84.59 class mIoU, in the file name), is the authors' validation score at the
 released epoch of `./scripts/part_segmentation_shapenetpart.bash` (karimknaebel/point2vec@2d80818), on 2048 points per
-shape drawn at random with replacement, with a random first point of the patch sampling; it was not re-run. On the 2048
-farthest points, this script scores 85.97 (84.38).
+shape drawn at random with replacement, with a random first point of the patch sampling, where this script takes the
+2048 farthest points; it was not re-run.
 """
 
 import os

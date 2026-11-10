@@ -35,12 +35,12 @@ class _PickledObject:
 def read_state_dict(path: PathLike) -> Dict[str, Any]:
     """Read a checkpoint file into a flat state dict.
 
-    Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if
-    present. A Lightning checkpoint (identified by its `pytorch-lightning_version` key) that holds `model.`-prefixed
-    keys is reduced to them, with the prefix stripped; one with no such key keeps every key. `torch.save` files load
-    with `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
-    optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported
-    nor called.
+    Supports `.safetensors` and `torch.save` files, unwrapping a `state_dict` or `model_state_dict` key if present. A
+    Lightning checkpoint (identified by its `pytorch-lightning_version` key) that holds `model.`-prefixed keys is
+    reduced to them, with the prefix stripped; one with no such key keeps every key. `torch.save` files load with
+    `weights_only=True`; the objects of a zip checkpoint that pickle their class and state (training hyperparameters,
+    optimizer and scheduler configurations) are read as inert placeholders, so their classes are neither imported nor
+    called.
 
     Args:
         path: Checkpoint file to read.
@@ -112,7 +112,8 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
             initialization.
 
     Raises:
-        RuntimeError: If `strict` and the checkpoint is missing keys the model requires.
+        RuntimeError: If the checkpoint shares no key with the model (e.g. every key carries the prefix of a module
+            wrapping the network), or if `strict` and the checkpoint is missing keys the model requires.
 
     Example:
         ```{.python notest}
@@ -129,6 +130,11 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
         if key in model_state and not is_lazy(model_state[key]) and state_dict[key].shape != model_state[key].shape
     )
     missing = sorted(key for key in model_state if key not in state_dict)
+    if state_dict and len(unexpected) == len(state_dict):
+        raise RuntimeError(
+            f"Checkpoint {source!r} shares no key with the model (found: {', '.join(list(state_dict)[:5])}); pass the "
+            "state dict of the network itself, without the prefix of a module wrapping it."
+        )
     if missing:
         if strict:
             raise RuntimeError(f"Checkpoint {source!r} is missing model keys: {', '.join(missing)}.")

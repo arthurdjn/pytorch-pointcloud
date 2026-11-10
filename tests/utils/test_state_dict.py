@@ -212,6 +212,15 @@ def test_load_state_dict_missing_keys_raise_by_default() -> None:
         load_state_dict(model, {}, source="empty.ckpt")
 
 
+@pytest.mark.parametrize("strict", [pytest.param(True, id="strict"), pytest.param(False, id="non-strict")])
+def test_load_state_dict_checkpoint_sharing_no_key_raises(strict: bool) -> None:
+    model = nn.Linear(3, 4)
+    checkpoint = {f"net.{key}": value for key, value in nn.Linear(3, 4).state_dict().items()}
+
+    with pytest.raises(RuntimeError, match="shares no key with the model"):
+        load_state_dict(model, checkpoint, source="wrapped.ckpt", strict=strict)
+
+
 def test_load_state_dict_strict_false_warm_starts_from_partial_checkpoint() -> None:
     """A backbone-only checkpoint loads its keys and keeps the head's fresh initialization."""
     backbone = nn.Linear(3, 4)
