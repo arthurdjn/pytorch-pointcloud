@@ -9,6 +9,8 @@ from torch_pointcloud.metrics import instance_average_precision, instance_matche
 from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
 from torch_pointcloud.utils.types import InstanceSegmentation3D
 
+_REQUIRES_CUDA = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+
 
 def _mask(num_points: int, indices: list[int]) -> Tensor:
     out = torch.zeros(num_points, dtype=torch.bool)
@@ -158,20 +160,15 @@ MATCH_CASES = [
 
 
 @pytest.mark.parametrize("case", MATCH_CASES)
-def test_instance_matches_equals_brute_force(case: dict[str, Any]) -> None:
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=_REQUIRES_CUDA)])
+def test_instance_matches_equals_brute_force(case: dict[str, Any], device: str) -> None:
     """Every field of the record equals a per-prediction, per-instance count over Python sets.
 
     The predictions are random dense masks, block-diagonal over the scenes, in their `decode` form.
     """
-    _assert_matches_brute_force(_random_inputs(**case))
-
-
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-@pytest.mark.parametrize("case", MATCH_CASES)
-def test_instance_matches_equals_brute_force_cuda(case: dict[str, Any]) -> None:
     inputs = _random_inputs(**case)
     _assert_matches_brute_force(
-        {key: value.cuda() if torch.is_tensor(value) else value for key, value in inputs.items()}
+        {key: value.to(device) if torch.is_tensor(value) else value for key, value in inputs.items()}
     )
 
 

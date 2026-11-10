@@ -44,23 +44,14 @@ POOL_CASES = [
 
 
 @pytest.mark.parametrize(("superpoint", "batch"), POOL_CASES)
-def test_superpoint_pool_equals_brute_force(superpoint: list[int], batch: list[int]) -> None:
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=_REQUIRES_CUDA)])
+def test_superpoint_pool_equals_brute_force(superpoint: list[int], batch: list[int], device: str) -> None:
     """Superpoints are the sorted (scene, id) pairs, for any integer ids and any point order."""
     x = torch.randn(len(superpoint), 3, generator=torch.Generator().manual_seed(0))
-    features, index, superpoint_batch = superpoint_pool(x, torch.tensor(superpoint), torch.tensor(batch))
-    expected = _brute_force_pool(x, torch.tensor(superpoint), torch.tensor(batch))
-    torch.testing.assert_close(features, expected[0])
-    assert (index.tolist(), superpoint_batch.tolist()) == expected[1:]
-
-
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-@pytest.mark.parametrize(("superpoint", "batch"), POOL_CASES)
-def test_superpoint_pool_equals_brute_force_cuda(superpoint: list[int], batch: list[int]) -> None:
-    x = torch.randn(len(superpoint), 3, generator=torch.Generator().manual_seed(0))
     features, index, superpoint_batch = superpoint_pool(
-        x.cuda(),
-        torch.tensor(superpoint).cuda(),
-        torch.tensor(batch).cuda(),
+        x.to(device),
+        torch.tensor(superpoint, device=device),
+        torch.tensor(batch, device=device),
     )
     expected = _brute_force_pool(x, torch.tensor(superpoint), torch.tensor(batch))
     torch.testing.assert_close(features.cpu(), expected[0])
@@ -79,22 +70,16 @@ INSTANCE_MASK_CASES = [
 
 
 @pytest.mark.parametrize(("instance", "label", "superpoint", "superpoint_batch"), INSTANCE_MASK_CASES)
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=_REQUIRES_CUDA)])
 def test_superpoint_instance_masks_equals_brute_force(
-    instance: list[int], label: list[int], superpoint: list[int], superpoint_batch: list[int]
+    instance: list[int],
+    label: list[int],
+    superpoint: list[int],
+    superpoint_batch: list[int],
+    device: str,
 ) -> None:
     """Instances are the sorted (scene, id) pairs of the valid points, for any integer ids and any point order."""
-    inputs = [torch.tensor(values) for values in (instance, label, superpoint, superpoint_batch)]
-    masks, labels, batch = superpoint_instance_masks(*inputs)
-    expected = _brute_force_instance_masks(instance, label, superpoint, superpoint_batch)
-    assert (masks.tolist(), labels.tolist(), batch.tolist()) == expected
-
-
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-@pytest.mark.parametrize(("instance", "label", "superpoint", "superpoint_batch"), INSTANCE_MASK_CASES)
-def test_superpoint_instance_masks_equals_brute_force_cuda(
-    instance: list[int], label: list[int], superpoint: list[int], superpoint_batch: list[int]
-) -> None:
-    inputs = [torch.tensor(values).cuda() for values in (instance, label, superpoint, superpoint_batch)]
+    inputs = [torch.tensor(values, device=device) for values in (instance, label, superpoint, superpoint_batch)]
     masks, labels, batch = superpoint_instance_masks(*inputs)
     expected = _brute_force_instance_masks(instance, label, superpoint, superpoint_batch)
     assert (masks.tolist(), labels.tolist(), batch.tolist()) == expected
