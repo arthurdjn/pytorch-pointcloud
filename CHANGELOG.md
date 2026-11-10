@@ -43,6 +43,15 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `flip_boxes(boxes, axis=2)` failing on boxes with a velocity.
 - Fixed `Voxelize` returning float positions for an empty cloud with `pos_reduce="grid"`, and failing when `keys` lists `pos_key`.
 - Fixed `SetValue` converting a tensor value to a list or rejecting it; only a list or tuple as long as `keys` is spread over the keys.
+- Fixed `MetricCallback` failing at the second epoch with `BoxMeanAveragePrecision`, `BoxAveragePrecision` and `InstanceAveragePrecision`.
+- `confusion_matrix` raises on predictions or targets outside `[0, num_classes)` instead of counting them in another cell.
+- Fixed `accuracy` and `intersection_over_union` returning NaN instead of `zero_division` with `average="macro"` when every class is ignored.
+- Fixed `part_mean_intersection_over_union` failing on float64 IoUs with `average="macro"` and `"none"`.
+- `part_intersection_over_union` raises on part labels outside `part_ids`, and `InstancePartMeanIntersectionOverUnion` no longer scores a shape id missing from `batch`.
+- Fixed `load_safetensors` failing on a file written without metadata.
+- `KNNWindowInferer` rejects an `overlap` of `1e-3` or less, which left points unpredicted.
+- Fixed `SlidingWindowInferer` giving an empty `cloud_keys` row to clouds with non-contiguous batch ids.
+- `SlidingWindowInferer` no longer passes the `block_bbox_key` entry to the predictor; it was sliced like a per-point tensor in blocks with as many points as the box has values.
 
 ## 0.0.19 (2026-11-08)
 

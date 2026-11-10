@@ -124,7 +124,8 @@ def intersection_over_union(
         average: `"macro"` returns the mean IoU (mIoU) over the classes; `"none"` returns the per-class IoU.
         ignore_index: Class index, or indices, to ignore: points whose true class is ignored are dropped, and
             the ignored classes are left out of the mean. Indices outside $[0, C)$ have no effect.
-        zero_division: IoU given to a class with zero union (and to the ignored classes with `average="none"`).
+        zero_division: IoU given to a class with zero union (and to the ignored classes with `average="none"`, or
+            when every class is ignored with `"macro"`).
         class_names: Name of each class index; with `average="none"` the per-class IoU comes back as a
             `{name: iou}` dict instead of a tensor.
 
@@ -158,7 +159,7 @@ def intersection_over_union(
 
     if average == "none":
         return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
-    return per_class[keep].mean().item()
+    return per_class[keep].mean().item() if keep.any() else zero_division
 
 
 def _category_parts(part_ids: Sequence[Sequence[int]], num_classes: int, device: torch.device) -> Tensor:
@@ -239,6 +240,10 @@ def part_intersection_over_union(
     Returns:
         Per-shape IoU tensor of shape $(B,)$.
 
+    Raises:
+        ValueError: If `category` is not one index per shape, or a part label of `preds` or `target` lies outside
+            the labels of `part_ids`.
+
     Shape:
         - preds, target, batch: $(N,)$
         - category: $(B,)$
@@ -259,6 +264,9 @@ def part_intersection_over_union(
         )
 
     num_classes = max(max(ids) for ids in part_ids) + 1
+    if ((preds < 0) | (preds >= num_classes) | (target < 0) | (target >= num_classes)).any():
+        raise ValueError(f"`preds` and `target` must hold part labels in [0, {num_classes}).")
+
     mask = _category_parts(part_ids, num_classes, preds.device).float()
     if batch is None:
         batch = torch.zeros_like(target, dtype=torch.long)
@@ -359,7 +367,7 @@ def part_mean_intersection_over_union(
 
     category = category.long()
     count = torch.bincount(category, minlength=num_classes or 0)
-    iou_sum = torch.zeros(count.numel(), device=ious.device).index_add_(0, category, ious)
+    iou_sum = torch.zeros(count.numel(), dtype=ious.dtype, device=ious.device).index_add_(0, category, ious)
     present = count > 0
     if average == "macro":
         return float((iou_sum[present] / count[present]).mean())
