@@ -19,15 +19,18 @@ from torch_pointcloud.losses import (
     sigmoid_focal_loss,
 )
 from torch_pointcloud.losses import functional as LF
+from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
 def test_functional_reexports_every_tensor_function() -> None:
     expected = {
+        "center_regression_loss",
         "chamfer_distance",
         "corner_loss",
         "gaussian_focal_loss",
         "hungarian_match",
         "hungarian_match_batched",
+        "iou_prediction_loss",
         "kpconv_deform_regularizer",
         "lovasz_softmax",
         "one_hot_foreground",
@@ -160,7 +163,7 @@ def test_chamfer_distance_matches_the_dense_formula_and_its_gradients(
 ) -> None:
     from torch_pointcloud.losses import chamfer as chamfer_module
 
-    if with_pyg_lib and not chamfer_module._PYG_LIB_AVAILABLE:
+    if with_pyg_lib and not _PYG_LIB_AVAILABLE:
         pytest.skip("the kNN search needs pyg-lib")
 
     monkeypatch.setattr(chamfer_module, "_PYG_LIB_AVAILABLE", with_pyg_lib)

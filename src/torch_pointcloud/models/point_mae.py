@@ -24,6 +24,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.ops.cluster import group
+from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
@@ -265,11 +266,7 @@ class MaskTransformer(nn.Module):
             A boolean mask of shape $(B, G)$, `True` where the group is masked out.
         """
         B, G, _ = center.shape
-        num_mask = int(self.mask_ratio * G)
-        noise = torch.rand(B, G, device=center.device)
-        keep = torch.argsort(noise, dim=1)[:, : G - num_mask]
-        mask = torch.ones(B, G, dtype=torch.bool, device=center.device)
-        mask.scatter_(1, keep, False)
+        mask = random_mask(B, G, self.mask_ratio, device=center.device)
         return mask
 
     def forward(self, neighborhood: Tensor, center: Tensor) -> Tuple[Tensor, Tensor]:
@@ -953,6 +950,7 @@ def point_mae_base_modelnet40_8k_clf(**kwargs: Any) -> PointMAEClassification:
         author="yatian-pang",
         license="MIT",
     ),
+    # The reference feeds the raw 2048-point ScanObjectNN sample, without sampling or normalization.
     transform=None,
     hparams=dict(
         in_channels=0,
@@ -986,6 +984,7 @@ def point_mae_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMAEClassificati
         author="yatian-pang",
         license="MIT",
     ),
+    # The reference feeds the raw 2048-point ScanObjectNN sample, without sampling or normalization.
     transform=None,
     hparams=dict(
         in_channels=0,
@@ -1019,6 +1018,7 @@ def point_mae_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMAEClassifica
         author="yatian-pang",
         license="MIT",
     ),
+    # The reference feeds the raw 2048-point ScanObjectNN sample, without sampling or normalization.
     transform=None,
     hparams=dict(
         in_channels=0,
@@ -1048,7 +1048,7 @@ def point_mae_base_scanobjectnn_hardest_clf(**kwargs: Any) -> PointMAEClassifica
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mae-base.shapenetpart.yatian-pang/resolve/7f283670e1997fdf385132a835c3d14ca159bbee/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.05, "cls_mIoU": 84.12},
+        metrics={"ins_mIoU": 86.20, "cls_mIoU": 84.22},
         author="yatian-pang",
         license="MIT",
     ),

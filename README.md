@@ -11,8 +11,11 @@
     <a href="https://pypi.org/project/torch-pointcloud/"><img src="https://img.shields.io/pypi/v/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=pypi&logoColor=white" alt="PyPI"></a>
     <a href="https://pypi.org/project/torch-pointcloud/"><img src="https://img.shields.io/pypi/pyversions/torch-pointcloud?color=EE4C2C&labelColor=11001C&logo=python&logoColor=white" alt="Python"></a>
     <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/pytorch-2.8+-red.svg?color=EE4C2C&labelColor=11001C&logo=pytorch&logoColor=white" alt="PyTorch"></a>
-    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white" alt="Tests"></a>
     <a href="https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-red.svg?color=EE4C2C&labelColor=11001C" alt="License"></a>
+  </p>
+  <p>
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/test.yml?branch=main&label=tests&labelColor=11001C&logo=github&logoColor=white" alt="Tests"></a>
+    <a href="https://github.com/arthurdjn/pytorch-pointcloud/actions/workflows/hub-sync.yml"><img src="https://img.shields.io/github/actions/workflow/status/arthurdjn/pytorch-pointcloud/hub-sync.yml?branch=main&label=hub%20sync&labelColor=11001C&logo=huggingface&logoColor=white" alt="Hub sync"></a>
   </p>
   <p>
     <a href="https://pytorch-pointcloud.org/">Documentation</a>
@@ -46,7 +49,9 @@
 ## Installation
 
 ```bash
+pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu
 pip install torch-pointcloud
+pip install pyg-lib -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
 ```
 
 Most models also need `pyg-lib`, and some a CUDA extension (`spconv`, `flash-attn`, ...), built for your torch and
@@ -80,10 +85,9 @@ Each checkpoint ships information about the model, such as the transform used to
 ```python
 import torch_pointcloud as tp
 
-# Requires spconv and flash-attn
-model, info = tp.create_model("ptv3-base.scannet20.pointcept", task="semantic-segmentation", pretrained=True, return_info=True)
+model, info = tp.create_model("randlanet.semantickitti.tsung-han-wu", task="semantic-segmentation", pretrained=True, return_info=True)
 info["transform"]  # the preprocessing pipeline of that checkpoint
-info["weights"]["metrics"]  # {"mIoU": 77.40, "OA": 92.01}
+info["weights"]["metrics"]  # {"mIoU": 55.39, "OA": 90.05}
 
 tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
@@ -131,5 +135,6 @@ If you find this project useful, please consider citing:
 Apache 2.0. See [LICENSE](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/LICENSE).
 
 Pretrained weights and adapted code keep the license of their source, and some checkpoints are restricted to
-non-commercial use. Most were trained on research-only datasets, whose terms also apply to the weights.
+non-commercial use (`create_model` warns when loading them). Most were trained on research-only datasets, whose terms
+also apply to the weights.
 See [THIRD_PARTY_NOTICES.md](https://github.com/arthurdjn/pytorch-pointcloud/blob/main/THIRD_PARTY_NOTICES.md).

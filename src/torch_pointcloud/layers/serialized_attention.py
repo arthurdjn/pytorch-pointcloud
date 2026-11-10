@@ -131,6 +131,10 @@ class RelativePositionalEncoding(nn.Module):
 
     Example:
         ```python
+        import torch
+
+        from torch_pointcloud.layers import RelativePositionalEncoding
+
         rpe = RelativePositionalEncoding(patch_size=8, num_heads=4)
         bias = rpe(torch.randint(0, 16, (2, 8, 3)))
         bias.shape  # (2, 4, 8, 8)
@@ -222,7 +226,8 @@ class SerializedAttention(nn.Module):
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
-                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
+                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                    "or pass `use_flash_attn=False`."
                 )
 
             if upcast_attn:
@@ -392,8 +397,26 @@ class SerializedAttentionRoPE(nn.Module):
     :arxiv: [Utonia](https://arxiv.org/abs/2603.03283).
 
     Rotates $Q$, $K$ via [`Point3DRoPE`](rope.md) using the real-valued metric
-    position of each token. Flash Attention is supported and uses bfloat16
-    (matching upstream Utonia's reference implementation).
+    position of each token. Flash Attention is supported and attends in bfloat16
+    (matching upstream Utonia's reference implementation), or in `qkv_dtype`.
+
+    Args:
+        channels: Feature width $C$, divisible by `num_heads`.
+        num_heads: Number of attention heads.
+        patch_size: Number of points per attention patch.
+        qkv_bias: Whether the QKV projection has a bias.
+        qk_scale: Attention logit scale; `None` uses $1 / \sqrt{\text{head\_dim}}$.
+        attn_drop: Dropout on the attention weights.
+        proj_drop: Dropout after the output projection.
+        use_flash_attn: Whether attention runs through flash attention, which requires `flash-attn` and a CUDA device.
+        upcast_attn: Whether the manual attention path computes the logits in fp32; must be `False` with flash
+            attention.
+        upcast_softmax: Whether the manual attention path computes the softmax in fp32; must be `False` with flash
+            attention.
+        rope_base: Frequency base of the rotary position embedding.
+        qkv_dtype: `torch.float16` or `torch.bfloat16`: flash attention rounds $Q$, $K$, $V$ to it before the
+            rotation, rotates them in float32 and attends in it. `None` attends in bfloat16 without the rounding. The
+            manual attention path ignores it.
 
     Note:
         The input must be batch-blocked: each sample's points contiguous (a sorted `batch`), and
@@ -415,15 +438,20 @@ class SerializedAttentionRoPE(nn.Module):
         upcast_attn: bool = True,
         upcast_softmax: bool = True,
         rope_base: float = 10.0,
+        qkv_dtype: Optional[torch.dtype] = None,
     ) -> None:
         super().__init__()
         if channels % num_heads != 0:
             raise ValueError(f"channels ({channels}) must be divisible by num_heads ({num_heads}).")
 
+        if qkv_dtype not in (None, torch.float16, torch.bfloat16):
+            raise ValueError(f"`qkv_dtype` must be torch.float16, torch.bfloat16 or None, got {qkv_dtype}.")
+
         if use_flash_attn:
             if not _FLASH_ATTN_AVAILABLE:
                 raise ImportError(
-                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn`."
+                    "`flash_attn` is required when `use_flash_attn=True`. Install with `pip install flash-attn` "
+                    "or pass `use_flash_attn=False`."
                 )
 
             if upcast_attn:
@@ -442,6 +470,7 @@ class SerializedAttentionRoPE(nn.Module):
         self.pad_mode: PadMode = "above" if use_flash_attn else "all"
         self.upcast_attn = upcast_attn
         self.upcast_softmax = upcast_softmax
+        self.qkv_dtype = qkv_dtype
 
         self.qkv = nn.Linear(channels, channels * 3, bias=qkv_bias)
         self.proj = nn.Linear(channels, channels)
@@ -475,10 +504,13 @@ class SerializedAttentionRoPE(nn.Module):
         pos_ordered = pos[order]
 
         q, k, v = qkv.reshape(-1, 3, H, C // H).unbind(dim=1)
+        if self.use_flash_attn and self.qkv_dtype is not None:
+            q, k = q.to(self.qkv_dtype).float(), k.to(self.qkv_dtype).float()
         q, k = self.rope(q, k, pos_ordered)
 
         if self.use_flash_attn:
-            qkv_packed = torch.stack([q, k, v], dim=1).to(torch.bfloat16)
+            dtype = self.qkv_dtype or torch.bfloat16
+            qkv_packed = torch.stack([q.to(dtype), k.to(dtype), v.to(dtype)], dim=1)
             feat = _flash_attend_qkv(
                 qkv_packed, layout["cu_seqlens"], patch_size, self.scale, self.attn_drop, self.training
             )

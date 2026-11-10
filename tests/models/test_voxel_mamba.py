@@ -1,9 +1,9 @@
 import pytest
 import torch
 
+from torch_pointcloud.layers.center_head import CenterHeadOutput
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.voxel_mamba import (
-    CenterHeadOutput,
     VoxelMambaDetection,
     build_hilbert_template,
     hilbert_serialize,
@@ -92,11 +92,13 @@ def test_voxel_mamba_forward_shapes() -> None:
         feat = model.forward_features(x, pos, batch)
     assert feat.shape[1] == model.num_features
     nx = ny = 468
-    assert out["heatmap"].shape == (1, 3, ny, nx)
-    assert out["center"].shape == (1, 2, ny, nx)
-    assert out["dim"].shape == (1, 3, ny, nx)
-    assert out["rot"].shape == (1, 2, ny, nx)
-    assert torch.isfinite(out["heatmap"]).all()
+    assert len(out["heatmap"]) == 1
+    assert out["heatmap"][0].shape == (1, 3, ny, nx)
+    assert out["center"][0].shape == (1, 2, ny, nx)
+    assert out["dim"][0].shape == (1, 3, ny, nx)
+    assert out["rot"][0].shape == (1, 2, ny, nx)
+    assert out["iou"][0].shape == (1, 1, ny, nx)
+    assert torch.isfinite(out["heatmap"][0]).all()
 
 
 @pytest.mark.skipif(not _FULL_STACK, reason="Voxel Mamba forward needs CUDA + mamba_ssm + spconv")
@@ -125,12 +127,12 @@ def test_voxel_mamba_decode_validates_iou_rectifier_length() -> None:
     model = create_model("voxel-mamba.waymo", task="detection")
     assert isinstance(model, VoxelMambaDetection)
     out: CenterHeadOutput = {
-        "heatmap": torch.randn(1, 3, 4, 4),
-        "center": torch.randn(1, 2, 4, 4),
-        "center_z": torch.randn(1, 1, 4, 4),
-        "dim": torch.randn(1, 3, 4, 4),
-        "rot": torch.randn(1, 2, 4, 4),
-        "iou": torch.randn(1, 1, 4, 4),
+        "heatmap": [torch.randn(1, 3, 4, 4)],
+        "center": [torch.randn(1, 2, 4, 4)],
+        "center_z": [torch.randn(1, 1, 4, 4)],
+        "dim": [torch.randn(1, 3, 4, 4)],
+        "rot": [torch.randn(1, 2, 4, 4)],
+        "iou": [torch.randn(1, 1, 4, 4)],
     }
     with pytest.raises(ValueError, match="iou_rectifier"):
         model.decode(out, iou_rectifier=(0.68, 0.71))

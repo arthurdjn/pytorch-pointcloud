@@ -15,7 +15,7 @@ which allows for local aggregation of features.
 
 You can use it as follows:
 
-```{.python notest}
+```python
 import torch
 from torch_geometric.nn import MLP, radius_graph
 from torch_pointcloud.layers import PointNeXtConv

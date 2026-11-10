@@ -1,6 +1,6 @@
 """Transforms that rescale or normalize values."""
 
-from typing import Any, Dict, List, Literal, Sequence, Tuple, Union, get_args
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, get_args
 
 import torch
 from torch import Tensor
@@ -13,8 +13,10 @@ RescaleMethod = Literal["centroid", "bbox", "centroid_extent", "min_sphere"]
 
 
 __all__ = [
+    "MaxAbsScale",
     "Normalize",
     "Rescale",
+    "Standardize",
 ]
 
 
@@ -269,4 +271,163 @@ class Normalize(DictTransform):
         data = dict(data)
         for key in self.iter_keys(data):
             data[key] = normalize(data[key], self.mean, self.std, eps=self.eps)
+        return data
+
+
+def maxabs_scale(x: Tensor, eps: float = 1e-7) -> Tensor:
+    r"""Scale a tensor by its largest absolute value, per channel: $x' = x / \max(\max_i |x_i|, \epsilon)$.
+
+    The maximum is taken over every dimension but the last (the channel dimension), so the input is treated as
+    one point cloud: scale packed batches per sample (pre-collate), never on concatenated clouds.
+
+    Args:
+        x: Input tensor. Integer tensors are cast to `float32`.
+        eps: Lower bound on the divisor to prevent division by zero.
+
+    Returns:
+        The scaled tensor, same shape as `x`, with values in $[-1, 1]$.
+    """
+    if not torch.is_floating_point(x):
+        x = x.float()
+    if x.numel() == 0:
+        return x
+    if x.dim() <= 1:
+        return x / x.abs().max().clamp(min=eps)
+    scale = x.abs().reshape(-1, x.shape[-1]).amax(dim=0).clamp(min=eps)
+    return x / scale
+
+
+class MaxAbsScale(DictTransform):
+    r"""Scale dictionary tensor entries by their largest absolute value, per channel:
+    $x' = x / \max(\max_i |x_i|, \epsilon)$.
+
+    The statistic comes from the sample itself, so the result lies in $[-1, 1]$ whatever the input range (e.g. a
+    LiDAR return number divided by the highest return number of the scene).
+
+    Args:
+        keys: The keys to scale.
+        eps: Lower bound on the divisor to prevent division by zero. Defaults to $10^{-7}$.
+        allow_missing_keys: If `True`, missing keys are silently ignored.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        eps: float = 1e-7,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.eps = eps
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key in self.iter_keys(data):
+            data[key] = maxabs_scale(data[key], eps=self.eps)
+        return data
+
+
+def _standardize_channel(
+    values: Tensor,
+    eps: float,
+    clamp: Optional[float],
+    scale_clamp_by_std: bool,
+) -> Tensor:
+    std = values.std(correction=1 if values.numel() > 1 else 0) + eps
+    standardized = (values - values.mean()) / std
+    if clamp is None:
+        return standardized
+
+    bound = clamp * std if scale_clamp_by_std else torch.full_like(std, clamp)
+    return standardized.clamp(min=-bound, max=bound)
+
+
+def standardize(
+    x: Tensor,
+    eps: float = 1e-6,
+    clamp: Optional[float] = None,
+    scale_clamp_by_std: bool = False,
+    channels: Optional[Sequence[int]] = None,
+) -> Tensor:
+    r"""Standardize each channel with its own statistics: $x' = (x - \mu) / (\sigma + \epsilon)$.
+
+    $\mu$ and $\sigma$ are the mean and the unbiased standard deviation of a channel over the points. With `clamp`
+    $= k$, $x'$ is clamped to $[-k, k]$, or to $[-k (\sigma + \epsilon), k (\sigma + \epsilon)]$ with
+    `scale_clamp_by_std`. Empty inputs are returned unchanged and a single point standardizes to zero.
+
+    Args:
+        x: Input tensor, shape $(N,)$ or $(N, C)$.
+        eps: Added to $\sigma$, $\epsilon$.
+        clamp: The clamp $k$. `None` disables it.
+        scale_clamp_by_std: If `True`, scale the clamp by $\sigma + \epsilon$ of the input.
+        channels: The channels of a $(N, C)$ input to standardize, the others are kept. `None` standardizes all.
+
+    Returns:
+        The standardized tensor, same shape as `x`.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> F.standardize(torch.tensor([[1.0], [2.0], [3.0]]))
+        tensor([[-1.0000],
+                [ 0.0000],
+                [ 1.0000]])
+
+        ```
+    """
+    if x.size(0) == 0:
+        return x
+
+    if x.dim() == 1:
+        return _standardize_channel(x if x.is_floating_point() else x.float(), eps, clamp, scale_clamp_by_std)
+
+    out = x.clone() if x.is_floating_point() else x.float()
+    for channel in range(out.size(1)) if channels is None else channels:
+        out[:, channel] = _standardize_channel(out[:, channel], eps, clamp, scale_clamp_by_std)
+    return out
+
+
+class Standardize(DictTransform):
+    r"""Standardize dictionary tensor entries with their own statistics: $x' = (x - \mu) / (\sigma + \epsilon)$.
+
+    Unlike `Normalize`, which takes fixed statistics, each sample is standardized with its own, so apply it on the
+    points the model sees, after sampling.
+
+    See Also:
+        `torch_pointcloud.transforms.functional.standardize`
+
+    Args:
+        keys: The keys to standardize.
+        eps: Added to $\sigma$, $\epsilon$.
+        clamp: The clamp $k$ on the standardized values. `None` disables it.
+        scale_clamp_by_std: If `True`, scale the clamp by $\sigma + \epsilon$ of the input.
+        channels: The channels of a $(N, C)$ entry to standardize, the others are kept. `None` standardizes all.
+        allow_missing_keys: If `True`, missing keys are silently ignored.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        eps: float = 1e-6,
+        clamp: Optional[float] = None,
+        scale_clamp_by_std: bool = False,
+        channels: Optional[Sequence[int]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.eps = eps
+        self.clamp = clamp
+        self.scale_clamp_by_std = scale_clamp_by_std
+        self.channels = tuple(channels) if channels is not None else None
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key in self.iter_keys(data):
+            data[key] = standardize(
+                data[key],
+                eps=self.eps,
+                clamp=self.clamp,
+                scale_clamp_by_std=self.scale_clamp_by_std,
+                channels=self.channels,
+            )
         return data

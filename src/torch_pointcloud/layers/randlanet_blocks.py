@@ -1,6 +1,6 @@
 """RandLA-Net local feature aggregation: spatial encoding, attentive pooling, and the dilated residual block."""
 
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -112,17 +112,26 @@ class AttentivePooling(MessagePassing):
 class LocalFeatureAggregation(nn.Module):
     r"""Local feature aggregation: two rounds of spatial encoding and attentive pooling.
 
-    Each round grows the receptive field, taking a per-point feature of width $d_\text{out} / 2$ to
-    $d_\text{out}$. The 10-channel relative positional encoding keeps the channel order of
+    Each round grows the receptive field, taking a per-point feature of width `lse_channels` ($d_\text{out} / 2$ by
+    default) to $d_\text{out}$. The 10-channel relative positional encoding keeps the channel order of
     :github: [QingyongHu/RandLA-Net](https://github.com/QingyongHu/RandLA-Net)
     (`cat([rel_dist, rel_xyz, xyz_i, xyz_j], dim=-1)`) so pretrained weights load without permuting the first
-    kernel, and the second encoding re-projects the output of the first.
+    kernel, and the second encoding re-projects the output of the first (`lse_input="encoding"`) or re-encodes the
+    relative positions (`lse_input="pos"`, the PyG example network).
+
+    Args:
+        d_out: Output channels.
+        lse_channels: Width of the input feature and of the first spatial encoding. `None` means $d_\text{out} / 2$.
+        lse_input: Input of the second spatial encoding: the first encoding (`"encoding"`) or the 10-channel
+            relative positions (`"pos"`).
     """
 
     def __init__(
         self,
         d_out: int,
         *,
+        lse_channels: Optional[int] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
         act: Union[str, Callable, None],
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -133,6 +142,8 @@ class LocalFeatureAggregation(nn.Module):
         super().__init__()
         if d_out % 2 != 0:
             raise ValueError(f"`d_out` must be even, got {d_out}.")
+        if lse_input not in ("encoding", "pos"):
+            raise ValueError(f"`lse_input` must be 'encoding' or 'pos', got {lse_input!r}.")
 
         mlp_kwargs: Dict[str, Any] = dict(
             act=act,
@@ -144,9 +155,12 @@ class LocalFeatureAggregation(nn.Module):
         )
 
         self.d_out = d_out
-        self.lse1 = LocalSpatialEncoding(10, d_out // 2, **mlp_kwargs)
-        self.att_pooling_1 = AttentivePooling(d_out, d_out // 2, **mlp_kwargs)
-        self.lse2 = LocalSpatialEncoding(d_out // 2, d_out // 2, **mlp_kwargs)
+        self.lse_channels = lse_channels or d_out // 2
+        self.lse_input = lse_input
+        self.lse1 = LocalSpatialEncoding(10, self.lse_channels, **mlp_kwargs)
+        self.att_pooling_1 = AttentivePooling(2 * self.lse_channels, d_out // 2, **mlp_kwargs)
+        lse2_in_channels = 10 if lse_input == "pos" else self.lse_channels
+        self.lse2 = LocalSpatialEncoding(lse2_in_channels, d_out // 2, **mlp_kwargs)
         self.att_pooling_2 = AttentivePooling(d_out, d_out, **mlp_kwargs)
 
     def forward(self, x: Tensor, pos: Tensor, edge_index: Tensor) -> Tensor:
@@ -159,10 +173,10 @@ class LocalFeatureAggregation(nn.Module):
         rel_dist = torch.linalg.norm(rel_xyz, dim=1, keepdim=True)
         rel = torch.cat([rel_dist, rel_xyz, pos_i, pos_j], dim=1)  # (E, 10)
 
-        f_pos1 = self.lse1(rel)  # (E, d_out//2)
+        f_pos1 = self.lse1(rel)  # (E, lse_channels)
         x = self.att_pooling_1(x, edge_index, f_pos1)  # (N, d_out//2)
 
-        f_pos2 = self.lse2(f_pos1)  # (E, d_out//2)
+        f_pos2 = self.lse2(rel if self.lse_input == "pos" else f_pos1)  # (E, d_out//2)
         x = self.att_pooling_2(x, edge_index, f_pos2)  # (N, d_out)
         return x
 
@@ -179,6 +193,8 @@ class RandLANetResidualBlock(nn.Module):
         d_in: Number of input channels.
         d_out: "Configuration" channel count; the block actually outputs $2 \cdot d_\text{out}$.
         num_neighbors: Number of neighbors for the local feature aggregation.
+        lse_channels: Width of `mlp1` and of the first spatial encoding. `None` means $d_\text{out} / 2$.
+        lse_input: Input of the second spatial encoding, see `LocalFeatureAggregation`.
     """
 
     def __init__(
@@ -187,6 +203,8 @@ class RandLANetResidualBlock(nn.Module):
         d_out: int,
         num_neighbors: int,
         *,
+        lse_channels: Optional[int] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
         act: Union[str, Callable, None],
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -211,8 +229,8 @@ class RandLANetResidualBlock(nn.Module):
         self.d_in = d_in
         self.d_out = d_out
         self.out_channels = 2 * d_out
-        self.mlp1 = MLP(channel_list=[d_in, d_out // 2], plain_last=False, **mlp_kwargs)
-        self.lfa = LocalFeatureAggregation(d_out, **mlp_kwargs)
+        self.mlp1 = MLP(channel_list=[d_in, lse_channels or d_out // 2], plain_last=False, **mlp_kwargs)
+        self.lfa = LocalFeatureAggregation(d_out, lse_channels=lse_channels, lse_input=lse_input, **mlp_kwargs)
         self.mlp2 = MLP(
             channel_list=[d_out, 2 * d_out],
             act=None,

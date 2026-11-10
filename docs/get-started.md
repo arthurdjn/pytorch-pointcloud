@@ -50,17 +50,5 @@ for index, score in zip(top.indices[0].tolist(), top.values[0].tolist()):
 
 ![Six committed sample objects, each captioned with the class this checkpoint gives it](./assets/tasks/classification.png)
 
-## Data conventions
-
-Point clouds use the **packed** format of :pyg: PyTorch Geometric: instead of zero-padding clouds to a common size, they
-are concatenated and each point is tagged with its sample index. For $B$ samples of $N_i$ points ($N = N_1 + \ldots + N_B$):
-
-![Three clouds of different sizes as a list of tensors, as one padded tensor, and packed](./assets/animations/batch_modes.webp)
-
-| Tensor  | Shape    | Description                              |
-| ------- | -------- | ---------------------------------------- |
-| `pos`   | $(N, 3)$ | 3D coordinates, all points concatenated  |
-| `x`     | $(N, C)$ | Per-point features                       |
-| `batch` | $(N,)$   | Per-point batch index $(0, \ldots, B-1)$ |
-
-Datasets emit the other keys (`normal`, `color`, `segment`, `label`, ...), listed on the [Datasets](datasets/overview.md#dict-keys) page.
+Batches use the packed format of :pyg: PyTorch Geometric: the [data format](data-format.md) page lists every key, its
+shape and dtype, and how `collate` batches them.

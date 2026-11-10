@@ -147,7 +147,7 @@ class DynamicMeanVFE(nn.Module):
         self.scale_yz = grid_size[1] * grid_size[2]
         self.scale_z = grid_size[2]
 
-    def forward(self, pos: Tensor, x: OptTensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, x: OptTensor, pos: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
         point_feats = pos if x is None else torch.cat([pos, x], dim=1)
 
         pos_grid = torch.floor((pos - self.point_cloud_range[:3]) / self.voxel_size).int()

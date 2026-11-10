@@ -1,6 +1,9 @@
 """Benchmark point cloud datasets with disk caching and download helpers."""
 
 from .concat import ConcatDataset, SingleDatasetBatchSampler
+from .dales import DALES
+from .fractal import FRACTAL
+from .gridnethd import GridNetHD
 from .kitti import KITTI
 from .mix import MixDataset
 from .modelnet import ModelNet10, ModelNet40, ModelNet40Hdf5, ModelNetNormalResampled
@@ -16,3 +19,34 @@ from .semantickitti import SemanticKITTI
 from .shapenetpart import ShapeNetPart
 from .sunrgbd import SunRGBD
 from .toronto3d import Toronto3D
+
+__all__ = [
+    "ConcatDataset",
+    "SingleDatasetBatchSampler",
+    "DALES",
+    "FRACTAL",
+    "GridNetHD",
+    "KITTI",
+    "MixDataset",
+    "ModelNet10",
+    "ModelNet40",
+    "ModelNet40Hdf5",
+    "ModelNetNormalResampled",
+    "NuScenes",
+    "NuScenesMini",
+    "ParisLille3D",
+    "PointCloudDataset",
+    "RepeatDataset",
+    "RepeatSampler",
+    "S3DIS",
+    "S3DISHdf5",
+    "ScanNet",
+    "ScanNet20",
+    "ScanNet200",
+    "ScanObjectNN",
+    "Semantic3D",
+    "SemanticKITTI",
+    "ShapeNetPart",
+    "SunRGBD",
+    "Toronto3D",
+]

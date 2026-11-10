@@ -3,6 +3,7 @@
 {{ paper("1911.11236") }}
 """
 
+import warnings
 from typing import (
     Any,
     Callable,
@@ -25,17 +26,57 @@ from torch_geometric.nn.pool.decimation import decimation_indices
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
+from torch_pointcloud.datasets.fractal import FRACTAL_CLASSES, FRACTAL_LEARNING_MAP
+from torch_pointcloud.datasets.parislille3d import PARISLILLE3D_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.semantic3d import SEMANTIC3D_CLASSES
+from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES, SEMANTIC_KITTI_LEARNING_MAP
+from torch_pointcloud.datasets.toronto3d import TORONTO3D_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
 from torch_pointcloud.layers.randlanet_blocks import RandLANetResidualBlock
 from torch_pointcloud.ops.cluster import knn
 from torch_pointcloud.utils.conversion import batch_to_offset, ensure_list, ensure_tuple_size, offset_to_batch
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.state_dict import transform_state_dict
 from torch_pointcloud.utils.types import FeaturesDict, OptTensor
 
 from ._base import ClassificationModel, SemanticSegmentationModel
 from ._registry import WeightsDict, register_model
+
+
+def random_pool(
+    x: Tensor,
+    pos: Tensor,
+    batch: Tensor,
+    factor: int,
+    num_neighbors: int,
+    reduce: Optional[str] = "max",
+) -> Tuple[Tensor, Tensor, Tensor]:
+    r"""Random sampling followed by a reduction over the neighbors of each kept point.
+
+    Args:
+        x: Packed point features, shape $(N, C)$.
+        pos: Packed point positions, shape $(N, 3)$.
+        batch: Per-point batch index, shape $(N,)$.
+        factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
+        num_neighbors: Number of neighbors gathered around each kept point.
+        reduce: Reduction over the neighbors (`"max"`, `"mean"`, `"sum"`), or `None` to keep the features of the
+            sampled points.
+
+    Returns:
+        The pooled features, positions and batch index of the kept points.
+    """
+    offset = batch_to_offset(batch)
+    decim_idx, decim_ptr = decimation_indices(torch.cat([offset.new_zeros(1), offset]), factor)
+    decim_batch = offset_to_batch(decim_ptr[1:])
+    pos_decim = pos[decim_idx]
+    if reduce is None:
+        return x[decim_idx], pos_decim, decim_batch
+
+    edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
+    pooled = scatter(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0), reduce=reduce)
+    return pooled, pos_decim, decim_batch
 
 
 def random_max_pool(
@@ -45,30 +86,18 @@ def random_max_pool(
     factor: int,
     num_neighbors: int,
 ) -> Tuple[Tensor, Tensor, Tensor]:
-    r"""Random sampling followed by a max-pool over the neighbors of each kept point.
-
-    Args:
-        x: Packed point features, shape $(N, C)$.
-        pos: Packed point positions, shape $(N, 3)$.
-        batch: Per-point batch index, shape $(N,)$.
-        factor: Decimation factor, keeping $N // \text{factor}$ points per cloud.
-        num_neighbors: Number of neighbors gathered around each kept point.
-
-    Returns:
-        The pooled features, positions and batch index of the kept points.
-    """
-    offset = batch_to_offset(batch)
-    decim_idx, decim_ptr = decimation_indices(torch.cat([offset.new_zeros(1), offset]), factor)
-    decim_batch = offset_to_batch(decim_ptr[1:])
-    pos_decim = pos[decim_idx]
-    edge_index = knn(pos, pos_decim, num_neighbors, batch_x=batch, batch_y=decim_batch)
-    pooled = scatter(x[edge_index[1]], edge_index[0], dim=0, dim_size=pos_decim.size(0), reduce="max")
-    return pooled, pos_decim, decim_batch
+    """Deprecated alias of `random_pool` with `reduce="max"`."""
+    warnings.warn(
+        "`random_max_pool` is deprecated since 0.0.19 and will be removed in 0.0.20; use `random_pool` instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return random_pool(x, pos, batch, factor, num_neighbors)
 
 
 class RandLANetEncoder(nn.Module):
     r"""Stack of `RandLANetResidualBlock` units interleaved with random-sampling
-    K-NN max-pool decimation.
+    decimation, followed by a reduction over the K nearest neighbors unless `pool=None`.
 
     Each encoder block doubles its $d_\text{out}^\text{config}$ to produce a
     $2 \cdot d_\text{out}^\text{config}$ channel feature; the per-stage decimation
@@ -87,6 +116,11 @@ class RandLANetEncoder(nn.Module):
             single `int` or a per-block sequence of length $N$.
         num_neighbors: Number of neighbors for the K-NN graph in each block. Either a
             single `int` or a per-block sequence of length $N$.
+        lse_channels: Per-block width of `mlp1` and of the first spatial encoding, a sequence of length $N$. `None`
+            means half the block's configuration width, as in the paper.
+        lse_input: Input of the second spatial encoding of every block, see `LocalFeatureAggregation`.
+        pool: Reduction over the neighbors of each point kept by the decimation (`"max"` in the paper), or `None` to
+            keep the features of the sampled points.
     """
 
     def __init__(
@@ -96,6 +130,9 @@ class RandLANetEncoder(nn.Module):
         decimation: Union[int, Sequence[int]] = 4,
         num_neighbors: Union[int, Sequence[int]] = 16,
         *,
+        lse_channels: Optional[Sequence[int]] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
+        pool: Optional[Literal["max", "mean", "sum"]] = "max",
         act: Union[str, Callable, None],
         act_kwargs: Optional[Dict[str, Any]] = None,
         act_first: bool = False,
@@ -104,16 +141,28 @@ class RandLANetEncoder(nn.Module):
         bias: bool = False,
     ) -> None:
         super().__init__()
+        if pool not in ("max", "mean", "sum", None):
+            raise ValueError(f"`pool` must be 'max', 'mean', 'sum' or None, got {pool!r}.")
+
         num_blocks = len(encoder_channels)
         extra_msg = f"`{{param}}` must be a sequence of the same length as the number of blocks {num_blocks}."
         self.decimation: Tuple[int, ...] = ensure_tuple_size(
             decimation, num_blocks, extra_msg=extra_msg.format(param="decimation")
         )
         num_neighbors_t: Tuple[int, ...] = ensure_tuple_size(
-            num_neighbors, num_blocks, extra_msg=extra_msg.format(param="num_neighbors")
+            num_neighbors,
+            num_blocks,
+            extra_msg=extra_msg.format(param="num_neighbors"),
         )
+        lse_channels_t: Tuple[Optional[int], ...] = ensure_tuple_size(
+            lse_channels,
+            num_blocks,
+            extra_msg=extra_msg.format(param="lse_channels"),
+        )
+        self.pool = pool
 
         block_kwargs: Dict[str, Any] = dict(
+            lse_input=lse_input,
             act=act,
             act_kwargs=act_kwargs,
             act_first=act_first,
@@ -122,7 +171,7 @@ class RandLANetEncoder(nn.Module):
             bias=bias,
         )
         self.blocks = nn.ModuleList()
-        for out_channels, k in zip(encoder_channels, num_neighbors_t):
+        for out_channels, k, block_lse_channels in zip(encoder_channels, num_neighbors_t, lse_channels_t):
             if out_channels % 2 != 0:
                 raise ValueError(
                     f"Each entry of `encoder_channels` must be even (the block doubles d_out internally), "
@@ -131,7 +180,14 @@ class RandLANetEncoder(nn.Module):
 
             # encoder_channels[i] is the BLOCK OUTPUT (== 2 * d_out_config), matching the
             # upstream paper convention where each block ends with a (d_out * 2) channel feature.
-            self.blocks.append(RandLANetResidualBlock(in_channels, out_channels // 2, num_neighbors=k, **block_kwargs))
+            block = RandLANetResidualBlock(
+                in_channels,
+                out_channels // 2,
+                num_neighbors=k,
+                lse_channels=block_lse_channels,
+                **block_kwargs,
+            )
+            self.blocks.append(block)
             in_channels = out_channels
         self.out_channels = encoder_channels[-1]
 
@@ -175,12 +231,13 @@ class RandLANetEncoder(nn.Module):
                     # the decoder consumes it last to upsample back to the input resolution.
                     intermediates.append({"x": x, "pos": pos, "batch": batch})
 
-                x, pos, batch = random_max_pool(
+                x, pos, batch = random_pool(
                     x,
                     pos,
                     batch,
                     factor=self.decimation[i],
                     num_neighbors=block.num_neighbors,
+                    reduce=self.pool,
                 )
 
                 if return_intermediates and i < len(self.blocks) - 1:
@@ -199,13 +256,6 @@ class RandLANetDecoder(nn.Module):
     linear+norm+act projection. The first block consumes the bottleneck features
     and the deepest encoder skip; subsequent blocks each cut the resolution by a
     stage of `decimation` until the finest (full-resolution) skip is reached.
-
-    Note:
-        Upstream RandLA-Net cats `[skip, interp]` while
-        `PointNet2FeaturePropagation` cats `[interp, skip]`. To preserve weight
-        equivalence with the upstream checkpoint, the conversion utilities
-        (`convert_randlanet_state_dict`, `convert_open3d_randlanet_state_dict`)
-        swap the first linear layer's column blocks per FP block.
 
     Args:
         in_channels: Channels at the bottleneck (input to the first FP).
@@ -282,9 +332,13 @@ class RandLANetClassification(ClassificationModel):
         in_channels: Number of input channels.
         num_classes: Number of classes.
         stem_channels: Number of channels in the stem MLP. Set to `None` to skip the stem.
+        stem_plain_last: If `True`, the stem is a bare linear layer, without normalization and activation.
         encoder_channels: Output channels of each dilated residual block (must be even).
         decimation: Decimation factor between consecutive encoder blocks.
         num_neighbors: Number of neighbors for the kNN graph in each block.
+        lse_channels: Per-block width of the first spatial encoding, see `RandLANetEncoder`.
+        lse_input: Input of the second spatial encoding: `"encoding"` (the paper) or `"pos"` (the PyG example).
+        pool: Reduction over the neighbors of each point kept by the decimation, or `None`, see `RandLANetEncoder`.
         aggr_channels: Optional channels for the aggregation MLP applied before global pooling.
         dropout: Dropout rate before the classification head.
         global_pool: Global pooling operation.
@@ -296,9 +350,13 @@ class RandLANetClassification(ClassificationModel):
         num_classes: int,
         *,
         stem_channels: Optional[int] = 8,
+        stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
         decimation: Union[int, Sequence[int]] = 4,
         num_neighbors: Union[int, Sequence[int]] = 16,
+        lse_channels: Optional[Sequence[int]] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
+        pool: Optional[Literal["max", "mean", "sum"]] = "max",
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         dropout: float = 0.0,
         global_pool: PoolLike = "max",
@@ -311,9 +369,13 @@ class RandLANetClassification(ClassificationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = stem_channels
+        self.stem_plain_last = stem_plain_last
         self.encoder_channels = encoder_channels
         self.decimation = decimation
         self.num_neighbors = num_neighbors
+        self.lse_channels = lse_channels
+        self.lse_input = lse_input
+        self.pool = pool
         self.aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
         self.dropout = dropout
         self.act = act
@@ -335,7 +397,7 @@ class RandLANetClassification(ClassificationModel):
             return None
         return MLP(
             channel_list=[self.in_channels, self.stem_channels],
-            plain_last=False,
+            plain_last=self.stem_plain_last,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -351,6 +413,9 @@ class RandLANetClassification(ClassificationModel):
             encoder_channels=self.encoder_channels,
             decimation=self.decimation,
             num_neighbors=self.num_neighbors,
+            lse_channels=self.lse_channels,
+            lse_input=self.lse_input,
+            pool=self.pool,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -454,11 +519,15 @@ class RandLANetSegmentation(SemanticSegmentationModel):
         in_channels: Number of input channels.
         num_classes: Number of classes.
         stem_channels: Number of channels in the stem MLP. Set to `None` to skip the stem.
+        stem_plain_last: If `True`, the stem is a bare linear layer, without normalization and activation.
         encoder_channels: Output channels of each dilated residual block (must be even).
         fp_channels: Per-stage decoder channels (one list per upsampling step).
         head_channels: Hidden channels of the segmentation head MLP.
         decimation: Decimation factor between consecutive encoder blocks.
         num_neighbors: Number of neighbors for the kNN graph in each block.
+        lse_channels: Per-block width of the first spatial encoding, see `RandLANetEncoder`.
+        lse_input: Input of the second spatial encoding: `"encoding"` (the paper) or `"pos"` (the PyG example).
+        pool: Reduction over the neighbors of each point kept by the decimation, or `None`, see `RandLANetEncoder`.
         aggr_channels: Channels for the bottleneck MLP between the encoder and the decoder
             (the upstream "decoder_0").
         dropout: Dropout rate inside the segmentation head MLP.
@@ -480,11 +549,15 @@ class RandLANetSegmentation(SemanticSegmentationModel):
         num_classes: int,
         *,
         stem_channels: Optional[int] = 8,
+        stem_plain_last: bool = False,
         encoder_channels: Sequence[int],
         fp_channels: Sequence[int],
         head_channels: Sequence[int] = (64, 32),
         decimation: Union[int, Sequence[int]] = 4,
         num_neighbors: Union[int, Sequence[int]] = 16,
+        lse_channels: Optional[Sequence[int]] = None,
+        lse_input: Literal["encoding", "pos"] = "encoding",
+        pool: Optional[Literal["max", "mean", "sum"]] = "max",
         aggr_channels: Optional[Union[int, Sequence[int]]] = None,
         dropout: float = 0.5,
         act: Union[str, Callable, None] = "relu",
@@ -496,11 +569,15 @@ class RandLANetSegmentation(SemanticSegmentationModel):
     ) -> None:
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         self.stem_channels = stem_channels
+        self.stem_plain_last = stem_plain_last
         self.encoder_channels = encoder_channels
         self.fp_channels = fp_channels
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
         self.decimation = decimation
         self.num_neighbors = num_neighbors
+        self.lse_channels = lse_channels
+        self.lse_input = lse_input
+        self.pool = pool
         self.aggr_channels = ensure_list(aggr_channels, none_as_empty=True)
         self.dropout = dropout
         self.act = act
@@ -522,7 +599,7 @@ class RandLANetSegmentation(SemanticSegmentationModel):
             return None
         return MLP(
             channel_list=[self.in_channels, self.stem_channels],
-            plain_last=False,
+            plain_last=self.stem_plain_last,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -538,6 +615,9 @@ class RandLANetSegmentation(SemanticSegmentationModel):
             encoder_channels=self.encoder_channels,
             decimation=self.decimation,
             num_neighbors=self.num_neighbors,
+            lse_channels=self.lse_channels,
+            lse_input=self.lse_input,
+            pool=self.pool,
             act=self.act,
             act_kwargs=self.act_kwargs,
             act_first=self.act_first,
@@ -758,3 +838,481 @@ def randlanet_tsunghanwu_semantickitti_seg(**hparams: Any) -> RandLANetSegmentat
             m.momentum = 0.99
 
     return model
+
+
+def _open3d_randlanet(**hparams: Any) -> RandLANetSegmentation:
+    model = RandLANetSegmentation(**hparams)
+    # The checkpoints retrained in 2022 have slope 0.01 after the residual sum and 0.2 everywhere else; the 2020 ones
+    # (SemanticKITTI, Semantic3D, Paris-Lille-3D) use 0.2 throughout.
+    for block in model.encoder.blocks:
+        block.act = nn.LeakyReLU(0.01)
+    return model
+
+
+@register_model(
+    "randlanet.semantickitti.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.semantickitti.open3d/resolve/103b4fc4f1563992fa090289b46909660c431b3d/model.safetensors",
+        dataset="semantickitti",
+        # NOTE: Open3D-ML's 52.8 is a 2020 patch-level validation; this is all of sequence 08 at full resolution.
+        metrics={"mIoU": 54.76, "OA": 90.19},
+        classes=SEMANTIC_KITTI_CLASSES,
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
+                reduce="first",
+                size=0.06,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=19,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512],
+        fp_channels=[256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=512,
+        decimation=[4, 4, 4, 4],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_semantickitti_seg(**hparams: Any) -> RandLANetSegmentation:
+    return RandLANetSegmentation(**hparams)
+
+
+@register_model(
+    "randlanet.s3dis-area3.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.s3dis-area3.open3d/resolve/6a3e8db3f6a37c3dba1febd6b67ceaff1ccf315c/model.safetensors",
+        dataset="s3dis-area3",
+        # NOTE: Open3D-ML's 70.9 is the best epoch of a patch-level validation; this is all of Area 3, full resolution.
+        metrics={"mIoU": 70.43, "OA": 87.90},
+        classes=S3DIS_CLASSES,
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.INSTANCE],
+                reduce=["mean", "first", "first"],
+                size=0.04,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=13,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_s3dis_area3_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
+
+
+@register_model(
+    "randlanet.toronto3d.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.toronto3d.open3d/resolve/70bda7400a0944262eff307f946851183e892ec8/model.safetensors",
+        dataset="toronto3d",
+        # NOTE: Open3D-ML's 74.0 is the best epoch over ten random patches; this is the whole L002 tile.
+        metrics={"mIoU": 73.88, "OA": 95.85},
+        classes=TORONTO3D_CLASSES[1:],
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 9), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.INTENSITY, DataKeys.GPS_TIME, DataKeys.SEGMENT],
+                reduce=["mean", "first", "first", "first"],
+                size=0.05,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid"),
+            T.Rescale(keys=DataKeys.POS, method="centroid_extent", eps=0.0),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=8,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_toronto3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return _open3d_randlanet(**hparams)
+
+
+@register_model(
+    "randlanet.semantic3d.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.semantic3d.open3d/resolve/3a3f5f5b869e2860e2607335fb31eaa802be8cb8/model.safetensors",
+        dataset="semantic3d",
+        # NOTE: Open3D-ML's two validation stations; other stations of both sites are training data.
+        # Its 76.0 predates this checkpoint.
+        metrics={"mIoU": 90.34, "OA": 98.56},
+        classes=SEMANTIC3D_CLASSES[1:],
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 9), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.COLOR, DataKeys.INTENSITY, DataKeys.SEGMENT],
+                reduce=["mean", "first", "first"],
+                size=0.06,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X, dim=1),
+        ]
+    ),
+    hparams=dict(
+        in_channels=6,
+        num_classes=8,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_semantic3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return RandLANetSegmentation(**hparams)
+
+
+@register_model(
+    "randlanet.parislille3d.open3d",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/randlanet.parislille3d.open3d/resolve/58beb0036070d020696bcb69aeb331d4fe5744fb/model.safetensors",
+        dataset="parislille3d",
+        # NOTE: held-out Lille2 tile (the training tiles score 95.7).
+        # Open3D-ML's 70.0 belongs to an earlier checkpoint trained at grid 0.06.
+        metrics={"mIoU": 83.05, "OA": 98.67},
+        classes=PARISLILLE3D_CLASSES[1:],
+        author="open3d",
+        license="MIT",
+    ),
+    transform=T.Compose(
+        [
+            T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 10), default=-1),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[DataKeys.INTENSITY, DataKeys.SEGMENT],
+                reduce="first",
+                size=0.08,
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid", axes=[0, 1]),
+            T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.X),
+        ]
+    ),
+    hparams=dict(
+        in_channels=3,
+        num_classes=9,
+        stem_channels=8,
+        encoder_channels=[32, 128, 256, 512, 1024],
+        fp_channels=[512, 256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=1024,
+        decimation=[4, 4, 4, 4, 2],
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_open3d_parislille3d_seg(**hparams: Any) -> RandLANetSegmentation:
+    return RandLANetSegmentation(**hparams)
+
+
+_PYG_EXAMPLE_CHECKPOINT_MAPPING = {
+    "fc0.{param}": "stem.lins.0.{param}",
+    "block{i}.{mlp}.lins.{j}.{param}": "encoder.blocks.{i-1}.{mlp}.lins.{j}.{param}",
+    "block{i}.{mlp}.norms.{j}.module.{param}": "encoder.blocks.{i-1}.{mlp}.norms.{j}.module.{param}",
+    "block{i}.lfa{s}.mlp_encoder.lins.{j}.{param}": "encoder.blocks.{i-1}.lfa.lse{s}.mlp.lins.{j}.{param}",
+    "block{i}.lfa{s}.mlp_encoder.norms.{j}.module.{param}": "encoder.blocks.{i-1}.lfa.lse{s}.mlp.norms.{j}.module.{param}",
+    "block{i}.lfa{s}.mlp_attention.lins.0.weight": "encoder.blocks.{i-1}.lfa.att_pooling_{s}.fc.weight",
+    "block{i}.lfa{s}.mlp_post_attention.lins.{j}.{param}": "encoder.blocks.{i-1}.lfa.att_pooling_{s}.mlp.lins.{j}.{param}",
+    "block{i}.lfa{s}.mlp_post_attention.norms.{j}.module.{param}": (
+        "encoder.blocks.{i-1}.lfa.att_pooling_{s}.mlp.norms.{j}.module.{param}"
+    ),
+    "mlp_summit.lins.{j}.{param}": "aggr.lins.{j}.{param}",
+    "mlp_summit.norms.{j}.module.{param}": "aggr.norms.{j}.module.{param}",
+    # The decoder runs fp4 (coarsest) to fp1.
+    **{f"fp{i}.nn.lins.{{j}}.{{param}}": f"decoder.fp_blocks.{4 - i}.mlp.lins.{{j}}.{{param}}" for i in range(1, 5)},
+    **{
+        f"fp{i}.nn.norms.{{j}}.module.{{param}}": f"decoder.fp_blocks.{4 - i}.mlp.norms.{{j}}.module.{{param}}"
+        for i in range(1, 5)
+    },
+    "mlp_classif.lins.{j}.{param}": "head.lins.{j}.{param}",
+    "mlp_classif.norms.{j}.module.{param}": "head.norms.{j}.module.{param}",
+    "fc_classif.{param}": "head.lins.2.{param}",
+}
+
+
+def pyg_example_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Rename the keys of a checkpoint of PyG's RandLA-Net segmentation example (`fc0`, `block{i}`, `mlp_summit`,
+    `fp{i}`, `mlp_classif`, `fc_classif`) to the `RandLANetSegmentation` ones, as the `pretrained_filter_fn` of a
+    `WeightsDict`.
+
+    The first linear layer of each spatial encoding reads the relative positions as
+    `[pos_i, pos_j, pos_j - pos_i, dist]` there and `[dist, pos_i - pos_j, pos_i, pos_j]` here, so its columns are
+    reordered.
+
+    Args:
+        state_dict: State dict keyed as in the example network.
+        model: Model the state dict is loaded into.
+
+    Returns:
+        The state dict keyed as `model` expects.
+    """
+    state_dict = transform_state_dict(state_dict, _PYG_EXAMPLE_CHECKPOINT_MAPPING)
+    for key, value in state_dict.items():
+        if key.endswith(("lse1.mlp.lins.0.weight", "lse2.mlp.lins.0.weight")):
+            state_dict[key] = torch.cat([value[:, 9:10], -value[:, 6:9], value[:, 0:3], value[:, 3:6]], dim=1)
+    return state_dict
+
+
+@register_model(
+    "randlanet.fractal.ignf",
+    task="semantic-segmentation",
+    weights=WeightsDict(
+        url="hf://IGNF/FRACTAL-LidarHD_7cl_randlanet/resolve/6ef0c46e11ab7fa9d20f3d9e39986c46dbd3814e/FRACTAL-LidarHD_7cl_randlanet.ckpt",
+        pretrained_filter_fn=pyg_example_checkpoint_filter_fn,
+        dataset="fractal",
+        # NOTE: Myria3D reports 77.2 (77.5 averaged per class).
+        metrics={"mIoU": 77.35, "OA": 96.06},
+        classes=FRACTAL_CLASSES,
+        author="ignf",
+        license="etalab-2.0",
+    ),
+    transform=T.Compose(
+        [
+            # Myria3D reads the Lambert-93 coordinates as float32.
+            T.ToFloat(keys=DataKeys.POS),
+            # Artefacts (65) and virtual points (66) are dropped before anything else.
+            T.LabelMask(
+                keys=DataKeys.SEGMENT,
+                labels=[65, 66],
+                invert=True,
+                dst_keys="class_mask",
+                allow_missing_keys=True,
+            ),
+            T.ApplyMask(
+                keys=[
+                    DataKeys.POS,
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    DataKeys.SEGMENT,
+                ],
+                mask_key="class_mask",
+                allow_missing_keys=True,
+            ),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=FRACTAL_LEARNING_MAP, default=-1, allow_missing_keys=True),
+            # The colours come from orthoimages and only describe the first return.
+            T.LabelMask(
+                keys=DataKeys.RETURN_NUMBER,
+                labels=[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+                dst_keys="occluded",
+            ),
+            T.Divide(
+                keys=[DataKeys.RETURN_NUMBER, DataKeys.NUMBER_OF_RETURNS, DataKeys.COLOR, DataKeys.NIR],
+                divisor=[7.0, 7.0, 65280.0, 65280.0],
+            ),
+            T.MaskedFill(keys=[DataKeys.COLOR, DataKeys.NIR], mask_key="occluded", value=0.0),
+            T.Reduce(keys=DataKeys.COLOR, op="mean", dim=1, keepdim=True, dst_keys="rgb_avg"),
+            T.Slice(keys=DataKeys.COLOR, start=0, stop=1, dim=1, dst_keys="red"),
+            T.NormalizedDifference(keys=DataKeys.NIR, sub_keys="red", dst_keys="ndvi"),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="mean",
+                keys=[
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    "rgb_avg",
+                    "ndvi",
+                    DataKeys.SEGMENT,
+                ],
+                reduce=["mean", "mean", "mean", "mean", "mean", "mean", "mean", "first"],
+                size=0.25,
+                origin="min",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+            T.RandomSample(
+                keys=[
+                    DataKeys.POS,
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    "rgb_avg",
+                    "ndvi",
+                    DataKeys.SEGMENT,
+                ],
+                num_samples=40000,
+                allow_fewer=True,
+                allow_missing_keys=True,
+                dst_index_key=DataKeys.INDEX,
+            ),
+            T.Shift(keys=DataKeys.POS, method="centroid"),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            # Myria3D multiplies by 1 / 25; dividing by 25 rounds differently in float32.
+            T.Scale(keys=DataKeys.POS, scale=0.04),
+            T.Add(keys=DataKeys.INTENSITY, value=1.0),
+            T.Log(keys=DataKeys.INTENSITY),
+            T.Cat(
+                keys=[
+                    DataKeys.INTENSITY,
+                    DataKeys.RETURN_NUMBER,
+                    DataKeys.NUMBER_OF_RETURNS,
+                    DataKeys.COLOR,
+                    DataKeys.NIR,
+                    "rgb_avg",
+                    "ndvi",
+                ],
+                dst_key=DataKeys.X,
+                dim=1,
+            ),
+            # Myria3D bounds the log intensity and mean colour at 3 standard deviations of the input channel.
+            T.Standardize(keys=DataKeys.X, channels=[0, 7], clamp=3.0, scale_clamp_by_std=True),
+        ]
+    ),
+    hparams=dict(
+        in_channels=9,
+        num_classes=7,
+        stem_channels=32,
+        stem_plain_last=True,
+        encoder_channels=[32, 128, 256, 512],
+        lse_channels=[4, 16, 32, 64],
+        lse_input="pos",
+        pool=None,
+        fp_channels=[256, 128, 32, 32],
+        head_channels=[64, 32],
+        aggr_channels=512,
+        decimation=4,
+        num_neighbors=16,
+        dropout=0.5,
+        act="leaky_relu",
+        act_kwargs={"negative_slope": 0.2},
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-6, "momentum": 0.01},
+        bias=True,
+    ),
+)
+def randlanet_ignf_fractal_seg(**hparams: Any) -> RandLANetSegmentation:
+    return RandLANetSegmentation(**hparams)

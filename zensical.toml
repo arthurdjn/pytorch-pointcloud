@@ -34,7 +34,7 @@ edit_uri = "edit/main/docs/"
 # fragment.
 # Read more: https://zensical.org/docs/setup/basics/#copyright
 copyright = """
-Copyright &copy; 2025 Arthur Dujardin
+Copyright &copy; 2025-2026 Arthur Dujardin
 """
 
 # Use documentation inside the "docs" folder.
@@ -70,6 +70,7 @@ extra_javascript = [
     "overrides/javascripts/links.js",
     "overrides/javascripts/tablesort.js",
     "overrides/javascripts/table-wordbreak.js",
+    "overrides/javascripts/catalog.js",
     "overrides/javascripts/katex.js",
     "https://unpkg.com/katex@0/dist/katex.min.js",
     "https://unpkg.com/katex@0/dist/contrib/auto-render.min.js",
@@ -87,6 +88,7 @@ nav = [
         { "Overview" = "index.md" },
         { "Installation" = "installation.md" },
         { "Quick Start" = "get-started.md" },
+        { "Data Format" = "data-format.md" },
     ] },
     { "Models" = [
         { "Overview" = "models/overview.md" },
@@ -129,6 +131,9 @@ nav = [
         { Datasets = [
             { "Overview" = "api/datasets/index.md" },
             { "concat" = "api/datasets/concat.md" },
+            { "dales" = "api/datasets/dales.md" },
+            { "fractal" = "api/datasets/fractal.md" },
+            { "gridnethd" = "api/datasets/gridnethd.md" },
             { "kitti" = "api/datasets/kitti.md" },
             { "mix" = "api/datasets/mix.md" },
             { "modelnet" = "api/datasets/modelnet.md" },
@@ -142,6 +147,7 @@ nav = [
             { "semantic3d" = "api/datasets/semantic3d.md" },
             { "semantickitti" = "api/datasets/semantickitti.md" },
             { "shapenetpart" = "api/datasets/shapenetpart.md" },
+            { "structured3d" = "api/datasets/structured3d.md" },
             { "sunrgbd" = "api/datasets/sunrgbd.md" },
             { "toronto3d" = "api/datasets/toronto3d.md" },
             { "utils" = "api/datasets/utils.md" },
@@ -163,6 +169,7 @@ nav = [
             { "affine" = "api/layers/affine.md" },
             { "anchors" = "api/layers/anchors.md" },
             { "bev_backbone" = "api/layers/bev_backbone.md" },
+            { "center_head" = "api/layers/center_head.md" },
             { "conv2d_blocks" = "api/layers/conv2d_blocks.md" },
             { "conv3d_blocks" = "api/layers/conv3d_blocks.md" },
             { "dropouts" = "api/layers/dropouts.md" },
@@ -182,6 +189,7 @@ nav = [
             { "pointnet2_blocks" = "api/layers/pointnet2_blocks.md" },
             { "pointnext_blocks" = "api/layers/pointnext_blocks.md" },
             { "pools" = "api/layers/pools.md" },
+            { "positional_encoding" = "api/layers/positional_encoding.md" },
             { "pvcnn_blocks" = "api/layers/pvcnn_blocks.md" },
             { "randlanet_blocks" = "api/layers/randlanet_blocks.md" },
             { "rope" = "api/layers/rope.md" },
@@ -191,9 +199,11 @@ nav = [
             { "tnet" = "api/layers/tnet.md" },
             { "torchsparse_blocks" = "api/layers/torchsparse_blocks.md" },
             { "transformer" = "api/layers/transformer.md" },
+            { "transfusion_head" = "api/layers/transfusion_head.md" },
             { "vfe" = "api/layers/vfe.md" },
             { "view" = "api/layers/view.md" },
             { "voxel_grid_pool" = "api/layers/voxel_grid_pool.md" },
+            { "voxel_patch" = "api/layers/voxel_patch.md" },
             { "xconv" = "api/layers/xconv.md" },
         ] },
         { Lightning = [
@@ -232,12 +242,18 @@ nav = [
         ] },
         { Models = [
             { "Overview" = "api/models/index.md" },
+            { "act" = "api/models/act.md" },
+            { "centerpoint" = "api/models/centerpoint.md" },
             { "concerto" = "api/models/concerto.md" },
             { "threedetr" = "api/models/threedetr.md" },
             { "dgcnn" = "api/models/dgcnn.md" },
             { "kpconv" = "api/models/kpconv.md" },
             { "lion" = "api/models/lion.md" },
+            { "litept" = "api/models/litept.md" },
             { "octformer" = "api/models/octformer.md" },
+            { "parta2" = "api/models/parta2.md" },
+            { "pcp_mae" = "api/models/pcp_mae.md" },
+            { "point2vec" = "api/models/point2vec.md" },
             { "point_bert" = "api/models/point_bert.md" },
             { "point_m2ae" = "api/models/point_m2ae.md" },
             { "point_mae" = "api/models/point_mae.md" },
@@ -254,16 +270,20 @@ nav = [
             { "pointnext" = "api/models/pointnext.md" },
             { "pointpillars" = "api/models/pointpillars.md" },
             { "pointrcnn" = "api/models/pointrcnn.md" },
+            { "pv_rcnn" = "api/models/pv_rcnn.md" },
             { "pvcnn" = "api/models/pvcnn.md" },
             { "pvcnn2" = "api/models/pvcnn2.md" },
             { "randlanet" = "api/models/randlanet.md" },
+            { "recon" = "api/models/recon.md" },
             { "second" = "api/models/second.md" },
             { "sonata" = "api/models/sonata.md" },
             { "spformer_unet" = "api/models/spformer_unet.md" },
             { "sphereformer" = "api/models/sphereformer.md" },
             { "spunet" = "api/models/spunet.md" },
             { "spvcnn" = "api/models/spvcnn.md" },
+            { "transfusion" = "api/models/transfusion.md" },
             { "utonia" = "api/models/utonia.md" },
+            { "volt" = "api/models/volt.md" },
             { "votenet" = "api/models/votenet.md" },
             { "voxel_mamba" = "api/models/voxel_mamba.md" },
             { "voxelnext" = "api/models/voxelnext.md" },
@@ -277,6 +297,7 @@ nav = [
             { "geometry" = "api/ops/geometry.md" },
             { "heatmap" = "api/ops/heatmap.md" },
             { "hilbert" = "api/ops/hilbert.md" },
+            { "masking" = "api/ops/masking.md" },
             { "math" = "api/ops/math.md" },
             { "octree" = "api/ops/octree.md" },
             { "serialization" = "api/ops/serialization.md" },
@@ -307,6 +328,7 @@ nav = [
             { "Overview" = "api/utils/index.md" },
             { "conversion" = "api/utils/conversion.md" },
             { "data" = "api/utils/data.md" },
+            { "hub" = "api/utils/hub.md" },
             { "imports" = "api/utils/imports.md" },
             { "io" = "api/utils/io.md" },
             { "misc" = "api/utils/misc.md" },
@@ -314,6 +336,11 @@ nav = [
             { "state_dict" = "api/utils/state_dict.md" },
             { "types" = "api/utils/types.md" },
         ] },
+    ] },
+    { "About" = [
+        { "About" = "about.md" },
+        { "FAQ" = "faq.md" },
+        { "Changelog" = "changelog.md" },
     ] },
 ]
 
@@ -545,6 +572,22 @@ admonition = { example = "lucide/book-open-check", note = "lucide/info", tip = "
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/arthurdjn/pytorch-pointcloud"
+name = "torch-pointcloud on GitHub"
+
+[[project.extra.social]]
+icon = "simple/pypi"
+link = "https://pypi.org/project/torch-pointcloud/"
+name = "torch-pointcloud on PyPI"
+
+[[project.extra.social]]
+icon = "simple/huggingface"
+link = "https://huggingface.co/torch-pointcloud"
+name = "Pretrained weights on Hugging Face"
+
+[[project.extra.social]]
+icon = "simple/zenodo"
+link = "https://doi.org/10.5281/zenodo.22159632"
+name = "Zenodo DOI"
 
 # ----------------------------------------------------------------------------
 # Markdown extensions
@@ -561,6 +604,8 @@ permalink_title = "Anchor link to this section"
 
 # PyMdown extensions
 [project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
 [project.markdown_extensions.pymdownx.superfences]
 [project.markdown_extensions.pymdownx.highlight]
 pygments_lang_class = true
@@ -624,3 +669,9 @@ canonical_version = "latest"
 # ----------------------------------------------------------------------------
 [project.plugins.exclude]
 glob = ["plugins/*", "__pycache__/*", "scripts/*"]
+
+# ----------------------------------------------------------------------------
+# Minify the generated HTML
+# ----------------------------------------------------------------------------
+[project.plugins.minify]
+minify_html = true

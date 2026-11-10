@@ -40,11 +40,12 @@ jobs:
             pyg-lib spconv \
             -f https://data.pyg.org/whl/torch-2.10.0+cpu.html
 
-      - name: Render the model catalog, the notebooks and the API reference
+      - name: Render the model catalog, the notebooks, the API reference and the changelog
         run: |
           uv run --no-sync python docs/scripts/build_model_tables.py
           uv run --no-sync python docs/scripts/build_notebooks.py
           uv run --no-sync python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
+          uv run --no-sync python docs/scripts/build_changelog.py --unreleased
 
       - name: Build the site
         run: JUPYTER_PLATFORM_DIRS=1 uv run --no-sync zensical build --strict
@@ -85,11 +86,13 @@ jobs:
         # subprocess, so it has to share the venv that carries the plugins.
         run: uv pip install git+https://github.com/squidfunk/mike.git
 
-      - name: Render the model catalog, the notebooks and the API reference
+      - name: Render the model catalog, the notebooks, the API reference and the changelog
+        # The development version keeps the unreleased section of the changelog, a release drops it.
         run: |
           uv run --no-sync python docs/scripts/build_model_tables.py
           uv run --no-sync python docs/scripts/build_notebooks.py
           uv run --no-sync python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
+          uv run --no-sync python docs/scripts/build_changelog.py ${{ github.ref_type == 'branch' && '--unreleased' || '' }}
 
       - name: Configure the committer
         run: |

@@ -8,7 +8,7 @@ from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.ops.voxelization import first_permutation, hard_voxelize, voxel_grid_fnv
+from torch_pointcloud.ops.voxelization import dynamic_voxelize, first_permutation, hard_voxelize, voxel_grid_fnv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.random import Randomizable
@@ -24,6 +24,9 @@ PadFill = Literal["cycle", "replicate", "random"]
 VoxelMethod = Literal["fnv", "grid"]
 """Allowed values for `Voxelize.method` (voxel-id hashing scheme)."""
 
+VoxelOrigin = Literal["grid", "min"]
+"""Allowed values for `Voxelize.origin` (where the voxel grid starts)."""
+
 VoxelReduce = Literal["mean", "min", "max", "sum", "first"]
 """Allowed values for `Voxelize.reduce` (per-key per-voxel reduction)."""
 
@@ -33,6 +36,7 @@ VoxelPosReduce = Literal["mean", "min", "max", "sum", "first", "grid"]
 
 __all__ = [
     "DivisiblePad",
+    "DynamicVoxelize",
     "HardVoxelize",
     "Voxelize",
 ]
@@ -394,7 +398,7 @@ class HardVoxelize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feat = d.get(self.feature_key) if self.feature_key is not None else None
+        feat = d[self.feature_key] if self.feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = hard_voxelize(
@@ -411,12 +415,216 @@ class HardVoxelize(DictTransform):
         return d
 
 
+class DynamicVoxelize(DictTransform):
+    r"""Dynamically voxelize a single scene into one mean point per occupied voxel.
+
+    The dynamic counterpart of `HardVoxelize`: every voxel keeps the mean of all its points instead of a capped,
+    padded stack, so the result does not depend on the point order or on a voxel budget. The output uses the same
+    keys and layout as `HardVoxelize` with a single point per voxel (the mean), which is what the mean voxel
+    encoders of the voxel detectors consume. Unlike `Voxelize`, which keeps one representative point per voxel of
+    a grid set by the cloud itself, the grid here is the fixed one of `point_cloud_range`, so the indices address
+    the spatial shape of a detector.
+
+    Args:
+        pos_key: Key holding the point positions $(N, 3)$.
+        voxel_size: Voxel size $(v_x, v_y, v_z)$.
+        point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
+        feature_key: Optional key holding extra point features $(N, C)$ concatenated after $xyz$.
+        dst_voxel_key: Output key for the per-voxel mean point.
+        dst_pos_voxel_key: Output key for the integer voxel grid indices.
+        dst_num_points_key: Output key for the per-voxel point counts: one for every voxel on purpose, since the
+            voxel already holds the mean and a mean voxel encoder divides by this count.
+        allow_missing_keys: Unused (`pos_key` is always required); kept for interface parity.
+
+    Shape:
+        - `dst_voxel_key`: $(V, 1, 3 + C)$.
+        - `dst_pos_voxel_key`: $(V, 3)$ with columns $(z, y, x)$.
+        - `dst_num_points_key`: $(V,)$, all ones.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms as T
+        low, high = torch.tensor([0.0, -40.0, -3.0]), torch.tensor([70.4, 40.0, 1.0])
+        data = {"pos": low + torch.rand(1000, 3) * (high - low), "x": torch.rand(1000, 1)}
+        transform = T.DynamicVoxelize(
+            pos_key="pos",
+            feature_key="x",
+            voxel_size=(0.05, 0.05, 0.1),
+            point_cloud_range=(0.0, -40.0, -3.0, 70.4, 40.0, 1.0),
+        )
+        data = transform(data)
+        print(data["voxel"].shape, data["pos_voxel"].shape, data["voxel_num_points"].shape)
+        ```
+    """
+
+    def __init__(
+        self,
+        pos_key: str,
+        voxel_size: Sequence[float],
+        point_cloud_range: Sequence[float],
+        feature_key: Optional[str] = None,
+        dst_voxel_key: str = DataKeys.VOXEL,
+        dst_pos_voxel_key: str = DataKeys.POS_VOXEL,
+        dst_num_points_key: str = DataKeys.VOXEL_NUM_POINTS,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys=pos_key, allow_missing_keys=allow_missing_keys)
+        self.pos_key = pos_key
+        self.voxel_size = voxel_size
+        self.point_cloud_range = point_cloud_range
+        self.feature_key = feature_key
+        self.dst_voxel_key = dst_voxel_key
+        self.dst_pos_voxel_key = dst_pos_voxel_key
+        self.dst_num_points_key = dst_num_points_key
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        pos = d[self.pos_key]
+        feat = d[self.feature_key] if self.feature_key is not None else None
+        points = pos if feat is None else torch.cat([pos, feat], dim=1)
+        batch = pos.new_zeros(points.shape[0], dtype=torch.long)
+        voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, self.voxel_size, self.point_cloud_range)
+        d[self.dst_voxel_key] = voxels.unsqueeze(1)
+        d[self.dst_pos_voxel_key] = voxel_indices[:, 1:]
+        d[self.dst_num_points_key] = torch.ones_like(num_points)
+        return d
+
+
+def _voxel_cluster(pos: Tensor, size: float, origin: VoxelOrigin, method: VoxelMethod) -> Tuple[Tensor, Tensor]:
+    """Return the consecutive voxel index of every point and the start of the grid."""
+    start = pos.min(dim=0).values
+    if origin == "grid":
+        start = torch.floor(start / size) * size
+
+    if method == "fnv":
+        # FNV-1a hashing reproduces the voxel order of hash-based reference pipelines.
+        cluster = voxel_grid_fnv(pos, size=size, start=start)
+    else:
+        cluster = voxel_grid(pos, size=size, start=start)
+    cluster, _ = consecutive_cluster(cluster)
+    return cluster, start
+
+
+def _grid_coordinates(pos: Tensor, start: Tensor, size: float) -> Tensor:
+    """Return the integer voxel coordinates of one point per voxel, shifted to start at zero."""
+    grid = torch.floor((pos - start) / size).long()
+    return grid - grid.min(dim=0).values
+
+
+def _reduce_voxels(tensor: Tensor, reduce: str, cluster: Tensor, perm: Tensor) -> Tensor:
+    """Reduce the rows of `tensor` over each voxel; `perm` holds the representative point of each voxel."""
+    if reduce == "first":
+        return tensor[perm]
+
+    # Integer min/max/sum scatter natively; the float32 round trip below corrupts values above 2^24.
+    if not tensor.is_floating_point() and tensor.dtype != torch.bool and reduce != "mean":
+        return scatter(tensor, cluster, dim=0, reduce=reduce)
+
+    # Mean (and any bool reduction) needs float input; cast back so the key keeps its dtype.
+    out = scatter(tensor.float(), cluster, dim=0, reduce=reduce)
+    return out if tensor.is_floating_point() else out.to(tensor.dtype)
+
+
+@overload
+def voxelize(
+    pos: Tensor,
+    size: float,
+    reduce: VoxelPosReduce = "mean",
+    origin: VoxelOrigin = "grid",
+    method: VoxelMethod = "grid",
+    return_inverse: Literal[False] = False,
+) -> Tensor: ...
+
+
+@overload
+def voxelize(
+    pos: Tensor,
+    size: float,
+    reduce: VoxelPosReduce = "mean",
+    origin: VoxelOrigin = "grid",
+    method: VoxelMethod = "grid",
+    return_inverse: Literal[True] = ...,
+) -> Tuple[Tensor, Tensor]: ...
+
+
+def voxelize(
+    pos: Tensor,
+    size: float,
+    reduce: VoxelPosReduce = "mean",
+    origin: VoxelOrigin = "grid",
+    method: VoxelMethod = "grid",
+    return_inverse: bool = False,
+) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    r"""Voxelize a point cloud: the points of each occupied voxel of edge `size` are reduced to one point.
+
+    The grid starts at the minimum of the points, either rounded down to a multiple of `size` (`origin="grid"`, so
+    voxel boundaries do not depend on the extent of the cloud) or as is (`origin="min"`). Other per-point values are
+    reduced over the same voxels with the inverse map, e.g. `scatter(x, inverse, dim=0, reduce="mean")`.
+
+    Args:
+        pos: Positions, $(N, D)$.
+        size: Voxel edge length, in the units of `pos`. Must be positive.
+        reduce: How the positions of a voxel are reduced: `mean`, `min`, `max`, `sum`, `first` (the first point in
+            input order) or `grid` (the integer voxel coordinates, starting at zero).
+        origin: Where the grid starts, `grid` or `min`.
+        method: How voxel ids are computed, which fixes the output voxel order: `grid` (the default) uses the
+            linear grid index, `fnv` an FNV-1a hash of the grid coordinates.
+        return_inverse: Whether to also return the voxel of every point.
+
+    Returns:
+        The voxel positions, $(M, D)$, and with `return_inverse`, the voxel index of every point, $(N,)$.
+
+    Raises:
+        ValueError: If `size` is not positive, or `reduce` / `origin` / `method` is not one of its allowed values.
+
+    Examples:
+        ```pycon
+        >>> import torch
+        >>> import torch_pointcloud.transforms.functional as F
+        >>> pos = torch.tensor([[0.1], [0.2], [0.3]])
+        >>> F.voxelize(pos, size=0.25, return_inverse=True)  # doctest: +SKIP
+        (tensor([[0.1500],
+                [0.3000]]), tensor([0, 0, 1]))
+        >>> F.voxelize(pos, size=0.25, origin="min", return_inverse=True)  # doctest: +SKIP
+        (tensor([[0.2000]]), tensor([0, 0, 0]))
+
+        ```
+    """
+    if size <= 0:
+        raise ValueError(f"size must be positive; got {size}.")
+
+    if reduce not in get_args(VoxelPosReduce):
+        raise ValueError(f"Invalid reduce: {reduce!r}. Expected one of {get_args(VoxelPosReduce)}.")
+
+    if origin not in get_args(VoxelOrigin):
+        raise ValueError(f"Invalid origin: {origin!r}. Expected one of {get_args(VoxelOrigin)}.")
+
+    if method not in get_args(VoxelMethod):
+        raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(VoxelMethod)}.")
+
+    if pos.size(0) == 0:
+        voxels = pos.new_empty(pos.shape, dtype=torch.long) if reduce == "grid" else pos
+        inverse = torch.empty(0, dtype=torch.long, device=pos.device)
+    else:
+        inverse, start = _voxel_cluster(pos, size, origin, method)
+        perm = first_permutation(inverse)
+        if reduce == "grid":
+            voxels = _grid_coordinates(pos[perm], start, size)
+        else:
+            voxels = _reduce_voxels(pos, reduce, inverse, perm)
+
+    if return_inverse:
+        return voxels, inverse
+    return voxels
+
+
 class Voxelize(DictTransform, Randomizable):
     r"""Voxelize a point cloud by grid-binning and per-voxel reduction.
 
     Sub-samples a point cloud to one representative point per occupied voxel,
     and optionally records a source-to-voxel index map for full-resolution
-    back-projection.
+    back-projection. The positions are voxelized as by `voxelize`.
 
     Operates on a single sample (pre-collate). With `dst_inverse_key` set, the stored
     tensor has shape $(N_\text{full},)$ with values in $[0, N_\text{voxel})$:
@@ -442,6 +650,8 @@ class Voxelize(DictTransform, Randomizable):
         size: Voxel edge length in the same units as the positions. Must be positive.
         method: How voxel ids are computed, which fixes the output voxel order: `grid` (the default) uses the
             linear grid index, `fnv` an FNV-1a hash of the grid coordinates, as hash-based reference pipelines do.
+        origin: Where the grid starts: at the minimum of the points rounded down to a multiple of `size` (`grid`,
+            the default) or at the minimum itself (`min`).
         reduce: Per-key reduction for `keys`. `None` (the default) resolves per key to `mean` for
             floating-point tensors and `first` for integer tensors (e.g. `segment`). Integer keys keep
             their dtype: non-`first` reductions compute in float and cast back. The `first`
@@ -464,7 +674,7 @@ class Voxelize(DictTransform, Randomizable):
         allow_missing_keys: If `True`, return the data unchanged when `pos_key` is missing and skip absent `keys`.
 
     Raises:
-        ValueError: If `size` is not positive, or `pos_reduce` / `method` / any `reduce` entry is
+        ValueError: If `size` is not positive, or `pos_reduce` / `method` / `origin` / any `reduce` entry is
             not one of its allowed values.
     """
 
@@ -474,6 +684,7 @@ class Voxelize(DictTransform, Randomizable):
         pos_reduce: VoxelPosReduce,
         size: float,
         method: VoxelMethod = "grid",
+        origin: VoxelOrigin = "grid",
         reduce: Optional[ValueCollection[VoxelReduce]] = None,
         keys: Optional[KeyCollection] = None,
         dst_inverse_key: Optional[str] = None,
@@ -491,6 +702,9 @@ class Voxelize(DictTransform, Randomizable):
         if method not in get_args(VoxelMethod):
             raise ValueError(f"Invalid method: {method!r}. Expected one of {get_args(VoxelMethod)}.")
 
+        if origin not in get_args(VoxelOrigin):
+            raise ValueError(f"Invalid origin: {origin!r}. Expected one of {get_args(VoxelOrigin)}.")
+
         invalid = set(ensure_tuple(reduce)) - set(get_args(VoxelReduce)) - {None}
         if invalid:
             raise ValueError(f"Invalid reduce(s): {invalid}. Expected one of {get_args(VoxelReduce)}.")
@@ -502,6 +716,7 @@ class Voxelize(DictTransform, Randomizable):
         self.size = size
         self.reduce = ensure_tuple_size(reduce, len(self.keys))
         self.method = method
+        self.origin = origin
         self.dst_inverse_key = dst_inverse_key
         self.dst_pos_grid_key = dst_pos_grid_key
         self.random_first = random_first
@@ -515,24 +730,6 @@ class Voxelize(DictTransform, Randomizable):
         rand = torch.rand(num_clusters, device=cluster.device, generator=self.R)
         offsets = torch.minimum((rand * counts.float()).long(), counts - 1)
         return sort_idx[idx_ptr + offsets]
-
-    def _reduce(
-        self,
-        tensor: torch.Tensor,
-        reduce: str,
-        cluster: torch.Tensor,
-        perm: torch.Tensor,
-    ) -> torch.Tensor:
-        if reduce == "first":
-            return tensor[perm]
-
-        # Integer min/max/sum scatter natively; the float32 round trip below corrupts values above 2^24.
-        if not tensor.is_floating_point() and tensor.dtype != torch.bool and reduce != "mean":
-            return scatter(tensor, cluster, dim=0, reduce=reduce)
-
-        # Mean (and any bool reduction) needs float input; cast back so the key keeps its dtype.
-        out = scatter(tensor.float(), cluster, dim=0, reduce=reduce)
-        return out if tensor.is_floating_point() else out.to(tensor.dtype)
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
@@ -551,15 +748,7 @@ class Voxelize(DictTransform, Randomizable):
                 data[self.dst_pos_grid_key] = torch.empty(0, pos.shape[-1], dtype=torch.long, device=pos.device)
             return data
 
-        start = torch.floor(pos.min(dim=0).values / self.size) * self.size
-
-        if self.method == "fnv":
-            # FNV-1a hashing reproduces the voxel order of hash-based reference pipelines.
-            cluster = voxel_grid_fnv(pos, size=self.size, start=start)
-        else:
-            cluster = voxel_grid(pos, size=self.size, start=start)
-
-        cluster, _ = consecutive_cluster(cluster)
+        cluster, start = _voxel_cluster(pos, self.size, self.origin, self.method)
         num_clusters = int(cluster.max().item()) + 1
 
         if self.random_first:
@@ -567,10 +756,9 @@ class Voxelize(DictTransform, Randomizable):
         else:
             perm = first_permutation(cluster, num_clusters=num_clusters)
 
-        pos_grid = torch.floor((pos[perm] - start) / self.size).long()
-        pos_grid = pos_grid - pos_grid.min(dim=0).values
+        pos_grid = _grid_coordinates(pos[perm], start, self.size)
         data[self.pos_key] = (
-            pos_grid if self.pos_reduce == "grid" else self._reduce(pos, self.pos_reduce, cluster, perm)
+            pos_grid if self.pos_reduce == "grid" else _reduce_voxels(pos, self.pos_reduce, cluster, perm)
         )
         if self.dst_pos_grid_key is not None:
             data[self.dst_pos_grid_key] = pos_grid
@@ -579,7 +767,7 @@ class Voxelize(DictTransform, Randomizable):
             tensor = data[key]
             if reduce is None:
                 reduce = "mean" if tensor.is_floating_point() else "first"
-            data[key] = self._reduce(tensor, reduce, cluster, perm)
+            data[key] = _reduce_voxels(tensor, reduce, cluster, perm)
 
         if self.dst_inverse_key is not None:
             prior = data.get(self.dst_inverse_key)

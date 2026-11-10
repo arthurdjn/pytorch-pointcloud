@@ -4,7 +4,7 @@
 """
 
 from pathlib import Path
-from typing import Any, Callable, Dict, Literal, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Union
 
 import h5py
 import numpy as np
@@ -17,7 +17,13 @@ from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_terms_accepted, compute_hash, download_url, extract_zip, is_hash_valid
+from .utils import (
+    check_terms_accepted,
+    compute_hash,
+    download_url,
+    extract_zip,
+    is_hash_valid,
+)
 
 ScanObjectNNPartition = Literal["main", "split1", "split2", "split3", "split4"]
 SCANOBJECTNN_PARTITIONS = get_args(ScanObjectNNPartition)
@@ -154,6 +160,11 @@ class ScanObjectNN(PointCloudDataset):
     def raw_files_exist(self) -> bool:
         return Path(self.raw_file).exists()
 
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_file).with_suffix(".meta.json").as_posix()]
+
     @override
     def processed_files_exist(self) -> bool:
         return Path(self.processed_file).exists()
@@ -185,10 +196,7 @@ class ScanObjectNN(PointCloudDataset):
         # Cleanup the downloaded zipped file
         resource_path.unlink()
 
-    def process(self, force: bool = False, show_progress: bool = True) -> None:
-        if self.processed_files_exist() and not force:
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -212,6 +220,7 @@ class ScanObjectNN(PointCloudDataset):
         with open(tmp_path, "wb") as f:
             np.savez(f, pos=pos.astype(np.float32), label=labels.astype(np.int16))
         tmp_path.replace(self.processed_file)
+        return True
 
     def load(self, show_progress: bool = True) -> None:
         with np.load(self.processed_file) as f:

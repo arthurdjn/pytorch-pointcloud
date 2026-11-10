@@ -4,7 +4,7 @@ import math
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -365,3 +365,86 @@ def test_sunrgbd_dataset_construction_does_not_load_scenes(
 
     _ = dataset[0]
     assert len(calls) == 4
+
+
+def test_sunrgbd_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*")
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    meta = json.loads(Path(dataset.processed_dir, "val/meta.json").read_text())
+    assert meta == dataset.cache_meta
+    assert meta["format_version"] == SunRGBD.format_version
+
+
+def test_sunrgbd_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*")
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=False)
+
+    rebuilt = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
+
+
+def test_sunrgbd_cache_without_meta_is_served(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache from before the stamp existed is served as is and left unstamped."""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*")
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+    meta_path.unlink()
+
+    legacy = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=False)
+    assert len(legacy) == len(dataset)
+    assert not meta_path.exists()
+
+
+def test_sunrgbd_stamp_without_format_version_is_version_one(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A stamp written before `format_version` existed counts as version 1 and is served."""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*")
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    legacy = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=False)
+    assert len(legacy) == len(dataset)
+
+
+def test_sunrgbd_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*")
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+
+    def interrupted(self: SunRGBD, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(SunRGBD, "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    assert not meta_path.exists()
+
+
+def test_sunrgbd_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory("SunRGBD/**/*")
+    dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+
+    def incomplete(self: SunRGBD, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        return False
+
+    monkeypatch.setattr(SunRGBD, "write_processed_files", incomplete)
+    SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
+    assert not meta_path.exists()

@@ -16,7 +16,7 @@ def test_dynamic_mean_vfe_forward() -> None:
     pos = torch.rand(200, 3) * 4.0
     x = torch.randn(200, 1)
     batch = torch.cat([torch.zeros(80), torch.ones(120)]).long()
-    features, voxel_indices = vfe(pos, x, batch)
+    features, voxel_indices = vfe(x, pos, batch)
 
     pos_grid = torch.floor(pos / 0.5).int()
     rows = torch.unique(torch.cat([batch.view(-1, 1).int(), pos_grid], dim=1), sorted=True, dim=0)

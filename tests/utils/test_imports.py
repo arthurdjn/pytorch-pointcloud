@@ -65,10 +65,10 @@ def test_optional_import_fails() -> None:
     fake_module, is_available = optional_import("nonexistent_module")
     assert is_available is False
 
-    with pytest.raises(ImportError):
+    with pytest.raises(ImportError, match="Optional module 'nonexistent_module' is not installed."):
         fake_module()
 
-    with pytest.raises(ImportError):
+    with pytest.raises(ImportError, match="Optional module 'nonexistent_module' is not installed."):
         fake_module.some_function()
 
 
@@ -115,6 +115,7 @@ def test_optional_import_requirement() -> None:
     with pytest.raises(ImportError) as exc_info:
         fake_module.some_function()
 
+    assert "'fake_package' is not installed, but expected fake_package>=1.0.0." in str(exc_info.value)
     assert "https://fake-package.org" in str(exc_info.value)
 
 
@@ -145,10 +146,10 @@ def test_optional_import_version_requirement_invalid(mock_package: str) -> None:
     module, is_available = optional_import(mock_package, requirement=">=2.0.0")
     assert is_available is False
 
-    with pytest.raises(ImportError):
+    with pytest.raises(ImportError, match="is installed but does not meet the requirement mock_package>=2.0.0."):
         module()
 
-    with pytest.raises(ImportError):
+    with pytest.raises(ImportError, match="is installed but does not meet the requirement mock_package>=2.0.0."):
         module.some_function()
 
 

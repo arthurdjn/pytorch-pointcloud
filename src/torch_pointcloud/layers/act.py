@@ -16,8 +16,8 @@ def create_act(act: Union[str, Callable, None], **act_kwargs: Any) -> Optional[n
     """Resolve an activation, returning `None` for `act=None`.
 
     Args:
-        act: Activation name (e.g., `"relu"`, `"leaky_relu"`), a class, an instance,
-            or `None`.
+        act: Activation name (e.g., `"relu"`, `"leaky_relu"`; `"swish"` resolves to `nn.SiLU`), a class,
+            an instance, or `None`.
         **act_kwargs: Forwarded to the activation constructor (ignored if `act` is
             already an instance).
 
@@ -27,6 +27,9 @@ def create_act(act: Union[str, Callable, None], **act_kwargs: Any) -> Optional[n
     if act is None:
         return None
 
+    # PyG resolves "swish" to a plain function rather than a module.
+    if isinstance(act, str) and act.lower() == "swish":
+        return nn.SiLU(**act_kwargs)
     if isinstance(act, type) and issubclass(act, nn.Module):
         return act(**act_kwargs)
     return activation_resolver(act, **act_kwargs)

@@ -18,7 +18,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanObjectNN
 from torch_pointcloud.metrics import confusion_matrix
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import CosineWarmupLR, param_groups
+from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -31,7 +31,8 @@ WEIGHT_DECAY = 0.05
 WARMUP_LR_INIT = 1e-6
 MIN_LR = 1e-6
 GRAD_CLIP_NORM = 10.0
-# Every entry: the pretraining entry its encoder starts from, its ScanObjectNN variant and its config's schedule.
+# Every entry: the entry it starts from (the post-pre-training stage for PointGPT-B and -L), its ScanObjectNN
+# variant and its config's schedule.
 MODELS: Dict[str, Dict[str, Any]] = {
     "pointgpt-s.scanobjectnn-hardest.guangyan-chen": dict(
         pretrain="pointgpt-s.pretrain.guangyan-chen",
@@ -58,7 +59,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-b.scanobjectnn-hardest.guangyan-chen": dict(
-        pretrain="pointgpt-b.pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         background=True,
         variant="augmentedrot_scale75",
         epochs=30,
@@ -66,7 +67,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-b.scanobjectnn-objbg.guangyan-chen": dict(
-        pretrain="pointgpt-b.pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         background=True,
         variant=None,
         epochs=30,
@@ -74,7 +75,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-b.scanobjectnn-objonly.guangyan-chen": dict(
-        pretrain="pointgpt-b.pretrain.guangyan-chen",
+        pretrain="pointgpt-b.labeled-hybrid.guangyan-chen",
         background=False,
         variant=None,
         epochs=50,
@@ -82,7 +83,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-l.scanobjectnn-hardest.guangyan-chen": dict(
-        pretrain="pointgpt-l.pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         background=True,
         variant="augmentedrot_scale75",
         epochs=50,
@@ -90,7 +91,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-l.scanobjectnn-objbg.guangyan-chen": dict(
-        pretrain="pointgpt-l.pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         background=True,
         variant=None,
         epochs=50,
@@ -98,7 +99,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
         warmup_epochs=10,
     ),
     "pointgpt-l.scanobjectnn-objonly.guangyan-chen": dict(
-        pretrain="pointgpt-l.pretrain.guangyan-chen",
+        pretrain="pointgpt-l.labeled-hybrid.guangyan-chen",
         background=False,
         variant=None,
         epochs=50,
@@ -227,13 +228,15 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
 def configure_model(args: Namespace) -> nn.Module:
     model = create_model(args.model, task="classification", pretrained=False)
     if not args.from_scratch:
-        load_backbone(model, MODELS[args.model]["pretrain"])
+        state = create_model(MODELS[args.model]["pretrain"], pretrained=True).state_dict()
+        state = {key: value for key, value in state.items() if not key.startswith("head.")}
+        model.load_state_dict(state, strict=False)
 
     return model.to(args.device)
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(model, weight_decay=args.weight_decay, no_decay=["token"])
+    groups = generate_param_groups(model, weight_decay=args.weight_decay, no_decay=["token"])
     optimizer = torch.optim.AdamW(groups, lr=args.lr, weight_decay=args.weight_decay)
 
     # Stepped once per epoch: cosine with a linear warm-up.
@@ -249,14 +252,6 @@ def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, 
 
 def configure_criterion(args: Namespace) -> nn.Module:
     return nn.CrossEntropyLoss()
-
-
-def load_backbone(model: nn.Module, name: str) -> None:
-    """Load the pretraining entry's encoder into the classifier; its head and class tokens start fresh."""
-    state = rename_backbone(create_model(name, pretrained=True).state_dict())
-    missing, _ = model.load_state_dict(state, strict=False)
-    fresh = sorted({key.split(".")[0] for key in missing})
-    print(f"Loaded the encoder of {name!r}; freshly initialized: {', '.join(fresh)}.")
 
 
 def train_one_epoch(
@@ -295,11 +290,6 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
     accuracy = confusion.diag().sum() / confusion.sum()
     mean_accuracy = (confusion.diag() / confusion.sum(dim=1).clamp_min(1))[present].mean()
     return {"acc": accuracy.item(), "mean_acc": mean_accuracy.item()}
-
-
-def rename_backbone(state: Dict[str, Tensor]) -> Dict[str, Tensor]:
-    """The pretraining model's encoder keys are the classifier's."""
-    return state
 
 
 if __name__ == "__main__":

@@ -6,6 +6,142 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
+- Added `act_first`, `act_last` and `input_transform_uses_features` to the PointNet models, and `in_channels` to `TNet`.
+- Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`; the former key still loads, with a `FutureWarning`.
+- Added LitePT (`LitePTSegmentation`) with six ScanNet, nuScenes and Structured3D checkpoints (`litept-*.prs-eth`), its ScanNet training script and its ScanNet and nuScenes benchmark scripts.
+- Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
+- Added `layers.spconv_blocks.SubMConv3d`, a `spconv.SubMConv3d` that casts its features to the weight dtype; it fixes Point Transformer V3 inference under `torch.autocast` failing in the sparse convolutions.
+- Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
+- Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
+- Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
+- Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
+- Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
+- Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
+- Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
+- `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
+
+## 0.0.19 (2026-11-08)
+
+- Added the Hub sync tests (`pytest tests/models/test_hub_sync.py --run-hub`, nightly in CI): the card metrics, `config.json` and pinned weights of every published repository follow the registry.
+- Added a test that `docs/data/models.csv` is what `build_model_tables.py` renders from the registry.
+- Added nuScenes-lidarseg labels to `NuScenes` (`return_segment`) and the `ptv3-base.nuscenes.pointcept` checkpoint.
+- Fixed `NuScenes` dropping the ego points of the keyframe; only prior sweeps drop them now.
+- Updated the nuScenes metrics of `second-multihead`, `pointpillars-multihead`, `voxelnext` and `lion-mamba`, re-measured with the keyframe ego points.
+- Added `format_version`, `cache_meta`, `cache_meta_paths` and `process` to `PointCloudDataset`: every processed cache is stamped with `meta.json` and a stale stamp raises.
+- Dataset `process` methods share one signature; the per-dataset work moved to `write_processed_files`.
+- Added the Point Transformer V3 GridNet-HD checkpoint `ptv3.gridnet-hd.heig-vd-geo` (MIT) and its benchmark on the GridNet-HD validation zones.
+- Added the `GridNetHD` dataset, downloaded from the Hub.
+- `SlidingWindowInferer` assigns points to blocks and blends their predictions with a fraction of the host memory it used.
+- Fixed `SlidingWindowInferer` failing on float64 positions with `mode="gaussian"`.
+- Fixed the registered transforms of the PTv3 ScanNet and nuScenes checkpoints failing on clouds without labels.
+- Removed the former model names `sonata-lp.scannet20.fair`, `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept`, `pvcnn2.s3dis-area5` and `point-transformer.s3dis-area5`, deprecated in 0.0.17.
+- Added `transforms.functional.voxelize`, the functional form of `Voxelize`.
+- Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
+- Added CenterPoint (`CenterPointDetection`, `CenterPointPillarsDetection`) with the nuScenes checkpoints `centerpoint-voxel01.nuscenes.mmdet3d`, `centerpoint-voxel0075.nuscenes.mmdet3d` and `centerpoint-pillar02.nuscenes.mmdet3d`, and their benchmark and training scripts.
+- Moved `CenterHead`, `SeparateHead` and `CenterHeadOutput` from `models.voxel_mamba` to `layers.center_head`; `CenterHead` takes `class_groups` and optional velocity and IoU branches.
+- `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works until 0.0.20, with a `FutureWarning`.
+- Voxel Mamba's head outputs are one-element lists, its head parameters are `head.heads.0.*` instead of `head.prediction_head.*`, and its head starts from the `CenterHead` initialization.
+- Fixed the IoU term of `CenterHeadLoss` sending gradients into the box maps.
+- Added `center_regression_loss`, the box-code term of `CenterHeadLoss` and `VoxelNeXtHeadLoss`.
+- Added `ops.heatmap.draw_sparse_heatmap_targets`, the sparse target assignment of `VoxelNeXtHeadLoss`.
+- Added `ops.heatmap.decode_center_codes`, the box decode of the center heads, and `iou_prediction_loss`, the IoU term of `CenterHeadLoss`.
+- Added the Myria3D FRACTAL checkpoint `randlanet.fractal.ignf` (Etalab-2.0), loaded from IGN's Hugging Face repository, and its benchmark on the FRACTAL test set.
+- Added the `FRACTAL` dataset, read in place from its zip archives with the optional `laspy` package.
+- Added the `LabelMask`, `MaskedFill`, `NormalizedDifference`, `Add`, `Log` and `Standardize` transforms, and the `nir` data key.
+- Added the `lse_channels`, `lse_input`, `pool` and `stem_plain_last` options of RandLA-Net, and renamed `random_max_pool` to `random_pool`; the former name still works, with a `FutureWarning`.
+- `read_state_dict` reads the objects of a checkpoint other than tensors (training hyperparameters, optimizer configurations) as inert placeholders, so Lightning checkpoints that pickle them load with `weights_only=True`.
+- Added Part-A2 (`PartA2Detection`) with the KITTI checkpoints `part-a2.kitti.mmdet3d` and `part-a2.kitti-car.mmdet3d`, and their benchmark script.
+- Added PV-RCNN (`PVRCNNDetection`) with the KITTI checkpoint `pv-rcnn.kitti.mmdet3d`, and its benchmark script.
+- Added `ops.box3d.roi_aware_pool3d`, `ops.box3d.decode_roi_residuals` and the `PointNet2QuerySetAbstraction` layer.
+- Added `PointGPTPartSegmentation` with the ShapeNetPart checkpoints `pointgpt-s.shapenetpart.guangyan-chen`, `pointgpt-b.shapenetpart.guangyan-chen` and `pointgpt-l.shapenetpart.guangyan-chen`, their benchmark and training scripts, and the `PartSegmentationDecoder` layer.
+- Added the PointGPT post-pre-training checkpoints `pointgpt-b.labeled-hybrid.guangyan-chen` and `pointgpt-l.labeled-hybrid.guangyan-chen`.
+- Fixed the dataset of `pointgpt-b.pretrain.guangyan-chen` and `pointgpt-l.pretrain.guangyan-chen`: UnlabeledHybrid, not ShapeNet55.
+- `PointGPTExtractor.forward` takes `fetch_idx`, and its `attn_mask` defaults to `None`.
+- Updated the ShapeNetPart metrics of `point-mae-base.shapenetpart.yatian-pang` and `point-m2ae-base.shapenetpart.renrui-zhang`, re-measured with the argmax over the parts of each shape's category.
+- Added nine MMDetection3D checkpoints for PointPillars, SECOND and VoteNet, and the SECOND-IoU, PointRCNN-IoU and 3DETR-m SUN RGB-D checkpoints.
+- Added `SECONDIoUDetection`, `PointPillarsFPNDetection`, `MultiLevelAnchorHead`, `BEVPyramidBackbone`, `dynamic_voxelize` and `DynamicVoxelize`; `AnchorHead` and `AnchorHeadLoss` take `anchor_range` and `align_center`.
+- Added `ops.box3d.angle_to_direction_bin` and `direction_bin_to_angle`, the direction-bin heading of the anchor heads and their loss.
+- Omitting `dir_offset` from `AnchorHead`, `AnchorHeadLoss` or the PointPillars, SECOND, Part-A2 and PV-RCNN detectors is deprecated, and an error from 0.0.20.
+- `HardVoxelize` raises when its `feature_key` is missing, `Cat` when an input lacks the concatenation dimension, and detectors when `num_classes` is 0.
+- Added Volt (`VoltSegmentation`) with the authors' ScanNet, ScanNet200, nuScenes and SemanticKITTI checkpoints, and their benchmark scripts.
+- Added the `PackedAttention`, `PackedTransformerBlock`, `AxialRoPE` and voxel patch layers, `ops.voxelization.voxel_patch_partition` and the `ClampNorm` transform.
+- Added `inferers.scale_flip_tta_transforms`, the scaled and mirrored test-time views of the outdoor and S3DIS benchmarks.
+- Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
+- Moved `TransFusionHead`, `TransFusionDecoderLayer` and `TransFusionHeadOutput` from `models.lion` to `layers.transfusion_head`, and renamed `SeparateHeadTransfusion` to `TransFusionPredictionHead`.
+- `TransFusionHead` takes its grid by keyword without `grid_size`, and a required `height_code`; `hidden_channel`, `ffn_channel`, `activation` and `bn_momentum` became `embed_dim`, `mlp_dim`, `act` and `norm_kwargs`.
+- `TransFusionHead` reads the $(y, x)$ BEV layout of any size and adds `use_iou` and whole-map attention (the default); `iou_rectifier` moved to `decode`, which keeps every query, and `nms_radius` and `post_center_range` were removed.
+- `LIONDetection.decode` takes a per-class `iou_rectifier` and no longer drops boxes beyond the 61.2 m range.
+- `TransFusionHeadLoss` takes the `height_code` of its head; omitting it keeps the box-top code until 0.0.20, with a `FutureWarning`, and `num_proposals` is deprecated. Its IoU term applies only to a head with an `iou` branch.
+- Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
+- Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
+- The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.
+- Added `PVCNNPartSegmentation` and `PointNet2PartSegmentation` with the PVCNN and PointNet++ ShapeNetPart checkpoints, and their benchmark and training scripts.
+- Added `metrics.part_predictions`, the `"max"` aggregation of `TTAInferer`, and the `block_size=None` (each cloud as one block) and `cloud_keys` options of `SlidingWindowInferer`.
+- `SlidingWindowInferer(aggregate="max")` returns the per-class maximum of the block probabilities instead of the most confident block's distribution.
+- Added the `voxel_act`, `voxel_act_kwargs` and `voxel_norm_kwargs` options of `PVConv` and the PVCNN models, and `PVCNNSegmentation(head_dropout=...)` takes one value per hidden head layer.
+- Fixed the hparams of the `pvcnn*.s3dis-area5.mit-han-lab` checkpoints, which did not rebuild the registered model.
+- `part_intersection_over_union` raises on a one-hot `category` instead of scoring the wrong parts.
+
+## 0.0.18 (2026-10-20)
+
+- Fixed `randlanet.{semantickitti,semantic3d,parislille3d}.open3d` to use the activation and input transforms their weights were trained with.
+- Added the `deprecated_model` decorator, stacked above `register_model`, which keeps a renamed model reachable under its former name with a `FutureWarning` naming the release that drops it; it replaces `register_model(deprecated_names=...)`, and `model_info` lists the former names under `deprecated_names`.
+- The former name `point-transformer.s3dis-area5` loads again, with a `FutureWarning`.
+- Fixed the intermittent `IndexError` in `construct_neigh_by_parent` when DataLoader workers collate ocnn octrees: the batch octree no longer shares ocnn's lookup-table cache.
+
+## 0.0.17 (2026-10-18)
+
+- Added the Point Transformer V3 DALES checkpoint `ptv3.dales.jayakumar-pujar` (MIT) and its benchmark on the DALES test tiles.
+- Added the `DALES` dataset, read with the optional `laspy` package, and the `return_number` and `number_of_returns` data keys.
+- Added the `MaxAbsScale` transform.
+- `create_model(pretrained=True)` downloads with the Hugging Face token of the environment (`utils.hub.load_hub_token`), so weights hosted in a gated repository load; `read_state_dict` unwraps a `model_state_dict` key.
+- `download_url` takes request `headers`, not forwarded on redirects, and removes its partial file when the download fails.
+- `PointTransformerV3DecoderBlock(cpe_from_skip=)` picks what the block xCPE convolves after upsampling; `PointTransformerV3Decoder(pooling="grid")` uses the summed features, as the reference grid unpooling does.
+- `PointTransformerV3Classification.forward` and `PointTransformerV3Segmentation.forward` take `pos` as their fourth argument, like the encoder, and `condition` by keyword only.
+- Fixed the stem and pooling BatchNorm `eps` of the Point Transformer V3 segmentation checkpoints (`1e-3`).
+- Added the Open3D-ML model zoo (MIT): `randlanet.{semantickitti,s3dis-area3,toronto3d,semantic3d,parislille3d}.open3d`, `kpfcnn.{s3dis-area3,semantickitti,toronto3d}.open3d`, `kpfcnn-deform.parislille3d.open3d`, `point-transformer.s3dis-area5.open3d` and `spformer-unet.scannet20.open3d`, with their inference transforms and the benchmark scripts of their validation protocols under `examples/randlanet`, `examples/kpconv`, `examples/point_transformer` and `examples/spformer_unet`.
+- Renamed `point-transformer.s3dis-area5` to `point-transformer.s3dis-area5.open3d`, which now ships pretrained weights.
+- `Semantic3D(download=True, accept_terms=True)` fetches the requested scenes and their labels from the benchmark's ETH mirror (7z archives, read with the optional `py7zr` package).
+- Added `datasets.semantickitti.SEMANTIC_KITTI_LEARNING_MAP`, the official 19-class learning map of the single-scan benchmark.
+- Fixed `PointTransformerSegmentation` to match the reference network: the attention MLP of `PointTransformerBlock` starts with normalization and activation, the query / key / value projections carry a bias (`PointTransformerConv(bias=True)`), the decoder opens with a `PointTransformerGlobalTransition` that mixes a global mean feature into the coarsest stage followed by one transformer block, and the head is `Linear -> norm -> act -> Linear` (architecture snapshots regenerated).
+- Added the `sonata-small`, `utonia-small`, `utonia-tiny`, `concerto-base-origin`, `concerto-large-origin` and `concerto-base-siglip` pretrained encoders.
+- Renamed `utonia.pretrain.pointcept`, `utonia-lp.scannet20.pointcept` and `sonata-lp.scannet20.fair` to `utonia-base.pretrain.pointcept`, `utonia-base-lp.scannet20.pointcept` and `sonata-base-lp.scannet20.fair`; the former names still load, with a `FutureWarning`.
+- Added `register_model(deprecated_names=...)`, which keeps renamed models reachable under their former names.
+- Added `WeightsDict(pretrained_filter_fn=...)`, which maps a checkpoint onto the model keys at load, and `WeightsDict(url=...)` accepts several files, warning when a later file overrides keys.
+- The Sonata, Concerto and Utonia weights download from the authors' Hugging Face repositories.
+- Added the `pvcnn-c0p25`, `pvcnn-c0p125`, `pvcnn2` and `pvcnn2-c0p5` S3DIS Area 5 pretrained weights.
+- Renamed `pvcnn2.s3dis-area5` to `pvcnn2.s3dis-area5.mit-han-lab`; the former name still loads, with a `FutureWarning`.
+- Fixed `PVCNN2Segmentation` to match PVCNN++: set abstraction groups unscaled relative positions before the features, the decoder skips take each set-abstraction output before its point-voxel convs, and the decoder takes at most one block per set-abstraction level.
+- Added `--num-points` to the PVCNN S3DIS benchmark.
+
+## 0.0.16 (2026-10-14)
+
+- Added scores charts and tables to the documentation for better comparison of the models.
+
+## 0.0.15 (2026-10-13)
+
+- Fixed the module paths in `THIRD_PARTY_NOTICES.md`, the FAQ entry on `num_classes=` overrides, the tutorials index, and the model zoo notebooks that did not run top to bottom.
+- Removed the `plyfile` dependency (GPL-3.0): `utils.io.load_ply` and `save_ply` read and write PLY files with NumPy, and the ScanNet, Paris-Lille-3D and Toronto-3D loaders use them.
+- Fixed the `SyntaxWarning` that a docstring of `ops.box3d` raised on first import under Python 3.12+.
+
+## 0.0.14 (2026-10-12)
+
+- Added the Data Format, FAQ and About pages to the documentation.
+- Every package `__init__` defines `__all__`, `transforms` imports its classes explicitly and `implicit_reexport` is off, so the documented names type-check under `mypy --strict`.
+- `torch_pointcloud.ops` imports its modules: `tp.ops.box3d`, `tp.ops.cluster`, `tp.ops.voxelization`, ... are reachable after `import torch_pointcloud`.
+- Removed the `TORCH_POINTCLOUD_MODELS_DIR` variable: the pretrained weights always live under `<cache>/models`, and `TORCH_POINTCLOUD_CACHE_DIR` moves the cache.
+- `create_model` raises an `ImportError` naming the model and the installation page when an optional dependency is missing; `optional_import` tells a package that is not installed from one that does not meet its version requirement, and the flash attention errors point at `use_flash_attn=False`.
+- `DynamicMeanVFE.forward` takes `(x, pos, batch)` like every other packed layer; swap the first two arguments of existing `vfe(pos, x, batch)` calls.
+- `create_pool(None)`, `create_adaptive_pool(None)` and `create_dropout(None)` return `None` like `create_norm` / `create_act` instead of raising (overloaded, so a non-`None` argument still types as `nn.Module`). `create_act("swish")` resolves to `nn.SiLU` instead of PyG's `swish` function.
+- `AnchorHeadLoss` accepts 9-column boxes and ignores their velocity columns; no call changes.
+- `TransFusionHeadLoss` supervises the velocity codes from 9-column boxes once `code_weights` enables them; its docstring no longer states that the velocity targets are always zero.
+- Renamed `optim.param_groups` to `generate_param_groups` and removed the MONAI-signature function of that name (its overlapping groups are rejected by `torch.optim`): `generate_param_groups(model, overrides=[dict(keyword=..., lr=...)])`, and the same kwargs as `LitModel(param_groups=...)`.
+- Fixed the DGCNN segmentation lines of `examples/benchmark.sh`, which passed `--dataset` and `--area` to scripts that take `--model`; a test now checks every line of the file against the argparse interface of the script it calls.
+- `create_model(..., pretrained=True)` no longer warns about overrides: `num_classes=K` loads the registered checkpoint and then rebuilds the head for `K` classes (`0` drops it), and the keys whose shape changed under another override (e.g. the stem after `in_channels=`) keep their initialization.
+- `create_model(..., pretrained=True)` warns when the registered weights are released under a non-commercial license.
+- Added `tests/test_docs_examples.py`, which runs every ```python fence of the docstrings and the docs pages as pasted with `--run-docs` (`make doctest-docs`); a block that cannot run is tagged `{.python notest}`. Fixed the examples that did not run (missing imports, placeholder names, stale calls, the argument order of the `SlidingWindowInferer` predictor) and removed the `pytest-markdown-docs` dependency.
+
 ## 0.0.13 (2026-10-11)
 
 - Updated some model references in docstrings to include full paper titles.

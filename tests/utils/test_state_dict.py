@@ -1,7 +1,13 @@
+import functools
+import io
+import pickle
+import zipfile
 from collections import OrderedDict
 from pathlib import Path
+from typing import Any, Callable, Dict, Tuple, Type
 from unittest.mock import Mock, call, sentinel
 
+import numpy as np
 import pytest
 import torch
 from torch import nn
@@ -190,11 +196,29 @@ def test_load_state_dict_supports_lazy_parameters() -> None:
     assert target(torch.randn(2, 3)).shape == (2, 4)
 
 
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_load_state_dict_mismatched_shapes_keep_initialization() -> None:
+    model = nn.Linear(4, 2)
+    weight = model.weight.clone()
+    load_state_dict(model, {"weight": torch.zeros(2, 3), "bias": torch.ones(2)}, source="test")
+    assert torch.equal(model.weight, weight)
+    assert torch.equal(model.bias, torch.ones(2))
+
+
 def test_load_state_dict_missing_keys_raise_by_default() -> None:
     model = nn.Linear(3, 4)
 
     with pytest.raises(RuntimeError, match="missing model keys"):
         load_state_dict(model, {}, source="empty.ckpt")
+
+
+@pytest.mark.parametrize("strict", [pytest.param(True, id="strict"), pytest.param(False, id="non-strict")])
+def test_load_state_dict_checkpoint_sharing_no_key_raises(strict: bool) -> None:
+    model = nn.Linear(3, 4)
+    checkpoint = {f"net.{key}": value for key, value in nn.Linear(3, 4).state_dict().items()}
+
+    with pytest.raises(RuntimeError, match="shares no key with the model"):
+        load_state_dict(model, checkpoint, source="wrapped.ckpt", strict=strict)
 
 
 def test_load_state_dict_strict_false_warm_starts_from_partial_checkpoint() -> None:
@@ -211,20 +235,84 @@ def test_load_state_dict_strict_false_warm_starts_from_partial_checkpoint() -> N
     assert torch.equal(model.state_dict()["head.weight"], head_weight)
 
 
-def test_read_state_dict_non_mapping_checkpoint_raises(tmp_path: Path) -> None:
-    path = tmp_path / "raw.pt"
-    torch.save(torch.zeros(3), path)
+class _FailsIfRestored:
+    def __init__(self) -> None:
+        self.saved = True
 
-    with pytest.raises(ValueError, match="not a state dict"):
+    def __setstate__(self, state: Dict[str, bool]) -> None:
+        pytest.fail("unpickling restored an object of the checkpoint")
+
+
+class _RestoredByCallingAnObject:
+    def __reduce__(self) -> Tuple[Callable[[], Dict[Any, Any]], Tuple[()]]:
+        return functools.partial(dict), ()
+
+
+@pytest.mark.parametrize(
+    ("checkpoint", "zip_format", "error", "match"),
+    [
+        pytest.param(torch.zeros(3), True, ValueError, "not a state dict", id="tensor"),
+        pytest.param(nn.Linear(2, 2), True, ValueError, "got torch.nn.modules.linear.Linear", id="pickled-module"),
+        pytest.param(
+            {"state_dict": nn.Linear(2, 2)},
+            True,
+            ValueError,
+            "got torch.nn.modules.linear.Linear",
+            id="pickled-module-under-state-dict",
+        ),
+        pytest.param(
+            {"model": nn.Linear(2, 2), "epoch": 3},
+            True,
+            ValueError,
+            r"'model' \(torch.nn.modules.linear.Linear\)",
+            id="pickled-module-among-parameters",
+        ),
+        pytest.param(
+            {"lin.weight": torch.ones(2, 2), "optimizer": functools.partial(torch.optim.Adam, lr=0.01)},
+            False,
+            pickle.UnpicklingError,
+            "Weights only load failed",
+            id="legacy-format-with-objects",
+        ),
+        pytest.param(
+            {"lin.weight": torch.ones(2, 2), "hook": _RestoredByCallingAnObject()},
+            True,
+            pickle.UnpicklingError,
+            "Weights only load failed",
+            id="restored-by-calling-an-object",
+        ),
+    ],
+)
+def test_read_state_dict_unreadable_checkpoint_raises(
+    tmp_path: Path,
+    checkpoint: Any,
+    zip_format: bool,
+    error: Type[Exception],
+    match: str,
+) -> None:
+    path = tmp_path / "model.pt"
+    torch.save(checkpoint, path, _use_new_zipfile_serialization=zip_format)
+
+    with pytest.raises(error, match=match):
         read_state_dict(path)
 
 
-def test_read_state_dict_lightning_checkpoint_without_model_prefix_raises(tmp_path: Path) -> None:
+def test_read_state_dict_unwraps_model_state_dict(tmp_path: Path) -> None:
+    path = tmp_path / "training.pth"
+    torch.save({"epoch": 3, "model_state_dict": {"lin.weight": torch.zeros(2, 2)}, "optimizer_state_dict": {}}, path)
+
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["lin.weight"]
+
+
+def test_read_state_dict_lightning_checkpoint_without_model_prefix_keeps_every_key(tmp_path: Path) -> None:
     path = tmp_path / "lit.ckpt"
     torch.save({"pytorch-lightning_version": "2.0", "state_dict": {"net.lin.weight": torch.zeros(2, 2)}}, path)
 
-    with pytest.raises(ValueError, match="no 'model.'-prefixed keys"):
-        read_state_dict(path)
+    result = read_state_dict(path)
+
+    assert list(result.keys()) == ["net.lin.weight"]
 
 
 def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path) -> None:
@@ -234,3 +322,44 @@ def test_read_state_dict_lightning_checkpoint_strips_model_prefix(tmp_path: Path
     result = read_state_dict(path)
 
     assert list(result.keys()) == ["lin.weight"]
+
+
+def test_read_state_dict_reads_other_objects_as_inert_placeholders(tmp_path: Path) -> None:
+    path = tmp_path / "lit.ckpt"
+    checkpoint = {
+        "pytorch-lightning_version": "2.0",
+        "state_dict": {"model.lin.weight": torch.ones(2, 2)},
+        "hyper_parameters": {"optimizer": functools.partial(torch.optim.Adam, lr=0.01), "hook": _FailsIfRestored()},
+    }
+    torch.save(checkpoint, path)
+
+    with pytest.raises(pytest.fail.Exception, match="restored"):
+        torch.load(path, weights_only=False)
+
+    result = read_state_dict(path)
+    assert list(result.keys()) == ["lin.weight"]
+    assert torch.equal(result["lin.weight"], torch.ones(2, 2))
+
+
+def test_read_state_dict_allows_numpy_scalars(tmp_path: Path) -> None:
+    """A training checkpoint records its best metric as a numpy scalar next to the tensors."""
+    path = tmp_path / "model_best.pth"
+    torch.save({"state_dict": {"weight": torch.ones(2)}, "best_metric_value": np.float64(0.5)}, path)
+
+    assert torch.equal(read_state_dict(path)["weight"], torch.ones(2))
+
+
+def test_read_state_dict_allows_numpy_1_scalars(tmp_path: Path) -> None:
+    """A checkpoint written under numpy 1 pickles the scalar as `numpy.core.multiarray.scalar`."""
+    buffer = io.BytesIO()
+    torch.save({"state_dict": {"weight": torch.ones(2)}, "best_metric_value": np.float64(0.5)}, buffer)
+    path = tmp_path / "model_best.pth"
+    with zipfile.ZipFile(buffer) as source, zipfile.ZipFile(path, "w") as target:
+        for item in source.infolist():
+            content = source.read(item.filename)
+            if item.filename.endswith("data.pkl"):
+                assert b"cnumpy._core.multiarray\nscalar\n" in content
+                content = content.replace(b"cnumpy._core.multiarray\nscalar\n", b"cnumpy.core.multiarray\nscalar\n")
+            target.writestr(item, content)
+
+    assert torch.equal(read_state_dict(path)["weight"], torch.ones(2))

@@ -35,6 +35,36 @@ def test_normalize() -> None:
     assert torch.allclose(result["x"], expected)
 
 
+def test_maxabs_scale_per_channel() -> None:
+    data = {"x": torch.tensor([[1.0, -4.0], [2.0, 2.0]])}
+    result = T.MaxAbsScale(keys=["x"])(data)
+    assert torch.allclose(result["x"], torch.tensor([[0.5, -1.0], [1.0, 0.5]]))
+
+
+def test_maxabs_scale_casts_integers() -> None:
+    data = {"return_number": torch.tensor([[1], [2], [4]])}
+    result = T.MaxAbsScale(keys=["return_number"])(data)
+    assert result["return_number"].dtype == torch.float32
+    assert torch.allclose(result["return_number"], torch.tensor([[0.25], [0.5], [1.0]]))
+
+
+def test_maxabs_scale_zero_tensor_stays_finite() -> None:
+    out = F.maxabs_scale(torch.zeros(3, 2))
+    assert torch.equal(out, torch.zeros(3, 2))
+
+
+def test_maxabs_scale_one_dimensional() -> None:
+    assert torch.allclose(F.maxabs_scale(torch.tensor([3.0, -6.0])), torch.tensor([0.5, -1.0]))
+
+
+def test_maxabs_scale_scalar() -> None:
+    assert F.maxabs_scale(torch.tensor(-4.0)).item() == pytest.approx(-1.0)
+
+
+def test_maxabs_scale_empty_passthrough() -> None:
+    assert F.maxabs_scale(torch.zeros(0, 3)).shape == (0, 3)
+
+
 def test_rescale_empty_passthrough(empty_scene: dict) -> None:
     out = T.Rescale(keys=["pos"])(empty_scene)
     assert out["pos"].shape == (0, 3)
@@ -191,3 +221,44 @@ def test_normalize_accepts_tensor_inputs() -> None:
     std = torch.tensor([1.0, 2.0])
     out = F.normalize(x, mean, std)
     assert torch.allclose(out, torch.zeros_like(out))
+
+
+def test_standardize_uses_per_channel_statistics() -> None:
+    generator = torch.Generator().manual_seed(0)
+    x = torch.rand(1000, 2, generator=generator) * torch.tensor([1.0, 3000.0])
+    out = T.Standardize(keys="x")({"x": x})["x"]
+    assert torch.allclose(out.mean(dim=0), torch.zeros(2), atol=1e-4)
+    assert torch.allclose(out.std(dim=0), torch.ones(2), atol=1e-3)
+
+
+def test_standardize_clamp() -> None:
+    x = torch.tensor([[0.0], [0.1], [0.2], [0.9]])
+    out = F.standardize(x, clamp=1.0)
+    assert torch.isclose(out[3, 0], torch.tensor(1.0))
+    assert torch.equal(out[:3], F.standardize(x)[:3])
+
+
+def test_standardize_scale_clamp_by_std_bounds_by_the_input_spread() -> None:
+    x = torch.tensor([[0.0], [0.1], [0.2], [0.9]])
+    out = F.standardize(x, clamp=3.0, scale_clamp_by_std=True)
+    assert torch.isclose(out[3, 0], 3 * (x.std() + 1e-6))
+    assert torch.equal(out[:3], F.standardize(x)[:3])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_standardize_single_point_is_zero() -> None:
+    out = F.standardize(torch.tensor([[5.0, -2.0]]), clamp=3.0)
+    assert torch.equal(out, torch.zeros(1, 2))
+
+
+def test_standardize_empty_passthrough() -> None:
+    x = torch.zeros(0, 3)
+    assert F.standardize(x) is x
+
+
+def test_standardize_channels_keeps_the_others() -> None:
+    x = torch.tensor([[0.0, 5.0, 1.0], [2.0, 6.0, 3.0], [4.0, 7.0, 5.0]])
+    out = T.Standardize(keys="x", channels=[0, 2])({"x": x})["x"]
+    assert torch.equal(out[:, 1], x[:, 1])
+    assert torch.allclose(out[:, [0, 2]], torch.tensor([[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0]]), atol=1e-5)
+    assert torch.equal(x[:, 0], torch.tensor([0.0, 2.0, 4.0]))

@@ -1,16 +1,24 @@
 import inspect
 import json
 import re
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import pytest
 import torch
 import torch.nn as nn
+from packaging.version import Version
 
-from torch_pointcloud.models import create_model, list_models
-from torch_pointcloud.models._registry import _REGISTERED_MODELS
+from torch_pointcloud.models import create_model, list_models, model_info
+from torch_pointcloud.models._registry import _REGISTERED_MODELS, _is_non_commercial_license
 from torch_pointcloud.ops.octree import build_octree
+from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.hub import HF_ENDPOINT, HF_URL_RE
 from torch_pointcloud.utils.imports import (
     _DWCONV_AVAILABLE,
     _FLASH_ATTN_AVAILABLE,
@@ -23,8 +31,15 @@ from torch_pointcloud.utils.imports import (
 )
 
 SNAPSHOTS_DIR = Path(__file__).resolve().parents[1] / "data" / "models"
+REPO_DIR = Path(__file__).resolve().parents[2]
+PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
+FORMER_NAMES: list[tuple[str, str, str]] = []
 
 CLASSIFICATION_MODELS = [
+    "act.modelnet40.runpei-dong",
+    "act.scanobjectnn-hardest.runpei-dong",
+    "act.scanobjectnn-objbg.runpei-dong",
+    "act.scanobjectnn-objonly.runpei-dong",
     "dgcnn.modelnet40-1024.an-tao",
     "dgcnn.modelnet40-2048.an-tao",
     "kpfcnn.modelnet40",
@@ -32,6 +47,12 @@ CLASSIFICATION_MODELS = [
     "pointcnn-base",
     "pointconv-density-base",
     "pointconv-density-base.modelnet40.wenxuan-wu",
+    "pcp-mae.modelnet40.xiangdong-zhang",
+    "pcp-mae.scanobjectnn-hardest.xiangdong-zhang",
+    "pcp-mae.scanobjectnn-objbg.xiangdong-zhang",
+    "pcp-mae.scanobjectnn-objonly.xiangdong-zhang",
+    "point2vec.modelnet40.karim-knaebel",
+    "point2vec.scanobjectnn-hardest.karim-knaebel",
     "point-bert-base.modelnet40.xumin-yu",
     "point-bert-base.modelnet40-4k.xumin-yu",
     "point-bert-base.modelnet40-8k.xumin-yu",
@@ -66,6 +87,8 @@ CLASSIFICATION_MODELS = [
     "pointgpt-l.scanobjectnn-hardest.guangyan-chen",
     "pointgpt-l.scanobjectnn-objbg.guangyan-chen",
     "pointgpt-l.scanobjectnn-objonly.guangyan-chen",
+    "pointgpt-b.labeled-hybrid.guangyan-chen",
+    "pointgpt-l.labeled-hybrid.guangyan-chen",
     "pointmlp-base",
     "pointmlp-base.modelnet40.xu-ma",
     "pointmlp-base.scanobjectnn-hardest.xu-ma",
@@ -73,6 +96,8 @@ CLASSIFICATION_MODELS = [
     "pointmlp-elite.modelnet40.xu-ma",
     "pointmlp-elite.scanobjectnn-hardest.xu-ma",
     "pointnet.modelnet40",
+    "pointnet.modelnet40.jiawei-ren",
+    "pointnet.scanobjectnn-hardest.openpoints",
     "pointnet2.modelnet40.openpoints",
     "pointnet2.scanobjectnn-hardest.openpoints",
     "pointnet2-msg.modelnet40.xu-yan",
@@ -83,12 +108,24 @@ CLASSIFICATION_MODELS = [
     "pointnext-sm-c64.modelnet40.openpoints",
     "pointnext-sm.scanobjectnn-hardest.openpoints",
     "pointnext-xl",
+    "recon.modelnet40.zekun-qi",
+    "recon.modelnet40-8k.zekun-qi",
+    "recon.scanobjectnn-hardest.zekun-qi",
+    "recon.scanobjectnn-objbg.zekun-qi",
+    "recon.scanobjectnn-objonly.zekun-qi",
 ]
 PRETRAINING_MODELS = [
+    "act.dvae.runpei-dong",
+    "act.pretrain.runpei-dong",
     "concerto-base.pretrain.pointcept",
+    "concerto-base-origin.pretrain.pointcept",
+    "concerto-base-siglip.pretrain.pointcept",
     "concerto-large.pretrain.pointcept",
+    "concerto-large-origin.pretrain.pointcept",
     "concerto-small.pretrain.pointcept",
     "concerto-tiny.pretrain.pointcept",
+    "pcp-mae.pretrain.xiangdong-zhang",
+    "point2vec.pretrain.karim-knaebel",
     "point-bert-base.dvae.xumin-yu",
     "point-bert-base.pretrain.xumin-yu",
     "point-m2ae-base.pretrain.renrui-zhang",
@@ -98,12 +135,16 @@ PRETRAINING_MODELS = [
     "pointgpt-b.pretrain.guangyan-chen",
     "pointgpt-l.pretrain.guangyan-chen",
     "sonata-base.pretrain.fair",
-    "utonia.pretrain.pointcept",
+    "sonata-small.pretrain.fair",
+    "utonia-base.pretrain.pointcept",
+    "utonia-small.pretrain.pointcept",
+    "utonia-tiny.pretrain.pointcept",
+    "recon.pretrain.zekun-qi",
 ]
 SEMANTIC_SEGMENTATION_MODELS = [
     "spformer-unet.scannet",
     "concerto-large-lp.scannet20.pointcept",
-    "utonia-lp.scannet20.pointcept",
+    "utonia-base-lp.scannet20.pointcept",
     "dgcnn.s3dis-area1.an-tao",
     "dgcnn.s3dis-area2.an-tao",
     "dgcnn.s3dis-area3.an-tao",
@@ -115,16 +156,21 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "kpfcnn-base-sm.s3dis-area5.hugues-thomas",
     "kpfcnn-base-deform.s3dis-area5.hugues-thomas",
     "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas",
+    "kpfcnn.s3dis-area3.open3d",
+    "kpfcnn.semantickitti.open3d",
+    "kpfcnn.toronto3d.open3d",
+    "kpfcnn-deform.parislille3d.open3d",
     "octformer-lg",
     "octformer-sm",
     "octformer-base.scannet20.octree-nn",
     "octformer-base.scannet200.octree-nn",
-    "point-transformer.s3dis-area5",
+    "point-transformer.s3dis-area5.open3d",
     "point-transformer.scannet20",
     "pointcnn-base",
     "pointmlp-base",
     "pointmlp-elite",
     "pointnet.s3dis-area5",
+    "pointnet.s3dis-area5.xu-yan",
     "pointnet.shapenetpart",
     "pointnet2.s3dis-area1.openpoints",
     "pointnet2.s3dis-area2.openpoints",
@@ -138,8 +184,20 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "ptv3-base.scannet20.pointcept",
     "ptv3-base.scannet200.pointcept",
     "ptv3-base.s3dis-area5.pointcept",
+    "ptv3.dales.jayakumar-pujar",
+    "ptv3-base.nuscenes.pointcept",
+    "ptv3.gridnet-hd.heig-vd-geo",
+    "litept-small.scannet20.prs-eth",
+    "litept-small.nuscenes.prs-eth",
+    "litept-large.nuscenes.prs-eth",
+    "litept-small.structured3d.prs-eth",
+    "litept-base.structured3d.prs-eth",
+    "litept-large.structured3d.prs-eth",
     "pvcnn.s3dis-area5.mit-han-lab",
-    "pvcnn2.s3dis-area5",
+    "pvcnn-c0p25.s3dis-area5.mit-han-lab",
+    "pvcnn-c0p125.s3dis-area5.mit-han-lab",
+    "pvcnn2.s3dis-area5.mit-han-lab",
+    "pvcnn2-c0p5.s3dis-area5.mit-han-lab",
     "pointnext-base",
     "pointnext-base.s3dis-area1.openpoints",
     "pointnext-base.s3dis-area2.openpoints",
@@ -167,38 +225,103 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "pointnext-xl.s3dis-area3.openpoints",
     "pointnext-xl.s3dis-area4.openpoints",
     "pointnext-xl.s3dis-area5.openpoints",
+    "randlanet.fractal.ignf",
     "randlanet.semantickitti.tsung-han-wu",
-    "sonata-lp.scannet20.fair",
+    "randlanet.semantickitti.open3d",
+    "randlanet.s3dis-area3.open3d",
+    "randlanet.toronto3d.open3d",
+    "randlanet.semantic3d.open3d",
+    "randlanet.parislille3d.open3d",
+    "sonata-base-lp.scannet20.fair",
     "spformer-unet.scannet20",
+    "spformer-unet.scannet20.open3d",
     "sphereformer.nuscenes",
     "sphereformer.semantickitti",
     "spunet-v1m1.scannet20.pointcept",
     "spvcnn-30gmacs.semantickitti.mit-han-lab",
     "spvcnn-47gmacs.semantickitti.mit-han-lab",
     "spvcnn-119gmacs.semantickitti.mit-han-lab",
+    "volt-s.scannet20.kadir-yilmaz",
+    "volt-s.scannet200.kadir-yilmaz",
+    "volt-s.nuscenes.kadir-yilmaz",
+    "volt-s.semantickitti.kadir-yilmaz",
+    "volt-s-joint.scannet20.kadir-yilmaz",
+    "volt-s-joint.scannet200.kadir-yilmaz",
+    "volt-b-joint.scannet20.kadir-yilmaz",
+    "volt-b-joint.scannet200.kadir-yilmaz",
 ]
 PART_SEGMENTATION_MODELS = [
     "dgcnn.shapenetpart.an-tao",
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-mae-base.shapenetpart.yatian-pang",
+    "point2vec.shapenetpart.karim-knaebel",
+    "pointgpt-s.shapenetpart.guangyan-chen",
+    "pointgpt-b.shapenetpart.guangyan-chen",
+    "pointgpt-l.shapenetpart.guangyan-chen",
+    "pointnet2-ssg.shapenetpart.mit-han-lab",
+    "pointnet2-msg.shapenetpart.mit-han-lab",
     "pointnext-sm.shapenetpart.openpoints",
     "pointnext-sm-c64.shapenetpart.openpoints",
     "pointnext-sm-c160.shapenetpart.openpoints",
+    "pvcnn.shapenetpart.mit-han-lab",
+    "pvcnn-c0p5.shapenetpart.mit-han-lab",
+    "pvcnn-c0p25.shapenetpart.mit-han-lab",
+    "pvcnn-dml.shapenetpart.mit-han-lab",
+    "pvcnn-c0p25-dml.shapenetpart.mit-han-lab",
+    "recon.shapenetpart.zekun-qi",
 ]
 DETECTION_MODELS = [
     "3detr-m.scannet.fair",
+    "3detr-m.sunrgbd.fair",
     "3detr.scannet.fair",
     "3detr.sunrgbd.fair",
+    "centerpoint-pillar02.nuscenes.mmdet3d",
+    "centerpoint-voxel0075.nuscenes.mmdet3d",
+    "centerpoint-voxel01.nuscenes.mmdet3d",
     "lion-mamba.nuscenes.zhe-liu",
+    "part-a2.kitti-car.mmdet3d",
+    "part-a2.kitti.mmdet3d",
+    "pointpillars-fpn.nuscenes.mmdet3d",
     "pointpillars-multihead.nuscenes.openpcdet",
+    "pointpillars.kitti-car.mmdet3d",
+    "pointpillars.kitti.mmdet3d",
     "pointpillars.kitti.openpcdet",
+    "pointpillars.nuscenes.mmdet3d",
+    "pointrcnn-iou.kitti.openpcdet",
     "pointrcnn.kitti.openpcdet",
+    "pv-rcnn.kitti.mmdet3d",
+    "second-dynamic-voxel.kitti.mmdet3d",
+    "second-iou.kitti.openpcdet",
     "second-multihead.nuscenes.openpcdet",
+    "second.kitti-car.mmdet3d",
+    "second.kitti.mmdet3d",
     "second.kitti.openpcdet",
+    "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
+    "votenet.scannet.mmdet3d",
     "votenet.sunrgbd.fair",
+    "votenet.sunrgbd.mmdet3d",
     "voxel-mamba.waymo",
     "voxelnext.nuscenes.openpcdet",
+]
+
+
+NON_COMMERCIAL_MODELS = [
+    "concerto-tiny.pretrain.pointcept",
+    "concerto-small.pretrain.pointcept",
+    "concerto-base.pretrain.pointcept",
+    "concerto-base-origin.pretrain.pointcept",
+    "concerto-base-siglip.pretrain.pointcept",
+    "concerto-large.pretrain.pointcept",
+    "concerto-large-origin.pretrain.pointcept",
+    "concerto-large-lp.scannet20.pointcept",
+    "sonata-small.pretrain.fair",
+    "sonata-base.pretrain.fair",
+    "sonata-base-lp.scannet20.fair",
+    "utonia-tiny.pretrain.pointcept",
+    "utonia-small.pretrain.pointcept",
+    "utonia-base.pretrain.pointcept",
+    "utonia-base-lp.scannet20.pointcept",
 ]
 
 
@@ -207,17 +330,22 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("mamba_ssm is not installed")
     if model_name.startswith("octformer") and not _DWCONV_AVAILABLE:
         pytest.skip("dwconv is not installed")
-    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3")) and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("sonata", "concerto", "utonia", "ptv3", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
     if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
-    if model_name.startswith(("second", "voxelnext", "voxel-mamba")) and not _SPCONV_AVAILABLE:
+    if (
+        model_name.startswith(
+            ("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn", "transfusion")
+        )
+        and not _SPCONV_AVAILABLE
+    ):
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
@@ -238,7 +366,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3"))
+        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3", "litept"))
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
@@ -246,7 +374,7 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
         if not torch.cuda.is_available():
             pytest.skip(f"{model_name} requires CUDA, none available")
         pytest.importorskip("sptr")
-    if model_name.startswith("ptv3") and not _FLASH_ATTN_AVAILABLE:
+    if model_name.startswith(("ptv3", "litept")) and not _FLASH_ATTN_AVAILABLE:
         pytest.skip("flash_attn is not installed")
     if model_name in _UNSUPPORTED_BY_DATA_FACTORY:
         pytest.skip("Synthetic data factory doesn't support this model's input format yet")
@@ -351,6 +479,27 @@ def test_list_models(task: str, expected_models: List[str]) -> None:
         raise AssertionError(err_msg)
 
 
+def test_non_commercial_models() -> None:
+    non_commercial = []
+    for name in list_models(pretrained=True):
+        weights = model_info(name)["weights"]
+        assert weights is not None
+        if _is_non_commercial_license(weights.get("license")):
+            non_commercial.append(name)
+
+    assert sorted(non_commercial) == sorted(NON_COMMERCIAL_MODELS)
+
+
+@pytest.mark.parametrize("model_name", NON_COMMERCIAL_MODELS)
+def test_non_commercial_model_warns(model_name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    _skip_if_model_deps_missing(model_name)
+    monkeypatch.setattr("torch_pointcloud.models._registry.resolve_weights", lambda name, url: url)
+    monkeypatch.setattr("torch_pointcloud.models._registry.read_state_dict", lambda path: {})
+    monkeypatch.setattr("torch_pointcloud.models._registry.load_state_dict", lambda *args, **kwargs: None)
+    with pytest.warns(UserWarning, match=f"{model_name!r} are released under CC-BY-NC-4.0"):
+        create_model(model_name, pretrained=True)
+
+
 @pytest.mark.skipif(
     not _PYG_LIB_AVAILABLE,
     reason="pyg-lib is not installed",
@@ -405,7 +554,13 @@ def test_semantic_segmentation_architecture(model_name: str, force_regen: bool, 
     _skip_if_model_deps_missing(model_name)
     models_dir = models_dir_factory("*.json")
 
-    model = create_model(model_name, task="semantic-segmentation", in_channels=3, num_classes=10)
+    model = create_model(
+        model_name,
+        task="semantic-segmentation",
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     _check_architecture_or_regen(
         model,
         model_name,
@@ -589,6 +744,12 @@ SPVCNN_VOXEL_SIZE = 0.005
 UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
 
 
+def _forward_kwargs(model_name: str) -> Dict[str, Any]:
+    # The registered Volt configurations use the flash attention kernel, which needs CUDA; SDPA runs the same weights
+    # on any device.
+    return {"use_flash_attn": False} if model_name.startswith("volt") else {}
+
+
 @pytest.mark.skipif(
     not _PYG_LIB_AVAILABLE,
     reason="pyg-lib is not installed",
@@ -607,7 +768,13 @@ def test_model_forward(model_name: str, task: str, data_factory: Callable) -> No
     num_classes = 10
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=num_classes)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=num_classes,
+        **_forward_kwargs(model_name),
+    )
     data = data_factory(
         in_channels=model.in_channels,
         spatial_dim=getattr(model, "spatial_dim", 3),
@@ -647,7 +814,13 @@ def test_model_headless_forward_returns_features(model_name: str, task: str, dat
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=0)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=0,
+        **_forward_kwargs(model_name),
+    )
     assert isinstance(model.head, nn.Identity), f"{model_name}: head is {type(model.head).__name__}, not Identity"
     assert isinstance(model.num_features, int), f"{model_name}: num_features is {type(model.num_features).__name__}"
     data = data_factory(
@@ -726,7 +899,7 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
     `model_kwargs` only shrinks sampling sizes (`sa_num_points`, `num_proposals`, `preencoder_num_points`, ...), which
     keeps the state-dict structure identical to the registered configuration while the forward stays fast
     on a few hundred CPU points. The grid-based detectors (pointpillars, second, voxelnext, voxel-mamba,
-    lion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
+    lion, transfusion) take voxelized inputs (and most need spconv / mamba_ssm); their per-model test files cover them.
     """
     _skip_if_model_deps_missing(model_name)
     model = create_model(model_name, task="detection", **model_kwargs).eval()
@@ -751,6 +924,32 @@ def test_detection_model_forward(model_name: str, model_kwargs: Dict[str, Any]) 
         assert detections["labels"].max().item() < model.num_classes
         assert detections["batch"].min().item() >= 0
         assert detections["batch"].max().item() <= 1
+
+
+def _source_version() -> Version:
+    """The `pyproject.toml` version, which a release bump edits before the package is reinstalled."""
+    match = re.search(r'^version = "(?P<version>[^"]+)"$', PYPROJECT.read_text(), re.MULTILINE)
+    assert match is not None, PYPROJECT
+    return Version(match["version"])
+
+
+def test_registered_former_names_are_listed() -> None:
+    former_names = [
+        (deprecation["name"], entry["name"], deprecation["removed_in"])
+        for entries in _REGISTERED_MODELS.values()
+        for entry in entries.values()
+        for deprecation in entry["deprecated_names"]
+    ]
+    assert sorted(former_names) == sorted(FORMER_NAMES)
+
+
+@pytest.mark.parametrize("former_name,name,removed_in", [pytest.param(*row, id=row[0]) for row in FORMER_NAMES])
+def test_registered_former_names_resolve_until_their_removal(former_name: str, name: str, removed_in: str) -> None:
+    """Fails on the version bump that drops a shim: delete its `deprecated_model` decorator and its row together."""
+    assert _source_version() < Version(removed_in), f"{former_name!r} was removed in {removed_in}; drop its shim"
+    with pytest.warns(FutureWarning, match=f"'{former_name}' was renamed to '{name}'"):
+        assert model_info(former_name)["name"] == name
+    assert former_name not in list_models()
 
 
 def test_registered_weights_classes_match_num_classes() -> None:
@@ -779,18 +978,52 @@ def test_registered_input_keys_fill_the_forward_arguments() -> None:
             assert len(required) <= len(entry["input_keys"]) <= len(params), (name, entry["input_keys"])
 
 
-def test_registered_weights_urls_name_the_hub_repo() -> None:
+def test_registered_weights_urls_pin_a_hub_revision() -> None:
+    """Weights load from `torch-pointcloud/<name>` or from the authors' Hub repository, pinned to a commit."""
     for entries in _REGISTERED_MODELS.values():
         for name, entry in entries.items():
             weights = entry["weights"]
             if weights is None:
                 continue
 
-            assert re.fullmatch(
-                rf"hf://torch-pointcloud/{re.escape(name)}/resolve/[0-9a-f]{{40}}/model\.safetensors", weights["url"]
-            ), name
-            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0"}, name
+            for url in ensure_tuple(weights["url"]):
+                match = HF_URL_RE.fullmatch(url)
+                assert match is not None and re.fullmatch(r"[0-9a-f]{40}", match["revision"]), (name, url)
+                assert match["revision"] != "0" * 40, ("placeholder revision, upload and re-pin", name, url)
+                if match["namespace"] == "torch-pointcloud":
+                    assert (match["repo"], match["file"]) == (name, "model.safetensors"), (name, url)
+            assert weights["license"] in {"MIT", "Apache-2.0", "CC-BY-NC-4.0", "etalab-2.0"}, name
             assert weights["author"], name
+
+
+def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
+    """`docs/data/models.csv` is what `docs/scripts/build_model_tables.py` renders from the registry today: rebuilding it
+    on a copy (which keeps the measured columns) changes nothing."""
+    committed = REPO_DIR / "docs" / "data" / "models.csv"
+    rebuilt = shutil.copy(committed, tmp_path / "models.csv")
+    subprocess.run(
+        [sys.executable, (REPO_DIR / "docs" / "scripts" / "build_model_tables.py").as_posix(), "--csv", rebuilt],
+        check=True,
+        capture_output=True,
+    )
+    assert Path(rebuilt).read_text() == committed.read_text(), "run docs/scripts/build_model_tables.py"
+
+
+def test_registered_weights_urls_exist_on_the_hub() -> None:
+    """Every registered weight file answers a HEAD request at its pinned revision. The Hub answers 401 to an anonymous
+    request for a missing repository too, so 401/403 (gated) passes only outside the public `torch-pointcloud`
+    organisation."""
+    for name in list_models(pretrained=True):
+        weights = model_info(name)["weights"]
+        assert weights is not None, name
+        for url in ensure_tuple(weights["url"]):
+            file_url = HF_ENDPOINT + "/" + url[len("hf://") :]
+            request = urllib.request.Request(file_url, method="HEAD")
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    assert response.status == 200, (name, url, response.status)
+            except urllib.error.HTTPError as e:
+                assert e.code in (401, 403) and not url.startswith("hf://torch-pointcloud/"), (name, url, e.code)
 
 
 @pytest.mark.skipif(
@@ -810,7 +1043,13 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     sig = inspect.signature(model.forward_features)
     if "return_intermediates" not in sig.parameters:
         pytest.skip(f"{model_name}: `forward_features` has no intermediates")
@@ -874,7 +1113,13 @@ def test_model_pre_logits_matches_headless_forward(
     _skip_if_model_not_runnable(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = create_model(model_name, task=task, in_channels=3, num_classes=10)  # type: ignore[call-overload]
+    model = create_model(  # type: ignore[call-overload]
+        model_name,
+        task=task,
+        in_channels=3,
+        num_classes=10,
+        **_forward_kwargs(model_name),
+    )
     data = data_factory(
         in_channels=model.in_channels,
         spatial_dim=getattr(model, "spatial_dim", 3),

@@ -17,7 +17,7 @@ from .augmentation import (
 )
 from .box import cut_boxes, points_in_oriented_box
 from .geometry import axis_min_offset, estimate_normals, quantize, rotate_vectors, rotation_matrix, shift
-from .masking import apply_mask, bounding_box, box_mask, cube_mask, remove_near_origin, sphere_mask
+from .masking import apply_mask, bounding_box, box_mask, cube_mask, label_mask, remove_near_origin, sphere_mask
 from .mixing import laser_mix_masks, polar_mix_masks
 from .sampling import (
     farthest_point_sample,
@@ -26,9 +26,9 @@ from .sampling import (
     random_sample_face_vertices,
     shuffle_indices,
 )
-from .scaling import minimal_enclosing_ball, normalize, rescale
-from .utils import absolute, relabel
-from .voxelization import divisible_pad
+from .scaling import maxabs_scale, minimal_enclosing_ball, normalize, rescale, standardize
+from .utils import absolute, clamp_norm, relabel
+from .voxelization import divisible_pad, voxelize
 
 __all__ = [
     "absolute",
@@ -36,6 +36,7 @@ __all__ = [
     "axis_min_offset",
     "bounding_box",
     "box_mask",
+    "clamp_norm",
     "color_auto_contrast",
     "color_drop",
     "color_grayscale",
@@ -48,7 +49,9 @@ __all__ = [
     "farthest_point_sample",
     "flip_boxes",
     "flip_vectors",
+    "label_mask",
     "laser_mix_masks",
+    "maxabs_scale",
     "minimal_enclosing_ball",
     "normalize",
     "points_in_oriented_box",
@@ -70,5 +73,7 @@ __all__ = [
     "shift",
     "shuffle_indices",
     "sphere_mask",
+    "standardize",
     "translate_boxes",
+    "voxelize",
 ]

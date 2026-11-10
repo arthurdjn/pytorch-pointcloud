@@ -48,13 +48,17 @@ def test_pool_forward_values(cls: type, expected: Tensor) -> None:
 
 @pytest.mark.parametrize("name", _POOL_NAMES)
 def test_create_pool_by_name(name: str) -> None:
-    pool = create_pool(name)  # type: ignore[arg-type]
+    pool = create_pool(name)  # type: ignore[call-overload]
     assert isinstance(pool, nn.Module)
 
 
 def test_create_pool_unknown_name_raises() -> None:
     with pytest.raises(ValueError, match="Available modules"):
-        create_pool("median")  # type: ignore[arg-type]
+        create_pool("median")  # type: ignore[call-overload]
+
+
+def test_create_pool_none_returns_none() -> None:
+    assert create_pool(None) is None
 
 
 def test_cat_pool() -> None:
@@ -68,8 +72,12 @@ def test_cat_pool() -> None:
 
 @pytest.mark.parametrize("name,expected_cls", [("mean", nn.AdaptiveAvgPool1d), ("max", nn.AdaptiveMaxPool1d)])
 def test_create_adaptive_pool(name: str, expected_cls: type) -> None:
-    pool = create_adaptive_pool(name)  # type: ignore[arg-type]
+    pool = create_adaptive_pool(name)  # type: ignore[call-overload]
     assert isinstance(pool, expected_cls)
+
+
+def test_create_adaptive_pool_none_returns_none() -> None:
+    assert create_adaptive_pool(None) is None
 
 
 def test_create_adaptive_pool_defaults_to_global_output() -> None:

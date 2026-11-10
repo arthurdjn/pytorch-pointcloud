@@ -2,7 +2,7 @@
 import json
 import shutil
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -244,3 +244,86 @@ def test_kitti_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> N
     dataset = KITTI(root=datasets_dir, train=True, transform=transform, fov=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
+
+
+def test_kitti_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    meta = json.loads(Path(dataset.processed_dir, "training/meta.json").read_text())
+    assert meta == dataset.cache_meta
+    assert meta["format_version"] == KITTI.format_version
+
+
+def test_kitti_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "training/meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        KITTI(root=datasets_dir, train=True, fov=False, force_process=False)
+
+    rebuilt = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
+
+
+def test_kitti_cache_without_meta_is_served(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache from before the stamp existed is served as is and left unstamped."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "training/meta.json")
+    meta_path.unlink()
+
+    legacy = KITTI(root=datasets_dir, train=True, fov=False, force_process=False)
+    assert len(legacy) == len(dataset)
+    assert not meta_path.exists()
+
+
+def test_kitti_stamp_without_format_version_is_version_one(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A stamp written before `format_version` existed counts as version 1 and is served."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "training/meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    legacy = KITTI(root=datasets_dir, train=True, fov=False, force_process=False)
+    assert len(legacy) == len(dataset)
+
+
+def test_kitti_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "training/meta.json")
+
+    def interrupted(self: KITTI, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(KITTI, "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    assert not meta_path.exists()
+
+
+def test_kitti_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "training/meta.json")
+
+    def incomplete(self: KITTI, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        return False
+
+    monkeypatch.setattr(KITTI, "write_processed_files", incomplete)
+    KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    assert not meta_path.exists()

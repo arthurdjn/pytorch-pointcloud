@@ -59,6 +59,9 @@ class BNMomentumScheduler:
     Example:
         ```python
         import torch.nn as nn
+
+        from torch_pointcloud.optim import BNMomentumScheduler
+
         model = nn.Sequential(nn.Linear(4, 4), nn.BatchNorm1d(4))
         scheduler = BNMomentumScheduler(model)
         scheduler.step(epoch=20)  # 0.25

@@ -1,4 +1,4 @@
-"""Benchmark the KP-FCNN S3DIS semantic-segmentation models on Area 5 with the sphere-voting protocol."""
+"""Benchmark the KP-FCNN S3DIS semantic-segmentation models on their held-out area with sphere voting."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -12,6 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
+from torch_pointcloud.datasets.s3dis import S3DISArea
 from torch_pointcloud.inferers import Inferer, PotentialSphereInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model, model_info
@@ -24,13 +25,24 @@ DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 SW_BATCH_SIZE = 8
-SPHERE_RADIUS = {
+# The held-out area of every entry; the model trains on the five other areas.
+TEST_AREAS: Dict[str, S3DISArea] = {
+    "kpfcnn-base.s3dis-area5.hugues-thomas": "Area_5",
+    "kpfcnn-base-sm.s3dis-area5.hugues-thomas": "Area_5",
+    "kpfcnn-base-deform.s3dis-area5.hugues-thomas": "Area_5",
+    "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas": "Area_5",
+    "kpfcnn.s3dis-area3.open3d": "Area_3",
+}
+# Input sphere radius of every entry (`in_radius`).
+SPHERE_RADIUS: Dict[str, float] = {
     "kpfcnn-base.s3dis-area5.hugues-thomas": 1.8,
     "kpfcnn-base-sm.s3dis-area5.hugues-thomas": 1.2,
     "kpfcnn-base-deform.s3dis-area5.hugues-thomas": 1.5,
     "kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas": 1.2,
+    "kpfcnn.s3dis-area3.open3d": 1.5,
 }
-
+# KPConv-PyTorch votes ten times over augmented spheres and keeps the inner 70% of each; Open3D-ML votes three
+# times over the spheres as they are.
 INFERER_TRANSFORM = T.Compose(
     [
         T.RandomRotate(keys=DataKeys.POS, angle_range=(-180.0, 180.0), axis=2, p=1.0),
@@ -60,14 +72,12 @@ def main() -> None:
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser(description="Benchmark KP-FCNN semantic segmentation on S3DIS Area 5.")
-    parser.add_argument(
-        "--model", default="kpfcnn-base.s3dis-area5.hugues-thomas", help="Registered segmentation model name"
-    )
+    parser = ArgumentParser(description="Benchmark KP-FCNN semantic segmentation on S3DIS.")
+    parser.add_argument("--model", default="kpfcnn-base.s3dis-area5.hugues-thomas", choices=list(TEST_AREAS))
     parser.add_argument("--radius", default=None, type=float, help="Sphere radius (default: the checkpoint's).")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--areas", nargs="+", default=["Area_5"])
+    parser.add_argument("--areas", nargs="+", default=None, help="Areas to score (default: the held-out one).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Spheres per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
@@ -77,6 +87,8 @@ def parse_args() -> Namespace:
     args = parser.parse_args()
     if args.radius is None:
         args.radius = SPHERE_RADIUS[args.model]
+    if args.areas is None:
+        args.areas = [TEST_AREAS[args.model]]
     return args
 
 
@@ -110,12 +122,13 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
+    open3d = args.model.endswith(".open3d")
     return PotentialSphereInferer(
         radius=args.radius,
-        num_votes=10.0,
-        inner_ratio=0.7,
+        num_votes=3.0 if open3d else 10.0,
+        inner_ratio=1.0 if open3d else 0.7,
         ema_smoothing=0.95,
-        transform=INFERER_TRANSFORM,
+        transform=None if open3d else INFERER_TRANSFORM,
         sw_batch_size=args.sw_batch_size,
         seed=args.seed,
     )

@@ -14,6 +14,7 @@ from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES
 from torch_pointcloud.layers import SparseBasicBlock, SparseConvBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.ops.heatmap import decode_center_codes
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D
@@ -367,17 +368,11 @@ class VoxelNeXtHead(nn.Module):
         spatial_indices = voxel_indices[:, 1:].float()
 
         hm = out["hm"][group_idx].sigmoid()
-        center = out["center"][group_idx]
-        center_z = out["center_z"][group_idx]
-        dim = out["dim"][group_idx].exp()
-        rot = out["rot"][group_idx]
-        vel = out["vel"][group_idx]
-        angle = torch.atan2(rot[:, 1:2], rot[:, 0:1])
-
-        vx, vy, _ = self.voxel_size
-        xs = (spatial_indices[:, 1:2] + center[:, 0:1]) * self.feature_map_stride * vx + self.point_cloud_range[0]
-        ys = (spatial_indices[:, 0:1] + center[:, 1:2]) * self.feature_map_stride * vy + self.point_cloud_range[1]
-        boxes = torch.cat([xs, ys, center_z, dim, angle, vel], dim=1)
+        maps = [out["center"][group_idx], out["center_z"][group_idx], out["dim"][group_idx], out["rot"][group_idx]]
+        codes = torch.cat(maps, dim=1)
+        cell_xy = spatial_indices[:, [1, 0]]
+        boxes = decode_center_codes(codes, cell_xy, self.voxel_size, self.point_cloud_range, self.feature_map_stride)
+        boxes = torch.cat([boxes, out["vel"][group_idx]], dim=1)
 
         global_classes = torch.as_tensor(self.class_groups[group_idx], device=hm.device)
         out_boxes, out_scores, out_labels, out_batch = [], [], [], []
@@ -600,9 +595,9 @@ class VoxelNeXtDetection(DetectionModel):
     task="detection",
     input_keys=("voxel", "pos_voxel", "voxel_num_points", "batch_pos_voxel"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/voxelnext.nuscenes.openpcdet/resolve/5802ce3855465df20b72db5b26a7cc03c153e5f3/model.safetensors",
+        url="hf://torch-pointcloud/voxelnext.nuscenes.openpcdet/resolve/04feb70305712d81a9dacb3fe4723ced3c52c7e0/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 61.20, "NDS": 66.81},
+        metrics={"mAP": 61.41, "NDS": 66.92},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

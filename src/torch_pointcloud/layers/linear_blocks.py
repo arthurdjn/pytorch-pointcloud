@@ -26,6 +26,8 @@ class LinearBlock(nn.Module):
 
     Example:
         ```python
+        import torch
+
         from torch_pointcloud.layers import LinearBlock
 
         block = LinearBlock(64, 128, act="relu", norm="batch_norm", bias=False)

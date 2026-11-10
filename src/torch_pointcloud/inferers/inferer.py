@@ -20,8 +20,16 @@ class Inferer(metaclass=ABCMeta):
     Subclasses implement `forward`; `__call__` delegates to it, mirroring
     `torch.nn.Module`. To use an inferer, call the instance directly:
 
-    ```{.python notest}
-    inferer = SomeInferer(...)
+    ```python
+    import torch
+
+    import torch_pointcloud as tp
+    from torch_pointcloud.inferers import SimpleInferer
+
+    model = tp.create_model("pointnet.s3dis-area5").eval()
+    data = {"pos": torch.rand(4096, 3) * 10, "x": torch.rand(4096, 9), "batch": torch.zeros(4096, dtype=torch.long)}
+
+    inferer = SimpleInferer()
     logits = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
     ```
 
@@ -46,7 +54,7 @@ class Inferer(metaclass=ABCMeta):
     | `KNNWindowInferer`       | `False`   | raw logits (`"mean"`); always probabilities (`"ema"`)           |
     | `VoxelPartitionInferer`  | `False`   | raw logits per pass                                             |
     | `PotentialSphereInferer` | none      | always an EMA of softmax probabilities                          |
-    | `TTAInferer`             | `False`   | base output as-is                                               |
+    | `TTAInferer`             | `False`   | base output as-is; probabilities expected with `"max"`          |
     | `PartRefinementInferer`  | none      | one-hot refined labels of the base output's argmax              |
 
     When the input scene is empty ($N = 0$), inferers that never call the predictor

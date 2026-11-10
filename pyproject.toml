@@ -16,7 +16,7 @@ include = [
 
 [project]
 name = "torch-pointcloud"
-version = "0.0.13"
+version = "0.0.19"
 description = "PyTorch Point Cloud models, scripts, pretrained weights and more"
 readme = "README.md"
 license = "Apache-2.0"
@@ -51,7 +51,6 @@ dependencies = [
     "packaging>=23.0",
     "pandas>=2.2.3",
     "pillow>=10.0.0",
-    "plyfile>=1.1",
     "safetensors>=0.7.0",
     "scipy>=1.10.0",
     # torch-geometric 2.8 runs its neighbor search and voxel grid through `pyg-lib>=0.6`, which is built for torch 2.8+.
@@ -75,7 +74,6 @@ lightning = ["lightning>=2.0.0,<2.6.0", "torchmetrics>=1.0.0"]
 dev = [
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
-    "pytest-markdown-docs>=0.6.0",
     "ruff>=0.9.1",
     "ipykernel>=6.29.5",
     "mkdocs-jupyter>=0.25.1",
@@ -89,6 +87,7 @@ dev = [
     "mypy>=1.19.0",
     "zensical>=0.0.50",
     "ipywidgets>=8.1.8",
+    "laspy>=2.5.0",
 ]
 
 [tool.uv]
@@ -126,7 +125,7 @@ no_implicit_optional = true
 show_error_codes = true
 ignore_missing_imports = true
 check_untyped_defs = true
-implicit_reexport = true
+implicit_reexport = false
 # Because multiple files in the tests/data/**/scripts have the same name
 exclude = ["tests/data/", "notebooks", "docs"]
 

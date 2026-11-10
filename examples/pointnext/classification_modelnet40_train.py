@@ -18,7 +18,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ModelNet40Hdf5
 from torch_pointcloud.metrics import confusion_matrix
 from torch_pointcloud.models import create_model
-from torch_pointcloud.optim import CosineWarmupLR, param_groups
+from torch_pointcloud.optim import CosineWarmupLR, generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -146,7 +146,7 @@ def configure_model(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    groups = param_groups(model, weight_decay=args.weight_decay, no_decay=True)
+    groups = generate_param_groups(model, weight_decay=args.weight_decay, no_decay=True)
     optimizer = torch.optim.AdamW(groups, lr=args.lr, weight_decay=args.weight_decay)
 
     # Stepped once per epoch.

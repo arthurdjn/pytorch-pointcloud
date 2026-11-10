@@ -91,9 +91,17 @@ class CosineWarmupLR(_WarmupSchedule):
     Example:
         ```python
         import torch
+
+        from torch_pointcloud.optim import CosineWarmupLR
+
         opt = torch.optim.SGD([torch.zeros(1, requires_grad=True)], lr=1.0)
         sched = CosineWarmupLR(opt, total_steps=10, warmup_steps=2, lr_min=0.0)
-        [round(sched.get_last_lr()[0], 3) for _ in range(10) if not sched.step()]  # [0.5, 0.905, 0.794, 0.655, 0.5, 0.345, 0.206, 0.095, 0.024, 0.0]
+        lrs = []
+        for _ in range(10):
+            opt.step()
+            sched.step()
+            lrs.append(round(sched.get_last_lr()[0], 3))
+        lrs  # [0.5, 0.905, 0.794, 0.655, 0.5, 0.345, 0.206, 0.095, 0.024, 0.0]
         ```
     """
 
@@ -125,9 +133,17 @@ class PolyLR(_WarmupSchedule):
     Example:
         ```python
         import torch
+
+        from torch_pointcloud.optim import PolyLR
+
         opt = torch.optim.SGD([torch.zeros(1, requires_grad=True)], lr=1.0)
         sched = PolyLR(opt, total_steps=4, power=1.0)
-        [round(sched.get_last_lr()[0], 3) for _ in range(4) if not sched.step()]  # [0.75, 0.5, 0.25, 0.0]
+        lrs = []
+        for _ in range(4):
+            opt.step()
+            sched.step()
+            lrs.append(round(sched.get_last_lr()[0], 3))
+        lrs  # [0.75, 0.5, 0.25, 0.0]
         ```
     """
 

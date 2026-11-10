@@ -27,7 +27,9 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
+from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate
+from torch_pointcloud.utils.types import KeyCollection
 
 from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
 from .inferer import Inferer
@@ -82,8 +84,7 @@ def _assign_point_blocks(
         Tiled axes get the block's grid-defined extent; untiled axes get the full
         $(\min, \max)$ of `pos` along that axis.
     """
-    device = pos.device
-    n, n_dim = pos.size(0), pos.size(1)
+    n_dim = pos.size(1)
     half = block_size / 2.0
     step = block_size * (1.0 - overlap)
 
@@ -104,84 +105,120 @@ def _assign_point_blocks(
     K = math.ceil((block_size + 2.0 * padding) / step)
     n_per_dim = (((pos_tiled.amax(dim=0) - lo) / step).ceil().long() + 1).clamp_min(1)
 
-    strides = torch.ones(n_tiled, device=device, dtype=torch.long)
+    strides = torch.ones(n_tiled, device=pos.device, dtype=torch.long)
     for d in range(n_tiled - 2, -1, -1):
         strides[d] = strides[d + 1] * int(n_per_dim[d + 1].item())
 
-    i_hi = (
-        ((pos_tiled - lo + padding) / step).floor().long().clamp(min=torch.zeros_like(n_per_dim), max=n_per_dim - 1)
-    )  # (N, D_t)
-    i_lo = (i_hi - K + 1).clamp_min(0)  # (N, D_t)
-
-    arange_n = torch.arange(n, device=device)
-    block_flat_list: List[Tensor] = []
-    point_id_list: List[Tensor] = []
-    weight_list: List[Tensor] = []
-    center_idx_list: List[Tensor] = []  # block index in tiled-grid coords
-
-    for offsets in itertools.product(range(K), repeat=n_tiled):
-        off = i_lo.new_tensor(offsets)
-        i = i_lo + off  # (N, D_t)
-        valid = (i <= i_hi).all(dim=1)
-        if not valid.any():
-            continue
-
-        block_lo = lo + i.to(pos.dtype) * step
-        # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
-        # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
-        # The float bound test alone is not enough: on grid-aligned coordinates `(p - lo) / step` can round
-        # across an integer in fp32, landing `p` exactly on a bound of its own `i_hi` block on either side.
-        # Membership of that block is forced by index identity so every point keeps at least one block.
-        inside = ((pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)).all(dim=1)
-        inside = inside | (i == i_hi).all(dim=1)
-        valid = valid & inside
-        if not valid.any():
-            continue
-
-        i_v = i[valid]
-        if mode == "gaussian":
-            centers_v_tiled = lo + half + i_v.to(pos.dtype) * step  # (M, D_t)
-            dist = torch.linalg.norm(pos_tiled[valid] - centers_v_tiled, dim=-1)
-            # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
-            # covered point at a nonzero blend weight so its predictions survive the division.
-            w = gaussian_weights(dist, sigma).clamp_min(1e-12)
-        else:
-            # Blend weights are float even when `pos` holds integer grid coordinates.
-            w = pos.new_ones(int(valid.sum()), dtype=torch.float32)
-        block_flat_list.append((i_v * strides).sum(dim=1))
-        point_id_list.append(arange_n[valid])
-        weight_list.append(w)
-        center_idx_list.append(i_v)
-
-    block_flat = torch.cat(block_flat_list)
-    point_ids = torch.cat(point_id_list)
-    weights = torch.cat(weight_list)
-    centers_idx_all = torch.cat(center_idx_list, dim=0)  # (sum_M, D_t)
-
-    sort_idx = block_flat.argsort(stable=True)
-    block_sorted = block_flat[sort_idx]
-    _, first_idx = torch.unique_consecutive(block_sorted, return_inverse=True)
-    unique_pos = (first_idx[1:] != first_idx[:-1]).nonzero(as_tuple=False).flatten() + 1
-    unique_pos = torch.cat([torch.zeros(1, dtype=torch.long, device=device), unique_pos])
-    _, counts = torch.unique_consecutive(block_sorted, return_counts=True)
+    point_ids, block_flat, weights = _point_block_pairs(
+        pos_tiled,
+        lo=lo,
+        step=step,
+        block_size=block_size,
+        padding=padding,
+        num_offsets=K,
+        n_per_dim=n_per_dim,
+        strides=strides,
+        mode=mode,
+        sigma=sigma,
+    )
+    order = block_flat.argsort(stable=True)
+    block_flat = block_flat[order]
+    point_ids = point_ids[order]
+    weights = weights[order]
+    unique_flat, counts = torch.unique_consecutive(block_flat, return_counts=True)
     sizes = counts.tolist()
 
-    block_lo_tiled = lo + centers_idx_all[sort_idx][unique_pos].to(pos.dtype) * step
+    # The grid coordinates of each block come back from its flat id.
+    block_idx = torch.stack([(unique_flat // strides[j]) % n_per_dim[j] for j in range(n_tiled)], dim=1)
+    block_lo_tiled = lo + block_idx.to(pos.dtype) * step
     block_hi_tiled = block_lo_tiled + block_size
-    bbox_lo_template = lo_full.clone()
-    bbox_hi_template = hi_full.clone()
-    bbox_groups: List[Tensor] = []
-    for row_lo, row_hi in zip(block_lo_tiled, block_hi_tiled):
-        b_lo = bbox_lo_template.clone()
-        b_hi = bbox_hi_template.clone()
-        for j, ax in enumerate(tile_axes):
-            b_lo[ax] = row_lo[j]
-            b_hi[ax] = row_hi[j]
-        bbox_groups.append(torch.cat([b_lo, b_hi]))
+    num_blocks = block_idx.size(0)
+    bbox_lo = lo_full.expand(num_blocks, -1).clone()
+    bbox_hi = hi_full.expand(num_blocks, -1).clone()
+    bbox_lo[:, tile_axes] = block_lo_tiled.to(bbox_lo.dtype)
+    bbox_hi[:, tile_axes] = block_hi_tiled.to(bbox_hi.dtype)
+    bbox_groups = list(torch.cat([bbox_lo, bbox_hi], dim=1))
 
-    point_groups = point_ids[sort_idx].split(sizes)
-    weight_groups = weights[sort_idx].split(sizes)
-    return list(point_groups), list(weight_groups), bbox_groups
+    point_groups = list(point_ids.split(sizes))
+    weight_groups = list(weights.split(sizes))
+    return point_groups, weight_groups, bbox_groups
+
+
+def _point_block_pairs(
+    pos_tiled: Tensor,
+    *,
+    lo: Tensor,
+    step: float,
+    block_size: float,
+    padding: float,
+    num_offsets: int,
+    n_per_dim: Tensor,
+    strides: Tensor,
+    mode: WindowMode,
+    sigma: float,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    """The point id, flat block id and blend weight of every (point, block) pair, in block offset order.
+
+    A point lies in up to `num_offsets`^D_t blocks: the rows of each block offset are counted first, then written
+    into the preallocated pair tensors.
+    """
+    # Block indices are int32: the grids stay far below 2^31 blocks per axis.
+    i_hi = ((pos_tiled - lo + padding) / step).floor().to(torch.int32).clamp_min(0)  # (N, D_t)
+    i_hi = torch.minimum(i_hi, (n_per_dim - 1).to(torch.int32))
+    i_lo = (i_hi - num_offsets + 1).clamp_min(0)  # (N, D_t)
+
+    masks: List[Tuple[Tensor, Tensor]] = []
+    for offsets in itertools.product(range(num_offsets), repeat=pos_tiled.size(1)):
+        off = i_lo.new_tensor(offsets)
+        mask = _block_mask(pos_tiled, i_lo, i_hi, off, lo=lo, step=step, block_size=block_size, padding=padding)
+        if mask.any():
+            masks.append((off, mask))
+    bounds = [0] + list(itertools.accumulate(int(mask.sum()) for _, mask in masks))
+    point_ids = torch.empty(bounds[-1], device=pos_tiled.device, dtype=torch.long)
+    block_flat = torch.empty_like(point_ids)
+    weights = torch.empty(bounds[-1], device=pos_tiled.device, dtype=torch.float32)
+    for (off, mask), start, end in zip(masks, bounds[:-1], bounds[1:]):
+        point_ids[start:end] = mask.nonzero().squeeze(1)
+        block_idx = i_lo[point_ids[start:end]] + off  # (M, D_t)
+        block_flat[start:end] = (block_idx.long() * strides).sum(dim=1)
+        if mode == "gaussian":
+            centers = lo + (block_size / 2.0) + block_idx.to(pos_tiled.dtype) * step  # (M, D_t)
+            dist = torch.linalg.norm(pos_tiled[point_ids[start:end]] - centers, dim=-1)
+            # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
+            # covered point at a nonzero blend weight so its predictions survive the division.
+            weights[start:end] = gaussian_weights(dist, sigma).clamp_min(1e-12)
+        else:
+            # Blend weights are float even when `pos` holds integer grid coordinates.
+            weights[start:end] = 1.0
+    return point_ids, block_flat, weights
+
+
+def _block_mask(
+    pos_tiled: Tensor,
+    i_lo: Tensor,
+    i_hi: Tensor,
+    off: Tensor,
+    *,
+    lo: Tensor,
+    step: float,
+    block_size: float,
+    padding: float,
+) -> Tensor:
+    """Mask of the points lying in the block `off` steps above their lowest candidate block."""
+    i = i_lo + off  # (N, D_t)
+    valid = (i <= i_hi).all(dim=1)
+    if not valid.any():
+        return valid
+
+    block_lo = lo + i.to(pos_tiled.dtype) * step
+    # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
+    # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
+    # The float bound test alone is not enough: on grid-aligned coordinates `(p - lo) / step` can round
+    # across an integer in fp32, landing `p` exactly on a bound of its own `i_hi` block on either side.
+    # Membership of that block is forced by index identity so every point keeps at least one block.
+    inside = ((pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)).all(dim=1)
+    inside |= (i == i_hi).all(dim=1)
+    return valid & inside
 
 
 def _build_window(
@@ -227,7 +264,7 @@ def sliding_window_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
-    block_size: float,
+    block_size: Optional[float],
     overlap: float = 0.0,
     mode: WindowMode = "constant",
     sigma_scale: float = 0.125,
@@ -238,6 +275,7 @@ def sliding_window_inference(
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     dims: Optional[Sequence[int]] = None,
     padding: float = 0.0,
+    cloud_keys: KeyCollection = (),
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
     block_bbox_key: str = DataKeys.BLOCK_BBOX,
@@ -250,23 +288,25 @@ def sliding_window_inference(
     Places block centers on a regular grid with step
     $\text{block\_size} \cdot (1 - \text{overlap})$ and calls `predictor` once
     per non-empty block. Each point's predictions from all covering blocks are
-    combined by `aggregate`: a distance-weighted average (`"mean"`), the single
-    most confident prediction (`"max"`), or a count of hard votes (`"vote"`).
+    combined by `aggregate`: a distance-weighted average (`"mean"`), the elementwise
+    maximum of the probabilities (`"max"`), or a count of hard votes (`"vote"`).
 
     With `overlap=0` and `mode="constant"`, each point lands in exactly one
-    block and the weight division is a no-op.
+    block and the weight division is a no-op. With `block_size=None`, each cloud
+    is one block, which `roi_num_points` splits into random chunks.
 
     Args:
         data: Dict of per-point tensors. Must contain `pos` (shape $(N, D)$)
             and `batch` (shape $(N,)$). Extra per-point tensors are sliced to
             the active block automatically. Non-tensor entries and tensors with
-            a different leading dim flow through unchanged.
+            a different leading dim flow through unchanged, except `cloud_keys`.
         predictor: Callable taking a per-block data dict and returning logits
             of shape $(M, C_\text{out})$, where $M$ is the number of points in
             the block. The output channel count $C_\text{out}$ is inferred from
             the first call.
         block_size: Side length of each cubic block, in the same units as
-            `data[pos_key]`.
+            `data[pos_key]`. `None` makes every cloud a single block, and then
+            `overlap`, `mode`, `dims` and `padding` must keep their defaults.
         overlap: Fraction of `block_size` shared between adjacent blocks, in
             $[0, 1)$. `0.0` gives a strict non-overlapping partition;
             `0.5` means adjacent block centers are spaced half a block apart.
@@ -298,11 +338,13 @@ def sliding_window_inference(
             `"vote"` aggregation always read confidences off the softmax.
         aggregate: How the predictions of the blocks covering a point are
             combined. `"mean"`: distance-weighted average of the (softmax)
-            predictions. `"max"`: winner-takes-all, each point keeps the
-            prediction of the block that is most confident about it (the
-            PVCNN / PointCNN scene merge). `"vote"`: each block casts one hard
-            vote (its argmax) per point and the output holds the weighted vote
-            fractions, so `argmax` is the majority label (the PointNet++ protocol).
+            predictions. `"max"`: elementwise maximum of the block
+            probabilities, so the argmax of a point, over all the classes or a
+            subset of them, is the class of the block most confident about it
+            (the PVCNN / PointCNN scene merge). `"vote"`: each block casts one
+            hard vote (its argmax) per point and the output holds the weighted
+            vote fractions, so `argmax` is the majority label (the PointNet++
+            protocol).
         transform: Optional callable applied to each block's data dict before
             the predictor. The transform sees the whole block; if it changes the
             row count (pad, voxelize, ...) it must record a source-to-predictor
@@ -313,6 +355,9 @@ def sliding_window_inference(
             the third axis spanning the full scene height.
         padding: Extra margin (in `pos` units) extending each block's membership
             on every tiled axis. Useful for including a thin context guard band.
+        cloud_keys: Keys of per-cloud tensors of shape $(B, \ldots)$, such as a
+            one-hot `category` or a `label`. Every element of cloud $b$ gets row
+            $b$, of shape $(1, \ldots)$, which collation concatenates once per element.
         pos_key: Dict key for the position tensor.
         batch_key: Dict key for the per-point batch index.
         block_bbox_key: Dict key under which the block bounding box is exposed to
@@ -335,7 +380,7 @@ def sliding_window_inference(
         Per-point output tensor of shape $(N, C_\text{out})$: with
         `aggregate="mean"` a distance-weighted average of softmax probabilities
         when `softmax=True` or of raw logits when `softmax=False`; with
-        `"max"` the most confident block's probabilities; with `"vote"` the
+        `"max"` the elementwise maximum of the block probabilities; with `"vote"` the
         per-class vote fractions. An empty scene ($N = 0$) returns
         a $(0, 0)$ tensor: the predictor is never called, so the channel count
         cannot be inferred.
@@ -346,8 +391,8 @@ def sliding_window_inference(
     if batch_key not in data:
         raise KeyError(f"`data` is missing the required key {batch_key!r}.")
 
-    if block_size <= 0.0:
-        raise ValueError(f"`block_size` must be > 0, got {block_size}.")
+    if block_size is not None and block_size <= 0.0:
+        raise ValueError(f"`block_size` must be > 0 or None, got {block_size}.")
 
     if not 0.0 <= overlap < 1.0:
         raise ValueError(f"`overlap` must be in [0, 1), got {overlap}.")
@@ -367,6 +412,12 @@ def sliding_window_inference(
     if padding < 0.0:
         raise ValueError(f"`padding` must be >= 0, got {padding}.")
 
+    if block_size is None and (overlap != 0.0 or mode != "constant" or dims is not None or padding != 0.0):
+        raise ValueError(
+            "`block_size=None` predicts each cloud as one block: `overlap`, `mode`, `dims` and `padding` need a "
+            "`block_size`."
+        )
+
     pos = data[pos_key]
     batch = data[batch_key]
     check_batch_alignment(pos, batch, pos_key, batch_key)
@@ -383,22 +434,28 @@ def sliding_window_inference(
         if n_b == 0:
             continue
 
-        pos_b = pos[idx_b]
-        data_b = index_select_dict(data, idx_b, n_total)
+        # A single batch element is the whole scene: no copy of every per-point tensor.
+        pos_b = pos if n_b == n_total else pos[idx_b]
+        data_b = data if n_b == n_total else index_select_dict(data, idx_b, n_total)
+        data_b = {**data_b, **{key: data[key][b : b + 1] for key in ensure_tuple(cloud_keys)}}
 
-        point_groups, weight_groups, bbox_groups = _assign_point_blocks(
-            pos_b,
-            block_size=block_size,
-            overlap=overlap,
-            mode=mode,
-            sigma_scale=sigma_scale,
-            dims=dims,
-            padding=padding,
-        )
+        if block_size is None:
+            point_groups = [torch.arange(n_b, device=device)]
+            weight_groups = [torch.ones(n_b, device=device, dtype=torch.float32)]
+            bbox_groups = [torch.cat([pos_b.amin(dim=0), pos_b.amax(dim=0)])]
+        else:
+            point_groups, weight_groups, bbox_groups = _assign_point_blocks(
+                pos_b,
+                block_size=block_size,
+                overlap=overlap,
+                mode=mode,
+                sigma_scale=sigma_scale,
+                dims=dims,
+                padding=padding,
+            )
 
         scores_b: Optional[Tensor] = None
         weights_b = torch.zeros(n_b, device=device, dtype=torch.float32)
-        confidence_b = torch.full((n_b,), -1.0, device=device, dtype=torch.float32)
 
         blocks = list(zip(point_groups, weight_groups, bbox_groups))
         for start in tqdm(
@@ -454,10 +511,7 @@ def sliding_window_inference(
                 preds_at_block = block_preds if inverse_map is None else block_preds[inverse_map]
 
                 if aggregate == "max":
-                    confidence, _ = preds_at_block.max(dim=-1)
-                    better = confidence > confidence_b[point_ids]
-                    scores_b[point_ids[better]] = preds_at_block[better]
-                    confidence_b[point_ids[better]] = confidence[better]
+                    scores_b[point_ids] = torch.maximum(scores_b[point_ids], preds_at_block)
                     weights_b[point_ids] = 1.0
                     continue
 
@@ -472,11 +526,14 @@ def sliding_window_inference(
         if scores_b is None:
             continue
 
+        # Uncovered points keep their zero scores: their weight becomes one before the division.
+        scores_b /= weights_b.masked_fill_(weights_b == 0, 1.0).unsqueeze(-1)
+        if n_b == n_total:
+            output = scores_b
+            continue
+
         if output is None:
             output = torch.zeros(n_total, int(scores_b.size(1)), device=device, dtype=torch.float32)
-
-        covered = weights_b > 0
-        scores_b[covered] = scores_b[covered] / weights_b[covered].unsqueeze(-1)
         output[idx_b] = scores_b
 
     if output is None:
@@ -498,20 +555,30 @@ class SlidingWindowInferer(Inferer):
 
     Example:
         ```python
+        import torch
+
+        import torch_pointcloud as tp
         from torch_pointcloud.inferers import SlidingWindowInferer
+
+        model = tp.create_model("pointnet.s3dis-area5").eval()
+        data = {
+            "pos": torch.rand(4096, 3) * 10,
+            "x": torch.rand(4096, 9),
+            "batch": torch.zeros(4096, dtype=torch.long),
+        }
 
         # Non-overlapping partition: one prediction per point.
         inferer = SlidingWindowInferer(block_size=6.0, overlap=0.0)
 
         # 25 % overlap with Gaussian blending at boundaries:
         inferer = SlidingWindowInferer(block_size=6.0, overlap=0.25, mode="gaussian")
-        probs = inferer(data, predictor=lambda d: model(d["pos"], d["x"], d["batch"]))
+        probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
 
     def __init__(
         self,
-        block_size: float,
+        block_size: Optional[float],
         overlap: float = 0.0,
         mode: WindowMode = "constant",
         sigma_scale: float = 0.125,
@@ -522,6 +589,7 @@ class SlidingWindowInferer(Inferer):
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         dims: Optional[Sequence[int]] = None,
         padding: float = 0.0,
+        cloud_keys: KeyCollection = (),
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
         block_bbox_key: str = DataKeys.BLOCK_BBOX,
@@ -540,6 +608,7 @@ class SlidingWindowInferer(Inferer):
         self.transform = transform
         self.dims = dims
         self.padding = padding
+        self.cloud_keys = cloud_keys
         self.pos_key = pos_key
         self.batch_key = batch_key
         self.block_bbox_key = block_bbox_key
@@ -569,6 +638,7 @@ class SlidingWindowInferer(Inferer):
             transform=self.transform,
             dims=self.dims,
             padding=self.padding,
+            cloud_keys=self.cloud_keys,
             pos_key=self.pos_key,
             batch_key=self.batch_key,
             block_bbox_key=self.block_bbox_key,
