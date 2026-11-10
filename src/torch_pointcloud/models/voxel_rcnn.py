@@ -3,7 +3,7 @@
 {{ paper("2012.15712") }}
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict, Union
 
 import torch
 import torch.nn as nn
@@ -16,18 +16,13 @@ from torch_pointcloud.layers.bev_backbone import BEVBackbone
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2DecomposedQuerySetAbstraction
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.ops.roi import decode_roi_residuals, roi_grid_points, sample_rois
+from torch_pointcloud.utils.conversion import convert_to_spconv_tensor
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import Detection3D, FeaturesDict, OptTensor
 
 from ._base import DetectionModel
 from ._registry import WeightsDict, register_model
 from .second import VoxelBackbone8x
-
-if TYPE_CHECKING:
-    import spconv.pytorch as spconv
-
-spconv, _ = optional_import("spconv.pytorch", url=_SPCONV_GITHUB_URL)
 
 
 class VoxelRCNNOutput(TypedDict):
@@ -424,19 +419,11 @@ class VoxelRCNNDetection(DetectionModel):
         if batch_voxel.numel() == 0:
             raise ValueError("The batch holds no voxel: no point falls inside `point_cloud_range`.")
 
-        voxel_indices = torch.cat([batch_voxel.view(-1, 1).to(pos_voxel), pos_voxel], dim=1)
-        batch_size = int(batch_voxel.max().item()) + 1
-
         # Average the points (xyz + features) inside each voxel.
         normalizer = torch.clamp_min(voxel_num_points.view(-1, 1), min=1.0).type_as(voxels)
         voxel_features = voxels.sum(dim=1) / normalizer
 
-        x = spconv.SparseConvTensor(
-            features=voxel_features,
-            indices=voxel_indices.int(),
-            spatial_shape=self.sparse_shape,
-            batch_size=batch_size,
-        )
+        x = convert_to_spconv_tensor(voxel_features, pos_voxel, batch_voxel, spatial_shape=self.sparse_shape)
         encoded, stages = self.backbone_3d(x, return_intermediates=True)
 
         dense = encoded.dense()
