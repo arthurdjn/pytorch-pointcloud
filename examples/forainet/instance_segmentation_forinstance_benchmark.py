@@ -11,7 +11,6 @@ from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, List, Tuple
 
 import torch
-from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
@@ -37,7 +36,7 @@ from torch_pointcloud.metrics import (
 )
 from torch_pointcloud.metrics.instance_segmentation import InstanceMatches
 from torch_pointcloud.models import ForAINetInstanceSegmentation, create_model
-from torch_pointcloud.ops.cluster import knn
+from torch_pointcloud.ops.cluster import nearest, nearest_label
 from torch_pointcloud.ops.mask import mask_nms, mask_to_instance
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -215,12 +214,15 @@ def evaluate(
         data = {key: value.to(args.device) if torch.is_tensor(value) else value for key, value in data.items()}
         scene: Dict[str, Any] = {key: data[key] for key in (DataKeys.POS, DataKeys.HEIGHT, DataKeys.BATCH)}
         instances = inferer(scene, predictor)
-        semantic, instance = full_resolution_labels(
-            data[DataKeys.POS],
-            instances,
-            data[DataKeys.ORIGIN_POS],
-            thing_classes,
-        )
+        pos, origin_pos = data[DataKeys.POS], data[DataKeys.ORIGIN_POS]
+        semantic = instances["semantic_logits"][nearest(origin_pos, pos)].argmax(dim=1)
+        # A point takes the tree of its nearest sampled point in a tree when its own class is a tree class; trees
+        # left with fewer than MIN_POINTS points are dropped.
+        instance = mask_to_instance(instances["mask_index"], instances["scores"], pos.size(0))
+        instance = nearest_label(instance, pos, origin_pos, max_distance=MAX_DISTANCE)
+        instance[~torch.isin(semantic, thing_classes)] = -1
+        _, inverse, counts = torch.unique(instance, return_inverse=True, return_counts=True)
+        instance[(counts < MIN_POINTS)[inverse]] = -1
 
         target, target_instance = data[DataKeys.ORIGIN_SEGMENT], data[DataKeys.ORIGIN_INSTANCE]
         cm += confusion_matrix(semantic, target, num_classes, ignore_index=-1).cpu()
@@ -251,40 +253,6 @@ def evaluate(
         "tree IoU": float(intersection_over_union(binary, average="none")[1]),
         "binary mIoU": intersection_over_union(binary),
     }
-
-
-def full_resolution_labels(
-    pos: Tensor,
-    instances: InstanceSegmentation3D,
-    origin_pos: Tensor,
-    thing_classes: Tensor,
-) -> Tuple[Tensor, Tensor]:
-    """Semantic class and tree of every original point, from its nearest sampled point.
-
-    A point takes the summed votes of its nearest sampled point and the tree of its nearest point in a tree, unless
-    its class is not a tree class or that point lies more than `MAX_DISTANCE` away; trees left with fewer than
-    `MIN_POINTS` points are dropped.
-    """
-    semantic = instances["semantic_logits"][nearest_point(pos, origin_pos)].argmax(dim=1)
-
-    instance = mask_to_instance(instances["mask_index"], instances["scores"], pos.size(0))
-    labelled = (instance >= 0).nonzero().squeeze(1)
-    if labelled.numel() == 0:
-        return semantic, torch.full_like(semantic, -1)
-
-    nearest = labelled[nearest_point(pos[labelled], origin_pos)]
-    full = instance[nearest]
-    far = (pos[nearest] - origin_pos).norm(dim=1) > MAX_DISTANCE
-    full[far | ~torch.isin(semantic, thing_classes)] = -1
-    ids, inverse, counts = torch.unique(full, return_inverse=True, return_counts=True)
-    full[(counts < MIN_POINTS)[inverse]] = -1
-    return semantic, full
-
-
-def nearest_point(source: Tensor, query: Tensor) -> Tensor:
-    """Index of the nearest `source` point of every `query` point."""
-    target, index = knn(source, query, 1)
-    return torch.empty_like(index).scatter_(0, target, index)
 
 
 if __name__ == "__main__":

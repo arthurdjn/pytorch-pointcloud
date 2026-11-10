@@ -635,6 +635,110 @@ def gather_neighbors(x: Tensor, table: Tensor) -> Tensor:
     return padded.index_select(0, table.reshape(-1)).view(table.size(0), table.size(1), x.size(1))
 
 
+@torch.no_grad()
+def nearest(x: Tensor, y: Tensor, batch_x: OptTensor = None, batch_y: OptTensor = None) -> Tensor:
+    r"""Index of the nearest point of $y$ for each point of $x$.
+
+    The assignment of `torch_geometric.nn.pool.nearest`, computed with `knn`.
+
+    Important:
+        If provided, the `batch_x` and `batch_y` tensors must be sorted in non-decreasing order.
+
+    Args:
+        x: Query points, shape $(N, D)$.
+        y: Points to assign the queries to, shape $(M, D)$.
+        batch_x: Scene index of every point of `x`, shape $(N,)$. `None` treats the points as one scene.
+        batch_y: Scene index of every point of `y`, shape $(M,)$. `None` treats the points as one scene.
+
+    Returns:
+        The index into `y` of the nearest point of every point of `x`, shape $(N,)$ long; $-1$ for the points whose
+        scene holds no point of `y`.
+
+    Shape:
+        - x: $(N, D)$
+        - y: $(M, D)$
+        - output: $(N,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import nearest
+        >>> x = torch.tensor([[0.1, 0.0], [0.9, 0.0], [0.4, 0.0]])
+        >>> y = torch.tensor([[1.0, 0.0], [0.0, 0.0]])
+        >>> nearest(x, y).tolist()  # doctest: +SKIP
+        [1, 0, 1]
+
+        ```
+    """
+    index = torch.full((x.size(0),), -1, dtype=torch.long, device=x.device)
+    if x.size(0) == 0 or y.size(0) == 0:
+        return index
+
+    query, neighbor = knn(y, x, 1, batch_y, batch_x)
+    return index.scatter_(0, query, neighbor)
+
+
+@torch.no_grad()
+def nearest_label(
+    label: Tensor,
+    pos: Tensor,
+    query: Tensor,
+    batch: OptTensor = None,
+    batch_query: OptTensor = None,
+    *,
+    max_distance: Optional[float] = None,
+) -> Tensor:
+    r"""Label of every query point: the label of its nearest labelled point.
+
+    Carries per-point labels, such as instance ids, from the points they were predicted on to other points of the
+    same scenes, e.g. from a subsampled cloud back to the full one. The points with a negative label are unlabelled
+    and take no part in the search.
+
+    Important:
+        If provided, the `batch` and `batch_query` tensors must be sorted in non-decreasing order.
+
+    Args:
+        label: Label of every point, shape $(N,)$ long; negative for unlabelled points.
+        pos: Point positions, shape $(N, D)$.
+        query: Query positions, shape $(M, D)$.
+        batch: Scene index of every point, shape $(N,)$. `None` treats the points as one scene.
+        batch_query: Scene index of every query point, shape $(M,)$. `None` treats the queries as one scene.
+        max_distance: Largest distance to the nearest labelled point for a query to take its label. `None` sets no
+            limit.
+
+    Returns:
+        The label of every query point, shape $(M,)$ long; $-1$ where its scene holds no labelled point or the
+        nearest one lies farther than `max_distance`.
+
+    Shape:
+        - label: $(N,)$
+        - pos: $(N, D)$
+        - query: $(M, D)$
+        - output: $(M,)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.ops.cluster import nearest_label
+        >>> pos = torch.tensor([[0.0, 0.0], [0.4, 0.0], [1.0, 0.0]])
+        >>> query = torch.tensor([[0.1, 0.0], [0.6, 0.0], [3.0, 0.0]])
+        >>> nearest_label(torch.tensor([7, -1, 4]), pos, query, max_distance=1.0).tolist()  # doctest: +SKIP
+        [7, 4, -1]
+
+        ```
+    """
+    labelled = (label >= 0).nonzero().squeeze(1)
+    if labelled.numel() == 0:
+        return torch.full((query.size(0),), -1, dtype=torch.long, device=query.device)
+
+    index = nearest(query, pos[labelled], batch_query, None if batch is None else batch[labelled])
+    found = index >= 0
+    source = labelled[index.clamp(min=0)]
+    if max_distance is not None:
+        found = found & ((pos[source] - query).norm(dim=1) <= max_distance)
+    return torch.where(found, label[source], -1)
+
+
 # inspired by: https://github.com/torch-points3d/torch-points-kernels/blob/v0.7.0/torch_points_kernels/cluster.py#L48
 @torch.no_grad()
 def region_grow(

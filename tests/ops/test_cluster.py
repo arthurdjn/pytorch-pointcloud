@@ -12,6 +12,8 @@ from torch_pointcloud.ops.cluster import (
     knn,
     knn_graph,
     mean_shift,
+    nearest,
+    nearest_label,
     radius,
     region_grow,
 )
@@ -401,3 +403,52 @@ def test_mean_shift_matches_sklearn() -> None:
         x = centres[torch.randint(0, 6, (400,), generator=generator)] + 0.25 * torch.randn(400, 5, generator=generator)
         expected = sklearn_cluster.MeanShift(bandwidth=0.6, bin_seeding=bin_seeding).fit(x.numpy()).labels_
         assert mean_shift(x, 0.6, bin_seeding=bin_seeding).tolist() == expected.tolist()
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_nearest_matches_the_pairwise_distances() -> None:
+    generator = torch.Generator().manual_seed(0)
+    x, y = torch.rand(200, 3, generator=generator), torch.rand(50, 3, generator=generator)
+    assert torch.equal(nearest(x, y), torch.cdist(x, y).argmin(dim=1))
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_nearest_keeps_scenes_apart() -> None:
+    x = torch.tensor([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+    y = torch.tensor([[5.0, 0.0], [0.1, 0.0]])
+    out = nearest(x, y, torch.tensor([0, 1, 2]), torch.tensor([0, 1]))
+    assert out.tolist() == [0, 1, -1]
+
+
+def test_nearest_without_points() -> None:
+    assert nearest(torch.zeros(0, 3), torch.zeros(4, 3)).shape == (0,)
+    assert nearest(torch.zeros(2, 3), torch.zeros(0, 3)).tolist() == [-1, -1]
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize(
+    ("max_distance", "expected"),
+    [
+        pytest.param(None, [7, 4, 4], id="unbounded"),
+        pytest.param(1.0, [7, 4, -1], id="bounded"),
+    ],
+)
+def test_nearest_label_skips_unlabelled_points(max_distance: float | None, expected: list[int]) -> None:
+    """The middle point is the nearest of the second query but carries no label."""
+    pos = torch.tensor([[0.0, 0.0], [0.4, 0.0], [1.0, 0.0]])
+    query = torch.tensor([[0.1, 0.0], [0.6, 0.0], [3.0, 0.0]])
+    out = nearest_label(torch.tensor([7, -1, 4]), pos, query, max_distance=max_distance)
+    assert out.tolist() == expected
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_nearest_label_keeps_scenes_apart() -> None:
+    pos = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 0.0]])
+    query = torch.tensor([[0.9, 0.0], [0.9, 0.0], [0.9, 0.0]])
+    out = nearest_label(torch.tensor([3, -1, 5]), pos, query, torch.tensor([0, 0, 1]), torch.tensor([0, 1, 2]))
+    assert out.tolist() == [3, 5, -1]
+
+
+def test_nearest_label_without_labelled_points() -> None:
+    out = nearest_label(torch.tensor([-1, -1]), torch.rand(2, 3), torch.rand(5, 3))
+    assert out.tolist() == [-1] * 5
