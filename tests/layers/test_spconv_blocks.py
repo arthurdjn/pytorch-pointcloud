@@ -217,6 +217,33 @@ def test_strided_sparse_conv3d_pointwise_kernel_without_any_even_child_outputs_z
 
 
 @DEVICES
+@pytest.mark.parametrize("kernel_size", [pytest.param(1), pytest.param(2), pytest.param(3)])
+def test_strided_sparse_conv3d_scenes_are_independent_in_a_batch(
+    device: str,
+    kernel_size: int,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    scenes = [_random_sparse_tensor(seed=seed, device=device) for seed in (0, 1)]
+    indices = torch.cat([scenes[0].indices, scenes[1].indices + torch.tensor([1, 0, 0, 0], device=device).int()])
+    x = spconv.SparseConvTensor(torch.cat([scene.features for scene in scenes]), indices, [12, 12, 12], 2)
+    conv = StridedSparseConv3d(3, 4, kernel_size=kernel_size, stride=2)
+    spconv_to_device(conv, device)
+    # The CPU kernels of the CPU-only spconv wheel race on several threads: their outputs change from run to run.
+    threads = torch.get_num_threads()
+    torch.set_num_threads(1)
+    try:
+        out = conv(x)
+        alone_scenes = [conv(scene) for scene in scenes]
+    finally:
+        torch.set_num_threads(threads)
+
+    for i, alone in enumerate(alone_scenes):
+        rows = out.indices[:, 0] == i
+        assert torch.equal(out.indices[rows, 1:], alone.indices[:, 1:])
+        torch.testing.assert_close(out.features[rows], alone.features, atol=1e-5, rtol=1e-5)
+
+
+@DEVICES
 def test_strided_sparse_conv3d_keeps_the_index_cache_and_settings(
     device: str,
     spconv_to_device: Callable[[torch.nn.Module, str], None],
