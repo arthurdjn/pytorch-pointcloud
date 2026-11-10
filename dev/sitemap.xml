@@ -250,6 +250,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pools/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/positional_encoding/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pvcnn_blocks/</loc>
       </url>
       <url>
@@ -382,6 +385,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/models/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/act/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/centerpoint/</loc>
       </url>
       <url>
@@ -407,6 +413,12 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/parta2/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pcp_mae/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/point2vec/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/point_bert/</loc>
@@ -469,6 +481,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/models/randlanet/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/recon/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/second/</loc>
       </url>
       <url>
@@ -527,6 +542,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/ops/hilbert/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/masking/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/ops/math/</loc>
