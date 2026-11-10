@@ -15,6 +15,11 @@ All notable changes to this project are documented in this file. The format is b
 - Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
 - Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
+- Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
+- Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
+- Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
+- Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
+- `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
 - Fixed `VoxelGridPool(origin="min")` building wrong cells for an unsorted `batch`.
 - `ops.cluster.fps` and `knn_interpolate` raise a `ValueError` for an unsorted batch, which returned wrong results.
 - Fixed `gaussian_kernel_density` returning a 0-dim tensor for one point; an unsorted `batch` raises a `ValueError`.
