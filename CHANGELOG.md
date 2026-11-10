@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+## 0.0.20 (2026-11-10)
+
 - Added the PointNet checkpoints `pointnet.modelnet40.jiawei-ren`, `pointnet.scanobjectnn-hardest.openpoints` and `pointnet.s3dis-area5.xu-yan`, and their benchmark and training scripts.
 - Added `act_first`, `act_last` and `input_transform_uses_features` to the PointNet models, and `in_channels` to `TNet`.
 - Changed the key of the last PointNet encoder norm from `encoder.mlp2.norms.1` to `encoder.out_norm`; the former key still loads, with a `FutureWarning`.
