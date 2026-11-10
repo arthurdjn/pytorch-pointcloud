@@ -179,7 +179,7 @@ def parse_boxes(gt: Any, class_to_idx: Dict[str, int]) -> np.ndarray:
 
     Each kept box is $[cx, cy, cz, dx, dy, dz, \text{heading}, \text{sem\_cls}]$ where the
     centroid is the box center and the half-extents are the abs `coeffs` reordered to
-    $[c_1, c_0, c_2]$. This matches votenet's `_bbox.npy` `[l, w, h]` mapping ($l = \text{coeffs}[1]$
+    $[c_1, c_0, c_2]$. This is the $[l, w, h]$ order of the detection benchmark ($l = \text{coeffs}[1]$
     along the heading axis, $w = \text{coeffs}[0]$, $h = \text{coeffs}[2]$); storing the raw
     `coeffs` order swaps $dx \leftrightarrow dy$ and collapses oriented-box AP@0.5. The heading is
     $-\text{atan2}(o_1, o_0)$ from the orientation vector, and `sem_cls` is the index of an exact

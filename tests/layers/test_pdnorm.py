@@ -77,3 +77,14 @@ def test_pdnorm_unknown_condition_raises() -> None:
     x = torch.randn(8, 16)
     with pytest.raises(ValueError, match="Unknown condition 'C'. Valid conditions are: 'A', 'B'."):
         norm(x, condition="C")
+
+
+def test_pdnorm_decoupled_instance_raises() -> None:
+    with pytest.raises(ValueError, match="shared by every condition"):
+        PDNorm(16, conditions=["A", "B"], norm=nn.BatchNorm1d(16))
+
+
+def test_pdnorm_shared_accepts_instance() -> None:
+    instance = nn.BatchNorm1d(16)
+    norm = PDNorm(16, conditions=["A", "B"], norm=instance, decouple=False)
+    assert norm.norm is instance

@@ -238,7 +238,9 @@ def _build_window(
     window = index_select_dict(data_b, point_ids, n_b)
     window[batch_key] = torch.zeros(n_block, device=point_ids.device, dtype=torch.long)
     window[block_bbox_key] = bbox
-    return apply_transform(window, transform, pos_key=pos_key, inverse_key=inverse_key)
+    window, inverse_map = apply_transform(window, transform, pos_key=pos_key, inverse_key=inverse_key)
+    window.pop(block_bbox_key, None)
+    return window, inverse_map
 
 
 def _predict_packed(
@@ -428,7 +430,7 @@ def sliding_window_inference(
     rng = None if seed is None else torch.Generator(device=device).manual_seed(int(seed))
     apply_softmax = softmax or aggregate != "mean"
 
-    for b in torch.unique(batch).tolist():
+    for rank, b in enumerate(torch.unique(batch).tolist()):
         idx_b = torch.where(batch == b)[0]
         n_b = int(idx_b.numel())
         if n_b == 0:
@@ -437,7 +439,7 @@ def sliding_window_inference(
         # A single batch element is the whole scene: no copy of every per-point tensor.
         pos_b = pos if n_b == n_total else pos[idx_b]
         data_b = data if n_b == n_total else index_select_dict(data, idx_b, n_total)
-        data_b = {**data_b, **{key: data[key][b : b + 1] for key in ensure_tuple(cloud_keys)}}
+        data_b = {**data_b, **{key: data[key][rank : rank + 1] for key in ensure_tuple(cloud_keys)}}
 
         if block_size is None:
             point_groups = [torch.arange(n_b, device=device)]

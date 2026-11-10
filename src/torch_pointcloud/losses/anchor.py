@@ -38,7 +38,8 @@ class AnchorHeadLoss(nn.Module):
 
     Anchors are rebuilt in the constructor from the same geometry the head uses
     ([`generate_anchors`][torch_pointcloud.ops.anchors.generate_anchors]); the loss holds no reference
-    to the model.
+    to the model. It supervises the $7$ box codes only: the output of a head built with `code_size=9` (box and
+    velocity) raises a `ValueError`.
 
     Args:
         num_classes: Number of foreground classes.
@@ -160,9 +161,19 @@ class AnchorHeadLoss(nn.Module):
 
         Returns:
             A dict with the scalar `loss` and detached `cls_loss`, `box_loss`, `dir_loss`.
+
+        Raises:
+            ValueError: If `box` does not hold $7$ codes per anchor.
         """
         num_anchors = self.anchors.shape[0]
         batch_size = output["cls"].shape[0]
+        code_size = output["box"].shape[1:].numel() / num_anchors
+        if code_size != 7:
+            raise ValueError(
+                f"`AnchorHeadLoss` supervises 7 box codes per anchor, got {code_size:g} for {num_anchors} anchors: "
+                "a head built with `code_size=9` is not supported."
+            )
+
         cls_preds = output["cls"].view(batch_size, num_anchors, self.num_classes)
         box_preds = output["box"].view(batch_size, num_anchors, 7)
         dir_preds = output["dir_cls"].view(batch_size, num_anchors, self.num_dir_bins)
