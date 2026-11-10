@@ -24,7 +24,7 @@ from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate, decollate
 from torch_pointcloud.utils.types import Detection3D, KeyCollection
 
-from ._utils import check_batch_alignment
+from ._utils import check_batch_alignment, renamed_attribute
 from .inferer import DetectionInferer, Inferer, SegmentationInferer
 from .simple import SimpleInferer
 
@@ -567,12 +567,4 @@ _RENAMED = {"TTAInferer": "TTASegmentationInferer"}
 
 
 def __getattr__(name: str) -> Any:
-    if name in _RENAMED:
-        warnings.warn(
-            f"`{name}` is deprecated; use `{_RENAMED[name]}` instead.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        return globals()[_RENAMED[name]]
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return globals()[renamed_attribute(name, _RENAMED, __name__)]

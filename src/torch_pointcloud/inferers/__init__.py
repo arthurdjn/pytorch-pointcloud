@@ -1,8 +1,8 @@
 """Test-time inference strategies for segmentation and detection: tiling, windows, refinement and augmentation."""
 
 import typing
-import warnings
 
+from . import _utils
 from .inferer import DetectionInferer, Inferer, SegmentationInferer
 from .knn_window import KNNWindowSegmentationInferer, knn_window_segmentation_inference
 from .part_refinement import PartRefinementInferer, part_refinement_inference
@@ -45,12 +45,4 @@ _RENAMED = {
 
 
 def __getattr__(name: str) -> typing.Any:
-    if name in _RENAMED:
-        warnings.warn(
-            f"`{name}` is deprecated; use `{_RENAMED[name]}` instead.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        return globals()[_RENAMED[name]]
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return globals()[_utils.renamed_attribute(name, _RENAMED, __name__)]

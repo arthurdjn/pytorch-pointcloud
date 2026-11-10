@@ -21,8 +21,9 @@ import torch_pointcloud.inferers as inferers
 def test_former_inferer_names_warn_and_resolve(module: str, former_name: str, name: str) -> None:
     submodule = importlib.import_module(f"torch_pointcloud.inferers.{module}")
     for namespace in (inferers, submodule):
-        with pytest.warns(FutureWarning, match=f"`{former_name}` is deprecated; use `{name}` instead"):
+        with pytest.warns(FutureWarning, match=f"`{former_name}` is deprecated; use `{name}` instead") as record:
             assert getattr(namespace, former_name) is getattr(submodule, name)
+        assert record[0].filename == __file__
     assert former_name not in inferers.__all__
 
 

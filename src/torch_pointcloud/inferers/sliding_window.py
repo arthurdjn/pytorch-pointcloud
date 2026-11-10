@@ -21,7 +21,6 @@ Per-block pre-processing goes through the `transform` argument.
 
 import itertools
 import math
-import warnings
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import torch
@@ -32,7 +31,14 @@ from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.types import KeyCollection
 
-from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
+from ._utils import (
+    apply_transform,
+    check_batch_alignment,
+    gaussian_weights,
+    index_select_dict,
+    renamed_attribute,
+    split_chunks,
+)
 from .inferer import SegmentationInferer
 
 WindowMode = Literal["constant", "gaussian"]
@@ -656,12 +662,4 @@ _RENAMED = {
 
 
 def __getattr__(name: str) -> Any:
-    if name in _RENAMED:
-        warnings.warn(
-            f"`{name}` is deprecated; use `{_RENAMED[name]}` instead.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        return globals()[_RENAMED[name]]
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return globals()[renamed_attribute(name, _RENAMED, __name__)]

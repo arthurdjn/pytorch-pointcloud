@@ -5,7 +5,6 @@ coarse grid of potentials; each sphere's softmax predictions are blended into th
 an exponential moving average until every region has been covered about `num_votes` times.
 """
 
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
@@ -16,7 +15,7 @@ from tqdm import tqdm
 from torch_pointcloud.ops.voxelization import voxel_grid_fnv
 from torch_pointcloud.utils.data import DataKeys, collate
 
-from ._utils import apply_transform, check_batch_alignment, index_select_dict
+from ._utils import apply_transform, check_batch_alignment, index_select_dict, renamed_attribute
 from .inferer import SegmentationInferer
 
 
@@ -316,12 +315,4 @@ _RENAMED = {
 
 
 def __getattr__(name: str) -> Any:
-    if name in _RENAMED:
-        warnings.warn(
-            f"`{name}` is deprecated; use `{_RENAMED[name]}` instead.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        return globals()[_RENAMED[name]]
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return globals()[renamed_attribute(name, _RENAMED, __name__)]
