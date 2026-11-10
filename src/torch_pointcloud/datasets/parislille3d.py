@@ -68,7 +68,7 @@ def load_parislille3d_data(ply_path: PathLike, /) -> Dict[str, Tensor]:
     | ----------- | -------- | ------- |
     | `pos`       | $(N, 3)$ | float32 |
     | `intensity` | $(N, 1)$ | uint8   |
-    | `segment`   | $(N,)$   | int64   | (optional)
+    | `segment`   | $(N,)$   | int64   |
     """
     v = load_ply(ply_path)["vertex"]
     fields = set(v.dtype.names or ())
