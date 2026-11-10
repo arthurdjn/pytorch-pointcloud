@@ -35,6 +35,7 @@ OPS_MODULES = [
     "heatmap",
     "hilbert",
     "mask",
+    "masking",
     "math",
     "octree",
     "serialization",
