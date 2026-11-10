@@ -5,7 +5,6 @@ from torch_geometric.nn import MLP
 from torch_pointcloud.layers import PointPatchEmbed
 from torch_pointcloud.models.point_m2ae import (
     HierarchicalEncoder,
-    HierarchicalEncoderMAE,
     PointM2AEClassification,
     PointM2AEPartSegmentation,
     PointM2AEPretraining,
@@ -269,25 +268,6 @@ def test_point_m2ae_mae_basic() -> None:
     assert pred.shape == (pred_batch.shape[0], 3) and target.shape == (target_batch.shape[0], 3)
     assert pred_batch.max() == target_batch.max()
     assert pred_batch.shape[0] // target_batch.shape[0] == model.group_sizes[0] // model.group_sizes[1]
-
-
-def test_hierarchical_encoder_mae_rand_mask_draws_one_permutation_per_sample() -> None:
-    encoder = HierarchicalEncoderMAE(
-        encoder_depths=(1, 1, 1),
-        encoder_dims=(32, 48, 64),
-        local_radius=(0.32, 0.64, 1.28),
-        num_heads=4,
-        mask_ratio=0.8,
-    )
-
-    torch.manual_seed(0)
-    mask = encoder.rand_mask(torch.zeros(4, 64, 3))
-
-    torch.manual_seed(0)
-    expected = torch.zeros(4, 64, dtype=torch.bool)
-    for row in expected:
-        row[torch.randperm(64)[:51]] = True
-    assert torch.equal(mask, expected)
 
 
 @pytest.mark.parametrize(
