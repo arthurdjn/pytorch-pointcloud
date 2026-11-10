@@ -406,7 +406,7 @@ class PackedTransformerBlock(nn.Module):
         use_flash_attn: bool = True,
     ) -> None:
         super().__init__()
-        if norm == "layer_norm":
+        if isinstance(norm, str) and norm.lower().replace("_", "").replace("-", "") in ("layernorm", "layer"):
             # PyG resolves "layer_norm" to a graph LayerNorm, which normalizes over every sample of the packed batch.
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
 

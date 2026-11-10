@@ -20,6 +20,21 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `CrossAttention` layer, `ops.masking.random_mask` and the `bias` option of `PointPatchEmbed`.
 - Moved `PositionEmbeddingSine` from `models.pointgpt` to `layers`; it takes `embed_dim` first, and `scale` multiplies the coordinates directly (default 1). The former class still works with a `FutureWarning` and will be removed in a future release.
 - `read_state_dict` reads Lightning checkpoints whose module is the network itself, and `load_state_dict` raises on a checkpoint that shares no key with the model.
+- Fixed `box3d_overlap` returning an IoU above 1 for a box with an empty footprint inside another box, which `box_average_precision` counted as a match.
+- Fixed `CenterHead.decode` returning an unsorted `batch` with several class groups and scenes: the detections come scene by scene.
+- `AnchorHeadLoss` raises a `ValueError` on the output of a head built with `code_size=9`, which it does not supervise.
+- `generate_anchors` raises a `ValueError` instead of a `ZeroDivisionError` for a one-cell feature map axis with `align_center=False`.
+- Fixed `VoxelGridPool(origin="min")` building wrong cells for an unsorted `batch`.
+- `ops.cluster.fps` and `knn_interpolate` raise a `ValueError` for an unsorted batch, which returned wrong results.
+- Fixed `gaussian_kernel_density` returning a 0-dim tensor for one point; an unsorted `batch` raises a `ValueError`.
+- Fixed `ops.hilbert.encode` returning a 0-dim tensor for one point and `serialize` failing on an empty cloud.
+- `create_norm("layer_norm", ..., dim=2)` and `dim=3` raise a `ValueError`: the `nn.LayerNorm` they returned failed on channel-first inputs.
+- Fixed `PackedTransformerBlock` mixing the samples of a batch with `norm="LayerNorm"` and the other spellings of `"layer_norm"`.
+- Fixed `PointConvSetAbstraction` and `PointConvDensitySetAbstraction` failing on `x=None` with `downsample`.
+- `chamfer_distance` raises a `ValueError` when `pred_batch` and `target_batch` do not cover the same sets.
+- `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
+- Fixed `safe_divide` returning float32 for float16 inputs.
+- Added the changelog convention and the `state_dict` migration step to `CONTRIBUTING.md`.
 - Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `lookup_coordinates`, `trilinear_sparse_devoxelize`, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")`, `RandomTranslate(distribution="normal")` and the S3DIS detection classes.
 

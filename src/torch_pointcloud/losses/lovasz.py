@@ -5,7 +5,7 @@ from typing import Literal
 import torch
 from torch import Tensor, nn
 
-__all__ = ["LovaszLoss"]
+__all__ = ["LovaszLoss", "lovasz_softmax"]
 
 
 # Elements sorted per call; bounds the memory of the class-batched sort.
