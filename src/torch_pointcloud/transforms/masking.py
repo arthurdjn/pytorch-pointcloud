@@ -553,8 +553,7 @@ class SphereMask(DictTransform):
     $$
 
     Pair with `CubeMask` (L∞) and `BoxMask` (AABB) for the mask family.
-    `RemoveNearOrigin(radius=r)` is equivalent to
-    `Compose([SphereMask(center=(0,0,0), radius=r, invert=True), ApplyMask(...)])`.
+    `RemoveNearOrigin` drops the points inside such a ball centered on the origin.
 
     === "Object"
 

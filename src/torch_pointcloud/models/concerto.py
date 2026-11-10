@@ -237,7 +237,7 @@ _CONCERTO_SEG_TRANSFORMS = T.Compose(
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),  # Z: min
         T.Divide(keys=DataKeys.COLOR, divisor=255),
         T.Cat(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, 21), default=-1, allow_missing_keys=True),
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
             dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
