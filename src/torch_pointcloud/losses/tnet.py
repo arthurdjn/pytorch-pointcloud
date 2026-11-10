@@ -6,7 +6,7 @@ from torch import Tensor
 
 from torch_pointcloud.layers.tnet import DynamicTNet, TNet
 
-__all__ = ["TNetOrthogonalityRegularizer"]
+__all__ = ["TNetOrthogonalityRegularizer", "tnet_orthogonality_regularizer"]
 
 
 def tnet_orthogonality_regularizer(module: nn.Module) -> Tensor:

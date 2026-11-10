@@ -141,3 +141,9 @@ def test_encode_rejects_too_many_bits(num_dims: int, num_bits: int) -> None:
 def test_decode_rejects_too_many_bits(num_dims: int, num_bits: int) -> None:
     with pytest.raises(ValueError, match="int64"):
         decode(torch.zeros(4, dtype=torch.long), num_dims=num_dims, num_bits=num_bits)
+
+
+def test_encode_single_point_keeps_its_dimension() -> None:
+    code = encode(torch.tensor([[1, 2, 3]]), num_dims=3, num_bits=4)
+    assert code.shape == (1,)
+    assert torch.equal(code, encode(torch.tensor([[1, 2, 3], [1, 2, 3]]), num_dims=3, num_bits=4)[:1])

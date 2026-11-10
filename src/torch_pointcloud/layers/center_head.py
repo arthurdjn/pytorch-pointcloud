@@ -266,7 +266,7 @@ class CenterHead(nn.Module):
 
         Returns:
             Packed candidate detections `{"boxes": (K, 7), "scores": (K,), "labels": (K,), "batch": (K,)}`
-            (PyG layout), plus `"velocity"` $(K, 2)$ from a head built with `use_velocity`.
+            (PyG layout, `batch` sorted), plus `"velocity"` $(K, 2)$ from a head built with `use_velocity`.
         """
         if iou_rectifier is not None and len(iou_rectifier) != self.num_classes:
             raise ValueError(
@@ -275,10 +275,10 @@ class CenterHead(nn.Module):
         if iou_rectifier is not None and "iou" not in out:
             raise ValueError("`iou_rectifier` needs the `iou` maps of a head built with `use_iou`.")
 
-        out_boxes, out_scores, out_labels, out_batch, out_velocity = [], [], [], [], []
+        group_boxes, group_scores, group_labels, group_keep, group_velocity = [], [], [], [], []
         for group_idx, group in enumerate(self.class_groups):
             heatmap = out["heatmap"][group_idx].sigmoid()
-            batch_size, _, height, width = heatmap.shape
+            _, _, height, width = heatmap.shape
             # One top-k over the flat (class, cell) map equals a per-class top-k followed by a global one.
             scores, inds = torch.topk(heatmap.flatten(1), min(top_k, heatmap[0].numel()))
             classes = torch.div(inds, height * width, rounding_mode="floor")
@@ -301,21 +301,21 @@ class CenterHead(nn.Module):
                 rescored = scores.pow(1 - rectifier) * iou.pow(rectifier)
             velocity = transpose_gather(out["vel"][group_idx], inds) if "vel" in out else None
 
-            for b in range(batch_size):
-                keep = scores[b] > score_threshold
-                out_boxes.append(boxes[b][keep])
-                out_scores.append(rescored[b][keep])
-                out_labels.append(labels[b][keep])
-                out_batch.append(torch.full((int(keep.sum()),), b, dtype=torch.long, device=heatmap.device))
-                if velocity is not None:
-                    out_velocity.append(velocity[b][keep])
+            group_boxes.append(boxes)
+            group_scores.append(rescored)
+            group_labels.append(labels)
+            group_keep.append(scores > score_threshold)
+            if velocity is not None:
+                group_velocity.append(velocity)
 
+        keep = torch.cat(group_keep, dim=1)  # (B, G * K)
+        batch = torch.arange(keep.shape[0], device=keep.device)[:, None].expand_as(keep)
         detections: Detection3D = {
-            "boxes": torch.cat(out_boxes),
-            "scores": torch.cat(out_scores),
-            "labels": torch.cat(out_labels),
-            "batch": torch.cat(out_batch),
+            "boxes": torch.cat(group_boxes, dim=1)[keep],
+            "scores": torch.cat(group_scores, dim=1)[keep],
+            "labels": torch.cat(group_labels, dim=1)[keep],
+            "batch": batch[keep],
         }
         if "vel" in out:
-            detections["velocity"] = torch.cat(out_velocity)
+            detections["velocity"] = torch.cat(group_velocity, dim=1)[keep]
         return detections

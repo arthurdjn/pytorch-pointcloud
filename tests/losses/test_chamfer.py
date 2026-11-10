@@ -117,6 +117,18 @@ def test_chamfer_distance_backward_flows(norm: Literal["l1", "l2"]) -> None:
     assert pred.grad.abs().sum() > 0
 
 
+def test_chamfer_distance_sets_without_counterpart_raise() -> None:
+    pred, target = torch.rand(6, 3), torch.rand(3, 3)
+    pred_batch = torch.tensor([0, 0, 0, 1, 1, 1])
+    target_batch = torch.tensor([0, 0, 0])
+    with pytest.raises(ValueError, match="must cover the same sets"):
+        chamfer_distance(pred, target, pred_batch=pred_batch, target_batch=target_batch)
+    with pytest.raises(ValueError, match="must cover the same sets"):
+        chamfer_distance(target, pred, pred_batch=target_batch, target_batch=pred_batch)
+    with pytest.raises(ValueError, match="must cover the same sets"):
+        chamfer_distance(pred, target, pred_batch=pred_batch)
+
+
 def test_chamfer_distance_unknown_norm_raises() -> None:
     pred = torch.randn(4, 3)
     with pytest.raises(ValueError, match="norm"):
