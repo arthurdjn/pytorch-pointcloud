@@ -1834,7 +1834,7 @@ def segmentation_transforms(
     color_mean: float = 127.5,
     color_std: float = 127.5,
 ) -> T.Compose:
-    r"""The color and normal inference pipeline of the indoor Point Transformer V3 and LitePT segmentation checkpoints,
+    r"""The color and normal inference pipeline of the indoor Point Transformer V3 segmentation checkpoints,
     on a 2 cm grid.
 
     Args:
@@ -1882,7 +1882,7 @@ def segmentation_transforms(
 
 
 def nuscenes_segmentation_transforms() -> T.Compose:
-    r"""The inference pipeline of the nuScenes Point Transformer V3 and LitePT segmentation checkpoints: the lidarseg
+    r"""The inference pipeline of the nuScenes Point Transformer V3 segmentation checkpoints: the lidarseg
     labels mapped to the 16 benchmark classes, the position and the intensity in $[0, 1]$ as features, on a 5 cm grid.
 
     Returns:

@@ -21,7 +21,6 @@ from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
-from torch_pointcloud.models.point_transformer_v3 import segmentation_transforms
 from torch_pointcloud.ops.voxelization import voxel_patch_partition
 from torch_pointcloud.utils.conversion import batch_to_cu_seqlens
 from torch_pointcloud.utils.data import DataKeys
@@ -396,6 +395,37 @@ class VoltSegmentation(SemanticSegmentationModel):
         return self.forward_head(features)
 
 
+def _scannet_transforms(labels: Sequence[int]) -> T.Compose:
+    """Color and normal features of the ScanNet checkpoints, one point per 2 cm voxel; `labels` are the dataset classes
+    mapped in order onto $0..K-1$."""
+    return T.Compose(
+        [
+            T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
+            T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
+            # The released weights were trained on colors in $[0, 1]$.
+            T.Normalize(keys=DataKeys.COLOR, mean=[0.0, 0.0, 0.0], std=[255.0, 255.0, 255.0]),
+            T.Cat(keys=[DataKeys.COLOR, DataKeys.NORMAL], dst_key=DataKeys.X, dim=1),
+            T.Relabel(keys=DataKeys.SEGMENT, labels=labels, default=-1, allow_missing_keys=True),
+            T.CopyItems(
+                keys=[DataKeys.POS, DataKeys.SEGMENT],
+                dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
+                allow_missing_keys=True,
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS,
+                pos_reduce="first",
+                dst_pos_grid_key=DataKeys.POS_GRID,
+                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.COLOR, DataKeys.NORMAL, DataKeys.INSTANCE],
+                reduce="first",
+                size=0.02,
+                method="fnv",
+                allow_missing_keys=True,
+                dst_inverse_key=DataKeys.INVERSE,
+            ),
+        ]
+    )
+
+
 def _nuscenes_transforms() -> T.Compose:
     """Position and intensity features of the nuScenes checkpoints, one point per 5 cm voxel."""
     return T.Compose(
@@ -478,7 +508,7 @@ def _semantickitti_transforms() -> T.Compose:
         author="kadir-yilmaz",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 21), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(range(1, 21)),
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -512,7 +542,7 @@ def volt_s_scannet20(**hparams: Any) -> VoltSegmentation:
         author="kadir-yilmaz",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 201), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(range(1, 201)),
     hparams=dict(
         in_channels=6,
         num_classes=200,
@@ -614,7 +644,7 @@ def volt_s_semantickitti(**hparams: Any) -> VoltSegmentation:
         author="kadir-yilmaz",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 21), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(range(1, 21)),
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -648,7 +678,7 @@ def volt_s_joint_scannet20(**hparams: Any) -> VoltSegmentation:
         author="kadir-yilmaz",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 201), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(range(1, 201)),
     hparams=dict(
         in_channels=6,
         num_classes=200,
@@ -682,7 +712,7 @@ def volt_s_joint_scannet200(**hparams: Any) -> VoltSegmentation:
         author="kadir-yilmaz",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 21), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(range(1, 21)),
     hparams=dict(
         in_channels=6,
         num_classes=20,
@@ -716,7 +746,7 @@ def volt_b_joint_scannet20(**hparams: Any) -> VoltSegmentation:
         author="kadir-yilmaz",
         license="MIT",
     ),
-    transform=segmentation_transforms(range(1, 201), color_mean=0.0, color_std=255.0),
+    transform=_scannet_transforms(range(1, 201)),
     hparams=dict(
         in_channels=6,
         num_classes=200,
