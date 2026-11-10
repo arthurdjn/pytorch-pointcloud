@@ -184,6 +184,7 @@ def test_minkunet_headless(data: Dict[str, Tensor]) -> None:
 )
 def test_minkunet_registered_transform_rounds_to_the_grid(name: str, bus: int) -> None:
     transform = model_info(name, task="semantic-segmentation")["transform"]
+    assert transform is not None
     pos = torch.tensor([[0.06, 0.0, 0.0], [0.04, 0.0, 0.0], [0.13, -0.07, 1.0]])
     data = transform(
         {
@@ -204,6 +205,7 @@ def test_minkunet_registered_transform_rounds_to_the_grid(name: str, bus: int) -
 
 def test_minkunet_registered_transform_runs_without_labels() -> None:
     transform = model_info("minkunet18-w32.semantickitti.mmdet3d", task="semantic-segmentation")["transform"]
+    assert transform is not None
     data = transform({DataKeys.POS: torch.rand(64, 3), DataKeys.INTENSITY: torch.rand(64, 1)})
     assert DataKeys.SEGMENT not in data
     assert data[DataKeys.X].shape == (data[DataKeys.POS_GRID].shape[0], 4)
