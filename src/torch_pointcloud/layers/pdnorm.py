@@ -28,7 +28,8 @@ class PDNorm(nn.Module):
     Args:
         channels: Number of feature channels.
         conditions: Ordered condition names; index $i$ selects `norm.{i}` when decoupled.
-        norm: Inner norm passed to `create_norm` (name, class, instance, or `None`).
+        norm: Inner norm passed to `create_norm` (name, class, instance, or `None`). An instance is only accepted
+            with `decouple=False`.
         decouple: If `True`, use one norm per condition; if `False`, share a single norm.
         dim: Spatial dimensionality hint forwarded to each inner `create_norm` (see its `dim` argument).
         **norm_kwargs: Extra keyword arguments forwarded to each inner norm constructor.
@@ -60,6 +61,12 @@ class PDNorm(nn.Module):
         **norm_kwargs: Any,
     ) -> None:
         super().__init__()
+        if decouple and isinstance(norm, nn.Module):
+            raise ValueError(
+                "`norm` must be a name or a class when `decouple=True`: a module instance would be shared by every "
+                "condition."
+            )
+
         self.conditions = tuple(conditions)
         self.decouple = decouple
         if decouple:

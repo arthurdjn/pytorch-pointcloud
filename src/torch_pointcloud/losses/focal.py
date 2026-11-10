@@ -7,7 +7,15 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-__all__ = ["GaussianFocalLoss", "Poly1FocalLoss", "SigmoidFocalLoss"]
+__all__ = [
+    "GaussianFocalLoss",
+    "Poly1FocalLoss",
+    "SigmoidFocalLoss",
+    "gaussian_focal_loss",
+    "one_hot_foreground",
+    "poly1_focal_loss",
+    "sigmoid_focal_loss",
+]
 
 
 def sigmoid_focal_loss(

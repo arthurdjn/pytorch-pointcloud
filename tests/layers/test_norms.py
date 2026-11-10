@@ -46,7 +46,6 @@ def test_layer_norm_dim1_is_graph_layer_norm_not_torch() -> None:
         pytest.param("bn", 2, nn.BatchNorm2d, id="bn-alias-2d"),
         pytest.param("instance_norm", 2, nn.InstanceNorm2d, id="instance_norm-2d"),
         pytest.param("instance_norm", 3, nn.InstanceNorm3d, id="instance_norm-3d"),
-        pytest.param("layer_norm", 2, nn.LayerNorm, id="layer_norm-2d"),
     ],
 )
 def test_dim_aware_dispatch(norm: str, dim: int, expected: type) -> None:
@@ -81,6 +80,20 @@ def test_module_instance_returned_unchanged() -> None:
 def test_unknown_string_raises_for_spatial_dim() -> None:
     with pytest.raises(ValueError, match="Unknown norm string"):
         create_norm("graph_norm", 8, dim=2)
+
+
+@pytest.mark.parametrize(
+    "norm,dim",
+    [
+        pytest.param("layer_norm", 2, id="layer_norm-2d"),
+        pytest.param("layer_norm", 3, id="layer_norm-3d"),
+        pytest.param("LayerNorm", 2, id="class-name-2d"),
+        pytest.param("ln", 3, id="ln-alias-3d"),
+    ],
+)
+def test_layer_norm_raises_for_spatial_dim(norm: str, dim: int) -> None:
+    with pytest.raises(ValueError, match="is not supported for dim"):
+        create_norm(norm, 8, dim=dim)
 
 
 def test_conditions_wrap_in_pdnorm() -> None:

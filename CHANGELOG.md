@@ -24,6 +24,17 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed `CenterHead.decode` returning an unsorted `batch` with several class groups and scenes: the detections come scene by scene.
 - `AnchorHeadLoss` raises a `ValueError` on the output of a head built with `code_size=9`, which it does not supervise.
 - `generate_anchors` raises a `ValueError` instead of a `ZeroDivisionError` for a one-cell feature map axis with `align_center=False`.
+- Fixed `VoxelGridPool(origin="min")` building wrong cells for an unsorted `batch`.
+- `ops.cluster.fps` and `knn_interpolate` raise a `ValueError` for an unsorted batch, which returned wrong results.
+- Fixed `gaussian_kernel_density` returning a 0-dim tensor for one point; an unsorted `batch` raises a `ValueError`.
+- Fixed `ops.hilbert.encode` returning a 0-dim tensor for one point and `serialize` failing on an empty cloud.
+- `create_norm("layer_norm", ..., dim=2)` and `dim=3` raise a `ValueError`: the `nn.LayerNorm` they returned failed on channel-first inputs.
+- Fixed `PackedTransformerBlock` mixing the samples of a batch with `norm="LayerNorm"` and the other spellings of `"layer_norm"`.
+- Fixed `PointConvSetAbstraction` and `PointConvDensitySetAbstraction` failing on `x=None` with `downsample`.
+- `chamfer_distance` raises a `ValueError` when `pred_batch` and `target_batch` do not cover the same sets.
+- `PDNorm` raises a `ValueError` for a `norm` instance with `decouple=True`, which shared one norm between the conditions.
+- Fixed `safe_divide` returning float32 for float16 inputs.
+- Added the changelog convention and the `state_dict` migration step to `CONTRIBUTING.md`.
 
 ## 0.0.19 (2026-11-08)
 
