@@ -3,7 +3,7 @@ import io
 import json
 import shutil
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -674,3 +674,65 @@ def test_scannet_download_requires_accepted_terms(tmp_path: Path, monkeypatch: p
     with pytest.raises(RuntimeError, match="terms-of-use"):
         _ = ScanNet(root=tmp_path, download=True, show_progress=False)
     download_mock.assert_not_called()
+
+
+def test_scannet20_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
+    datasets_dir = datasets_dir_factory("ScanNet/**/*")
+    dataset = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=False)
+
+    rebuilt = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
+
+
+def test_scannet20_stamp_without_format_version_is_version_one(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A stamp written before `format_version` existed counts as version 1, below ScanNet20's version, and raises."""
+    datasets_dir = datasets_dir_factory("ScanNet/**/*")
+    dataset = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=False)
+
+
+def test_scannet20_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory("ScanNet/**/*")
+    dataset = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+
+    def interrupted(self: ScanNet20, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(ScanNet20, "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    assert not meta_path.exists()
+
+
+def test_scannet20_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory("ScanNet/**/*")
+    dataset = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    meta_path = Path(dataset.processed_dir, "val/meta.json")
+
+    def incomplete(self: ScanNet20, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        return False
+
+    monkeypatch.setattr(ScanNet20, "write_processed_files", incomplete)
+    ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
+    assert not meta_path.exists()

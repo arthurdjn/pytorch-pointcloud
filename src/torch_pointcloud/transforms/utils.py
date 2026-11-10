@@ -16,12 +16,16 @@ ReduceOp = Literal["min", "max", "mean", "sum"]
 
 __all__ = [
     "Abs",
+    "Add",
     "Cat",
     "Clamp",
+    "ClampNorm",
     "CopyItems",
     "Divide",
     "DivideItems",
     "KeepItems",
+    "Log",
+    "NormalizedDifference",
     "OneHot",
     "OnesLike",
     "Reduce",
@@ -182,11 +186,10 @@ def relabel(
     src = torch.tensor(sorted_sources, dtype=torch.long, device=labels.device)
     tgt = torch.tensor([table[s] for s in sorted_sources], dtype=torch.long, device=labels.device)
     labels_long = labels.long()
-    idx = torch.searchsorted(src, labels_long)
-    idx_clamped = idx.clamp(max=src.numel() - 1)
-    hit = src[idx_clamped] == labels_long
+    idx = torch.searchsorted(src, labels_long).clamp_(max=src.numel() - 1)
+    hit = src[idx] == labels_long
     dst = torch.full_like(labels_long, default)
-    dst[hit] = tgt[idx_clamped[hit]]
+    dst[hit] = tgt[idx[hit]]
     return dst.to(labels.dtype)
 
 
@@ -211,11 +214,15 @@ class Relabel(DictTransform):
 
     Example:
         ```python
+        import torch
+        import torch_pointcloud.transforms as T
+
         # 1:1 - keep raw NYU40 ids 1, 2, 3, 4, 5 and remap them to 0..4
-        T.Relabel(keys="segment", labels=[1, 2, 3, 4, 5])
+        relabel = T.Relabel(keys="segment", labels=[1, 2, 3, 4, 5], default=255)
+        relabel({"segment": torch.tensor([1, 3, 5, 7])})["segment"]  # tensor([0, 2, 4, 255])
 
         # N:1 - SemanticKITTI 19-class benchmark (merges moving-* into static)
-        T.Relabel(
+        relabel = T.Relabel(
             keys="segment",
             labels={
                 10: 0, 252: 0,    # car        (+ moving-car)
@@ -226,6 +233,7 @@ class Relabel(DictTransform):
             },
             default=255,
         )
+        relabel({"segment": torch.tensor([10, 252, 11, 99])})["segment"]  # tensor([0, 0, 1, 255])
         ```
     """
 
@@ -411,7 +419,8 @@ class Cat(DictTransform):
         This transform is mostly used to concatenate multiple features into a single tensor to feed into your model.
 
     Integer inputs are cast to `float32`; floating inputs keep their dtype. When the inputs mix
-    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast).
+    floating dtypes, the result uses the widest one (so `float64` is preserved, never downcast). The inputs must
+    have the same number of dimensions, including `dim`: a per-point scalar is $(N, 1)$, not $(N,)$.
 
     ![Cat diagram](../../assets/transforms/cat.png)
 
@@ -421,11 +430,16 @@ class Cat(DictTransform):
         dim: Dimension along which to concatenate.
         allow_missing_keys: If `True`, silently skip absent keys.
 
+    Raises:
+        ValueError: If the tensors do not have the same number of dimensions, or do not have dimension `dim`.
+
     Example:
         If you have a point cloud data containing position, color and normal and want to concatenate them
         into a single feature tensor (to feed into your model), you can do the following:
 
         ```python
+        import torch
+
         from torch_pointcloud.transforms import Cat
 
         data = {
@@ -453,7 +467,16 @@ class Cat(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in self.iter_keys(data)]
+        keys = list(self.iter_keys(data))
+        ranks = {data[key].dim() for key in keys}
+        if len(ranks) > 1 or any(not -rank <= self.dim < rank for rank in ranks):
+            shapes = ", ".join(f"`{key}` {tuple(data[key].shape)}" for key in keys)
+            raise ValueError(
+                f"Cat needs tensors of one rank that have dimension {self.dim}, got {shapes}; "
+                "a per-point scalar is (N, 1)."
+            )
+
+        tensors = [data[key] if data[key].is_floating_point() else data[key].float() for key in keys]
         if not tensors:
             return data
 
@@ -586,6 +609,8 @@ class KeepItems(DictTransform):
         you can do the following:
 
         ```python
+        import torch
+
         from torch_pointcloud.transforms import KeepItems
 
         data = {
@@ -611,6 +636,31 @@ class KeepItems(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         return {key: data[key] for key in self.iter_keys(data)}
+
+
+class Add(DictTransform):
+    """Add a value to dictionary tensor entries.
+
+    Args:
+        keys: The keys to add to.
+        value: The value(s) to add, one per key or one for all.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        value: float | Sequence[float],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.value = ensure_tuple_size(value, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, value in self.iter_keys(data, self.value):
+            data[key] = data[key] + value
+        return data
 
 
 class Scale(DictTransform):
@@ -761,6 +811,50 @@ class SubtractItems(DictTransform):
         return data
 
 
+class NormalizedDifference(DictTransform):
+    r"""Normalized difference of two entries, $(a - b) / (a + b + \epsilon)$.
+
+    Computes `data[dst_key] = (data[key] - data[sub_key]) / (data[key] + data[sub_key] + eps)` for each key.
+
+    Args:
+        keys: Keys of the first operand $a$.
+        sub_keys: Keys of the second operand $b$, one per key.
+        dst_keys: Where to store results. Defaults to `keys`.
+        eps: Added to the denominator, $\epsilon$.
+        allow_missing_keys: If `True`, silently skip absent target keys.
+
+    Example:
+        ```python
+        import torch
+
+        from torch_pointcloud.transforms import NormalizedDifference
+
+        data = {"a": torch.tensor([[0.6], [0.1]]), "b": torch.tensor([[0.2], [0.3]])}
+        data = NormalizedDifference(keys="a", sub_keys="b", dst_keys="difference")(data)
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        sub_keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        eps: float = 1e-6,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sub_keys = ensure_tuple_size(sub_keys, len(self.keys))
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+        self.eps = eps
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, sub_key, dst_key in self.iter_keys(data, self.sub_keys, self.dst_keys):
+            a, b = data[key], data[sub_key]
+            data[dst_key] = (a - b) / (a + b + self.eps)
+        return data
+
+
 def absolute(x: Tensor, inplace: bool = False) -> Tensor:
     """Make the input tensor absolute.
 
@@ -815,6 +909,32 @@ class Abs(DictTransform):
         return d
 
 
+class Log(DictTransform):
+    r"""Map tensor entries to their natural logarithm (a thin wrapper over `torch.log`). Integer inputs give
+    `float32`.
+
+    Args:
+        keys: Keys to transform.
+        dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, silently skip absent keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = torch.log(data[key])
+        return data
+
+
 class Clamp(DictTransform):
     """Clamp tensor entries to a range (a thin wrapper over `torch.clamp`).
 
@@ -857,4 +977,86 @@ class Clamp(DictTransform):
             low = self.min.to(x) if isinstance(self.min, Tensor) else self.min
             high = self.max.to(x) if isinstance(self.max, Tensor) else self.max
             data[dst_key] = x.clamp(min=low, max=high)
+        return data
+
+
+def clamp_norm(x: Tensor, max_norm: float) -> Tensor:
+    r"""Scale the rows of `x` whose Euclidean norm exceeds `max_norm` back onto that norm, keeping their direction.
+
+    A row $x_i$ with $\lVert x_i \rVert > m$ becomes $x_i \cdot m / \lVert x_i \rVert$; the other rows are unchanged.
+    This is `torch.renorm(x, p=2, dim=0, maxnorm=m)` without its $10^{-7}$ epsilon, so the ratio
+    $m / \lVert x_i \rVert$ is exact.
+
+    Args:
+        x: Input tensor of shape $(N, D)$.
+        max_norm: Largest Euclidean norm $m$ of a row.
+
+    Returns:
+        The clamped tensor, same shape and dtype as `x`.
+
+    Raises:
+        ValueError: If `max_norm` is not positive.
+
+    Example:
+        ```python
+        import torch
+        import torch_pointcloud.transforms.functional as F
+
+        pos = torch.tensor([[3.0, 4.0, 0.0], [0.3, 0.4, 0.0]])
+        F.clamp_norm(pos, max_norm=1.0)  # tensor([[0.6000, 0.8000, 0.0000], [0.3000, 0.4000, 0.0000]])
+        ```
+    """
+    if max_norm <= 0.0:
+        raise ValueError(f"`max_norm` must be > 0, got {max_norm}.")
+
+    scale = (max_norm / torch.linalg.vector_norm(x, dim=-1, keepdim=True)).clamp(max=1.0)
+    return x * scale
+
+
+class ClampNorm(DictTransform):
+    r"""Clamp the Euclidean norm of every row of tensor entries, keeping each row's direction (see `clamp_norm`).
+
+    === "Object"
+
+        ![ClampNorm on an object](../../assets/transforms/clamp_norm.png)
+
+    === "Scene"
+
+        ![ClampNorm on a room](../../assets/transforms/clamp_norm_scene.png)
+
+    Args:
+        keys: Keys holding tensors of shape $(N, D)$.
+        max_norm: Largest Euclidean norm of a row.
+        dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
+        allow_missing_keys: If `True`, silently skip absent keys.
+
+    Example:
+        ```python
+        import torch
+        from torch_pointcloud.transforms import ClampNorm
+
+        transform = ClampNorm(keys="pos", max_norm=50.0)
+        data = transform({"pos": torch.tensor([[60.0, 80.0, 0.0], [3.0, 4.0, 0.0]])})
+        data["pos"]  # tensor([[30., 40.,  0.], [ 3.,  4.,  0.]])
+        ```
+    """
+
+    def __init__(
+        self,
+        keys: KeyCollection,
+        max_norm: float,
+        dst_keys: Optional[KeyCollection] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if max_norm <= 0.0:
+            raise ValueError(f"`max_norm` must be > 0, got {max_norm}.")
+
+        self.max_norm = max_norm
+        self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
+
+    def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = dict(data)
+        for key, dst_key in self.iter_keys(data, self.dst_keys):
+            data[dst_key] = clamp_norm(data[key], self.max_norm)
         return data

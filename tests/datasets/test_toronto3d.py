@@ -4,7 +4,6 @@ from typing import Callable
 from unittest.mock import Mock
 
 import numpy as np
-import plyfile
 import pytest
 import torch
 
@@ -16,6 +15,7 @@ from torch_pointcloud.datasets.toronto3d import (
     load_toronto3d_data,
 )
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.io import save_ply
 
 # Must match generate.py's `--num-points` default.
 NUM_POINTS_PER_SCAN = 1024
@@ -209,7 +209,7 @@ def test_load_toronto3d_data_subtracts_offset_before_float32_cast(tmp_path: Path
         ],
     )
     ply_path = tmp_path / "cloud.ply"
-    plyfile.PlyData([plyfile.PlyElement.describe(vertex, "vertex")]).write(str(ply_path))
+    save_ply(ply_path, {"vertex": vertex})
 
     data = load_toronto3d_data(ply_path, utm_offset=(627285.0, 4841948.0, 0.0))
     assert torch.allclose(data[DataKeys.POS][0], torch.tensor([0.12, 2.37, 91.03]), atol=1e-4)

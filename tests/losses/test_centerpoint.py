@@ -1,27 +1,41 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.losses import CenterHeadLoss, VoxelNeXtHeadLoss
-from torch_pointcloud.losses.centerpoint import _reg_l1_loss
+from torch_pointcloud.losses import (
+    CenterHeadLoss,
+    VoxelNeXtHeadLoss,
+    center_regression_loss,
+    gaussian_focal_loss,
+    iou_prediction_loss,
+)
+from torch_pointcloud.ops.heatmap import draw_heatmap_targets, transpose_gather
 from torch_pointcloud.utils.data import DataKeys
 
 _POINT_CLOUD_RANGE = (-12.0, -12.0, -2.0, 12.0, 12.0, 4.0)
 _VOXEL_SIZE = (1.0, 1.0, 6.0)
 
 
-def _dense_data(batch_size: int = 2, num_classes: int = 3, size: int = 24) -> Tuple[Dict[str, Tensor], Dict[str, Any]]:
+def _dense_data(
+    groups: Optional[List[List[int]]] = None,
+    batch_size: int = 2,
+    size: int = 24,
+    use_velocity: bool = False,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    groups = [[0, 1, 2]] if groups is None else groups
     torch.manual_seed(0)
-    output: Dict[str, Tensor] = {
-        "heatmap": torch.randn(batch_size, num_classes, size, size),
-        "center": torch.randn(batch_size, 2, size, size),
-        "center_z": torch.randn(batch_size, 1, size, size),
-        "dim": torch.randn(batch_size, 3, size, size),
-        "rot": torch.randn(batch_size, 2, size, size),
-        "iou": torch.randn(batch_size, 1, size, size),
+    output: Dict[str, Any] = {
+        "heatmap": [torch.randn(batch_size, len(g), size, size) for g in groups],
+        "center": [torch.randn(batch_size, 2, size, size) for _ in groups],
+        "center_z": [torch.randn(batch_size, 1, size, size) for _ in groups],
+        "dim": [torch.randn(batch_size, 3, size, size) for _ in groups],
+        "rot": [torch.randn(batch_size, 2, size, size) for _ in groups],
+        "iou": [torch.randn(batch_size, 1, size, size) for _ in groups],
     }
+    if use_velocity:
+        output["vel"] = [torch.randn(batch_size, 2, size, size) for _ in groups]
     box = torch.tensor(
         [
             [2.0, 3.0, 0.2, 3.5, 2.0, 1.5, 0.4],
@@ -75,21 +89,21 @@ def _sparse_data(
     return output, data
 
 
-def _perfect_dense_output(box: Tensor, size: int = 24) -> Dict[str, Tensor]:
+def _perfect_dense_output(box: Tensor, size: int = 24) -> Dict[str, Any]:
     """Constant maps that decode exactly to `box` at its peak cell (its center sits mid-cell)."""
     return {
-        "heatmap": torch.zeros(1, 1, size, size),
-        "center": torch.full((1, 2, size, size), 0.5),
-        "center_z": torch.full((1, 1, size, size), float(box[2])),
-        "dim": torch.log(box[3:6]).view(1, 3, 1, 1).expand(1, 3, size, size).clone(),
-        "rot": torch.stack([torch.cos(box[6]).expand(size, size), torch.sin(box[6]).expand(size, size)]).unsqueeze(0),
-        "iou": torch.ones(1, 1, size, size),  # matches the rescaled target 2 * iou3d - 1 = 1 of a perfect box
+        "heatmap": [torch.zeros(1, 1, size, size)],
+        "center": [torch.full((1, 2, size, size), 0.5)],
+        "center_z": [torch.full((1, 1, size, size), float(box[2]))],
+        "dim": [torch.log(box[3:6]).view(1, 3, 1, 1).expand(1, 3, size, size).clone()],
+        "rot": [torch.stack([torch.cos(box[6]).expand(size, size), torch.sin(box[6]).expand(size, size)]).unsqueeze(0)],
+        "iou": [torch.ones(1, 1, size, size)],  # matches the rescaled target 2 * iou3d - 1 = 1 of a perfect box
     }
 
 
 def test_center_loss_perfect_predictions_regression_terms_zero() -> None:
     loss_fn = CenterHeadLoss(
-        1,
+        [[0]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -107,7 +121,7 @@ def test_center_loss_perfect_predictions_regression_terms_zero() -> None:
     assert out["box_loss"] < 1e-5
     assert out["iou_loss"] < 1e-5
 
-    output["center"] = output["center"] + 0.25
+    output["center"] = [output["center"][0] + 0.25]
     perturbed = loss_fn(output, data)
     assert perturbed["box_loss"] > out["box_loss"] + 0.01
 
@@ -115,7 +129,7 @@ def test_center_loss_perfect_predictions_regression_terms_zero() -> None:
 def test_center_loss_iou_targets_skip_degenerate_boxes() -> None:
     """A degenerate first GT box (skipped by the target assigner) must not shift later IoU targets."""
     loss_fn = CenterHeadLoss(
-        1,
+        [[0]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -135,7 +149,7 @@ def test_center_loss_iou_targets_skip_degenerate_boxes() -> None:
 
 def test_center_loss_returns_scalar_dict() -> None:
     loss_fn = CenterHeadLoss(
-        3,
+        [[0, 1, 2]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -151,7 +165,7 @@ def test_center_loss_returns_scalar_dict() -> None:
 
 def test_center_loss_iou_branch() -> None:
     loss_fn = CenterHeadLoss(
-        3,
+        [[0, 1, 2]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -166,7 +180,7 @@ def test_center_loss_iou_branch() -> None:
 
 def test_center_loss_forward_returns_dict() -> None:
     loss_fn = CenterHeadLoss(
-        3,
+        [[0, 1, 2]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -179,35 +193,55 @@ def test_center_loss_forward_returns_dict() -> None:
 
 def test_center_loss_backward() -> None:
     loss_fn = CenterHeadLoss(
-        3,
+        [[0, 1, 2]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
         code_weights=[1.0] * 8,
     )
     output, data = _dense_data()
-    for value in output.values():
-        value.requires_grad_(True)
+    for maps in output.values():
+        for tensor in maps:
+            tensor.requires_grad_(True)
     loss_fn(output, data)["loss"].backward()
-    assert output["heatmap"].grad is not None
-    assert output["center"].grad is not None
+    assert output["heatmap"][0].grad is not None
+    assert output["center"][0].grad is not None
 
 
-def test_center_loss_rejects_velocity_code_weights() -> None:
-    """The dense head predicts no velocity codes, so a length-10 `code_weights` must raise, not crash later."""
-    with pytest.raises(ValueError, match="`code_weights` must have length 8"):
+def test_center_loss_class_groups_and_velocity_codes() -> None:
+    """Two groups split the three classes; 9-column boxes supervise the `vel` maps through 10 code weights."""
+    groups = [[0], [1, 2]]
+    loss_fn = CenterHeadLoss(
+        groups,
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8 + [0.2, 0.2],
+    )
+    output, data = _dense_data(groups, use_velocity=True)
+    data[DataKeys.BOX] = torch.cat([data[DataKeys.BOX], torch.tensor([[1.0, 0.5], [0.0, 0.0], [-1.0, 0.2]])], dim=1)
+    for tensor in output["vel"]:
+        tensor.requires_grad_(True)
+    out = loss_fn(output, data)
+    assert torch.isfinite(out["loss"])
+    out["loss"].backward()
+    assert output["vel"][0].grad is not None and output["vel"][1].grad is not None
+
+
+def test_center_loss_rejects_short_code_weights() -> None:
+    with pytest.raises(ValueError, match="at least 8"):
         CenterHeadLoss(
-            3,
+            [[0, 1, 2]],
             point_cloud_range=_POINT_CLOUD_RANGE,
             voxel_size=_VOXEL_SIZE,
             feature_map_stride=1,
-            code_weights=[1.0] * 8 + [0.2, 0.2],
+            code_weights=[1.0] * 7,
         )
 
 
 def test_center_loss_no_boxes_is_finite() -> None:
     loss_fn = CenterHeadLoss(
-        3,
+        [[0, 1, 2]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -256,25 +290,69 @@ def test_sparse_center_loss_backward() -> None:
     assert output["center"][0].grad is not None
 
 
-def test_reg_l1_loss_non_finite_target_codes_are_neutralized() -> None:
+def test_center_regression_loss_non_finite_target_codes_are_neutralized() -> None:
     torch.manual_seed(0)
     pred = torch.randn(1, 2, 8)
     target = torch.randn(1, 2, 8)
     target[0, 0, 3] = float("nan")
     target[0, 1, 5] = float("inf")
-    mask = torch.ones(1, 2, dtype=torch.long)
-    loss = _reg_l1_loss(pred, target, mask)
-    assert torch.isfinite(loss).all()
+    loss = center_regression_loss(pred, target)
+    assert torch.isfinite(loss)
     # A non-finite code contributes exactly zero, as if the target matched the prediction there.
     neutral = target.clone()
     neutral[0, 0, 3] = pred[0, 0, 3]
     neutral[0, 1, 5] = pred[0, 1, 5]
-    assert torch.allclose(loss, _reg_l1_loss(pred, neutral, mask))
+    assert torch.allclose(loss, center_regression_loss(pred, neutral))
+
+
+def test_center_regression_loss_averages_the_masked_objects_with_code_weights() -> None:
+    pred = torch.zeros(1, 3, 2)
+    target = torch.tensor([[[1.0, 2.0], [3.0, 4.0], [100.0, 100.0]]])
+    mask = torch.tensor([[1, 1, 0]])
+    # The third object is masked out and the two others average (1 + 0.5 * 2 + 3 + 0.5 * 4) / 2.
+    loss = center_regression_loss(pred, target, mask, weight=torch.tensor([1.0, 0.5]))
+    assert torch.allclose(loss, torch.tensor(3.5))
+    assert torch.equal(center_regression_loss(pred[:, :2], target[:, :2]), center_regression_loss(pred, target, mask))
+
+
+def test_center_head_loss_is_the_two_terms_on_drawn_targets() -> None:
+    """`CenterHeadLoss` on one group equals the focal and regression terms on targets drawn outside it."""
+    output, data = _dense_data()
+    head_loss = CenterHeadLoss(
+        [[0, 1, 2]],
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+        loc_weight=0.25,
+    )
+    batch = data[DataKeys.BATCH_BOX]
+    targets = [
+        draw_heatmap_targets(
+            data[DataKeys.BOX][batch == b],
+            data[DataKeys.LABEL][batch == b],
+            num_classes=3,
+            feature_map_size=(24, 24),
+            voxel_size=_VOXEL_SIZE,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            feature_map_stride=1,
+        )
+        for b in range(2)
+    ]
+    heatmap_target, code_target, inds, mask = (torch.stack(target) for target in zip(*targets))
+    box_maps = torch.cat([output[key][0] for key in ("center", "center_z", "dim", "rot")], dim=1)
+
+    heatmap_loss = gaussian_focal_loss(output["heatmap"][0].sigmoid(), heatmap_target)
+    box_loss = center_regression_loss(transpose_gather(box_maps, inds), code_target, mask) * 0.25
+    expected = head_loss(output, data)
+    assert torch.allclose(heatmap_loss, expected["heatmap_loss"])
+    assert torch.allclose(box_loss, expected["box_loss"])
+    assert torch.allclose(heatmap_loss + box_loss, expected["loss"])
 
 
 def test_center_loss_zero_height_box_is_finite() -> None:
     loss_fn = CenterHeadLoss(
-        3,
+        [[0, 1, 2]],
         point_cloud_range=_POINT_CLOUD_RANGE,
         voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
@@ -316,87 +394,116 @@ def test_sparse_center_loss_empty_mid_batch_scene_is_finite() -> None:
     assert torch.isfinite(loss_fn(output, data)["loss"])
 
 
-def _assign_sparse_scene_loop(boxes: Tensor, labels: Tensor, **kwargs: Any) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-    """The per-object loop the vectorized `_assign_sparse_scene` replaced, kept as the reference."""
-    from torch_pointcloud.ops.heatmap import gaussian_radius
-
-    num_classes, spatial_xy, feature_map_size = kwargs["num_classes"], kwargs["spatial_xy"], kwargs["feature_map_size"]
-    voxel_size, point_cloud_range = kwargs["voxel_size"], kwargs["point_cloud_range"]
-    feature_map_stride, num_max_objs = kwargs["feature_map_stride"], kwargs["num_max_objs"]
-    gaussian_overlap, min_radius = kwargs["gaussian_overlap"], kwargs["min_radius"]
-
-    width, height = feature_map_size
-    num_voxels = spatial_xy.shape[0]
-    heatmap = boxes.new_zeros(num_classes, num_voxels)
-    reg_targets = boxes.new_zeros(num_max_objs, boxes.shape[-1] + 1)
-    inds = boxes.new_zeros(num_max_objs, dtype=torch.long)
-    mask = boxes.new_zeros(num_max_objs, dtype=torch.long)
-    if boxes.shape[0] == 0 or num_voxels == 0:
-        return heatmap, reg_targets, inds, mask
-
-    x, y, z = boxes[:, 0], boxes[:, 1], boxes[:, 2]
-    pos_x = torch.clamp((x - point_cloud_range[0]) / voxel_size[0] / feature_map_stride, min=0, max=width - 0.5)
-    pos_y = torch.clamp((y - point_cloud_range[1]) / voxel_size[1] / feature_map_stride, min=0, max=height - 0.5)
-    center = torch.stack([pos_x, pos_y], dim=-1)
-    dx = boxes[:, 3] / voxel_size[0] / feature_map_stride
-    dy = boxes[:, 4] / voxel_size[1] / feature_map_stride
-    radius = torch.clamp_min(gaussian_radius(dy, dx, min_overlap=gaussian_overlap).int(), min_radius)
-    for k in range(min(num_max_objs, boxes.shape[0])):
-        if dx[k] <= 0 or dy[k] <= 0:
-            continue
-
-        dist_center = ((spatial_xy - center[k]) ** 2).sum(dim=-1)
-        nearest = int(dist_center.argmin())
-        inds[k] = nearest
-        mask[k] = 1
-        cls = int(labels[k])
-        r = int(radius[k].item())
-        for distances in (dist_center, ((spatial_xy - spatial_xy[nearest]) ** 2).sum(dim=-1)):
-            sigma = (2 * r + 1) / 6
-            torch.max(heatmap[cls], torch.exp(-distances / (2 * sigma * sigma)), out=heatmap[cls])
-        reg_targets[k, 0:2] = center[k] - spatial_xy[nearest]
-        reg_targets[k, 2] = z[k]
-        reg_targets[k, 3:6] = boxes[k, 3:6].clamp_min(1e-5).log()
-        reg_targets[k, 6] = torch.cos(boxes[k, 6])
-        reg_targets[k, 7] = torch.sin(boxes[k, 6])
-        if boxes.shape[1] > 7:
-            reg_targets[k, 8:] = boxes[k, 7:]
-    return heatmap, reg_targets, inds, mask
+def _single_box_data(box: Tensor, label: int = 0) -> Dict[str, Any]:
+    return {
+        DataKeys.BOX: box.unsqueeze(0),
+        DataKeys.LABEL: torch.tensor([label]),
+        DataKeys.BATCH_BOX: torch.tensor([0]),
+    }
 
 
-@pytest.mark.parametrize("seed", [0, 1, 2])
-def test_assign_sparse_scene_matches_per_object_loop(seed: int) -> None:
-    """The vectorized sparse assignment equals the per-object reference loop (degenerate boxes, a capped count)."""
-    from torch_pointcloud.losses.centerpoint import _assign_sparse_scene
-
-    torch.manual_seed(seed)
-    num = 40
-    boxes = torch.cat(
-        [
-            torch.rand(num, 2) * 24 - 12,
-            torch.rand(num, 1),
-            torch.rand(num, 3) * 6 + 0.2,
-            torch.randn(num, 1),
-            torch.randn(num, 2),
-        ],
-        dim=1,
-    )
-    boxes[:2, 4] = 0.0
-    labels = torch.randint(0, 3, (num,))
-    spatial_xy = torch.randint(0, 24, (300, 2)).float()
-    kwargs: Dict[str, Any] = dict(
-        num_classes=3,
-        spatial_xy=spatial_xy,
-        feature_map_size=(24, 24),
-        voxel_size=(1.0, 1.0, 6.0),
-        point_cloud_range=(-12.0, -12.0, -2.0, 12.0, 12.0, 4.0),
+def test_center_loss_iou_term_trains_only_the_iou_map() -> None:
+    """The IoU target is a label: with only the IoU term on, the box maps get no gradient from it."""
+    loss_fn = CenterHeadLoss(
+        [[0]],
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
         feature_map_stride=1,
-        num_max_objs=32,
-        gaussian_overlap=0.1,
-        min_radius=2,
+        code_weights=[1.0] * 8,
+        cls_weight=0.0,
+        loc_weight=0.0,
+        iou_weight=1.0,
     )
-    expected = _assign_sparse_scene_loop(boxes, labels, **kwargs)
-    result = _assign_sparse_scene(boxes, labels, **kwargs)
-    for got, ref in zip(result, expected):
-        assert torch.allclose(got.float(), ref.float(), atol=1e-6, rtol=1e-6), (got - ref).abs().max()
-    assert torch.equal(result[2], expected[2]) and torch.equal(result[3], expected[3])
+    box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.4])
+    output = _perfect_dense_output(box)
+    # An offset prediction keeps the IoU below one, where a gradient through the target would not vanish.
+    output["center"] = [output["center"][0] + 0.25]
+    for maps in output.values():
+        for tensor in maps:
+            tensor.requires_grad_(True)
+    loss_fn(output, _single_box_data(box))["loss"].backward()
+    assert output["iou"][0].grad is not None and output["iou"][0].grad.abs().sum() > 0
+    for key in ("center", "center_z", "dim", "rot"):
+        grad = output[key][0].grad
+        assert grad is None or grad.abs().sum() == 0, key
+
+
+def test_center_loss_perfect_velocity_codes_are_zero() -> None:
+    loss_fn = CenterHeadLoss(
+        [[0]],
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 10,
+    )
+    box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.4, 1.5, -0.5])
+    output = _perfect_dense_output(box[:7])
+    output["vel"] = [box[7:9].view(1, 2, 1, 1).expand(1, 2, 24, 24).clone()]
+    assert loss_fn(output, _single_box_data(box))["box_loss"] < 1e-5
+
+    output["vel"] = [output["vel"][0] + 0.5]
+    assert loss_fn(output, _single_box_data(box))["box_loss"] > 0.2
+
+
+def test_center_loss_maps_a_class_onto_its_group_channel() -> None:
+    """Class 2 is the second channel of the group `[1, 2]`, so a peak there costs less than on the first channel."""
+    loss_fn = CenterHeadLoss(
+        [[0], [1, 2]],
+        point_cloud_range=_POINT_CLOUD_RANGE,
+        voxel_size=_VOXEL_SIZE,
+        feature_map_stride=1,
+        code_weights=[1.0] * 8,
+    )
+    box = torch.tensor([2.5, 3.5, 0.2, 3.0, 2.0, 1.5, 0.4])
+    output = {key: maps * 2 for key, maps in _perfect_dense_output(box).items() if key != "iou"}
+
+    def heatmap_loss(channel: int) -> float:
+        second = torch.full((1, 2, 24, 24), -10.0)
+        second[0, channel, 15, 14] = 10.0  # the peak cell of the box center (2.5, 3.5)
+        output["heatmap"] = [torch.full((1, 1, 24, 24), -10.0), second]
+        return float(loss_fn(output, _single_box_data(box, label=2))["heatmap_loss"])
+
+    assert heatmap_loss(1) < heatmap_loss(0)
+
+
+def test_center_loss_class_count_is_deprecated() -> None:
+    with pytest.warns(FutureWarning, match="class_groups"):
+        loss_fn = CenterHeadLoss(
+            3,
+            point_cloud_range=_POINT_CLOUD_RANGE,
+            voxel_size=_VOXEL_SIZE,
+            feature_map_stride=1,
+            code_weights=[1.0] * 8,
+        )
+    assert loss_fn.class_groups == [[0, 1, 2]]
+
+
+def test_center_loss_rejects_mismatched_codes_and_boxes() -> None:
+    kwargs: Dict[str, Any] = dict(point_cloud_range=_POINT_CLOUD_RANGE, voxel_size=_VOXEL_SIZE, feature_map_stride=1)
+    output, data = _dense_data(use_velocity=True)
+    with pytest.raises(ValueError, match="regresses 10 box codes"):
+        CenterHeadLoss([[0, 1, 2]], code_weights=[1.0] * 8, **kwargs)(output, data)
+    with pytest.raises(ValueError, match="boxes with 9 columns"):
+        CenterHeadLoss([[0, 1, 2]], code_weights=[1.0] * 10, **kwargs)(output, data)
+
+
+def test_iou_prediction_loss_trains_the_prediction_only() -> None:
+    """The IoU target is a label: a perfect prediction costs nothing and the boxes get no gradient."""
+    boxes = torch.tensor([[[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.3], [0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]]])
+    shifted = boxes.clone()
+    shifted[0, 1, 0] = 1.0  # half overlap along x: IoU 1/3, target -1/3
+    pred_boxes = shifted.clone().requires_grad_(True)
+    pred = torch.tensor([[1.0, -1.0 / 3.0]], requires_grad=True)
+    loss = iou_prediction_loss(pred, pred_boxes, boxes)
+    assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6)
+
+    pred = torch.tensor([[0.0, 0.0]], requires_grad=True)
+    loss = iou_prediction_loss(pred, pred_boxes, boxes)
+    loss.backward()
+    assert torch.allclose(loss, torch.tensor((1.0 + 1.0 / 3.0) / 2), atol=1e-6)
+    assert pred.grad is not None and pred.grad.abs().sum() > 0
+    assert pred_boxes.grad is None
+
+    masked = iou_prediction_loss(torch.tensor([[0.0, 0.0]]), pred_boxes, boxes, mask=torch.tensor([[1, 0]]))
+    assert torch.allclose(masked, torch.tensor(1.0), atol=1e-6)
+    assert iou_prediction_loss(torch.tensor([[0.0, 0.0]]), pred_boxes, boxes, mask=torch.tensor([[0, 0]])) == 0

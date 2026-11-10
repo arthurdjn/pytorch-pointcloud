@@ -313,7 +313,17 @@ class KNNWindowInferer(Inferer):
 
     Example:
         ```python
+        import torch
+
+        import torch_pointcloud as tp
         from torch_pointcloud.inferers import KNNWindowInferer
+
+        model = tp.create_model("pointnet.s3dis-area5").eval()
+        data = {
+            "pos": torch.rand(4096, 3) * 10,
+            "x": torch.rand(4096, 9),
+            "batch": torch.zeros(4096, dtype=torch.long),
+        }
 
         # EMA aggregation: outputs calibrated probabilities directly.
         inferer = KNNWindowInferer(roi_num_points=65_536, overlap=0.5, aggregate="ema")

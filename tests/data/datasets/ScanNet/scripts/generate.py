@@ -20,9 +20,9 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 import numpy as np
-import plyfile
 
 from torch_pointcloud.datasets import ScanNet, ScanNet20
+from torch_pointcloud.utils.io import save_ply
 
 
 def main() -> None:
@@ -153,10 +153,7 @@ def _write_scene(scene_dir: Path, scene_id: str, rng: np.random.Generator) -> No
     vertex["alpha"] = 255
     face = np.empty(len(faces) * len(patch_faces), dtype=[("vertex_indices", "i4", (3,))])
     face["vertex_indices"] = np.concatenate(faces)
-    plyfile.PlyData(
-        [plyfile.PlyElement.describe(vertex, "vertex"), plyfile.PlyElement.describe(face, "face")],
-        text=False,
-    ).write(str(scene_dir / f"{scene_id}_vh_clean_2.ply"))
+    save_ply(scene_dir / f"{scene_id}_vh_clean_2.ply", {"vertex": vertex, "face": face})
 
     segs_name = f"{scene_id}_vh_clean_2.0.010000.segs.json"
     with open(scene_dir / segs_name, "w") as f:

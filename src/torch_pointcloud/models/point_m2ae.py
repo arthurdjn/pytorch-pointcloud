@@ -15,6 +15,7 @@ from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PointNet2FeaturePropagation, PointPatchEmbed, TransformerBlock
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.ops.cluster import group
+from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.types import OptTensor
 
@@ -1037,12 +1038,8 @@ class HierarchicalEncoderMAE(nn.Module):
             A boolean mask of shape $(B, G)$, `True` where the token is masked out.
         """
         B, G, _ = center.shape
-        num_mask = int(self.mask_ratio * G)
-        overall_mask = torch.zeros(B, G, device=center.device)
-        for i in range(B):
-            perm = torch.randperm(G, device=center.device)
-            overall_mask[i, perm[:num_mask]] = 1
-        return overall_mask.to(torch.bool)
+        mask = random_mask(B, G, self.mask_ratio, device=center.device)
+        return mask
 
     def forward(
         self,
@@ -1254,7 +1251,7 @@ def point_m2ae_base_scanobjectnn_objbg(**kwargs: Any) -> PointM2AEClassification
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-m2ae-base.shapenetpart.renrui-zhang/resolve/539d06ae3865cd6c47bee941ff674e0db4148d1e/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.17, "cls_mIoU": 84.60},
+        metrics={"ins_mIoU": 86.20, "cls_mIoU": 84.62},
         author="renrui-zhang",
         license="MIT",
     ),

@@ -68,6 +68,9 @@ class DataKeys(StrEnum):
     FRAME = "frame"
     TIMESTAMP = "timestamp"
     GPS_TIME = "gps_time"
+    RETURN_NUMBER = "return_number"
+    NUMBER_OF_RETURNS = "number_of_returns"
+    NIR = "nir"
     TOKEN = "token"
     CONDITION = "condition"
     NORM_POS = "norm_pos"
@@ -113,6 +116,12 @@ def _collate_value(values: List[Any]) -> Any:
     if _OCNN_AVAILABLE and isinstance(first, Octree):
         octree = ocnn.octree.merge_octrees(values)
         octree.construct_all_neigh()
+        # Since ocnn 2.3.3, all octrees share one lookup-table cache. Sending the batch from a DataLoader worker
+        # moves these tensors to shared memory and frees the old buffers while the worker still reads them, which
+        # raises IndexError in construct_neigh_by_parent. Copying them keeps the cache out of the batch.
+        octree.lut_parent = octree.lut_parent.clone()
+        octree.lut_child = octree.lut_child.clone()
+        octree.lut_kernel = {kernel: lut.clone() for kernel, lut in octree.lut_kernel.items()}
         return octree
     return list(values)
 
@@ -258,7 +267,8 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
         from torch_pointcloud.utils.data import collate, select_inputs
 
         model, info = tp.create_model("pointnet.modelnet40", return_info=True)
-        batch = collate([info["transform"]({"pos": torch.rand(2048, 3)})])
+        samples = [info["transform"]({"pos": torch.rand(2048, 3), "normal": torch.rand(2048, 3)}) for _ in range(2)]
+        batch = collate(samples)
         logits = model(*select_inputs(batch, info["input_keys"]))
         ```
     """
@@ -338,12 +348,14 @@ def seed_worker(worker_id: int) -> None:
         worker_id: Index of the worker, as passed by the `DataLoader`.
 
     Example:
-        ```{.python notest}
-        from torch.utils.data import DataLoader
+        ```python
+        import torch
+        from torch.utils.data import DataLoader, TensorDataset
 
         from torch_pointcloud.utils.data import seed_worker
 
-        loader = DataLoader(dataset, num_workers=4, worker_init_fn=seed_worker)
+        loader = DataLoader(TensorDataset(torch.arange(8)), num_workers=2, worker_init_fn=seed_worker)
+        batch = next(iter(loader))
         ```
     """
     info = get_worker_info()

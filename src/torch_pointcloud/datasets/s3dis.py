@@ -207,15 +207,18 @@ def tile_s3dis_room(
         Positions are origin-shifted (room minimum at origin).
 
     Example:
-        Assuming you have downloaded the raw dataset and extracted it under `data/S3DIS/raw`,
-        you can tile the room into 1m x 1m blocks as follows:
+        Tile a room into 1m x 1m blocks of 4096 nodes:
 
         ```python
-        from torch_pointcloud.datasets.s3dis import load_s3dis_room, tile_s3dis_room
+        import torch
+        from torch_pointcloud.datasets.s3dis import tile_s3dis_room
 
-        room_dir = "data/S3DIS/raw/Area_1/conferenceRoom_1"
-        data = load_s3dis_room(room_dir)
-        blocks = tile_s3dis_room(data)
+        room = {
+            "pos": torch.rand(20_000, 3) * torch.tensor([4.0, 3.0, 2.5]),
+            "segment": torch.randint(0, 13, (20_000,)),
+        }
+        blocks = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=4096)
+        len(blocks), blocks[0]["pos"].shape  # (12, torch.Size([4096, 3]))
         ```
     """
     pos = room[DataKeys.POS]
@@ -333,6 +336,8 @@ class S3DIS(PointCloudDataset):
         To split rooms into 1m x 1m blocks (matching the DGCNN evaluation protocol):
 
         ```python
+        from torch_pointcloud.datasets import S3DIS
+
         dataset = S3DIS(
             root="data",
             areas=["Area_5"],
@@ -378,7 +383,6 @@ class S3DIS(PointCloudDataset):
         self.aligned = aligned
         self.transform = transform
         self.show_progress = show_progress
-        self.num_workers = num_workers
         self.accept_terms = accept_terms
 
         _check_areas(self.areas)
@@ -428,6 +432,11 @@ class S3DIS(PointCloudDataset):
 
         return True
 
+    @property
+    @override
+    def cache_meta_paths(self) -> list[str]:
+        return [Path(self.processed_dir, area, "meta.json").as_posix() for area in self.areas]
+
     @override
     def processed_files_exist(self) -> bool:
         return all(self.is_area_processed(area) for area in self.areas)
@@ -441,8 +450,8 @@ class S3DIS(PointCloudDataset):
         Returns:
             True if every packed file of the area exists, False otherwise.
         """
-        file_names = ["pos.npy", "color.npy", "segment.npy", "instance.npy", "offset.npy"]
         area_dir = Path(self.processed_dir, area)
+        file_names = ["pos.npy", "color.npy", "segment.npy", "instance.npy", "offset.npy"]
         return all((area_dir / name).exists() for name in file_names)
 
     def download(self, force: bool = False) -> None:
@@ -523,12 +532,7 @@ class S3DIS(PointCloudDataset):
 
         Path(self.raw_dir, ".extraction_complete").touch()
 
-    def process(
-        self,
-        force: bool = False,
-        num_workers: Optional[int] = None,
-        show_progress: bool = True,
-    ) -> None:
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         """Process the raw dataset for easier loading.
 
         When `aligned=True`, applies the per-room alignment rotation so that
@@ -536,9 +540,6 @@ class S3DIS(PointCloudDataset):
         convention).  When `aligned=False`, coordinates are kept in the raw
         scan frame.
         """
-        if self.processed_files_exist() and not force:
-            return
-
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -547,9 +548,6 @@ class S3DIS(PointCloudDataset):
             )
 
         for area in self.areas:
-            if not force and self.is_area_processed(area):
-                continue
-
             area_dir = Path(self.raw_dir, area)
 
             angles: dict[str, float] = {}
@@ -589,13 +587,13 @@ class S3DIS(PointCloudDataset):
                 ("instance.npy", np.concatenate([r["instance"] for r in rooms], dtype=np.int16)),
                 ("offset.npy", offsets),
             ]
-            # Write through a tmp file and keep `offset.npy` last: `is_area_processed` must never
-            # accept an area whose save was interrupted.
             for name, array in arrays:
                 tmp_path = area_dir / (name + ".tmp")
                 with open(tmp_path, "wb") as f:
                     np.save(f, array)
                 tmp_path.replace(area_dir / name)
+
+        return True
 
     def load(
         self,

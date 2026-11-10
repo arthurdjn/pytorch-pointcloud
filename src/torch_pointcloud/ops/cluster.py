@@ -572,7 +572,7 @@ def dense_neighbors(
         Output: $(N_t, k)$ and $(E,)$
 
     Example:
-        ```python
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.ops.cluster import dense_neighbors
         >>> edge_index = torch.tensor([[3, 5, 0, 1, 2], [0, 0, 1, 1, 1]])
@@ -619,7 +619,7 @@ def gather_neighbors(x: Tensor, table: Tensor) -> Tensor:
         Output: $(N_t, k, C)$
 
     Example:
-        ```python
+        ```pycon
         >>> import torch
         >>> from torch_pointcloud.ops.cluster import gather_neighbors
         >>> x = torch.arange(6, dtype=torch.float).view(3, 2)

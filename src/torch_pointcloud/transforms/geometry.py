@@ -161,10 +161,15 @@ def shift(
     so axes not listed are left untouched. This is the composable knob for
     mixed-method shifts:
 
-    ```{.python notest}
+    ```python
+    import torch
+
+    import torch_pointcloud.transforms.functional as F
+
+    x = torch.rand(100, 3)
     # Center XY at the bbox midpoint and Z at the minimum
     x = F.shift(x, method="bbox", axes=[0, 1])
-    x = F.shift(x, method="min",  axes=[2])
+    x = F.shift(x, method="min", axes=[2])
     ```
 
     The two calls touch disjoint axes, so they commute.
@@ -258,6 +263,8 @@ class Shift(DictTransform):
         a single `Shift` suffices:
 
         ```python
+        from torch_pointcloud.transforms import Shift
+
         Shift(keys="pos", method="bbox", axes=[0, 1])
         ```
     """
@@ -315,6 +322,7 @@ class BBoxCenter(DictTransform):
 
     Example:
         ```python
+        import torch
         from torch_pointcloud.transforms import BBoxCenter
 
         data = {"block_bbox": torch.tensor([0.0, 0.0, 0.0, 1.5, 1.5, 2.8])}
@@ -504,6 +512,7 @@ class AxisMinOffset(DictTransform):
         i.e. computing the height above the local floor.
 
         ```python
+        import torch
         from torch_pointcloud.transforms import AxisMinOffset
 
         data = {

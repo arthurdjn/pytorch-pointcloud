@@ -1,0 +1,994 @@
+{
+  "num_params": 37248480,
+  "state_dict": {
+    "stem.stem.weight": [
+      36,
+      9
+    ],
+    "stem.stem.bias": [
+      36
+    ],
+    "stem.norm.weight": [
+      36
+    ],
+    "stem.norm.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.cpe_conv.weight": [
+      36,
+      3,
+      3,
+      3,
+      36
+    ],
+    "blocks.0.blocks.0.cpe_conv.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.cpe_proj.weight": [
+      36,
+      36
+    ],
+    "blocks.0.blocks.0.cpe_proj.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.cpe_norm.weight": [
+      36
+    ],
+    "blocks.0.blocks.0.cpe_norm.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.norm1.weight": [
+      36
+    ],
+    "blocks.0.blocks.0.norm1.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.norm2.weight": [
+      36
+    ],
+    "blocks.0.blocks.0.norm2.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.attn.qkv.weight": [
+      108,
+      36
+    ],
+    "blocks.0.blocks.0.attn.qkv.bias": [
+      108
+    ],
+    "blocks.0.blocks.0.attn.proj.weight": [
+      36,
+      36
+    ],
+    "blocks.0.blocks.0.attn.proj.bias": [
+      36
+    ],
+    "blocks.0.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.0.blocks.0.mlp.0.weight": [
+      144,
+      36
+    ],
+    "blocks.0.blocks.0.mlp.0.bias": [
+      144
+    ],
+    "blocks.0.blocks.0.mlp.3.weight": [
+      36,
+      144
+    ],
+    "blocks.0.blocks.0.mlp.3.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.cpe_conv.weight": [
+      36,
+      3,
+      3,
+      3,
+      36
+    ],
+    "blocks.0.blocks.1.cpe_conv.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.cpe_proj.weight": [
+      36,
+      36
+    ],
+    "blocks.0.blocks.1.cpe_proj.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.cpe_norm.weight": [
+      36
+    ],
+    "blocks.0.blocks.1.cpe_norm.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.norm1.weight": [
+      36
+    ],
+    "blocks.0.blocks.1.norm1.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.norm2.weight": [
+      36
+    ],
+    "blocks.0.blocks.1.norm2.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.attn.qkv.weight": [
+      108,
+      36
+    ],
+    "blocks.0.blocks.1.attn.qkv.bias": [
+      108
+    ],
+    "blocks.0.blocks.1.attn.proj.weight": [
+      36,
+      36
+    ],
+    "blocks.0.blocks.1.attn.proj.bias": [
+      36
+    ],
+    "blocks.0.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.0.blocks.1.mlp.0.weight": [
+      144,
+      36
+    ],
+    "blocks.0.blocks.1.mlp.0.bias": [
+      144
+    ],
+    "blocks.0.blocks.1.mlp.3.weight": [
+      36,
+      144
+    ],
+    "blocks.0.blocks.1.mlp.3.bias": [
+      36
+    ],
+    "blocks.1.downsample.proj.weight": [
+      72,
+      36
+    ],
+    "blocks.1.downsample.proj.bias": [
+      72
+    ],
+    "blocks.1.downsample.norm.weight": [
+      72
+    ],
+    "blocks.1.downsample.norm.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.cpe_conv.weight": [
+      72,
+      3,
+      3,
+      3,
+      72
+    ],
+    "blocks.1.blocks.0.cpe_conv.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.cpe_proj.weight": [
+      72,
+      72
+    ],
+    "blocks.1.blocks.0.cpe_proj.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.cpe_norm.weight": [
+      72
+    ],
+    "blocks.1.blocks.0.cpe_norm.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.norm1.weight": [
+      72
+    ],
+    "blocks.1.blocks.0.norm1.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.norm2.weight": [
+      72
+    ],
+    "blocks.1.blocks.0.norm2.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.attn.qkv.weight": [
+      216,
+      72
+    ],
+    "blocks.1.blocks.0.attn.qkv.bias": [
+      216
+    ],
+    "blocks.1.blocks.0.attn.proj.weight": [
+      72,
+      72
+    ],
+    "blocks.1.blocks.0.attn.proj.bias": [
+      72
+    ],
+    "blocks.1.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.1.blocks.0.mlp.0.weight": [
+      288,
+      72
+    ],
+    "blocks.1.blocks.0.mlp.0.bias": [
+      288
+    ],
+    "blocks.1.blocks.0.mlp.3.weight": [
+      72,
+      288
+    ],
+    "blocks.1.blocks.0.mlp.3.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.cpe_conv.weight": [
+      72,
+      3,
+      3,
+      3,
+      72
+    ],
+    "blocks.1.blocks.1.cpe_conv.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.cpe_proj.weight": [
+      72,
+      72
+    ],
+    "blocks.1.blocks.1.cpe_proj.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.cpe_norm.weight": [
+      72
+    ],
+    "blocks.1.blocks.1.cpe_norm.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.norm1.weight": [
+      72
+    ],
+    "blocks.1.blocks.1.norm1.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.norm2.weight": [
+      72
+    ],
+    "blocks.1.blocks.1.norm2.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.attn.qkv.weight": [
+      216,
+      72
+    ],
+    "blocks.1.blocks.1.attn.qkv.bias": [
+      216
+    ],
+    "blocks.1.blocks.1.attn.proj.weight": [
+      72,
+      72
+    ],
+    "blocks.1.blocks.1.attn.proj.bias": [
+      72
+    ],
+    "blocks.1.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.1.blocks.1.mlp.0.weight": [
+      288,
+      72
+    ],
+    "blocks.1.blocks.1.mlp.0.bias": [
+      288
+    ],
+    "blocks.1.blocks.1.mlp.3.weight": [
+      72,
+      288
+    ],
+    "blocks.1.blocks.1.mlp.3.bias": [
+      72
+    ],
+    "blocks.2.downsample.proj.weight": [
+      144,
+      72
+    ],
+    "blocks.2.downsample.proj.bias": [
+      144
+    ],
+    "blocks.2.downsample.norm.weight": [
+      144
+    ],
+    "blocks.2.downsample.norm.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.cpe_conv.weight": [
+      144,
+      3,
+      3,
+      3,
+      144
+    ],
+    "blocks.2.blocks.0.cpe_conv.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.cpe_proj.weight": [
+      144,
+      144
+    ],
+    "blocks.2.blocks.0.cpe_proj.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.cpe_norm.weight": [
+      144
+    ],
+    "blocks.2.blocks.0.cpe_norm.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.norm1.weight": [
+      144
+    ],
+    "blocks.2.blocks.0.norm1.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.norm2.weight": [
+      144
+    ],
+    "blocks.2.blocks.0.norm2.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.attn.qkv.weight": [
+      432,
+      144
+    ],
+    "blocks.2.blocks.0.attn.qkv.bias": [
+      432
+    ],
+    "blocks.2.blocks.0.attn.proj.weight": [
+      144,
+      144
+    ],
+    "blocks.2.blocks.0.attn.proj.bias": [
+      144
+    ],
+    "blocks.2.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.2.blocks.0.mlp.0.weight": [
+      576,
+      144
+    ],
+    "blocks.2.blocks.0.mlp.0.bias": [
+      576
+    ],
+    "blocks.2.blocks.0.mlp.3.weight": [
+      144,
+      576
+    ],
+    "blocks.2.blocks.0.mlp.3.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.cpe_conv.weight": [
+      144,
+      3,
+      3,
+      3,
+      144
+    ],
+    "blocks.2.blocks.1.cpe_conv.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.cpe_proj.weight": [
+      144,
+      144
+    ],
+    "blocks.2.blocks.1.cpe_proj.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.cpe_norm.weight": [
+      144
+    ],
+    "blocks.2.blocks.1.cpe_norm.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.norm1.weight": [
+      144
+    ],
+    "blocks.2.blocks.1.norm1.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.norm2.weight": [
+      144
+    ],
+    "blocks.2.blocks.1.norm2.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.attn.qkv.weight": [
+      432,
+      144
+    ],
+    "blocks.2.blocks.1.attn.qkv.bias": [
+      432
+    ],
+    "blocks.2.blocks.1.attn.proj.weight": [
+      144,
+      144
+    ],
+    "blocks.2.blocks.1.attn.proj.bias": [
+      144
+    ],
+    "blocks.2.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.2.blocks.1.mlp.0.weight": [
+      576,
+      144
+    ],
+    "blocks.2.blocks.1.mlp.0.bias": [
+      576
+    ],
+    "blocks.2.blocks.1.mlp.3.weight": [
+      144,
+      576
+    ],
+    "blocks.2.blocks.1.mlp.3.bias": [
+      144
+    ],
+    "blocks.3.downsample.proj.weight": [
+      288,
+      144
+    ],
+    "blocks.3.downsample.proj.bias": [
+      288
+    ],
+    "blocks.3.downsample.norm.weight": [
+      288
+    ],
+    "blocks.3.downsample.norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "blocks.3.blocks.0.cpe_conv.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.0.cpe_proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.cpe_norm.weight": [
+      288
+    ],
+    "blocks.3.blocks.0.cpe_norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.norm1.weight": [
+      288
+    ],
+    "blocks.3.blocks.0.norm1.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.norm2.weight": [
+      288
+    ],
+    "blocks.3.blocks.0.norm2.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.attn.qkv.weight": [
+      864,
+      288
+    ],
+    "blocks.3.blocks.0.attn.qkv.bias": [
+      864
+    ],
+    "blocks.3.blocks.0.attn.proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.0.attn.proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.3.blocks.0.mlp.0.weight": [
+      1152,
+      288
+    ],
+    "blocks.3.blocks.0.mlp.0.bias": [
+      1152
+    ],
+    "blocks.3.blocks.0.mlp.3.weight": [
+      288,
+      1152
+    ],
+    "blocks.3.blocks.0.mlp.3.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "blocks.3.blocks.1.cpe_conv.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.1.cpe_proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.cpe_norm.weight": [
+      288
+    ],
+    "blocks.3.blocks.1.cpe_norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.norm1.weight": [
+      288
+    ],
+    "blocks.3.blocks.1.norm1.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.norm2.weight": [
+      288
+    ],
+    "blocks.3.blocks.1.norm2.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.attn.qkv.weight": [
+      864,
+      288
+    ],
+    "blocks.3.blocks.1.attn.qkv.bias": [
+      864
+    ],
+    "blocks.3.blocks.1.attn.proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.1.attn.proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.3.blocks.1.mlp.0.weight": [
+      1152,
+      288
+    ],
+    "blocks.3.blocks.1.mlp.0.bias": [
+      1152
+    ],
+    "blocks.3.blocks.1.mlp.3.weight": [
+      288,
+      1152
+    ],
+    "blocks.3.blocks.1.mlp.3.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "blocks.3.blocks.2.cpe_conv.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.2.cpe_proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.cpe_norm.weight": [
+      288
+    ],
+    "blocks.3.blocks.2.cpe_norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.norm1.weight": [
+      288
+    ],
+    "blocks.3.blocks.2.norm1.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.norm2.weight": [
+      288
+    ],
+    "blocks.3.blocks.2.norm2.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.attn.qkv.weight": [
+      864,
+      288
+    ],
+    "blocks.3.blocks.2.attn.qkv.bias": [
+      864
+    ],
+    "blocks.3.blocks.2.attn.proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.2.attn.proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.2.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.3.blocks.2.mlp.0.weight": [
+      1152,
+      288
+    ],
+    "blocks.3.blocks.2.mlp.0.bias": [
+      1152
+    ],
+    "blocks.3.blocks.2.mlp.3.weight": [
+      288,
+      1152
+    ],
+    "blocks.3.blocks.2.mlp.3.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "blocks.3.blocks.3.cpe_conv.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.3.cpe_proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.cpe_norm.weight": [
+      288
+    ],
+    "blocks.3.blocks.3.cpe_norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.norm1.weight": [
+      288
+    ],
+    "blocks.3.blocks.3.norm1.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.norm2.weight": [
+      288
+    ],
+    "blocks.3.blocks.3.norm2.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.attn.qkv.weight": [
+      864,
+      288
+    ],
+    "blocks.3.blocks.3.attn.qkv.bias": [
+      864
+    ],
+    "blocks.3.blocks.3.attn.proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.3.attn.proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.3.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.3.blocks.3.mlp.0.weight": [
+      1152,
+      288
+    ],
+    "blocks.3.blocks.3.mlp.0.bias": [
+      1152
+    ],
+    "blocks.3.blocks.3.mlp.3.weight": [
+      288,
+      1152
+    ],
+    "blocks.3.blocks.3.mlp.3.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "blocks.3.blocks.4.cpe_conv.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.4.cpe_proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.cpe_norm.weight": [
+      288
+    ],
+    "blocks.3.blocks.4.cpe_norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.norm1.weight": [
+      288
+    ],
+    "blocks.3.blocks.4.norm1.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.norm2.weight": [
+      288
+    ],
+    "blocks.3.blocks.4.norm2.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.attn.qkv.weight": [
+      864,
+      288
+    ],
+    "blocks.3.blocks.4.attn.qkv.bias": [
+      864
+    ],
+    "blocks.3.blocks.4.attn.proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.4.attn.proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.4.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.3.blocks.4.mlp.0.weight": [
+      1152,
+      288
+    ],
+    "blocks.3.blocks.4.mlp.0.bias": [
+      1152
+    ],
+    "blocks.3.blocks.4.mlp.3.weight": [
+      288,
+      1152
+    ],
+    "blocks.3.blocks.4.mlp.3.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.cpe_conv.weight": [
+      288,
+      3,
+      3,
+      3,
+      288
+    ],
+    "blocks.3.blocks.5.cpe_conv.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.cpe_proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.5.cpe_proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.cpe_norm.weight": [
+      288
+    ],
+    "blocks.3.blocks.5.cpe_norm.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.norm1.weight": [
+      288
+    ],
+    "blocks.3.blocks.5.norm1.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.norm2.weight": [
+      288
+    ],
+    "blocks.3.blocks.5.norm2.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.attn.qkv.weight": [
+      864,
+      288
+    ],
+    "blocks.3.blocks.5.attn.qkv.bias": [
+      864
+    ],
+    "blocks.3.blocks.5.attn.proj.weight": [
+      288,
+      288
+    ],
+    "blocks.3.blocks.5.attn.proj.bias": [
+      288
+    ],
+    "blocks.3.blocks.5.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.3.blocks.5.mlp.0.weight": [
+      1152,
+      288
+    ],
+    "blocks.3.blocks.5.mlp.0.bias": [
+      1152
+    ],
+    "blocks.3.blocks.5.mlp.3.weight": [
+      288,
+      1152
+    ],
+    "blocks.3.blocks.5.mlp.3.bias": [
+      288
+    ],
+    "blocks.4.downsample.proj.weight": [
+      432,
+      288
+    ],
+    "blocks.4.downsample.proj.bias": [
+      432
+    ],
+    "blocks.4.downsample.norm.weight": [
+      432
+    ],
+    "blocks.4.downsample.norm.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.cpe_conv.weight": [
+      432,
+      3,
+      3,
+      3,
+      432
+    ],
+    "blocks.4.blocks.0.cpe_conv.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.cpe_proj.weight": [
+      432,
+      432
+    ],
+    "blocks.4.blocks.0.cpe_proj.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.cpe_norm.weight": [
+      432
+    ],
+    "blocks.4.blocks.0.cpe_norm.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.norm1.weight": [
+      432
+    ],
+    "blocks.4.blocks.0.norm1.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.norm2.weight": [
+      432
+    ],
+    "blocks.4.blocks.0.norm2.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.attn.qkv.weight": [
+      1296,
+      432
+    ],
+    "blocks.4.blocks.0.attn.qkv.bias": [
+      1296
+    ],
+    "blocks.4.blocks.0.attn.proj.weight": [
+      432,
+      432
+    ],
+    "blocks.4.blocks.0.attn.proj.bias": [
+      432
+    ],
+    "blocks.4.blocks.0.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.4.blocks.0.mlp.0.weight": [
+      1728,
+      432
+    ],
+    "blocks.4.blocks.0.mlp.0.bias": [
+      1728
+    ],
+    "blocks.4.blocks.0.mlp.3.weight": [
+      432,
+      1728
+    ],
+    "blocks.4.blocks.0.mlp.3.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.cpe_conv.weight": [
+      432,
+      3,
+      3,
+      3,
+      432
+    ],
+    "blocks.4.blocks.1.cpe_conv.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.cpe_proj.weight": [
+      432,
+      432
+    ],
+    "blocks.4.blocks.1.cpe_proj.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.cpe_norm.weight": [
+      432
+    ],
+    "blocks.4.blocks.1.cpe_norm.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.norm1.weight": [
+      432
+    ],
+    "blocks.4.blocks.1.norm1.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.norm2.weight": [
+      432
+    ],
+    "blocks.4.blocks.1.norm2.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.attn.qkv.weight": [
+      1296,
+      432
+    ],
+    "blocks.4.blocks.1.attn.qkv.bias": [
+      1296
+    ],
+    "blocks.4.blocks.1.attn.proj.weight": [
+      432,
+      432
+    ],
+    "blocks.4.blocks.1.attn.proj.bias": [
+      432
+    ],
+    "blocks.4.blocks.1.attn.rope.inv_freq": [
+      3
+    ],
+    "blocks.4.blocks.1.mlp.0.weight": [
+      1728,
+      432
+    ],
+    "blocks.4.blocks.1.mlp.0.bias": [
+      1728
+    ],
+    "blocks.4.blocks.1.mlp.3.weight": [
+      432,
+      1728
+    ],
+    "blocks.4.blocks.1.mlp.3.bias": [
+      432
+    ]
+  }
+}

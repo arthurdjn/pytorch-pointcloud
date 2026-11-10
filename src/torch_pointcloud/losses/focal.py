@@ -151,6 +151,9 @@ class SigmoidFocalLoss(nn.Module):
 
     Example:
         ```python
+        import torch
+        from torch_pointcloud.losses import SigmoidFocalLoss
+
         criterion = SigmoidFocalLoss(reduction="sum")
         criterion(torch.zeros(4, 3), torch.zeros(4, 3)).shape  # torch.Size([])
         ```
@@ -194,6 +197,9 @@ class GaussianFocalLoss(nn.Module):
 
     Example:
         ```python
+        import torch
+        from torch_pointcloud.losses import GaussianFocalLoss
+
         criterion = GaussianFocalLoss()
         criterion(torch.zeros(1, 2, 4, 4), torch.zeros(1, 2, 4, 4)).shape  # torch.Size([])
         ```
@@ -276,6 +282,9 @@ class Poly1FocalLoss(nn.Module):
 
     Example:
         ```python
+        import torch
+        from torch_pointcloud.losses import Poly1FocalLoss
+
         criterion = Poly1FocalLoss()
         criterion(torch.zeros(4, 3), torch.tensor([0, 1, 2, 0])).shape  # torch.Size([])
         ```

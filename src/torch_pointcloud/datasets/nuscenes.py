@@ -1,4 +1,5 @@
-"""nuScenes 3D object detection datasets with sweep aggregation and annotation loading helpers.
+"""nuScenes 3D object detection and LiDAR semantic segmentation datasets with sweep aggregation and annotation loading
+helpers.
 
 {{ paper("1903.11027") }}
 """
@@ -18,7 +19,6 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta
 
 NUSCENES_DETECTION_CLASSES = (
     "car",
@@ -267,6 +267,89 @@ _CATEGORY_TO_DETECTION: Dict[str, str] = {
     "movable_object.trafficcone": "traffic_cone",
 }
 
+# Raw nuScenes-lidarseg category name for every label id of the `*_lidarseg.bin` files (the `index` field of the
+# lidarseg `category.json`).
+NUSCENES_LIDARSEG_LABEL_NAMES: Dict[int, str] = {
+    0: "noise",
+    1: "animal",
+    2: "human.pedestrian.adult",
+    3: "human.pedestrian.child",
+    4: "human.pedestrian.construction_worker",
+    5: "human.pedestrian.personal_mobility",
+    6: "human.pedestrian.police_officer",
+    7: "human.pedestrian.stroller",
+    8: "human.pedestrian.wheelchair",
+    9: "movable_object.barrier",
+    10: "movable_object.debris",
+    11: "movable_object.pushable_pullable",
+    12: "movable_object.trafficcone",
+    13: "static_object.bicycle_rack",
+    14: "vehicle.bicycle",
+    15: "vehicle.bus.bendy",
+    16: "vehicle.bus.rigid",
+    17: "vehicle.car",
+    18: "vehicle.construction",
+    19: "vehicle.emergency.ambulance",
+    20: "vehicle.emergency.police",
+    21: "vehicle.motorcycle",
+    22: "vehicle.trailer",
+    23: "vehicle.truck",
+    24: "flat.driveable_surface",
+    25: "flat.other",
+    26: "flat.sidewalk",
+    27: "flat.terrain",
+    28: "static.manmade",
+    29: "static.other",
+    30: "static.vegetation",
+    31: "vehicle.ego",
+}
+
+# Raw lidarseg label id to 16-class index, the learning map of the lidarseg benchmark: the pedestrian kinds merge, so do
+# the two buses. Noise, animal, the rare movable and static objects, the emergency vehicles, `static.other` and the ego
+# vehicle are absent, so a `Relabel` with this map sends them to its `default`.
+NUSCENES_LIDARSEG_LEARNING_MAP: Dict[int, int] = {
+    9: 0,  # barrier
+    14: 1,  # bicycle
+    15: 2,  # bus (bendy)
+    16: 2,  # bus (rigid)
+    17: 3,  # car
+    18: 4,  # construction vehicle
+    21: 5,  # motorcycle
+    2: 6,  # pedestrian (adult)
+    3: 6,  # pedestrian (child)
+    4: 6,  # pedestrian (construction worker)
+    6: 6,  # pedestrian (police officer)
+    12: 7,  # traffic cone
+    22: 8,  # trailer
+    23: 9,  # truck
+    24: 10,  # driveable surface
+    25: 11,  # other flat
+    26: 12,  # sidewalk
+    27: 13,  # terrain
+    28: 14,  # manmade
+    30: 15,  # vegetation
+}
+
+# 16-class lidarseg benchmark taxonomy: `NUSCENES_LIDARSEG_CLASSES[i]` names learning-map index i.
+NUSCENES_LIDARSEG_CLASSES = (
+    "barrier",
+    "bicycle",
+    "bus",
+    "car",
+    "construction_vehicle",
+    "motorcycle",
+    "pedestrian",
+    "traffic_cone",
+    "trailer",
+    "truck",
+    "driveable_surface",
+    "other_flat",
+    "sidewalk",
+    "terrain",
+    "manmade",
+    "vegetation",
+)
+
 
 def _quaternion_to_rotation(quaternion: Sequence[float]) -> np.ndarray:
     """Rotation matrix $(3, 3)$ from a Hamilton `[w, x, y, z]` quaternion."""
@@ -344,7 +427,8 @@ def load_nuscenes_sweeps(
 ) -> np.ndarray:
     r"""Aggregate up to `max_sweeps` LiDAR sweeps for a keyframe into its sensor frame.
 
-    Each prior sweep is transformed into the keyframe frame and tagged with its time lag to the keyframe.
+    The keyframe comes first, as recorded. Each prior sweep drops its ego points, is transformed into the keyframe
+    frame and is tagged with its time lag to the keyframe.
 
     Args:
         raw_dir: Dataset raw directory (sweep `filename`s are resolved against it).
@@ -362,9 +446,9 @@ def load_nuscenes_sweeps(
     clouds: List[np.ndarray] = []
     current: Optional[Dict[str, Any]] = record
     while current is not None and len(clouds) < max_sweeps:
-        raw = np.fromfile(Path(raw_dir, current["filename"]), dtype=np.float32).reshape(-1, 5)[:, :4]
-        xyz = _remove_ego_points(raw)
+        xyz = np.fromfile(Path(raw_dir, current["filename"]), dtype=np.float32).reshape(-1, 5)[:, :4]
         if current["token"] != record["token"]:
+            xyz = _remove_ego_points(xyz)
             transform = ref_from_global @ _lidar_to_global(current, ego_pose, calib)
             hom = np.hstack((xyz[:, :3], np.ones((xyz.shape[0], 1), dtype=np.float32)))
             xyz = np.hstack(((hom @ transform.T)[:, :3].astype(np.float32), xyz[:, 3:4]))
@@ -438,8 +522,10 @@ def _keyframe_item(
     calib: Dict[str, Any],
     annotations: List[Dict[str, Any]],
     max_sweeps: int,
+    lidarseg_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Self-contained work item for one keyframe: its sweep chain, the poses the chain uses and its annotations."""
+    """Self-contained work item for one keyframe: its sweep chain, the poses the chain uses, its annotations and
+    its lidarseg label file."""
     chain: Dict[str, Any] = {}
     current: Optional[Dict[str, Any]] = record
     while current is not None and len(chain) < max_sweeps:
@@ -452,6 +538,7 @@ def _keyframe_item(
         "ego_pose": {r["ego_pose_token"]: ego_pose[r["ego_pose_token"]] for r in chain.values()},
         "calib": {r["calibrated_sensor_token"]: calib[r["calibrated_sensor_token"]] for r in chain.values()},
         "annotations": annotations,
+        "lidarseg_filename": lidarseg_filename,
     }
 
 
@@ -462,7 +549,8 @@ def _process_keyframe(
     max_sweeps: int,
     class_to_idx: Dict[str, int],
 ) -> str:
-    """Aggregate one keyframe's sweeps and boxes and write its cache directory; returns its sample token."""
+    """Aggregate one keyframe's sweeps, boxes and lidarseg labels and write its cache directory; returns its sample
+    token."""
     record = item["record"]
     points = load_nuscenes_sweeps(raw_dir, record, item["ego_pose"], item["calib"], item["sample_data"], max_sweeps)
     boxes, labels, velocity, num_points, attribute_ids = load_nuscenes_boxes(
@@ -484,53 +572,68 @@ def _process_keyframe(
     np.save(keyframe_dir / "velocity.npy", velocity)
     np.save(keyframe_dir / "num_points.npy", num_points)
     np.save(keyframe_dir / "attribute.npy", attribute_ids)
+    if item["lidarseg_filename"] is not None:
+        np.save(keyframe_dir / "segment.npy", np.fromfile(Path(raw_dir, item["lidarseg_filename"]), dtype=np.uint8))
     return token
 
 
 class NuScenes(PointCloudDataset):
-    r"""nuScenes 3D object-detection dataset (LiDAR keyframes + LiDAR-frame ground-truth boxes).
+    r"""nuScenes 3D object-detection and LiDAR semantic-segmentation dataset (LiDAR keyframes + LiDAR-frame
+    ground-truth boxes + per-point nuScenes-lidarseg labels).
 
     Reference: :arxiv: [nuScenes: A multimodal dataset for autonomous driving](https://arxiv.org/abs/1903.11027).
 
-    Each LiDAR keyframe aggregates `max_sweeps` sweeps into the keyframe frame (ego-point removal + per-sweep
-    ego/sensor transform, with a per-point time lag), and the global-frame annotations are converted to LiDAR
-    7-DoF boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$ mapped onto the official 10-class detection set
-    (`NUSCENES_DETECTION_CLASSES`). `split` selects the keyframes through the official scene lists and resolves
-    the metadata version it reads (`train` / `val` read `v1.0-trainval`, `test` reads `v1.0-test`, `mini_train` /
-    `mini_val` read `v1.0-mini`); `split=None` takes every keyframe of an explicit `version`. The split is processed
-    once into per-keyframe numpy files under `<root>/NuScenes/processed/<version>_<split>_sweeps<max_sweeps>/`,
-    then loaded from there (the same raw -> processed -> load flow as `S3DIS` / `ModelNet40`).
+    Each LiDAR keyframe aggregates `max_sweeps` sweeps into the keyframe frame: the keyframe comes first, as
+    recorded, followed by the prior sweeps without their ego points (per-sweep ego/sensor transform, with a
+    per-point time lag). The global-frame annotations are converted to LiDAR 7-DoF boxes
+    $(c_x, c_y, c_z, dx, dy, dz, \theta)$ mapped onto the official 10-class detection set
+    (`NUSCENES_DETECTION_CLASSES`), and the nuScenes-lidarseg labels of the keyframe points are kept when they are
+    extracted. `split` selects the keyframes through the official scene lists and resolves the metadata version
+    it reads (`train` / `val` read `v1.0-trainval`, `test` reads `v1.0-test`, `mini_train` / `mini_val` read
+    `v1.0-mini`); `split=None` takes every keyframe of an explicit `version`. The split is processed once into
+    per-keyframe numpy files under `<root>/NuScenes/processed/<version>_<split>_sweeps<max_sweeps>/`, then loaded
+    from there (the same raw -> processed -> load flow as `S3DIS` / `ModelNet40`).
 
     Note:
         nuScenes cannot be downloaded automatically (it requires registration and accepting the dataset
         EULA). Download the metadata and every `*_blobs.tgz` archive of the version manually from
         https://www.nuscenes.org/nuscenes#download and extract them under `<root>/NuScenes/raw/` so that
         `raw/<version>/*.json`, `raw/samples/LIDAR_TOP/` and `raw/sweeps/LIDAR_TOP/` exist; each blob archive
-        holds a different set of scenes, so a split is complete only once all of them are extracted.
+        holds a different set of scenes, so a split is complete only once all of them are extracted. For
+        `return_segment`, also extract the nuScenes-lidarseg archive there so that `raw/<version>/lidarseg.json`
+        and `raw/lidarseg/<version>/` exist.
+
+    Note:
+        `segment` holds the raw lidarseg category ids (see `NUSCENES_LIDARSEG_LABEL_NAMES`). Compose
+        `Relabel(keys="segment", labels=NUSCENES_LIDARSEG_LEARNING_MAP, default=-1)` to project them onto the 16
+        benchmark classes (`NUSCENES_LIDARSEG_CLASSES`); the registered nuScenes segmentation models carry that
+        mapping in their transform.
 
     Tip:
         The processed cache is keyed by `version`, `split` and `max_sweeps`, so different sweep counts coexist.
         The cache also records the `classes` it was built with and refuses to load under a different class set;
-        pass `force_process=True` to regenerate it.
+        pass `force_process=True` to regenerate it. It holds the boxes and, when they are extracted, the lidarseg
+        labels, so `return_boxes` and `return_segment` only select the returned keys.
 
     Each sample is a dict:
 
-    | Key          | Shape    | Dtype   | Description                                              |
-    | ------------ | -------- | ------- | -------------------------------------------------------- |
-    | `pos`        | $(N, 3)$ | float32 | LiDAR XYZ (sweeps aggregated into keyframe frame)        |
-    | `intensity`  | $(N, 1)$ | float32 | LiDAR reflectance                                        |
-    | `timestamp`  | $(N, 1)$ | float32 | Per-point time lag to the keyframe (seconds)             |
-    | `box`        | $(K, 7)$ | float32 | GT boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$           |
-    | `label`      | $(K,)$   | int64   | Detection class index into `classes`                     |
-    | `velocity`   | $(K, 2)$ | float32 | Per-box LiDAR-frame BEV velocity $(v_x, v_y)$            |
-    | `num_points` | $(K,)$   | int64   | Per-box LiDAR point count (`num_lidar_pts`)              |
-    | `attribute`  | $(K,)$   | int64   | Index into `NUSCENES_ATTRIBUTES` ($-1$ when unset)       |
-    | `token`      | -        | str     | Source keyframe `sample_token`                           |
+    | Key          | Shape    | Dtype   | Description                                                         |
+    | ------------ | -------- | ------- | ------------------------------------------------------------------- |
+    | `pos`        | $(N, 3)$ | float32 | LiDAR XYZ (sweeps aggregated into keyframe frame)                   |
+    | `intensity`  | $(N, 1)$ | float32 | LiDAR reflectance                                                   |
+    | `timestamp`  | $(N, 1)$ | float32 | Per-point time lag to the keyframe (seconds)                        |
+    | `box`        | $(K, 7)$ | float32 | GT boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$ (`return_boxes`)     |
+    | `label`      | $(K,)$   | int64   | Detection class index into `classes` (`return_boxes`)               |
+    | `velocity`   | $(K, 2)$ | float32 | Per-box LiDAR-frame BEV velocity $(v_x, v_y)$ (`return_boxes`)      |
+    | `num_points` | $(K,)$   | int64   | Per-box LiDAR point count (`num_lidar_pts`, `return_boxes`)         |
+    | `attribute`  | $(K,)$   | int64   | Index into `NUSCENES_ATTRIBUTES`, $-1$ when unset (`return_boxes`)  |
+    | `segment`    | $(N,)$   | int64   | Raw lidarseg category id, $-1$ on prior sweeps (`return_segment`)   |
+    | `token`      | -        | str     | Source keyframe `sample_token`                                      |
 
     Per-box velocities are the finite difference of the annotation translation across the `prev` / `next`
     annotations divided by their sample-timestamp delta, computed in the global frame, rotated into the
     keyframe LiDAR frame, and zero when neither neighbor exists. The `test` split ships no annotations, so its
-    box tensors are empty.
+    box tensors are empty, and no lidarseg labels.
 
     Args:
         root: Dataset root; raw data is read from `<root>/NuScenes/raw/`.
@@ -539,6 +642,8 @@ class NuScenes(PointCloudDataset):
         version: Metadata version directory; resolved from `split` when omitted, required when `split` is `None`.
         max_sweeps: Total LiDAR sweeps aggregated per keyframe (keyframe + prior sweeps).
         classes: Foreground class names kept (order defines the label index).
+        return_boxes: If `True`, return the ground-truth boxes and their per-box keys.
+        return_segment: If `True`, return the per-point lidarseg labels (requires the nuScenes-lidarseg archive).
         transform: Callable applied to each sample dict (e.g. the model's registered transform).
         download: If `True`, call `download` (which raises, since nuScenes needs a manual download).
         force_download: Forwarded to `download` as `force`.
@@ -549,7 +654,7 @@ class NuScenes(PointCloudDataset):
     Example:
         Assuming the raw `v1.0-trainval` release is extracted under `data/NuScenes/raw/`:
 
-        ```python
+        ```{.python notest}
         from torch_pointcloud.datasets import NuScenes
 
         dataset = NuScenes(root="data", split="val", num_workers=8)
@@ -558,8 +663,17 @@ class NuScenes(PointCloudDataset):
         sample["pos"].shape   # torch.Size([N, 3])
         sample["box"].shape   # torch.Size([K, 7])
         ```
+
+        Semantic segmentation reads the keyframe alone, with its lidarseg labels:
+
+        ```{.python notest}
+        dataset = NuScenes(root="data", split="val", max_sweeps=1, return_boxes=False, return_segment=True)
+        sample = dataset[0]
+        sample["segment"].shape   # torch.Size([N])
+        ```
     """
 
+    format_version = 3
     data_url = "https://www.nuscenes.org/nuscenes#download"
 
     def __init__(
@@ -570,6 +684,8 @@ class NuScenes(PointCloudDataset):
         version: Optional[str] = None,
         max_sweeps: int = 10,
         classes: Sequence[str] = NUSCENES_DETECTION_CLASSES,
+        return_boxes: bool = True,
+        return_segment: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,
         force_download: bool = False,
@@ -592,14 +708,14 @@ class NuScenes(PointCloudDataset):
         self.max_sweeps = max_sweeps
         self.classes = tuple(classes)
         self._class_to_idx = {name: i for i, name in enumerate(self.classes)}
+        self.return_boxes = return_boxes
+        self.return_segment = return_segment
         self.transform = transform
-        self.show_progress = show_progress
-        self.num_workers = num_workers
 
         if download or force_download:
             self.download(force=force_download)
 
-        self.process(force=force_process)
+        self.process(force=force_process, num_workers=num_workers, show_progress=show_progress)
         self.load()
 
     @property
@@ -612,8 +728,9 @@ class NuScenes(PointCloudDataset):
     def download(self, force: bool = False) -> None:
         raise RuntimeError(
             f"{self.__class__.__name__} cannot be downloaded automatically (registration and EULA acceptance are required). "
-            f"Download the {self.version!r} split from {self.data_url!r} and extract it under {self.raw_dir!r} "
-            "so that the raw layout (<version>/*.json, samples/LIDAR_TOP/, sweeps/LIDAR_TOP/) exists."
+            f"Download the {self.version!r} split (and its nuScenes-lidarseg labels for `return_segment`) from "
+            f"{self.data_url!r} and extract it under {self.raw_dir!r} so that the raw layout (<version>/*.json, "
+            "samples/LIDAR_TOP/, sweeps/LIDAR_TOP/, lidarseg/<version>/) exists."
         )
 
     @override
@@ -621,17 +738,14 @@ class NuScenes(PointCloudDataset):
         version_dir = Path(self.raw_dir, self.version)
         return (version_dir / "sample_data.json").exists() and Path(self.raw_dir, "samples", "LIDAR_TOP").is_dir()
 
-    def _cache_meta(self) -> Dict[str, Any]:
-        """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 2, "classes": list(self.classes)}
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {**super().cache_meta, "classes": list(self.classes)}
 
     @override
     def processed_files_exist(self) -> bool:
-        if not Path(self.processed_dir, "keyframes.json").exists():
-            return False
-
-        check_cache_meta(Path(self.processed_dir, "meta.json"), self._cache_meta())
-        return True
+        return Path(self.processed_dir, "keyframes.json").exists()
 
     def split_scenes(self) -> Optional[FrozenSet[str]]:
         """Scene names of `split`, or `None` when every scene of `version` belongs to it."""
@@ -674,10 +788,7 @@ class NuScenes(PointCloudDataset):
             annotations.setdefault(ann["sample_token"], []).append(ann)
         return annotations
 
-    def process(self, force: bool = False) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.raw_dir!r}. "
@@ -685,9 +796,20 @@ class NuScenes(PointCloudDataset):
                 f"and extract it under {self.raw_dir!r}."
             )
 
+        version_dir = Path(self.raw_dir, self.version)
+        if self.return_segment and not (version_dir / "lidarseg.json").exists():
+            raise RuntimeError(
+                f"nuScenes-lidarseg labels not found at {version_dir.as_posix()!r}. "
+                f"You can download the nuScenes-lidarseg archive from {self.data_url!r} "
+                f"and extract it under {self.raw_dir!r}."
+            )
+
         Path(self.processed_dir, "keyframes.json").unlink(missing_ok=True)
 
-        version_dir = Path(self.raw_dir, self.version)
+        lidarseg: Dict[str, str] = {}
+        if (version_dir / "lidarseg.json").exists():
+            lidarseg = {r["sample_data_token"]: r["filename"] for r in read_nuscenes_table(version_dir, "lidarseg")}
+
         ego_pose = {r["token"]: r for r in read_nuscenes_table(version_dir, "ego_pose")}
         calib = {r["token"]: r for r in read_nuscenes_table(version_dir, "calibrated_sensor")}
         annotations = self._load_annotations(version_dir)
@@ -711,8 +833,27 @@ class NuScenes(PointCloudDataset):
                 f"(e.g. {missing[0]!r}); extract every `*_blobs.tgz` archive of {self.version!r}."
             )
 
+        missing_labels = [
+            lidarseg[r["token"]]
+            for r in keyframes
+            if r["token"] in lidarseg and not Path(self.raw_dir, lidarseg[r["token"]]).exists()
+        ]
+        if missing_labels:
+            raise RuntimeError(
+                f"{len(missing_labels)} of {len(keyframes)} lidarseg label files are missing under {self.raw_dir!r} "
+                f"(e.g. {missing_labels[0]!r}); extract the nuScenes-lidarseg archive of {self.version!r}."
+            )
+
         items = [
-            _keyframe_item(r, sample_data, ego_pose, calib, annotations.get(r["sample_token"], []), self.max_sweeps)
+            _keyframe_item(
+                r,
+                sample_data,
+                ego_pose,
+                calib,
+                annotations.get(r["sample_token"], []),
+                self.max_sweeps,
+                lidarseg.get(r["token"]),
+            )
             for r in keyframes
         ]
 
@@ -726,24 +867,28 @@ class NuScenes(PointCloudDataset):
                 class_to_idx=self._class_to_idx,
             ),
             items,
-            num_workers=self.num_workers,
+            num_workers=num_workers,
             desc=f"Processing {self.split or self.version}",
-            show_progress=self.show_progress,
+            show_progress=show_progress,
         )
 
         processed_dir = Path(self.processed_dir)
-        meta_tmp_path = processed_dir / "meta.json.tmp"
-        meta_tmp_path.write_text(json.dumps(self._cache_meta()))
-        meta_tmp_path.replace(processed_dir / "meta.json")
         tokens_tmp_path = processed_dir / "keyframes.json.tmp"
         tokens_tmp_path.write_text(json.dumps(tokens))
         tokens_tmp_path.replace(processed_dir / "keyframes.json")
+        return True
 
     def load(self) -> None:
         if not self.processed_files_exist():
             raise RuntimeError(f"Processed data not found at {self.processed_dir!r}. Run `process` first.")
 
         self.tokens: List[str] = json.loads(Path(self.processed_dir, "keyframes.json").read_text())
+        if self.return_segment and not Path(self.processed_dir, self.tokens[0], "segment.npy").exists():
+            raise RuntimeError(
+                f"No lidarseg labels in the processed cache at {self.processed_dir!r} (the `test` split has none). "
+                f"Extract the nuScenes-lidarseg archive of {self.version!r} under {self.raw_dir!r} and pass "
+                "`force_process=True`."
+            )
 
     @override
     def __len__(self) -> int:
@@ -753,25 +898,36 @@ class NuScenes(PointCloudDataset):
     def __getitem__(self, index: int) -> Dict[str, Any]:
         token = self.tokens[index]
         keyframe_dir = Path(self.processed_dir, token)
+        pos = torch.from_numpy(np.load(keyframe_dir / "pos.npy"))
         data: Dict[str, Any] = {
-            DataKeys.POS: torch.from_numpy(np.load(keyframe_dir / "pos.npy")),
+            DataKeys.POS: pos,
             DataKeys.INTENSITY: torch.from_numpy(np.load(keyframe_dir / "intensity.npy")),
             DataKeys.TIMESTAMP: torch.from_numpy(np.load(keyframe_dir / "timestamp.npy")),
-            DataKeys.BOX: torch.from_numpy(np.load(keyframe_dir / "box.npy")),
-            DataKeys.LABEL: torch.from_numpy(np.load(keyframe_dir / "label.npy")),
-            DataKeys.VELOCITY: torch.from_numpy(np.load(keyframe_dir / "velocity.npy")),
-            DataKeys.NUM_POINTS: torch.from_numpy(np.load(keyframe_dir / "num_points.npy")),
-            DataKeys.ATTRIBUTE: torch.from_numpy(np.load(keyframe_dir / "attribute.npy")),
-            DataKeys.TOKEN: token,
         }
 
+        if self.return_boxes:
+            data[DataKeys.BOX] = torch.from_numpy(np.load(keyframe_dir / "box.npy"))
+            data[DataKeys.LABEL] = torch.from_numpy(np.load(keyframe_dir / "label.npy"))
+            data[DataKeys.VELOCITY] = torch.from_numpy(np.load(keyframe_dir / "velocity.npy"))
+            data[DataKeys.NUM_POINTS] = torch.from_numpy(np.load(keyframe_dir / "num_points.npy"))
+            data[DataKeys.ATTRIBUTE] = torch.from_numpy(np.load(keyframe_dir / "attribute.npy"))
+
+        if self.return_segment:
+            # The keyframe points come first in `pos`; the prior sweeps have no labels.
+            labels = torch.from_numpy(np.load(keyframe_dir / "segment.npy")).long()
+            segment = torch.full((pos.shape[0],), -1, dtype=torch.int64)
+            segment[: labels.shape[0]] = labels
+            data[DataKeys.SEGMENT] = segment
+
+        data[DataKeys.TOKEN] = token
         if self.transform is not None:
             data = self.transform(data)
         return data
 
 
 class NuScenesMini(NuScenes):
-    r"""nuScenes mini 3D object-detection dataset: every keyframe of the `v1.0-mini` release.
+    r"""nuScenes mini 3D object-detection and LiDAR semantic-segmentation dataset: every keyframe of the `v1.0-mini`
+    release.
 
     A `NuScenes` preset for the ten-scene mini release (404 keyframes, no train / val split) that reads its own
     `<root>/NuScenesMini/raw/` directory, so the mini download can live next to the full dataset. Samples and
@@ -783,6 +939,8 @@ class NuScenesMini(NuScenes):
         version: Metadata version directory (the mini split is `"v1.0-mini"`).
         max_sweeps: Total LiDAR sweeps aggregated per keyframe (keyframe + prior sweeps).
         classes: Foreground class names kept (order defines the label index).
+        return_boxes: If `True`, return the ground-truth boxes and their per-box keys.
+        return_segment: If `True`, return the per-point lidarseg labels (requires the nuScenes-lidarseg archive).
         transform: Callable applied to each sample dict (e.g. the model's registered transform).
         download: If `True`, call `download` (which raises, since nuScenes needs a manual download).
         force_download: Forwarded to `download` as `force`.
@@ -810,6 +968,8 @@ class NuScenesMini(NuScenes):
         version: str = "v1.0-mini",
         max_sweeps: int = 10,
         classes: Sequence[str] = NUSCENES_DETECTION_CLASSES,
+        return_boxes: bool = True,
+        return_segment: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         download: bool = False,
         force_download: bool = False,
@@ -823,6 +983,8 @@ class NuScenesMini(NuScenes):
             version=version,
             max_sweeps=max_sweeps,
             classes=classes,
+            return_boxes=return_boxes,
+            return_segment=return_segment,
             transform=transform,
             download=download,
             force_download=force_download,
@@ -849,9 +1011,12 @@ def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float
 
     Example:
         ```python
+        import torch
         from torch_pointcloud.datasets.nuscenes import velocity_attributes
 
-        attributes = velocity_attributes(det["labels"], det["velocity"])
+        labels = torch.tensor([0, 0, 5])  # car, car, barrier
+        velocity = torch.tensor([[3.0, 0.0], [0.2, 0.0], [3.0, 0.0]])
+        velocity_attributes(labels, velocity)  # tensor([ 0,  2, -1]): vehicle.moving, vehicle.parked, none
         ```
     """
     moving = torch.linalg.norm(velocity, dim=1) > speed_threshold

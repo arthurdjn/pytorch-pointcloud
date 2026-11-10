@@ -11,6 +11,8 @@ import pytest
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _DWCONV_AVAILABLE,
+    _FLASH_ATTN_AVAILABLE,
+    _LASPY_AVAILABLE,
     _MAMBA_SSM_AVAILABLE,
     _OCNN_AVAILABLE,
     _PYG_LIB_AVAILABLE,
@@ -29,19 +31,35 @@ _REQUIRES_OCNN = pytest.mark.skipif(not _OCNN_AVAILABLE, reason="ocnn is not ins
 _REQUIRES_DWCONV = pytest.mark.skipif(not _DWCONV_AVAILABLE, reason="dwconv is not installed")
 _REQUIRES_MAMBA = pytest.mark.skipif(not _MAMBA_SSM_AVAILABLE, reason="mamba-ssm is not installed")
 _REQUIRES_PYG_LIB = pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+_REQUIRES_LASPY = pytest.mark.skipif(not _LASPY_AVAILABLE, reason="laspy is not installed")
+_REQUIRES_FLASH_ATTN = pytest.mark.skipif(not _FLASH_ATTN_AVAILABLE, reason="flash-attn is not installed")
 
 _CLUSTER = (_REQUIRES_PYG_LIB,)
 _GPU_SPCONV = (_REQUIRES_SPCONV, _REQUIRES_CUDA)
 _GPU_TORCHSPARSE = (_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)
 _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
+_GPU_FLASH_ATTN = (_REQUIRES_FLASH_ATTN, _REQUIRES_CUDA)
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
-# dataset here (SUN RGB-D, ModelNet40 HDF5, ScanNet200, the KITTI split files) and the unreleased SphereFormer
-# weights have no row.
+# dataset here (SUN RGB-D, ScanNet200, the KITTI split files) and the unreleased SphereFormer weights have no row.
 BENCHMARKS = [
     pytest.param("spunet/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="spunet/scannet"),
+    pytest.param(
+        "spformer_unet/segmentation_scannet_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="spformer_unet/scannet",
+    ),
     pytest.param("kpconv/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="kpconv/s3dis"),
+    pytest.param(
+        "kpconv/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1"),
+        marks=_CLUSTER,
+        id="kpconv/semantickitti",
+    ),
+    pytest.param("kpconv/segmentation_toronto3d_benchmark.py", (), marks=_CLUSTER, id="kpconv/toronto3d"),
+    pytest.param("kpconv/segmentation_parislille3d_benchmark.py", (), marks=_CLUSTER, id="kpconv/parislille3d"),
     pytest.param("pointnext/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="pointnext/s3dis"),
     pytest.param(
         "pointnext/part_segmentation_shapenetpart_benchmark.py",
@@ -54,6 +72,14 @@ BENCHMARKS = [
         ("--model", "pointnext-sm.scanobjectnn-hardest.openpoints", "--limit", "8"),
         marks=_CLUSTER,
         id="pointnext/scanobjectnn",
+    ),
+    pytest.param("pointnet/segmentation_s3dis_benchmark.py", ("--limit", "1"), id="pointnet/s3dis"),
+    pytest.param("pointnet/classification_modelnet40_benchmark.py", ("--limit", "4"), id="pointnet/modelnet40"),
+    pytest.param(
+        "pointnet/classification_scanobjectnn_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="pointnet/scanobjectnn",
     ),
     pytest.param(
         "pointnet2/segmentation_s3dis_benchmark.py",
@@ -80,6 +106,18 @@ BENCHMARKS = [
         id="pointnet2/scanobjectnn",
     ),
     pytest.param("pvcnn/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="pvcnn/s3dis"),
+    pytest.param(
+        "pvcnn/part_segmentation_shapenetpart_benchmark.py",
+        ("--limit", "4", "--num-votes", "2"),
+        marks=_CLUSTER,
+        id="pvcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointnet2/part_segmentation_shapenetpart_benchmark.py",
+        ("--model", "pointnet2-msg.shapenetpart.mit-han-lab", "--limit", "4", "--num-votes", "2"),
+        marks=_CLUSTER,
+        id="pointnet2/shapenetpart",
+    ),
     pytest.param("sonata/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="sonata/scannet"),
     pytest.param(
         "concerto/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="concerto/scannet"
@@ -92,10 +130,104 @@ BENCHMARKS = [
         id="ptv3/scannet",
     ),
     pytest.param(
+        "point_transformer_v3/segmentation_dales_benchmark.py",
+        ("--model", "ptv3.dales.jayakumar-pujar", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="ptv3/dales",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_nuscenes_benchmark.py",
+        ("--model", "ptv3-base.nuscenes.pointcept", "--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="ptv3/nuscenes",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_nuscenes_benchmark.py",
+        ("--model", "ptv3-base.nuscenes.pointcept", "--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="ptv3/nuscenes-simple",
+    ),
+    pytest.param("volt/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_FLASH_ATTN, id="volt/scannet"),
+    pytest.param(
+        "volt/segmentation_scannet_benchmark.py",
+        ("--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/scannet-simple",
+    ),
+    pytest.param(
+        "volt/segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/nuscenes",
+    ),
+    pytest.param(
+        "volt/segmentation_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/nuscenes-simple",
+    ),
+    pytest.param(
+        "volt/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/semantickitti",
+    ),
+    pytest.param(
+        "volt/segmentation_semantickitti_benchmark.py",
+        ("--limit", "1", "--simple"),
+        marks=_GPU_FLASH_ATTN,
+        id="volt/semantickitti-simple",
+    ),
+    pytest.param(
+        "point_transformer_v3/segmentation_gridnethd_benchmark.py",
+        ("--model", "ptv3.gridnet-hd.heig-vd-geo", "--limit", "1"),
+        marks=(*_GPU_SPCONV, _REQUIRES_LASPY),
+        id="ptv3/gridnethd",
+    ),
+    pytest.param(
+        "litept/segmentation_scannet_benchmark.py",
+        ("--model", "litept-small.scannet20.prs-eth", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes",
+    ),
+    pytest.param(
+        "litept/segmentation_nuscenes_benchmark.py",
+        ("--model", "litept-small.nuscenes.prs-eth", "--split", "mini", "--limit", "1", "--simple"),
+        marks=_GPU_SPCONV,
+        id="litept/nuscenes-simple",
+    ),
+    pytest.param(
+        "point_transformer/segmentation_s3dis_benchmark.py",
+        ("--limit", "1"),
+        marks=_CLUSTER,
+        id="point_transformer/s3dis",
+    ),
+    pytest.param(
+        "randlanet/segmentation_fractal_benchmark.py",
+        ("--limit", "2"),
+        marks=(_REQUIRES_PYG_LIB, _REQUIRES_LASPY),
+        id="randlanet/fractal",
+    ),
+    pytest.param(
         "randlanet/segmentation_semantickitti_benchmark.py",
         ("--limit", "1"),
         marks=_CLUSTER,
         id="randlanet/semantickitti",
+    ),
+    pytest.param("randlanet/segmentation_s3dis_benchmark.py", ("--limit", "1"), marks=_CLUSTER, id="randlanet/s3dis"),
+    pytest.param("randlanet/segmentation_toronto3d_benchmark.py", (), marks=_CLUSTER, id="randlanet/toronto3d"),
+    pytest.param("randlanet/segmentation_parislille3d_benchmark.py", (), marks=_CLUSTER, id="randlanet/parislille3d"),
+    pytest.param(
+        "randlanet/segmentation_semantic3d_benchmark.py",
+        ("--scenes", "bildstein_station1_xyz_intensity_rgb"),
+        marks=_CLUSTER,
+        id="randlanet/semantic3d",
     ),
     pytest.param(
         "spvcnn/segmentation_semantickitti_benchmark.py",
@@ -163,6 +295,60 @@ BENCHMARKS = [
         id="point_mae/shapenetpart",
     ),
     pytest.param(
+        "recon/classification_scanobjectnn_benchmark.py",
+        ("--model", "recon.scanobjectnn-hardest.zekun-qi", "--limit", "8"),
+        marks=_CLUSTER,
+        id="recon/scanobjectnn",
+    ),
+    pytest.param(
+        "recon/classification_modelnet40_benchmark.py",
+        ("--model", "recon.modelnet40.zekun-qi", "--limit", "8"),
+        marks=_CLUSTER,
+        id="recon/modelnet40",
+    ),
+    pytest.param(
+        "recon/part_segmentation_shapenetpart_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="recon/shapenetpart",
+    ),
+    pytest.param(
+        "act/classification_scanobjectnn_benchmark.py",
+        ("--model", "act.scanobjectnn-hardest.runpei-dong", "--limit", "8"),
+        marks=_CLUSTER,
+        id="act/scanobjectnn",
+    ),
+    pytest.param(
+        "act/classification_modelnet40_benchmark.py",
+        ("--model", "act.modelnet40.runpei-dong", "--limit", "8"),
+        marks=_CLUSTER,
+        id="act/modelnet40",
+    ),
+    pytest.param(
+        "pcp_mae/classification_scanobjectnn_benchmark.py",
+        ("--model", "pcp-mae.scanobjectnn-hardest.xiangdong-zhang", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pcp_mae/scanobjectnn",
+    ),
+    pytest.param(
+        "pcp_mae/classification_modelnet40_benchmark.py",
+        ("--model", "pcp-mae.modelnet40.xiangdong-zhang", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pcp_mae/modelnet40",
+    ),
+    pytest.param(
+        "point2vec/classification_scanobjectnn_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="point2vec/scanobjectnn",
+    ),
+    pytest.param(
+        "point2vec/part_segmentation_shapenetpart_benchmark.py",
+        ("--limit", "8"),
+        marks=_CLUSTER,
+        id="point2vec/shapenetpart",
+    ),
+    pytest.param(
         "point_m2ae/classification_modelnet40_benchmark.py",
         ("--model", "point-m2ae-base.modelnet40.renrui-zhang", "--limit", "8"),
         marks=_CLUSTER,
@@ -179,6 +365,12 @@ BENCHMARKS = [
         ("--model", "pointgpt-s.scanobjectnn-objonly.guangyan-chen", "--limit", "8"),
         marks=_CLUSTER,
         id="pointgpt/scanobjectnn",
+    ),
+    pytest.param(
+        "pointgpt/part_segmentation_shapenetpart_benchmark.py",
+        ("--model", "pointgpt-s.shapenetpart.guangyan-chen", "--limit", "8"),
+        marks=_CLUSTER,
+        id="pointgpt/shapenetpart",
     ),
     pytest.param(
         "point_mamba/classification_modelnet40_benchmark.py",
@@ -202,41 +394,149 @@ BENCHMARKS = [
         id="votenet/scannet",
     ),
     pytest.param(
+        "votenet/detection_scannet_benchmark.py",
+        ("--model", "votenet.scannet.mmdet3d", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/scannet-mmdet3d",
+    ),
+    pytest.param(
+        "votenet/detection_sunrgbd_benchmark.py",
+        ("--model", "votenet.sunrgbd.mmdet3d", "--limit", "2"),
+        marks=_CLUSTER,
+        id="votenet/sunrgbd-mmdet3d",
+    ),
+    pytest.param(
+        "threedetr/detection_sunrgbd_benchmark.py",
+        ("--model", "3detr-m.sunrgbd.fair", "--limit", "2"),
+        marks=_CLUSTER,
+        id="3detr/sunrgbd",
+    ),
+    pytest.param(
         "threedetr/detection_scannet_benchmark.py",
         ("--model", "3detr-m.scannet.fair", "--limit", "2"),
         marks=_CLUSTER,
         id="3detr/scannet",
     ),
     pytest.param(
-        "second/detection_kitti_benchmark.py",
+        "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
         ("--model", "second.kitti.openpcdet", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="second/kitti",
+        id="anchor_detectors/second.kitti.openpcdet",
     ),
     pytest.param(
-        "second/detection_nuscenes_benchmark.py",
+        "anchor_detectors/detection_nuscenes_openpcdet_benchmark.py",
         ("--model", "second-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="second/nuscenes",
+        id="anchor_detectors/second-multihead.nuscenes.openpcdet",
     ),
     pytest.param(
-        "pointpillars/detection_kitti_benchmark.py",
+        "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
         ("--model", "pointpillars.kitti.openpcdet", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="pointpillars/kitti",
+        id="anchor_detectors/pointpillars.kitti.openpcdet",
     ),
     pytest.param(
-        "pointpillars/detection_nuscenes_benchmark.py",
+        "anchor_detectors/detection_nuscenes_openpcdet_benchmark.py",
         ("--model", "pointpillars-multihead.nuscenes.openpcdet", "--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
-        id="pointpillars/nuscenes",
+        id="anchor_detectors/pointpillars-multihead.nuscenes.openpcdet",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_nuscenes_mmdet3d_benchmark.py",
+        ("--model", "pointpillars.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars.nuscenes.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_nuscenes_mmdet3d_benchmark.py",
+        ("--model", "pointpillars-fpn.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars-fpn.nuscenes.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "pointpillars.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars.kitti.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "pointpillars.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/pointpillars.kitti-car.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "second.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second.kitti.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "second.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second.kitti-car.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+        ("--model", "second-dynamic-voxel.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second-dynamic-voxel.kitti.mmdet3d",
+    ),
+    pytest.param(
+        "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
+        ("--model", "second-iou.kitti.openpcdet", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="anchor_detectors/second-iou.kitti.openpcdet",
     ),
     pytest.param("pointrcnn/detection_kitti_benchmark.py", ("--limit", "2"), marks=_CLUSTER, id="pointrcnn/kitti"),
+    pytest.param(
+        "pointrcnn/detection_kitti_benchmark.py",
+        ("--model", "pointrcnn-iou.kitti.openpcdet", "--limit", "2"),
+        marks=_CLUSTER,
+        id="pointrcnn/kitti-iou",
+    ),
+    pytest.param(
+        "parta2/detection_kitti_benchmark.py",
+        ("--model", "part-a2.kitti.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="parta2/kitti",
+    ),
+    pytest.param(
+        "parta2/detection_kitti_benchmark.py",
+        ("--model", "part-a2.kitti-car.mmdet3d", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="parta2/kitti-car",
+    ),
+    pytest.param(
+        "pv_rcnn/detection_kitti_benchmark.py",
+        ("--model", "pv-rcnn.kitti.mmdet3d", "--limit", "2"),
+        marks=(*_GPU_SPCONV, _REQUIRES_PYG_LIB),
+        id="pv_rcnn/kitti",
+    ),
     pytest.param(
         "voxelnext/detection_nuscenes_benchmark.py",
         ("--split", "mini", "--limit", "2"),
         marks=_GPU_SPCONV,
         id="voxelnext/nuscenes",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_benchmark.py",
+        ("--model", "centerpoint-voxel01.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint/nuscenes",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_benchmark.py",
+        ("--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint-pillars/nuscenes",
+    ),
+    pytest.param(
+        "transfusion/detection_nuscenes_benchmark.py",
+        ("--split", "mini", "--limit", "2"),
+        marks=_GPU_SPCONV,
+        id="transfusion/nuscenes",
     ),
     pytest.param(
         "lion/detection_nuscenes_benchmark.py",
@@ -246,7 +546,6 @@ BENCHMARKS = [
     ),
 ]
 
-_SMOKE = ("--limit-train-batches", "2", "--limit-test-batches", "2", "--epochs", "1")
 # The reproduction scripts (one per reference recipe) validate on `--limit-val-batches` scenes.
 _SMOKE_RECIPE = ("--limit-train-batches", "2", "--limit-val-batches", "2", "--epochs", "1", "--eval-every", "1")
 # One classification and one segmentation dataset per training script; VoteNet has no SUN RGB-D dummy data.
@@ -279,6 +578,30 @@ TRAININGS = [
         id="point_mae/finetune",
     ),
     pytest.param(
+        "recon/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="recon/finetune",
+    ),
+    pytest.param(
+        "act/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="act/finetune",
+    ),
+    pytest.param(
+        "pcp_mae/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pcp_mae/finetune",
+    ),
+    pytest.param(
+        "point2vec/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point2vec/finetune",
+    ),
+    pytest.param(
         "point_bert/classification_scanobjectnn_train.py",
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
@@ -301,6 +624,12 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointgpt/scanobjectnn",
+    ),
+    pytest.param(
+        "pointgpt/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointgpt/shapenetpart-train",
     ),
     pytest.param(
         "pointmlp/classification_scanobjectnn_train.py",
@@ -327,23 +656,28 @@ TRAININGS = [
         id="pointnet2/s3dis-xu-yan",
     ),
     pytest.param(
-        "pointnet2/segmentation_s3dis_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.s3dis-area5", "--batch-size", "2"),
-        marks=_CLUSTER,
-        id="pointnet2/s3dis-pointnet",
-    ),
-    pytest.param(
         "pointnet2/classification_modelnet40_train.py",
         (*_SMOKE_RECIPE, "--model", "pointnet2-msg.modelnet40.xu-yan", "--batch-size", "2"),
         marks=_CLUSTER,
         id="pointnet2/modelnet40-msg",
     ),
     pytest.param(
-        "pointnet2/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2"),
-        marks=_CLUSTER,
+        "pointnet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        id="pointnet/modelnet40-jiawei-ren",
+    ),
+    pytest.param(
+        "pointnet/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--model", "pointnet.modelnet40", "--batch-size", "2", "--val-batch-size", "2"),
         id="pointnet/modelnet40",
     ),
+    pytest.param(
+        "pointnet/classification_scanobjectnn_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pointnet/scanobjectnn",
+    ),
+    pytest.param("pointnet/segmentation_s3dis_train.py", (*_SMOKE_RECIPE, "--batch-size", "2"), id="pointnet/s3dis"),
     pytest.param(
         "pointnext/classification_scanobjectnn_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
@@ -423,6 +757,12 @@ TRAININGS = [
         id="point_transformer_v3/s3dis",
     ),
     pytest.param(
+        "litept/segmentation_scannet_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="litept/scannet-train",
+    ),
+    pytest.param(
         "pvcnn/segmentation_s3dis_train.py",
         (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
@@ -430,9 +770,29 @@ TRAININGS = [
     ),
     pytest.param(
         "pvcnn/segmentation_s3dis_train.py",
-        (*_SMOKE_RECIPE, "--model", "pvcnn2.s3dis-area5", "--batch-size", "2", "--val-batch-size", "2"),
+        (*_SMOKE_RECIPE, "--model", "pvcnn2.s3dis-area5.mit-han-lab", "--batch-size", "2", "--val-batch-size", "2"),
         marks=_CLUSTER,
         id="pvcnn/s3dis-pvcnn2",
+    ),
+    pytest.param(
+        "pvcnn/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--batch-size", "2", "--val-batch-size", "2"),
+        marks=_CLUSTER,
+        id="pvcnn/shapenetpart",
+    ),
+    pytest.param(
+        "pointnet2/part_segmentation_shapenetpart_train.py",
+        (
+            *_SMOKE_RECIPE,
+            "--model",
+            "pointnet2-msg.shapenetpart.mit-han-lab",
+            "--batch-size",
+            "2",
+            "--val-batch-size",
+            "2",
+        ),
+        marks=_CLUSTER,
+        id="pointnet2/shapenetpart",
     ),
     pytest.param(
         "randlanet/segmentation_semantickitti_train.py",
@@ -497,6 +857,30 @@ TRAININGS = [
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
         id="point_mae/modelnet40",
+    ),
+    pytest.param(
+        "recon/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="recon/modelnet40",
+    ),
+    pytest.param(
+        "act/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="act/modelnet40",
+    ),
+    pytest.param(
+        "pcp_mae/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="pcp_mae/modelnet40",
+    ),
+    pytest.param(
+        "point2vec/classification_modelnet40_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point2vec/modelnet40",
     ),
     pytest.param(
         "point_mamba/classification_modelnet40_train.py",
@@ -577,6 +961,18 @@ TRAININGS = [
         id="point_mae/shapenetpart-train",
     ),
     pytest.param(
+        "recon/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="recon/shapenetpart-train",
+    ),
+    pytest.param(
+        "point2vec/part_segmentation_shapenetpart_train.py",
+        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
+        marks=_CLUSTER,
+        id="point2vec/shapenetpart-train",
+    ),
+    pytest.param(
         "point_m2ae/part_segmentation_shapenetpart_train.py",
         (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
         marks=_CLUSTER,
@@ -619,6 +1015,24 @@ TRAININGS = [
         id="voxelnext/nuscenes-train",
     ),
     pytest.param(
+        "centerpoint/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--model", "centerpoint-voxel01.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint/nuscenes-train",
+    ),
+    pytest.param(
+        "centerpoint/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--model", "centerpoint-pillar02.nuscenes.mmdet3d", "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="centerpoint-pillars/nuscenes-train",
+    ),
+    pytest.param(
+        "transfusion/detection_nuscenes_train.py",
+        (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
+        marks=_GPU_SPCONV,
+        id="transfusion/nuscenes-train",
+    ),
+    pytest.param(
         "lion/detection_nuscenes_train.py",
         (*_SMOKE_RECIPE, "--split", "mini", "--batch-size", "2"),
         marks=_GPU_MAMBA,
@@ -649,12 +1063,11 @@ def test_every_script_has_a_row() -> None:
         "octformer/segmentation_scannet200_benchmark.py",
         "point_transformer_v3/segmentation_s3dis_benchmark.py",
         "point_transformer_v3/segmentation_scannet200_benchmark.py",
+        "point2vec/classification_modelnet40_benchmark.py",
         "pointgpt/classification_modelnet40_benchmark.py",
         "pointmlp/classification_modelnet40_benchmark.py",
         "pointnext/classification_modelnet40_benchmark.py",
         "sphereformer/segmentation_semantickitti_benchmark.py",
-        "threedetr/detection_sunrgbd_benchmark.py",
-        "votenet/detection_sunrgbd_benchmark.py",
     }
     covered = {str(param.values[0]) for param in BENCHMARKS + TRAININGS}
     scripts = {path.relative_to(EXAMPLES_DIR).as_posix() for path in EXAMPLES_DIR.glob("*/*.py")}

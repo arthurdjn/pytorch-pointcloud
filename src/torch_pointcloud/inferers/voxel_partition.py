@@ -60,9 +60,20 @@ class VoxelPartitionInferer(Inferer):
 
     Example:
         ```python
+        import torch
+
+        import torch_pointcloud as tp
         from torch_pointcloud.inferers import VoxelPartitionInferer
 
-        inferer = VoxelPartitionInferer(voxel_size=0.04, sw_batch_size=4, transform=model.transforms)
+        model, info = tp.create_model("pointnet.s3dis-area5", return_info=True)
+        model.eval()
+        room = {
+            "pos": torch.rand(4096, 3) * 4,
+            "color": torch.rand(4096, 3),
+            "norm_pos": torch.rand(4096, 3),
+            "batch": torch.zeros(4096, dtype=torch.long),
+        }
+        inferer = VoxelPartitionInferer(voxel_size=0.04, sw_batch_size=4, transform=info["transform"])
         logits = inferer(room, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """

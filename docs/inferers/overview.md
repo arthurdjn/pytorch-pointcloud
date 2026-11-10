@@ -2,17 +2,17 @@
 
 An inferer decides how a model is run at test time: on the whole scene, on fragments of it, or under several views. It returns one prediction per point.
 
-```{.python notest}
+```python
 import torch
 from torch_pointcloud import create_model
 from torch_pointcloud.inferers import SlidingWindowInferer
 
 scene = {
     "pos": torch.rand(20_000, 3) * 10,
-    "x": torch.rand(20_000, 3),
+    "x": torch.rand(20_000, 9),
     "batch": torch.zeros(20_000, dtype=torch.long),
 }
-model = create_model(...)
+model = create_model("pointnet.s3dis-area5").eval()
 
 inferer = SlidingWindowInferer(block_size=5.0, softmax=True)
 scores = inferer(scene, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))

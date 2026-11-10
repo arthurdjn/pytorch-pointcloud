@@ -2,10 +2,12 @@ import io
 import tarfile
 import tempfile
 import zipfile
+from http.client import HTTPMessage
 from pathlib import Path
 from ssl import SSLContext
 from typing import Generator
 from unittest.mock import Mock, patch
+from urllib.request import HTTPRedirectHandler
 
 import pytest
 
@@ -129,6 +131,30 @@ def test_download_url_passes_timeout(mock_urlopen: Mock, tmp_path: Path) -> None
     """The timeout is forwarded to `urlopen` so a stalled server raises instead of hanging."""
     download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=False, timeout=5.0)
     assert mock_urlopen.call_args.kwargs["timeout"] == 5.0
+
+
+def test_download_url_sends_headers_without_forwarding_them_on_redirect(mock_urlopen: Mock, tmp_path: Path) -> None:
+    download_url(
+        "https://example.com/file.txt",
+        tmp_path / "file.txt",
+        show_progress=False,
+        headers={"Authorization": "Bearer t"},
+    )
+    request = mock_urlopen.call_args.args[0]
+    assert request.get_header("Authorization") == "Bearer t"
+    assert request.get_header("User-agent") == "torch_pointcloud"
+
+    handler = HTTPRedirectHandler()
+    redirected = handler.redirect_request(request, io.BytesIO(), 302, "Found", HTTPMessage(), "https://cdn.example/x")
+    assert redirected is not None and redirected.get_header("Authorization") is None
+    assert redirected.get_header("User-agent") == "torch_pointcloud"
+
+
+def test_download_url_failure_removes_the_partial_file(mock_urlopen: Mock, mock_response: Mock, tmp_path: Path) -> None:
+    mock_response.read.side_effect = [b"cont", OSError("connection reset")]
+    with pytest.raises(OSError, match="connection reset"):
+        download_url("https://example.com/file.txt", tmp_path / "file.txt", show_progress=False)
+    assert not list(tmp_path.iterdir())
 
 
 def test_extract_zip(tmp_path: Path) -> None:

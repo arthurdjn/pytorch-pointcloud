@@ -1,6 +1,7 @@
 # mypy: disable-error-code="arg-type,call-overload,attr-defined"
+import shutil
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 from unittest.mock import Mock
 
 import pytest
@@ -152,9 +153,48 @@ def test_semantic3d_dataset_load_is_lazy(datasets_dir_factory: Callable[..., Pat
     assert transform.call_count == 1
 
 
-def test_semantic3d_dataset_download_unsupported(datasets_dir_factory: Callable[..., Path]) -> None:
-    """`download()` raises because Semantic3D must be downloaded manually."""
-    datasets_dir = datasets_dir_factory("Semantic3D/raw/**/*")
-    dataset = Semantic3D(root=datasets_dir, scenes=[TRAIN_SCENE])
-    with pytest.raises(RuntimeError, match="does not support automatic download"):
-        dataset.download()
+def test_semantic3d_archive_url() -> None:
+    """Training scenes sit under `training1/`, reduced-8 test scenes under `testing2/` with a `.txt.7z` suffix."""
+    assert Semantic3D.archive_url(TRAIN_SCENE).endswith(f"/point-clouds/training1/{TRAIN_SCENE}.7z")
+    assert Semantic3D.archive_url(TEST_SCENE).endswith(f"/point-clouds/testing2/{TEST_SCENE}.txt.7z")
+    with pytest.raises(ValueError, match="Unknown Semantic3D scene"):
+        Semantic3D.archive_url("bogus_station1")
+
+
+def test_semantic3d_download_requires_accepted_terms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`download=True` without `accept_terms=True` asks on the terminal, and a refusal raises before any request."""
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    download_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.semantic3d.download_url", download_mock)
+    with pytest.raises(RuntimeError, match="terms-of-use"):
+        _ = Semantic3D(root=tmp_path, scenes=[TRAIN_SCENE], download=True, show_progress=False)
+    download_mock.assert_not_called()
+
+
+def test_semantic3d_download_extracts_requested_scenes(
+    datasets_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The scene archive is extracted whole; only the requested scenes' labels leave the labels archive."""
+    py7zr = pytest.importorskip("py7zr")
+    # A fake mirror packing the fixture scene the way the benchmark does: one 7z per scene, one for all labels.
+    fixtures = datasets_dir / "Semantic3D" / "raw"
+    mirror = tmp_path / "mirror"
+    mirror.mkdir()
+    with py7zr.SevenZipFile(mirror / f"{TRAIN_SCENE}.7z", "w") as writer:
+        writer.write(fixtures / f"{TRAIN_SCENE}.txt", f"{TRAIN_SCENE}.txt")
+    other = "bildstein_station3_xyz_intensity_rgb.labels"
+    with py7zr.SevenZipFile(mirror / "sem8_labels_training.7z", "w") as writer:
+        writer.write(fixtures / f"{TRAIN_SCENE}.labels", f"{TRAIN_SCENE}.labels")
+        writer.write(fixtures / f"{TRAIN_SCENE}.labels", other)
+
+    def fake_download(url: str, file_path: Path, **kwargs: Any) -> str:
+        shutil.copyfile(mirror / url.rsplit("/", 1)[1], file_path)
+        return str(file_path)
+
+    monkeypatch.setattr("torch_pointcloud.datasets.semantic3d.download_url", fake_download)
+    dataset = Semantic3D(root=tmp_path, scenes=[TRAIN_SCENE], download=True, accept_terms=True, show_progress=False)
+    raw = tmp_path / "Semantic3D" / "raw"
+    assert (raw / f"{TRAIN_SCENE}.txt").exists()
+    assert (raw / f"{TRAIN_SCENE}.labels").exists()
+    assert not (raw / other).exists()
+    assert dataset[0]["segment"].shape == (NUM_POINTS_PER_SCENE,)

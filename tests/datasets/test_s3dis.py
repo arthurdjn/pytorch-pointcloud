@@ -1,8 +1,9 @@
 # mypy: disable-error-code="arg-type,call-overload,attr-defined"
+import json
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -270,13 +271,13 @@ def test_s3dis_tile_room_blocks_own_their_scene_max() -> None:
 
 
 def test_s3dis_process_writes_final_files_only(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Processing an area leaves the five final `.npy` files and no `.tmp` leftovers"""
+    """Processing an area leaves the five final `.npy` files, the `meta.json` stamp and no `.tmp` leftovers"""
     datasets_dir = datasets_dir_factory("S3DIS/raw/**/*")
 
     dataset = S3DIS(root=datasets_dir, areas=["Area_1"], show_progress=False)
     area_dir = Path(dataset.processed_dir) / "Area_1"
     names = sorted(p.name for p in area_dir.iterdir())
-    assert names == ["color.npy", "instance.npy", "offset.npy", "pos.npy", "segment.npy"]
+    assert names == ["color.npy", "instance.npy", "meta.json", "offset.npy", "pos.npy", "segment.npy"]
 
 
 def test_s3dis_download_retries_corrupt_archive_with_overwrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -586,3 +587,108 @@ def test_tile_s3dis_room_keeps_every_point_without_num_nodes() -> None:
     assert {int(index) for block in blocks for index in block[DataKeys.SEGMENT]} == set(range(500))
     fixed = tile_s3dis_room(room, block_size=1.0, block_stride=1.0, num_nodes=64, min_num_nodes=1)
     assert all(block[DataKeys.POS].shape[0] == 64 for block in fixed)
+
+
+def test_s3dis_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
+    datasets_dir = datasets_dir_factory("S3DIS/**/*")
+    dataset = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    meta = json.loads(Path(dataset.processed_dir, "Area_5/meta.json").read_text())
+    assert meta == dataset.cache_meta
+    assert meta["format_version"] == S3DIS.format_version
+
+
+def test_s3dis_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
+    datasets_dir = datasets_dir_factory("S3DIS/**/*")
+    dataset = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "Area_5/meta.json")
+    meta = json.loads(meta_path.read_text())
+    meta["format_version"] += 1
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        S3DIS(
+            root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=False
+        )
+
+    rebuilt = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
+
+
+def test_s3dis_cache_without_meta_is_served(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A cache from before the stamp existed is served as is and left unstamped."""
+    datasets_dir = datasets_dir_factory("S3DIS/**/*")
+    dataset = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "Area_5/meta.json")
+    meta_path.unlink()
+
+    legacy = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=False
+    )
+    assert len(legacy) == len(dataset)
+    assert not meta_path.exists()
+
+
+def test_s3dis_stamp_without_format_version_is_version_one(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A stamp written before `format_version` existed counts as version 1 and is served."""
+    datasets_dir = datasets_dir_factory("S3DIS/**/*")
+    dataset = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "Area_5/meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["format_version"]
+    meta_path.write_text(json.dumps(meta))
+
+    legacy = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=False
+    )
+    assert len(legacy) == len(dataset)
+
+
+def test_s3dis_interrupted_rebuild_leaves_no_stamp(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    datasets_dir = datasets_dir_factory("S3DIS/**/*")
+    dataset = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "Area_5/meta.json")
+
+    def interrupted(self: S3DIS, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(S3DIS, "write_processed_files", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        S3DIS(
+            root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+        )
+    assert not meta_path.exists()
+
+
+def test_s3dis_incomplete_cache_is_not_stamped(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`write_processed_files` returning False leaves the cache unstamped."""
+    datasets_dir = datasets_dir_factory("S3DIS/**/*")
+    dataset = S3DIS(
+        root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
+    )
+    meta_path = Path(dataset.processed_dir, "Area_5/meta.json")
+
+    def incomplete(self: S3DIS, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
+        return False
+
+    monkeypatch.setattr(S3DIS, "write_processed_files", incomplete)
+    S3DIS(root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True)
+    assert not meta_path.exists()

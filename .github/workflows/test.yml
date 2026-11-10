@@ -88,9 +88,6 @@ jobs:
       - name: Doctests in source docstrings
         run: uv run --frozen pytest --doctest-modules src
 
-      - name: Doctests in documentation code blocks
-        run: uv run --frozen pytest --markdown-docs --markdown-docs-syntax=superfences src docs --ignore=docs/scripts --ignore=docs/examples --ignore=src/torch_pointcloud/lightning
-
   # Package gate: build the distributions, keep the sdist under PyPI's 100 MB upload limit, and
   # import from a bare wheel install (no dev group, no extras) so an undeclared runtime
   # dependency fails here instead of on a user's machine.

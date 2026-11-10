@@ -14,10 +14,14 @@ neither are marked as such.
 | ----------------------------------------------- | ---------------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------- |
 | guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 36    | Copyright (c) Guocheng Qian                                                                                                |
 | CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 18    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
+| isl-org/Open3D-ML                               | `open3d`         | MIT          | 11    | Copyright (c) 2020 www.open3d.org                                                                                          |
 | antao97/dgcnn.pytorch                           | `an-tao`         | MIT          | 10    | Copyright (c) 2020 An Tao                                                                                                  |
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
+| KadirYilmaz/Volt (Hugging Face)                 | `kadir-yilmaz`   | MIT          | 8     | Copyright (c) 2026 Kadir Yilmaz                                                                                            |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
-| open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 6     | not stated upstream                                                                                                        |
+| open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 7     | not stated upstream                                                                                                        |
+| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 6     | Copyright 2018-2019 Open-MMLab                                                                                             |
+| prs-eth/LitePT                                  | `prs-eth`        | MIT          | 6     | Copyright (c) 2025 Photogrammetry and Remote Sensing Lab                                                                   |
 | Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |
@@ -33,7 +37,10 @@ neither are marked as such.
 | facebookresearch/votenet                        | `fair`           | MIT          | 2     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
 | DylanWusee/pointconv_pytorch                    | `wenxuan-wu`     | MIT          | 1     | Copyright (c) 2019 Wenxuan Wu                                                                                              |
 | tsunghan-wu/RandLA-Net-pytorch                  | `tsung-han-wu`   | MIT          | 1     | Copyright (c) 2020 Tsunghan Wu                                                                                             |
+| IGNF/myria3d                                    | `ignf`           | Etalab-2.0   | 1     | Copyright (c) 2021, Institut National de l'Information Géographique et Forestière                                          |
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
+| jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
+| heig-vd-geo/PTv3_GridNet-HD_baseline (Hugging Face) | `heig-vd-geo` | MIT         | 1     | not stated upstream                                                                                                        |
 
 ## Training data
 
@@ -41,15 +48,20 @@ Licenses of the datasets the checkpoints were trained on.
 
 | dataset                                         | terms                                                     | checkpoints |
 | ----------------------------------------------- | --------------------------------------------------------- | ----------- |
-| S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 43          |
+| S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
-| ScanNet                                         | terms of use, non-commercial research and educational use | 13          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 4           |
-| nuScenes                                        | CC BY-NC-SA 4.0                                           | 4           |
+| ScanNet                                         | terms of use, non-commercial research and educational use | 19          |
+| nuScenes                                        | CC BY-NC-SA 4.0                                           | 7           |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 5           |
+| ScanNet++, ARKitScenes (joint training)         | non-commercial                                            | 4           |
+| Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
+| DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
+| FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
+| GridNet-HD                                      | CC BY 4.0                                                 | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 
 ## Source code
@@ -57,26 +69,28 @@ Licenses of the datasets the checkpoints were trained on.
 Files adapted from other implementations, with the copyright notice each source publishes. Paths are relative to
 `src/torch_pointcloud/`.
 
-| source                            | license    | files                                                                                                               | copyright                                                                     |
-| --------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| open-mmlab/OpenPCDet              | Apache-2.0 | `models/pointpillars.py`, `models/pointrcnn.py`, `models/second.py`, `models/voxelnext.py`, `models/voxel_mamba.py` | not stated upstream                                                           |
-| facebookresearch/3detr            | Apache-2.0 | `models/threedetr.py`                                                                                               | Copyright (c) Facebook, Inc. and its affiliates                               |
-| facebookresearch/votenet          | MIT        | `models/votenet.py`, `lightning/callbacks.py`                                                                       | Copyright (c) Facebook, Inc. and its affiliates                               |
-| Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `utils/hilbert.py`                                                                | Copyright (c) 2023 Pointcept                                                  |
-| PrincetonLIPS/numpy-hilbert-curve | MIT        | `utils/hilbert.py`                                                                                                  | Copyright (c) 2020 Princeton Laboratory for Intelligent Probabilistic Systems |
-| pyg-team/pytorch_geometric        | MIT        | `models/point_transformer.py`                                                                                       | Copyright (c) 2023 PyG Team <team@pyg.org>                                    |
-| Project-MONAI/MONAI               | Apache-2.0 | `datasets/utils.py`                                                                                                 | Copyright (c) MONAI Consortium                                                |
-| mit-han-lab/pvcnn                 | MIT        | `utils/voxelization.py`                                                                                             | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin                       |
-| mit-han-lab/bevfusion             | Apache-2.0 | `models/lion.py`                                                                                                    | Copyright 2018-2019 Open-MMLab. All rights reserved.                          |
-| happinesslz/LION                  | Apache-2.0 | `models/lion.py`                                                                                                    | not stated upstream                                                           |
-| gwenzhang/Voxel-Mamba             | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py`                                                                            | not stated upstream                                                           |
-| JIA-Lab-research/VoxelNeXt        | Apache-2.0 | `models/voxelnext.py`                                                                                               | not stated upstream                                                           |
-| sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`                                                                                           | Copyright (c) 2022 Jiahao Sun                                                 |
-| Julie-tang00/Point-BERT           | MIT        | `models/point_bert.py`                                                                                              | Copyright (c) 2021 Xumin Yu                                                   |
-| Pang-Yatian/Point-MAE             | MIT        | `models/point_mae.py`                                                                                               | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
-| ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                              | Copyright (c) 2022 Renrui Zhang                                               |
-| CGuangyan-BIT/PointGPT            | MIT        | `models/pointgpt.py`                                                                                                | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
-| LMD0311/PointMamba                | Apache-2.0 | `models/point_mamba.py`                                                                                             | not stated upstream                                                           |
+| source                            | license    | files                                                                                                                                                                      | copyright                                                                     |
+| --------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| open-mmlab/OpenPCDet              | Apache-2.0 | `models/pointpillars.py`, `models/pointrcnn.py`, `models/second.py`, `models/voxelnext.py`, `models/voxel_mamba.py`, `models/transfusion.py`, `layers/transfusion_head.py` | not stated upstream                                                           |
+| facebookresearch/3detr            | Apache-2.0 | `models/threedetr.py`                                                                                                                                                      | Copyright (c) Facebook, Inc. and its affiliates                               |
+| facebookresearch/votenet          | MIT        | `models/votenet.py`, `lightning/callbacks.py`                                                                                                                              | Copyright (c) Facebook, Inc. and its affiliates                               |
+| Pointcept/Pointcept               | MIT        | `models/point_transformer_v3.py`, `ops/hilbert.py`                                                                                                                         | Copyright (c) 2023 Pointcept                                                  |
+| prs-eth/LitePT                    | MIT        | `models/litept.py`                                                                                                                                                         | Copyright (c) 2025 Photogrammetry and Remote Sensing Lab                      |
+| PrincetonLIPS/numpy-hilbert-curve | MIT        | `ops/hilbert.py`                                                                                                                                                           | Copyright (c) 2020 Princeton Laboratory for Intelligent Probabilistic Systems |
+| YilmazKadir/Volt                  | MIT        | `models/volt.py`, `layers/voxel_patch.py`, `layers/rope.py`, `layers/transformer.py`                                                                                       | Copyright (c) 2026 Kadir Yilmaz                                               |
+| pyg-team/pytorch_geometric        | MIT        | `models/point_transformer.py`                                                                                                                                              | Copyright (c) 2023 PyG Team <team@pyg.org>                                    |
+| Project-MONAI/MONAI               | Apache-2.0 | `datasets/utils.py`                                                                                                                                                        | Copyright (c) MONAI Consortium                                                |
+| mit-han-lab/pvcnn                 | MIT        | `ops/voxelization.py`                                                                                                                                                      | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin                       |
+| mit-han-lab/bevfusion             | Apache-2.0 | `layers/transfusion_head.py`                                                                                                                                               | Copyright 2018-2019 Open-MMLab. All rights reserved.                          |
+| happinesslz/LION                  | Apache-2.0 | `models/lion.py`                                                                                                                                                           | not stated upstream                                                           |
+| gwenzhang/Voxel-Mamba             | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py`                                                                                                                                   | not stated upstream                                                           |
+| JIA-Lab-research/VoxelNeXt        | Apache-2.0 | `models/voxelnext.py`                                                                                                                                                      | not stated upstream                                                           |
+| sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`                                                                                                                                                  | Copyright (c) 2022 Jiahao Sun                                                 |
+| Julie-tang00/Point-BERT           | MIT        | `models/point_bert.py`                                                                                                                                                     | Copyright (c) 2021 Xumin Yu                                                   |
+| Pang-Yatian/Point-MAE             | MIT        | `models/point_mae.py`                                                                                                                                                      | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
+| ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                                                                                     | Copyright (c) 2022 Renrui Zhang                                               |
+| CGuangyan-BIT/PointGPT            | MIT        | `models/pointgpt.py`                                                                                                                                                       | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
+| LMD0311/PointMamba                | Apache-2.0 | `models/point_mamba.py`                                                                                                                                                    | not stated upstream                                                           |
 
 ## Dependencies
 
@@ -92,7 +106,6 @@ Installed by `pip` next to the package, never bundled with it.
 | `pillow`                                     | MIT-CMU                    |
 | `tqdm`                                       | MPL-2.0 AND MIT            |
 | `typing-extensions`                          | PSF-2.0                    |
-| `plyfile`                                    | GPL-3.0-or-later           |
 
 ## Optional dependencies
 
@@ -108,3 +121,5 @@ Installed separately, only for the architectures that need them.
 | `mamba-ssm`, `causal-conv1d`                                                                     | Apache-2.0 AND BSD-3-Clause |
 | `sptr` (JIA-Lab-research/SparseTransformer, installed from the arthurdjn/SparseTransformer fork) | Apache-2.0                  |
 | `lightning`, `torchmetrics`                                                                      | Apache-2.0                  |
+| `laspy`                                                                                          | BSD-2-Clause                |
+| `lazrs`                                                                                          | MIT                         |

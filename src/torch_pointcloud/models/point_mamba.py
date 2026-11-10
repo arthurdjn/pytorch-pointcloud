@@ -30,6 +30,7 @@ from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.ops.cluster import fps, knn, local_grid
+from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
 from torch_pointcloud.utils.conversion import ensure_list
 from torch_pointcloud.utils.data import DataKeys
@@ -533,12 +534,9 @@ class PointMambaEncoderMAE(nn.Module):
         # Mask random tokens
         P = feat_dense.size(1)
         seq_len = P - int(self.mask_ratio * P)
-        noise = torch.rand(B, P, device=feat_dense.device)
-        noise_idx = torch.argsort(noise, dim=1)
-        vis_idx = noise_idx[:, :seq_len]
-        vis_idx, _ = torch.sort(vis_idx, dim=1)
-        mask_idx = noise_idx[:, seq_len:]
-        mask_idx, _ = torch.sort(mask_idx, dim=1)
+        mask = random_mask(B, P, self.mask_ratio, device=feat_dense.device)
+        order = torch.argsort(mask.long(), dim=1, stable=True)  # visible then masked, each by increasing index
+        vis_idx, mask_idx = order[:, :seq_len], order[:, seq_len:]
 
         # Gather visible tokens
         x_vis = torch.gather(feat_dense, 1, vis_idx.unsqueeze(-1).expand(-1, -1, self.embed_dim))

@@ -1,4 +1,5 @@
 import shutil
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -7,9 +8,12 @@ import torch
 from torch.utils.data import Dataset
 
 from torch_pointcloud.datasets import (
+    DALES,
     S3DIS,
+    GridNetHD,
     ModelNet40,
     ModelNetNormalResampled,
+    NuScenesMini,
     S3DISHdf5,
     ScanNet20,
     ScanObjectNN,
@@ -108,8 +112,29 @@ def semantickitti_dataset(transform: Optional[Callable] = None) -> SemanticKITTI
     )
 
 
+def dales_dataset(transform: Optional[Callable] = None) -> DALES:
+    return DALES(root=DATASETS_DIR, train=False, transform=transform)
+
+
+def nuscenes_lidarseg_dataset(root: Path, transform: Optional[Callable] = None) -> NuScenesMini:
+    """Keyframes of a copy of the `NuScenesMini` fixture under `root`, where the dataset writes its cache."""
+    shutil.copytree(DATASETS_DIR / "NuScenesMini" / "raw", root / "NuScenesMini" / "raw")
+    return NuScenesMini(
+        root=root,
+        max_sweeps=1,
+        return_boxes=False,
+        return_segment=True,
+        transform=transform,
+        show_progress=False,
+    )
+
+
+def gridnethd_dataset(transform: Optional[Callable] = None) -> GridNetHD:
+    return GridNetHD(root=DATASETS_DIR, split="val", transform=transform)
+
+
 @pytest.fixture
-def dataset_factory() -> Callable[..., Dataset]:
+def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
     """Build one of the datasets shipped under `tests/data/datasets` by name, e.g. `dataset_factory("s3dis")`."""
     constructors: Dict[str, Callable[..., Dataset]] = {
         "modelnet40": modelnet40_dataset,
@@ -121,6 +146,9 @@ def dataset_factory() -> Callable[..., Dataset]:
         "scannet20": scannet20_dataset,
         "scannet20_blocks": scannet20_blocks_dataset,
         "semantickitti": semantickitti_dataset,
+        "dales": dales_dataset,
+        "nuscenes_lidarseg": partial(nuscenes_lidarseg_dataset, tmp_path),
+        "gridnethd": gridnethd_dataset,
     }
 
     def factory(name: str, transform: Optional[Callable] = None) -> Dataset:
@@ -257,6 +285,18 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=False,
         help="Run every example script on the dummy datasets (slow, needs local weights, skipped by default)",
     )
+    parser.addoption(
+        "--run-docs",
+        action="store_true",
+        default=False,
+        help="Run the code blocks of the docstrings and the docs pages (reads the fixture datasets, downloads weights)",
+    )
+    parser.addoption(
+        "--run-hub",
+        action="store_true",
+        default=False,
+        help="Compare the Hugging Face Hub repositories with the registry (queries the Hub API, skipped by default)",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -271,13 +311,23 @@ def pytest_configure(config: pytest.Config) -> None:
         "example: tests that run an example script end-to-end on the dummy datasets. "
         "Slow; skipped unless --run-examples is passed.",
     )
+    config.addinivalue_line(
+        "markers",
+        "docs: the code blocks of the docstrings and the docs pages. Skipped unless --run-docs is passed.",
+    )
+    config.addinivalue_line(
+        "markers",
+        "hub: tests that compare the Hugging Face Hub repositories with the registry. Skipped unless --run-hub is passed.",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip tests marked `pretrained` or `example` unless their opt-in flag is passed.
+    """Skip tests marked `pretrained`, `example`, `docs` or `hub` unless their opt-in flag is passed.
 
     `pretrained` tests need local weights CI does not cache; `example` tests run every example script on
-    the dummy datasets (slow). Both stay opt-in via `--run-pretrained` / `--run-examples`.
+    the dummy datasets (slow); `docs` tests run the code blocks of the docstrings and the docs pages; `hub` tests
+    query the Hugging Face Hub API. All stay opt-in via `--run-pretrained` / `--run-examples` / `--run-docs` /
+    `--run-hub`.
     """
     if not config.getoption("--run-pretrained"):
         skip_pretrained = pytest.mark.skip(reason="needs --run-pretrained to run")
@@ -290,6 +340,18 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         for item in items:
             if "example" in item.keywords:
                 item.add_marker(skip_example)
+
+    if not config.getoption("--run-docs"):
+        skip_docs = pytest.mark.skip(reason="needs --run-docs to run")
+        for item in items:
+            if "docs" in item.keywords:
+                item.add_marker(skip_docs)
+
+    if not config.getoption("--run-hub"):
+        skip_hub = pytest.mark.skip(reason="needs --run-hub to run")
+        for item in items:
+            if "hub" in item.keywords:
+                item.add_marker(skip_hub)
 
 
 @pytest.fixture

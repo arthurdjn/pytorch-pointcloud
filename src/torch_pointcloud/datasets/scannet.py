@@ -4,7 +4,6 @@
 {{ paper("1702.04405") }}
 """
 
-import json
 import math
 import re
 import shutil
@@ -18,8 +17,8 @@ from urllib.request import urlopen
 
 import numpy as np
 import pandas as pd
-import plyfile
 import torch
+from numpy.lib.recfunctions import structured_to_unstructured
 from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import NotRequired, override
@@ -27,12 +26,12 @@ from typing_extensions import NotRequired, override
 import torch_pointcloud.transforms as T
 from torch_pointcloud.ops.geometry import transform_points, vertex_normals
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.io import load_json
+from torch_pointcloud.utils.io import load_json, load_ply
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_cache_meta, check_terms_accepted, download_url
+from .utils import check_terms_accepted, download_url
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -89,6 +88,27 @@ SCANNET_DETECTION_CLASSES = [
     "sink",
     "bathtub",
     "garbagebin",
+]
+
+SCANNET_DETECTION_MEAN_SIZES = [
+    [0.769667, 0.811602, 0.925737],
+    [1.876858, 1.842560, 1.193157],
+    [0.613280, 0.614861, 0.718270],
+    [1.395501, 1.512155, 0.834436],
+    [0.979496, 1.067515, 0.632969],
+    [0.531663, 0.595558, 1.750015],
+    [0.962471, 0.724623, 1.148187],
+    [0.832219, 1.049094, 1.687566],
+    [0.211322, 0.420616, 0.537285],
+    [1.444007, 1.897083, 0.269857],
+    [1.029426, 1.404080, 0.875543],
+    [1.376641, 0.655218, 1.681313],
+    [0.665082, 0.711119, 1.298853],
+    [0.419992, 0.379069, 1.751397],
+    [0.593596, 0.591249, 0.739190],
+    [0.508676, 0.506561, 0.301362],
+    [1.151153, 1.054630, 0.497068],
+    [0.475353, 0.492495, 0.580212],
 ]
 
 SCANNET200_LABELS = [
@@ -528,11 +548,10 @@ def load_scannet_scene_mesh(file_path: PathLike) -> Tuple[Tensor, Tensor]:
 
         ```
     """
-    with open(file_path, "rb") as f:
-        plydata = plyfile.PlyData.read(f)
-
-    vertices = np.array([tuple(vertex) for vertex in plydata["vertex"].data], dtype=np.float32)
-    face = np.stack(plydata["face"].data["vertex_indices"], axis=0)
+    plydata = load_ply(file_path)
+    vertices = structured_to_unstructured(plydata["vertex"], dtype=np.float32)
+    indices = plydata["face"]["vertex_indices"]
+    face = np.stack(list(indices), axis=0) if indices.dtype.kind == "O" else indices
     return torch.from_numpy(vertices), torch.from_numpy(face).long()
 
 
@@ -948,6 +967,8 @@ class ScanNet(PointCloudDataset):
         For example, to use the `raw_category` column and the `id` column, you can do:
 
         ```python
+        from torch_pointcloud.datasets import ScanNet
+
         dataset = ScanNet(
             root="data",
             version="v2",
@@ -961,6 +982,7 @@ class ScanNet(PointCloudDataset):
     unk_cls = "<unk>"
     unk_idx = 0
 
+    format_version = 2
     data_url = "https://kaldir.vc.in.tum.de/scannet/"
     terms_url = "https://kaldir.vc.in.tum.de/scannet/ScanNet_TOS.pdf"
     meta_url = "https://raw.githubusercontent.com/facebookresearch/votenet/master/scannet/meta_data/"
@@ -1108,16 +1130,23 @@ class ScanNet(PointCloudDataset):
         scene_paths = Path(self.processed_dir, self.split).glob("*/pos.npy")
         return sorted(p.parent for p in scene_paths if not p.parent.name.endswith(".tmp"))
 
-    def _cache_meta(self) -> Dict[str, Any]:
-        """Snapshot of the constructor parameters the processed cache content depends on."""
-        return {"format_version": 2, "version": self.version, "label_name": self.label_name, "label_id": self.label_id}
+    @property
+    @override
+    def cache_meta(self) -> Dict[str, Any]:
+        return {
+            **super().cache_meta,
+            "version": self.version,
+            "label_name": self.label_name,
+            "label_id": self.label_id,
+        }
+
+    @property
+    @override
+    def cache_meta_paths(self) -> List[str]:
+        return [Path(self.processed_dir, self.split, "meta.json").as_posix()]
 
     def processed_files_exist(self) -> bool:
         split_dir = Path(self.processed_dir, self.split)
-        if (split_dir / "meta.json").exists():
-            check_cache_meta(split_dir / "meta.json", self._cache_meta())
-            return True
-
         scene_dirs = self.processed_files
         if not scene_dirs:
             return False
@@ -1206,10 +1235,7 @@ class ScanNet(PointCloudDataset):
                     overwrite=True if force else "incomplete",
                 )
 
-    def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
-        if not force and self.processed_files_exist():
-            return
-
+    def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         if not self.raw_files_exist():
             raise RuntimeError(
                 f"Dataset not found at {self.root!r}. "
@@ -1239,7 +1265,6 @@ class ScanNet(PointCloudDataset):
 
         split_dir = Path(self.processed_dir, self.split)
         split_dir.mkdir(parents=True, exist_ok=True)
-        (split_dir / "meta.json").unlink(missing_ok=True)
         for stale in split_dir.glob("*.tmp"):
             if stale.is_dir():
                 shutil.rmtree(stale)
@@ -1301,14 +1326,7 @@ class ScanNet(PointCloudDataset):
             show_progress=show_progress,
         )
 
-        # meta.json marks the cache complete: never stamp it when scenes were skipped, so the next
-        # construction runs the missing/incomplete-scene audit instead of serving a partial cache.
-        if all(results):
-            meta = self._cache_meta()
-            meta_path = split_dir / "meta.json"
-            tmp_path = split_dir / "meta.json.tmp"
-            tmp_path.write_text(json.dumps(meta))
-            tmp_path.replace(meta_path)
+        return all(results)
 
     def load(
         self,
@@ -1382,7 +1400,10 @@ class ScanNet(PointCloudDataset):
             The scene as a `DataKeys`-keyed dict of tensors plus its `DataKeys.SCENE` id.
 
         Example:
-            ```{.python notest}
+            ```python
+            from torch_pointcloud.datasets import ScanNet20
+
+            dataset = ScanNet20(root="data", split="val")
             scene = dataset.read_scene(dataset.processed_files[0])
             scene["pos"].shape  # (N, 3)
             ```
@@ -1637,7 +1658,7 @@ class ScanNet200(ScanNet):
     def relabel(self) -> T.Relabel:
         """Transform remapping the raw segment ids to the 200 benchmark ids."""
         # Caches without `meta.json` predate the positional segment ids and store raw TSV ids.
-        if not Path(self.processed_dir, self.split, "meta.json").exists():
+        if not all(Path(meta_path).exists() for meta_path in self.cache_meta_paths):
             return T.Relabel(keys=DataKeys.SEGMENT, labels=SCANNET200_LABELS)
 
         name_to_idx = {name: idx for idx, name in enumerate(self._column_classes)}

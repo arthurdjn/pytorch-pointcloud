@@ -18,6 +18,8 @@ from torch_pointcloud.models.point_transformer_v3 import (
     AttentionKind,
     PointTransformerV3Encoder,
     SerializedFeaturesDict,
+    encoder_checkpoint_filter_fn,
+    pretrained_encoder_hparams,
 )
 from torch_pointcloud.ops.serialization import SerializationOrder
 from torch_pointcloud.utils.data import DataKeys
@@ -256,48 +258,18 @@ _CONCERTO_SEG_TRANSFORMS = T.Compose(
 )
 
 
-def _concerto_encoder_hparams(
-    encoder_depths: Sequence[int],
-    encoder_channels: Sequence[int],
-    encoder_num_heads: Sequence[int],
-) -> Dict[str, Any]:
-    return dict(
-        in_channels=9,
-        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
-        shuffle_serialization_orders=True,
-        strides=(2, 2, 2, 2),
-        encoder_depths=encoder_depths,
-        encoder_channels=encoder_channels,
-        encoder_num_heads=encoder_num_heads,
-        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
-        norm="layer_norm",
-        act="gelu",
-        mlp_ratio=4.0,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
-        drop_path=0.3,
-        use_flash_attn=True,
-        upcast_attn=False,
-        upcast_softmax=False,
-        pooling="grid",
-        stem_type="linear",
-        norm_kwargs={"mode": "node"},
-    )
-
-
 @register_model(
     "concerto-tiny.pretrain.pointcept",
     task="pretraining",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto-tiny.pretrain.pointcept/resolve/bbb0d0f2e7d8786be08a73895720a1a869cdfc7c/model.safetensors",
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_tiny.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
     transform=_CONCERTO_TRANSFORMS,
-    hparams=_concerto_encoder_hparams(
+    hparams=pretrained_encoder_hparams(
         encoder_depths=(1, 1, 1, 3, 1),
         encoder_channels=(16, 32, 64, 128, 256),
         encoder_num_heads=(1, 2, 4, 8, 16),
@@ -312,12 +284,13 @@ def concerto_tiny(**hparams: Any) -> PointTransformerV3Encoder:
     task="pretraining",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto-small.pretrain.pointcept/resolve/d4c257e9f3d96f0dec0730bdb13f81b654ce3eae/model.safetensors",
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_small.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
     transform=_CONCERTO_TRANSFORMS,
-    hparams=_concerto_encoder_hparams(
+    hparams=pretrained_encoder_hparams(
         encoder_depths=(2, 2, 2, 6, 2),
         encoder_channels=(32, 64, 128, 256, 512),
         encoder_num_heads=(2, 4, 8, 16, 32),
@@ -332,12 +305,13 @@ def concerto_small(**hparams: Any) -> PointTransformerV3Encoder:
     task="pretraining",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto-base.pretrain.pointcept/resolve/28fc60afc5f319eefb4d5099b72f74b68584c56a/model.safetensors",
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_base.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
     transform=_CONCERTO_TRANSFORMS,
-    hparams=_concerto_encoder_hparams(
+    hparams=pretrained_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(48, 96, 192, 384, 512),
         encoder_num_heads=(3, 6, 12, 24, 32),
@@ -352,12 +326,13 @@ def concerto_base(**hparams: Any) -> PointTransformerV3Encoder:
     task="pretraining",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto-large.pretrain.pointcept/resolve/346194cf8870bdae84b03a62a671e61435d770fc/model.safetensors",
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_large.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         author="pointcept",
         license="CC-BY-NC-4.0",
     ),
     transform=_CONCERTO_TRANSFORMS,
-    hparams=_concerto_encoder_hparams(
+    hparams=pretrained_encoder_hparams(
         encoder_depths=(3, 3, 3, 12, 3),
         encoder_channels=(64, 128, 256, 512, 768),
         encoder_num_heads=(4, 8, 16, 32, 48),
@@ -368,11 +343,78 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
 
 
 @register_model(
+    "concerto-base-origin.pretrain.pointcept",
+    task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_base_origin.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
+    hparams=pretrained_encoder_hparams(
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+    ),
+)
+def concerto_base_origin(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
+
+
+@register_model(
+    "concerto-large-origin.pretrain.pointcept",
+    task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_large_origin.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
+    hparams=pretrained_encoder_hparams(
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(64, 128, 256, 512, 768),
+        encoder_num_heads=(4, 8, 16, 32, 48),
+    ),
+)
+def concerto_large_origin(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
+
+
+@register_model(
+    "concerto-base-siglip.pretrain.pointcept",
+    task="pretraining",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_base_siglip.pth",
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
+        author="pointcept",
+        license="CC-BY-NC-4.0",
+    ),
+    transform=_CONCERTO_TRANSFORMS,
+    hparams=pretrained_encoder_hparams(
+        encoder_depths=(3, 3, 3, 12, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+    ),
+)
+def concerto_base_siglip(**hparams: Any) -> PointTransformerV3Encoder:
+    return PointTransformerV3Encoder(**hparams)
+
+
+@register_model(
     "concerto-large-lp.scannet20.pointcept",
     task="semantic-segmentation",
     input_keys=("x", "pos_grid", "batch"),
     weights=WeightsDict(
-        url="hf://torch-pointcloud/concerto-large-lp.scannet20.pointcept/resolve/c2c68b5771d7b53ec1ed000830813be6720b1f37/model.safetensors",
+        url=(
+            "hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_large.pth",
+            "hf://Pointcept/Concerto/resolve/efc130718a564eba0ce4899318f3c20b19d9c752/concerto_large_linear_prob_head_sc.pth",
+        ),
+        pretrained_filter_fn=encoder_checkpoint_filter_fn,
         dataset="scannet20",
         metrics={"mIoU": 78.59, "OA": 92.29},
         classes=SCANNET20_CLASSES,
@@ -382,7 +424,7 @@ def concerto_large(**hparams: Any) -> PointTransformerV3Encoder:
     transform=_CONCERTO_SEG_TRANSFORMS,
     hparams=dict(
         num_classes=20,
-        **_concerto_encoder_hparams(
+        **pretrained_encoder_hparams(
             encoder_depths=(3, 3, 3, 12, 3),
             encoder_channels=(64, 128, 256, 512, 768),
             encoder_num_heads=(4, 8, 16, 32, 48),

@@ -4,9 +4,6 @@ SRC:=src
 TESTS:=tests
 EXAMPLES:=examples
 DOCS:=docs
-# Pages generated from a notebook: the notebook is the source of truth, and its cells need
-# pretrained weights, datasets and a GPU that the doctest run has no access to.
-NOTEBOOK_PAGES:=$(patsubst %.ipynb,%.md,$(wildcard $(DOCS)/*/*.ipynb))
 CMD:=uv run --no-sync
 
 # Linting, formatting, etc.
@@ -49,10 +46,12 @@ doctest: ## Run doctests in source docstrings (>>> examples)
 	$(CMD) pytest --doctest-modules $(SRC)
 
 .PHONY: doctest-docs
-doctest-docs: ## Run python code blocks in source docstrings and the docs markdown
-	$(CMD) pytest --markdown-docs --markdown-docs-syntax=superfences $(SRC) $(DOCS) \
-		--ignore=$(DOCS)/scripts --ignore=$(DOCS)/examples --ignore=$(SRC)/torch_pointcloud/lightning \
-		$(addprefix --ignore=,$(NOTEBOOK_PAGES))
+doctest-docs: ## Run every python code block of the docstrings and the docs pages, the data ones included
+	$(CMD) pytest $(TESTS)/test_docs_examples.py --run-docs
+
+.PHONY: test-hub
+test-hub: ## Compare the Hugging Face Hub repositories (cards, configs, pinned weights) with the registry
+	$(CMD) pytest $(TESTS)/models/test_hub_sync.py --run-hub
 
 # Documentation
 
@@ -71,6 +70,10 @@ notebooks: ## Render the committed notebooks to Markdown (docs/<section>/*.ipynb
 api: ## Regenerate the per-module API reference stubs (docs/api/)
 	$(CMD) python docs/scripts/build_api_reference.py torch_pointcloud --out docs/api
 
+.PHONY: changelog
+changelog: ## Render CHANGELOG.md as the changelog page (docs/changelog.md), unreleased section included
+	$(CMD) python docs/scripts/build_changelog.py --unreleased
+
 .PHONY: papers
 papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
 	$(CMD) python docs/scripts/build_paper_cards.py
@@ -79,11 +82,11 @@ papers: ## Render the previews behind the paper() macro (docs/assets/papers/)
 	rm -rf .cache
 
 .PHONY: docs
-docs: tables notebooks api ## Generate documentation
+docs: tables notebooks api changelog ## Generate documentation
 	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical build --strict
 
 .PHONY: serve
-serve: tables notebooks api ## Serve documentation
+serve: tables notebooks api changelog ## Serve documentation
 	JUPYTER_PLATFORM_DIRS=1 $(CMD) zensical serve
 
 # Docker (isolated CUDA environments, see docker/Dockerfile)
