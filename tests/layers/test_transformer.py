@@ -202,7 +202,17 @@ def test_packed_attention_fallback_does_not_synchronize() -> None:
     assert out.shape == x.shape
 
 
-@pytest.mark.parametrize("norm", [pytest.param("layer_norm", id="string"), pytest.param(nn.LayerNorm, id="class")])
+@pytest.mark.parametrize(
+    "norm",
+    [
+        pytest.param("layer_norm", id="string"),
+        pytest.param("LayerNorm", id="class-name"),
+        pytest.param("layernorm", id="lowercase"),
+        pytest.param("layer-norm", id="hyphen"),
+        pytest.param("layer", id="short"),
+        pytest.param(nn.LayerNorm, id="class"),
+    ],
+)
 def test_packed_transformer_block_keeps_samples_independent(norm: Any) -> None:
     torch.manual_seed(0)
     block = PackedTransformerBlock(32, 2, norm=norm, use_flash_attn=False).eval()

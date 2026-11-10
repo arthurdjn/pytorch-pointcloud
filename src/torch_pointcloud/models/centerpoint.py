@@ -374,7 +374,7 @@ class CenterPointPillarsDetection(DetectionModel):
     # nuScenes inference: lidar reflectance + sweep timestamp are the model's point features.
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
+            T.Cat(keys=[DataKeys.INTENSITY, DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
                 feature_key=DataKeys.X,
@@ -416,7 +416,7 @@ def centerpoint_voxel01_mmdet3d_nuscenes(**hparams: Any) -> CenterPointDetection
     ),
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
+            T.Cat(keys=[DataKeys.INTENSITY, DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
                 feature_key=DataKeys.X,
@@ -456,7 +456,7 @@ def centerpoint_voxel0075_mmdet3d_nuscenes(**hparams: Any) -> CenterPointDetecti
     ),
     transform=T.Compose(
         [
-            T.Cat(keys=[DataKeys.INTENSITY, "timestamp"], dst_key=DataKeys.X, dim=1),
+            T.Cat(keys=[DataKeys.INTENSITY, DataKeys.TIMESTAMP], dst_key=DataKeys.X, dim=1),
             T.HardVoxelize(
                 pos_key=DataKeys.POS,
                 feature_key=DataKeys.X,

@@ -26,12 +26,30 @@ def confusion_matrix(
         Confusion matrix of shape $(\text{num\_classes}, \text{num\_classes})$ where
         `cm[i, j]` is the number of points with true class `i`
         predicted as class `j`.
+
+    Raises:
+        ValueError: If a prediction or a target left after `ignore_index` lies outside $[0, \text{num\_classes})$.
+
+    Shape:
+        - preds, target: $(N,)$
+        - output: $(\text{num\_classes}, \text{num\_classes})$
+
+    Example:
+        ```pycon
+        >>> confusion_matrix(torch.tensor([0, 1, 1, 1]), torch.tensor([0, 1, 0, 1]), num_classes=2)
+        tensor([[1, 1],
+                [0, 2]])
+
+        ```
     """
     if ignore_index is not None:
         ignored = torch.as_tensor([ignore_index] if isinstance(ignore_index, int) else list(ignore_index))
         mask = ~torch.isin(target, ignored.to(target.device))
         preds = preds[mask]
         target = target[mask]
+
+    if ((preds < 0) | (preds >= num_classes) | (target < 0) | (target >= num_classes)).any():
+        raise ValueError(f"`preds` and `target` must hold class indices in [0, {num_classes}) outside `ignore_index`.")
 
     indices = (target.long() * num_classes + preds.long()).view(-1)
     flat = torch.bincount(indices, minlength=num_classes * num_classes)
@@ -101,7 +119,8 @@ def accuracy(
             accuracy.
         ignore_index: Class index, or indices, to ignore: points whose true class is ignored are dropped, and
             the ignored classes are left out of the mean. Indices outside $[0, C)$ have no effect.
-        zero_division: Accuracy given to a class without any point (and to an empty matrix with `"micro"`).
+        zero_division: Accuracy given to a class without any point (and to an empty matrix with `"micro"`, or
+            when every class is ignored with `"macro"`).
         class_names: Name of each class index; with `average="none"` the per-class accuracy comes back as a
             `{name: accuracy}` dict instead of a tensor.
 
@@ -138,4 +157,4 @@ def accuracy(
 
     if average == "none":
         return per_class if class_names is None else dict(zip(class_names, per_class.tolist()))
-    return per_class[keep].mean().item()
+    return per_class[keep].mean().item() if keep.any() else zero_division

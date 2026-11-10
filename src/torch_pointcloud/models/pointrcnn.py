@@ -877,7 +877,7 @@ class PointRCNNDetection(DetectionModel):
         )
 
     def _nms_single(self, boxes: Tensor, scores: Tensor, post_maxsize: int, thresh: float) -> Tensor:
-        r"""Class-agnostic BEV NMS keeping the top proposals (`class_agnostic_nms`).
+        r"""Class-agnostic BEV NMS keeping the top proposals.
 
         Args:
             boxes: Boxes $(N, 7)$.
@@ -905,7 +905,7 @@ class PointRCNNDetection(DetectionModel):
         gt_labels: Tensor,
         gt_batch: Tensor,
     ) -> Dict[str, Tensor]:
-        r"""Sample `roi_per_image` ROIs per scene and match each to a ground-truth box (ProposalTargetLayer).
+        r"""Sample `roi_per_image` ROIs per scene and match each to a ground-truth box.
 
         Per scene the proposals are matched to same-class ground-truth boxes by 3D IoU
         ([`boxes_iou3d`][torch_pointcloud.ops.box3d.boxes_iou3d]), a foreground / background subset is

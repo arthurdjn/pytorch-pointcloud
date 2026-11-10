@@ -205,7 +205,8 @@ def register_model(
     decorator placed above adds the former names of the entry.
 
     Args:
-        name: Registry name, `<architecture>[.<dataset tag>]` (e.g. `pointnext-sm.scanobjectnn-hardest.openpoints`).
+        name: Registry name, `<arch>[-<size>][.<dataset>[.<author>]]` (e.g.
+            `pointnext-sm.scanobjectnn-hardest.openpoints`).
         task: Registry the model belongs to (`pretraining`, `classification`, `semantic-segmentation`,
             `part-segmentation`, `instance-segmentation` or `detection`).
         hparams: Default keyword arguments the entry point is called with; `create_model` kwargs override them.
@@ -231,7 +232,7 @@ def register_model(
         task="classification",
         hparams=dict(in_channels=0, num_classes=15),
         weights=WeightsDict(
-            url="hf://my-org/pointnet-demo.scanobjectnn/resolve/main/model.safetensors",
+            url="hf://my-org/pointnet-demo.scanobjectnn/resolve/0123456789abcdef0123456789abcdef01234567/model.safetensors",
             dataset="scanobjectnn",
             metrics={"OA": 88.20},
         ),

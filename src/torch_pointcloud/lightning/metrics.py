@@ -101,7 +101,7 @@ class BoxAveragePrecision(Metric):
 
     Args:
         iou_per_class: Mapping of class index to the IoU threshold used to match its boxes. Keys are
-            coerced to `int` (YAML / OmegaConf mappings may arrive with string keys).
+            coerced to `int`.
         class_names: Optional class names used in the returned keys (defaults to the class index).
         interpolation: AP interpolation: `"all"` integrates the full precision-recall curve; `"r11"` /
             `"r40"` sample the KITTI 11- / 40-point recall grids.
@@ -463,8 +463,9 @@ class InstancePartMeanIntersectionOverUnion(Metric):
             )
 
         ious = part_intersection_over_union(preds, target, self.part_ids, category, batch)
-        self.iou_sum.index_add_(0, category, ious)
-        self.count += torch.bincount(category, minlength=self.count.numel())
+        present = torch.bincount(batch, minlength=category.numel()) > 0
+        self.iou_sum.index_add_(0, category[present], ious[present])
+        self.count += torch.bincount(category[present], minlength=self.count.numel())
 
     def compute(self) -> Dict[str, Tensor]:
         """Reduce the accumulated per-category IoU sums into `ins_mIoU` and `cls_mIoU`."""

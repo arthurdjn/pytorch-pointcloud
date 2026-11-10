@@ -1,4 +1,5 @@
 import math
+from typing import Literal
 
 import pytest
 import torch
@@ -275,3 +276,35 @@ def test_part_mean_iou_accumulates_batches() -> None:
     assert torch.equal(ious, whole)
     instance_miou = part_mean_intersection_over_union(ious, category)
     assert part_mean_intersection_over_union(ious, category, average="macro") != instance_miou
+
+
+@pytest.mark.parametrize(
+    ("preds", "target"),
+    [
+        pytest.param([0, 5], [0, 1], id="preds_above"),
+        pytest.param([0, -1], [0, 1], id="preds_below"),
+        pytest.param([0, 1], [0, 4], id="target_above"),
+        pytest.param([0, 1], [0, -1], id="target_below"),
+    ],
+)
+def test_part_iou_rejects_out_of_range_labels(preds: list[int], target: list[int]) -> None:
+    with pytest.raises(ValueError, match="part labels"):
+        part_intersection_over_union(torch.tensor(preds), torch.tensor(target), [[0, 1], [2, 3]], torch.tensor([0]))
+
+
+@pytest.mark.parametrize(
+    ("average", "expected"),
+    [
+        pytest.param("micro", 0.5, id="micro"),
+        pytest.param("macro", 0.375, id="macro"),
+        pytest.param("none", [0.75, 0.0], id="none"),
+    ],
+)
+def test_part_mean_iou_keeps_float64(average: Literal["micro", "macro", "none"], expected: object) -> None:
+    ious = torch.tensor([1.0, 0.5, 0.0], dtype=torch.float64)
+    out = part_mean_intersection_over_union(ious, torch.tensor([0, 0, 1]), average=average)
+    if isinstance(out, Tensor):
+        assert out.dtype == torch.float64
+        assert out.tolist() == expected
+    else:
+        assert out == expected
