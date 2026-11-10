@@ -6,7 +6,9 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models.tr3d import TR3DDetection, TR3DOutput
+from torch_pointcloud.models.fcaf3d import FCAF3DEncoder
+from torch_pointcloud.models.tr3d import TR3DDetection, TR3DNeck, TR3DOutput
+from torch_pointcloud.ops.voxelization import lookup_coordinates, voxelize_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
@@ -24,6 +26,31 @@ def _scenes(device: str, n_per_scene: int = 3000, batch_size: int = 2) -> Tuple[
     x = torch.rand(batch_size * n_per_scene, 3, generator=generator)
     batch = torch.arange(batch_size).repeat_interleave(n_per_scene)
     return x.to(device), pos.to(device), batch.to(device)
+
+
+@SPCONV
+@DEVICES
+def test_tr3d_neck_outputs_one_level_per_stage_but_the_coarsest(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    x, pos, batch = _scenes(device, n_per_scene=500)
+    sparse, _ = voxelize_to_spconv_tensor(x, pos, batch, voxel_size=0.05, alignment=32)
+    encoder = FCAF3DEncoder(3, 8, channels=(8, 16, 24), depths=(1, 1, 1)).eval()
+    neck = TR3DNeck((8, 16, 24), 12).eval()
+    spconv_to_device(encoder, device)
+    spconv_to_device(neck, device)
+    with torch.no_grad():
+        stages = encoder(sparse)
+        levels = neck(stages)
+
+    assert len(levels) == 2
+    for level, stage in zip(levels, stages):
+        assert level.features.shape[1] == 12
+        assert level.spatial_shape == stage.spatial_shape
+        # A level holds the voxels of its stage and those the coarser level generates around them.
+        assert (lookup_coordinates(level.indices, stage.indices) >= 0).all()
+        assert len(level.indices) == len(torch.unique(level.indices, dim=0))
 
 
 @SPCONV

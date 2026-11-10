@@ -7,8 +7,8 @@ from torch import Tensor
 from torch_geometric.nn import InstanceNorm
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models.fcaf3d import FCAF3DDetection, FCAF3DOutput
-from torch_pointcloud.ops.voxelization import lookup_coordinates
+from torch_pointcloud.models.fcaf3d import FCAF3DDetection, FCAF3DEncoder, FCAF3DOutput
+from torch_pointcloud.ops.voxelization import lookup_coordinates, voxelize_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
 SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
@@ -26,6 +26,32 @@ def _scenes(device: str, n_per_scene: int = 3000, batch_size: int = 2) -> Tuple[
     x = torch.rand(batch_size * n_per_scene, 3, generator=generator)
     batch = torch.arange(batch_size).repeat_interleave(n_per_scene)
     return x.to(device), pos.to(device), batch.to(device)
+
+
+@SPCONV
+@DEVICES
+def test_fcaf3d_encoder_halves_the_resolution_at_every_stage(
+    device: str,
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    x, pos, batch = _scenes(device, n_per_scene=500)
+    sparse, _ = voxelize_to_spconv_tensor(x, pos, batch, voxel_size=0.05, alignment=32)
+    encoder = FCAF3DEncoder(3, 8, channels=(8, 16, 24), depths=(1, 2, 1)).eval()
+    spconv_to_device(encoder, device)
+    with torch.no_grad():
+        stages = encoder(sparse)
+
+    assert encoder.strides == (8, 16, 32)
+    assert [stage.features.shape[1] for stage in stages] == [8, 16, 24]
+    for stage, stride in zip(stages, encoder.strides):
+        indices = sparse.indices.long()
+        parents = torch.cat([indices[:, :1], indices[:, 1:] // stride], dim=1).unique(dim=0)
+        assert torch.equal(stage.indices.long(), parents)
+
+
+def test_fcaf3d_encoder_rejects_channels_and_depths_of_different_lengths() -> None:
+    with pytest.raises(ValueError, match="same length"):
+        FCAF3DEncoder(3, 8, channels=(8, 16), depths=(1,))
 
 
 @SPCONV
