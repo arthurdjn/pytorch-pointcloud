@@ -2,7 +2,7 @@ r"""Stepwise exponential decay of the BatchNorm momentum over the epochs."""
 
 from torch import nn
 
-__all__ = ["BNMomentumScheduler"]
+__all__ = ["BNMomentumScheduler", "bn_momentum", "set_bn_momentum"]
 
 
 def bn_momentum(

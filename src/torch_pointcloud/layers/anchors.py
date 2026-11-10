@@ -510,7 +510,7 @@ def prediction_branch(
 class AnchorGroupHead(nn.Module):
     r"""One RPN head of [`MultiGroupAnchorHead`][torch_pointcloud.layers.anchors.MultiGroupAnchorHead].
 
-    A `SeparateHead`-style head over the shared feature: a classification branch plus one regression
+    A head over the shared feature: a classification branch plus one regression
     branch per box-code group (`reg`, `height`, `size`, `angle`, `velo`), whose outputs are
     concatenated into the per-anchor box code. Predictions are reshaped to the multihead layout
     $(B, A, \cdot)$ with $A$ the anchors of this head's class group.
@@ -561,9 +561,8 @@ class AnchorGroupHead(nn.Module):
             norm=norm,
             norm_kwargs=norm_kwargs,
         )
-        # Register conv_box before conv_cls so the parameter order matches the reference
-        # checkpoint (its `SeparateHead` lists the regression branches first), keeping conversion a
-        # straight positional alignment.
+        # `conv_box` is registered before `conv_cls`: the pretrained checkpoints list the regression branches first
+        # and their conversion pairs the parameters by position.
         self.conv_box = nn.ModuleDict()
         self.conv_box_names: List[str] = []
         code_size_cnt = 0
@@ -620,7 +619,7 @@ class MultiGroupAnchorHead(nn.Module):
         anchor_sizes: Per-class box size $(d_x, d_y, d_z)$, shape $(\text{num\_classes}, 3)$.
         anchor_bottom_heights: Per-class anchor bottom $z$, shape $(\text{num\_classes},)$.
         head_class_groups: Class-index groups, one per RPN head (e.g. `[[0], [1, 2], ...]`); the
-            classes in each group share one `SeparateHead`.
+            classes in each group share one `AnchorGroupHead`.
         anchor_rotations: Yaw angles (radians) shared by all classes.
         feature_map_stride: BEV feature-map stride of the head.
         shared_conv_num_filter: Channels of the shared conv.
@@ -694,9 +693,8 @@ class MultiGroupAnchorHead(nn.Module):
         for group in head_class_groups:
             num_anchors = sum(num_anchors_per_class[i] for i in group)
             label_indices = torch.tensor([i + 1 for i in group], dtype=torch.long)
-            # The reference per-group SeparateHead uses default BatchNorm hyperparameters (eps 1e-5),
-            # unlike the trunk / shared conv (eps 1e-3); `norm_kwargs` is left at the default so a
-            # converted checkpoint stays bit-exact.
+            # The group heads keep the default BatchNorm hyperparameters (eps 1e-5), unlike the trunk and the
+            # shared conv (eps 1e-3): the pretrained weights were trained with them, so `norm_kwargs` is not passed.
             head = AnchorGroupHead(
                 shared_conv_num_filter,
                 len(group),

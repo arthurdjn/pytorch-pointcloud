@@ -159,7 +159,7 @@ def serialize(
         )
 
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
-    depth = max(int(pos_grid.max()).bit_length(), 1)
+    depth = max(int(pos_grid.max()).bit_length(), 1) if pos_grid.numel() else 1
     serialized_code = torch.stack([serialize_pos(pos_grid, batch, depth=depth, order=order) for order in orders])
     serialized_order = torch.argsort(serialized_code, dim=1)
     serialized_inverse = torch.argsort(serialized_order, dim=1)
