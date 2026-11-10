@@ -279,6 +279,40 @@ def test_sliding_window_cloud_keys_give_each_element_its_own_cloud_row(
     assert torch.equal(out, category[batch])
 
 
+def test_sliding_window_cloud_keys_follow_the_rank_of_non_contiguous_batch_ids() -> None:
+    """With batch ids 0 and 2, the second cloud gets the second row of a per-cloud key."""
+    batch = torch.tensor([0, 0, 0, 2, 2, 2, 2])
+    category = torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(7, 3), DataKeys.BATCH: batch, DataKeys.CATEGORY: category}
+
+    out = sliding_window_inference(
+        data,
+        predictor=lambda d: d[DataKeys.CATEGORY][d[DataKeys.BATCH]],
+        block_size=None,
+        cloud_keys=DataKeys.CATEGORY,
+    )
+    assert torch.equal(out, category[torch.tensor([0, 0, 0, 1, 1, 1, 1])])
+
+
+def test_sliding_window_block_bbox_reaches_the_transform_only() -> None:
+    """A block of 6 points has as many rows as its 3D bbox has values: the bbox is neither chunked like a
+    per-point tensor nor handed to the predictor."""
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(6, 3), DataKeys.BATCH: torch.zeros(6, dtype=torch.long)}
+    bboxes: List[Tensor] = []
+
+    def spy(window: Dict[str, Any]) -> Dict[str, Any]:
+        bboxes.append(window[DataKeys.BLOCK_BBOX])
+        return window
+
+    def predictor(window: Dict[str, Any]) -> Tensor:
+        assert DataKeys.BLOCK_BBOX not in window
+        return torch.ones(window[DataKeys.POS].size(0), 2)
+
+    out = sliding_window_inference(data, predictor=predictor, block_size=None, roi_num_points=4, transform=spy, seed=0)
+    assert [tuple(bbox.shape) for bbox in bboxes] == [(6,)]
+    assert torch.equal(out, torch.ones(6, 2))
+
+
 def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:
     """`aggregate="vote"` casts one argmax vote per covering block: the output holds vote fractions, so a
     point covered by two blocks that disagree ends up at 0.5 / 0.5 while unanimous points are one-hot."""

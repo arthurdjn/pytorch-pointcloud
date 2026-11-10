@@ -1197,7 +1197,7 @@ class PointTransformerV3Classification(ClassificationModel):
             `attn_kind="rope"`.
 
     Outputs:
-        logits: Float tensor of shape $(N, \text{num\_classes})$.
+        logits: Float tensor of shape $(B, \text{num\_classes})$.
     """
 
     def __init__(
@@ -1971,10 +1971,8 @@ def _ptv3_seg_hparams(
 def segmentation_transforms(
     relabel_labels: Optional[Sequence[int]] = None,
     estimate_normals: bool = False,
-    color_mean: float = 127.5,
-    color_std: float = 127.5,
 ) -> T.Compose:
-    r"""The color and normal inference pipeline of the indoor Point Transformer V3 and LitePT segmentation checkpoints,
+    r"""The color and normal inference pipeline of the indoor Point Transformer V3 segmentation checkpoints,
     on a 2 cm grid.
 
     Args:
@@ -1983,9 +1981,6 @@ def segmentation_transforms(
             that are already 0-based (S3DIS).
         estimate_normals: Whether to estimate the normals by local PCA, for datasets without normals (S3DIS). They
             approximate, but do not equal, the mesh normals the released weights were trained on.
-        color_mean: Value subtracted from the 0-255 colors.
-        color_std: Value the centered colors are divided by. The defaults map the colors to $[-1, 1]$; `color_mean=0`
-            and `color_std=255` map them to $[0, 1]$.
 
     Returns:
         The `T.Compose` pipeline, which also runs on clouds without labels.
@@ -1993,7 +1988,7 @@ def segmentation_transforms(
     steps: List[Any] = [
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),
         T.Shift(keys=DataKeys.POS, method="min", axes=[2]),
-        T.Normalize(keys=DataKeys.COLOR, mean=[color_mean] * 3, std=[color_std] * 3),
+        T.Normalize(keys=DataKeys.COLOR, mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
     ]
     if estimate_normals:
         steps.append(T.EstimateNormals(keys=DataKeys.POS, dst_keys=DataKeys.NORMAL, orient_to_centroid=True))
@@ -2022,7 +2017,7 @@ def segmentation_transforms(
 
 
 def nuscenes_segmentation_transforms() -> T.Compose:
-    r"""The inference pipeline of the nuScenes Point Transformer V3 and LitePT segmentation checkpoints: the lidarseg
+    r"""The inference pipeline of the nuScenes Point Transformer V3 segmentation checkpoints: the lidarseg
     labels mapped to the 16 benchmark classes, the position and the intensity in $[0, 1]$ as features, on a 5 cm grid.
 
     Returns:

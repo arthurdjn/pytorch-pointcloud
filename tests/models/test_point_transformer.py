@@ -172,3 +172,39 @@ def test_point_transformer_seg_forward_features_and_head(
     x, _, _ = model_seg.forward_decoder(x, pos, batch, intermediates)
     logits = model_seg.forward_head(x)
     assert logits.shape == (data["pos"].shape[0], model_seg.num_classes)
+
+
+def test_point_transformer_clf_embeddings_follow_act_and_norm() -> None:
+    model = PointTransformerClassification(
+        in_channels=3,
+        num_classes=10,
+        encoder_depths=[2, 2],
+        encoder_channels=[32, 64],
+        encoder_attention_groups=[1, 1],
+        encoder_num_neighbors=[16, 16],
+        ratios=[0.25],
+        act="gelu",
+        norm=None,
+    )
+    assert isinstance(model.embeddings.act, torch.nn.GELU)
+    assert isinstance(model.embeddings.norms[0], torch.nn.Identity)
+
+
+def test_point_transformer_seg_embeddings_follow_act_and_norm() -> None:
+    model = PointTransformerSegmentation(
+        in_channels=3,
+        num_classes=10,
+        encoder_depths=[2, 2],
+        encoder_channels=[32, 64],
+        encoder_attention_groups=[1, 1],
+        encoder_num_neighbors=[16, 16],
+        decoder_depths=[2],
+        decoder_channels=[32],
+        decoder_attention_groups=[1],
+        decoder_num_neighbors=[16],
+        ratios=[0.25],
+        act="gelu",
+        norm=None,
+    )
+    assert isinstance(model.embeddings.act, torch.nn.GELU)
+    assert isinstance(model.embeddings.norms[0], torch.nn.Identity)

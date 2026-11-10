@@ -207,8 +207,7 @@ def random_sample_face_vertices(
     return_normals: bool = False,
     generator: Optional[torch.Generator] = None,
 ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face),
-    using:
+    """Randomly sample a fixed number of vertices from a 3D mesh (vertices, face).
 
     Note:
         The data is sampled uniformly from the mesh.
@@ -633,7 +632,8 @@ class SphereCrop(DictTransform, Randomizable):
             return data
 
         # pos may be integer grid coords (post-Voxelize); norm() needs float.
-        pos = data[self.pos_key].float()
+        pos = data[self.pos_key]
+        pos = pos if pos.is_floating_point() else pos.float()
         center = self._resolve_center(pos)
         if self.dst_center_key is not None:
             data[self.dst_center_key] = center.clone()

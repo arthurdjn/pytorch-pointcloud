@@ -9,12 +9,39 @@ from ._modules import ModuleLike, RegisteredModuleLike, create_module
 
 
 def drop_path(x: Tensor, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True) -> Tensor:
-    """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks),
-    as described in the paper :arxiv: [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382)
+    r"""Drop paths (Stochastic Depth): zero whole entries of the first dimension of `x`, as described in the paper
+    :arxiv: [Deep Networks with Stochastic Depth](https://arxiv.org/abs/1603.09382)
     by Gao Huang, Yu Sun, Zhuang Liu, Daniel Sedra, Kilian Weinberger.
+
+    One Bernoulli mask value is drawn per entry of the first dimension and broadcast over the others. On a padded
+    $(B, \ldots)$ tensor that drops the residual branch of whole samples; on packed $(N, C)$ features every row is a
+    point, so the branch is dropped per point, not per sample.
 
     Implementation is taken from original implementation by Ross Wightman in
     [pytorch-image-models](https://github.com/huggingface/pytorch-image-models/blob/main/timm/layers/drop.py).
+
+    Args:
+        x: Output of the residual branch.
+        drop_prob: Probability of zeroing an entry of the first dimension.
+        training: Whether to drop; `x` is returned unchanged when `False`.
+        scale_by_keep: Whether to divide the kept entries by $1 - \text{drop\_prob}$, which keeps the expectation.
+
+    Returns:
+        The masked tensor, same shape as `x`.
+
+    Shape:
+        - x: $(N, *)$
+        - output: $(N, *)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.layers.dropouts import drop_path
+        >>> x = torch.ones(6, 4)
+        >>> drop_path(x, drop_prob=0.5, training=True).shape
+        torch.Size([6, 4])
+
+        ```
     """
     if drop_prob == 0.0 or not training:
         return x
@@ -30,7 +57,29 @@ def drop_path(x: Tensor, drop_prob: float = 0.0, training: bool = False, scale_b
 
 
 class DropPath(nn.Module):
-    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks)."""
+    r"""Drop paths (Stochastic Depth) on the main path of a residual block, the module form of `drop_path`.
+
+    The mask holds one value per entry of the first dimension: whole samples of a padded $(B, \ldots)$ tensor, single
+    points (rows) of packed $(N, C)$ features.
+
+    Args:
+        drop_prob: Probability of zeroing an entry of the first dimension.
+        scale_by_keep: Whether to divide the kept entries by $1 - \text{drop\_prob}$, which keeps the expectation.
+
+    Shape:
+        - Input: $(N, *)$
+        - Output: $(N, *)$
+
+    Example:
+        ```pycon
+        >>> import torch
+        >>> from torch_pointcloud.layers import DropPath
+        >>> drop = DropPath(drop_prob=0.5)
+        >>> drop(torch.ones(6, 4)).shape
+        torch.Size([6, 4])
+
+        ```
+    """
 
     def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True):
         super(DropPath, self).__init__()

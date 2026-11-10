@@ -200,7 +200,7 @@ class VoxelResBackbone8xVoxelNeXt(nn.Module):
 
 
 class VoxelNeXtSeparateHead(nn.Module):
-    r"""Per-group sparse regression head (`SeparateHead`).
+    r"""Per-group sparse regression head.
 
     One small sparse 2D conv stack per box attribute (`hm`, `center`, ...). Every attribute has
     `num_conv` $- 1$ hidden `SubMConv2d` blocks (kernel `head_kernel_size`) followed by a $1\times1$
@@ -532,8 +532,8 @@ class VoxelNeXtDetection(DetectionModel):
             "rot": {"out_channels": 2, "num_conv": 2},
             "vel": {"out_channels": 2, "num_conv": 2},
         }
-        # The head uses a plain `nn.BatchNorm1d` (default eps), so the 3D-conv `norm_kwargs` eps
-        # override is intentionally not threaded into it (matches the reference `SeparateHead`).
+        # The head norm is a plain `nn.BatchNorm1d` with the default eps, which the pretrained weights were trained
+        # with: the `norm_kwargs` of the 3D convs are not passed to it.
         return VoxelNeXtHead(
             self.shared_conv_channels,
             self.head_class_groups,
