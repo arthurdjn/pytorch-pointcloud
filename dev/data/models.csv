@@ -3,6 +3,7 @@ act.modelnet40.runpei-dong,act,classification,modelnet40,true,MIT,22.10,OA,93.60
 act.scanobjectnn-hardest.runpei-dong,act,classification,scanobjectnn-hardest,true,MIT,22.09,OA,88.21,88.27,OA 88.27 · mAcc 86.63
 act.scanobjectnn-objbg.runpei-dong,act,classification,scanobjectnn-objbg,true,MIT,22.09,OA,93.29,93.29,OA 93.29 · mAcc 91.48
 act.scanobjectnn-objonly.runpei-dong,act,classification,scanobjectnn-objonly,true,MIT,22.09,OA,91.91,91.22,OA 91.22 · mAcc 90.26
+curvenet.modelnet40.tiange-xiang,curvenet,classification,modelnet40,true,MIT,2.14,OA,93.8,93.84,OA 93.84 · mAcc 91.14
 dgcnn.modelnet40-1024.an-tao,dgcnn,classification,modelnet40,true,MIT,1.81,OA,93.3,93.27,OA 93.27 · mAcc 90.89
 dgcnn.modelnet40-2048.an-tao,dgcnn,classification,modelnet40,true,MIT,1.81,OA,93.6,93.60,OA 93.60 · mAcc 91.18
 kpfcnn.modelnet40,kpconv,classification,modelnet40,false,,1.28,OA,,,
@@ -11,6 +12,7 @@ pcp-mae.modelnet40.xiangdong-zhang,pcp_mae,classification,modelnet40,true,MIT,22
 pcp-mae.scanobjectnn-hardest.xiangdong-zhang,pcp_mae,classification,scanobjectnn-hardest,true,MIT,22.34,OA,90.35,90.28,OA 90.28 · mAcc 89.42
 pcp-mae.scanobjectnn-objbg.xiangdong-zhang,pcp_mae,classification,scanobjectnn-objbg,true,MIT,22.34,OA,95.52,95.52,OA 95.52 · mAcc 94.82
 pcp-mae.scanobjectnn-objonly.xiangdong-zhang,pcp_mae,classification,scanobjectnn-objonly,true,MIT,22.34,OA,94.32,94.32,OA 94.32 · mAcc 94.06
+pct.modelnet40.strawberry-eat-mango,pct,classification,modelnet40,true,MIT,2.88,OA,93.2,93.27,OA 93.27 · mAcc 89.99
 point-bert-base.modelnet40-4k.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,92.91,92.99,OA 92.99 · mAcc 89.69
 point-bert-base.modelnet40-8k.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,93.19,93.07,OA 93.07 · mAcc 89.92
 point-bert-base.modelnet40.xumin-yu,point_bert,classification,modelnet40,true,MIT,22.07,OA,92.67,92.63,OA 92.63 · mAcc 89.56
@@ -199,6 +201,7 @@ volt-s.nuscenes.kadir-yilmaz,volt,semantic-segmentation,nuscenes,true,MIT,23.59,
 volt-s.scannet20.kadir-yilmaz,volt,semantic-segmentation,scannet20,true,MIT,23.69,mIoU,77.28,77.27,mIoU 77.27 · OA 91.77 · simple/mIoU 76.38 · simple/OA 91.36
 volt-s.scannet200.kadir-yilmaz,volt,semantic-segmentation,scannet200,true,MIT,23.71,mIoU,36.15,36.14,mIoU 36.14 · OA 83.85 · simple/mIoU 35.36 · simple/OA 83.32
 volt-s.semantickitti.kadir-yilmaz,volt,semantic-segmentation,semantickitti,true,MIT,23.59,mIoU,70.30,,simple/mIoU 69.42 · simple/OA 92.64
+curvenet.shapenetpart.tiange-xiang,curvenet,part-segmentation,shapenetpart,true,MIT,5.53,mIoU,86.6,86.67,ins_mIoU 86.67 · cls_mIoU 83.79
 dgcnn.shapenetpart.an-tao,dgcnn,part-segmentation,shapenetpart,true,MIT,1.46,mIoU,85.2,85.23,ins_mIoU 85.23 · cls_mIoU 80.92
 point-m2ae-base.shapenetpart.renrui-zhang,point_m2ae,part-segmentation,shapenetpart,true,MIT,25.47,mIoU,86.51,86.20,ins_mIoU 86.20 · cls_mIoU 84.62
 point-mae-base.shapenetpart.yatian-pang,point_mae,part-segmentation,shapenetpart,true,MIT,27.06,mIoU,86.1,86.20,ins_mIoU 86.20 · cls_mIoU 84.22

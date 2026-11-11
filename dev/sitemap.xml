@@ -187,6 +187,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/anchors/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/attention_gate/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/bev_backbone/</loc>
       </url>
       <url>
@@ -197,6 +200,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/conv3d_blocks/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/curvenet_blocks/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/cylinder3d_blocks/</loc>
@@ -232,6 +238,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/octree_blocks/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/pct_blocks/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pdnorm/</loc>
       </url>
       <url>
@@ -257,6 +266,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pvcnn_blocks/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/radius_max_pool/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/randlanet_blocks/</loc>
@@ -412,6 +424,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/models/threedetr/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/curvenet/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/dgcnn/</loc>
       </url>
       <url>
@@ -437,6 +452,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/pcp_mae/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/pct/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/point2vec/</loc>
