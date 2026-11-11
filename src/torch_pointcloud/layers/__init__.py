@@ -98,6 +98,7 @@ from .serialized_attention import (
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import (
     SparseBasicBlock,
+    SparseBasicStage,
     SparseConvBlock,
     SparseModule,
     SparseResidualBlock,
@@ -226,6 +227,7 @@ __all__ = [
     "SerializedPool",
     "SerializedUpsample",
     "SparseBasicBlock",
+    "SparseBasicStage",
     "SparseConvBlock",
     "SparseModule",
     "SparseResidualBlock",
