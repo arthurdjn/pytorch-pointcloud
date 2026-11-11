@@ -26,6 +26,7 @@ from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .litept import LitePTSegmentation
+from .minkunet import MinkUNetSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
 from .pcp_mae import PCPMAEClassification, PCPMAEPretraining
@@ -92,6 +93,7 @@ __all__ = [
     "KPFCNNSegmentation",
     "LIONDetection",
     "LitePTSegmentation",
+    "MinkUNetSegmentation",
     "OctFormerClassification",
     "OctFormerSegmentation",
     "PointBERTClassification",

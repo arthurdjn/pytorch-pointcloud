@@ -58,6 +58,7 @@ DISPLAY_TITLES = {
     "voxel_mamba": "Voxel-Mamba",
     "transfusion": "TransFusion-L",
     "lion": "LION",
+    "minkunet": "MinkUNet",
     "point_bert": "Point-BERT",
     "point_mae": "Point-MAE",
     "point_m2ae": "Point-M2AE",

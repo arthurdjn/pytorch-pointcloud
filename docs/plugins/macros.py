@@ -38,6 +38,7 @@ MODEL_LABELS = {
     "kpconv": "KPConv",
     "lion": "LION",
     "litept": "LitePT",
+    "minkunet": "MinkUNet",
     "octformer": "OctFormer",
     "pcp_mae": "PCP-MAE",
     "point2vec": "point2vec",

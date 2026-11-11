@@ -7,6 +7,8 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+- Added MinkUNet (`MinkUNetSegmentation`) with the SemanticKITTI checkpoints of MMDetection3D and SPVNAS, and its benchmark and training scripts.
+- Added `ops.voxelization.lookup_coordinates`, `ops.voxelization.trilinear_sparse_devoxelize`, the `SparseBasicStage` layer, and `return_intermediates` to `SparseUNetDecoder`.
 
 ## 0.0.20 (2026-11-10)
 
