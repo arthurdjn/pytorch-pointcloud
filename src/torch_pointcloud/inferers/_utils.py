@@ -1,6 +1,5 @@
-"""Shared inferer helpers: dict indexing, per-fragment transforms, chunk splitting, Gaussian weighting, former names."""
+"""Shared inferer helpers: dict indexing, per-fragment transforms, chunk splitting and Gaussian weighting."""
 
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -121,17 +120,3 @@ def gaussian_weights(distances: Tensor, sigma: Union[float, Tensor], eps: float 
     """
     safe_sigma = sigma.clamp_min(eps) if isinstance(sigma, Tensor) else max(sigma, eps)
     return torch.exp(-0.5 * (distances / safe_sigma) ** 2)
-
-
-def renamed_attribute(name: str, renamed: Dict[str, str], module: str) -> str:
-    """Return the current name of `name`, a former attribute of `module`, with a `FutureWarning`.
-
-    Called from the module-level `__getattr__` of a module whose `renamed` maps former names to current ones.
-    Raises `AttributeError` for a name that is not in `renamed`.
-    """
-    if name not in renamed:
-        raise AttributeError(f"module {module!r} has no attribute {name!r}")
-
-    # Frame 3 is the code that reads the former name: this function, then the module `__getattr__`, then it.
-    warnings.warn(f"`{name}` is deprecated; use `{renamed[name]}` instead.", FutureWarning, stacklevel=3)
-    return renamed[name]

@@ -22,9 +22,10 @@ from torch_pointcloud.ops.box3d import limit_period
 from torch_pointcloud.transforms import Compose, RandomFlip, RandomRotate, RandomScale, Transform
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate, decollate
+from torch_pointcloud.utils.deprecation import renamed_attribute
 from torch_pointcloud.utils.types import Detection3D, KeyCollection
 
-from ._utils import check_batch_alignment, renamed_attribute
+from ._utils import check_batch_alignment
 from .inferer import DetectionInferer, Inferer, SegmentationInferer
 from .simple import SimpleInferer
 

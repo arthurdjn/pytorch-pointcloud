@@ -29,6 +29,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate
+from torch_pointcloud.utils.deprecation import renamed_attribute
 from torch_pointcloud.utils.types import KeyCollection
 
 from ._utils import (
@@ -36,7 +37,6 @@ from ._utils import (
     check_batch_alignment,
     gaussian_weights,
     index_select_dict,
-    renamed_attribute,
     split_chunks,
 )
 from .inferer import SegmentationInferer
