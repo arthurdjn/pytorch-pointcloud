@@ -46,6 +46,7 @@ DISPLAY_TITLES = {
     "spvcnn": "SPVCNN",
     "cylinder3d": "Cylinder3D",
     "spunet": "SpUNet",
+    "spformer": "SPFormer",
     "spformer_unet": "SPFormer-UNet",
     "sphereformer": "SphereFormer",
     "oneformer3d": "OneFormer3D",

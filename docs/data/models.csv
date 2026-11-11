@@ -220,6 +220,7 @@ pvcnn-c0p5.shapenetpart.mit-han-lab,pvcnn,part-segmentation,shapenetpart,true,MI
 pvcnn-dml.shapenetpart.mit-han-lab,pvcnn,part-segmentation,shapenetpart,true,MIT,4.20,mIoU,86.1,86.01,ins_mIoU 86.01 · cls_mIoU 84.44
 pvcnn.shapenetpart.mit-han-lab,pvcnn,part-segmentation,shapenetpart,true,MIT,4.20,mIoU,85.8,85.88,ins_mIoU 85.88 · cls_mIoU 84.14
 recon.shapenetpart.zekun-qi,recon,part-segmentation,shapenetpart,true,MIT,48.54,mIoU,86.41,86.15,ins_mIoU 86.15 · cls_mIoU 84.40
+spformer.scannet.jiahao-sun,spformer,instance-segmentation,scannet,true,MIT,17.60,mAP,56.3,56.47,mAP 56.47 · mAP@0.5 73.93 · mAP@0.25 82.55
 3detr-m.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.44,mAP,65.0,65.46,mAP@0.25 65.46 · mAP@0.5 47.26
 3detr-m.sunrgbd.fair,threedetr,detection,sunrgbd,true,Apache-2.0,7.44,mAP,59.1,59.70,mAP@0.25 59.70 · mAP@0.5 31.29
 3detr.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.31,mAP,62.1,61.37,mAP@0.25 61.37 · mAP@0.5 38.43

@@ -43,6 +43,7 @@ neither are marked as such.
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
 | heig-vd-geo/PTv3_GridNet-HD_baseline (Hugging Face) | `heig-vd-geo` | MIT         | 1     | not stated upstream                                                                                                        |
+| sunjiahao1999/SPFormer                          | `jiahao-sun`     | MIT          | 1     | Copyright (c) 2022 Jiahao Sun                                                                                              |
 | cardwing/Codes-for-PVKD                         | `yuenan-hou`     | MIT          | 1     | Copyright (c) 2022 HOU Yuenan                                                                                              |
 | xinge008/Cylinder3D                             | `xinge-zhu`      | Apache-2.0   | 1     | Copyright 2020-2021 Xinge ZHU                                                                                              |
 
@@ -57,7 +58,7 @@ Licenses of the datasets the checkpoints were trained on.
 | ModelNet40                                      | academic research only                                    | 23          |
 | SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
-| ScanNet                                         | terms of use, non-commercial research and educational use | 19          |
+| ScanNet                                         | terms of use, non-commercial research and educational use | 20          |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 8           |
 | ScanNet++, ARKitScenes (joint training)         | non-commercial                                            | 4           |
 | Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
@@ -89,7 +90,7 @@ Files adapted from other implementations, with the copyright notice each source 
 | happinesslz/LION                  | Apache-2.0 | `models/lion.py`                                                                                                                                                           | not stated upstream                                                           |
 | gwenzhang/Voxel-Mamba             | Apache-2.0 | `models/voxel_mamba.py`, `layers/vfe.py`                                                                                                                                   | not stated upstream                                                           |
 | JIA-Lab-research/VoxelNeXt        | Apache-2.0 | `models/voxelnext.py`                                                                                                                                                      | not stated upstream                                                           |
-| sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`                                                                                                                                                  | Copyright (c) 2022 Jiahao Sun                                                 |
+| sunjiahao1999/SPFormer            | MIT        | `models/spformer_unet.py`, `models/spformer.py`, `layers/masked_query_decoder_layer.py`, `losses/spformer.py`                                                              | Copyright (c) 2022 Jiahao Sun                                                 |
 | Julie-tang00/Point-BERT           | MIT        | `models/point_bert.py`                                                                                                                                                     | Copyright (c) 2021 Xumin Yu                                                   |
 | Pang-Yatian/Point-MAE             | MIT        | `models/point_mae.py`                                                                                                                                                      | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
 | ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                                                                                     | Copyright (c) 2022 Renrui Zhang                                               |

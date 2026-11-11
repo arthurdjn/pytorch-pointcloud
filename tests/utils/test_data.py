@@ -410,6 +410,15 @@ def test_select_inputs_missing_key_raises() -> None:
         select_inputs({"pos": torch.rand(4, 3)}, ("x", "pos_grid"))
 
 
+def test_select_inputs_missing_batch_key_names_the_cat_keys() -> None:
+    data = {"inverse": torch.zeros(4, dtype=torch.long), "batch_superpoint": torch.zeros(4, dtype=torch.long)}
+    with pytest.raises(KeyError, match=r"'batch_inverse' not found .* Collate with `cat_keys=\['inverse'\]`"):
+        select_inputs(data, ("inverse", "batch_inverse"))
+    with pytest.raises(KeyError, match="'batch_pos' not found") as error:
+        select_inputs(data, ("batch_pos",))
+    assert "cat_keys" not in str(error.value)
+
+
 def test_select_inputs_dotted_key_reads_an_attribute() -> None:
     octree = SimpleNamespace(depth=6)
     assert select_inputs({"octree": octree}, ("octree", "octree.depth")) == [octree, 6]

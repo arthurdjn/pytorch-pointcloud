@@ -39,6 +39,7 @@ OPS_MODULES = [
     "octree",
     "roi",
     "serialization",
+    "superpoint",
     "voxelization",
 ]
 

@@ -98,6 +98,9 @@ $RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" -
 $RUN examples/pointnet2/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnet2-ssg.shapenetpart.mit-han-lab
 $RUN examples/pointnet2/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnet2-msg.shapenetpart.mit-han-lab
 
+# Indoor instance segmentation (ScanNet)
+$RUN examples/spformer/instance_segmentation_scannet_benchmark.py --root "$ROOT" --model spformer.scannet.jiahao-sun
+
 # Indoor detection (SUN RGB-D, ScanNet, S3DIS)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
 $RUN examples/votenet/detection_scannet_benchmark.py --root "$ROOT" --model votenet.scannet.fair
