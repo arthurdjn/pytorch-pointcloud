@@ -79,6 +79,7 @@ MODEL_LABELS = {
     "volt": "Volt",
     "votenet": "VoteNet",
     "voxel_mamba": "Voxel-Mamba",
+    "voxel_rcnn": "Voxel R-CNN",
     "voxelnext": "VoxelNeXt",
 }
 

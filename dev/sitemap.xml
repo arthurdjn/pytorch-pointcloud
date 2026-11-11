@@ -541,6 +541,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/models/voxel_mamba/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/voxel_rcnn/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/voxelnext/</loc>
       </url>
       <url>
@@ -575,6 +578,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/ops/octree/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/ops/roi/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/ops/serialization/</loc>

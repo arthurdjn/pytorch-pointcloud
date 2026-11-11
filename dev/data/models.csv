@@ -254,6 +254,7 @@ votenet.scannet.mmdet3d,votenet,detection,scannet,true,Apache-2.0,0.95,mAP,62.34
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 votenet.sunrgbd.mmdet3d,votenet,detection,sunrgbd,true,Apache-2.0,0.95,mAP,59.78,59.80,mAP@0.25 59.80 · mAP@0.5 36.87
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
+voxel-rcnn.kitti-car.openpcdet,voxel_rcnn,detection,kitti,true,Apache-2.0,7.59,mAP,84.54,84.53,mAP 84.53 · AP/Car 84.53
 voxelnext.nuscenes.openpcdet,voxelnext,detection,nuscenes,true,Apache-2.0,7.98,mAP,60.5,61.41,mAP 61.41 · NDS 66.92
 act.dvae.runpei-dong,act,pretraining,shapenet55,true,MIT,116.19,,,,
 act.pretrain.runpei-dong,act,pretraining,shapenet55,true,MIT,141.76,,,,

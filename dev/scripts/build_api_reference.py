@@ -55,6 +55,7 @@ DISPLAY_TITLES = {
     "pointrcnn": "PointRCNN",
     "centerpoint": "CenterPoint",
     "pv_rcnn": "PV-RCNN",
+    "voxel_rcnn": "Voxel R-CNN",
     "fcaf3d": "FCAF3D",
     "tr3d": "TR3D",
     "voxelnext": "VoxelNeXt",
