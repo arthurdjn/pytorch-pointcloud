@@ -32,6 +32,7 @@ from .curvenet_blocks import (
     CurveWalk,
     LocalPointFeatureAggregation,
 )
+from .cylinder3d_blocks import AsymmetricResidualBlock, AsymmetricUpsampleBlock, DimensionDecompositionBlock
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -63,6 +64,7 @@ from .pointconv_blocks import (
 )
 from .pointnet2_blocks import (
     PointNet2Conv,
+    PointNet2DecomposedQuerySetAbstraction,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
     PointNet2QuerySetAbstraction,
@@ -108,9 +110,11 @@ from .serialized_attention import (
 from .serialized_pool import SerializedPool, SerializedUpsample
 from .spconv_blocks import (
     SparseBasicBlock,
+    SparseBasicStage,
     SparseConvBlock,
     SparseModule,
     SparseResidualBlock,
+    StridedSparseConv3d,
     SubMConv3dBlock,
     SubMConv3dResidualBlock,
 )
@@ -131,7 +135,7 @@ from .transfusion_head import (
     TransFusionHeadOutput,
     TransFusionPredictionHead,
 )
-from .vfe import DynamicMeanVFE, PillarFeatureLayer
+from .vfe import DynamicMaxVFE, DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
 from .voxel_patch import VoxelPatchEmbed, VoxelPatchExpand
@@ -170,6 +174,9 @@ __all__ = [
     "CurveNetFeaturePropagation",
     "CurveWalk",
     "LocalPointFeatureAggregation",
+    "AsymmetricResidualBlock",
+    "AsymmetricUpsampleBlock",
+    "DimensionDecompositionBlock",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -204,6 +211,7 @@ __all__ = [
     "PointConvGlobalSetAbstraction",
     "PointConvSetAbstraction",
     "PointNet2Conv",
+    "PointNet2DecomposedQuerySetAbstraction",
     "PointNet2FeaturePropagation",
     "PointNet2GlobalSetAbstraction",
     "PointNet2QuerySetAbstraction",
@@ -243,9 +251,11 @@ __all__ = [
     "SerializedPool",
     "SerializedUpsample",
     "SparseBasicBlock",
+    "SparseBasicStage",
     "SparseConvBlock",
     "SparseModule",
     "SparseResidualBlock",
+    "StridedSparseConv3d",
     "SubMConv3dBlock",
     "SubMConv3dResidualBlock",
     "DynamicTNet",
@@ -263,6 +273,7 @@ __all__ = [
     "TransFusionHead",
     "TransFusionHeadOutput",
     "TransFusionPredictionHead",
+    "DynamicMaxVFE",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",

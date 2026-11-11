@@ -4,6 +4,7 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.pointnet2_blocks import (
     PointNet2Conv,
+    PointNet2DecomposedQuerySetAbstraction,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
     PointNet2QuerySetAbstraction,
@@ -214,3 +215,61 @@ def test_pointnet2_query_set_abstraction_keeps_the_first_neighbors_in_index_orde
 def test_pointnet2_query_set_abstraction_rejects_mismatched_scales() -> None:
     with pytest.raises(ValueError, match="one entry per scale"):
         PointNet2QuerySetAbstraction(2, [[4]], radii=[0.1, 0.2], num_neighbors=[4])
+
+
+def test_pointnet2_decomposed_query_set_abstraction_concatenates_scales_at_query_points() -> None:
+    torch.manual_seed(0)
+    sa = PointNet2DecomposedQuerySetAbstraction(
+        2,
+        [[8, 8], [4, 6, 5]],
+        radii=[0.5, 1.0],
+        num_neighbors=[4, 8],
+    ).eval()
+    pos = torch.rand(40, 3)
+    x = torch.randn(40, 2)
+    batch = torch.cat([torch.zeros(20), torch.ones(20)]).long()
+    out = sa(x, pos, batch, torch.rand(6, 3), torch.tensor([0, 0, 0, 1, 1, 1]))
+    assert sa.out_channels == 13
+    assert out.shape == (6, 13)
+
+
+def test_pointnet2_decomposed_query_set_abstraction_matches_a_dense_reference() -> None:
+    torch.manual_seed(0)
+    sa = PointNet2DecomposedQuerySetAbstraction(3, [[8, 4]], radii=[0.4], num_neighbors=[64]).eval()
+    pos, x = torch.rand(50, 3), torch.randn(50, 3)
+    batch = torch.cat([torch.zeros(30), torch.ones(20)]).long()
+    pos_query, batch_query = torch.rand(10, 3), torch.tensor([0] * 5 + [1] * 5)
+    with torch.no_grad():
+        out = sa(x, pos, batch, pos_query, batch_query)
+        features = sa.feature_mlps[0](x)
+        expected = []
+        for i in range(10):
+            inside = ((pos - pos_query[i]).norm(dim=1) <= 0.4) & (batch == batch_query[i])
+            if inside.any():
+                message = torch.relu(features[inside] + sa.pos_mlps[0](pos[inside] - pos_query[i]))
+            else:
+                message = torch.relu(sa.pos_mlps[0](torch.zeros(1, 3)))
+            expected.append(sa.out_mlps[0](message.amax(dim=0, keepdim=True)))
+    assert torch.allclose(out, torch.cat(expected), atol=1e-6)
+
+
+def test_pointnet2_decomposed_query_set_abstraction_keeps_the_first_neighbors_in_index_order() -> None:
+    sa = PointNet2DecomposedQuerySetAbstraction(1, [[1, 1]], radii=[1.0], num_neighbors=[2], norm=None, act=None)
+    with torch.no_grad():
+        for mlp, value in ((sa.feature_mlps[0], 1.0), (sa.pos_mlps[0], 0.0), (sa.out_mlps[0], 1.0)):
+            assert isinstance(mlp, MLP)
+            weight = mlp.lins[0].weight
+            assert isinstance(weight, torch.Tensor)
+            weight.fill_(value)
+        pos = torch.zeros(4, 3)
+        x = torch.tensor([[1.0], [2.0], [9.0], [8.0]])
+        out = sa(x, pos, torch.zeros(4, dtype=torch.long), torch.zeros(1, 3), torch.zeros(1, dtype=torch.long))
+    # The ball holds all four points, but only the first two in index order are pooled.
+    assert out.item() == 2.0
+
+
+def test_pointnet2_decomposed_query_set_abstraction_rejects_bad_channels() -> None:
+    with pytest.raises(ValueError, match="one entry per scale"):
+        PointNet2DecomposedQuerySetAbstraction(2, [[4, 4]], radii=[0.1, 0.2], num_neighbors=[4])
+    with pytest.raises(ValueError, match="at least two sizes"):
+        PointNet2DecomposedQuerySetAbstraction(2, [[4]], radii=[0.1], num_neighbors=[4])

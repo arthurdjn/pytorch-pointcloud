@@ -124,6 +124,11 @@
     "date": "July 2020",
     "title": "Searching Efficient 3D Architectures with Sparse Point-Voxel Convolution"
   },
+  "2011.10033": {
+    "crop": 0.47,
+    "date": "November 2020",
+    "title": "Cylindrical and Asymmetrical 3D Convolution Networks for LiDAR Segmentation"
+  },
   "2012.09164": {
     "crop": 0.47,
     "date": "December 2020",
@@ -133,6 +138,11 @@
     "crop": 0.47,
     "date": "December 2020",
     "title": "PCT: Point Cloud Transformer"
+  },
+  "2012.15712": {
+    "crop": 0.47,
+    "date": "December 2020",
+    "title": "Voxel R-CNN: Towards High Performance Voxel-based 3D Object Detection"
   },
   "2105.01288": {
     "crop": 0.47,
@@ -148,6 +158,11 @@
     "crop": 0.47,
     "date": "November 2021",
     "title": "Point-BERT: Pre-training 3D Point Cloud Transformers with Masked Point Modeling"
+  },
+  "2112.00322": {
+    "crop": 0.47,
+    "date": "December 2021",
+    "title": "FCAF3D: Fully Convolutional Anchor-Free 3D Object Detection"
   },
   "2202.07123": {
     "crop": 0.47,
@@ -193,6 +208,11 @@
     "crop": 0.47,
     "date": "February 2023",
     "title": "Contrast with Reconstruct: Contrastive 3D Representation Learning Guided by Generative Pretraining"
+  },
+  "2302.02858": {
+    "crop": 0.47,
+    "date": "February 2023",
+    "title": "TR3D: Towards Real-Time Indoor 3D Object Detection"
   },
   "2303.11301": {
     "crop": 0.47,

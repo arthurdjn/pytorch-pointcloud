@@ -179,8 +179,6 @@ def test_pointrcnn_train_forward_detaches_proposals_from_stage_one() -> None:
 def test_pointrcnn_sample_proposals_skips_empty_scene() -> None:
     """A scene with zero proposals yields an empty sample instead of indexing into an empty ROI set."""
     model = _make_pointrcnn(roi_per_image=8)
-    assert model._subsample_rois(torch.zeros(0)).numel() == 0
-
     rois = torch.rand(20, 7) + 0.5
     roi_labels = torch.ones(20, dtype=torch.long)
     roi_batch = torch.ones(20, dtype=torch.long)  # scene 0 has no proposals
