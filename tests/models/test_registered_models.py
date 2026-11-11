@@ -399,7 +399,20 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     _skip_if_model_deps_missing(model_name)
     if (
         model_name.startswith(
-            ("point-mamba", "spvcnn", "spformer", "spunet", "minkunet", "octformer", "ptv3", "litept", "cylinder3d")
+            (
+                "point-mamba",
+                "spvcnn",
+                "spformer",
+                "spunet",
+                "minkunet",
+                "octformer",
+                "ptv3",
+                "sonata",
+                "concerto",
+                "utonia",
+                "litept",
+                "cylinder3d",
+            )
         )
         and not torch.cuda.is_available()
     ):
