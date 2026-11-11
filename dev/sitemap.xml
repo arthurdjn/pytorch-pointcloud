@@ -199,6 +199,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/conv3d_blocks/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/cylinder3d_blocks/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/dropouts/</loc>
       </url>
       <url>
@@ -392,6 +395,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/concerto/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/cylinder3d/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/threedetr/</loc>
