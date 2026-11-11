@@ -245,3 +245,13 @@ $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt
 $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-s-joint.scannet200.kadir-yilmaz --sw-batch-size 4
 $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet20.kadir-yilmaz --sw-batch-size 2
 $RUN examples/volt/segmentation_scannet_benchmark.py --root "$ROOT" --model volt-b-joint.scannet200.kadir-yilmaz --sw-batch-size 2
+
+# Registration (3DMatch, 3DLoMatch)
+$RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DMatch
+$RUN examples/geotransformer/registration_3dmatch_benchmark.py --root "$ROOT" --model geotransformer.3dmatch.zheng-qin --benchmark 3DLoMatch
+
+# Registration (KITTI odometry)
+$RUN examples/geotransformer/registration_kitti_benchmark.py --root "$ROOT" --model geotransformer.kitti.zheng-qin
+
+# Registration (ModelNet40 pairs)
+$RUN examples/geotransformer/registration_modelnet40_benchmark.py --root "$ROOT" --model geotransformer.modelnet40.zheng-qin

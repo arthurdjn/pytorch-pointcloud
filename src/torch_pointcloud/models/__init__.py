@@ -5,6 +5,7 @@ from ._base import (
     DetectionModel,
     PartSegmentationModel,
     PretrainingModel,
+    RegistrationModel,
     SemanticSegmentationModel,
 )
 from ._registry import (
@@ -26,6 +27,7 @@ from .curvenet import CurveNetClassification, CurveNetPartSegmentation
 from .cylinder3d import Cylinder3DSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .fcaf3d import FCAF3DDetection
+from .geotransformer import GeoTransformerRegistration
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .litept import LitePTSegmentation
@@ -78,6 +80,7 @@ __all__ = [
     "PartA2Detection",
     "PartSegmentationModel",
     "PretrainingModel",
+    "RegistrationModel",
     "SemanticSegmentationModel",
     "DeprecatedModelDict",
     "ModelDict",
@@ -99,6 +102,7 @@ __all__ = [
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
     "FCAF3DDetection",
+    "GeoTransformerRegistration",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",

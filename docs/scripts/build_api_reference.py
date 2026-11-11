@@ -41,6 +41,7 @@ DISPLAY_TITLES = {
     "point_mamba": "Point-Mamba",
     "octformer": "OctFormer",
     "kpconv": "KPConv",
+    "geotransformer": "GeoTransformer",
     "litept": "LitePT",
     "randlanet": "RandLA-Net",
     "spvcnn": "SPVCNN",

@@ -26,6 +26,7 @@ from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 def test_functional_reexports_every_tensor_function() -> None:
     expected = {
+        "assignment_negative_log_likelihood",
         "box_iou_loss",
         "center_regression_loss",
         "chamfer_distance",
@@ -42,6 +43,7 @@ def test_functional_reexports_every_tensor_function() -> None:
         "roi_head_loss",
         "sigmoid_focal_loss",
         "tnet_orthogonality_regularizer",
+        "weighted_circle_loss",
     }
     assert set(LF.__all__) == expected
     assert all(callable(getattr(LF, name)) for name in expected)

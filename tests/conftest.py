@@ -19,6 +19,7 @@ from torch_pointcloud.datasets import (
     ScanObjectNN,
     SemanticKITTI,
     ShapeNetPart,
+    ThreeDMatch,
 )
 from torch_pointcloud.utils.imports import _SPCONV_GITHUB_URL, optional_import
 
@@ -132,6 +133,10 @@ def nuscenes_lidarseg_dataset(root: Path, transform: Optional[Callable] = None) 
     )
 
 
+def threedmatch_dataset(transform: Optional[Callable] = None) -> ThreeDMatch:
+    return ThreeDMatch(root=DATASETS_DIR, split="test", benchmark="3DMatch", show_progress=False, transform=transform)
+
+
 def gridnethd_dataset(transform: Optional[Callable] = None) -> GridNetHD:
     return GridNetHD(root=DATASETS_DIR, split="val", transform=transform)
 
@@ -151,6 +156,7 @@ def dataset_factory(tmp_path: Path) -> Callable[..., Dataset]:
         "semantickitti": semantickitti_dataset,
         "dales": dales_dataset,
         "nuscenes_lidarseg": partial(nuscenes_lidarseg_dataset, tmp_path),
+        "threedmatch": threedmatch_dataset,
         "gridnethd": gridnethd_dataset,
     }
 

@@ -1,12 +1,18 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 import pytest
 import torch
 from torch import Tensor
 from torch_geometric.utils import scatter
 
-from torch_pointcloud.layers.kpconv_blocks import KPConv, KPConvBlock, KPResidualBlock, create_kernel_points
+from torch_pointcloud.layers.kpconv_blocks import (
+    KPConv,
+    KPConvBlock,
+    KPResidualBlock,
+    create_kernel_points,
+)
+from torch_pointcloud.layers.norms import GroupNorm
 
 
 @pytest.fixture
@@ -171,3 +177,97 @@ def test_create_kernel_points_gradient(tmp_path: Path, monkeypatch: pytest.Monke
     kernel_points = create_kernel_points(radius=0.05, num_points=7, method="gradient")
     assert kernel_points.shape == (7, 3)
     assert float(kernel_points.norm(dim=-1).max()) < 0.1
+
+
+def test_kpconv_divides_by_positive_neighbors(data: Dict[str, Tensor]) -> None:
+    torch.manual_seed(0)
+    conv = KPConv(spatial_dim=3, in_channels=3, out_channels=8, kernel_size=15, kp_radius=0.1, kp_sigma=0.1)
+    normalized = KPConv(
+        spatial_dim=3,
+        in_channels=3,
+        out_channels=8,
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+        normalize_by_positive_neighbors=True,
+    )
+    normalized.load_state_dict(conv.state_dict())
+    features = data["features"].abs()  # every neighbor has a positive feature sum
+    out = conv(features, data["pos"], data["edge_index"])
+    out_normalized = normalized(features, data["pos"], data["edge_index"])
+    assert torch.allclose(out_normalized, out / 16, atol=1e-5)
+
+
+def test_kpconv_block_normalizes_per_batch_element(data: Dict[str, Tensor]) -> None:
+    torch.manual_seed(0)
+    block = KPConvBlock(
+        3, 3, 32, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, norm="group_norm", norm_kwargs={"num_groups": 8}
+    )
+    out = block(data["features"], data["pos"], data["edge_index"], data["batch"], batch_size=2)
+    assert out.shape == (len(data["pos"]), 32)
+    first = data["batch"] == 0
+    convolved = block.act(block.norm(block.conv(data["features"], data["pos"], data["edge_index"])[first]))
+    assert torch.allclose(out[first], convolved, atol=1e-5)
+
+
+def test_kp_residual_block_group_norm_per_batch_element(data: Dict[str, Tensor]) -> None:
+    torch.manual_seed(0)
+    block = KPResidualBlock(
+        3, 32, 64, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, norm="group_norm", norm_kwargs={"num_groups": 8}
+    )
+    assert block.shortcut is not None
+    norms = [block.unary1.norms[0], block.conv.norm, block.unary2.norms[0], block.shortcut.norms[0]]
+    assert all(isinstance(norm, GroupNorm) for norm in norms)
+    assert len({id(norm) for norm in norms}) == 4
+
+    x = torch.randn(len(data["pos"]), 32)
+    out = block(x, data["pos"], data["edge_index"], data["batch"], batch_size=2)
+    assert out.shape == (len(data["pos"]), 64)
+
+    first = data["batch"] == 0
+    edge_index = data["edge_index"][:, first[data["edge_index"][1]]]
+    alone = block(x[first], data["pos"][first], edge_index, data["batch"][first], batch_size=1)
+    assert torch.allclose(out[first], alone, atol=1e-5)
+
+    same = KPResidualBlock(
+        3, 64, 64, kernel_size=15, kp_radius=0.1, kp_sigma=0.1, norm="group_norm", norm_kwargs={"num_groups": 8}
+    )
+    assert same.shortcut is None
+    assert same(out, data["pos"], data["edge_index"], data["batch"]).shape == (len(data["pos"]), 64)
+
+
+@pytest.mark.parametrize(
+    "max_num_neighbors, expected",
+    [
+        pytest.param(None, 0.0, id="floored-at-zero"),
+        pytest.param(8, -0.01, id="zero-padded-table"),
+    ],
+)
+def test_strided_kp_residual_block_shortcut(
+    data: Dict[str, Tensor],
+    max_num_neighbors: Optional[int],
+    expected: float,
+) -> None:
+    pos, batch = data["pos"], data["batch"]
+    query_pos, query_batch = pos[::4], batch[::4]
+    # Every query takes 8 support points of its own cloud, a full table of `max_num_neighbors` slots.
+    target = torch.arange(len(query_pos)).repeat_interleave(8)
+    source = (torch.arange(len(query_pos)) * 4).repeat_interleave(8) + torch.arange(8).repeat(len(query_pos))
+    source = source.clamp(max=len(pos) - 1)
+    edge_index = torch.stack([source, target])
+    block = KPResidualBlock(
+        3,
+        16,
+        16,
+        kernel_size=15,
+        kp_radius=0.1,
+        kp_sigma=0.1,
+        strided=True,
+        norm=None,
+        max_num_neighbors=max_num_neighbors,
+    )
+    # A zero residual branch leaves the activated shortcut: the max of negative features is kept by the full table.
+    torch.nn.init.zeros_(block.unary2.lins[0].weight)
+    out = block(-torch.ones(len(pos), 16), (pos, query_pos), edge_index, (batch, query_batch))
+    assert out.shape == (len(query_pos), 16)
+    assert torch.allclose(out, torch.full_like(out, expected))

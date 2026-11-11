@@ -34,6 +34,7 @@ neither are marked as such.
 | facebookresearch/3detr                          | `fair`           | Apache-2.0   | 3     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
 | Pointcept/Utonia                                | `pointcept`      | CC BY-NC 4.0 | 2     | not stated upstream                                                                                                        |
 | facebookresearch/sonata                         | `fair`           | CC BY-NC 4.0 | 2     | Copyright (c) Meta Platforms, Inc. and affiliates                                                                          |
+| qinzheng93/GeoTransformer                       | `zheng-qin`      | MIT          | 3     | Copyright (c) 2022 Zheng Qin                                                                                               |
 | facebookresearch/votenet                        | `fair`           | MIT          | 2     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
 | tiangexiang/CurveNet                            | `tiange-xiang`   | MIT          | 2     | Copyright (c) 2022 Tiange Xiang                                                                                            |
 | DylanWusee/pointconv_pytorch                    | `wenxuan-wu`     | MIT          | 1     | Copyright (c) 2019 Wenxuan Wu                                                                                              |
@@ -54,17 +55,18 @@ Licenses of the datasets the checkpoints were trained on.
 | ----------------------------------------------- | --------------------------------------------------------- | ----------- |
 | S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
-| ModelNet40                                      | academic research only                                    | 23          |
+| ModelNet40                                      | academic research only                                    | 24          |
 | SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 19          |
 | nuScenes                                        | CC BY-NC-SA 4.0                                           | 8           |
 | ScanNet++, ARKitScenes (joint training)         | non-commercial                                            | 4           |
+| KITTI                                           | CC BY-NC-SA 3.0                                           | 4           |
 | Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
-| KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
 | SUN RGB-D                                       | research use                                              | 2           |
 | DALES                                           | CC BY 3.0, non-commercial                                 | 1           |
 | FRACTAL (IGN LiDAR HD)                          | Licence Ouverte 2.0 (Etalab-2.0)                          | 1           |
+| 3DMatch (PREDATOR release)                      | non-commercial and CC BY-NC-SA 4.0, by source scene       | 1           |
 | GridNet-HD                                      | CC BY 4.0                                                 | 1           |
 | HM3D, ArkitScenes (self-supervised pretraining) | non-commercial                                            | 6           |
 

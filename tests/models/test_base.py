@@ -6,6 +6,7 @@ from torch_pointcloud.models import (
     ClassificationModel,
     DetectionModel,
     PartSegmentationModel,
+    RegistrationModel,
     SemanticSegmentationModel,
 )
 
@@ -80,6 +81,52 @@ def test_detection_subclass_with_full_contract_instantiates() -> None:
 
     with pytest.raises(ValueError, match="forward_features"):
         MinimalDetection(in_channels=3, num_classes=0)
+
+
+@pytest.mark.parametrize("method", ["num_features", "forward_features", "forward_head", "decode"])
+def test_registration_subclass_missing_member_raises(method: str) -> None:
+    class ForwardOnlyRegistration(RegistrationModel):
+        def forward(
+            self, x: Tensor, pos: Tensor, batch: Tensor, ref_x: Tensor, ref_pos: Tensor, ref_batch: Tensor
+        ) -> Tensor:
+            return x
+
+    with pytest.raises(TypeError, match=method):
+        ForwardOnlyRegistration(in_channels=3)  # type: ignore[abstract]
+
+
+def test_registration_subclass_with_full_contract_instantiates() -> None:
+    class MinimalRegistration(RegistrationModel):
+        @property
+        def num_features(self) -> int:
+            return self.in_channels
+
+        def forward_features(
+            self, x: Tensor, pos: Tensor, batch: Tensor, ref_x: Tensor, ref_pos: Tensor, ref_batch: Tensor
+        ) -> Tensor:
+            return torch.cat([x, ref_x])
+
+        def forward_head(self, features: Tensor) -> Tensor:
+            return features
+
+        def forward(
+            self, x: Tensor, pos: Tensor, batch: Tensor, ref_x: Tensor, ref_pos: Tensor, ref_batch: Tensor
+        ) -> Tensor:
+            features = self.forward_features(x, pos, batch, ref_x, ref_pos, ref_batch)
+            return self.forward_head(features)
+
+        def decode(self, output: Tensor) -> Tensor:
+            return torch.eye(4).unsqueeze(0)
+
+    with pytest.raises(TypeError, match="abstract"):
+        RegistrationModel(in_channels=3)  # type: ignore[abstract]
+
+    model = MinimalRegistration(in_channels=3)
+    assert model.in_channels == 3
+    assert model.num_features == 3
+    pos, batch = torch.rand(4, 3), torch.zeros(4, dtype=torch.long)
+    output = model(torch.rand(4, 3), pos, batch, torch.rand(4, 3), pos, batch)
+    assert model.decode(output).shape == (1, 4, 4)
 
 
 @pytest.mark.parametrize(

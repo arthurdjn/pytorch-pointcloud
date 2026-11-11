@@ -1,6 +1,7 @@
-"""File reading and writing for point cloud data: JSON, OFF meshes, PLY, and safetensors."""
+"""File reading and writing for point cloud data: JSON, OFF meshes, PLY, NumPy pickles and safetensors."""
 
 import json
+import pickle
 import re
 from typing import Any, BinaryIO, Dict, List, Mapping, Optional, Tuple
 
@@ -25,6 +26,64 @@ def load_json(file_path: PathLike) -> Dict[str, Any]:
     """
     with open(file_path) as f:
         return json.load(f)
+
+
+# What rebuilds a NumPy array or scalar; every other pickled global is refused.
+ARRAY_PICKLE_GLOBALS = {
+    ("numpy.core.multiarray", "_reconstruct"),
+    ("numpy._core.multiarray", "_reconstruct"),
+    ("numpy.core.multiarray", "scalar"),
+    ("numpy._core.multiarray", "scalar"),
+    ("numpy", "ndarray"),
+    ("numpy", "dtype"),
+    ("_codecs", "encode"),
+}
+
+
+class ArrayUnpickler(pickle.Unpickler):
+    """Unpickler that rebuilds NumPy arrays, NumPy scalars and builtin containers, and refuses every other global.
+
+    It reads third-party metadata and point files safely: a pickle that would import or call anything else raises
+    `pickle.UnpicklingError` instead of running it.
+
+    Example:
+        ```pycon
+        >>> import io
+        >>> import pickle
+        >>> import numpy as np
+        >>> from torch_pointcloud.utils.io import ArrayUnpickler
+        >>> payload = pickle.dumps({"transform": np.eye(4), "frame": np.int64(3)})
+        >>> ArrayUnpickler(io.BytesIO(payload)).load()["transform"].shape
+        (4, 4)
+
+        ```
+    """
+
+    def find_class(self, module: str, name: str) -> Any:
+        if (module, name) in ARRAY_PICKLE_GLOBALS:
+            return super().find_class(module, name)
+        raise pickle.UnpicklingError(
+            f"Refusing to unpickle the global {module}.{name}: only NumPy arrays are expected."
+        )
+
+    def persistent_load(self, pid: Any) -> Any:
+        raise pickle.UnpicklingError("Refusing a pickle with persistent ids: only NumPy arrays are expected.")
+
+
+def load_pickle(file_path: PathLike) -> Any:
+    """Load a pickle file holding NumPy arrays, NumPy scalars and builtin containers only.
+
+    Args:
+        file_path: Path to the pickle file.
+
+    Returns:
+        The unpickled object.
+
+    Raises:
+        pickle.UnpicklingError: If the file references any other global.
+    """
+    with open(file_path, "rb") as f:
+        return ArrayUnpickler(f).load()
 
 
 def load_off(file_path: PathLike) -> Tuple[np.ndarray, np.ndarray]:

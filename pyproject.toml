@@ -29,6 +29,7 @@ keywords = [
     "deep learning",
     "segmentation",
     "detection",
+    "registration",
     "pretrained models",
 ]
 classifiers = [

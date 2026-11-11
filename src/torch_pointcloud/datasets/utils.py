@@ -198,7 +198,13 @@ def download_url(
     return file_path.as_posix()
 
 
-def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "", show_progress: bool = True) -> str:
+def extract_zip(
+    zip_path: PathLike,
+    out_dir: PathLike,
+    relative_to: PathLike = "",
+    show_progress: bool = True,
+    prefix: Optional[str] = None,
+) -> str:
     """Extract a zip file to a directory.
 
     Args:
@@ -211,6 +217,7 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
             then you will get `A/A/*.png` when extracting, but setting `relative_to="A"`
             will extract the files to `A/*.png` only).
         show_progress: Whether to display a progress bar.
+        prefix: If provided, only the members under this directory of the archive are extracted.
 
     Returns:
         The path to the extracted directory.
@@ -227,6 +234,8 @@ def extract_zip(zip_path: PathLike, out_dir: PathLike, relative_to: PathLike = "
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         members = zip_ref.namelist()
+        if prefix is not None:
+            members = [member for member in members if Path(member).is_relative_to(prefix)]
         for member in tqdm(members, total=len(members), desc="Extracting", disable=not show_progress):
             if member.endswith("/"):
                 continue

@@ -34,7 +34,8 @@ Per-point tensors have one row per point.
 | `instance`  | $(N,)$   | int64            | Instance id, $-1$ when none                                                  |
 
 Per-sample values have no point axis: `label` (int64 scalar, the class of the cloud), `category` (int64 scalar, the
-object category in part segmentation) and `name` (str).
+object category in part segmentation) and `name` (str). Identifiers are strings: `scene`, `sequence` and `frame` (the
+scan or fragment id within its sequence or scene).
 
 Detection samples carry $K$ boxes per scene:
 
@@ -44,6 +45,18 @@ Detection samples carry $K$ boxes per scene:
 | `label`     | $(K,)$   | int64   | Class of each box                                                 |
 | `velocity`  | $(K, 2)$ | float32 | $(v_x, v_y)$, nuScenes only                                       |
 | `batch_box` | $(K,)$   | int64   | Scene index of each box, written by `collate`                     |
+
+Registration samples hold a pair of clouds and the rigid transform between them:
+
+| Key           | Shape    | Dtype   | Meaning                                                              |
+| ------------- | -------- | ------- | -------------------------------------------------------------------- |
+| `pos`         | $(N, 3)$ | float32 | Source cloud, the one the transform moves                            |
+| `ref_pos`     | $(M, 3)$ | float32 | Reference cloud; collate it as a `cat_keys` entry for `batch_ref_pos` |
+| `ref_normal`  | $(M, 3)$ | float32 | Reference normals, the counterpart of `normal`                       |
+| `transform`   | $(4, 4)$ | float32 | Source-to-reference transform $q = R p + t$, a `stack_keys` entry    |
+| `information` | $(6, 6)$ | float32 | Information matrix of the 3DMatch ground truth, for `root_mean_square_alignment_error` |
+| `overlap`     | scalar   | float32 | Overlap ratio of the pair                                            |
+| `ref_frame`   | str      |         | Id of the reference scan or fragment, the counterpart of `frame`     |
 
 Some models read other keys: a voxel grid (`voxel`, `pos_voxel`, `voxel_num_points` from `HardVoxelize`), integer
 coordinates (`pos_grid` from `Voxelize`) or an `octree`. `info["input_keys"]` lists what a checkpoint needs and

@@ -19,6 +19,15 @@ All notable changes to this project are documented in this file. The format is b
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
 - Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
 - Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
+- Added the `registration` task, its data keys and the registration metrics.
+- Added GeoTransformer with the authors' 3DMatch, KITTI and ModelNet40 weights, its loss, and its benchmark and training scripts.
+- Added the `ThreeDMatch`, `KITTIOdometry` and `ModelNet40Registration` datasets.
+- Added `ops.registration`, `rotation_matrix_to_quaternion`, `load_pickle`, `sinusoidal_embedding`, the packed `GroupNorm`, `LogOptimalTransport`, `WeightedCircleLoss`, `assignment_negative_log_likelihood` and the `RandomPairRotate` transform.
+- `transform_points` broadcasts batched transforms over batched point sets.
+- `RandomJitter(distribution="uniform")` draws the noise uniformly in `[-sigma, sigma]`.
+- `VoxelGridPool` pools each cloud of a batch as it would alone.
+- `KPConvBlock`, `KPResidualBlock` and `LinearBlock` pass the batch index to the normalizations that take one; `KPResidualBlock` takes `normalize_by_positive_neighbors` and `max_num_neighbors`.
+- `extract_zip` takes a `prefix` limiting the extracted members.
 
 ## 0.0.20 (2026-11-10)
 

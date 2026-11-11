@@ -175,6 +175,16 @@ def test_extract_zip_nested_relative_to(tmp_path: Path) -> None:
     assert len(list(Path(result).glob("**/*.txt"))) == 1
 
 
+def test_extract_zip_prefix_limits_the_members(tmp_path: Path) -> None:
+    zip_path = tmp_path / "test.zip"
+    with zipfile.ZipFile(zip_path, "w") as zip_file:
+        zip_file.writestr("repo/data/metadata/train.pkl", "kept")
+        zip_file.writestr("repo/data/other/file.txt", "skipped")
+    out_dir = tmp_path / "out"
+    extract_zip(zip_path, out_dir, relative_to="repo/data/metadata", show_progress=False, prefix="repo/data/metadata")
+    assert sorted(p.relative_to(out_dir).as_posix() for p in out_dir.rglob("*") if p.is_file()) == ["train.pkl"]
+
+
 def test_extract_zip_no_progress(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Test that the show_progress bar is not displayed when extracting a zip file."""
     zip_path = create_zip(tmp_path)

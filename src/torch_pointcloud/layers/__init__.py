@@ -44,11 +44,17 @@ from .fps import FPS
 from .geometric_affine import GeometricAffineConv, NormalizeType
 from .grid_pool import GridPool
 from .grouped_vector_attention import GroupedVectorAttention
-from .kpconv_blocks import KPConv, KPConvBlock, KPResidualBlock, create_kernel_points
+from .kpconv_blocks import (
+    KPConv,
+    KPConvBlock,
+    KPResidualBlock,
+    create_kernel_points,
+)
 from .linear_blocks import LinearBlock
-from .norms import create_norm
+from .norms import GroupNorm, create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
+from .optimal_transport import LogOptimalTransport
 from .part_segmentation_decoder import PartSegmentationDecoder
 from .pct_blocks import OffsetAttention, PCTNeighborEmbedding
 from .pdnorm import PDNorm
@@ -108,6 +114,7 @@ from .serialized_attention import (
     patch_layout,
 )
 from .serialized_pool import SerializedPool, SerializedUpsample
+from .sinusoidal_embedding import sinusoidal_embedding
 from .spconv_blocks import (
     SparseBasicBlock,
     SparseBasicStage,
@@ -192,6 +199,8 @@ __all__ = [
     "KPResidualBlock",
     "create_kernel_points",
     "LinearBlock",
+    "LogOptimalTransport",
+    "GroupNorm",
     "create_norm",
     "OctreeAttention",
     "OctreeRelativePositionEncoding",
@@ -250,6 +259,7 @@ __all__ = [
     "patch_layout",
     "SerializedPool",
     "SerializedUpsample",
+    "sinusoidal_embedding",
     "SparseBasicBlock",
     "SparseBasicStage",
     "SparseConvBlock",

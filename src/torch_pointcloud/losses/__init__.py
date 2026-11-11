@@ -9,8 +9,10 @@ their `forward(output, data)` returns a dict with the scalar `loss` to optimize 
 
 from . import functional
 from .anchor import AnchorHeadLoss, MultiGroupAnchorHeadLoss
+from .assignment import assignment_negative_log_likelihood
 from .centerpoint import CenterHeadLoss, VoxelNeXtHeadLoss, center_regression_loss, iou_prediction_loss
 from .chamfer import ChamferDistance, chamfer_distance
+from .circle import WeightedCircleLoss, weighted_circle_loss
 from .corner import CornerLoss, corner_loss
 from .fcaf3d import FCAF3DLoss
 from .focal import (
@@ -22,6 +24,7 @@ from .focal import (
     poly1_focal_loss,
     sigmoid_focal_loss,
 )
+from .geotransformer import GeoTransformerLoss
 from .iou import BoxIoULoss, box_iou_loss
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
@@ -43,6 +46,7 @@ __all__ = [
     "CornerLoss",
     "FCAF3DLoss",
     "GaussianFocalLoss",
+    "GeoTransformerLoss",
     "Poly1FocalLoss",
     "KPConvDeformRegularizer",
     "LovaszLoss",
@@ -57,6 +61,8 @@ __all__ = [
     "TransFusionHeadLoss",
     "VoteNetLoss",
     "VoxelNeXtHeadLoss",
+    "WeightedCircleLoss",
+    "assignment_negative_log_likelihood",
     "box_iou_loss",
     "center_regression_loss",
     "chamfer_distance",
@@ -74,4 +80,5 @@ __all__ = [
     "roi_head_loss",
     "sigmoid_focal_loss",
     "tnet_orthogonality_regularizer",
+    "weighted_circle_loss",
 ]

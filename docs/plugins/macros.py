@@ -38,6 +38,7 @@ MODEL_LABELS = {
     "cylinder3d": "Cylinder3D",
     "dgcnn": "DGCNN",
     "fcaf3d": "FCAF3D",
+    "geotransformer": "GeoTransformer",
     "kpconv": "KPConv",
     "lion": "LION",
     "litept": "LitePT",
@@ -91,6 +92,7 @@ TASKS: Dict[str, Tuple[str, str, str]] = {
     "part-segmentation": ("Part segmentation", "models/part-segmentation.md", "M-4,-4h8v8h-8Z"),
     "semantic-segmentation": ("Semantic segmentation", "models/segmentation.md", "M0,-5.5L5.2,3.5H-5.2Z"),
     "detection": ("Detection", "models/detection.md", "M0,-5.5L5.5,0L0,5.5L-5.5,0Z"),
+    "registration": ("Registration", "models/registration.md", "M-5,-5h4v4h-4ZM1,1h4v4h-4ZM-2.2,-2.2L2.2,2.2"),
     "pretraining": ("Pretraining", "models/features.md", ""),
 }
 
@@ -112,6 +114,7 @@ DATASET_LABELS = {
     "scannet": "ScanNet",
     "sunrgbd": "SUN RGB-D",
     "shapenet55": "ShapeNet55",
+    "3dmatch": "3DMatch",
     "labeled-hybrid": "LabeledHybrid",
     "unlabeled-hybrid": "UnlabeledHybrid",
     "pretrain": "Multi-dataset",
@@ -254,10 +257,22 @@ def dataset_label(dataset: str) -> str:
     return f"S3DIS Area {area.group(1)}" if area else DATASET_LABELS.get(dataset, dataset)
 
 
+# Errors rank ascending and stay out of the parity plot, whose axis is a percentage score.
+LOWER_IS_BETTER = {"RRE"}
+
+
 def metric_label(task: str, dataset: str) -> str:
     if task == "detection":
         return {"kitti": "mAP (R11)", "nuscenes": "mAP"}.get(dataset, "mAP@0.25")
-    return {"classification": "OA", "part-segmentation": "Instance mIoU", "semantic-segmentation": "mIoU"}.get(task, "")
+    if task == "registration" and dataset == "modelnet40":
+        return "RRE"
+    labels = {
+        "classification": "OA",
+        "part-segmentation": "Instance mIoU",
+        "semantic-segmentation": "mIoU",
+        "registration": "RR",
+    }
+    return labels.get(task, "")
 
 
 def aligned(value: str, places: int = 2) -> str:
@@ -303,7 +318,8 @@ def model_table(context: jinja2.runtime.Context, task: str) -> str:
 
     def rank(row: Dict[str, str]) -> Tuple[float, float, float, str]:
         """Best measured score first; unscored rows follow, smallest model first."""
-        score, reference = -float(row["score"] or "-inf"), -float(row["reference"] or "-inf")
+        sign = 1.0 if row["metric"] in LOWER_IS_BETTER else -1.0
+        score, reference = sign * float(row["score"] or "inf"), sign * float(row["reference"] or "inf")
         return (score, reference, float(row["params"] or "inf"), row["checkpoint"])
 
     head = "".join(f'<th class="tp-num">{c}</th>' if c in numeric else f"<th>{c}</th>" for c in columns)
@@ -413,6 +429,7 @@ def parity_plot(context: jinja2.runtime.Context, task: Optional[str] = None) -> 
         if row["pretrained"] == "true"
         and row["reference"]
         and row["score"]
+        and row["metric"] not in LOWER_IS_BETTER
         and TASKS.get(row["task"], ("", "", ""))[2]
         and task in (None, row["task"])
     ]
