@@ -7,8 +7,12 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+- Added MinkUNet (`MinkUNetSegmentation`) with the SemanticKITTI checkpoints of MMDetection3D and SPVNAS, and its benchmark and training scripts.
+- Added `ops.voxelization.lookup_coordinates`, `ops.voxelization.trilinear_sparse_devoxelize`, the `SparseBasicStage` layer, and `return_intermediates` to `SparseUNetDecoder`.
+- Added Cylinder3D (`Cylinder3DSegmentation`) with SemanticKITTI and nuScenes checkpoints and their scripts.
+- Added `DynamicMaxVFE`, `majority_label`, `cartesian_to_cylindrical` and `RandomTranslate(distribution="normal")`.
 - Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
-- Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `lookup_coordinates`, `trilinear_sparse_devoxelize`, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")`, `RandomTranslate(distribution="normal")` and the S3DIS detection classes.
+- Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
 
 ## 0.0.20 (2026-11-10)
 

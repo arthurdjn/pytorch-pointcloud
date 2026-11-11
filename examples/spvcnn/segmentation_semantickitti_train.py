@@ -17,6 +17,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SemanticKITTI
+from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_UNMERGED_LEARNING_MAP
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -35,40 +36,12 @@ IGNORE_INDEX = 255
 VOXEL_SIZE = 0.05
 MAX_VOXELS = 80_000
 POINT_KEYS = [DataKeys.POS, DataKeys.INTENSITY, DataKeys.SEGMENT]
-# The 19-class learning map: moving classes merge into their static counterpart, the rest is ignored.
-LEARNING_MAP = {
-    10: 0,
-    252: 0,
-    11: 1,
-    15: 2,
-    18: 3,
-    258: 3,
-    20: 4,
-    259: 4,
-    30: 5,
-    254: 5,
-    31: 6,
-    253: 6,
-    32: 7,
-    255: 7,
-    40: 8,
-    44: 9,
-    48: 10,
-    49: 11,
-    50: 12,
-    51: 13,
-    70: 14,
-    71: 15,
-    72: 16,
-    80: 17,
-    81: 18,
-}
 
 
 TRAIN_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=POINT_KEYS),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=LEARNING_MAP, default=IGNORE_INDEX),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_UNMERGED_LEARNING_MAP, default=IGNORE_INDEX),
         T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(0.0, 360.0)),
         T.RandomScale(keys=DataKeys.POS, scale_range=(0.95, 1.05)),
         T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),  # the augmented coordinates
@@ -86,7 +59,7 @@ TRAIN_TRANSFORM = T.Compose(
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=POINT_KEYS),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=LEARNING_MAP, default=IGNORE_INDEX),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_UNMERGED_LEARNING_MAP, default=IGNORE_INDEX),
         T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
         T.CopyItems(keys=[DataKeys.POS, DataKeys.SEGMENT], dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT]),
         T.Voxelize(

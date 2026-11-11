@@ -174,9 +174,24 @@ $RUN examples/randlanet/segmentation_parislille3d_benchmark.py --root "$ROOT" --
 $RUN examples/randlanet/segmentation_semantic3d_benchmark.py --root "$ROOT" --model randlanet.semantic3d.open3d
 $RUN examples/point_transformer/segmentation_s3dis_benchmark.py --root "$ROOT" --model point-transformer.s3dis-area5.open3d
 $RUN examples/spformer_unet/segmentation_scannet_benchmark.py --root "$ROOT" --model spformer-unet.scannet20.open3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w16.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w20.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w32.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-torchsparse.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-spconv.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-spconv-amp.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-minkowski.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34v2-w32.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w16.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w20.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w32.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-119gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-47gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-30gmacs.semantickitti.mit-han-lab
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d.semantickitti.mmdet3d
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d-laser-polar-mix.semantickitti.mmdet3d
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d.semantickitti.xinge-zhu
 $RUN examples/octformer/segmentation_scannet_benchmark.py --root "$ROOT" --model octformer-base.scannet20.octree-nn
 $RUN examples/octformer/segmentation_scannet200_benchmark.py --root "$ROOT" --model octformer-base.scannet200.octree-nn
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-sm.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 8
@@ -211,6 +226,7 @@ $RUN examples/point_transformer_v3/segmentation_scannet_benchmark.py --root "$RO
 $RUN examples/point_transformer_v3/segmentation_scannet200_benchmark.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
 $RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
 $RUN examples/point_transformer_v3/segmentation_nuscenes_benchmark.py --root "$ROOT" --model ptv3-base.nuscenes.pointcept --sw-batch-size 8
+$RUN examples/cylinder3d/segmentation_nuscenes_benchmark.py --root "$ROOT" --model cylinder3d-0p5x.nuscenes.yuenan-hou
 $RUN examples/litept/segmentation_scannet_benchmark.py --root "$ROOT" --model litept-small.scannet20.prs-eth --sw-batch-size 8
 $RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-small.nuscenes.prs-eth --sw-batch-size 8
 $RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-large.nuscenes.prs-eth --simple
