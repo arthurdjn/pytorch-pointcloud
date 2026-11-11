@@ -144,6 +144,11 @@
     "date": "December 2020",
     "title": "Voxel R-CNN: Towards High Performance Voxel-based 3D Object Detection"
   },
+  "2104.00678": {
+    "crop": 0.47,
+    "date": "April 2021",
+    "title": "Group-Free 3D Object Detection via Transformers"
+  },
   "2105.01288": {
     "crop": 0.47,
     "date": "May 2021",

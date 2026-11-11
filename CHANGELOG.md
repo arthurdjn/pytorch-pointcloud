@@ -21,6 +21,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
 - Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
 - Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
+- Added Group-Free 3D (`GroupFree3DDetection`, `GroupFree3DLoss`) with the authors' ScanNet and SUN RGB-D checkpoints and the MMDetection3D ScanNet ones, and its benchmark and training scripts.
+- Added `InstanceToBox(dst_box_index_key=...)`, which writes each point's box row to `DataKeys.BOX_INDEX`.
 
 ## 0.0.20 (2026-11-10)
 

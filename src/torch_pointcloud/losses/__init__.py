@@ -22,6 +22,7 @@ from .focal import (
     poly1_focal_loss,
     sigmoid_focal_loss,
 )
+from .groupfree3d import GroupFree3DLoss
 from .iou import BoxIoULoss, box_iou_loss
 from .kpconv import KPConvDeformRegularizer, kpconv_deform_regularizer
 from .lovasz import LovaszLoss, lovasz_softmax
@@ -43,6 +44,7 @@ __all__ = [
     "CornerLoss",
     "FCAF3DLoss",
     "GaussianFocalLoss",
+    "GroupFree3DLoss",
     "Poly1FocalLoss",
     "KPConvDeformRegularizer",
     "LovaszLoss",

@@ -120,6 +120,12 @@ def test_votenet_reset_classifier() -> None:
     assert out["sem_cls_scores"].shape[-1] == 5
 
 
+def test_votenet_rejects_an_empty_cloud() -> None:
+    model = _create_votenet().eval()
+    with pytest.raises(ValueError, match="no points"):
+        model(torch.zeros(0, 1), torch.zeros(0, 3), torch.zeros(0, dtype=torch.long))
+
+
 def test_votenet_seed_fps_requires_unit_vote_factor() -> None:
     with pytest.raises(ValueError, match="vote_factor"):
         _create_votenet(sampling="seed_fps", vote_factor=2)
