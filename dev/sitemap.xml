@@ -334,7 +334,13 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/corner/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/fcaf3d/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/focal/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/iou/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/kpconv/</loc>
@@ -356,6 +362,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/tnet/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/tr3d/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/transfusion/</loc>
@@ -404,6 +413,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/dgcnn/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/fcaf3d/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/kpconv/</loc>
@@ -509,6 +521,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/spvcnn/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/tr3d/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/transfusion/</loc>
