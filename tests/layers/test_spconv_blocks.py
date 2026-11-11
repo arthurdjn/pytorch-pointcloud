@@ -155,7 +155,13 @@ def test_strided_sparse_conv3d_outputs_the_parent_voxels(
 def test_strided_sparse_conv3d_matches_a_dense_convolution(
     device: str,
     spconv_to_device: Callable[[torch.nn.Module, str], None],
+    request: pytest.FixtureRequest,
 ) -> None:
+    # The CPU kernels of the CPU-only spconv wheel race on several threads: their outputs change from run to run.
+    threads = torch.get_num_threads()
+    request.addfinalizer(lambda: torch.set_num_threads(threads))
+    torch.set_num_threads(1)
+
     x = _random_sparse_tensor(device=device)
     conv = StridedSparseConv3d(3, 4, kernel_size=3, stride=2)
     spconv_to_device(conv, device)
