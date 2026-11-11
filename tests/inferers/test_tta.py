@@ -279,6 +279,7 @@ def _equivariant_detections(window: Dict[str, Any]) -> Detection3D:
         "ignore_mask": index % 2 == 0,
         "velocity": torch.stack(velocity),
         "class_probs": torch.softmax(torch.arange(3.0 * num_scenes, device=pos.device).reshape(num_scenes, 3), dim=1),
+        "class_scores": torch.sigmoid(torch.arange(3.0 * num_scenes, device=pos.device).reshape(num_scenes, 3)),
     }
 
 
@@ -308,7 +309,8 @@ def test_tta_detection_maps_every_view_back_to_the_input_scene(
     flips: Sequence[Sequence[int]],
 ) -> None:
     """A predictor whose boxes move with the points gives the same boxes, headings and velocities from every view
-    once they are mapped back; scores, labels, batch indices, ignore masks and class probabilities are kept."""
+    once they are mapped back; scores, labels, batch indices, ignore masks, class probabilities and class scores are
+    kept."""
     data = _scenes(2)
     expected = _equivariant_detections(data)
     inferer = TTADetectionInferer(_identity, rotations=rotations, scales=scales, flips=flips, sw_batch_size=2)
@@ -327,6 +329,7 @@ def test_tta_detection_maps_every_view_back_to_the_input_scene(
     torch.testing.assert_close(out["batch"], expected["batch"][rows])
     torch.testing.assert_close(out["ignore_mask"], expected["ignore_mask"][rows])
     torch.testing.assert_close(out["class_probs"], expected["class_probs"][rows])
+    torch.testing.assert_close(out["class_scores"], expected["class_scores"][rows])
 
 
 def test_tta_detection_default_is_one_unaugmented_pass() -> None:
