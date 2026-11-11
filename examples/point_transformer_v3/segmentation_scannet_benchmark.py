@@ -12,9 +12,9 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
-from torch_pointcloud.inferers import Inferer, TTAInferer, VoxelPartitionInferer, simple_tta_transforms
+from torch_pointcloud.inferers import Inferer, SimpleInferer, TTAInferer, VoxelPartitionInferer, simple_tta_transforms
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
-from torch_pointcloud.models import create_model
+from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
@@ -25,7 +25,7 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 VOXEL_SIZE = 0.02
 SW_BATCH_SIZE = 8
-MODEL = "ptv3-base.scannet20.pointcept"
+MODELS = ["ptv3-base.scannet20.pointcept", "ptv3-ppt.scannet20.pointcept", "ptv3-ppt.scannet20.labelmaker"]
 NUM_CLASSES = 20
 
 INFERER_TRANSFORM = T.Compose(
@@ -56,7 +56,8 @@ def main() -> None:
     inferer = configure_inferer(args)
 
     num_scenes = len(dataloader.dataset)  # type: ignore[arg-type]
-    print(f"Test set: {num_scenes} scenes  (test-time views x voxel-partition fragments, scored at full resolution)")
+    protocol = "single pass" if args.simple else "test-time views x voxel-partition fragments"
+    print(f"Test set: {num_scenes} scenes  ({protocol}, scored at full resolution)")
     metrics = evaluate(model, dataloader, inferer, args.device, NUM_CLASSES)
     print("\nResults:")
     for key, value in metrics.items():
@@ -65,24 +66,30 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark Point Transformer V3 semantic segmentation on ScanNet.")
-    parser.add_argument("--model", default=MODEL, choices=[MODEL])
+    parser.add_argument("--model", default=MODELS[0], choices=MODELS)
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scenes.")
+    parser.add_argument(
+        "--simple",
+        action="store_true",
+        help="Predict each point in one pass, without voting or test-time augmentation.",
+    )
     parser.add_argument("--download", action="store_true", help="Download the dataset if missing.")
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
     return parser.parse_args()
 
 
 def configure_dataset(args: Namespace) -> Dataset:
+    transform = model_info(args.model, task="semantic-segmentation")["transform"] if args.simple else TRANSFORM
     dataset: Dataset
     dataset = ScanNet20(
         root=args.root,
         split="val",
-        transform=TRANSFORM,
+        transform=transform,
         download=args.download,
         force_process=args.force_process,
         num_workers=args.num_workers,
@@ -106,6 +113,9 @@ def configure_model(args: Namespace) -> Module:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
+    if args.simple:
+        return SimpleInferer()
+
     base = VoxelPartitionInferer(
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
@@ -127,7 +137,10 @@ def evaluate(model: Module, dataloader: DataLoader, inferer: Inferer, device: st
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
         scores = inferer(data, predictor=lambda d: model(d[DataKeys.X], d[DataKeys.POS_GRID], d[DataKeys.BATCH]))
         preds = scores.argmax(dim=1)
-        cm += confusion_matrix(preds.cpu(), data[DataKeys.SEGMENT].cpu(), num_classes, ignore_index=-1)
+        target = data[DataKeys.SEGMENT]
+        if DataKeys.INVERSE in data:
+            preds, target = preds[data[DataKeys.INVERSE]], data[DataKeys.ORIGIN_SEGMENT]
+        cm += confusion_matrix(preds.cpu(), target.cpu(), num_classes, ignore_index=-1)
         oa = accuracy(cm)
         pbar.set_postfix({"oa": f"{oa:.4f}"})
 

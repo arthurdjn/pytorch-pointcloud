@@ -22,6 +22,7 @@ from .anchors import (
 from .attention_gate import AttentionGate
 from .bev_backbone import BEVBackbone, BEVPyramidBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
+from .conditional_heads import ConditionalLinear, CosineSimilarityHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
 from .curvenet_blocks import (
@@ -166,6 +167,8 @@ __all__ = [
     "CenterHead",
     "CenterHeadOutput",
     "SeparateHead",
+    "ConditionalLinear",
+    "CosineSimilarityHead",
     "Conv2dBlock",
     "Conv3dBlock",
     "CurveAggregation",

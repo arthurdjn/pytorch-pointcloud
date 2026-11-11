@@ -2,7 +2,7 @@ import subprocess
 import sys
 from email.message import Message
 from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Sequence, Union
 from unittest.mock import Mock
 from urllib.error import HTTPError
 
@@ -14,6 +14,7 @@ from torch import Tensor, nn
 from torch_pointcloud.models import (
     ClassificationModel,
     ModelInfoDict,
+    PretrainingModel,
     SemanticSegmentationModel,
     WeightsDict,
     create_model,
@@ -85,12 +86,36 @@ class DummySemanticSegmentationModel(SemanticSegmentationModel):
         return self.forward_head(features)
 
 
+class DummyPretrainingModel(PretrainingModel):
+    def __init__(self, in_channels: int = 3) -> None:
+        super().__init__(in_channels=in_channels)
+        self.encoder = nn.Linear(in_channels, 8)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.encoder(x)
+
+
+class DummyConditionalClassificationModel(DummyClassificationModel):
+    def __init__(self, in_channels: int = 3, num_classes: Union[int, Sequence[int]] = (5, 3)) -> None:
+        counts = tuple(num_classes) if isinstance(num_classes, Sequence) else (num_classes,)
+        super().__init__(in_channels=in_channels, num_classes=counts[0])
+        self.num_classes_per_condition = counts
+
+
 def _dummy_classification(**kwargs: Any) -> DummyClassificationModel:
     return DummyClassificationModel(**kwargs)
 
 
+def _dummy_conditional_classification(**kwargs: Any) -> DummyConditionalClassificationModel:
+    return DummyConditionalClassificationModel(**kwargs)
+
+
 def _dummy_segmentation(**kwargs: Any) -> DummySemanticSegmentationModel:
     return DummySemanticSegmentationModel(**kwargs)
+
+
+def _dummy_pretraining(**kwargs: Any) -> DummyPretrainingModel:
+    return DummyPretrainingModel(**kwargs)
 
 
 @pytest.fixture(autouse=True)
@@ -116,6 +141,39 @@ def _register_pretrained_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     torch.save(DummyClassificationModel().state_dict(), weights_path)
     yield weights_path
     _REGISTERED_MODELS["classification"].pop("dummy-pretrained.classification", None)
+
+
+@pytest.fixture
+def _register_pretrained_conditional_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Register a dummy with the class counts `(5, 3)`, one per condition, whose `num_classes` is the first."""
+    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
+    register_model(
+        "dummy-conditional.classification",
+        task="classification",
+        weights="hf://torch-pointcloud/dummy-conditional/resolve/main/model.pt",
+        hparams={"num_classes": (5, 3)},
+    )(_dummy_conditional_classification)
+    weights_path = tmp_path / "dummy-conditional" / "main" / "model.pt"
+    weights_path.parent.mkdir(parents=True)
+    torch.save(DummyConditionalClassificationModel().state_dict(), weights_path)
+    yield weights_path
+    _REGISTERED_MODELS["classification"].pop("dummy-conditional.classification", None)
+
+
+@pytest.fixture
+def _register_pretrained_headless_dummy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Register a pretraining dummy, which has no `num_classes`, with weights under a temporary `MODELS_DIR`."""
+    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", tmp_path)
+    register_model(
+        "dummy-pretrained.pretraining",
+        task="pretraining",
+        weights="hf://torch-pointcloud/dummy-pretraining/resolve/main/model.pt",
+    )(_dummy_pretraining)
+    weights_path = tmp_path / "dummy-pretraining" / "main" / "model.pt"
+    weights_path.parent.mkdir(parents=True)
+    torch.save(DummyPretrainingModel().state_dict(), weights_path)
+    yield weights_path
+    _REGISTERED_MODELS["pretraining"].pop("dummy-pretrained.pretraining", None)
 
 
 @pytest.fixture
@@ -533,6 +591,13 @@ def test_create_model_pretrained_loads_weights(_register_pretrained_dummy: Path)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
 
 
+def test_create_model_pretrained_loads_weights_without_num_classes(_register_pretrained_headless_dummy: Path) -> None:
+    model = create_model("dummy-pretrained.pretraining", task="pretraining", pretrained=True)
+    assert isinstance(model, DummyPretrainingModel)
+    state_dict = torch.load(_register_pretrained_headless_dummy, weights_only=True)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
+
+
 def test_create_model_pretrained_non_commercial_license_warns(_register_pretrained_dummy: Path) -> None:
     _REGISTERED_MODELS["classification"]["dummy-pretrained.classification"]["weights"] = WeightsDict(
         url="hf://torch-pointcloud/dummy-pretrained/resolve/main/model.pt",
@@ -576,6 +641,42 @@ def test_create_model_pretrained_registered_num_classes_keeps_head(_register_pre
     state_dict = torch.load(_register_pretrained_dummy, weights_only=True)
     assert isinstance(model.fc, nn.Linear)
     assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+@pytest.mark.parametrize(
+    "num_classes",
+    [
+        pytest.param((5, 3), id="registered-counts"),
+        pytest.param([5, 3], id="registered-counts-as-a-list"),
+        pytest.param(5, id="default-condition-count"),
+    ],
+)
+def test_create_model_pretrained_registered_per_condition_num_classes_keeps_head(
+    _register_pretrained_conditional_dummy: Path,
+    num_classes: Union[int, Sequence[int]],
+) -> None:
+    model = create_model(
+        "dummy-conditional.classification",
+        task="classification",
+        pretrained=True,
+        num_classes=num_classes,
+    )
+    assert isinstance(model, DummyConditionalClassificationModel)
+    state_dict = torch.load(_register_pretrained_conditional_dummy, weights_only=True)
+    assert isinstance(model.fc, nn.Linear)
+    assert torch.equal(model.fc.weight, state_dict["fc.weight"])
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_create_model_pretrained_per_condition_num_classes_override_rebuilds_head(
+    _register_pretrained_conditional_dummy: Path,
+) -> None:
+    model = create_model("dummy-conditional.classification", task="classification", pretrained=True, num_classes=7)
+    assert isinstance(model, DummyConditionalClassificationModel)
+    state_dict = torch.load(_register_pretrained_conditional_dummy, weights_only=True)
+    assert model.fc.weight.shape == (7, 8)
+    assert torch.equal(model.encoder.weight, state_dict["encoder.weight"])
 
 
 @pytest.mark.filterwarnings("error::UserWarning")

@@ -227,8 +227,12 @@ $RUN examples/volt/segmentation_semantickitti_benchmark.py --root "$ROOT" --mode
 # Segmentation with TTA (ScanNet, S3DIS)
 $RUN examples/spunet/segmentation_scannet_benchmark.py --root "$ROOT" --model spunet-v1m1.scannet20.pointcept --sw-batch-size 8
 $RUN examples/point_transformer_v3/segmentation_scannet_benchmark.py --root "$ROOT" --model ptv3-base.scannet20.pointcept --sw-batch-size 8
+$RUN examples/point_transformer_v3/segmentation_scannet_benchmark.py --root "$ROOT" --model ptv3-ppt.scannet20.pointcept --sw-batch-size 4
+$RUN examples/point_transformer_v3/segmentation_scannet_benchmark.py --root "$ROOT" --model ptv3-ppt.scannet20.labelmaker --sw-batch-size 4
 $RUN examples/point_transformer_v3/segmentation_scannet200_benchmark.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
+$RUN examples/point_transformer_v3/segmentation_scannet200_benchmark.py --root "$ROOT" --model ptv3-ppt.scannet200.labelmaker --sw-batch-size 4
 $RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
+$RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT" --model ptv3-ppt.s3dis-area5.pointcept --sw-batch-size 1
 $RUN examples/point_transformer_v3/segmentation_nuscenes_benchmark.py --root "$ROOT" --model ptv3-base.nuscenes.pointcept --sw-batch-size 8
 $RUN examples/cylinder3d/segmentation_nuscenes_benchmark.py --root "$ROOT" --model cylinder3d-0p5x.nuscenes.yuenan-hou
 $RUN examples/litept/segmentation_scannet_benchmark.py --root "$ROOT" --model litept-small.scannet20.prs-eth --sw-batch-size 8

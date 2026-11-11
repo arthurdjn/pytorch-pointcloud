@@ -19,6 +19,9 @@ All notable changes to this project are documented in this file. The format is b
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
 - Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
 - Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
+- Added `CosineSimilarityHead`, `ConditionalLinear` and the PTv3 PPT and LabelMaker checkpoints.
+- Added `--simple`, a single-pass mode, to the PTv3 ScanNet, ScanNet200 and S3DIS benchmarks.
+- Fixed `forward_features` and `forward_decoder` of the PTv3 models ignoring the default `condition`, and a batch mixing several conditions running with the first.
 
 ## 0.0.20 (2026-11-10)
 

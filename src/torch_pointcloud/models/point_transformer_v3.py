@@ -19,6 +19,7 @@ from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
+from torch_pointcloud.layers.conditional_heads import ConditionalLinear, CosineSimilarityHead
 from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.grid_pool import GridPool
 from torch_pointcloud.layers.linear_blocks import LinearBlock
@@ -141,7 +142,7 @@ def _resolve_condition(
 ) -> Optional[str]:
     """Reduce a per-batch condition to a single name, falling back to `default`.
 
-    Multi-dataset batches are single-domain, so a collated `condition` is a length-$B$ list of the
+    One forward pass applies one condition, so a collated `condition` is a length-$B$ list of the
     same string; take its first entry. A `None` argument falls back to the model's constructor
     `condition` (single-dataset fine-tune or benchmark).
 
@@ -155,11 +156,17 @@ def _resolve_condition(
         The resolved condition name, or `None` when the model was built without conditions.
 
     Raises:
-        ValueError: If a condition is given but the model was built without `pdnorm_conditions`, or
-            if the model was built with `pdnorm_conditions` and no condition resolves.
+        ValueError: If a per-sample `condition` mixes several names, if a condition is given but the
+            model was built without `pdnorm_conditions`, or if the model was built with
+            `pdnorm_conditions` and no condition resolves.
     """
     resolved = condition if condition is not None else default
     if resolved is not None and not isinstance(resolved, str):
+        if len(set(resolved)) > 1:
+            raise ValueError(
+                f"Got the conditions {sorted(set(resolved))!r} in one batch; a forward pass applies one condition, "
+                "so batch the samples of each condition separately."
+            )
         resolved = resolved[0]
     if resolved is not None and conditions is None:
         raise ValueError(
@@ -174,6 +181,36 @@ def _resolve_condition(
         )
 
     return resolved
+
+
+def _default_num_classes(
+    num_classes: Union[int, Sequence[int]],
+    conditions: Optional[Sequence[str]],
+    condition: Optional[str],
+) -> int:
+    """Return the class count of the default `condition`.
+
+    Args:
+        num_classes: A class count, or one count per entry of `conditions`.
+        conditions: Condition names the model was built with, or `None`.
+        condition: Default condition of the model, or `None`.
+
+    Returns:
+        `num_classes` itself when it is a count, otherwise the count of `condition`.
+
+    Raises:
+        ValueError: If `num_classes` is a sequence and `condition` does not name one of its entries.
+    """
+    if not isinstance(num_classes, Sequence):
+        return int(num_classes)
+    if condition is None or conditions is None or condition not in conditions or len(conditions) != len(num_classes):
+        raise ValueError(
+            f"One `num_classes` per condition takes one count per entry of `pdnorm_conditions` and a default "
+            f"`condition` among them, got num_classes={tuple(num_classes)!r}, "
+            f"pdnorm_conditions={None if conditions is None else tuple(conditions)!r} and condition={condition!r}."
+        )
+
+    return int(num_classes[list(conditions).index(condition)])
 
 
 class PointTransformerV3Block(nn.Module):
@@ -1300,7 +1337,7 @@ class PointTransformerV3Classification(ClassificationModel):
         batch: Tensor,
         return_intermediates: Literal[True],
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
@@ -1311,7 +1348,7 @@ class PointTransformerV3Classification(ClassificationModel):
         batch: Tensor,
         return_intermediates: Literal[False] = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1321,8 +1358,9 @@ class PointTransformerV3Classification(ClassificationModel):
         batch: Tensor,
         return_intermediates: bool = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Any:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if return_intermediates:
             return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition)
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
@@ -1380,9 +1418,20 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
 
     This segmentation variant uses an encoder-decoder architecture with skip connections.
 
+    Multi-dataset checkpoints condition the model on the dataset of each batch, as in :arxiv: [Point Prompt
+    Training](https://arxiv.org/abs/2308.09718): `pdnorm_conditions` gives every norm one set of statistics per dataset,
+    and `num_classes` with one count per entry of `pdnorm_conditions` gives one head per dataset (`ConditionalLinear`),
+    both selected by the `condition` argument of `forward`. `text_embed_dim` and `text_scale` replace the linear heads
+    by a `CosineSimilarityHead`, whose class weights are fixed text embeddings of the class names: random unit vectors
+    until a state dict or `reset_classifier(num_classes, class_embedding=...)` fills them. A registered checkpoint names
+    the classes of its default `condition` (`model_info(name)["weights"]["classes"]`); the other conditions score the
+    label sets they were trained on.
+
     Args:
         in_channels: Number of input channels.
-        num_classes: Number of output classes for segmentation.
+        num_classes: Number of output classes for segmentation. A sequence with one count per entry of
+            `pdnorm_conditions` builds one head per condition; `num_classes` then reads as the count of the default
+            `condition`.
         serialization_orders: Serialization orders to use for the encoder.
         strides: Strides for the downsampling operations.
         encoder_depths: Number of encoder blocks for each stage.
@@ -1416,12 +1465,19 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         stem_type: Encoder stem (`"sparse_conv"` or `"linear"`).
         act_kwargs: Optional keyword arguments for the activation factory.
         norm_kwargs: Optional keyword arguments for the normalization factory.
+        legacy: Make each block's xCPE convolve the previous block's pre-residual output instead of its output, the
+            structure some released checkpoints were trained with.
+        pdnorm_conditions: Ordered condition names; when given, every norm holds one inner norm per condition.
+        condition: Default condition used when `forward` receives none.
+        text_embed_dim: Width of the text-embedding space of a `CosineSimilarityHead`, whose class tables start as
+            random unit vectors. `None` builds linear heads.
+        text_scale: Scale of the cosine similarities of the `CosineSimilarityHead`; required with `text_embed_dim`.
     """
 
     def __init__(
         self,
         in_channels: int,
-        num_classes: int,
+        num_classes: Union[int, Sequence[int]],
         serialization_orders: Sequence[SerializationOrder] = ("hilbert", "hilbert-trans"),
         strides: Sequence[int] = (2, 2, 2, 2),
         encoder_depths: Sequence[int] = (2, 2, 2, 6, 2),
@@ -1454,8 +1510,19 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         legacy: bool = False,
         pdnorm_conditions: Optional[Sequence[str]] = None,
         condition: Optional[str] = None,
+        text_embed_dim: Optional[int] = None,
+        text_scale: Optional[float] = None,
     ) -> None:
-        super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if (text_embed_dim is None) != (text_scale is None):
+            raise ValueError(f"`text_embed_dim` and `text_scale` go together, got {text_embed_dim=} and {text_scale=}.")
+
+        super().__init__(
+            in_channels=in_channels,
+            num_classes=_default_num_classes(num_classes, pdnorm_conditions, condition),
+        )
+        self.num_classes_per_condition = tuple(num_classes) if isinstance(num_classes, Sequence) else None
+        self.text_embed_dim = text_embed_dim
+        self.text_scale = text_scale
         self.condition = condition
         self.pdnorm_conditions = pdnorm_conditions
         norm_kwargs = norm_kwargs or {}
@@ -1560,22 +1627,81 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         return self.decoder.out_channels
 
     def configure_head(self) -> nn.Module:
-        if self.num_classes == 0:
-            return nn.Identity()
-        return nn.Linear(self.num_features, self.num_classes)
+        if self.num_classes_per_condition is None:
+            if self.num_classes == 0:
+                return nn.Identity()
+            if self.text_embed_dim is not None and self.text_scale is not None:
+                return CosineSimilarityHead(self.num_features, self.text_embed_dim, self.num_classes, self.text_scale)
+            return nn.Linear(self.num_features, self.num_classes)
+        assert self.pdnorm_conditions is not None
+        if self.text_embed_dim is not None and self.text_scale is not None:
+            return CosineSimilarityHead(
+                self.num_features,
+                self.text_embed_dim,
+                self.num_classes_per_condition,
+                self.text_scale,
+                conditions=self.pdnorm_conditions,
+            )
+        return ConditionalLinear(self.num_features, self.num_classes_per_condition, self.pdnorm_conditions)
 
-    def reset_classifier(self, num_classes: int, **kwargs: Any) -> None:
-        """Resets the segmentation head with new parameters.
+    def reset_classifier(
+        self,
+        num_classes: Union[int, Sequence[int]],
+        class_embedding: Union[Tensor, Sequence[Tensor], None] = None,
+        **kwargs: Any,
+    ) -> None:
+        r"""Resets the segmentation head with new parameters.
+
+        Without `class_embedding` the new head is linear, also on a model built with `text_embed_dim`: fixed class
+        embeddings only score the classes they were computed for. With `class_embedding`, the `CosineSimilarityHead`
+        keeps its trained projection and scores the given class embeddings instead, which must come from the text
+        encoder the projection was trained against.
 
         Note:
             To set an empty segmentation head, use `num_classes=0`.
 
         Args:
-            num_classes: Number of output classes.
+            num_classes: Number of output classes, or one count per entry of `pdnorm_conditions` for one head per
+                condition.
+            class_embedding: New class tables of a model built with `text_embed_dim`: one $(K, D)$ table, or one
+                $(K_i, D)$ table per entry of `pdnorm_conditions`, with the row counts of `num_classes`.
             **kwargs: Additional keyword arguments to pass to the segmentation head.
+
+        Example:
+            ```python
+            import torch
+            from torch_pointcloud.models.point_transformer_v3 import PointTransformerV3Segmentation
+
+            model = PointTransformerV3Segmentation(6, 20, use_flash_attn=False, text_embed_dim=512, text_scale=100.0)
+            class_embedding = torch.randn(3, 512)  # text embeddings of three class names
+            model.reset_classifier(3, class_embedding=class_embedding)
+            print(model.num_classes)  # 3
+            ```
         """
-        self.num_classes = num_classes
-        self.head = self.configure_head()
+        default_num_classes = _default_num_classes(num_classes, self.pdnorm_conditions, self.condition)
+        num_classes_per_condition = tuple(num_classes) if isinstance(num_classes, Sequence) else None
+        if class_embedding is None:
+            self.num_classes = default_num_classes
+            self.num_classes_per_condition = num_classes_per_condition
+            self.text_embed_dim = None
+            self.text_scale = None
+            self.head = self.configure_head()
+            return
+
+        if not isinstance(self.head, CosineSimilarityHead):
+            raise ValueError(
+                f"`class_embedding` replaces the class tables of a `CosineSimilarityHead`; this model has a "
+                f"`{type(self.head).__name__}` head."
+            )
+        tables = [class_embedding] if isinstance(class_embedding, Tensor) else list(class_embedding)
+        rows = tuple(table.shape[0] for table in tables)
+        if rows != (num_classes_per_condition or (default_num_classes,)):
+            raise ValueError(f"Got num_classes={num_classes!r} for class tables of {list(rows)!r} rows.")
+
+        conditions = None if num_classes_per_condition is None else self.pdnorm_conditions
+        self.head.reset_class_embedding(class_embedding, conditions=conditions)
+        self.num_classes = default_num_classes
+        self.num_classes_per_condition = num_classes_per_condition
 
     @overload
     def forward_features(
@@ -1585,7 +1711,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         batch: Tensor,
         return_intermediates: Literal[True],
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, List[SerializedFeaturesDict]]: ...
 
     @overload
@@ -1596,7 +1722,7 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         batch: Tensor,
         return_intermediates: Literal[False] = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]: ...
 
     def forward_features(
@@ -1606,8 +1732,9 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         batch: Tensor,
         return_intermediates: bool = False,
         pos: OptTensor = None,
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Any:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if return_intermediates:
             return self.encoder.forward(x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition)
         return self.encoder.forward(x, pos_grid, batch, return_intermediates=False, pos=pos, condition=condition)
@@ -1616,14 +1743,26 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
         self,
         x: Tensor,
         intermediates: List[SerializedFeaturesDict],
-        condition: Optional[str] = None,
+        condition: Union[str, Sequence[str], None] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
+        condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         return self.decoder.forward(x, intermediates, condition=condition)
 
-    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+    def forward_head(
+        self,
+        x: Tensor,
+        pre_logits: bool = False,
+        condition: Union[str, Sequence[str], None] = None,
+    ) -> Tensor:
+        if condition is not None or self.num_classes_per_condition is not None:
+            condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         if self.dropout:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
-        return x if pre_logits else self.head(x)
+        if pre_logits:
+            return x
+        if isinstance(self.head, (ConditionalLinear, CosineSimilarityHead)):
+            return self.head(x, condition=condition)
+        return self.head(x)
 
     def forward(
         self,
@@ -1642,17 +1781,18 @@ class PointTransformerV3Segmentation(SemanticSegmentationModel):
             batch: Batch indices for each point of shape $(N,)$.
             pos: Real-valued metric positions of shape $(N, 3)$. Required when
                 `attn_kind="rope"`; ignored otherwise.
-            condition: Optional per-batch condition selecting the PDNorm inner norms (keyword-only).
+            condition: Optional per-batch condition selecting the PDNorm inner norms and the head (keyword-only).
 
         Returns:
-            Per-point segmentation logits of shape $(N, \text{num\_classes})$.
+            Per-point segmentation logits of shape $(N, \text{num\_classes})$, with the class count of the selected
+            condition when the model has one head per condition.
         """
         condition = _resolve_condition(condition, self.condition, self.pdnorm_conditions)
         x, _, _, intermediates = self.forward_features(
             x, pos_grid, batch, return_intermediates=True, pos=pos, condition=condition
         )
         x, _, _ = self.forward_decoder(x, intermediates, condition=condition)
-        return self.forward_head(x)
+        return self.forward_head(x, condition=condition)
 
 
 _ENCODER_CHECKPOINT_MAPPING = {
@@ -2138,4 +2278,185 @@ _PTV3_GRIDNETHD_TRANSFORMS = T.Compose(
     ),
 )
 def ptv3_gridnethd(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.scannet20.pointcept",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.scannet20.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet20",
+        metrics={"simple/mIoU": 77.24, "simple/OA": 91.91},
+        classes=SCANNET20_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=segmentation_transforms(range(1, 21)),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 25),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 6, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(3, 3, 3, 3),
+        decoder_channels=(384, 192, 96, 64),
+        decoder_num_heads=(24, 12, 6, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        legacy=True,
+        pdnorm_conditions=("ScanNet", "Structured3D"),
+        condition="ScanNet",
+        # The class tables are the CLIP ViT-B/16 text embeddings of the bare class names.
+        text_embed_dim=512,
+        text_scale=100.0,
+    ),
+)
+def ptv3_ppt_scannet20(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.s3dis-area5.pointcept",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.s3dis-area5.pointcept/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="s3dis-area5",
+        metrics={"simple/mIoU": 72.71, "simple/OA": 91.74},
+        classes=S3DIS_CLASSES,
+        author="pointcept",
+        license="MIT",
+    ),
+    transform=segmentation_transforms(None, estimate_normals=True),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 13, 25),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(2, 2, 2, 6, 2),
+        encoder_channels=(32, 64, 128, 256, 384),
+        encoder_num_heads=(2, 4, 8, 16, 24),
+        encoder_patch_size=(128, 128, 128, 128, 128),
+        decoder_depths=(2, 2, 2, 2),
+        decoder_channels=(256, 128, 64, 64),
+        decoder_num_heads=(16, 8, 4, 4),
+        decoder_patch_size=(128, 128, 128, 128),
+        mlp_ratio=4,
+        drop_path=0.3,
+        attn_kind="rpe",
+        use_flash_attn=False,
+        upcast_attn=True,
+        upcast_softmax=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        legacy=True,
+        pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
+        condition="S3DIS",
+        # The class tables are the CLIP ViT-B/16 text embeddings of the bare class names.
+        text_embed_dim=512,
+        text_scale=100.0,
+    ),
+)
+def ptv3_ppt_s3dis_area5(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.scannet20.labelmaker",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.scannet20.labelmaker/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet20",
+        metrics={"simple/mIoU": 77.35, "simple/OA": 92.03},
+        classes=SCANNET20_CLASSES,
+        author="labelmaker",
+        license="MIT",
+    ),
+    transform=segmentation_transforms(range(1, 21)),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 200, 100, 25, 185),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 6, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(3, 3, 3, 3),
+        decoder_channels=(384, 192, 96, 64),
+        decoder_num_heads=(24, 12, 6, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        pdnorm_conditions=("ScanNet", "ScanNet200", "ScanNet++", "Structured3D", "ALC"),
+        condition="ScanNet",
+    ),
+)
+def ptv3_ppt_scannet20_labelmaker(**hparams: Any) -> PointTransformerV3Segmentation:
+    return PointTransformerV3Segmentation(**hparams)
+
+
+@register_model(
+    "ptv3-ppt.scannet200.labelmaker",
+    task="semantic-segmentation",
+    input_keys=("x", "pos_grid", "batch"),
+    weights=WeightsDict(
+        url="hf://torch-pointcloud/ptv3-ppt.scannet200.labelmaker/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        dataset="scannet200",
+        # NOTE: trained on the ScanNet train and val scenes with their 20-class labels and on the ScanNet200 train
+        # scenes, so the ScanNet200 val scenes are not held out.
+        metrics={"simple/mIoU": 38.33, "simple/OA": 86.75},
+        classes=SCANNET200_CLASSES,
+        author="labelmaker",
+        license="MIT",
+    ),
+    transform=segmentation_transforms(range(1, 201)),
+    hparams=dict(
+        in_channels=6,
+        num_classes=(20, 200, 100, 25, 185),
+        serialization_orders=("z", "z-trans", "hilbert", "hilbert-trans"),
+        shuffle_serialization_orders=True,
+        strides=(2, 2, 2, 2),
+        encoder_depths=(3, 3, 3, 6, 3),
+        encoder_channels=(48, 96, 192, 384, 512),
+        encoder_num_heads=(3, 6, 12, 24, 32),
+        encoder_patch_size=(1024, 1024, 1024, 1024, 1024),
+        decoder_depths=(3, 3, 3, 3),
+        decoder_channels=(384, 192, 96, 64),
+        decoder_num_heads=(24, 12, 6, 4),
+        decoder_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        drop_path=0.3,
+        use_flash_attn=True,
+        pooling="serialized",
+        stem_type="sparse_conv",
+        norm="batch_norm",
+        norm_kwargs={"eps": 1e-3, "momentum": 0.01},
+        pdnorm_conditions=("ScanNet", "ScanNet200", "ScanNet++", "Structured3D", "ALC"),
+        condition="ScanNet200",
+    ),
+)
+def ptv3_ppt_scannet200_labelmaker(**hparams: Any) -> PointTransformerV3Segmentation:
     return PointTransformerV3Segmentation(**hparams)

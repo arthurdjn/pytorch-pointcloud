@@ -96,6 +96,7 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("pvcnn2.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
     ("pvcnn2-c0p5.s3dis-area5.mit-han-lab", "semantic-segmentation", "s3dis_hdf5"),
     ("ptv3-base.s3dis-area5.pointcept", "semantic-segmentation", "s3dis"),
+    ("ptv3-ppt.s3dis-area5.pointcept", "semantic-segmentation", "s3dis"),
     # ShapenetPart based models
     ("pointnext-sm.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
     ("pointnext-sm-c64.shapenetpart.openpoints", "part-segmentation", "shapenetpart"),
@@ -154,6 +155,9 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("utonia-base-lp.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     ("ptv3-base.scannet20.pointcept", "semantic-segmentation", "scannet20"),
     ("ptv3-base.scannet200.pointcept", "semantic-segmentation", "scannet20"),
+    ("ptv3-ppt.scannet20.pointcept", "semantic-segmentation", "scannet20"),
+    ("ptv3-ppt.scannet20.labelmaker", "semantic-segmentation", "scannet20"),
+    ("ptv3-ppt.scannet200.labelmaker", "semantic-segmentation", "scannet20"),
     ("litept-small.scannet20.prs-eth", "semantic-segmentation", "scannet20"),
     ("litept-small.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
     ("litept-base.structured3d.prs-eth", "semantic-segmentation", "scannet20"),
