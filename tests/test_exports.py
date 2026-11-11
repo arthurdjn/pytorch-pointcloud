@@ -37,6 +37,7 @@ OPS_MODULES = [
     "masking",
     "math",
     "octree",
+    "roi",
     "serialization",
     "superpoint",
     "voxelization",

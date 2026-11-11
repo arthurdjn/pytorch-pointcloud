@@ -40,10 +40,12 @@ CLASSIFICATION_MODELS = [
     "act.scanobjectnn-hardest.runpei-dong",
     "act.scanobjectnn-objbg.runpei-dong",
     "act.scanobjectnn-objonly.runpei-dong",
+    "curvenet.modelnet40.tiange-xiang",
     "dgcnn.modelnet40-1024.an-tao",
     "dgcnn.modelnet40-2048.an-tao",
     "kpfcnn.modelnet40",
     "octformer-base.modelnet40.octree-nn",
+    "pct.modelnet40.strawberry-eat-mango",
     "pointcnn-base",
     "pointconv-density-base",
     "pointconv-density-base.modelnet40.wenxuan-wu",
@@ -143,6 +145,10 @@ PRETRAINING_MODELS = [
 ]
 SEMANTIC_SEGMENTATION_MODELS = [
     "spformer-unet.scannet",
+    "cylinder3d.semantickitti.mmdet3d",
+    "cylinder3d-laser-polar-mix.semantickitti.mmdet3d",
+    "cylinder3d.semantickitti.xinge-zhu",
+    "cylinder3d-0p5x.nuscenes.yuenan-hou",
     "concerto-large-lp.scannet20.pointcept",
     "utonia-base-lp.scannet20.pointcept",
     "dgcnn.s3dis-area1.an-tao",
@@ -213,6 +219,18 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "pointnext-lg.s3dis-area5.openpoints",
     "pointnext-lg.s3dis-area6.openpoints",
     "pointnext-sm",
+    "minkunet18-w16.semantickitti.mit-han-lab",
+    "minkunet18-w20.semantickitti.mit-han-lab",
+    "minkunet18-w32.semantickitti.mit-han-lab",
+    "minkunet18-w16.semantickitti.mmdet3d",
+    "minkunet18-w20.semantickitti.mmdet3d",
+    "minkunet18-w32.semantickitti.mmdet3d",
+    "minkunet34-w32-minkowski.semantickitti.mmdet3d",
+    "minkunet34-w32-spconv.semantickitti.mmdet3d",
+    "minkunet34-w32-spconv-amp.semantickitti.mmdet3d",
+    "minkunet34-w32-torchsparse.semantickitti.mmdet3d",
+    "minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d",
+    "minkunet34v2-w32.semantickitti.mmdet3d",
     "pointnext-sm.s3dis-area1.openpoints",
     "pointnext-sm.s3dis-area2.openpoints",
     "pointnext-sm.s3dis-area3.openpoints",
@@ -251,6 +269,7 @@ SEMANTIC_SEGMENTATION_MODELS = [
     "volt-b-joint.scannet200.kadir-yilmaz",
 ]
 PART_SEGMENTATION_MODELS = [
+    "curvenet.shapenetpart.tiange-xiang",
     "dgcnn.shapenetpart.an-tao",
     "point-m2ae-base.shapenetpart.renrui-zhang",
     "point-mae-base.shapenetpart.yatian-pang",
@@ -278,6 +297,9 @@ DETECTION_MODELS = [
     "centerpoint-pillar02.nuscenes.mmdet3d",
     "centerpoint-voxel0075.nuscenes.mmdet3d",
     "centerpoint-voxel01.nuscenes.mmdet3d",
+    "fcaf3d.s3dis-area5.mmdet3d",
+    "fcaf3d.scannet.mmdet3d",
+    "fcaf3d.sunrgbd.mmdet3d",
     "lion-mamba.nuscenes.zhe-liu",
     "part-a2.kitti-car.mmdet3d",
     "part-a2.kitti.mmdet3d",
@@ -296,12 +318,16 @@ DETECTION_MODELS = [
     "second.kitti-car.mmdet3d",
     "second.kitti.mmdet3d",
     "second.kitti.openpcdet",
+    "tr3d.s3dis-area5.mmdet3d",
+    "tr3d.scannet.mmdet3d",
+    "tr3d.sunrgbd.mmdet3d",
     "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
     "votenet.scannet.mmdet3d",
     "votenet.sunrgbd.fair",
     "votenet.sunrgbd.mmdet3d",
     "voxel-mamba.waymo",
+    "voxel-rcnn.kitti-car.openpcdet",
     "voxelnext.nuscenes.openpcdet",
 ]
 INSTANCE_SEGMENTATION_MODELS = [
@@ -337,18 +363,29 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "spformer")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "spformer", "minkunet", "cylinder3d")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(
-            ("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn", "transfusion")
+            (
+                "second",
+                "voxelnext",
+                "voxel-mamba",
+                "voxel-rcnn",
+                "centerpoint-voxel",
+                "part-a2",
+                "pv-rcnn",
+                "fcaf3d",
+                "tr3d",
+                "transfusion",
+            )
         )
         and not _SPCONV_AVAILABLE
     ):
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn", "voxel-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
@@ -369,7 +406,22 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     """Skip everything that can't be exercised in `test_model_forward` on this box."""
     _skip_if_model_deps_missing(model_name)
     if (
-        model_name.startswith(("point-mamba", "spvcnn", "spformer", "spunet", "octformer", "ptv3", "litept"))
+        model_name.startswith(
+            (
+                "point-mamba",
+                "spvcnn",
+                "spformer",
+                "spunet",
+                "minkunet",
+                "octformer",
+                "ptv3",
+                "sonata",
+                "concerto",
+                "utonia",
+                "litept",
+                "cylinder3d",
+            )
+        )
         and not torch.cuda.is_available()
     ):
         pytest.skip(f"{model_name} requires CUDA, none available")
@@ -773,6 +825,10 @@ SPVCNN_VOXEL_SIZE = 0.005
 # (ragged packed batches raise ValueError), so they get a uniform synthetic cloud.
 UNIFORM_POINT_MODELS = ("point-mae-base.shapenetpart.yatian-pang", "point-m2ae-base.shapenetpart.renrui-zhang")
 
+# Strided 3x3x3 convolutions dilate a sparse synthetic cloud: these models' stages gain voxels while their grid gets
+# coarser, so their order is checked on the grid extent.
+GRID_EXTENT_MODELS = ("cylinder3d",)
+
 
 def _forward_kwargs(model_name: str) -> Dict[str, Any]:
     # The registered Volt configurations use the flash attention kernel, which needs CUDA; SDPA runs the same weights
@@ -1101,7 +1157,7 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
     assert len(plain_outputs) == len(outputs), f"{model_name}: the flag must only append the intermediates"
     assert isinstance(intermediates, list) and intermediates, f"{model_name}: no intermediates returned"
 
-    rows = []
+    sizes = []
     for entry in intermediates:
         if not isinstance(entry, dict) or "x" not in entry:
             continue
@@ -1113,9 +1169,9 @@ def test_model_forward_features_intermediates(model_name: str, task: str, data_f
             if key in entry:
                 assert entry[key].shape[0] == x.shape[0], f"{model_name}: intermediate `{key}` rows != `x` rows"
 
-        rows.append(x.shape[0])
+        sizes.append(int(entry["pos_grid"].max()) if model_name.startswith(GRID_EXTENT_MODELS) else x.shape[0])
 
-    assert rows == sorted(rows, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {rows}"
+    assert sizes == sorted(sizes, reverse=True), f"{model_name}: intermediates are not fine-to-coarse: {sizes}"
 
     if device == "cuda":
         torch.cuda.empty_cache()

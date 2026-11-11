@@ -7,6 +7,18 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+- Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark and training scripts.
+- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `VoxelBackbone8x(return_intermediates=True)`.
+- Moved `roi_aware_pool3d` and `decode_roi_residuals` from `ops.box3d`, and `roi_grid_points` from `models.pv_rcnn`, to `ops.roi`; the former locations still work, with a `FutureWarning`.
+- Added `datasets.kitti.kitti_difficulty`.
+- Added MinkUNet (`MinkUNetSegmentation`) with the SemanticKITTI checkpoints of MMDetection3D and SPVNAS, and its benchmark and training scripts.
+- Added `ops.voxelization.lookup_coordinates`, `ops.voxelization.trilinear_sparse_devoxelize`, the `SparseBasicStage` layer, and `return_intermediates` to `SparseUNetDecoder`.
+- Added Cylinder3D (`Cylinder3DSegmentation`) with SemanticKITTI and nuScenes checkpoints and their scripts.
+- Added `DynamicMaxVFE`, `majority_label`, `cartesian_to_cylindrical` and `RandomTranslate(distribution="normal")`.
+- Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
+- Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
+- Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
+- Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
 - Added the `instance-segmentation` task with SPFormer (`spformer.scannet.jiahao-sun`), its loss and its ScanNet benchmark and train scripts.
 - Added `ops.superpoint`, the dice and mask score losses, `mask_matching_cost`, the `MaskedQueryDecoderLayer` layer and the `RandomLinearJitter` transform.
 - `instance_matches` takes a model's `decode` output (sparse masks, optional `ignore_mask`) and a `batch` to score a packed batch, and counts the points without an instance as void; the dense-mask call is deprecated, with a `FutureWarning`.
