@@ -294,6 +294,9 @@ DETECTION_MODELS = [
     "centerpoint-pillar02.nuscenes.mmdet3d",
     "centerpoint-voxel0075.nuscenes.mmdet3d",
     "centerpoint-voxel01.nuscenes.mmdet3d",
+    "fcaf3d.s3dis-area5.mmdet3d",
+    "fcaf3d.scannet.mmdet3d",
+    "fcaf3d.sunrgbd.mmdet3d",
     "lion-mamba.nuscenes.zhe-liu",
     "part-a2.kitti-car.mmdet3d",
     "part-a2.kitti.mmdet3d",
@@ -312,6 +315,9 @@ DETECTION_MODELS = [
     "second.kitti-car.mmdet3d",
     "second.kitti.mmdet3d",
     "second.kitti.openpcdet",
+    "tr3d.s3dis-area5.mmdet3d",
+    "tr3d.scannet.mmdet3d",
+    "tr3d.sunrgbd.mmdet3d",
     "transfusion-lidar.nuscenes.openpcdet",
     "votenet.scannet.fair",
     "votenet.scannet.mmdet3d",
@@ -354,7 +360,17 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if (
         model_name.startswith(
-            ("second", "voxelnext", "voxel-mamba", "centerpoint-voxel", "part-a2", "pv-rcnn", "transfusion")
+            (
+                "second",
+                "voxelnext",
+                "voxel-mamba",
+                "centerpoint-voxel",
+                "part-a2",
+                "pv-rcnn",
+                "fcaf3d",
+                "tr3d",
+                "transfusion",
+            )
         )
         and not _SPCONV_AVAILABLE
     ):
@@ -383,7 +399,20 @@ def _skip_if_model_not_runnable(model_name: str) -> None:
     _skip_if_model_deps_missing(model_name)
     if (
         model_name.startswith(
-            ("point-mamba", "spvcnn", "spformer", "spunet", "minkunet", "octformer", "ptv3", "litept", "cylinder3d")
+            (
+                "point-mamba",
+                "spvcnn",
+                "spformer",
+                "spunet",
+                "minkunet",
+                "octformer",
+                "ptv3",
+                "sonata",
+                "concerto",
+                "utonia",
+                "litept",
+                "cylinder3d",
+            )
         )
         and not torch.cuda.is_available()
     ):

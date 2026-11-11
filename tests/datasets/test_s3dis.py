@@ -10,7 +10,13 @@ import pytest
 import torch
 
 from torch_pointcloud.datasets import S3DIS, S3DISHdf5
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, load_s3dis_room, tile_s3dis_room
+from torch_pointcloud.datasets.s3dis import (
+    S3DIS_CLASSES,
+    S3DIS_DETECTION_CLASSES,
+    S3DIS_DETECTION_LABELS,
+    load_s3dis_room,
+    tile_s3dis_room,
+)
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -45,6 +51,11 @@ def test_load_s3dis_room_order_independent(datasets_dir: Path, monkeypatch: pyte
     assert torch.equal(data["pos"], data_reversed["pos"])
     assert torch.equal(data["segment"], data_reversed["segment"])
     assert torch.equal(data["instance"], data_reversed["instance"])
+
+
+def test_s3dis_detection_labels_index_the_detection_classes() -> None:
+    assert [S3DIS_CLASSES[label] for label in S3DIS_DETECTION_LABELS] == list(S3DIS_DETECTION_CLASSES)
+    assert S3DIS_DETECTION_CLASSES == ("table", "chair", "sofa", "bookcase", "board")
 
 
 def test_s3dis_dataset_not_found() -> None:

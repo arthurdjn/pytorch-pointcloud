@@ -24,6 +24,7 @@ from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
 from .cylinder3d import Cylinder3DSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
+from .fcaf3d import FCAF3DDetection
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .litept import LitePTSegmentation
@@ -60,6 +61,7 @@ from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
+from .tr3d import TR3DDetection
 from .transfusion import TransFusionDetection
 from .utonia import UtoniaSegmentation
 from .volt import VoltSegmentation
@@ -91,6 +93,7 @@ __all__ = [
     "DGCNNClassification",
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
+    "FCAF3DDetection",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
@@ -163,6 +166,7 @@ __all__ = [
     "SPVCNNClassification",
     "SPVCNNSegmentation",
     "ThreeDETRDetection",
+    "TR3DDetection",
     "TransFusionDetection",
     "UtoniaSegmentation",
     "VoltSegmentation",
