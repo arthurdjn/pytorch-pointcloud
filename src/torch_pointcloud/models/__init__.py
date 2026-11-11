@@ -22,6 +22,7 @@ from ._registry import (
 from .act import ACTDiscreteVAE, ACTPretraining
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
+from .curvenet import CurveNetClassification, CurveNetPartSegmentation
 from .cylinder3d import Cylinder3DSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .fcaf3d import FCAF3DDetection
@@ -32,6 +33,7 @@ from .minkunet import MinkUNetSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
 from .pcp_mae import PCPMAEClassification, PCPMAEPretraining
+from .pct import PCTClassification
 from .point2vec import Point2VecClassification, Point2VecPartSegmentation, Point2VecPretraining
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
 from .point_m2ae import PointM2AEClassification, PointM2AEPartSegmentation, PointM2AEPretraining
@@ -90,6 +92,8 @@ __all__ = [
     "CenterPointDetection",
     "CenterPointPillarsDetection",
     "ConcertoSegmentation",
+    "CurveNetClassification",
+    "CurveNetPartSegmentation",
     "Cylinder3DSegmentation",
     "DGCNNClassification",
     "DGCNNPartSegmentation",
@@ -102,6 +106,7 @@ __all__ = [
     "MinkUNetSegmentation",
     "OctFormerClassification",
     "OctFormerSegmentation",
+    "PCTClassification",
     "PointBERTClassification",
     "PointBERTDiscreteVAE",
     "PointBERTPretraining",

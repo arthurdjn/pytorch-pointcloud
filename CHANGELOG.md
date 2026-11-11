@@ -17,6 +17,8 @@ All notable changes to this project are documented in this file. The format is b
 - Added `DynamicMaxVFE`, `majority_label`, `cartesian_to_cylindrical` and `RandomTranslate(distribution="normal")`.
 - Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
+- Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
+- Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
 
 ## 0.0.20 (2026-11-10)
 

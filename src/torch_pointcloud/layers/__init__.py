@@ -19,10 +19,19 @@ from .anchors import (
     MultiLevelAnchorHeadOutput,
     prediction_branch,
 )
+from .attention_gate import AttentionGate
 from .bev_backbone import BEVBackbone, BEVPyramidBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
+from .curvenet_blocks import (
+    CurveAggregation,
+    CurveGrouping,
+    CurveInterventionConv,
+    CurveNetFeaturePropagation,
+    CurveWalk,
+    LocalPointFeatureAggregation,
+)
 from .cylinder3d_blocks import AsymmetricResidualBlock, AsymmetricUpsampleBlock, DimensionDecompositionBlock
 from .dropouts import (
     DropoutLike,
@@ -41,6 +50,7 @@ from .norms import create_norm
 from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, OctreeT
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from .part_segmentation_decoder import PartSegmentationDecoder
+from .pct_blocks import OffsetAttention, PCTNeighborEmbedding
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -81,6 +91,7 @@ from .pools import (
 )
 from .positional_encoding import PositionEmbeddingSine
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
+from .radius_max_pool import RadiusMaxPool
 from .randlanet_blocks import (
     AttentivePooling,
     LocalFeatureAggregation,
@@ -147,6 +158,7 @@ __all__ = [
     "MultiLevelAnchorHead",
     "MultiLevelAnchorHeadOutput",
     "prediction_branch",
+    "AttentionGate",
     "BEVBackbone",
     "BEVPyramidBackbone",
     "BEVResidualBackbone",
@@ -156,6 +168,12 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
+    "CurveAggregation",
+    "CurveGrouping",
+    "CurveInterventionConv",
+    "CurveNetFeaturePropagation",
+    "CurveWalk",
+    "LocalPointFeatureAggregation",
     "AsymmetricResidualBlock",
     "AsymmetricUpsampleBlock",
     "DimensionDecompositionBlock",
@@ -181,6 +199,8 @@ __all__ = [
     "OctreeConvBlock",
     "OctreeDeconvBlock",
     "PartSegmentationDecoder",
+    "OffsetAttention",
+    "PCTNeighborEmbedding",
     "PDNorm",
     "PointPatchEmbed",
     "PointTransformerConv",
@@ -214,6 +234,7 @@ __all__ = [
     "PVConv",
     "SE3d",
     "Voxelization",
+    "RadiusMaxPool",
     "AttentivePooling",
     "LocalFeatureAggregation",
     "LocalSpatialEncoding",
