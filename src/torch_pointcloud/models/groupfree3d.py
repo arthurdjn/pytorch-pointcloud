@@ -660,7 +660,7 @@ def groupfree3d_w2x_l12_o512_scannet_ze_liu(**hparams: Any) -> GroupFree3DDetect
     "groupfree3d-l6-o256.sunrgbd.ze-liu",
     task="detection",
     weights=WeightsDict(
-        url="hf://torch-pointcloud/groupfree3d-l6-o256.sunrgbd.ze-liu/resolve/0000000000000000000000000000000000000000/model.safetensors",
+        url="hf://torch-pointcloud/groupfree3d-l6-o256.sunrgbd.ze-liu/resolve/79c49ec1f037239eb579e5ada9c60c1dfee0add8/model.safetensors",
         dataset="sunrgbd",
         metrics={"mAP@0.25": 64.10, "mAP@0.5": 45.65},
         classes=SUNRGBD_CLASSES,
