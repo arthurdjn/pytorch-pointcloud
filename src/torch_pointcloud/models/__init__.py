@@ -22,14 +22,19 @@ from ._registry import (
 from .act import ACTDiscreteVAE, ACTPretraining
 from .centerpoint import CenterPointDetection, CenterPointPillarsDetection
 from .concerto import ConcertoSegmentation
+from .curvenet import CurveNetClassification, CurveNetPartSegmentation
+from .cylinder3d import Cylinder3DSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
+from .fcaf3d import FCAF3DDetection
 from .groupfree3d import GroupFree3DDetection
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .litept import LitePTSegmentation
+from .minkunet import MinkUNetSegmentation
 from .octformer import OctFormerClassification, OctFormerSegmentation
 from .parta2 import PartA2Detection
 from .pcp_mae import PCPMAEClassification, PCPMAEPretraining
+from .pct import PCTClassification
 from .point2vec import Point2VecClassification, Point2VecPartSegmentation, Point2VecPretraining
 from .point_bert import PointBERTClassification, PointBERTDiscreteVAE, PointBERTPretraining
 from .point_m2ae import PointM2AEClassification, PointM2AEPartSegmentation, PointM2AEPretraining
@@ -59,11 +64,13 @@ from .sphereformer import SphereFormerSegmentation
 from .spunet import SparseUNetSegmentation
 from .spvcnn import SPVCNNClassification, SPVCNNSegmentation
 from .threedetr import ThreeDETRDetection
+from .tr3d import TR3DDetection
 from .transfusion import TransFusionDetection
 from .utonia import UtoniaSegmentation
 from .volt import VoltSegmentation
 from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
+from .voxel_rcnn import VoxelRCNNDetection
 from .voxelnext import VoxelNeXtDetection
 
 __all__ = [
@@ -86,16 +93,22 @@ __all__ = [
     "CenterPointDetection",
     "CenterPointPillarsDetection",
     "ConcertoSegmentation",
+    "CurveNetClassification",
+    "CurveNetPartSegmentation",
+    "Cylinder3DSegmentation",
     "DGCNNClassification",
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
+    "FCAF3DDetection",
     "GroupFree3DDetection",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",
     "LitePTSegmentation",
+    "MinkUNetSegmentation",
     "OctFormerClassification",
     "OctFormerSegmentation",
+    "PCTClassification",
     "PointBERTClassification",
     "PointBERTDiscreteVAE",
     "PointBERTPretraining",
@@ -161,10 +174,12 @@ __all__ = [
     "SPVCNNClassification",
     "SPVCNNSegmentation",
     "ThreeDETRDetection",
+    "TR3DDetection",
     "TransFusionDetection",
     "UtoniaSegmentation",
     "VoltSegmentation",
     "VoteNetDetection",
     "VoxelMambaDetection",
     "VoxelNeXtDetection",
+    "VoxelRCNNDetection",
 ]

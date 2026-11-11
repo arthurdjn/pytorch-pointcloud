@@ -25,6 +25,8 @@ $RUN examples/pointmlp/classification_scanobjectnn_benchmark.py --root "$ROOT" -
 $RUN examples/pointconv/classification_modelnet40_benchmark.py --root "$ROOT" --model pointconv-density-base.modelnet40.wenxuan-wu
 $RUN examples/dgcnn/classification_modelnet40_benchmark.py --root "$ROOT" --model dgcnn.modelnet40-1024.an-tao
 $RUN examples/dgcnn/classification_modelnet40_benchmark.py --root "$ROOT" --model dgcnn.modelnet40-2048.an-tao
+$RUN examples/pct/classification_modelnet40_benchmark.py --root "$ROOT" --model pct.modelnet40.strawberry-eat-mango
+$RUN examples/curvenet/classification_modelnet40_benchmark.py --root "$ROOT" --model curvenet.modelnet40.tiange-xiang
 $RUN examples/point_mae/classification_modelnet40_benchmark.py --root "$ROOT" --model point-mae-base.modelnet40.yatian-pang
 $RUN examples/point_mae/classification_modelnet40_benchmark.py --root "$ROOT" --model point-mae-base.modelnet40-8k.yatian-pang
 $RUN examples/point_mae/classification_scanobjectnn_benchmark.py --root "$ROOT" --model point-mae-base.scanobjectnn-objbg.yatian-pang
@@ -77,6 +79,7 @@ $RUN examples/octformer/classification_modelnet40_benchmark.py --root "$ROOT" --
 
 # Part segmentation (ShapeNetPart)
 $RUN examples/dgcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model dgcnn.shapenetpart.an-tao
+$RUN examples/curvenet/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model curvenet.shapenetpart.tiange-xiang
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm.shapenetpart.openpoints
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm-c64.shapenetpart.openpoints
 $RUN examples/pointnext/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnext-sm-c160.shapenetpart.openpoints
@@ -95,7 +98,7 @@ $RUN examples/pvcnn/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" -
 $RUN examples/pointnet2/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnet2-ssg.shapenetpart.mit-han-lab
 $RUN examples/pointnet2/part_segmentation_shapenetpart_benchmark.py --root "$ROOT" --model pointnet2-msg.shapenetpart.mit-han-lab
 
-# Indoor detection (SUN RGB-D, ScanNet)
+# Indoor detection (SUN RGB-D, ScanNet, S3DIS)
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.fair
 $RUN examples/votenet/detection_scannet_benchmark.py --root "$ROOT" --model votenet.scannet.fair
 $RUN examples/votenet/detection_sunrgbd_benchmark.py --root "$ROOT" --model votenet.sunrgbd.mmdet3d
@@ -104,6 +107,12 @@ $RUN examples/threedetr/detection_sunrgbd_benchmark.py --root "$ROOT" --model 3d
 $RUN examples/threedetr/detection_sunrgbd_benchmark.py --root "$ROOT" --model 3detr-m.sunrgbd.fair
 $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3detr.scannet.fair
 $RUN examples/threedetr/detection_scannet_benchmark.py --root "$ROOT" --model 3detr-m.scannet.fair
+$RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset scannet --model fcaf3d.scannet.mmdet3d
+$RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset sunrgbd --model fcaf3d.sunrgbd.mmdet3d
+$RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset s3dis --model fcaf3d.s3dis-area5.mmdet3d
+$RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset scannet --model tr3d.scannet.mmdet3d
+$RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset sunrgbd --model tr3d.sunrgbd.mmdet3d
+$RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset s3dis --model tr3d.s3dis-area5.mmdet3d
 $RUN examples/groupfree3d/detection_sunrgbd_benchmark.py --root "$ROOT" --model groupfree3d-l6-o256.sunrgbd.ze-liu
 $RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-l6-o256.scannet.ze-liu
 $RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-l12-o256.scannet.ze-liu
@@ -132,6 +141,7 @@ $RUN examples/pointrcnn/detection_kitti_benchmark.py --root "$ROOT" --model poin
 $RUN examples/parta2/detection_kitti_benchmark.py --root "$ROOT" --model part-a2.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/parta2/detection_kitti_benchmark.py --root "$ROOT" --model part-a2.kitti-car.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/pv_rcnn/detection_kitti_benchmark.py --root "$ROOT" --model pv-rcnn.kitti.mmdet3d --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
+$RUN examples/voxel_rcnn/detection_kitti_benchmark.py --root "$ROOT" --model voxel-rcnn.kitti-car.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
 $RUN examples/voxelnext/detection_nuscenes_benchmark.py --root "$ROOT" --model voxelnext.nuscenes.openpcdet
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel01.nuscenes.mmdet3d
 $RUN examples/centerpoint/detection_nuscenes_benchmark.py --root "$ROOT" --model centerpoint-voxel0075.nuscenes.mmdet3d
@@ -177,9 +187,24 @@ $RUN examples/randlanet/segmentation_parislille3d_benchmark.py --root "$ROOT" --
 $RUN examples/randlanet/segmentation_semantic3d_benchmark.py --root "$ROOT" --model randlanet.semantic3d.open3d
 $RUN examples/point_transformer/segmentation_s3dis_benchmark.py --root "$ROOT" --model point-transformer.s3dis-area5.open3d
 $RUN examples/spformer_unet/segmentation_scannet_benchmark.py --root "$ROOT" --model spformer-unet.scannet20.open3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w16.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w20.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w32.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-torchsparse.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-spconv.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-spconv-amp.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34-w32-minkowski.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet34v2-w32.semantickitti.mmdet3d
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w16.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w20.semantickitti.mit-han-lab
+$RUN examples/minkunet/segmentation_semantickitti_benchmark.py --root "$ROOT" --model minkunet18-w32.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-119gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-47gmacs.semantickitti.mit-han-lab
 $RUN examples/spvcnn/segmentation_semantickitti_benchmark.py --root "$ROOT" --model spvcnn-30gmacs.semantickitti.mit-han-lab
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d.semantickitti.mmdet3d
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d-laser-polar-mix.semantickitti.mmdet3d
+$RUN examples/cylinder3d/segmentation_semantickitti_benchmark.py --root "$ROOT" --model cylinder3d.semantickitti.xinge-zhu
 $RUN examples/octformer/segmentation_scannet_benchmark.py --root "$ROOT" --model octformer-base.scannet20.octree-nn
 $RUN examples/octformer/segmentation_scannet200_benchmark.py --root "$ROOT" --model octformer-base.scannet200.octree-nn
 $RUN examples/pointnext/segmentation_s3dis_benchmark.py --root "$ROOT" --model pointnext-sm.s3dis-area1.openpoints --areas Area_1 --sw-batch-size 8
@@ -214,6 +239,7 @@ $RUN examples/point_transformer_v3/segmentation_scannet_benchmark.py --root "$RO
 $RUN examples/point_transformer_v3/segmentation_scannet200_benchmark.py --root "$ROOT" --model ptv3-base.scannet200.pointcept --sw-batch-size 8
 $RUN examples/point_transformer_v3/segmentation_s3dis_benchmark.py --root "$ROOT" --model ptv3-base.s3dis-area5.pointcept --sw-batch-size 1
 $RUN examples/point_transformer_v3/segmentation_nuscenes_benchmark.py --root "$ROOT" --model ptv3-base.nuscenes.pointcept --sw-batch-size 8
+$RUN examples/cylinder3d/segmentation_nuscenes_benchmark.py --root "$ROOT" --model cylinder3d-0p5x.nuscenes.yuenan-hou
 $RUN examples/litept/segmentation_scannet_benchmark.py --root "$ROOT" --model litept-small.scannet20.prs-eth --sw-batch-size 8
 $RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-small.nuscenes.prs-eth --sw-batch-size 8
 $RUN examples/litept/segmentation_nuscenes_benchmark.py --root "$ROOT" --model litept-large.nuscenes.prs-eth --simple

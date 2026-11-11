@@ -16,7 +16,7 @@ import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import KITTI
-from torch_pointcloud.datasets.kitti import KITTI_CLASSES
+from torch_pointcloud.datasets.kitti import KITTI_CLASSES, kitti_difficulty
 from torch_pointcloud.losses import PointRCNNLoss
 from torch_pointcloud.metrics import box_average_precision, box_matches
 from torch_pointcloud.metrics.detection import BoxMatches
@@ -257,18 +257,6 @@ def configure_val_transform(args: Namespace) -> T.Compose:
     transform = model_info(args.model, task="detection")["transform"]
     assert transform is not None
     return T.Compose([KITTI_EVAL_TRANSFORM, transform])
-
-
-def kitti_difficulty(height: Tensor, truncation: Tensor, occlusion: Tensor) -> Tensor:
-    """KITTI difficulty of every box: 0 easy, 1 moderate, 2 hard, -1 beyond the hard limits."""
-    easy = (height >= 40) & (truncation <= 0.15) & (occlusion <= 0)
-    moderate = (height >= 25) & (truncation <= 0.3) & (occlusion <= 1)
-    hard = (height >= 25) & (truncation <= 0.5) & (occlusion <= 2)
-    level = torch.full_like(height, -1, dtype=torch.long)
-    level[hard] = 2
-    level[moderate] = 1
-    level[easy] = 0
-    return level
 
 
 def train_one_epoch(
