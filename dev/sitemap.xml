@@ -352,6 +352,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/losses/focal/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/groupfree3d/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/iou/</loc>
       </url>
       <url>
@@ -431,6 +434,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/fcaf3d/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/models/groupfree3d/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/models/kpconv/</loc>
