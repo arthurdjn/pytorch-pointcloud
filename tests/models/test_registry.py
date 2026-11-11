@@ -740,7 +740,15 @@ def test_create_model_arch_only_entry_raises_actionable_type_error() -> None:
     assert model.num_classes == 15
 
 
-def test_create_model_missing_optional_dependency_raises_actionable_import_error() -> None:
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("spunet-v1m1.scannet20.pointcept"),
+        pytest.param("fcaf3d.scannet.mmdet3d"),
+        pytest.param("tr3d.scannet.mmdet3d"),
+    ],
+)
+def test_create_model_missing_optional_dependency_raises_actionable_import_error(name: str) -> None:
     """With `spconv` absent, building a model that needs it must name the model, the dependency and the
     installation page, and not the generic requirement wording."""
     code = (
@@ -748,13 +756,13 @@ def test_create_model_missing_optional_dependency_raises_actionable_import_error
         "sys.modules['spconv'] = None\n"
         "from torch_pointcloud.models import create_model\n"
         "try:\n"
-        "    create_model('spunet-v1m1.scannet20.pointcept')\n"
+        f"    create_model({name!r})\n"
         "except ImportError as err:\n"
         "    print(err)\n"
     )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     message = result.stdout.strip()
-    assert "Model 'spunet-v1m1.scannet20.pointcept'" in message
+    assert f"Model '{name}'" in message
     assert "Optional module 'spconv.pytorch' is not installed." in message
     assert "https://pytorch-pointcloud.org/latest/installation/" in message
     assert "does not meet the requirement" not in message
