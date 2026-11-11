@@ -42,6 +42,7 @@ DISPLAY_TITLES = {
     "litept": "LitePT",
     "randlanet": "RandLA-Net",
     "spvcnn": "SPVCNN",
+    "cylinder3d": "Cylinder3D",
     "spunet": "SpUNet",
     "spformer_unet": "SPFormer-UNet",
     "sphereformer": "SphereFormer",

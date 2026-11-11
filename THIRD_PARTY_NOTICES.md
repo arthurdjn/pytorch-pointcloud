@@ -14,7 +14,7 @@ neither are marked as such.
 | ----------------------------------------------- | ---------------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------- |
 | guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 36    | Copyright (c) Guocheng Qian                                                                                                |
 | CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 18    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
-| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 24    | Copyright 2018-2019 Open-MMLab                                                                                             |
+| open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 26    | Copyright 2018-2019 Open-MMLab                                                                                             |
 | isl-org/Open3D-ML                               | `open3d`         | MIT          | 11    | Copyright (c) 2020 www.open3d.org                                                                                          |
 | mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 18    | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
 | antao97/dgcnn.pytorch                           | `an-tao`         | MIT          | 10    | Copyright (c) 2020 An Tao                                                                                                  |
@@ -41,6 +41,8 @@ neither are marked as such.
 | happinesslz/LION                                | `zhe-liu`        | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 | jayakumarpujar/Ptv3 (Hugging Face)              | `jayakumar-pujar` | MIT         | 1     | not stated upstream                                                                                                        |
 | heig-vd-geo/PTv3_GridNet-HD_baseline (Hugging Face) | `heig-vd-geo` | MIT         | 1     | not stated upstream                                                                                                        |
+| cardwing/Codes-for-PVKD                         | `yuenan-hou`     | MIT          | 1     | Copyright (c) 2022 HOU Yuenan                                                                                              |
+| xinge008/Cylinder3D                             | `xinge-zhu`      | Apache-2.0   | 1     | Copyright 2020-2021 Xinge ZHU                                                                                              |
 
 ## Training data
 
@@ -51,10 +53,10 @@ Licenses of the datasets the checkpoints were trained on.
 | S3DIS (Stanford 2D-3D-S)                        | academic research agreement                               | 42          |
 | ScanObjectNN                                    | terms of use, research only                               | 24          |
 | ModelNet40                                      | academic research only                                    | 23          |
-| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 20          |
+| SemanticKITTI                                   | CC BY-NC-SA 4.0                                           | 23          |
 | ShapeNet, ShapeNetPart                          | non-commercial research and educational use               | 14          |
 | ScanNet                                         | terms of use, non-commercial research and educational use | 19          |
-| nuScenes                                        | CC BY-NC-SA 4.0                                           | 7           |
+| nuScenes                                        | CC BY-NC-SA 4.0                                           | 8           |
 | ScanNet++, ARKitScenes (joint training)         | non-commercial                                            | 4           |
 | Structured3D                                    | terms of use, non-commercial research and educational use | 3           |
 | KITTI                                           | CC BY-NC-SA 3.0                                           | 3           |
@@ -91,6 +93,7 @@ Files adapted from other implementations, with the copyright notice each source 
 | ZrrSkywalker/Point-M2AE           | MIT        | `models/point_m2ae.py`                                                                                                                                                     | Copyright (c) 2022 Renrui Zhang                                               |
 | CGuangyan-BIT/PointGPT            | MIT        | `models/pointgpt.py`                                                                                                                                                       | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                       |
 | LMD0311/PointMamba                | Apache-2.0 | `models/point_mamba.py`                                                                                                                                                    | not stated upstream                                                           |
+| xinge008/Cylinder3D               | Apache-2.0 | `layers/cylinder3d_blocks.py`, `layers/vfe.py`, `models/cylinder3d.py`                                                                                                     | Copyright 2020-2021 Xinge ZHU                                                 |
 
 ## Dependencies
 

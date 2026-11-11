@@ -203,10 +203,14 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("spvcnn-30gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-47gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d-laser-polar-mix.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d.semantickitti.xinge-zhu", "semantic-segmentation", "semantickitti"),
     # DALES based models
     ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
     # nuScenes-lidarseg based models
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("cylinder3d-0p5x.nuscenes.yuenan-hou", "semantic-segmentation", "nuscenes_lidarseg"),
     ("litept-small.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     ("litept-large.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     # GridNet-HD based models
@@ -233,11 +237,14 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith(("spunet", "minkunet")) and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "minkunet", "cylinder3d")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "minkunet", "volt")) and not torch.cuda.is_available():
+    if (
+        model_name.startswith(("point-mamba", "spvcnn", "spunet", "minkunet", "volt", "cylinder3d"))
+        and not torch.cuda.is_available()
+    ):
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 

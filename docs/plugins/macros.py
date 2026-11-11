@@ -34,6 +34,7 @@ MODEL_LABELS = {
     "act": "ACT",
     "centerpoint": "CenterPoint",
     "concerto": "Concerto",
+    "cylinder3d": "Cylinder3D",
     "dgcnn": "DGCNN",
     "kpconv": "KPConv",
     "lion": "LION",
