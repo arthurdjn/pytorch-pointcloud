@@ -11,6 +11,12 @@ All notable changes to this project are documented in this file. The format is b
 - Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `VoxelBackbone8x(return_intermediates=True)`.
 - Moved `roi_aware_pool3d` and `decode_roi_residuals` from `ops.box3d`, and `roi_grid_points` from `models.pv_rcnn`, to `ops.roi`; the former locations still work, with a `FutureWarning`.
 - Added `datasets.kitti.kitti_difficulty`.
+- Added MinkUNet (`MinkUNetSegmentation`) with the SemanticKITTI checkpoints of MMDetection3D and SPVNAS, and its benchmark and training scripts.
+- Added `ops.voxelization.lookup_coordinates`, `ops.voxelization.trilinear_sparse_devoxelize`, the `SparseBasicStage` layer, and `return_intermediates` to `SparseUNetDecoder`.
+- Added Cylinder3D (`Cylinder3DSegmentation`) with SemanticKITTI and nuScenes checkpoints and their scripts.
+- Added `DynamicMaxVFE`, `majority_label`, `cartesian_to_cylindrical` and `RandomTranslate(distribution="normal")`.
+- Added FCAF3D (`FCAF3DDetection`) and TR3D (`TR3DDetection`) with their ScanNet, SUN RGB-D and S3DIS Area 5 checkpoints, `FCAF3DLoss`, `TR3DLoss` and `box_iou_loss`, the per-class `class_scores` detection output that `LitDetectionModel` suppresses class by class, and their benchmark and training scripts.
+- Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
 
 ## 0.0.20 (2026-11-10)
 

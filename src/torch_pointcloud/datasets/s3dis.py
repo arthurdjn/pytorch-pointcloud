@@ -51,6 +51,12 @@ S3DIS_CLASSES = get_args(S3DISClass)
 
 # Create a mapping between classes and their indices.
 S3DIS_CLASS_TO_IDX = {cls: idx for idx, cls in enumerate(S3DIS_CLASSES)}
+
+# 5-class S3DIS detection taxonomy: the furniture classes. Feed `S3DIS_DETECTION_LABELS` to `Relabel` (with
+# `default=-1`) so the segmentation labels map to 0..4 and everything else to -1, then `InstanceToBox` (with
+# `ignore_index=-1`) derives one axis-aligned box per remaining instance.
+S3DIS_DETECTION_CLASSES: Tuple[S3DISClass, ...] = ("table", "chair", "sofa", "bookcase", "board")
+S3DIS_DETECTION_LABELS = [S3DIS_CLASS_TO_IDX[cls] for cls in S3DIS_DETECTION_CLASSES]
 # Label order stored in the pre-tiled HDF5 blocks.
 S3DIS_HDF5_CLASSES: Tuple[S3DISClass, ...] = (
     "ceiling",

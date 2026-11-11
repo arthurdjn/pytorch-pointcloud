@@ -852,6 +852,34 @@ def test_detection_class_probs_expands_boxes_per_class(monkeypatch: pytest.Monke
     assert out["preds"]["batch"].tolist() == [0, 0, 0, 1, 1, 1]
 
 
+def test_detection_class_scores_suppress_every_class_on_its_own_score(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When `decode` emits `class_scores`, every (box, class) pair above the threshold goes through NMS on its score."""
+    module = _make_det_module()
+    decoded = {
+        "boxes": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0], [0.1, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
+        "scores": torch.tensor([0.50, 0.46]),
+        "labels": torch.tensor([0, 1]),
+        "batch": torch.tensor([0, 0]),
+        "class_scores": torch.tensor([[0.50, 0.47], [0.01, 0.46]]),
+    }
+    monkeypatch.setattr(module, "forward", Mock(return_value={}))
+    monkeypatch.setattr(module.model, "decode", Mock(return_value=decoded))
+    batch = {
+        "pos": torch.zeros(4, 3),
+        "batch": torch.zeros(4, dtype=torch.long),
+        "box": torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]]),
+        "batch_box": torch.tensor([0]),
+        "label": torch.tensor([1]),
+    }
+    out = module.validation_step(batch, batch_idx=0)
+    # The first box wins both classes; the second box's class-1 pair overlaps it with a lower score.
+    order = out["preds"]["labels"].argsort()
+    assert out["preds"]["labels"][order].tolist() == [0, 1]
+    assert torch.allclose(out["preds"]["scores"][order], torch.tensor([0.50, 0.47]))
+    assert torch.equal(out["preds"]["boxes"], decoded["boxes"][[0, 0]])
+    assert "class_scores" not in out["preds"]
+
+
 def test_detection_label_key_passes_full_extent_target_through(monkeypatch: pytest.MonkeyPatch) -> None:
     """`label_key` overrides the per-box class key; the $(K, 7)$ boxes and ignore mask pass through unmodified."""
     module = LitDetectionModel(

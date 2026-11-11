@@ -3,7 +3,6 @@
 {{ paper("1904.08755") }}
 """
 
-from collections import OrderedDict
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -24,7 +23,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
-from torch_pointcloud.layers import SparseBasicBlock
+from torch_pointcloud.layers import SparseBasicStage
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SemanticSegmentationModel
@@ -55,38 +54,6 @@ def _init_spunet_weights(m: nn.Module) -> None:
     elif isinstance(m, nn.BatchNorm1d):
         nn.init.constant_(m.bias, 0)
         nn.init.constant_(m.weight, 1.0)
-
-
-def _make_block_seq(
-    in_channels: int,
-    out_channels: int,
-    depth: int,
-    indice_key: str,
-    *,
-    first_in_channels: Optional[int] = None,
-    kernel_size: int = 3,
-    act: Union[str, Callable, None] = "relu",
-    act_kwargs: Optional[Dict[str, Any]] = None,
-    norm: Union[str, Callable, None] = "batch_norm",
-    norm_kwargs: Optional[Dict[str, Any]] = None,
-) -> "spconv.SparseSequential":
-    blocks = OrderedDict()
-    for i in range(depth):
-        if i == 0:
-            block_in = first_in_channels if first_in_channels is not None else in_channels
-        else:
-            block_in = out_channels
-        blocks[f"block{i}"] = SparseBasicBlock(
-            block_in,
-            out_channels,
-            kernel_size=kernel_size,
-            indice_key=indice_key,
-            act=act,
-            act_kwargs=act_kwargs,
-            norm=norm,
-            norm_kwargs=norm_kwargs,
-        )
-    return spconv.SparseSequential(blocks)
 
 
 class SparseUNetEncoder(nn.Module):
@@ -158,10 +125,10 @@ class SparseUNetEncoder(nn.Module):
                 )
             )
             self.enc.append(
-                _make_block_seq(
-                    in_channels=self.channels[s],
-                    out_channels=self.channels[s],
-                    depth=self.depths[s],
+                SparseBasicStage(
+                    self.channels[s],
+                    self.channels[s],
+                    self.depths[s],
                     indice_key=f"subm{s + 1}",
                     kernel_size=kernel_size,
                     act=act,
@@ -171,8 +138,6 @@ class SparseUNetEncoder(nn.Module):
                 )
             )
             enc_channels = self.channels[s]
-
-        self.apply(_init_spunet_weights)
 
     @overload
     def forward(
@@ -227,7 +192,8 @@ class SparseUNetEncoder(nn.Module):
 class SparseUNetDecoder(nn.Module):
     """Mirror of `SparseUNetEncoder`: each stage inverse-convolves, concatenates its skip, and runs residual blocks.
 
-    Stages are built shallowest-first but run deepest-first, so `channels` and `depths` are read back-to-front.
+    Stages are built shallowest-first but run deepest-first, so `channels` and `depths` are read back-to-front. With
+    `return_intermediates`, `forward` also returns the output of every stage but the last, deepest first.
     """
 
     def __init__(
@@ -293,12 +259,11 @@ class SparseUNetDecoder(nn.Module):
                 )
             )
             self.dec.append(
-                _make_block_seq(
-                    in_channels=dec_out,
-                    out_channels=dec_out,
-                    depth=self.depths[self.num_stages - 1 - s],
+                SparseBasicStage(
+                    dec_out + self.skip_channels[s],
+                    dec_out,
+                    self.depths[self.num_stages - 1 - s],
                     indice_key=f"subm{s}",
-                    first_in_channels=dec_out + self.skip_channels[s],
                     kernel_size=kernel_size,
                     act=act,
                     act_kwargs=act_kwargs,
@@ -307,17 +272,42 @@ class SparseUNetDecoder(nn.Module):
                 )
             )
 
-        self.apply(_init_spunet_weights)
+    @overload
+    def forward(
+        self,
+        x: "SparseConvTensor",
+        skips: List[FeaturesDict],
+        *,
+        return_intermediates: Literal[True],
+    ) -> Tuple["SparseConvTensor", List[FeaturesDict]]: ...
+
+    @overload
+    def forward(
+        self,
+        x: "SparseConvTensor",
+        skips: List[FeaturesDict],
+        *,
+        return_intermediates: Literal[False] = False,
+    ) -> "SparseConvTensor": ...
 
     def forward(
         self,
         x: "SparseConvTensor",
         skips: List[FeaturesDict],
-    ) -> "SparseConvTensor":
+        *,
+        return_intermediates: bool = False,
+    ) -> Any:
+        intermediates: List[FeaturesDict] = []
         for s in reversed(range(self.num_stages)):
             x = self.up[s](x)
             x = x.replace_feature(torch.cat([x.features, skips[s]["x"]], dim=1))
             x = self.dec[s](x)
+            if return_intermediates and s > 0:
+                x_stage, pos_grid_stage, batch_stage = convert_from_spconv_tensor(x)
+                intermediates.append({"x": x_stage, "pos_grid": pos_grid_stage, "batch": batch_stage})
+
+        if return_intermediates:
+            return x, intermediates
         return x
 
 

@@ -189,13 +189,29 @@ PRETRAINED_MODELS: List[Tuple[str, str, str]] = [
     ("utonia-base.pretrain.pointcept", "pretraining", "scannet20"),
     # SemanticKITTI based models
     ("randlanet.semantickitti.tsung-han-wu", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w16.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w20.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w32.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w16.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w20.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet18-w32.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-minkowski.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-spconv.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-spconv-amp.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-torchsparse.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34-w32-torchsparse-amp.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("minkunet34v2-w32.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
     ("spvcnn-30gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-47gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
     ("spvcnn-119gmacs.semantickitti.mit-han-lab", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d-laser-polar-mix.semantickitti.mmdet3d", "semantic-segmentation", "semantickitti"),
+    ("cylinder3d.semantickitti.xinge-zhu", "semantic-segmentation", "semantickitti"),
     # DALES based models
     ("ptv3.dales.jayakumar-pujar", "semantic-segmentation", "dales"),
     # nuScenes-lidarseg based models
     ("ptv3-base.nuscenes.pointcept", "semantic-segmentation", "nuscenes_lidarseg"),
+    ("cylinder3d-0p5x.nuscenes.yuenan-hou", "semantic-segmentation", "nuscenes_lidarseg"),
     ("litept-small.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     ("litept-large.nuscenes.prs-eth", "semantic-segmentation", "nuscenes_lidarseg"),
     # GridNet-HD based models
@@ -222,11 +238,14 @@ def _skip_if_deps_missing(model_name: str) -> None:
         pytest.skip("flash_attn is not installed")
     if model_name.startswith("spvcnn") and not _TORCHSPARSE_AVAILABLE:
         pytest.skip("torchsparse is not installed")
-    if model_name.startswith("spunet") and not _SPCONV_AVAILABLE:
+    if model_name.startswith(("spunet", "minkunet", "cylinder3d")) and not _SPCONV_AVAILABLE:
         pytest.skip("spconv is not installed")
     if model_name.startswith("pointgpt") and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
-    if model_name.startswith(("point-mamba", "spvcnn", "spunet", "volt")) and not torch.cuda.is_available():
+    if (
+        model_name.startswith(("point-mamba", "spvcnn", "spunet", "minkunet", "volt", "cylinder3d"))
+        and not torch.cuda.is_available()
+    ):
         pytest.skip(f"{model_name} requires CUDA, none available")
 
 
@@ -934,4 +953,45 @@ def test_pretrained_parta2(
         rcnn_cls, rcnn_reg = model.refine(rois, roi_batch, voxel_features, pos_voxel, batch_voxel)
 
     parts = [out["cls"].reshape(-1)[::97], out["box"].reshape(-1)[::97], rcnn_cls.reshape(-1), rcnn_reg.reshape(-1)]
+    _check_output(torch.cat(parts), model_name, force_regen, models_dir)
+
+
+@pytest.mark.pretrained
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        pytest.param("fcaf3d.scannet.mmdet3d", id="fcaf3d.scannet.mmdet3d"),
+        pytest.param("fcaf3d.sunrgbd.mmdet3d", id="fcaf3d.sunrgbd.mmdet3d"),
+        pytest.param("fcaf3d.s3dis-area5.mmdet3d", id="fcaf3d.s3dis-area5.mmdet3d"),
+        pytest.param("tr3d.scannet.mmdet3d", id="tr3d.scannet.mmdet3d"),
+        pytest.param("tr3d.sunrgbd.mmdet3d", id="tr3d.sunrgbd.mmdet3d"),
+        pytest.param("tr3d.s3dis-area5.mmdet3d", id="tr3d.s3dis-area5.mmdet3d"),
+    ],
+)
+def test_pretrained_sparse_indoor_detection(
+    model_name: str,
+    force_regen: bool,
+    models_dir_factory: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FCAF3D / TR3D: a strided sample of the per-location class logits and box regression on two synthetic rooms."""
+    if not (_SPCONV_AVAILABLE and torch.cuda.is_available()):
+        pytest.skip("FCAF3D and TR3D need spconv and CUDA")
+    monkeypatch.setattr(torch.backends.cuda.matmul, "allow_tf32", False)
+    monkeypatch.setattr(torch.backends.cudnn, "allow_tf32", False)
+    models_dir = models_dir_factory("*.safetensors")
+    model = create_model(model_name, task="detection", pretrained=True).to(DEVICE).eval()
+
+    # Seed after `create_model`, whose random initialization consumes the generator.
+    torch.manual_seed(0)
+    n_per_scene, batch_size = 20000, 2
+    pos = torch.rand(n_per_scene * batch_size, 3) * torch.tensor([4.0, 4.0, 2.5])
+    pos[0::3, 2] = 0.0
+    pos[1::3, 0] = 0.0
+    x = torch.rand(n_per_scene * batch_size, model.in_channels)
+    batch = torch.arange(batch_size).repeat_interleave(n_per_scene)
+    with torch.no_grad():
+        out = model(x.to(DEVICE), pos.to(DEVICE), batch.to(DEVICE))
+
+    parts = [out["cls_logits"].reshape(-1)[::97], out["boxes"].reshape(-1)[::97]]
     _check_output(torch.cat(parts), model_name, force_regen, models_dir)
