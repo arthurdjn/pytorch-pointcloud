@@ -38,6 +38,7 @@ OPS_MODULES = [
     "math",
     "octree",
     "registration",
+    "roi",
     "serialization",
     "voxelization",
 ]

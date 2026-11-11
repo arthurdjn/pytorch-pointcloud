@@ -28,7 +28,7 @@ from torch import Tensor
 from torch_geometric.utils import scatter
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES
+from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES, SEMANTIC_KITTI_UNMERGED_LEARNING_MAP
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
@@ -1008,42 +1008,11 @@ class SPVCNNSegmentation(SemanticSegmentationModel):
 def _spvcnn_semantickitti_transforms() -> T.Compose:
     return T.Compose(
         [
-            # SemanticKITTI 19-class learning_map used by the pretrained checkpoints.
-            # Each (raw_id -> contiguous_idx) entry follows the convention from
-            # https://github.com/mit-han-lab/spvnas/blob/master/core/datasets/semantic_kitti.py:
-            #  - the static benchmark classes get indices 0..18;
-            #  - moving-* variants are merged into their static counterpart;
-            #  - bus, on-rails, lane-marking, other-structure, other-object, ... -> ignore (255).
             T.Relabel(
                 keys=DataKeys.SEGMENT,
-                labels={
-                    10: 0,  # car
-                    252: 0,  # moving-car
-                    11: 1,  # bicycle
-                    15: 2,  # motorcycle
-                    18: 3,  # truck
-                    258: 3,  # moving-truck
-                    20: 4,  # other-vehicle
-                    259: 4,  # moving-other-vehicle
-                    30: 5,  # person
-                    254: 5,  # moving-person
-                    31: 6,  # bicyclist
-                    253: 6,  # moving-bicyclist
-                    32: 7,  # motorcyclist
-                    255: 7,  # moving-motorcyclist
-                    40: 8,  # road
-                    44: 9,  # parking
-                    48: 10,  # sidewalk
-                    49: 11,  # other-ground
-                    50: 12,  # building
-                    51: 13,  # fence
-                    70: 14,  # vegetation
-                    71: 15,  # trunk
-                    72: 16,  # terrain
-                    80: 17,  # pole
-                    81: 18,  # traffic-sign
-                },
+                labels=SEMANTIC_KITTI_UNMERGED_LEARNING_MAP,
                 default=255,
+                allow_missing_keys=True,
             ),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),
             T.CopyItems(

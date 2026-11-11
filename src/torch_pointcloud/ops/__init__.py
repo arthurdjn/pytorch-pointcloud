@@ -1,4 +1,4 @@
-"""Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, registration, and
+"""Tensor operations on packed point clouds: neighbor search, voxelization, geometry, boxes, RoIs, registration, and
 serialization."""
 
 from . import (
@@ -13,6 +13,7 @@ from . import (
     math,
     octree,
     registration,
+    roi,
     serialization,
     voxelization,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "math",
     "octree",
     "registration",
+    "roi",
     "serialization",
     "voxelization",
 ]

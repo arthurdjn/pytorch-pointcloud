@@ -19,10 +19,20 @@ from .anchors import (
     MultiLevelAnchorHeadOutput,
     prediction_branch,
 )
+from .attention_gate import AttentionGate
 from .bev_backbone import BEVBackbone, BEVPyramidBackbone, BEVResidualBackbone, ResidualBlock2d
 from .center_head import CenterHead, CenterHeadOutput, SeparateHead
 from .conv2d_blocks import Conv2dBlock
 from .conv3d_blocks import Conv3dBlock
+from .curvenet_blocks import (
+    CurveAggregation,
+    CurveGrouping,
+    CurveInterventionConv,
+    CurveNetFeaturePropagation,
+    CurveWalk,
+    LocalPointFeatureAggregation,
+)
+from .cylinder3d_blocks import AsymmetricResidualBlock, AsymmetricUpsampleBlock, DimensionDecompositionBlock
 from .dropouts import (
     DropoutLike,
     DropoutName,
@@ -46,6 +56,7 @@ from .octree_attention import OctreeAttention, OctreeRelativePositionEncoding, O
 from .octree_blocks import OctreeConvBlock, OctreeDeconvBlock
 from .optimal_transport import LogOptimalTransport
 from .part_segmentation_decoder import PartSegmentationDecoder
+from .pct_blocks import OffsetAttention, PCTNeighborEmbedding
 from .pdnorm import PDNorm
 from .point_patch_embed import PointPatchEmbed
 from .point_transformer_conv import PointTransformerConv
@@ -59,6 +70,7 @@ from .pointconv_blocks import (
 )
 from .pointnet2_blocks import (
     PointNet2Conv,
+    PointNet2DecomposedQuerySetAbstraction,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
     PointNet2QuerySetAbstraction,
@@ -85,6 +97,7 @@ from .pools import (
 )
 from .positional_encoding import PositionEmbeddingSine
 from .pvcnn_blocks import PVConv, SE3d, Voxelization
+from .radius_max_pool import RadiusMaxPool
 from .randlanet_blocks import (
     AttentivePooling,
     LocalFeatureAggregation,
@@ -104,9 +117,11 @@ from .serialized_pool import SerializedPool, SerializedUpsample
 from .sinusoidal_embedding import sinusoidal_embedding
 from .spconv_blocks import (
     SparseBasicBlock,
+    SparseBasicStage,
     SparseConvBlock,
     SparseModule,
     SparseResidualBlock,
+    StridedSparseConv3d,
     SubMConv3dBlock,
     SubMConv3dResidualBlock,
 )
@@ -127,7 +142,7 @@ from .transfusion_head import (
     TransFusionHeadOutput,
     TransFusionPredictionHead,
 )
-from .vfe import DynamicMeanVFE, PillarFeatureLayer
+from .vfe import DynamicMaxVFE, DynamicMeanVFE, PillarFeatureLayer
 from .view import View
 from .voxel_grid_pool import VoxelGridPool
 from .voxel_patch import VoxelPatchEmbed, VoxelPatchExpand
@@ -150,6 +165,7 @@ __all__ = [
     "MultiLevelAnchorHead",
     "MultiLevelAnchorHeadOutput",
     "prediction_branch",
+    "AttentionGate",
     "BEVBackbone",
     "BEVPyramidBackbone",
     "BEVResidualBackbone",
@@ -159,6 +175,15 @@ __all__ = [
     "SeparateHead",
     "Conv2dBlock",
     "Conv3dBlock",
+    "CurveAggregation",
+    "CurveGrouping",
+    "CurveInterventionConv",
+    "CurveNetFeaturePropagation",
+    "CurveWalk",
+    "LocalPointFeatureAggregation",
+    "AsymmetricResidualBlock",
+    "AsymmetricUpsampleBlock",
+    "DimensionDecompositionBlock",
     "DropoutLike",
     "DropoutName",
     "DropPath",
@@ -183,6 +208,8 @@ __all__ = [
     "OctreeConvBlock",
     "OctreeDeconvBlock",
     "PartSegmentationDecoder",
+    "OffsetAttention",
+    "PCTNeighborEmbedding",
     "PDNorm",
     "PointPatchEmbed",
     "PointTransformerConv",
@@ -193,6 +220,7 @@ __all__ = [
     "PointConvGlobalSetAbstraction",
     "PointConvSetAbstraction",
     "PointNet2Conv",
+    "PointNet2DecomposedQuerySetAbstraction",
     "PointNet2FeaturePropagation",
     "PointNet2GlobalSetAbstraction",
     "PointNet2QuerySetAbstraction",
@@ -215,6 +243,7 @@ __all__ = [
     "PVConv",
     "SE3d",
     "Voxelization",
+    "RadiusMaxPool",
     "AttentivePooling",
     "LocalFeatureAggregation",
     "LocalSpatialEncoding",
@@ -232,9 +261,11 @@ __all__ = [
     "SerializedUpsample",
     "sinusoidal_embedding",
     "SparseBasicBlock",
+    "SparseBasicStage",
     "SparseConvBlock",
     "SparseModule",
     "SparseResidualBlock",
+    "StridedSparseConv3d",
     "SubMConv3dBlock",
     "SubMConv3dResidualBlock",
     "DynamicTNet",
@@ -252,6 +283,7 @@ __all__ = [
     "TransFusionHead",
     "TransFusionHeadOutput",
     "TransFusionPredictionHead",
+    "DynamicMaxVFE",
     "DynamicMeanVFE",
     "PillarFeatureLayer",
     "View",
