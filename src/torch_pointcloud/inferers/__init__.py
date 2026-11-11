@@ -2,7 +2,7 @@
 
 import typing
 
-from torch_pointcloud.utils.deprecation import renamed_attribute
+from torch_pointcloud.utils import deprecation
 
 from .inferer import DetectionInferer, Inferer, SegmentationInferer
 from .knn_window import KNNWindowSegmentationInferer, knn_window_segmentation_inference
@@ -46,4 +46,4 @@ _RENAMED = {
 
 
 def __getattr__(name: str) -> typing.Any:
-    return globals()[renamed_attribute(name, _RENAMED, __name__)]
+    return globals()[deprecation.renamed_attribute(name, _RENAMED, __name__)]
