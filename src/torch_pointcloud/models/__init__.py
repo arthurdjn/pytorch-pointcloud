@@ -67,6 +67,7 @@ from .utonia import UtoniaSegmentation
 from .volt import VoltSegmentation
 from .votenet import VoteNetDetection
 from .voxel_mamba import VoxelMambaDetection
+from .voxel_rcnn import VoxelRCNNDetection
 from .voxelnext import VoxelNeXtDetection
 
 __all__ = [
@@ -173,4 +174,5 @@ __all__ = [
     "VoteNetDetection",
     "VoxelMambaDetection",
     "VoxelNeXtDetection",
+    "VoxelRCNNDetection",
 ]

@@ -324,6 +324,7 @@ DETECTION_MODELS = [
     "votenet.sunrgbd.fair",
     "votenet.sunrgbd.mmdet3d",
     "voxel-mamba.waymo",
+    "voxel-rcnn.kitti-car.openpcdet",
     "voxelnext.nuscenes.openpcdet",
 ]
 
@@ -364,6 +365,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
                 "second",
                 "voxelnext",
                 "voxel-mamba",
+                "voxel-rcnn",
                 "centerpoint-voxel",
                 "part-a2",
                 "pv-rcnn",
@@ -377,7 +379,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn", "voxel-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")

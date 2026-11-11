@@ -7,6 +7,10 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
+- Added Voxel R-CNN (`VoxelRCNNDetection`) with the KITTI checkpoint `voxel-rcnn.kitti-car.openpcdet`, and its benchmark and training scripts.
+- Added the `PointNet2DecomposedQuerySetAbstraction` layer, `RoIHeadLoss`, `roi_box_loss`, `roi_head_loss`, `ops.roi.encode_roi_residuals`, `ops.roi.roi_frame_boxes`, `ops.roi.roi_grid_points`, `ops.roi.sample_rois` and `VoxelBackbone8x(return_intermediates=True)`.
+- Moved `roi_aware_pool3d` and `decode_roi_residuals` from `ops.box3d`, and `roi_grid_points` from `models.pv_rcnn`, to `ops.roi`; the former locations still work, with a `FutureWarning`.
+- Added `datasets.kitti.kitti_difficulty`.
 - Added MinkUNet (`MinkUNetSegmentation`) with the SemanticKITTI checkpoints of MMDetection3D and SPVNAS, and its benchmark and training scripts.
 - Added `ops.voxelization.lookup_coordinates`, `ops.voxelization.trilinear_sparse_devoxelize`, the `SparseBasicStage` layer, and `return_intermediates` to `SparseUNetDecoder`.
 - Added Cylinder3D (`Cylinder3DSegmentation`) with SemanticKITTI and nuScenes checkpoints and their scripts.

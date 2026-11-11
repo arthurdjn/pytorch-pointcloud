@@ -54,6 +54,7 @@ from .pointconv_blocks import (
 )
 from .pointnet2_blocks import (
     PointNet2Conv,
+    PointNet2DecomposedQuerySetAbstraction,
     PointNet2FeaturePropagation,
     PointNet2GlobalSetAbstraction,
     PointNet2QuerySetAbstraction,
@@ -190,6 +191,7 @@ __all__ = [
     "PointConvGlobalSetAbstraction",
     "PointConvSetAbstraction",
     "PointNet2Conv",
+    "PointNet2DecomposedQuerySetAbstraction",
     "PointNet2FeaturePropagation",
     "PointNet2GlobalSetAbstraction",
     "PointNet2QuerySetAbstraction",
