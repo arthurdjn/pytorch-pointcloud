@@ -29,10 +29,17 @@ from tqdm import tqdm
 
 from torch_pointcloud.utils.conversion import ensure_tuple
 from torch_pointcloud.utils.data import DataKeys, collate
+from torch_pointcloud.utils.deprecation import renamed_attribute
 from torch_pointcloud.utils.types import KeyCollection
 
-from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict, split_chunks
-from .inferer import Inferer
+from ._utils import (
+    apply_transform,
+    check_batch_alignment,
+    gaussian_weights,
+    index_select_dict,
+    split_chunks,
+)
+from .inferer import SegmentationInferer
 
 WindowMode = Literal["constant", "gaussian"]
 AggregateMode = Literal["mean", "max", "vote"]
@@ -262,7 +269,7 @@ def _predict_packed(
 
 
 @torch.no_grad()
-def sliding_window_inference(
+def sliding_window_segmentation_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
@@ -543,7 +550,7 @@ def sliding_window_inference(
     return output
 
 
-class SlidingWindowInferer(Inferer):
+class SlidingWindowSegmentationInferer(SegmentationInferer):
     r"""Sliding-window inferer for large-scale point cloud segmentation.
 
     Places block centers on a regular grid and accumulates per-point predictions
@@ -551,16 +558,16 @@ class SlidingWindowInferer(Inferer):
     At `overlap=0` each point lands in exactly one block and the weight division
     is a no-op.
 
-    All parameters are forwarded verbatim to `sliding_window_inference`, except `seed`, which is offset by
-    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
-    numbers, and a fresh instance replays the same sequence.
+    All parameters are forwarded verbatim to `sliding_window_segmentation_inference`, except `seed`, which is
+    offset by the number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes)
+    draw different random numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python
         import torch
 
         import torch_pointcloud as tp
-        from torch_pointcloud.inferers import SlidingWindowInferer
+        from torch_pointcloud.inferers import SlidingWindowSegmentationInferer
 
         model = tp.create_model("pointnet.s3dis-area5").eval()
         data = {
@@ -570,10 +577,10 @@ class SlidingWindowInferer(Inferer):
         }
 
         # Non-overlapping partition: one prediction per point.
-        inferer = SlidingWindowInferer(block_size=6.0, overlap=0.0)
+        inferer = SlidingWindowSegmentationInferer(block_size=6.0, overlap=0.0)
 
         # 25 % overlap with Gaussian blending at boundaries:
-        inferer = SlidingWindowInferer(block_size=6.0, overlap=0.25, mode="gaussian")
+        inferer = SlidingWindowSegmentationInferer(block_size=6.0, overlap=0.25, mode="gaussian")
         probs = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
@@ -626,7 +633,7 @@ class SlidingWindowInferer(Inferer):
     ) -> Tensor:
         seed = None if self.seed is None else self.seed + self._num_calls
         self._num_calls += 1
-        return sliding_window_inference(
+        return sliding_window_segmentation_inference(
             data,
             predictor=predictor,
             block_size=self.block_size,
@@ -648,3 +655,13 @@ class SlidingWindowInferer(Inferer):
             progress=self.progress,
             seed=seed,
         )
+
+
+_RENAMED = {
+    "SlidingWindowInferer": "SlidingWindowSegmentationInferer",
+    "sliding_window_inference": "sliding_window_segmentation_inference",
+}
+
+
+def __getattr__(name: str) -> Any:
+    return globals()[renamed_attribute(name, _RENAMED, __name__)]

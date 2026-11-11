@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ShapeNetPart
-from torch_pointcloud.inferers import Inferer, SlidingWindowInferer, TTAInferer
+from torch_pointcloud.inferers import Inferer, SlidingWindowSegmentationInferer, TTASegmentationInferer
 from torch_pointcloud.metrics import (
     part_intersection_over_union,
     part_mean_intersection_over_union,
@@ -99,7 +99,7 @@ def configure_inferer_transform(args: Namespace) -> T.Compose:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    chunks = SlidingWindowInferer(
+    chunks = SlidingWindowSegmentationInferer(
         block_size=None,
         roi_num_points=args.num_points,
         sw_batch_size=args.sw_batch_size,
@@ -108,7 +108,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         cloud_keys=DataKeys.CATEGORY,
         inverse_key=DataKeys.INVERSE,
     )
-    return TTAInferer(base=chunks, num_passes=args.num_votes, aggregate="max")
+    return TTASegmentationInferer(base=chunks, num_passes=args.num_votes, aggregate="max")
 
 
 @torch.no_grad()

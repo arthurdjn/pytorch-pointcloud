@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.inferers import KNNWindowInferer, knn_window_inference
+from torch_pointcloud.inferers import KNNWindowSegmentationInferer, knn_window_segmentation_inference
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -30,7 +30,7 @@ def test_knn_window_inference_constant_weighted_mean_constant_predictor() -> Non
         DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
     }
     pred, target = _identity_predictor(num_classes=5)
-    out = knn_window_inference(
+    out = knn_window_segmentation_inference(
         data,
         predictor=pred,
         roi_num_points=128,
@@ -57,7 +57,7 @@ def test_knn_window_inference_gaussian_runs_and_preserves_direction() -> None:
         DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
     }
     pred, target = _identity_predictor(num_classes=4)
-    out = knn_window_inference(
+    out = knn_window_segmentation_inference(
         data,
         predictor=pred,
         roi_num_points=128,
@@ -85,7 +85,7 @@ def test_knn_window_inference_ema_returns_probabilities() -> None:
         pos_w = window[DataKeys.POS]
         return torch.randn(pos_w.size(0), 6, device=pos_w.device)
 
-    out = knn_window_inference(
+    out = knn_window_segmentation_inference(
         data,
         predictor=predictor,
         roi_num_points=64,
@@ -118,7 +118,9 @@ def test_knn_window_inference_propagates_extra_per_point_keys() -> None:
         assert window["scene_name"] == "synthetic"
         return (pos.sum(dim=1, keepdim=True) + color.sum(dim=1, keepdim=True)).expand(-1, 3).contiguous()
 
-    out = knn_window_inference(data, predictor=predictor, roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=1)
+    out = knn_window_segmentation_inference(
+        data, predictor=predictor, roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=1
+    )
     assert out.shape == (n, 3)
     assert torch.isfinite(out).all()
 
@@ -134,25 +136,25 @@ def test_knn_window_inference_validates_args() -> None:
     data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: batch}
 
     with pytest.raises(KeyError, match="pos"):
-        knn_window_inference({DataKeys.BATCH: batch}, predictor=fake)
+        knn_window_segmentation_inference({DataKeys.BATCH: batch}, predictor=fake)
     with pytest.raises(KeyError, match="batch"):
-        knn_window_inference({DataKeys.POS: pos}, predictor=fake)
+        knn_window_segmentation_inference({DataKeys.POS: pos}, predictor=fake)
     with pytest.raises(ValueError, match="`overlap`"):
-        knn_window_inference(data, predictor=fake, overlap=1.5)
+        knn_window_segmentation_inference(data, predictor=fake, overlap=1.5)
     with pytest.raises(ValueError, match="`overlap`"):
-        knn_window_inference(data, predictor=fake, overlap=0.0)
+        knn_window_segmentation_inference(data, predictor=fake, overlap=0.0)
     with pytest.raises(ValueError, match="`overlap`"):
-        knn_window_inference(data, predictor=fake, overlap=1e-4)
+        knn_window_segmentation_inference(data, predictor=fake, overlap=1e-4)
     with pytest.raises(ValueError, match="`mode`"):
-        knn_window_inference(data, predictor=fake, mode="other")  # type: ignore[arg-type]
+        knn_window_segmentation_inference(data, predictor=fake, mode="other")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="`aggregate`"):
-        knn_window_inference(data, predictor=fake, aggregate="vote")  # type: ignore[arg-type]
+        knn_window_segmentation_inference(data, predictor=fake, aggregate="vote")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="`sw_batch_size`"):
-        knn_window_inference(data, predictor=fake, sw_batch_size=0)
+        knn_window_segmentation_inference(data, predictor=fake, sw_batch_size=0)
     with pytest.raises(ValueError, match="`ema_smoothing`"):
-        knn_window_inference(data, predictor=fake, aggregate="ema", ema_smoothing=1.5)
+        knn_window_segmentation_inference(data, predictor=fake, aggregate="ema", ema_smoothing=1.5)
     with pytest.raises(ValueError, match="aligned to the positions"):
-        knn_window_inference({**data, DataKeys.BATCH: batch[:2]}, predictor=fake)
+        knn_window_segmentation_inference({**data, DataKeys.BATCH: batch[:2]}, predictor=fake)
 
 
 def test_knn_window_overlap_zero_raises_before_predicting() -> None:
@@ -168,7 +170,7 @@ def test_knn_window_overlap_zero_raises_before_predicting() -> None:
         return torch.zeros(window[DataKeys.POS].size(0), 2)
 
     with pytest.raises(ValueError, match="`overlap`"):
-        KNNWindowInferer(roi_num_points=32, overlap=0.0)(data, predictor=predictor)
+        KNNWindowSegmentationInferer(roi_num_points=32, overlap=0.0)(data, predictor=predictor)
 
 
 def test_knn_window_gaussian_small_sigma_divides_by_true_weight() -> None:
@@ -182,7 +184,7 @@ def test_knn_window_gaussian_small_sigma_divides_by_true_weight() -> None:
         DataKeys.BATCH: torch.zeros(n, dtype=torch.long),
     }
     pred, target = _identity_predictor(num_classes=4)
-    out = knn_window_inference(
+    out = knn_window_segmentation_inference(
         data,
         predictor=pred,
         roi_num_points=128,
@@ -207,13 +209,13 @@ def test_knn_window_gaussian_with_ema_raises() -> None:
         return torch.zeros(4, 2)
 
     with pytest.raises(ValueError, match="gaussian"):
-        knn_window_inference(data, predictor=fake, mode="gaussian", aggregate="ema")
+        knn_window_segmentation_inference(data, predictor=fake, mode="gaussian", aggregate="ema")
     with pytest.raises(ValueError, match="gaussian"):
-        KNNWindowInferer(mode="gaussian", aggregate="ema")(data, predictor=fake)
+        KNNWindowSegmentationInferer(mode="gaussian", aggregate="ema")(data, predictor=fake)
 
 
 def test_knn_window_inferer_class_matches_function() -> None:
-    """The `KNNWindowInferer` class is a thin wrapper around `knn_window_inference`.
+    """The `KNNWindowSegmentationInferer` class is a thin wrapper around `knn_window_segmentation_inference`.
     Same seed and parameters must give bit-for-bit identical outputs."""
     torch.manual_seed(0)
     n = 256
@@ -229,8 +231,8 @@ def test_knn_window_inferer_class_matches_function() -> None:
     kwargs: Dict[str, Any] = dict(
         roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=5, mode="constant", aggregate="mean"
     )
-    out_fn = knn_window_inference(data, predictor=predictor, **kwargs)
-    out_cls = KNNWindowInferer(**kwargs)(data, predictor=predictor)
+    out_fn = knn_window_segmentation_inference(data, predictor=predictor, **kwargs)
+    out_cls = KNNWindowSegmentationInferer(**kwargs)(data, predictor=predictor)
     assert torch.equal(out_fn, out_cls)
 
 
@@ -247,7 +249,9 @@ def test_knn_window_softmax_averages_probabilities() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.randn(window[DataKeys.POS].size(0), 4) * 10.0
 
-    out = knn_window_inference(data, predictor=predictor, roi_num_points=64, overlap=0.3, softmax=True, seed=1)
+    out = knn_window_segmentation_inference(
+        data, predictor=predictor, roi_num_points=64, overlap=0.3, softmax=True, seed=1
+    )
     sums = out.sum(dim=1)
     assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
 
@@ -262,7 +266,7 @@ def test_knn_window_empty_scene_returns_zero_by_zero() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         raise AssertionError("predictor must not be called for an empty scene")
 
-    out = knn_window_inference(data, predictor=predictor, roi_num_points=8)
+    out = knn_window_segmentation_inference(data, predictor=predictor, roi_num_points=8)
     assert out.shape == (0, 0)
 
 
@@ -281,7 +285,7 @@ def test_knn_window_scalar_metadata_flows_through_unchanged() -> None:
         return pos.sum(dim=1, keepdim=True).expand(-1, 3).contiguous()
 
     kwargs: Dict[str, Any] = dict(roi_num_points=64, sw_batch_size=2, overlap=0.3, seed=1)
-    out_plain = knn_window_inference(data, predictor=predictor, **kwargs)
+    out_plain = knn_window_segmentation_inference(data, predictor=predictor, **kwargs)
 
     seen: List[Tensor] = []
 
@@ -290,7 +294,7 @@ def test_knn_window_scalar_metadata_flows_through_unchanged() -> None:
         return predictor(window)
 
     label = torch.tensor(3)
-    out_label = knn_window_inference({**data, "label": label}, predictor=predictor_with_label, **kwargs)
+    out_label = knn_window_segmentation_inference({**data, "label": label}, predictor=predictor_with_label, **kwargs)
     assert seen and all(value is label for value in seen)
     assert torch.equal(out_plain, out_label)
 
@@ -305,7 +309,7 @@ def test_knn_window_rejects_row_altering_transform() -> None:
         return {key: value[:-1] if torch.is_tensor(value) else value for key, value in window.items()}
 
     with pytest.raises(ValueError, match="row count"):
-        knn_window_inference(data, predictor=predictor, roi_num_points=16, transform=drop_row, seed=0)
+        knn_window_segmentation_inference(data, predictor=predictor, roi_num_points=16, transform=drop_row, seed=0)
 
 
 def test_knn_window_with_divisible_pad_matches_unpadded_scores() -> None:
@@ -326,8 +330,8 @@ def test_knn_window_with_divisible_pad_matches_unpadded_scores() -> None:
         return pointwise(window)
 
     kwargs: Dict[str, Any] = {"roi_num_points": 20, "sw_batch_size": 3, "overlap": 0.3, "seed": 0}
-    out = knn_window_inference(data, predictor=pointwise, **kwargs)
-    out_pad = knn_window_inference(
+    out = knn_window_segmentation_inference(data, predictor=pointwise, **kwargs)
+    out_pad = knn_window_segmentation_inference(
         data,
         predictor=predictor,
         transform=T.DivisiblePad(num_samples=32, dst_inverse_key=DataKeys.INVERSE),
@@ -350,5 +354,5 @@ def test_knn_window_smallest_overlap_predicts_every_point() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.ones(window[DataKeys.POS].size(0), 2)
 
-    out = knn_window_inference(data, predictor=predictor, roi_num_points=16, overlap=1.1e-3, seed=0)
+    out = knn_window_segmentation_inference(data, predictor=predictor, roi_num_points=16, overlap=1.1e-3, seed=0)
     assert torch.equal(out, torch.ones(n, 2))

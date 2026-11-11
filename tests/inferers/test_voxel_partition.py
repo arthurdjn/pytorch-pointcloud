@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.inferers import VoxelPartitionInferer
+from torch_pointcloud.inferers import VoxelPartitionSegmentationInferer
 from torch_pointcloud.utils.data import DataKeys
 
 
@@ -32,7 +32,7 @@ def test_voxel_partition_uniform_voxels_average_to_their_own_x() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = VoxelPartitionInferer(voxel_size=voxel_size, sw_batch_size=2, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=voxel_size, sw_batch_size=2, seed=0)(data, predictor=predictor)
     assert out.shape == (n_per_voxel * n_voxels, 1)
     assert torch.allclose(out.squeeze(-1).float(), data[DataKeys.POS][:, 0])
 
@@ -49,7 +49,7 @@ def test_voxel_partition_aggregate_sum_skips_the_count_division() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = VoxelPartitionInferer(voxel_size=voxel_size, aggregate="sum", seed=0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=voxel_size, aggregate="sum", seed=0)(data, predictor=predictor)
     expected = pos[:, 0].clone()
     expected[-1] *= 4.0  # the lone point sits in all K = 4 sub-clouds
     assert torch.allclose(out.squeeze(-1).float(), expected)
@@ -62,7 +62,7 @@ def test_voxel_partition_every_point_participates_at_least_once() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.ones(window[DataKeys.POS].size(0), 2)
 
-    out = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=4, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=1.0, sw_batch_size=4, seed=0)(data, predictor=predictor)
     assert torch.all(out > 0)
 
 
@@ -73,8 +73,8 @@ def test_voxel_partition_seed_is_reproducible() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :2].clone()
 
-    out_a = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=42)(data, predictor=predictor)
-    out_b = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=42)(data, predictor=predictor)
+    out_a = VoxelPartitionSegmentationInferer(voxel_size=1.0, sw_batch_size=2, seed=42)(data, predictor=predictor)
+    out_b = VoxelPartitionSegmentationInferer(voxel_size=1.0, sw_batch_size=2, seed=42)(data, predictor=predictor)
     assert torch.equal(out_a, out_b)
 
 
@@ -84,8 +84,10 @@ def test_voxel_partition_progress_does_not_change_the_output() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :2].clone()
 
-    quiet = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=0)(data, predictor=predictor)
-    shown = VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=2, seed=0, progress=True)(data, predictor=predictor)
+    quiet = VoxelPartitionSegmentationInferer(voxel_size=1.0, sw_batch_size=2, seed=0)(data, predictor=predictor)
+    shown = VoxelPartitionSegmentationInferer(voxel_size=1.0, sw_batch_size=2, seed=0, progress=True)(
+        data, predictor=predictor
+    )
     assert torch.equal(quiet, shown)
 
 
@@ -98,7 +100,7 @@ def test_voxel_partition_softmax_yields_probabilities() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return torch.full((window[DataKeys.POS].size(0), 3), 10.0)
 
-    out = VoxelPartitionInferer(voxel_size=1.0, softmax=True, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=1.0, softmax=True, seed=0)(data, predictor=predictor)
     assert torch.allclose(out.sum(dim=-1), torch.ones(out.size(0)))
 
 
@@ -109,7 +111,7 @@ def test_voxel_partition_output_dtype_matches_predictor() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :2].clone()
 
-    out = VoxelPartitionInferer(voxel_size=1.0, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=1.0, seed=0)(data, predictor=predictor)
     assert out.dtype == torch.float32
 
 
@@ -120,7 +122,7 @@ def test_voxel_partition_empty_scene_returns_zero_by_zero() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         raise AssertionError("predictor must not be called for an empty scene")
 
-    out = VoxelPartitionInferer(voxel_size=1.0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=1.0)(data, predictor=predictor)
     assert out.shape == (0, 0)
 
 
@@ -134,7 +136,7 @@ def test_voxel_partition_with_transform_applies_per_subcloud() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS].clone()
 
-    out = VoxelPartitionInferer(voxel_size=1.0, transform=transform, seed=0)(data, predictor=predictor)
+    out = VoxelPartitionSegmentationInferer(voxel_size=1.0, transform=transform, seed=0)(data, predictor=predictor)
     # After per-sub-cloud Shift(min), x-min across all sub-clouds is 0.
     assert out[:, 0].min().item() >= 0.0
 
@@ -160,7 +162,7 @@ def test_voxel_partition_batched_matches_per_scene() -> None:
 
     def run(pos: Tensor, batch: Tensor) -> Tensor:
         data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: batch}
-        return VoxelPartitionInferer(voxel_size=0.25, sw_batch_size=2, seed=0)(data, predictor=predictor)
+        return VoxelPartitionSegmentationInferer(voxel_size=0.25, sw_batch_size=2, seed=0)(data, predictor=predictor)
 
     out_joint = run(torch.cat([pos_a, pos_b]), torch.cat([torch.zeros(20), torch.ones(30)]).long())
     out_a = run(pos_a, torch.zeros(20, dtype=torch.long))
@@ -185,7 +187,7 @@ def test_voxel_partition_with_divisible_pad_recovers_per_point_input() -> None:
         rows_seen.append(int(window[DataKeys.POS].size(0)))
         return window[DataKeys.POS][:, :1].clone()
 
-    out = VoxelPartitionInferer(
+    out = VoxelPartitionSegmentationInferer(
         voxel_size=1.0,
         transform=T.DivisiblePad(num_samples=8, dst_inverse_key=DataKeys.INVERSE),
         sw_batch_size=2,
@@ -205,7 +207,7 @@ def test_voxel_partition_row_altering_transform_raises() -> None:
         return {k: v[:-1] if torch.is_tensor(v) else v for k, v in sample.items()}
 
     with pytest.raises(ValueError, match="row count"):
-        VoxelPartitionInferer(voxel_size=1.0, transform=drop_last, seed=0)(
+        VoxelPartitionSegmentationInferer(voxel_size=1.0, transform=drop_last, seed=0)(
             data, predictor=lambda d: torch.zeros(d[DataKeys.POS].size(0), 2)
         )
 
@@ -213,24 +215,26 @@ def test_voxel_partition_row_altering_transform_raises() -> None:
 def test_voxel_partition_validates_args() -> None:
     """Constructor rejects `voxel_size <= 0` and `sw_batch_size < 1`."""
     with pytest.raises(ValueError, match="voxel_size"):
-        VoxelPartitionInferer(voxel_size=0.0)
+        VoxelPartitionSegmentationInferer(voxel_size=0.0)
     with pytest.raises(ValueError, match="sw_batch_size"):
-        VoxelPartitionInferer(voxel_size=1.0, sw_batch_size=0)
+        VoxelPartitionSegmentationInferer(voxel_size=1.0, sw_batch_size=0)
     with pytest.raises(ValueError, match="aggregate"):
-        VoxelPartitionInferer(voxel_size=1.0, aggregate="max")  # type: ignore[arg-type]
+        VoxelPartitionSegmentationInferer(voxel_size=1.0, aggregate="max")  # type: ignore[arg-type]
 
 
 def test_voxel_partition_missing_pos_key_raises() -> None:
     with pytest.raises(KeyError, match="pos"):
-        VoxelPartitionInferer(voxel_size=1.0)({}, predictor=lambda d: torch.zeros(0, 1))
+        VoxelPartitionSegmentationInferer(voxel_size=1.0)({}, predictor=lambda d: torch.zeros(0, 1))
 
 
 def test_voxel_partition_missing_batch_key_raises() -> None:
     with pytest.raises(KeyError, match="batch"):
-        VoxelPartitionInferer(voxel_size=1.0)({DataKeys.POS: torch.rand(4, 3)}, predictor=lambda d: torch.zeros(4, 1))
+        VoxelPartitionSegmentationInferer(voxel_size=1.0)(
+            {DataKeys.POS: torch.rand(4, 3)}, predictor=lambda d: torch.zeros(4, 1)
+        )
 
 
 def test_voxel_partition_misaligned_batch_key_raises() -> None:
     data: Dict[str, Any] = {DataKeys.POS: torch.rand(4, 3), DataKeys.BATCH: torch.zeros(2, dtype=torch.long)}
     with pytest.raises(ValueError, match="aligned to the positions"):
-        VoxelPartitionInferer(voxel_size=1.0)(data, predictor=lambda d: torch.zeros(4, 1))
+        VoxelPartitionSegmentationInferer(voxel_size=1.0)(data, predictor=lambda d: torch.zeros(4, 1))

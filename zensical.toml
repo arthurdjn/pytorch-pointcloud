@@ -342,6 +342,7 @@ nav = [
             { "Overview" = "api/utils/index.md" },
             { "conversion" = "api/utils/conversion.md" },
             { "data" = "api/utils/data.md" },
+            { "deprecation" = "api/utils/deprecation.md" },
             { "hub" = "api/utils/hub.md" },
             { "imports" = "api/utils/imports.md" },
             { "io" = "api/utils/io.md" },

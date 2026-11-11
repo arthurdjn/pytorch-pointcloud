@@ -17,8 +17,8 @@ from torch_pointcloud.datasets.nuscenes import NUSCENES_LIDARSEG_LEARNING_MAP
 from torch_pointcloud.inferers import (
     Inferer,
     SimpleInferer,
-    TTAInferer,
-    VoxelPartitionInferer,
+    TTASegmentationInferer,
+    VoxelPartitionSegmentationInferer,
     scale_flip_tta_transforms,
 )
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
@@ -143,7 +143,7 @@ def configure_inferer(args: Namespace) -> Inferer:
     if args.simple:
         return SimpleInferer()
 
-    base = VoxelPartitionInferer(
+    base = VoxelPartitionSegmentationInferer(
         voxel_size=VOXEL_SIZE,
         transform=INFERER_TRANSFORM,
         softmax=True,
@@ -151,7 +151,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         sw_batch_size=args.sw_batch_size,
         seed=args.seed,
     )
-    return TTAInferer(base=base, transforms=scale_flip_tta_transforms(), aggregate="mean")
+    return TTASegmentationInferer(base=base, transforms=scale_flip_tta_transforms(), aggregate="mean")
 
 
 @torch.no_grad()

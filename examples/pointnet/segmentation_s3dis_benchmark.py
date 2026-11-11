@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
-from torch_pointcloud.inferers import Inferer, SlidingWindowInferer, TTAInferer
+from torch_pointcloud.inferers import Inferer, SlidingWindowSegmentationInferer, TTASegmentationInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -109,7 +109,7 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    blocks = SlidingWindowInferer(
+    blocks = SlidingWindowSegmentationInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),
@@ -122,7 +122,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         inverse_key=DataKeys.INVERSE,
         seed=args.seed,
     )
-    return TTAInferer(base=blocks, num_passes=NUM_VOTES)
+    return TTASegmentationInferer(base=blocks, num_passes=NUM_VOTES)
 
 
 @torch.no_grad()
