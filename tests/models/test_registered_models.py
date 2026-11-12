@@ -1074,21 +1074,25 @@ def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
     assert Path(rebuilt).read_text() == committed.read_text(), "run docs/scripts/build_model_tables.py"
 
 
+@pytest.mark.hub
 def test_registered_weights_urls_exist_on_the_hub() -> None:
-    """Every registered weight file answers a HEAD request at its pinned revision. The Hub answers 401 to an anonymous
-    request for a missing repository too, so 401/403 (gated) passes only outside the public `torch-pointcloud`
-    organisation."""
+    """Every registered weight file is listed by the Hub API at its pinned revision, one request per repository and
+    revision. The file itself is never requested: the Hub counts those requests as downloads."""
+    files: Dict[str, List[str]] = {}
     for name in list_models(pretrained=True):
         weights = model_info(name)["weights"]
         assert weights is not None, name
         for url in ensure_tuple(weights["url"]):
-            file_url = HF_ENDPOINT + "/" + url[len("hf://") :]
-            request = urllib.request.Request(file_url, method="HEAD")
-            try:
-                with urllib.request.urlopen(request, timeout=30) as response:
-                    assert response.status == 200, (name, url, response.status)
-            except urllib.error.HTTPError as e:
-                assert e.code in (401, 403) and not url.startswith("hf://torch-pointcloud/"), (name, url, e.code)
+            match = HF_URL_RE.fullmatch(url)
+            assert match is not None, (name, url)
+            path = f"{match['namespace']}/{match['repo']}/revision/{match['revision']}"
+            if path not in files:
+                try:
+                    with urllib.request.urlopen(f"{HF_ENDPOINT}/api/models/{path}", timeout=30) as response:
+                        files[path] = [sibling["rfilename"] for sibling in json.load(response)["siblings"]]
+                except urllib.error.HTTPError as error:
+                    pytest.fail(f"{name}: the Hub API answers {error.code} for {url}")
+            assert match["file"] in files[path], (name, url, files[path])
 
 
 @pytest.mark.skipif(

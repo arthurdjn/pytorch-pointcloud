@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the test of the registered weight URLs, whose requests the Hub counted as downloads: it reads the Hub API, needs `--run-hub` and runs in one CI job.
+
 ## 0.0.21 (2026-11-11)
 
 - Changed the CI so a commit on `main` keeps its Tests, Code Quality and Hub Sync runs when a newer commit lands, and an in-progress Docs deploy is no longer cancelled; pull requests still cancel their superseded runs.
