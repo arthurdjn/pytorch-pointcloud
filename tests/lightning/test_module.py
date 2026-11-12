@@ -808,7 +808,7 @@ def test_detection_test_step_runs_a_real_tta_inferer(monkeypatch: pytest.MonkeyP
     and the postprocess NMS keeps one box per object across the views."""
     module = LitDetectionModel(
         name="dummy.detection",
-        inferer=TTADetectionInferer(lambda sample: sample, flips=[(), (1,)], sw_batch_size=2),
+        inferer=TTADetectionInferer(lambda sample: sample, flips=[(), (1,)]),
     )
 
     def decode(output: Dict[str, Tensor]) -> Detection3D:

@@ -313,7 +313,7 @@ def test_tta_detection_maps_every_view_back_to_the_input_scene(
     kept."""
     data = _scenes(2)
     expected = _equivariant_detections(data)
-    inferer = TTADetectionInferer(_identity, rotations=rotations, scales=scales, flips=flips, sw_batch_size=2)
+    inferer = TTADetectionInferer(_identity, rotations=rotations, scales=scales, flips=flips)
     out = inferer(data, predictor=_equivariant_detections)
 
     num_views = len(rotations) * len(scales) * len(flips)
@@ -341,7 +341,7 @@ def test_tta_detection_default_is_one_unaugmented_pass() -> None:
         calls.append(window)
         return _equivariant_detections(window)
 
-    out = TTADetectionInferer(_identity, sw_batch_size=2)(data, predictor=predictor)
+    out = TTADetectionInferer(_identity)(data, predictor=predictor)
     expected = _equivariant_detections(data)
     assert len(calls) == 1
     assert torch.equal(calls[0][DataKeys.POS], data[DataKeys.POS])
@@ -387,8 +387,8 @@ def test_tta_detection_views_rotate_and_flip_keys_and_scale_positions_only() -> 
 
 
 def test_tta_detection_transform_runs_per_scene_after_the_view() -> None:
-    """With a `transform`, each scene of each view is transformed on its own after the view, `sw_batch_size` scenes
-    are collated per predictor call (with the `cat_keys` scene indices) and the boxes get the scenes' batch indices."""
+    """Each scene of each view is transformed on its own after the view, the scenes of a view are collated into one
+    predictor call (with the `cat_keys` scene indices) and the boxes get the scenes' batch indices."""
     data = _scenes(3)
     transformed: List[Dict[str, Any]] = []
     calls: List[Dict[str, Any]] = []
@@ -401,20 +401,15 @@ def test_tta_detection_transform_runs_per_scene_after_the_view() -> None:
         calls.append(packed)
         return _equivariant_detections(packed)
 
-    inferer = TTADetectionInferer(
-        transform,
-        flips=((), (1,)),
-        sw_batch_size=2,
-        cat_keys=[DataKeys.POS_VOXEL],
-    )
+    inferer = TTADetectionInferer(transform, flips=((), (1,)), cat_keys=[DataKeys.POS_VOXEL])
     out = inferer(data, predictor=predictor)
 
     assert len(transformed) == 6
     assert all(DataKeys.BATCH not in sample and sample[DataKeys.POS].shape == (10, 3) for sample in transformed)
     mirrored = data[DataKeys.POS][10:20] * torch.tensor([1.0, -1.0, 1.0])
     torch.testing.assert_close(transformed[4][DataKeys.POS], mirrored)
-    assert len(calls) == 4
-    assert calls[0][f"batch_{DataKeys.POS_VOXEL}"].tolist() == [0, 0, 0, 1, 1, 1]
+    assert len(calls) == 2
+    assert calls[0][f"batch_{DataKeys.POS_VOXEL}"].tolist() == [0, 0, 0, 1, 1, 1, 2, 2, 2]
     assert out["batch"].tolist() == [0, 1, 2, 0, 1, 2]
     expected = _equivariant_detections(data)
     torch.testing.assert_close(out["boxes"][:, :6], expected["boxes"][out["batch"], :6], atol=1e-5, rtol=0.0)
@@ -460,7 +455,7 @@ def test_tta_detection_keeps_the_pyramid_level_of_each_box() -> None:
         det["level"] = det["batch"] + 1
         return det
 
-    out = TTADetectionInferer(_identity, flips=((), (1,)), sw_batch_size=2)(_scenes(2), predictor=predictor)
+    out = TTADetectionInferer(_identity, flips=((), (1,)))(_scenes(2), predictor=predictor)
 
     assert out["batch"].tolist() == [0, 1, 0, 1]
     assert out["level"].tolist() == [1, 2, 1, 2]
@@ -490,7 +485,7 @@ def test_tta_detection_predictor_keys_changing_across_calls_raise() -> None:
 
 
 def test_tta_detection_splits_stacked_keys_by_scene_row() -> None:
-    """Each scene gets its own row of a stacked key, and every predictor call the rows of its scenes."""
+    """Each scene gets its own row of a stacked key, and the predictor the rows of the scenes stacked again."""
     calib = torch.arange(3.0).view(3, 1, 1).expand(3, 3, 4)
     data = {**_scenes(3), DataKeys.CALIB: calib}
     transformed: List[Tensor] = []
@@ -504,13 +499,13 @@ def test_tta_detection_splits_stacked_keys_by_scene_row() -> None:
         seen.append(packed[DataKeys.CALIB])
         return _equivariant_detections(packed)
 
-    inferer = TTADetectionInferer(transform, sw_batch_size=2, stack_keys=[DataKeys.CALIB])
+    inferer = TTADetectionInferer(transform, stack_keys=[DataKeys.CALIB])
     inferer(data, predictor=predictor)
 
     assert [tuple(value.shape) for value in transformed] == [(3, 4), (3, 4), (3, 4)]
     assert [value[0, 0].item() for value in transformed] == [0.0, 1.0, 2.0]
-    assert [tuple(value.shape) for value in seen] == [(2, 3, 4), (1, 3, 4)]
-    assert torch.equal(seen[1][0], calib[2])
+    assert [tuple(value.shape) for value in seen] == [(3, 3, 4)]
+    assert torch.equal(seen[0], calib)
 
 
 def test_tta_detection_drops_packed_keys_outside_cat_keys() -> None:
@@ -536,7 +531,7 @@ def test_tta_detection_keeps_the_scene_ids_of_a_sparse_unsorted_batch() -> None:
     pos = torch.randn(20, 3)
     batch = torch.tensor([0, 5] * 10)
     data: Dict[str, Any] = {DataKeys.POS: pos, DataKeys.BATCH: batch}
-    out = TTADetectionInferer(_identity, flips=((), (1,)), sw_batch_size=2)(data, predictor=_equivariant_detections)
+    out = TTADetectionInferer(_identity, flips=((), (1,)))(data, predictor=_equivariant_detections)
 
     assert out["batch"].tolist() == [0, 5, 0, 5]
     torch.testing.assert_close(out["boxes"][[0, 2], :3], pos[batch == 0].mean(dim=0).expand(2, 3))
@@ -569,7 +564,7 @@ def test_tta_detection_predictor_on_another_device_returns_on_the_input_device()
         cuda = {key: value.cuda() if isinstance(value, Tensor) else value for key, value in packed.items()}
         return _equivariant_detections(cuda)
 
-    inferer = TTADetectionInferer(_identity, flips=((), (1,)), sw_batch_size=2)
+    inferer = TTADetectionInferer(_identity, flips=((), (1,)))
     out = inferer(data, predictor=predictor)
     expected = inferer(data, predictor=_equivariant_detections)
 
@@ -583,7 +578,6 @@ def test_tta_detection_predictor_on_another_device_returns_on_the_input_device()
         pytest.param({"scales": (1.0, 0.0)}, "> 0", id="zero_scale"),
         pytest.param({"flips": ((2,),)}, "distinct axes", id="flip_up_axis"),
         pytest.param({"flips": ((0, 0),)}, "distinct axes", id="repeated_flip_axis"),
-        pytest.param({"sw_batch_size": 0}, "sw_batch_size", id="zero_sw_batch_size"),
         pytest.param({"keys": (DataKeys.NORMAL,)}, "pos_key", id="positions_not_rotated"),
         pytest.param({"scale_keys": ()}, "pos_key", id="positions_not_scaled"),
         pytest.param({"pos_key": "coord"}, "pos_key", id="other_pos_key"),

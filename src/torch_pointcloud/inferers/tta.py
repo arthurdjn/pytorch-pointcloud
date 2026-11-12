@@ -404,7 +404,7 @@ class TTADetectionInferer(DetectionInferer):
     A view moves the points, so every step that depends on their positions must run after it: the inferer
     splits the batch into its scenes with `decollate` and runs `transform`, the model's per-scene pipeline (for
     a voxel detector, its registered `transform`: feature stacking and voxelization within the point-cloud
-    range), on each scene of each view, then collates the results, `sw_batch_size` scenes per predictor call.
+    range), on each scene of each view, then collates the scenes of the view back into one batch for the predictor.
     The split keeps the per-point entries and the `stack_keys` and `cat_keys` entries of each scene and drops
     the rest, so entries the pipeline derives from the points (voxels, features) come from `transform`, not
     from the batch.
@@ -420,7 +420,6 @@ class TTADetectionInferer(DetectionInferer):
         keys: Keys rotated and flipped, `pos_key` among them (positions, normals). Other missing keys are
             skipped.
         scale_keys: Keys scaled, `pos_key` among them. Other missing keys are skipped.
-        sw_batch_size: Number of transformed scenes collated into one predictor call.
         stack_keys: Per-scene keys with a leading scene dimension (e.g. `DataKeys.CALIB`), split by scene row
             and stacked again for the predictor.
         cat_keys: Packed keys with a `batch_<key>` scene index, split by that index and collated again for the
@@ -472,7 +471,6 @@ class TTADetectionInferer(DetectionInferer):
         flips: Sequence[Sequence[int]] = ((),),
         keys: KeyCollection = (DataKeys.POS, DataKeys.NORMAL),
         scale_keys: KeyCollection = DataKeys.POS,
-        sw_batch_size: int = 1,
         stack_keys: Optional[KeyCollection] = None,
         cat_keys: Optional[KeyCollection] = None,
         pos_key: str = DataKeys.POS,
@@ -495,16 +493,12 @@ class TTADetectionInferer(DetectionInferer):
                 f"the view of the positions."
             )
 
-        if sw_batch_size < 1:
-            raise ValueError(f"`sw_batch_size` must be >= 1, got {sw_batch_size}.")
-
         self.transform = transform
         self.rotations = [float(angle) for angle in rotations]
         self.scales = [float(scale) for scale in scales]
         self.flips = [tuple(int(axis) for axis in axes) for axes in flips]
         self.keys = ensure_tuple(keys)
         self.scale_keys = ensure_tuple(scale_keys)
-        self.sw_batch_size = sw_batch_size
         self.stack_keys = stack_keys
         self.cat_keys = cat_keys
         self.pos_key = pos_key
@@ -524,24 +518,25 @@ class TTADetectionInferer(DetectionInferer):
         check_batch_alignment(pos, data[self.batch_key], self.pos_key, self.batch_key)
         samples = decollate(data, batch_key=self.batch_key, stack_keys=self.stack_keys, cat_keys=self.cat_keys)
         scenes = [scene for scene, sample in enumerate(samples) if sample[self.pos_key].size(0) > 0]
+        if not scenes:
+            return _cat_detections([], like=pos)
+
         views = list(itertools.product(self.scales, self.rotations, self.flips))
         parts: List[Detection3D] = []
         for scale, angle, flips in tqdm(views, desc="TTA", leave=False, disable=not self.progress):
-            for start in range(0, len(scenes), self.sw_batch_size):
-                chunk = scenes[start : start + self.sw_batch_size]
-                transformed = [self.transform(self._apply_view(samples[scene], angle, scale, flips)) for scene in chunk]
-                packed = collate(
-                    transformed,
-                    batch_from=self.pos_key,
-                    batch_key=self.batch_key,
-                    stack_keys=self.stack_keys,
-                    cat_keys=self.cat_keys,
-                )
-                det = predictor(packed)
-                _check_detection_keys(det)
-                det = _map_view_back(det, angle, scale, flips)
-                det["batch"] = torch.tensor(chunk, device=det["batch"].device)[det["batch"]]
-                parts.append(det)
+            transformed = [self.transform(self._apply_view(samples[scene], angle, scale, flips)) for scene in scenes]
+            packed = collate(
+                transformed,
+                batch_from=self.pos_key,
+                batch_key=self.batch_key,
+                stack_keys=self.stack_keys,
+                cat_keys=self.cat_keys,
+            )
+            det = predictor(packed)
+            _check_detection_keys(det)
+            det = _map_view_back(det, angle, scale, flips)
+            det["batch"] = torch.tensor(scenes, device=det["batch"].device)[det["batch"]]
+            parts.append(det)
         return _cat_detections(parts, like=pos)
 
     def _apply_view(self, data: Dict[str, Any], angle: float, scale: float, flips: Tuple[int, ...]) -> Dict[str, Any]:
