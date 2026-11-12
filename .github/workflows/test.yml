@@ -88,6 +88,11 @@ jobs:
       - name: Doctests in source docstrings
         run: uv run --frozen pytest --doctest-modules src
 
+      # Only this job runs the test: it queries the Hub API once per registered repository, and the anonymous rate
+      # limit does not cover every matrix job at once.
+      - name: Registered weight files exist on the Hub
+        run: uv run --frozen pytest tests/models/test_registered_models.py::test_registered_weights_urls_exist_on_the_hub --run-hub
+
   # Package gate: build the distributions, keep the sdist under PyPI's 100 MB upload limit, and
   # import from a bare wheel install (no dev group, no extras) so an undeclared runtime
   # dependency fails here instead of on a user's machine.
