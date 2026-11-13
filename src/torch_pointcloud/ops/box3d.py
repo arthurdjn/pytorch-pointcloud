@@ -561,7 +561,7 @@ def boxes_iou_bev(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) ->
     if not aligned:
         area_a, area_b = area_a[:, None], area_b[None, :]
 
-    return inter / (area_a + area_b - inter).clamp(min=1e-8)
+    return inter / (area_a + area_b - inter).clamp(min=torch.finfo(inter.dtype).tiny)
 
 
 def _nearest_aligned_bev_footprint(boxes: Tensor) -> Tensor:
@@ -652,7 +652,7 @@ def boxes_iou3d(boxes_a: Tensor, boxes_b: Tensor, *, aligned: bool = False) -> T
 
     h_overlap = (torch.min(z_a_max, z_b_max) - torch.max(z_a_min, z_b_min)).clamp(min=0)
     inter_3d = inter_area * h_overlap
-    return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=1e-6)
+    return inter_3d / (vol_a + vol_b - inter_3d).clamp(min=torch.finfo(inter_3d.dtype).tiny)
 
 
 def _overlapping_pairs(lo: Tensor, hi: Tensor, group: Tensor) -> Tuple[Tensor, Tensor]:
@@ -805,14 +805,14 @@ def nms3d(
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
 
-    # Each scene sorts its own scores, so tied boxes rank as they would in a call on that scene alone.
+    # Each scene sorts its own scores with a stable sort, so tied boxes rank in input order.
     if batch is None:
         scene = boxes.new_zeros(len(boxes), dtype=torch.long)
-        orders = [scores.argsort(descending=True)[:max_candidates]]
+        orders = [scores.argsort(descending=True, stable=True)[:max_candidates]]
     else:
         _, scene, counts = torch.unique(batch, return_inverse=True, return_counts=True)
         members = scene.argsort(stable=True).split(counts.tolist())
-        orders = [index[scores[index].argsort(descending=True)][:max_candidates] for index in members]
+        orders = [index[scores[index].argsort(descending=True, stable=True)][:max_candidates] for index in members]
     order = torch.cat(orders)
     if order.numel() == 0:
         return order

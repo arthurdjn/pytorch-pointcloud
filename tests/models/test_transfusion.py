@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Callable, Tuple
 
 import pytest
 import torch
@@ -9,7 +9,6 @@ from torch_pointcloud.models.transfusion import TransFusionDetection
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
-# The sparse 3D backbone (spconv SubM/SparseConv3d) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 VOXEL_SIZE = (0.075, 0.075, 0.2)
@@ -44,9 +43,11 @@ def test_transfusion_create_model_hparams() -> None:
     assert model.head.local_max_classes == (8, 9)
 
 
-@pytest.mark.skipif(not (_SPCONV_AVAILABLE and torch.cuda.is_available()), reason="sparse backbone requires CUDA")
-def test_transfusion_forward_and_decode() -> None:
-    model = create_model("transfusion-lidar.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_transfusion_forward_and_decode(spconv_to_device: Callable[[torch.nn.Module, str], None]) -> None:
+    model = create_model("transfusion-lidar.nuscenes.openpcdet", task="detection")
+    spconv_to_device(model, DEVICE)
+    model.eval()
     assert isinstance(model, TransFusionDetection)
     voxels, pos_voxel, num_points, batch = _make_inputs()
     with torch.no_grad():

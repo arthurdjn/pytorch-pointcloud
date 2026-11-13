@@ -260,7 +260,9 @@ class TransFusionHeadLoss(nn.Module):
         batch_size, num_queries = decoded.shape[:2]
         counts = [boxes.shape[0] for boxes in boxes_per_scene]
 
-        prob = cls_logits.sigmoid().permute(0, 2, 1)  # (B, Q, C)
+        # The matching cost runs in single precision: `_LOG_EPS` is below the half-precision resolution.
+        decoded = decoded.float()
+        prob = cls_logits.float().sigmoid().permute(0, 2, 1)  # (B, Q, C)
         neg = -(1 - prob + _LOG_EPS).log() * (1 - self.focal_alpha) * prob.pow(self.focal_gamma)
         pos = -(prob + _LOG_EPS).log() * self.focal_alpha * (1 - prob).pow(self.focal_gamma)
         pc_start = decoded.new_tensor(self.point_cloud_range[0:2])
@@ -290,7 +292,7 @@ class TransFusionHeadLoss(nn.Module):
         targets[:, 0] = (boxes[:, 0] - pcr[0]) / (stride * vs[0])
         targets[:, 1] = (boxes[:, 1] - pcr[1]) / (stride * vs[1])
         targets[:, 2] = boxes[:, 2] + 0.5 * boxes[:, 5] if self.height_code == "top" else boxes[:, 2]
-        targets[:, 3:6] = boxes[:, 3:6].log()
+        targets[:, 3:6] = boxes[:, 3:6].clamp_min(1e-5).log()
         targets[:, 6] = torch.sin(boxes[:, 6])
         targets[:, 7] = torch.cos(boxes[:, 6])
         if boxes.shape[1] >= 9:

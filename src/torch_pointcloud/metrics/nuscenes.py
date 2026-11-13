@@ -128,13 +128,20 @@ def _nuscenes_tp_error(curve: np.ndarray, confidence: np.ndarray, min_recall: fl
     return float(np.mean(curve[first : last + 1]))
 
 
-def filter_boxes_by_range(boxes: Tensor, labels: Tensor, ranges: Sequence[float]) -> Tensor:
-    r"""Mask of boxes whose BEV center distance from the sensor origin is strictly below their class range.
+def filter_boxes_by_range(
+    boxes: Tensor,
+    labels: Tensor,
+    ranges: Sequence[float],
+    origin: Optional[Tensor] = None,
+) -> Tensor:
+    r"""Mask of boxes whose BEV center distance from the origin is strictly below their class range.
 
     Args:
         boxes: Boxes $(N, 7)$ or $(N, 9)$ of $(c_x, c_y, c_z, d_x, d_y, d_z, \theta[, v_x, v_y])$.
         labels: Per-box class index into `ranges`, shape $(N,)$.
         ranges: Maximum BEV range per class index, in the coordinate unit.
+        origin: Optional position the distances are measured from, one per box, shape $(N, 2)$ or $(N, 3)$;
+            the frame origin when omitted.
 
     Returns:
         Boolean keep mask of shape $(N,)$.
@@ -153,7 +160,8 @@ def filter_boxes_by_range(boxes: Tensor, labels: Tensor, ranges: Sequence[float]
         ```
     """
     limits = boxes.new_tensor(list(ranges))[labels.long()]
-    return torch.linalg.norm(boxes[:, :2], dim=1) < limits
+    centers = boxes[:, :2] if origin is None else boxes[:, :2] - origin[:, :2].to(boxes)
+    return torch.linalg.norm(centers, dim=1) < limits
 
 
 def nuscenes_detection_metrics(
@@ -164,6 +172,7 @@ def nuscenes_detection_metrics(
     gt_num_points: Optional[Tensor] = None,
     pred_attributes: Optional[Tensor] = None,
     gt_attributes: Optional[Tensor] = None,
+    origin: Optional[Tensor] = None,
     class_ranges: Optional[Mapping[str, float]] = None,
     dist_thresholds: Sequence[float] = (0.5, 1.0, 2.0, 4.0),
     tp_threshold: float = 2.0,
@@ -188,8 +197,9 @@ def nuscenes_detection_metrics(
     means, and $\text{NDS} = (5 \cdot \text{mAP} + \sum_\text{tp} (1 - \min(1, \text{err}))) / 10$.
 
     Boxes are filtered before scoring: each sample keeps its `max_boxes_per_sample` highest-scoring
-    predictions, boxes farther from the sensor origin (BEV) than their class range are dropped on both
-    sides, and ground-truth boxes with `gt_num_points == 0` are removed. When velocity columns or
+    predictions, boxes farther from `origin` (BEV) than their class range are dropped on both
+    sides, and ground-truth boxes with `gt_num_points == 0` are removed. The official evaluation measures the
+    ranges from the ego vehicle and counts the LiDAR and radar points of a box. When velocity columns or
     attributes are absent (on either side), AVE / AAE fall back to the full penalty of $1.0$ per class.
 
     Args:
@@ -205,6 +215,8 @@ def nuscenes_detection_metrics(
         pred_attributes: Optional per-box attribute id, shape $(M,)$. Without it AAE is $1.0$.
         gt_attributes: Optional per-box attribute id, shape $(K,)$; a negative id marks a box without an
             attribute, which is skipped in the AAE mean. Without it AAE is $1.0$.
+        origin: Optional per-sample position the class ranges are measured from, shape $(B, 2)$ or $(B, 3)$ and
+            indexed by `batch`; the origin of the box frame when omitted.
         class_ranges: Maximum BEV evaluation range per class name; defaults to the official ranges (50 m
             car/truck/bus/trailer/construction_vehicle, 40 m pedestrian/motorcycle/bicycle, 30 m
             traffic_cone/barrier). A name missing from the mapping is not range-filtered.
@@ -252,8 +264,10 @@ def nuscenes_detection_metrics(
     limits = [float(class_ranges.get(name, math.inf)) for name in class_names]
 
     pred_keep = _top_score_mask(pred_scores, pred_batch, max_boxes_per_sample)
-    pred_keep &= filter_boxes_by_range(pred_boxes, pred_labels, limits)
-    gt_keep = filter_boxes_by_range(gt_boxes, gt_labels, limits)
+    pred_origin = origin[pred_batch] if origin is not None else None
+    gt_origin = origin[gt_batch] if origin is not None else None
+    pred_keep &= filter_boxes_by_range(pred_boxes, pred_labels, limits, pred_origin)
+    gt_keep = filter_boxes_by_range(gt_boxes, gt_labels, limits, gt_origin)
     if gt_num_points is not None:
         gt_keep &= gt_num_points != 0
 
@@ -333,7 +347,7 @@ def nuscenes_velocity_attributes(
     velocity: Tensor,
     *,
     class_names: Sequence[str],
-    speed_threshold: float = 1.0,
+    speed_threshold: float = 0.2,
 ) -> Tensor:
     r"""Derive per-box nuScenes attribute ids from predicted velocities (the standard speed heuristic).
 
@@ -359,7 +373,7 @@ def nuscenes_velocity_attributes(
     Example:
         ```pycon
         >>> labels = torch.tensor([0, 0, 1])
-        >>> velocity = torch.tensor([[3.0, 0.0], [0.5, 0.0], [2.0, 0.0]])
+        >>> velocity = torch.tensor([[3.0, 0.0], [0.1, 0.0], [2.0, 0.0]])
         >>> nuscenes_velocity_attributes(labels, velocity, class_names=("car", "barrier")).tolist()
         [0, 2, -1]
 

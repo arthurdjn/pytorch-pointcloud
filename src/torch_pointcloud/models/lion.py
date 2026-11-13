@@ -383,16 +383,12 @@ class PatchMerging3D(nn.Module):
         pos[:, 2:3] = pos[:, 2:3] // down_scale[1]
         pos[:, 1:2] = pos[:, 1:2] // down_scale[2]
 
-        scale_xyz = (
-            (x.spatial_shape[0] // down_scale[2])
-            * (x.spatial_shape[1] // down_scale[1])
-            * (x.spatial_shape[2] // down_scale[0])
-        )
-        scale_yz = (x.spatial_shape[0] // down_scale[2]) * (x.spatial_shape[1] // down_scale[1])
-        scale_z = x.spatial_shape[0] // down_scale[2]
+        new_sparse_shape = [math.ceil(x.spatial_shape[i] / down_scale[2 - i]) for i in range(3)]
+        scale_z = new_sparse_shape[0]
+        scale_yz = scale_z * new_sparse_shape[1]
+        scale_xyz = scale_yz * new_sparse_shape[2]
 
         merge_indices = pos[:, 0].int() * scale_xyz + pos[:, 3] * scale_yz + pos[:, 2] * scale_z + pos[:, 1]
-        new_sparse_shape = [math.ceil(x.spatial_shape[i] / down_scale[2 - i]) for i in range(3)]
         unq_indices, unq_inv = torch.unique(merge_indices, return_inverse=True)
         x_merge = scatter(final_diffusion_feats, unq_inv, dim=0, reduce="sum")
 

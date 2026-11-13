@@ -260,7 +260,7 @@ def test_nuscenes_detection_metrics_void_attribute_and_missing_velocity_penalty(
 
 
 def test_nuscenes_velocity_attributes_hand_derived_case() -> None:
-    """Hand-derived against the official tables: moving above 1 m/s BEV speed (strictly), the parked /
+    """Hand-derived against the official tables: moving above 0.2 m/s BEV speed (strictly), the parked /
     stopped / standing default at or below it, and no attribute (-1) for `barrier` / `traffic_cone`."""
     class_names = (
         "car",
@@ -278,18 +278,18 @@ def test_nuscenes_velocity_attributes_hand_derived_case() -> None:
     velocity = torch.tensor(
         [
             [3.0, 4.0],
-            [1.0, 0.0],
-            [0.3, 0.0],
-            [0.8, 0.9],
-            [0.5, 0.5],
+            [0.2, 0.0],
+            [0.1, 0.0],
+            [0.2, 0.1],
+            [0.1, 0.1],
             [0.0, 0.0],
             [9.0, 0.0],
             [9.0, 0.0],
         ],
     )
     out = nuscenes_velocity_attributes(labels, velocity, class_names=class_names)
-    # car@5 -> vehicle.moving (0); car@1.0 is not strictly moving -> vehicle.parked (2); bus@0.3 ->
-    # vehicle.stopped (1); pedestrian@1.2 -> pedestrian.moving (7); pedestrian@0.7 -> pedestrian.standing
+    # car@5 -> vehicle.moving (0); car@0.2 is not strictly moving -> vehicle.parked (2); bus@0.1 ->
+    # vehicle.stopped (1); pedestrian@0.22 -> pedestrian.moving (7); pedestrian@0.14 -> pedestrian.standing
     # (6); bicycle@0 -> cycle.without_rider (4); barrier / traffic_cone -> -1.
     assert out.dtype == torch.long
     assert out.tolist() == [0, 2, 1, 7, 6, 4, -1, -1]
@@ -298,6 +298,36 @@ def test_nuscenes_velocity_attributes_hand_derived_case() -> None:
 def test_nuscenes_velocity_attributes_speed_threshold() -> None:
     """Lowering `speed_threshold` flips a borderline box to its class's moving attribute."""
     labels = torch.tensor([0])
-    velocity = torch.tensor([[1.0, 0.0]])
+    velocity = torch.tensor([[0.2, 0.0]])
     assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",)).tolist() == [2]
-    assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",), speed_threshold=0.5).tolist() == [0]
+    assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",), speed_threshold=0.1).tolist() == [0]
+
+
+def test_nuscenes_velocity_attributes_default_threshold_is_a_fifth_of_a_meter_per_second() -> None:
+    labels = torch.tensor([0, 0])
+    velocity = torch.tensor([[0.5, 0.0], [0.1, 0.0]])
+    assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",)).tolist() == [0, 2]
+
+
+def test_filter_boxes_by_range_measures_from_the_origin_of_every_box() -> None:
+    boxes = torch.tensor([_box(49.5, 0.0), _box(50.5, 0.0)])
+    labels = torch.tensor([0, 0])
+    origin = torch.tensor([[-1.0, 0.0, 2.0], [1.0, 0.0, 2.0]])
+    assert filter_boxes_by_range(boxes, labels, ranges=[50.0]).tolist() == [True, False]
+    assert filter_boxes_by_range(boxes, labels, ranges=[50.0], origin=origin).tolist() == [False, True]
+
+
+def test_nuscenes_detection_metrics_ranges_start_at_the_origin_of_the_sample() -> None:
+    """Sample 0 measures from 1 m behind the frame origin, which puts its box out of range; sample 1 keeps its box."""
+    boxes = torch.tensor([_box(49.5, 0.0), _box(49.5, 0.0)])
+    batch = torch.tensor([0, 1])
+    labels = torch.zeros(2, dtype=torch.long)
+    preds: Detection3D = {"boxes": boxes[1:], "scores": torch.tensor([0.9]), "labels": labels[1:], "batch": batch[1:]}
+    target: Boxes3D = {"boxes": boxes, "labels": labels, "batch": batch}
+
+    out = nuscenes_detection_metrics(preds, target, class_names=("car",))
+    assert out["AP/car"] == pytest.approx(4.0 / 9.0)
+
+    origin = torch.tensor([[-1.0, 0.0], [0.0, 0.0]])
+    out = nuscenes_detection_metrics(preds, target, class_names=("car",), origin=origin)
+    assert out["AP/car"] == pytest.approx(1.0)

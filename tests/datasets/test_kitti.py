@@ -15,6 +15,7 @@ from torch_pointcloud.datasets.kitti import (
     fov_flag,
     kitti_difficulty,
     lidar_to_rect,
+    load_kitti_boxes,
     load_kitti_calib,
     rect_to_img,
     rect_to_lidar,
@@ -42,6 +43,26 @@ def test_fov_flag_keeps_front_drops_behind(tmp_path: Path) -> None:
     points = np.array([[1.0, 1.0, 5.0, 0.0], [1.0, 1.0, -5.0, 0.0], [10000.0, 0.0, 5.0, 0.0]], dtype=np.float32)
     mask = fov_flag(points, (375, 1242), calib)
     assert mask.tolist() == [True, False, False]
+
+
+def test_load_kitti_boxes_converts_a_camera_box_to_the_lidar_frame(tmp_path: Path) -> None:
+    """The camera looks along LiDAR x (camera x = -y, camera y = -z, camera z = x) from (0.1, -0.2, 0.3)."""
+    calib_file = tmp_path / "calib.txt"
+    calib_file.write_text(
+        "P2: 1 0 0 0 0 1 0 0 0 0 1 0\nR0_rect: 1 0 0 0 1 0 0 0 1\nTr_velo_to_cam: 0 -1 0 0.1 0 0 -1 -0.2 1 0 0 0.3\n"
+    )
+    label_file = tmp_path / "label.txt"
+    label_file.write_text("Car 0.25 1 0.0 100.0 150.0 300.0 210.0 1.5 1.6 4.0 2.0 1.4 10.0 0.3\n")
+
+    annotations = load_kitti_boxes(label_file, load_kitti_calib(calib_file))
+
+    # The label stores (height, width, length) and the bottom-face center: the LiDAR center is half a height above it.
+    expected = np.array([[9.7, -1.9, -0.85, 4.0, 1.6, 1.5, -(0.3 + np.pi / 2)]], dtype=np.float32)
+    assert np.allclose(annotations[DataKeys.BOX], expected, atol=1e-5)
+    assert annotations[DataKeys.LABEL].tolist() == [KITTI_CLASSES.index("Car")]
+    assert annotations[DataKeys.TRUNCATION].tolist() == [0.25]
+    assert annotations[DataKeys.OCCLUSION].tolist() == [1]
+    assert annotations[DataKeys.BBOX_HEIGHT].tolist() == [60.0]
 
 
 def test_kitti_dataset_not_found() -> None:

@@ -101,3 +101,50 @@ def test_tr3d_loss_distance_dims_select_the_columns_of_the_center_distance() -> 
     distance = (pred[:, [0, 1, 3]] - target[:, [0, 1, 3]]).pow(2).sum(dim=1) / diagonal
     torch.testing.assert_close(width["box_loss"], (box_iou_loss(pred, target) + distance).mean())
     assert not torch.isclose(width["box_loss"], default)
+
+
+def _tr3d_output(pyramid: Dict[str, Tensor]) -> Dict[str, Tensor]:
+    m = len(pyramid["pos"])
+    generator = torch.Generator().manual_seed(0)
+    boxes = torch.cat([pyramid["pos"], torch.full((m, 3), 0.5), torch.zeros(m, 1)], dim=1)
+    return {
+        "cls_logits": torch.randn(m, 2, generator=generator),
+        "boxes": boxes + 0.05 * torch.randn(m, 7, generator=generator),
+        **pyramid,
+    }
+
+
+def test_tr3d_loss_follows_the_scene_ids_of_the_predictions() -> None:
+    output = _tr3d_output(_pyramid(num_scenes=2))
+    data = {
+        "box": torch.tensor([[2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 0.0], [1.0, 3.0, 1.0, 0.8, 1.2, 0.6, 0.0]]),
+        "label": torch.tensor([1, 0]),
+        "batch_box": torch.tensor([0, 1]),
+    }
+    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)
+    expected = criterion(output, data)
+
+    spaced = {**output, "batch": output["batch"] * 3 + 2}
+    spaced_data = {
+        "box": torch.cat([data["box"], data["box"][:1]]),
+        "label": torch.cat([data["label"], data["label"][:1]]),
+        "batch_box": torch.tensor([2, 5, 0]),
+    }
+    losses = criterion(spaced, spaced_data)
+
+    for key in ("loss", "cls_loss", "box_loss"):
+        assert losses[key].item() == pytest.approx(expected[key].item())
+
+
+def test_tr3d_loss_int32_labels_match_int64() -> None:
+    output = _tr3d_output(_pyramid())
+    data = {
+        "box": torch.tensor([[2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 0.0]]),
+        "label": torch.tensor([1]),
+        "batch_box": torch.tensor([0]),
+    }
+    criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)
+
+    losses = criterion(output, {**data, "label": data["label"].int()})
+
+    assert losses["loss"].item() == pytest.approx(criterion(output, data)["loss"].item())

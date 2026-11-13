@@ -231,7 +231,7 @@ class ThreeDETRLoss(nn.Module):
             present[box_batch, slot] = 1.0
 
         scene_scale = (hi - lo).clamp(min=1e-1)
-        center_normalized = (center - lo.unsqueeze(1)) / (hi - lo).unsqueeze(1)
+        center_normalized = (center - lo.unsqueeze(1)) / (hi - lo).clamp(min=1e-6).unsqueeze(1)
         size_normalized = size / scene_scale.unsqueeze(1)
         angle_class, angle_residual = angle_to_class(angle, self.num_heading_bins)
         angle_residual_normalized = angle_residual / (math.pi / self.num_heading_bins)
@@ -422,15 +422,16 @@ class ThreeDETRLoss(nn.Module):
         gious = targets.center_unnormalized.new_zeros(num_layers, batch_size, num_queries, num_gt)
 
         for b in range(batch_size):
-            # The queries of every layer of the scene, stacked along the rows: (L * Q, 7).
+            # The queries of every layer of the scene, stacked along the rows: (L * Q, 7), with the headings
+            # negated back from the model's native space to the counter-clockwise one of `box_corners`.
             layer_boxes = []
             for layer in layers:
                 center = layer["center_unnormalized"][b]
                 size = layer["size_unnormalized"][b]
-                angle = layer["angle_continuous"][b].unsqueeze(-1)
+                angle = -layer["angle_continuous"][b].unsqueeze(-1)
                 layer_boxes.append(torch.cat([center, size, angle], dim=-1))
             pred_boxes = torch.cat(layer_boxes, dim=0)
-            gt_angle = targets.angle[b].unsqueeze(-1)
+            gt_angle = -targets.angle[b].unsqueeze(-1)
             gt_boxes = torch.cat([targets.center_unnormalized[b], targets.size_unnormalized[b], gt_angle], dim=-1)
 
             corners1 = box_corners(pred_boxes)

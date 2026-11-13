@@ -268,7 +268,7 @@ class FCAF3DHead(nn.Module):
                 scores.features,
                 coarse[:, 1:],
                 coarse[:, 0],
-                indices[:, 1:].to(scores.features.dtype) / 2,
+                indices[:, 1:].float() / 2,
                 indices[:, 0],
             )
             keep = topk(score.view(-1), self.max_voxels_per_scene, indices[:, 0])
@@ -397,7 +397,9 @@ class FCAF3DDetection(DetectionModel):
         self.encoder_depths = tuple(encoder_depths)
         self.head_channels = head_channels
         self.stem_norm = stem_norm
-        self.stem_norm_kwargs = stem_norm_kwargs if stem_norm_kwargs is not None else {"eps": 1e-8, "affine": True}
+        if stem_norm_kwargs is None and stem_norm == "instance_norm":
+            stem_norm_kwargs = {"eps": 1e-8, "affine": True}
+        self.stem_norm_kwargs = stem_norm_kwargs
         self.norm = norm
         self.norm_kwargs = norm_kwargs
 

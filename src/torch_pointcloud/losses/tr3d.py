@@ -113,10 +113,10 @@ class TR3DLoss(nn.Module):
         Returns:
             A dict with the scalar `loss` and detached `cls_loss` and `box_loss`.
         """
-        gt_boxes, gt_labels, gt_batch = data[DataKeys.BOX], data[DataKeys.LABEL], data[DataKeys.BATCH_BOX]
+        gt_boxes, gt_labels, gt_batch = data[DataKeys.BOX], data[DataKeys.LABEL].long(), data[DataKeys.BATCH_BOX]
         box_targets = output["boxes"].new_zeros(output["boxes"].shape)
         labels = output["batch"].new_full(output["batch"].shape, -1)
-        for scene in range(int(output["batch"].max()) + 1):
+        for scene in torch.unique(output["batch"]):
             rows = output["batch"] == scene
             gt = gt_batch == scene
             box_targets[rows], labels[rows] = self.assign(

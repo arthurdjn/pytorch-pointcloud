@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Dict
 
 import pytest
@@ -6,7 +5,6 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.models.voxelnext  # noqa: F401
-from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.voxelnext import (
     VoxelNeXtDetection,
@@ -22,7 +20,6 @@ pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not ins
 # The fully sparse 3D backbone (spconv SubM/SparseConv) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
-WEIGHTS = Path(MODELS_DIR, "voxelnext", "voxelnext.nuscenes.openpcdet.safetensors")
 
 
 def _voxelize(model: VoxelNeXtDetection, data: Dict[str, Tensor], max_num_points: int, max_num_voxels: int) -> tuple:
@@ -148,6 +145,41 @@ def test_voxelnext_decode_returns_velocity() -> None:
     assert torch.equal(det["velocity"], vel)
 
 
+def test_voxelnext_decode_ranks_every_class_of_every_voxel() -> None:
+    head = VoxelNeXtHead(
+        8,
+        [[0, 1]],
+        head_dict={
+            "center": {"out_channels": 2, "num_conv": 1},
+            "center_z": {"out_channels": 1, "num_conv": 1},
+            "dim": {"out_channels": 3, "num_conv": 1},
+            "rot": {"out_channels": 2, "num_conv": 1},
+            "vel": {"out_channels": 2, "num_conv": 1},
+        },
+        head_kernel_size=1,
+        num_hm_conv=1,
+        use_bias=False,
+        feature_map_stride=8,
+        voxel_size=(0.075, 0.075, 0.2),
+        point_cloud_range=RANGE,
+    )
+    logits = torch.tensor([[3.0, 2.9], [2.8, 2.7], [2.6, 2.5]])
+    out: VoxelNeXtHeadOutput = {
+        "hm": [logits],
+        "center": [torch.zeros(3, 2)],
+        "center_z": [torch.zeros(3, 1)],
+        "dim": [torch.zeros(3, 3)],
+        "rot": [torch.zeros(3, 2)],
+        "vel": [torch.zeros(3, 2)],
+        "voxel_indices": torch.tensor([[0, 5, 7], [0, 3, 2], [0, 9, 4]], dtype=torch.int32),
+    }
+
+    det = head.decode(out, batch_size=1, top_k=500)
+
+    assert torch.allclose(det["scores"], logits.sigmoid().view(-1))
+    assert det["labels"].tolist() == [0, 1, 0, 1, 0, 1]
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="VoxelNeXt sparse backbone requires CUDA")
 def test_voxelnext_forward_shapes() -> None:
     model = create_model("voxelnext.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
@@ -168,7 +200,7 @@ def test_voxelnext_forward_shapes() -> None:
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="VoxelNeXt sparse backbone requires CUDA")
-@pytest.mark.skipif(not WEIGHTS.exists(), reason="VoxelNeXt nuScenes weights not in local cache")
+@pytest.mark.pretrained
 def test_voxelnext_pretrained_forward_decode() -> None:
     model = create_model("voxelnext.nuscenes.openpcdet", task="detection", pretrained=True).to(DEVICE).eval()
     assert isinstance(model, VoxelNeXtDetection)
