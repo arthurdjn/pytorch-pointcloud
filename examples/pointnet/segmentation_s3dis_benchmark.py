@@ -114,6 +114,7 @@ def configure_inferer(args: Namespace) -> Inferer:
         overlap=0.5,
         dims=(0, 1),
         padding=0.001,
+        shift_last_block=True,
         roi_num_points=BLOCK_NUM_POINTS,
         sw_batch_size=args.sw_batch_size,
         softmax=True,

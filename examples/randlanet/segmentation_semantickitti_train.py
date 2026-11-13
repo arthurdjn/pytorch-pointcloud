@@ -16,6 +16,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import SemanticKITTI
+from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_LEARNING_MAP
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -30,34 +31,6 @@ IGNORE_INDEX = 255
 GRID_SIZE = 0.06  # sub_grid_size
 NUM_POINTS = 4096 * 11
 TRAIN_STEPS, VAL_STEPS = 500, 100
-# The 19-class learning map: moving classes merge into their static counterpart.
-LEARNING_MAP = {
-    10: 0,
-    252: 0,
-    11: 1,
-    15: 2,
-    18: 3,
-    258: 3,
-    20: 4,
-    259: 4,
-    30: 5,
-    254: 5,
-    31: 6,
-    253: 6,
-    32: 7,
-    255: 7,
-    40: 8,
-    44: 9,
-    48: 10,
-    49: 11,
-    50: 12,
-    51: 13,
-    70: 14,
-    71: 15,
-    72: 16,
-    80: 17,
-    81: 18,
-}
 # Points per class of the training sequences, as hard-coded by the authors (`get_class_weights`).
 NUM_PER_CLASS = [
     55437630, 320797, 541736, 2578735, 3274484, 552662, 184064, 78858, 240942562, 17294618,
@@ -68,7 +41,7 @@ NUM_PER_CLASS = [
 TRAIN_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=[DataKeys.POS, DataKeys.SEGMENT]),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=LEARNING_MAP, default=IGNORE_INDEX),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=IGNORE_INDEX),
         T.Voxelize(pos_key=DataKeys.POS, pos_reduce="mean", keys=DataKeys.SEGMENT, reduce="first", size=GRID_SIZE),
         T.SphereCrop(
             pos_key=DataKeys.POS,
@@ -84,7 +57,7 @@ TRAIN_TRANSFORM = T.Compose(
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=[DataKeys.POS, DataKeys.SEGMENT]),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=LEARNING_MAP, default=IGNORE_INDEX),
+        T.Relabel(keys=DataKeys.SEGMENT, labels=SEMANTIC_KITTI_LEARNING_MAP, default=IGNORE_INDEX),
         T.Voxelize(pos_key=DataKeys.POS, pos_reduce="mean", keys=DataKeys.SEGMENT, reduce="first", size=GRID_SIZE),
         T.SphereCrop(
             pos_key=DataKeys.POS,
@@ -112,7 +85,7 @@ def main() -> None:
     num_val = len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {MODEL!r} on {num_train} scans per epoch, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device)
         lr = optimizer.param_groups[0]["lr"]
@@ -122,13 +95,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mIoU"] > best_miou:
+                best_miou = val["mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:

@@ -2,9 +2,7 @@
 
 NOTE: OpenPCDet 233f849 `tools/test.py --cfg_file cfgs/nuscenes_models/transfusion_lidar.yaml --ckpt
 cbgs_transfusion_lidar.pth`, on 10-sweep infos from its `create_nuscenes_info` restricted to the 6019 val keyframes,
-gives 64.56 mAP / 69.43 NDS with the nuScenes devkit, and 65.41 / 69.88 when the devkit keeps ground-truth boxes by
-LiDAR points alone, as `nuscenes_detection_metrics` does with `num_points`; the devkit also keeps boxes hit by radar
-only.
+gives 64.56 mAP / 69.43 NDS with the nuScenes devkit.
 """
 
 import os
@@ -111,6 +109,7 @@ def evaluate(model: TransFusionDetection, dataloader: DataLoader, device: str) -
     targets: list[Boxes3D] = []
     gt_velocities: list[Tensor] = []
     gt_num_points: list[Tensor] = []
+    ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
 
@@ -141,7 +140,8 @@ def evaluate(model: TransFusionDetection, dataloader: DataLoader, device: str) -
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -164,6 +164,7 @@ def evaluate(model: TransFusionDetection, dataloader: DataLoader, device: str) -
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 

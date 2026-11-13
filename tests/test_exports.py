@@ -1,11 +1,15 @@
 import importlib
 import inspect
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from torch_pointcloud.utils.imports import _LIGHTNING_AVAILABLE
+
+REPO_DIR = Path(__file__).resolve().parents[1]
 
 PACKAGES = [
     pytest.param("torch_pointcloud.datasets"),
@@ -86,3 +90,17 @@ def test_ops_namespace_in_fresh_interpreter() -> None:
     code = "import torch_pointcloud as tp; print(*tp.ops.__all__); print(tp.ops.box3d.nms3d.__name__)"
     stdout = subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True).stdout
     assert stdout.split("\n")[:2] == [" ".join(OPS_MODULES), "nms3d"]
+
+
+def test_api_nav_lists_every_public_module() -> None:
+    source = REPO_DIR / "src" / "torch_pointcloud"
+    pages = set()
+    for path in source.rglob("*.py"):
+        module = path.relative_to(source)
+        if module.name == "__init__.py" and module.parent != Path("."):
+            pages.add(f"api/{module.parent.as_posix()}/index.md")
+        elif not module.name.startswith("_"):
+            pages.add(f"api/{module.with_suffix('.md').as_posix()}")
+
+    nav = set(re.findall(r'"(api/[^"]+\.md)"', (REPO_DIR / "zensical.toml").read_text()))
+    assert pages - nav == set()

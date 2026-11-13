@@ -12,8 +12,8 @@ neither are marked as such.
 
 | source                                          | author tag       | license      | count | copyright                                                                                                                  |
 | ----------------------------------------------- | ---------------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------- |
-| guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 36    | Copyright (c) Guocheng Qian                                                                                                |
-| CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 18    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
+| guochengqian/PointNeXt, guochengqian/openpoints | `openpoints`     | MIT          | 37    | Copyright (c) Guocheng Qian                                                                                                |
+| CGuangyan-BIT/PointGPT                          | `guangyan-chen`  | MIT          | 23    | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
 | open-mmlab/mmdetection3d                        | `mmdet3d`        | Apache-2.0   | 32    | Copyright 2018-2019 Open-MMLab                                                                                             |
 | isl-org/Open3D-ML                               | `open3d`         | MIT          | 11    | Copyright (c) 2020 www.open3d.org                                                                                          |
 | mit-han-lab/pvcnn, mit-han-lab/spvnas           | `mit-han-lab`    | MIT          | 18    | Copyright (c) 2018 Zhijian Liu, Haotian Tang, Yujun Lin; Copyright (c) 2020 Zhijian Liu, Haotian Tang, Yujun Lin, Song Han |
@@ -21,19 +21,19 @@ neither are marked as such.
 | Julie-tang00/Point-BERT                         | `xumin-yu`       | MIT          | 8     | Copyright (c) 2021 Xumin Yu                                                                                                |
 | KadirYilmaz/Volt (Hugging Face)                 | `kadir-yilmaz`   | MIT          | 8     | Copyright (c) 2026 Kadir Yilmaz                                                                                            |
 | Pang-Yatian/Point-MAE                           | `yatian-pang`    | MIT          | 7     | Copyright (c) 2022 PANG-Yatian, YUAN-Li                                                                                    |
-| open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 7     | not stated upstream                                                                                                        |
+| open-mmlab/OpenPCDet                            | `openpcdet`      | Apache-2.0   | 10    | not stated upstream                                                                                                        |
 | prs-eth/LitePT                                  | `prs-eth`        | MIT          | 6     | Copyright (c) 2025 Photogrammetry and Remote Sensing Lab                                                                   |
-| Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 5     | not stated upstream                                                                                                        |
+| Pointcept/Concerto                              | `pointcept`      | CC BY-NC 4.0 | 8     | not stated upstream                                                                                                        |
 | ZrrSkywalker/Point-M2AE                         | `renrui-zhang`   | MIT          | 5     | Copyright (c) 2022 Renrui Zhang                                                                                            |
 | LMD0311/PointMamba                              | `dingkang-liang` | Apache-2.0   | 5     | not stated upstream                                                                                                        |
 | HuguesTHOMAS/KPConv-PyTorch                     | `hugues-thomas`  | MIT          | 4     | Copyright (c) 2019 HuguesTHOMAS                                                                                            |
 | ma-xu/pointMLP-pytorch                          | `xu-ma`          | Apache-2.0   | 4     | not stated upstream                                                                                                        |
-| Pointcept/Pointcept                             | `pointcept`      | MIT          | 4     | Copyright (c) 2023 Pointcept                                                                                               |
+| Pointcept/Pointcept                             | `pointcept`      | MIT          | 5     | Copyright (c) 2023 Pointcept                                                                                               |
 | octree-nn/octformer                             | `octree-nn`      | MIT          | 3     | Copyright (c) 2023 Peng-Shuai Wang                                                                                         |
-| yanx27/Pointnet_Pointnet2_pytorch               | `xu-yan`         | MIT          | 3     | Copyright (c) 2019 benny                                                                                                   |
-| facebookresearch/3detr                          | `fair`           | Apache-2.0   | 3     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
-| Pointcept/Utonia                                | `pointcept`      | CC BY-NC 4.0 | 2     | not stated upstream                                                                                                        |
-| facebookresearch/sonata                         | `fair`           | CC BY-NC 4.0 | 2     | Copyright (c) Meta Platforms, Inc. and affiliates                                                                          |
+| yanx27/Pointnet_Pointnet2_pytorch               | `xu-yan`         | MIT          | 4     | Copyright (c) 2019 benny                                                                                                   |
+| facebookresearch/3detr                          | `fair`           | Apache-2.0   | 4     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
+| Pointcept/Utonia                                | `pointcept`      | CC BY-NC 4.0 | 4     | not stated upstream                                                                                                        |
+| facebookresearch/sonata                         | `fair`           | CC BY-NC 4.0 | 3     | Copyright (c) Meta Platforms, Inc. and affiliates                                                                          |
 | facebookresearch/votenet                        | `fair`           | MIT          | 2     | Copyright (c) Facebook, Inc. and its affiliates                                                                            |
 | tiangexiang/CurveNet                            | `tiange-xiang`   | MIT          | 2     | Copyright (c) 2022 Tiange Xiang                                                                                            |
 | DylanWusee/pointconv_pytorch                    | `wenxuan-wu`     | MIT          | 1     | Copyright (c) 2019 Wenxuan Wu                                                                                              |
@@ -45,6 +45,11 @@ neither are marked as such.
 | heig-vd-geo/PTv3_GridNet-HD_baseline (Hugging Face) | `heig-vd-geo` | MIT         | 1     | not stated upstream                                                                                                        |
 | cardwing/Codes-for-PVKD                         | `yuenan-hou`     | MIT          | 1     | Copyright (c) 2022 HOU Yuenan                                                                                              |
 | xinge008/Cylinder3D                             | `xinge-zhu`      | Apache-2.0   | 1     | Copyright 2020-2021 Xinge ZHU                                                                                              |
+| qizekun/ReCon                                   | `zekun-qi`       | MIT          | 7     | Copyright (c) 2022-2023 Zekun Qi                                                                                           |
+| RunpeiDong/ACT                                  | `runpei-dong`    | MIT          | 6     | Copyright (c) 2022 Runpei Dong                                                                                             |
+| aHapBean/PCP-MAE                                | `xiangdong-zhang` | MIT          | 5     | Copyright (c) 2024 Xiangdong Zhang                                                                                         |
+| karimknaebel/point2vec                          | `karim-knaebel`  | MIT          | 4     | Copyright (c) 2023 Karim Knaebel                                                                                           |
+| jiawei-ren/ModelNet-C                           | `jiawei-ren`     | Apache-2.0   | 1     | not stated upstream                                                                                                        |
 
 ## Training data
 

@@ -5,8 +5,8 @@ from importlib.metadata import version as _version
 from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
-    from . import config, datasets, inferers, layers, losses, metrics, models, ops, optim, transforms, utils
-    from .models import create_model, deprecated_model, list_models, register_model
+    from . import config, datasets, inferers, layers, lightning, losses, metrics, models, ops, optim, transforms, utils
+    from .models import create_model, deprecated_model, list_models, model_info, register_model
 
 __version__ = _version("torch_pointcloud")
 
@@ -21,6 +21,7 @@ __all__ = [
     "list_models",
     "losses",
     "metrics",
+    "model_info",
     "models",
     "ops",
     "optim",
@@ -42,13 +43,15 @@ _SUBMODULES = {
     "transforms",
     "utils",
 }
-_MODEL_FUNCTIONS = {"create_model", "deprecated_model", "list_models", "register_model"}
+# `lightning` needs the optional dependency, so it resolves on access without being part of `__all__`.
+_OPTIONAL_SUBMODULES = {"lightning"}
+_MODEL_FUNCTIONS = {"create_model", "deprecated_model", "list_models", "model_info", "register_model"}
 
 
 # Subpackages load on first access, so `import torch_pointcloud.transforms` does not import the models and their
 # sparse-convolution dependencies.
 def __getattr__(name: str) -> Any:
-    if name in _SUBMODULES:
+    if name in _SUBMODULES or name in _OPTIONAL_SUBMODULES:
         return import_module(f".{name}", __name__)
 
     if name in _MODEL_FUNCTIONS:

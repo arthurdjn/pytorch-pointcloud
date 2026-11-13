@@ -1065,6 +1065,25 @@ def test_models_csv_is_synced_with_the_registry(tmp_path: Path) -> None:
     assert Path(rebuilt).read_text() == committed.read_text(), "run docs/scripts/build_model_tables.py"
 
 
+def test_third_party_notices_count_every_registered_checkpoint() -> None:
+    registered: Dict[str, int] = {}
+    for name in list_models(pretrained=True):
+        weights = model_info(name)["weights"]
+        assert weights is not None, name
+        registered[weights["author"]] = registered.get(weights["author"], 0) + 1
+
+    notices = (REPO_DIR / "THIRD_PARTY_NOTICES.md").read_text()
+    weights_section = notices.split("## Pretrained weights")[1].split("\n## ")[0]
+    listed: Dict[str, int] = {}
+    for author, count in re.findall(
+        r"^\|[^|]*\| *`([^`]+)` *\|[^|]*\| *(\d+) *\|", weights_section, flags=re.MULTILINE
+    ):
+        listed[author] = listed.get(author, 0) + int(count)
+
+    assert listed == registered
+
+
+@pytest.mark.hub
 def test_registered_weights_urls_exist_on_the_hub() -> None:
     """Every registered weight file answers a HEAD request at its pinned revision. The Hub answers 401 to an anonymous
     request for a missing repository too, so 401/403 (gated) passes only outside the public `torch-pointcloud`

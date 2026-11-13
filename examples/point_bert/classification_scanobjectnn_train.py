@@ -32,6 +32,7 @@ MODELS: Dict[str, Dict[str, Any]] = {
 }
 PRETRAIN = "point-bert-base.pretrain.xumin-yu"
 NUM_CLASSES = 15
+NUM_OUTPUTS = 40  # the registered head keeps 40 outputs, a prediction past the 15 classes is an error
 NUM_POINTS = 1024
 POINT_ALL = 1200  # the farthest-point sample the training points are drawn from
 EPOCHS = 300
@@ -80,7 +81,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} shapes, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_accuracy = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device)
         lr = optimizer.param_groups[0]["lr"]
@@ -90,13 +91,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print(f"  val/OA {val['acc'] * 100:.2f} | val/mAcc {val['mean_acc'] * 100:.2f}")
+            if output is not None and val["acc"] > best_accuracy:
+                best_accuracy = val["acc"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:
@@ -217,11 +219,11 @@ def train_one_epoch(
 @torch.no_grad()
 def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
-    confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
+    confusion = torch.zeros(NUM_OUTPUTS, NUM_OUTPUTS, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) for key, value in data.items() if isinstance(value, Tensor)}
         logits = model(None, data[DataKeys.POS], data[DataKeys.BATCH])
-        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], num_classes=NUM_CLASSES)
+        confusion += confusion_matrix(logits.argmax(dim=1), data[DataKeys.LABEL], num_classes=NUM_OUTPUTS)
 
     present = confusion.sum(dim=1) > 0
     accuracy = confusion.diag().sum() / confusion.sum()
