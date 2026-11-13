@@ -17,6 +17,7 @@ from torch_pointcloud.datasets import SunRGBD
 from torch_pointcloud.datasets.sunrgbd import (
     SUNRGBD_CLASS_TO_IDX,
     SUNRGBD_CLASSES,
+    SUNRGBD_MEAN_SIZES,
     decode_depth,
     open_release_zip,
     parse_boxes,
@@ -485,3 +486,9 @@ def test_open_release_zip_reopens_a_replaced_archive(tmp_path: Path) -> None:
     second = open_release_zip(archive_path.as_posix(), os.getpid())
     assert second.read("scene.txt") == b"second archive"
     assert first.fp is None
+
+
+def test_sunrgbd_mean_sizes_have_one_template_per_class() -> None:
+    mean_sizes = torch.tensor(SUNRGBD_MEAN_SIZES)
+    assert mean_sizes.shape == (len(SUNRGBD_CLASSES), 3)
+    assert (mean_sizes > 0).all()

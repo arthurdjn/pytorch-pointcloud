@@ -26,6 +26,7 @@ from .curvenet import CurveNetClassification, CurveNetPartSegmentation
 from .cylinder3d import Cylinder3DSegmentation
 from .dgcnn import DGCNNClassification, DGCNNPartSegmentation, DGCNNSegmentation
 from .fcaf3d import FCAF3DDetection
+from .groupfree3d import GroupFree3DDetection
 from .kpconv import KPFCNNClassification, KPFCNNSegmentation
 from .lion import LIONDetection
 from .litept import LitePTSegmentation
@@ -99,6 +100,7 @@ __all__ = [
     "DGCNNPartSegmentation",
     "DGCNNSegmentation",
     "FCAF3DDetection",
+    "GroupFree3DDetection",
     "KPFCNNClassification",
     "KPFCNNSegmentation",
     "LIONDetection",

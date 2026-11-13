@@ -38,6 +38,7 @@ MODEL_LABELS = {
     "cylinder3d": "Cylinder3D",
     "dgcnn": "DGCNN",
     "fcaf3d": "FCAF3D",
+    "groupfree3d": "Group-Free 3D",
     "kpconv": "KPConv",
     "lion": "LION",
     "litept": "LitePT",

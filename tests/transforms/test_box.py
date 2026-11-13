@@ -179,6 +179,15 @@ def test_instance_to_box_extents_class_and_drop() -> None:
     assert out["label"].dtype == torch.long
 
 
+def test_instance_to_box_writes_the_box_row_of_each_point() -> None:
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [5.0, 5.0, 5.0], [9.0, 9.0, 9.0], [6.0, 5.0, 5.0]])
+    data = {"pos": pos, "instance": torch.tensor([3, 3, 7, 4, -1]), "segment": torch.tensor([2, 2, 5, -1, 5])}
+    out = T.InstanceToBox(dst_box_index_key=DataKeys.BOX_INDEX)(data)
+    assert out[DataKeys.BOX_INDEX].tolist() == [0, 0, 1, -1, -1]
+    assert out[DataKeys.BOX_INDEX].dtype == torch.long
+    assert torch.allclose(out["box"][out[DataKeys.BOX_INDEX][2], :3], pos[2])
+
+
 def test_instance_to_box_excludes_negative_instance_ids() -> None:
     # Unlabeled points (instance -1) span the scene; they must not form a giant box.
     pos = torch.tensor([[0.0, 0.0, 0.0], [10.0, 10.0, 10.0], [1.0, 1.0, 1.0], [2.0, 1.0, 1.0]])
@@ -195,6 +204,13 @@ def test_instance_to_box_all_ignored_is_empty() -> None:
     assert out["box"].shape == (0, 7)
     assert out["label"].shape == (0,)
     assert out["label"].dtype == torch.long
+
+
+def test_instance_to_box_without_boxes_gives_no_point_a_box_row() -> None:
+    data = {"pos": torch.rand(4, 3), "instance": torch.tensor([0, 0, 1, 1]), "segment": torch.tensor([-1, -1, -1, -1])}
+    out = T.InstanceToBox(dst_box_index_key=DataKeys.BOX_INDEX)(data)
+    assert out["box"].shape == (0, 7)
+    assert out[DataKeys.BOX_INDEX].tolist() == [-1, -1, -1, -1]
 
 
 def test_relabel_boxes_maps_drops_and_ignores() -> None:

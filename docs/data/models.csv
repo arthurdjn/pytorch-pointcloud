@@ -230,6 +230,15 @@ centerpoint-voxel01.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-
 fcaf3d.s3dis-area5.mmdet3d,fcaf3d,detection,s3dis-area5,true,Apache-2.0,70.48,mAP,67.36,66.31,mAP@0.25 66.31 · mAP@0.5 46.71
 fcaf3d.scannet.mmdet3d,fcaf3d,detection,scannet,true,Apache-2.0,70.48,mAP,69.72,69.55,mAP@0.25 69.55 · mAP@0.5 55.10
 fcaf3d.sunrgbd.mmdet3d,fcaf3d,detection,sunrgbd,true,Apache-2.0,70.48,mAP,64.75,64.70,mAP@0.25 64.70 · mAP@0.5 47.93
+groupfree3d-l12-o256.scannet.mmdet3d,groupfree3d,detection,scannet,true,Apache-2.0,27.77,mAP,66.57,66.86,mAP@0.25 66.86 · mAP@0.5 48.51
+groupfree3d-l12-o256.scannet.ze-liu,groupfree3d,detection,scannet,true,MIT,27.77,mAP,66.6,65.85,mAP@0.25 65.85 · mAP@0.5 49.45
+groupfree3d-l6-o256.scannet.mmdet3d,groupfree3d,detection,scannet,true,Apache-2.0,14.47,mAP,66.17,65.92,mAP@0.25 65.92 · mAP@0.5 47.59
+groupfree3d-l6-o256.scannet.ze-liu,groupfree3d,detection,scannet,true,MIT,14.47,mAP,66.2,66.43,mAP@0.25 66.43 · mAP@0.5 47.91
+groupfree3d-l6-o256.sunrgbd.ze-liu,groupfree3d,detection,sunrgbd,true,MIT,14.36,mAP,62.6,64.10,mAP@0.25 64.10 · mAP@0.5 45.65
+groupfree3d-w2x-l12-o256.scannet.mmdet3d,groupfree3d,detection,scannet,true,Apache-2.0,29.56,mAP,68.20,66.97,mAP@0.25 66.97 · mAP@0.5 49.53
+groupfree3d-w2x-l12-o256.scannet.ze-liu,groupfree3d,detection,scannet,true,MIT,29.56,mAP,68.3,68.59,mAP@0.25 68.59 · mAP@0.5 51.92
+groupfree3d-w2x-l12-o512.scannet.mmdet3d,groupfree3d,detection,scannet,true,Apache-2.0,29.56,mAP,68.22,68.32,mAP@0.25 68.32 · mAP@0.5 51.00
+groupfree3d-w2x-l12-o512.scannet.ze-liu,groupfree3d,detection,scannet,true,MIT,29.56,mAP,68.8,69.13,mAP@0.25 69.13 · mAP@0.5 51.96
 lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,68.84,mAP 68.84 · NDS 72.35
 part-a2.kitti-car.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.86,mAP,79.08,79.08,mAP 79.08 · AP/Car 79.08
 part-a2.kitti.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.89,mAP,68.33,68.34,mAP 68.34 · AP/Car 79.03 · AP/Pedestrian 55.28 · AP/Cyclist 70.70

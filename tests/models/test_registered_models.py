@@ -300,6 +300,15 @@ DETECTION_MODELS = [
     "fcaf3d.s3dis-area5.mmdet3d",
     "fcaf3d.scannet.mmdet3d",
     "fcaf3d.sunrgbd.mmdet3d",
+    "groupfree3d-l12-o256.scannet.mmdet3d",
+    "groupfree3d-l12-o256.scannet.ze-liu",
+    "groupfree3d-l6-o256.scannet.mmdet3d",
+    "groupfree3d-l6-o256.scannet.ze-liu",
+    "groupfree3d-l6-o256.sunrgbd.ze-liu",
+    "groupfree3d-w2x-l12-o256.scannet.mmdet3d",
+    "groupfree3d-w2x-l12-o256.scannet.ze-liu",
+    "groupfree3d-w2x-l12-o512.scannet.mmdet3d",
+    "groupfree3d-w2x-l12-o512.scannet.ze-liu",
     "lion-mamba.nuscenes.zhe-liu",
     "part-a2.kitti-car.mmdet3d",
     "part-a2.kitti.mmdet3d",
@@ -382,7 +391,7 @@ def _skip_if_model_deps_missing(model_name: str) -> None:
         pytest.skip("spconv is not installed")
     if model_name.startswith("voxel-mamba") and not _MAMBA_SSM_AVAILABLE:
         pytest.skip("mamba_ssm is not installed")
-    if model_name.startswith(("3detr", "pointrcnn", "pv-rcnn", "voxel-rcnn")) and not _PYG_LIB_AVAILABLE:
+    if model_name.startswith(("3detr", "groupfree3d", "pointrcnn", "pv-rcnn", "voxel-rcnn")) and not _PYG_LIB_AVAILABLE:
         pytest.skip("pyg-lib is not installed")
     if model_name.startswith("lion") and not (_MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE):
         pytest.skip("mamba_ssm or spconv is not installed")
@@ -1085,20 +1094,23 @@ def test_third_party_notices_count_every_registered_checkpoint() -> None:
 
 @pytest.mark.hub
 def test_registered_weights_urls_exist_on_the_hub() -> None:
-    """Every registered weight file answers a HEAD request at its pinned revision. The Hub answers 401 to an anonymous
-    request for a missing repository too, so 401/403 (gated) passes only outside the public `torch-pointcloud`
-    organisation."""
+    """Every registered weight file is listed by the Hub API at its pinned revision, one request per repository and
+    revision. The file itself is never requested: the Hub counts those requests as downloads."""
+    files: Dict[str, List[str]] = {}
     for name in list_models(pretrained=True):
         weights = model_info(name)["weights"]
         assert weights is not None, name
         for url in ensure_tuple(weights["url"]):
-            file_url = HF_ENDPOINT + "/" + url[len("hf://") :]
-            request = urllib.request.Request(file_url, method="HEAD")
-            try:
-                with urllib.request.urlopen(request, timeout=30) as response:
-                    assert response.status == 200, (name, url, response.status)
-            except urllib.error.HTTPError as e:
-                assert e.code in (401, 403) and not url.startswith("hf://torch-pointcloud/"), (name, url, e.code)
+            match = HF_URL_RE.fullmatch(url)
+            assert match is not None, (name, url)
+            path = f"{match['namespace']}/{match['repo']}/revision/{match['revision']}"
+            if path not in files:
+                try:
+                    with urllib.request.urlopen(f"{HF_ENDPOINT}/api/models/{path}", timeout=30) as response:
+                        files[path] = [sibling["rfilename"] for sibling in json.load(response)["siblings"]]
+                except urllib.error.HTTPError as error:
+                    pytest.fail(f"{name}: the Hub API answers {error.code} for {url}")
+            assert match["file"] in files[path], (name, url, files[path])
 
 
 @pytest.mark.skipif(

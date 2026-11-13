@@ -1,0 +1,2863 @@
+{
+  "num_params": 27768385,
+  "state_dict": {
+    "backbone.sa_modules.0.convs.0.local_nn.lins.0.weight": [
+      64,
+      3
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.lins.1.weight": [
+      64,
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.lins.2.weight": [
+      128,
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.weight": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.bias": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.running_mean": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.running_var": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.weight": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.bias": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.running_mean": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.running_var": [
+      64
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.0.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.1.convs.0.local_nn.lins.0.weight": [
+      128,
+      131
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.lins.2.weight": [
+      256,
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.weight": [
+      256
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.bias": [
+      256
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.running_mean": [
+      256
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.running_var": [
+      256
+    ],
+    "backbone.sa_modules.1.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.2.convs.0.local_nn.lins.0.weight": [
+      128,
+      259
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.lins.2.weight": [
+      256,
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.weight": [
+      256
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.bias": [
+      256
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.running_mean": [
+      256
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.running_var": [
+      256
+    ],
+    "backbone.sa_modules.2.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.lins.0.weight": [
+      128,
+      259
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.lins.1.weight": [
+      128,
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.lins.2.weight": [
+      256,
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.0.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.weight": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.bias": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.running_mean": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.running_var": [
+      128
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.1.module.num_batches_tracked": [],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.weight": [
+      256
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.bias": [
+      256
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.running_mean": [
+      256
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.running_var": [
+      256
+    ],
+    "backbone.sa_modules.3.convs.0.local_nn.norms.2.module.num_batches_tracked": [],
+    "backbone.fp_modules.0.mlp.lins.0.weight": [
+      256,
+      512
+    ],
+    "backbone.fp_modules.0.mlp.lins.1.weight": [
+      256,
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.0.module.weight": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.0.module.bias": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.0.module.num_batches_tracked": [],
+    "backbone.fp_modules.0.mlp.norms.1.module.weight": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.1.module.bias": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.1.module.running_mean": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.1.module.running_var": [
+      256
+    ],
+    "backbone.fp_modules.0.mlp.norms.1.module.num_batches_tracked": [],
+    "backbone.fp_modules.1.mlp.lins.0.weight": [
+      256,
+      512
+    ],
+    "backbone.fp_modules.1.mlp.lins.1.weight": [
+      288,
+      256
+    ],
+    "backbone.fp_modules.1.mlp.norms.0.module.weight": [
+      256
+    ],
+    "backbone.fp_modules.1.mlp.norms.0.module.bias": [
+      256
+    ],
+    "backbone.fp_modules.1.mlp.norms.0.module.running_mean": [
+      256
+    ],
+    "backbone.fp_modules.1.mlp.norms.0.module.running_var": [
+      256
+    ],
+    "backbone.fp_modules.1.mlp.norms.0.module.num_batches_tracked": [],
+    "backbone.fp_modules.1.mlp.norms.1.module.weight": [
+      288
+    ],
+    "backbone.fp_modules.1.mlp.norms.1.module.bias": [
+      288
+    ],
+    "backbone.fp_modules.1.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "backbone.fp_modules.1.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "backbone.fp_modules.1.mlp.norms.1.module.num_batches_tracked": [],
+    "seed_objectness.lins.0.weight": [
+      288,
+      288
+    ],
+    "seed_objectness.lins.0.bias": [
+      288
+    ],
+    "seed_objectness.lins.1.weight": [
+      288,
+      288
+    ],
+    "seed_objectness.lins.1.bias": [
+      288
+    ],
+    "seed_objectness.lins.2.weight": [
+      1,
+      288
+    ],
+    "seed_objectness.lins.2.bias": [
+      1
+    ],
+    "seed_objectness.norms.0.module.weight": [
+      288
+    ],
+    "seed_objectness.norms.0.module.bias": [
+      288
+    ],
+    "seed_objectness.norms.0.module.running_mean": [
+      288
+    ],
+    "seed_objectness.norms.0.module.running_var": [
+      288
+    ],
+    "seed_objectness.norms.0.module.num_batches_tracked": [],
+    "seed_objectness.norms.1.module.weight": [
+      288
+    ],
+    "seed_objectness.norms.1.module.bias": [
+      288
+    ],
+    "seed_objectness.norms.1.module.running_mean": [
+      288
+    ],
+    "seed_objectness.norms.1.module.running_var": [
+      288
+    ],
+    "seed_objectness.norms.1.module.num_batches_tracked": [],
+    "proposal_head.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "proposal_head.mlp.lins.0.bias": [
+      288
+    ],
+    "proposal_head.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "proposal_head.mlp.lins.1.bias": [
+      288
+    ],
+    "proposal_head.mlp.norms.0.module.weight": [
+      288
+    ],
+    "proposal_head.mlp.norms.0.module.bias": [
+      288
+    ],
+    "proposal_head.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "proposal_head.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "proposal_head.mlp.norms.0.module.num_batches_tracked": [],
+    "proposal_head.mlp.norms.1.module.weight": [
+      288
+    ],
+    "proposal_head.mlp.norms.1.module.bias": [
+      288
+    ],
+    "proposal_head.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "proposal_head.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "proposal_head.mlp.norms.1.module.num_batches_tracked": [],
+    "proposal_head.objectness_head.weight": [
+      1,
+      288
+    ],
+    "proposal_head.objectness_head.bias": [
+      1
+    ],
+    "proposal_head.center_head.weight": [
+      3,
+      288
+    ],
+    "proposal_head.center_head.bias": [
+      3
+    ],
+    "proposal_head.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "proposal_head.heading_class_head.bias": [
+      1
+    ],
+    "proposal_head.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "proposal_head.heading_residual_head.bias": [
+      1
+    ],
+    "proposal_head.size_class_head.weight": [
+      18,
+      288
+    ],
+    "proposal_head.size_class_head.bias": [
+      18
+    ],
+    "proposal_head.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "proposal_head.size_residual_head.bias": [
+      54
+    ],
+    "proposal_head.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "proposal_head.sem_cls_head.bias": [
+      18
+    ],
+    "query_proj.weight": [
+      288,
+      288
+    ],
+    "query_proj.bias": [
+      288
+    ],
+    "key_proj.weight": [
+      288,
+      288
+    ],
+    "key_proj.bias": [
+      288
+    ],
+    "query_pos_embeds.0.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.0.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.0.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.0.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.0.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.0.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.0.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.0.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.0.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.1.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.1.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.1.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.1.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.1.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.1.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.1.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.1.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.1.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.2.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.2.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.2.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.2.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.2.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.2.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.2.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.2.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.2.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.3.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.3.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.3.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.3.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.3.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.3.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.3.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.3.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.3.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.4.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.4.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.4.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.4.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.4.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.4.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.4.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.4.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.4.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.5.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.5.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.5.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.5.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.5.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.5.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.5.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.5.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.5.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.6.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.6.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.6.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.6.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.6.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.6.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.6.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.6.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.6.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.7.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.7.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.7.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.7.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.7.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.7.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.7.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.7.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.7.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.8.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.8.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.8.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.8.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.8.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.8.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.8.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.8.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.8.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.9.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.9.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.9.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.9.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.9.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.9.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.9.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.9.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.9.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.10.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.10.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.10.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.10.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.10.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.10.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.10.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.10.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.10.norms.0.module.num_batches_tracked": [],
+    "query_pos_embeds.11.lins.0.weight": [
+      288,
+      6
+    ],
+    "query_pos_embeds.11.lins.0.bias": [
+      288
+    ],
+    "query_pos_embeds.11.lins.1.weight": [
+      288,
+      288
+    ],
+    "query_pos_embeds.11.lins.1.bias": [
+      288
+    ],
+    "query_pos_embeds.11.norms.0.module.weight": [
+      288
+    ],
+    "query_pos_embeds.11.norms.0.module.bias": [
+      288
+    ],
+    "query_pos_embeds.11.norms.0.module.running_mean": [
+      288
+    ],
+    "query_pos_embeds.11.norms.0.module.running_var": [
+      288
+    ],
+    "query_pos_embeds.11.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.0.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.0.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.0.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.0.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.0.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.0.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.0.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.0.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.0.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.1.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.1.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.1.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.1.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.1.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.1.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.1.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.1.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.1.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.2.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.2.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.2.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.2.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.2.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.2.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.2.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.2.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.2.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.3.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.3.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.3.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.3.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.3.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.3.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.3.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.3.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.3.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.4.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.4.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.4.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.4.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.4.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.4.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.4.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.4.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.4.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.5.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.5.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.5.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.5.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.5.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.5.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.5.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.5.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.5.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.6.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.6.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.6.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.6.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.6.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.6.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.6.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.6.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.6.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.7.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.7.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.7.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.7.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.7.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.7.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.7.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.7.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.7.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.8.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.8.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.8.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.8.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.8.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.8.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.8.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.8.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.8.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.9.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.9.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.9.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.9.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.9.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.9.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.9.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.9.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.9.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.10.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.10.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.10.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.10.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.10.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.10.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.10.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.10.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.10.norms.0.module.num_batches_tracked": [],
+    "key_pos_embeds.11.lins.0.weight": [
+      288,
+      3
+    ],
+    "key_pos_embeds.11.lins.0.bias": [
+      288
+    ],
+    "key_pos_embeds.11.lins.1.weight": [
+      288,
+      288
+    ],
+    "key_pos_embeds.11.lins.1.bias": [
+      288
+    ],
+    "key_pos_embeds.11.norms.0.module.weight": [
+      288
+    ],
+    "key_pos_embeds.11.norms.0.module.bias": [
+      288
+    ],
+    "key_pos_embeds.11.norms.0.module.running_mean": [
+      288
+    ],
+    "key_pos_embeds.11.norms.0.module.running_var": [
+      288
+    ],
+    "key_pos_embeds.11.norms.0.module.num_batches_tracked": [],
+    "decoder.0.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.0.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.0.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.0.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.0.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.0.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.0.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.0.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.0.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.0.linear1.bias": [
+      2048
+    ],
+    "decoder.0.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.0.linear2.bias": [
+      288
+    ],
+    "decoder.0.norm1.weight": [
+      288
+    ],
+    "decoder.0.norm1.bias": [
+      288
+    ],
+    "decoder.0.norm2.weight": [
+      288
+    ],
+    "decoder.0.norm2.bias": [
+      288
+    ],
+    "decoder.0.norm3.weight": [
+      288
+    ],
+    "decoder.0.norm3.bias": [
+      288
+    ],
+    "decoder.1.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.1.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.1.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.1.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.1.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.1.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.1.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.1.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.1.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.1.linear1.bias": [
+      2048
+    ],
+    "decoder.1.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.1.linear2.bias": [
+      288
+    ],
+    "decoder.1.norm1.weight": [
+      288
+    ],
+    "decoder.1.norm1.bias": [
+      288
+    ],
+    "decoder.1.norm2.weight": [
+      288
+    ],
+    "decoder.1.norm2.bias": [
+      288
+    ],
+    "decoder.1.norm3.weight": [
+      288
+    ],
+    "decoder.1.norm3.bias": [
+      288
+    ],
+    "decoder.2.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.2.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.2.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.2.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.2.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.2.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.2.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.2.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.2.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.2.linear1.bias": [
+      2048
+    ],
+    "decoder.2.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.2.linear2.bias": [
+      288
+    ],
+    "decoder.2.norm1.weight": [
+      288
+    ],
+    "decoder.2.norm1.bias": [
+      288
+    ],
+    "decoder.2.norm2.weight": [
+      288
+    ],
+    "decoder.2.norm2.bias": [
+      288
+    ],
+    "decoder.2.norm3.weight": [
+      288
+    ],
+    "decoder.2.norm3.bias": [
+      288
+    ],
+    "decoder.3.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.3.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.3.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.3.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.3.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.3.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.3.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.3.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.3.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.3.linear1.bias": [
+      2048
+    ],
+    "decoder.3.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.3.linear2.bias": [
+      288
+    ],
+    "decoder.3.norm1.weight": [
+      288
+    ],
+    "decoder.3.norm1.bias": [
+      288
+    ],
+    "decoder.3.norm2.weight": [
+      288
+    ],
+    "decoder.3.norm2.bias": [
+      288
+    ],
+    "decoder.3.norm3.weight": [
+      288
+    ],
+    "decoder.3.norm3.bias": [
+      288
+    ],
+    "decoder.4.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.4.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.4.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.4.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.4.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.4.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.4.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.4.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.4.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.4.linear1.bias": [
+      2048
+    ],
+    "decoder.4.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.4.linear2.bias": [
+      288
+    ],
+    "decoder.4.norm1.weight": [
+      288
+    ],
+    "decoder.4.norm1.bias": [
+      288
+    ],
+    "decoder.4.norm2.weight": [
+      288
+    ],
+    "decoder.4.norm2.bias": [
+      288
+    ],
+    "decoder.4.norm3.weight": [
+      288
+    ],
+    "decoder.4.norm3.bias": [
+      288
+    ],
+    "decoder.5.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.5.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.5.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.5.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.5.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.5.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.5.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.5.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.5.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.5.linear1.bias": [
+      2048
+    ],
+    "decoder.5.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.5.linear2.bias": [
+      288
+    ],
+    "decoder.5.norm1.weight": [
+      288
+    ],
+    "decoder.5.norm1.bias": [
+      288
+    ],
+    "decoder.5.norm2.weight": [
+      288
+    ],
+    "decoder.5.norm2.bias": [
+      288
+    ],
+    "decoder.5.norm3.weight": [
+      288
+    ],
+    "decoder.5.norm3.bias": [
+      288
+    ],
+    "decoder.6.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.6.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.6.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.6.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.6.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.6.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.6.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.6.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.6.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.6.linear1.bias": [
+      2048
+    ],
+    "decoder.6.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.6.linear2.bias": [
+      288
+    ],
+    "decoder.6.norm1.weight": [
+      288
+    ],
+    "decoder.6.norm1.bias": [
+      288
+    ],
+    "decoder.6.norm2.weight": [
+      288
+    ],
+    "decoder.6.norm2.bias": [
+      288
+    ],
+    "decoder.6.norm3.weight": [
+      288
+    ],
+    "decoder.6.norm3.bias": [
+      288
+    ],
+    "decoder.7.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.7.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.7.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.7.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.7.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.7.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.7.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.7.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.7.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.7.linear1.bias": [
+      2048
+    ],
+    "decoder.7.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.7.linear2.bias": [
+      288
+    ],
+    "decoder.7.norm1.weight": [
+      288
+    ],
+    "decoder.7.norm1.bias": [
+      288
+    ],
+    "decoder.7.norm2.weight": [
+      288
+    ],
+    "decoder.7.norm2.bias": [
+      288
+    ],
+    "decoder.7.norm3.weight": [
+      288
+    ],
+    "decoder.7.norm3.bias": [
+      288
+    ],
+    "decoder.8.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.8.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.8.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.8.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.8.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.8.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.8.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.8.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.8.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.8.linear1.bias": [
+      2048
+    ],
+    "decoder.8.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.8.linear2.bias": [
+      288
+    ],
+    "decoder.8.norm1.weight": [
+      288
+    ],
+    "decoder.8.norm1.bias": [
+      288
+    ],
+    "decoder.8.norm2.weight": [
+      288
+    ],
+    "decoder.8.norm2.bias": [
+      288
+    ],
+    "decoder.8.norm3.weight": [
+      288
+    ],
+    "decoder.8.norm3.bias": [
+      288
+    ],
+    "decoder.9.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.9.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.9.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.9.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.9.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.9.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.9.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.9.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.9.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.9.linear1.bias": [
+      2048
+    ],
+    "decoder.9.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.9.linear2.bias": [
+      288
+    ],
+    "decoder.9.norm1.weight": [
+      288
+    ],
+    "decoder.9.norm1.bias": [
+      288
+    ],
+    "decoder.9.norm2.weight": [
+      288
+    ],
+    "decoder.9.norm2.bias": [
+      288
+    ],
+    "decoder.9.norm3.weight": [
+      288
+    ],
+    "decoder.9.norm3.bias": [
+      288
+    ],
+    "decoder.10.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.10.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.10.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.10.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.10.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.10.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.10.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.10.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.10.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.10.linear1.bias": [
+      2048
+    ],
+    "decoder.10.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.10.linear2.bias": [
+      288
+    ],
+    "decoder.10.norm1.weight": [
+      288
+    ],
+    "decoder.10.norm1.bias": [
+      288
+    ],
+    "decoder.10.norm2.weight": [
+      288
+    ],
+    "decoder.10.norm2.bias": [
+      288
+    ],
+    "decoder.10.norm3.weight": [
+      288
+    ],
+    "decoder.10.norm3.bias": [
+      288
+    ],
+    "decoder.11.self_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.11.self_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.11.self_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.11.self_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.11.multihead_attn.in_proj_weight": [
+      864,
+      288
+    ],
+    "decoder.11.multihead_attn.in_proj_bias": [
+      864
+    ],
+    "decoder.11.multihead_attn.out_proj.weight": [
+      288,
+      288
+    ],
+    "decoder.11.multihead_attn.out_proj.bias": [
+      288
+    ],
+    "decoder.11.linear1.weight": [
+      2048,
+      288
+    ],
+    "decoder.11.linear1.bias": [
+      2048
+    ],
+    "decoder.11.linear2.weight": [
+      288,
+      2048
+    ],
+    "decoder.11.linear2.bias": [
+      288
+    ],
+    "decoder.11.norm1.weight": [
+      288
+    ],
+    "decoder.11.norm1.bias": [
+      288
+    ],
+    "decoder.11.norm2.weight": [
+      288
+    ],
+    "decoder.11.norm2.bias": [
+      288
+    ],
+    "decoder.11.norm3.weight": [
+      288
+    ],
+    "decoder.11.norm3.bias": [
+      288
+    ],
+    "prediction_heads.0.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.0.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.0.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.0.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.0.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.0.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.0.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.0.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.0.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.0.center_head.bias": [
+      3
+    ],
+    "prediction_heads.0.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.0.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.0.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.0.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.0.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.0.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.0.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.0.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.0.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.0.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.1.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.1.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.1.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.1.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.1.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.1.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.1.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.1.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.1.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.1.center_head.bias": [
+      3
+    ],
+    "prediction_heads.1.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.1.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.1.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.1.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.1.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.1.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.1.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.1.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.1.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.1.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.2.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.2.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.2.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.2.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.2.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.2.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.2.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.2.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.2.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.2.center_head.bias": [
+      3
+    ],
+    "prediction_heads.2.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.2.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.2.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.2.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.2.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.2.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.2.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.2.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.2.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.2.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.3.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.3.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.3.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.3.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.3.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.3.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.3.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.3.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.3.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.3.center_head.bias": [
+      3
+    ],
+    "prediction_heads.3.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.3.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.3.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.3.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.3.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.3.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.3.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.3.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.3.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.3.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.4.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.4.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.4.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.4.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.4.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.4.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.4.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.4.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.4.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.4.center_head.bias": [
+      3
+    ],
+    "prediction_heads.4.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.4.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.4.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.4.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.4.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.4.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.4.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.4.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.4.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.4.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.5.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.5.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.5.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.5.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.5.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.5.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.5.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.5.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.5.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.5.center_head.bias": [
+      3
+    ],
+    "prediction_heads.5.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.5.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.5.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.5.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.5.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.5.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.5.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.5.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.5.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.5.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.6.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.6.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.6.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.6.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.6.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.6.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.6.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.6.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.6.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.6.center_head.bias": [
+      3
+    ],
+    "prediction_heads.6.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.6.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.6.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.6.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.6.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.6.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.6.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.6.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.6.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.6.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.7.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.7.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.7.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.7.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.7.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.7.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.7.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.7.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.7.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.7.center_head.bias": [
+      3
+    ],
+    "prediction_heads.7.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.7.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.7.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.7.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.7.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.7.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.7.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.7.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.7.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.7.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.8.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.8.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.8.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.8.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.8.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.8.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.8.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.8.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.8.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.8.center_head.bias": [
+      3
+    ],
+    "prediction_heads.8.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.8.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.8.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.8.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.8.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.8.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.8.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.8.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.8.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.8.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.9.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.9.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.9.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.9.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.9.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.9.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.9.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.9.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.9.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.9.center_head.bias": [
+      3
+    ],
+    "prediction_heads.9.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.9.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.9.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.9.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.9.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.9.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.9.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.9.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.9.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.9.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.10.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.10.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.10.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.10.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.10.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.10.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.10.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.10.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.10.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.10.center_head.bias": [
+      3
+    ],
+    "prediction_heads.10.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.10.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.10.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.10.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.10.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.10.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.10.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.10.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.10.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.10.sem_cls_head.bias": [
+      18
+    ],
+    "prediction_heads.11.mlp.lins.0.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.11.mlp.lins.0.bias": [
+      288
+    ],
+    "prediction_heads.11.mlp.lins.1.weight": [
+      288,
+      288
+    ],
+    "prediction_heads.11.mlp.lins.1.bias": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.0.module.weight": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.0.module.bias": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.0.module.running_mean": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.0.module.running_var": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.0.module.num_batches_tracked": [],
+    "prediction_heads.11.mlp.norms.1.module.weight": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.1.module.bias": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.1.module.running_mean": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.1.module.running_var": [
+      288
+    ],
+    "prediction_heads.11.mlp.norms.1.module.num_batches_tracked": [],
+    "prediction_heads.11.objectness_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.11.objectness_head.bias": [
+      1
+    ],
+    "prediction_heads.11.center_head.weight": [
+      3,
+      288
+    ],
+    "prediction_heads.11.center_head.bias": [
+      3
+    ],
+    "prediction_heads.11.heading_class_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.11.heading_class_head.bias": [
+      1
+    ],
+    "prediction_heads.11.heading_residual_head.weight": [
+      1,
+      288
+    ],
+    "prediction_heads.11.heading_residual_head.bias": [
+      1
+    ],
+    "prediction_heads.11.size_class_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.11.size_class_head.bias": [
+      18
+    ],
+    "prediction_heads.11.size_residual_head.weight": [
+      54,
+      288
+    ],
+    "prediction_heads.11.size_residual_head.bias": [
+      54
+    ],
+    "prediction_heads.11.sem_cls_head.weight": [
+      18,
+      288
+    ],
+    "prediction_heads.11.sem_cls_head.bias": [
+      18
+    ]
+  }
+}

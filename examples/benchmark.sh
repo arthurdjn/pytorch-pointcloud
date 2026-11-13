@@ -113,6 +113,15 @@ $RUN examples/fcaf3d/detection_benchmark.py --root "$ROOT" --dataset s3dis --mod
 $RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset scannet --model tr3d.scannet.mmdet3d
 $RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset sunrgbd --model tr3d.sunrgbd.mmdet3d
 $RUN examples/tr3d/detection_benchmark.py --root "$ROOT" --dataset s3dis --model tr3d.s3dis-area5.mmdet3d
+$RUN examples/groupfree3d/detection_sunrgbd_benchmark.py --root "$ROOT" --model groupfree3d-l6-o256.sunrgbd.ze-liu
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-l6-o256.scannet.ze-liu
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-l12-o256.scannet.ze-liu
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-w2x-l12-o256.scannet.ze-liu
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-w2x-l12-o512.scannet.ze-liu
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-l6-o256.scannet.mmdet3d
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-l12-o256.scannet.mmdet3d
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-w2x-l12-o256.scannet.mmdet3d
+$RUN examples/groupfree3d/detection_scannet_benchmark.py --root "$ROOT" --model groupfree3d-w2x-l12-o512.scannet.mmdet3d
 
 # Outdoor detection (KITTI, nuScenes)
 $RUN examples/anchor_detectors/detection_kitti_openpcdet_benchmark.py --root "$ROOT" --model pointpillars.kitti.openpcdet --split-file "$ROOT/KITTI/raw/ImageSets/val.txt"
