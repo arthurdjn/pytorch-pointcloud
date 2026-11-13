@@ -4,12 +4,14 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.dgcnn import (
     DGCNNClassification,
     DGCNNEncoderBlock,
     DGCNNPartSegmentation,
     DGCNNSegmentation,
 )
+from torch_pointcloud.utils.data import DataKeys, collate, select_inputs
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -257,3 +259,53 @@ def test_dgcnn_segmentation_stnet_has_no_head_dropout() -> None:
     assert model.stnet is not None
     assert model.stnet.local_nn.dropout == [0.0]
     assert model.stnet.global_nn.dropout == [0.0]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("dgcnn.s3dis-area1.an-tao", id="area1"),
+        pytest.param("dgcnn.s3dis-area2.an-tao", id="area2"),
+        pytest.param("dgcnn.s3dis-area3.an-tao", id="area3"),
+        pytest.param("dgcnn.s3dis-area4.an-tao", id="area4"),
+        pytest.param("dgcnn.s3dis-area5.an-tao", id="area5"),
+        pytest.param("dgcnn.s3dis-area6.an-tao", id="area6"),
+    ],
+)
+def test_dgcnn_s3dis_entries_feed_room_normalized_positions(name: str) -> None:
+    torch.manual_seed(0)
+    info = model_info(name)
+    sample = {
+        DataKeys.POS: torch.rand(64, 3),
+        DataKeys.COLOR: torch.rand(64, 3),
+        DataKeys.NORM_POS: torch.rand(64, 3),
+    }
+    transform = info["transform"]
+    assert transform is not None
+    batch = collate([transform(sample)])
+    x, norm_pos, _ = select_inputs(batch, info["input_keys"])
+    assert torch.equal(x, torch.cat([sample[DataKeys.POS], sample[DataKeys.COLOR]], dim=1))
+    assert torch.equal(norm_pos, sample[DataKeys.NORM_POS])
+
+
+def test_dgcnn_scannet_entry_feeds_block_centered_positions_and_scene_normalized_positions() -> None:
+    torch.manual_seed(0)
+    info = model_info("dgcnn.scannet20.an-tao")
+    pos = torch.rand(64, 3) * 4.0
+    color = torch.randint(0, 256, (64, 3)).float()
+    scene_max = torch.tensor([8.0, 6.0, 3.0])
+    block_center = torch.tensor([2.0, 2.0, 1.5])
+    sample = {
+        DataKeys.POS: pos.clone(),
+        DataKeys.COLOR: color.clone(),
+        DataKeys.SEGMENT: torch.randint(0, 21, (64,)),
+        DataKeys.SCENE_MAX: scene_max,
+        DataKeys.BLOCK_CENTER: block_center,
+    }
+    transform = info["transform"]
+    assert transform is not None
+    batch = collate([transform(sample)])
+    x, norm_pos, _ = select_inputs(batch, info["input_keys"])
+    centered = pos - torch.tensor([2.0, 2.0, 0.0])
+    assert torch.allclose(x, torch.cat([centered, color / 255], dim=1))
+    assert torch.allclose(norm_pos, pos / scene_max)

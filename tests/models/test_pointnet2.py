@@ -5,13 +5,14 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from torch_pointcloud.models import model_info
+from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.models.pointnet2 import (
     PointNet2Classification,
     PointNet2Encoder,
     PointNet2PartSegmentation,
     PointNet2Segmentation,
 )
+from torch_pointcloud.utils.data import DataKeys, collate, select_inputs
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -323,3 +324,49 @@ def test_pointnet2_shapenetpart_hparams_set_the_reference_neighbor_ops(name: str
     model = PointNet2PartSegmentation(**model_info(name)["hparams"])
     assert all(sa.sort_neighbors for sa in model.encoder.sa_blocks)
     assert all(fp.eps == 1e-10 for fp in model.decoder.fp_blocks)
+
+
+def test_pointnet2_msg_modelnet40_transform_feeds_the_normals() -> None:
+    torch.manual_seed(0)
+    info = model_info("pointnet2-msg.modelnet40.xu-yan")
+    sample = {DataKeys.POS: torch.rand(2048, 3), DataKeys.NORMAL: torch.randn(2048, 3)}
+    transform = info["transform"]
+    assert transform is not None
+    batch = collate([transform(sample)])
+    x, pos, _ = select_inputs(batch, info["input_keys"])
+    assert x is not None and x.shape == (1024, info["hparams"]["in_channels"])
+    assert torch.equal(x, batch[DataKeys.NORMAL])
+    assert not torch.equal(x, pos)
+
+
+def test_pointnet2_segmentation_interpolates_every_level_from_three_neighbors(model_seg: PointNet2Segmentation) -> None:
+    assert model_seg.fp_k is None
+    assert [fp.k for fp in model_seg.decoder.fp_blocks] == [3, 3]
+
+
+def test_pointnet2_part_segmentation_copies_the_global_feature(model_part: PointNet2PartSegmentation) -> None:
+    ks = [fp.k for fp in model_part.decoder.fp_blocks]
+    assert ks[0] == 1 and all(k == 3 for k in ks[1:])
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("pointnet2-ssg.shapenetpart.mit-han-lab", id="pointnet2"),
+        pytest.param("dgcnn.shapenetpart.an-tao", id="dgcnn"),
+        pytest.param("pointnext-sm.shapenetpart.openpoints", id="pointnext"),
+        pytest.param("curvenet.shapenetpart.tiange-xiang", id="curvenet"),
+        pytest.param("point-mae-base.shapenetpart.yatian-pang", id="point-mae"),
+        pytest.param("point-m2ae-base.shapenetpart.renrui-zhang", id="point-m2ae"),
+        pytest.param("pointgpt-s.shapenetpart.guangyan-chen", id="pointgpt"),
+        pytest.param("recon.shapenetpart.zekun-qi", id="recon"),
+        pytest.param("point2vec.shapenetpart.karim-knaebel", id="point2vec"),
+    ],
+)
+def test_part_segmentation_rejects_category_indices(name: str) -> None:
+    model = create_model(name, task="part-segmentation", pretrained=False).eval()
+    pos = torch.rand(256, 3)
+    batch = torch.arange(2).repeat_interleave(128)
+    x = torch.rand(256, model.in_channels) if model.in_channels > 0 else None
+    with pytest.raises(ValueError, match="one-hot"):
+        model(x, pos, batch, torch.tensor([0, 3]))

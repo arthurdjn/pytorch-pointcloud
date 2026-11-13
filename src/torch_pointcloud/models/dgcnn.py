@@ -679,6 +679,8 @@ class DGCNNPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x, _, _ = self.forward_features(x, pos, batch, category)
         return self.forward_head(x)
 
@@ -853,6 +855,7 @@ def dgcnn_antao_shapenet_partseg(**hparams: Any) -> DGCNNPartSegmentation:
     ),
     hparams=dict(**_S3DIS_HPARAMS),
     transform=_S3DIS_TRANSFORM,
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_s3dis_area1_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
@@ -871,6 +874,7 @@ def dgcnn_antao_s3dis_area1_seg(**hparams: Any) -> DGCNNSegmentation:
     ),
     hparams=dict(**_S3DIS_HPARAMS),
     transform=_S3DIS_TRANSFORM,
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_s3dis_area2_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
@@ -889,6 +893,7 @@ def dgcnn_antao_s3dis_area2_seg(**hparams: Any) -> DGCNNSegmentation:
     ),
     hparams=dict(**_S3DIS_HPARAMS),
     transform=_S3DIS_TRANSFORM,
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_s3dis_area3_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
@@ -907,6 +912,7 @@ def dgcnn_antao_s3dis_area3_seg(**hparams: Any) -> DGCNNSegmentation:
     ),
     hparams=dict(**_S3DIS_HPARAMS),
     transform=_S3DIS_TRANSFORM,
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_s3dis_area4_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
@@ -925,6 +931,7 @@ def dgcnn_antao_s3dis_area4_seg(**hparams: Any) -> DGCNNSegmentation:
     ),
     hparams=dict(**_S3DIS_HPARAMS),
     transform=_S3DIS_TRANSFORM,
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_s3dis_area5_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
@@ -943,6 +950,7 @@ def dgcnn_antao_s3dis_area5_seg(**hparams: Any) -> DGCNNSegmentation:
     ),
     hparams=dict(**_S3DIS_HPARAMS),
     transform=_S3DIS_TRANSFORM,
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)
@@ -984,10 +992,11 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
             # tile_scannet_scene; recomputing them here would normalize by the block instead of the scene.
             T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.NORM_POS),
             T.DivideItems(keys=DataKeys.NORM_POS, div_keys=DataKeys.SCENE_MAX),
-            T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER),
-            T.Cat(keys=[DataKeys.NORM_POS, DataKeys.COLOR], dst_key=DataKeys.X),
+            T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
+            T.Cat(keys=[DataKeys.POS, DataKeys.COLOR], dst_key=DataKeys.X),
         ]
     ),
+    input_keys=("x", "norm_pos", "batch"),
 )
 def dgcnn_antao_scannet_semseg(**hparams: Any) -> DGCNNSegmentation:
     return DGCNNSegmentation(**hparams)

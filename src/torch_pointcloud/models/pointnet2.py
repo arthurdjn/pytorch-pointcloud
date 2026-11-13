@@ -654,7 +654,7 @@ class PointNet2Segmentation(SemanticSegmentationModel):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
-            k=self.fp_k,
+            k=self.fp_k if self.fp_k is not None else self.spatial_dim,
         )
 
     @property
@@ -1011,11 +1011,7 @@ class PointNet2PartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
-        if category.dim() != 2:
-            raise ValueError(
-                f"`category` must be one-hot of shape (B, num_categories), got shape {tuple(category.shape)}; "
-                "pass `F.one_hot(category, num_categories).float()` for category indices."
-            )
+        self.check_category(category)
 
         x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x = self.forward_decoder(x, pos, batch, category, intermediates)
@@ -1121,6 +1117,7 @@ def pointnet2_yanx27_ssg_modelnet40(**hparams: Any) -> PointNet2Classification:
                 dst_index_key=DataKeys.INDEX,
             ),
             T.Rescale(keys=DataKeys.POS, method="centroid"),
+            T.CopyItems(keys=DataKeys.NORMAL, dst_keys=DataKeys.X),
         ]
     ),
 )

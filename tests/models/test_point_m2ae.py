@@ -370,3 +370,30 @@ def test_point_m2ae_segmentation_accepts_features() -> None:
     out_b = model(x_b, pos, batch, category)
     assert out_a.shape == (2 * 2048, 50)
     assert not torch.allclose(out_a, out_b)
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [pytest.param(torch.bfloat16, id="autocast-bfloat16"), pytest.param(torch.float64, id="float64")],
+)
+def test_point_m2ae_mae_runs_in_other_precisions(dtype: torch.dtype) -> None:
+    torch.manual_seed(0)
+    model = PointM2AEPretraining(
+        in_channels=0,
+        group_sizes=(8, 4, 4),
+        num_groups=(32, 16, 8),
+        encoder_depths=(1, 1, 1),
+        encoder_dims=(24, 48, 96),
+        decoder_depths=(1, 1),
+        decoder_dims=(96, 48),
+        num_heads=4,
+    )
+    pos, batch = _packed(2, 200)
+    if dtype == torch.float64:
+        pred, target, _, _ = model.double()(None, pos.double(), batch)
+        assert pred.dtype == target.dtype == torch.float64
+    else:
+        with torch.autocast("cpu", dtype=dtype):
+            pred, target, _, _ = model(None, pos, batch)
+    assert pred.shape[1] == target.shape[1] == 3
+    assert pred.isfinite().all() and target.isfinite().all()
