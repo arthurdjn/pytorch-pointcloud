@@ -18,6 +18,7 @@ from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
 from .utils import (
+    atomic_path,
     check_terms_accepted,
     compute_hash,
     download_url,
@@ -245,10 +246,8 @@ class ScanObjectNN(PointCloudDataset):
             )
 
         Path(self.processed_file).parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = Path(f"{self.processed_file}.tmp")
-        with open(tmp_path, "wb") as f:
+        with atomic_path(self.processed_file) as tmp_path, open(tmp_path, "wb") as f:
             np.savez(f, pos=pos.astype(np.float32), label=labels.astype(np.int16))
-        tmp_path.replace(self.processed_file)
         return True
 
     def load(self, show_progress: bool = True) -> None:

@@ -4,7 +4,6 @@
 """
 
 import json
-import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, TypedDict, Union
 
@@ -19,6 +18,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
+from .utils import atomic_path, remove_stale_temporaries
 
 TransformLike = Callable[[Dict[str, Any]], Dict[str, Any]]
 ShapeNetCategory = Literal[
@@ -253,10 +253,8 @@ class ShapeNetPart(PointCloudDataset):
             raise RuntimeError(f"Found no samples in split {self.split!r}.")
 
         split_dir = Path(self.processed_dir, self.split)
-        tmp_dir = Path(self.processed_dir, f"{self.split}.tmp")
-        if tmp_dir.exists():
-            shutil.rmtree(tmp_dir)
-        tmp_dir.mkdir(parents=True)
+        split_dir.parent.mkdir(parents=True, exist_ok=True)
+        remove_stale_temporaries(split_dir.parent)
 
         sizes = np.array([s["pos"].shape[0] for s in samples], dtype=np.int64)  # type: ignore[index]
         offsets = np.concatenate(([0], np.cumsum(sizes))).astype(np.int64)
@@ -265,14 +263,13 @@ class ShapeNetPart(PointCloudDataset):
         segment = np.concatenate([s["segment"] for s in samples], dtype=np.int16)  # type: ignore[index]
         category = np.asarray([s["category"] for s in samples], dtype=np.int16)  # type: ignore[index]
 
-        np.save(tmp_dir / "pos.npy", pos)
-        np.save(tmp_dir / "normal.npy", normal)
-        np.save(tmp_dir / "segment.npy", segment)
-        np.save(tmp_dir / "offset.npy", offsets)
-        np.save(tmp_dir / "category.npy", category)
-        if split_dir.exists():
-            shutil.rmtree(split_dir)
-        tmp_dir.replace(split_dir)
+        with atomic_path(split_dir) as tmp_dir:
+            tmp_dir.mkdir()
+            np.save(tmp_dir / "pos.npy", pos)
+            np.save(tmp_dir / "normal.npy", normal)
+            np.save(tmp_dir / "segment.npy", segment)
+            np.save(tmp_dir / "offset.npy", offsets)
+            np.save(tmp_dir / "category.npy", category)
         return True
 
     def _load_raw_file(self, file_name: str) -> Optional[Dict[str, Any]]:

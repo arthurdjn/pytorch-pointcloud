@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -290,6 +290,19 @@ def test_convert_to_spconv_tensor_explicit_batch_size_keeps_trailing_empty_scene
     batch = torch.zeros(4, dtype=torch.long)
     assert convert_to_spconv_tensor(x, pos, batch).batch_size == 1
     assert convert_to_spconv_tensor(x, pos, batch, batch_size=3).batch_size == 3
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+@pytest.mark.parametrize(
+    "spatial_shape",
+    [pytest.param(None, id="inferred-shape"), pytest.param([8, 8, 8], id="explicit-shape")],
+)
+def test_convert_to_spconv_tensor_negative_coordinates_raise(spatial_shape: Optional[List[int]]) -> None:
+    x = torch.randn(3, 2)
+    pos = torch.tensor([[0, 0, 0], [1, -1, 3], [4, 5, 6]])
+    batch = torch.zeros(3, dtype=torch.long)
+    with pytest.raises(ValueError, match="non-negative"):
+        convert_to_spconv_tensor(x, pos, batch, spatial_shape=spatial_shape)
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")

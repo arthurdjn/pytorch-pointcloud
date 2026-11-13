@@ -4,11 +4,14 @@ import hashlib
 import json
 import shutil
 import tarfile
+import time
+import uuid
 import warnings
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from ssl import SSLContext, create_default_context
-from typing import Any, Callable, Dict, Literal, Optional, Union
+from typing import Any, Callable, Dict, Iterator, Literal, Optional, Union
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -86,6 +89,91 @@ def urlsize(
         return int(size) if size is not None else None
 
 
+@contextmanager
+def atomic_path(path: PathLike, suffix: str = ".tmp") -> Iterator[Path]:
+    """Write a file or a directory under a unique temporary name, then move it to its final path.
+
+    The temporary path is a sibling of `path`, so the final move is a rename on the same filesystem: readers never
+    see a partially written `path`, and concurrent writers of the same `path` never share a temporary. An existing
+    file is replaced atomically, an existing directory is moved aside first and removed once the new one is in
+    place. If the block raises, the temporary is removed and `path` is left untouched.
+
+    Args:
+        path: The final path of the file or directory.
+        suffix: The suffix of the temporary name.
+
+    Yields:
+        The temporary path to write to. It does not exist yet: open it as a file or create it as a directory.
+
+    Raises:
+        OSError: If the temporary cannot be moved to `path`, unless a concurrent writer moved its own complete
+            directory there first.
+
+    Examples:
+        ```pycon
+        >>> with atomic_path("data/processed/meta.json") as tmp_path:  # doctest: +SKIP
+        ...     tmp_path.write_text("{}")
+
+        ```
+    """
+    path = Path(path)
+    tmp_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}{suffix}")
+    old_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}.old{suffix}")
+    try:
+        yield tmp_path
+        if tmp_path.is_dir() and path.is_dir():
+            try:
+                path.replace(old_path)
+            except FileNotFoundError:
+                # A concurrent writer moved the old directory aside first
+                pass
+        try:
+            tmp_path.replace(path)
+        except OSError:
+            # A concurrent writer moved its own directory to `path` first: its result stands.
+            if not (tmp_path.is_dir() and path.is_dir()):
+                if old_path.is_dir() and not path.exists():
+                    old_path.replace(path)
+                raise
+    finally:
+        shutil.rmtree(old_path, ignore_errors=True)
+        if tmp_path.is_dir():
+            shutil.rmtree(tmp_path, ignore_errors=True)
+        else:
+            tmp_path.unlink(missing_ok=True)
+
+
+def remove_stale_temporaries(directory: PathLike, suffix: str = ".tmp", max_age: float = 24 * 3600) -> None:
+    """Remove the temporaries that interrupted `atomic_path` writers left in a directory.
+
+    Only entries last modified more than `max_age` seconds ago are removed, so the temporary of a writer that is
+    still running is never touched.
+
+    Args:
+        directory: The directory holding the temporaries, next to their final paths.
+        suffix: The suffix of the temporary names.
+        max_age: Minimum age in seconds, by modification time, of the temporaries to remove.
+
+    Examples:
+        ```pycon
+        >>> remove_stale_temporaries("data/processed/train")  # doctest: +SKIP
+
+        ```
+    """
+    oldest_kept = time.time() - max_age
+    for tmp_path in Path(directory).glob(f"*{suffix}"):
+        try:
+            if tmp_path.lstat().st_mtime > oldest_kept:
+                continue
+
+            if tmp_path.is_dir() and not tmp_path.is_symlink():
+                shutil.rmtree(tmp_path, ignore_errors=True)
+            else:
+                tmp_path.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
 def check_terms_accepted(accept_terms: bool, name: str, terms_url: str) -> None:
     """Confirm the terms of use that gate a dataset's automatic download, asking on the terminal when not passed.
 
@@ -143,7 +231,8 @@ def download_url(
         show_progress: Whether to display a progress bar.
         overwrite: Whether to overwrite the file if it already exists. If `True`, the local file will be overwritten
             even if it already exists. If `'incomplete'`, the local file will be overwritten if it already exists and its
-            size does not match the expected size (when the remote size is unknown, the local file is kept). If `False`,
+            size does not match the expected size (when the remote size is unknown or unreachable, the local file is
+            kept). If `False`,
             the local file will not be overwritten if it already exists.
         timeout: Timeout in seconds passed to `urlopen`, covering the connection and each blocking read, so a
             stalled server raises instead of hanging forever.
@@ -169,15 +258,17 @@ def download_url(
         return file_path.as_posix()
 
     if file_path.exists() and overwrite == "incomplete":
-        expected_size = urlsize(url, timeout=timeout)
+        try:
+            expected_size = urlsize(url, timeout=timeout)
+        except OSError:
+            expected_size = None
         if expected_size is None or file_path.stat().st_size == expected_size:
             return file_path.as_posix()
 
-    part_path = file_path.with_name(file_path.name + ".part")
     request = Request(url, headers={"User-Agent": USER_AGENT})
     for key, value in (headers or {}).items():
         request.add_unredirected_header(key, value)
-    try:
+    with atomic_path(file_path, suffix=".part") as part_path:
         with urlopen(request, timeout=timeout) as response, open(part_path, "wb") as fh:
             with tqdm(
                 total=response.length,
@@ -190,10 +281,6 @@ def download_url(
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
                     pbar.update(len(chunk))
-    except BaseException:
-        part_path.unlink(missing_ok=True)
-        raise
-    part_path.replace(file_path)
 
     return file_path.as_posix()
 
@@ -358,10 +445,8 @@ def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
 
         ```
     """
-    meta_path = Path(meta_path)
-    tmp_path = meta_path.with_name(meta_path.name + ".tmp")
-    tmp_path.write_text(json.dumps(meta))
-    tmp_path.replace(meta_path)
+    with atomic_path(meta_path) as tmp_path:
+        tmp_path.write_text(json.dumps(meta))
 
 
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py

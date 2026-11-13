@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Optional, Set
 import torch
 from safetensors.torch import load_file
 from torch import Tensor, nn
+from torch.nn.modules.lazy import LazyModuleMixin
 from torch.nn.parameter import is_lazy
 
 from .types import PathLike
@@ -95,13 +96,28 @@ def read_state_dict(path: PathLike) -> Dict[str, Any]:
     return state_dict
 
 
+def _apply_load_pre_hooks(model: nn.Module, state_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of `state_dict` with the key renames of the modules' load pre-hooks applied."""
+    renamed = dict(state_dict)
+    for name, module in model.named_modules():
+        # The pre-hook of a lazy module materializes its parameters
+        if isinstance(module, LazyModuleMixin):
+            continue
+
+        prefix = f"{name}." if name else ""
+        for hook in module._load_state_dict_pre_hooks.values():
+            hook(renamed, prefix, {}, False, [], [], [])
+    return renamed
+
+
 def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, strict: bool = True) -> None:
     """Load `state_dict` into `model`, keeping the initialization of the keys whose shapes do not match.
 
     Checkpoint keys absent from the model are ignored with a warning, keys with mismatched tensor shapes are
     skipped and keep their fresh initialization (e.g. the stem after an `in_channels` override), and model keys
     missing from the checkpoint raise. A checkpoint matching the model exactly loads completely, as with a
-    strict load.
+    strict load. The keys are compared once the modules' load pre-hooks have renamed the ones they still accept,
+    and the model is left untouched when the load raises.
 
     Args:
         model: Module to load the parameters into.
@@ -123,14 +139,15 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
         ```
     """
     model_state = model.state_dict()
-    unexpected = sorted(key for key in state_dict if key not in model_state)
+    renamed = _apply_load_pre_hooks(model, state_dict)
+    unexpected = sorted(key for key in renamed if key not in model_state)
     mismatched = sorted(
         key
-        for key in state_dict
-        if key in model_state and not is_lazy(model_state[key]) and state_dict[key].shape != model_state[key].shape
+        for key in renamed
+        if key in model_state and not is_lazy(model_state[key]) and renamed[key].shape != model_state[key].shape
     )
-    missing = sorted(key for key in model_state if key not in state_dict)
-    if state_dict and len(unexpected) == len(state_dict):
+    missing = sorted(key for key in model_state if key not in renamed)
+    if renamed and len(unexpected) == len(renamed):
         raise RuntimeError(
             f"Checkpoint {source!r} shares no key with the model (found: {', '.join(list(state_dict)[:5])}); pass the "
             "state dict of the network itself, without the prefix of a module wrapping it."
@@ -149,7 +166,7 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
             stacklevel=2,
         )
     dropped = set(unexpected) | set(mismatched)
-    model.load_state_dict({key: value for key, value in state_dict.items() if key not in dropped}, strict=False)
+    model.load_state_dict({key: value for key, value in renamed.items() if key not in dropped}, strict=False)
 
 
 def _resolve_placeholder(expr: str, ctx: Dict[str, Any]) -> Any:

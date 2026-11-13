@@ -5,6 +5,7 @@ import torch
 from torch import Tensor, nn
 
 from torch_pointcloud.layers.randlanet_blocks import RandLANetResidualBlock
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.randlanet import (
     RandLANetClassification,
     RandLANetDecoder,
@@ -14,6 +15,7 @@ from torch_pointcloud.models.randlanet import (
     random_max_pool,
     random_pool,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -337,3 +339,29 @@ def test_randlanet_classification_with_aggr(data: Dict[str, Tensor]) -> None:
     assert model.num_features == 64
     logits = model(data["features"], data["pos"], data["batch"])
     assert logits.shape == (int(data["batch"].max()) + 1, 10)
+
+
+@pytest.mark.parametrize(
+    ("raw_label", "expected"),
+    [
+        pytest.param(13, 4, id="bus"),
+        pytest.param(16, 4, id="on-rails"),
+        pytest.param(256, 4, id="moving-on-rails"),
+        pytest.param(257, 4, id="moving-bus"),
+        pytest.param(60, 8, id="lane-marking"),
+        pytest.param(20, 4, id="other-vehicle"),
+        pytest.param(40, 8, id="road"),
+        pytest.param(52, 255, id="other-structure"),
+    ],
+)
+def test_randlanet_semantickitti_transform_merges_raw_labels(raw_label: int, expected: int) -> None:
+    info = model_info("randlanet.semantickitti.tsung-han-wu", task="semantic-segmentation")
+    sample = {
+        DataKeys.POS: torch.zeros(1, 3),
+        DataKeys.INTENSITY: torch.zeros(1, 1),
+        DataKeys.SEGMENT: torch.tensor([raw_label]),
+    }
+    transform = info["transform"]
+    assert transform is not None
+    data = transform(sample)
+    assert data[DataKeys.SEGMENT].tolist() == [expected]

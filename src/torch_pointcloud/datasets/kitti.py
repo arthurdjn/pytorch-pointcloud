@@ -3,7 +3,6 @@
 {{ paper("kitti-2012") }}
 """
 
-import shutil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
 
@@ -16,6 +15,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
+from .utils import atomic_path, remove_stale_temporaries
 
 KITTI_CLASSES = ("Car", "Van", "Truck", "Pedestrian", "Person_sitting", "Cyclist", "Tram", "Misc")
 KITTI_CLASS_TO_INDEX = {name: i for i, name in enumerate(KITTI_CLASSES)}
@@ -474,11 +474,7 @@ class KITTI(PointCloudDataset):
 
         frames = sorted(p.stem for p in (self.raw_split_dir / "velodyne").glob("*.bin"))
         self.processed_split_dir.mkdir(parents=True, exist_ok=True)
-        for stale in self.processed_split_dir.glob("*.tmp"):
-            if stale.is_dir():
-                shutil.rmtree(stale)
-            else:
-                stale.unlink()
+        remove_stale_temporaries(self.processed_split_dir)
 
         parallel_map(
             self.process_frame,
@@ -515,18 +511,15 @@ class KITTI(PointCloudDataset):
 
         annotations = load_kitti_boxes(self.raw_split_dir / "label_2" / f"{frame}.txt", calib)
         frame_dir = self.processed_split_dir / frame
-        tmp_dir = self.processed_split_dir / f"{frame}.tmp"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        np.save(tmp_dir / "pos.npy", points[:, :3])
-        np.save(tmp_dir / "intensity.npy", points[:, 3:4])
-        np.save(tmp_dir / "boxes.npy", annotations[DataKeys.BOX])
-        np.save(tmp_dir / "labels.npy", annotations[DataKeys.LABEL])
-        np.save(tmp_dir / "truncation.npy", annotations[DataKeys.TRUNCATION])
-        np.save(tmp_dir / "occlusion.npy", annotations[DataKeys.OCCLUSION])
-        np.save(tmp_dir / "bbox_height.npy", annotations[DataKeys.BBOX_HEIGHT])
-        if frame_dir.exists():
-            shutil.rmtree(frame_dir)
-        tmp_dir.replace(frame_dir)
+        with atomic_path(frame_dir) as tmp_dir:
+            tmp_dir.mkdir()
+            np.save(tmp_dir / "pos.npy", points[:, :3])
+            np.save(tmp_dir / "intensity.npy", points[:, 3:4])
+            np.save(tmp_dir / "boxes.npy", annotations[DataKeys.BOX])
+            np.save(tmp_dir / "labels.npy", annotations[DataKeys.LABEL])
+            np.save(tmp_dir / "truncation.npy", annotations[DataKeys.TRUNCATION])
+            np.save(tmp_dir / "occlusion.npy", annotations[DataKeys.OCCLUSION])
+            np.save(tmp_dir / "bbox_height.npy", annotations[DataKeys.BBOX_HEIGHT])
 
     def load(self) -> None:
         r"""Enumerate the cached frames to load, honoring `split_file` when given.

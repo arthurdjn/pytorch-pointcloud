@@ -379,3 +379,20 @@ def test_flip_boxes_vertical_axis_keeps_velocity() -> None:
     flipped = F.flip_boxes(boxes, axis=2)
     assert torch.equal(flipped[:, 2], -boxes[:, 2])
     assert torch.equal(flipped[:, [0, 1, 3, 4, 5, 6, 7, 8]], boxes[:, [0, 1, 3, 4, 5, 6, 7, 8]])
+
+
+def test_paste_boxes_repr_summarizes_the_objects() -> None:
+    objects: list[Dict[str, Tensor]] = [
+        {
+            DataKeys.POS: torch.rand(300, 3),
+            DataKeys.BOX: torch.tensor([20.0, float(index), 0.0, 2.0, 2.0, 2.0, 0.0]),
+            DataKeys.LABEL: torch.tensor(index % 2),
+        }
+        for index in range(50)
+    ]
+    paste = T.PasteBoxes(objects, num_samples={0: 5, 1: 5})
+    text = repr(T.Compose([paste]))
+
+    assert "num_objects=50" in text
+    assert "num_samples={0: 5, 1: 5}" in text
+    assert "tensor(" not in text

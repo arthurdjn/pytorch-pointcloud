@@ -1,7 +1,9 @@
 # mypy: disable-error-code="arg-type,call-overload"
 import json
 import math
+import os
 import shutil
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Optional
@@ -16,6 +18,7 @@ from torch_pointcloud.datasets.sunrgbd import (
     SUNRGBD_CLASS_TO_IDX,
     SUNRGBD_CLASSES,
     decode_depth,
+    open_release_zip,
     parse_boxes,
     rebase_sequence,
     unproject,
@@ -448,3 +451,37 @@ def test_sunrgbd_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(SunRGBD, "write_processed_files", incomplete)
     SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_sunrgbd_dataset_process_opens_release_archive_once(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+
+    opened = []
+    zip_file_cls = zipfile.ZipFile
+
+    def counting_zip_file(path: Any, *args: Any, **kwargs: Any) -> zipfile.ZipFile:
+        opened.append(Path(path).name)
+        return zip_file_cls(path, *args, **kwargs)
+
+    with patch("torch_pointcloud.datasets.sunrgbd.zipfile.ZipFile", counting_zip_file):
+        dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False)
+
+    assert len(dataset) == 3
+    assert opened.count("SUNRGBD.zip") == 1
+
+
+def test_open_release_zip_reopens_a_replaced_archive(tmp_path: Path) -> None:
+    archive_path = tmp_path / "SUNRGBD.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("scene.txt", "first")
+    first = open_release_zip(archive_path.as_posix(), os.getpid())
+    assert open_release_zip(archive_path.as_posix(), os.getpid()) is first
+
+    replacement_path = tmp_path / "replacement.zip"
+    with zipfile.ZipFile(replacement_path, "w") as archive:
+        archive.writestr("scene.txt", "second archive")
+    replacement_path.replace(archive_path)
+
+    second = open_release_zip(archive_path.as_posix(), os.getpid())
+    assert second.read("scene.txt") == b"second archive"
+    assert first.fp is None

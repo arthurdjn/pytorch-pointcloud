@@ -395,6 +395,26 @@ def test_scannet20_classes_align_with_remapped_labels(datasets_dir_factory: Call
         assert data["segment"].max() < len(dataset.classes)
 
 
+@pytest.mark.parametrize(
+    "dataset_cls", [pytest.param(ScanNet20, id="scannet20"), pytest.param(ScanNet200, id="scannet200")]
+)
+def test_scannet_benchmark_dataset_test_split_without_labels(
+    datasets_dir_factory: Callable[..., Path], dataset_cls: type
+) -> None:
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    raw_dir = datasets_dir / "ScanNet" / "raw"
+    scene_ids = (raw_dir / "metadata" / "scannetv2_test.txt").read_text().split()
+    for scene_id in scene_ids:
+        for annotation_path in (raw_dir / "v2" / "scans" / scene_id).glob("*.json"):
+            annotation_path.unlink()
+
+    dataset = dataset_cls(root=datasets_dir, split="test", show_progress=False)
+    assert len(dataset) == len(scene_ids)
+    for data in dataset:
+        assert "segment" not in data
+        assert "instance" not in data
+
+
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_scannet200_classes_from_fixture(datasets_dir_factory: Callable[..., Path]) -> None:
     """`ScanNet200.classes` resolves the TSV names in remap order (regression: `label_name='raw'` raised)"""

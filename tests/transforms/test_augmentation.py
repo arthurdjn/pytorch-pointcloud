@@ -1,4 +1,6 @@
 import math
+from typing import Union
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
@@ -453,3 +455,59 @@ def test_color_grayscale_ignores_int_color() -> None:
     color = torch.randint(0, 256, (16, 3), dtype=torch.uint8, generator=torch.Generator().manual_seed(0))
     assert torch.equal(F.color_grayscale(color, int_color=True), F.color_grayscale(color, int_color=False))
     assert torch.equal(F.color_grayscale(color.float(), int_color=True), F.color_grayscale(color.float()))
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        pytest.param(T.RandomScale(keys="pos", scale_range=(0.5, 0.6), seed=0), id="scale"),
+        pytest.param(T.RandomScale(keys="pos", scale_range=(0.5, 0.6), axes=(0, 1), seed=0), id="scale-axes"),
+        pytest.param(T.RandomTranslate(keys="pos", translation_range=(0.6, 0.9), seed=0), id="translate"),
+        pytest.param(T.RandomRotate(keys="pos", seed=0), id="rotate"),
+    ],
+)
+def test_random_geometric_transform_on_integer_input_matches_float_input(
+    transform: Union[T.RandomScale, T.RandomTranslate, T.RandomRotate],
+) -> None:
+    pos = torch.tensor([[10, 0, 0], [0, 10, 0], [0, 0, 10], [3, 4, 5]])
+    transform.set_random_state(seed=0)
+    out = transform({"pos": pos})["pos"]
+    transform.set_random_state(seed=0)
+    expected = transform({"pos": pos.float()})["pos"]
+
+    assert out.is_floating_point()
+    assert torch.allclose(out, expected)
+    assert not torch.allclose(out, pos.float())
+
+
+def test_random_elastic_distortion_moves_an_integer_secondary_key() -> None:
+    torch.manual_seed(0)
+    data = {"pos": torch.rand(200, 3) * 5.0, "pos_grid": torch.zeros(200, 3, dtype=torch.long)}
+    transform = T.RandomElasticDistortion(keys=("pos", "pos_grid"), granularity=(0.2,), magnitude=(0.4,), seed=0)
+    out = transform(data)
+
+    assert out["pos_grid"].is_floating_point()
+    assert torch.allclose(out["pos_grid"], out["pos"] - data["pos"], atol=1e-6)
+
+
+def test_random_jitter_draws_on_the_generator_device() -> None:
+    """A `meta` device has no random stream: the CPU generator only advances when the draw runs on its own device."""
+    generator = torch.Generator().manual_seed(0)
+    initial_state = generator.get_state()
+
+    output = F.random_jitter(torch.zeros(8, 3, device="meta"), generator=generator)
+
+    assert output.device.type == "meta"
+    assert not torch.equal(generator.get_state(), initial_state)
+
+
+def test_random_elastic_distortion_draws_on_the_generator_device() -> None:
+    generator = Mock(spec=torch.Generator)
+    generator.device = torch.device("meta")
+    pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.5, 0.25], [0.5, 1.0, 1.0]])
+
+    with patch.object(torch, "randn", side_effect=lambda *size, **kwargs: torch.zeros(size)) as randn:
+        distorted = F.random_elastic_distortion(pos, generator=generator)
+
+    assert randn.call_args.kwargs["device"] == generator.device
+    assert distorted.device == pos.device

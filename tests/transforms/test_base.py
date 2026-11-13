@@ -254,3 +254,12 @@ def test_random_apply_gates_its_pipeline() -> None:
     assert "p=0.5" in repr(gated)
     with pytest.raises(ValueError, match="p must be"):
         T.RandomApply([], p=1.5)
+
+
+def test_random_apply_without_seed_keeps_the_seed_of_its_transforms() -> None:
+    jitter = T.RandomJitter(keys="pos", seed=0)
+    expected = T.RandomJitter(keys="pos", seed=0)({"pos": torch.zeros(8, 3)})["pos"]
+
+    gated = T.RandomApply([jitter], p=1.0)
+    assert jitter.R is not None
+    assert torch.equal(gated({"pos": torch.zeros(8, 3)})["pos"], expected)

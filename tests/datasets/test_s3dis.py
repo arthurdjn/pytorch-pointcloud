@@ -703,3 +703,29 @@ def test_s3dis_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(S3DIS, "write_processed_files", incomplete)
     S3DIS(root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_load_s3dis_room_skips_duplicated_annotation_file(datasets_dir: Path) -> None:
+    room_dir = datasets_dir / "S3DIS" / "raw" / "Area_1" / "conferenceRoom_1"
+    expected = load_s3dis_room(room_dir)
+
+    annotation_path = sorted(room_dir.glob("Annotations/*.txt"))[0]
+    shutil.copy(annotation_path, annotation_path.with_name(f"{annotation_path.stem} (1).txt"))
+    data = load_s3dis_room(room_dir)
+
+    assert torch.equal(data["pos"], expected["pos"])
+    assert torch.equal(data["instance"], expected["instance"])
+
+
+def test_load_s3dis_room_reads_nul_byte_as_separator(datasets_dir: Path) -> None:
+    room_dir = datasets_dir / "S3DIS" / "raw" / "Area_1" / "conferenceRoom_1"
+    expected = load_s3dis_room(room_dir)
+
+    annotation_path = sorted(room_dir.glob("Annotations/*.txt"))[0]
+    lines = annotation_path.read_text().splitlines()
+    lines[0] = "\x00".join(lines[0].rsplit(" ", 1))
+    annotation_path.write_text("\n".join(lines) + "\n")
+    data = load_s3dis_room(room_dir)
+
+    assert torch.equal(data["pos"], expected["pos"])
+    assert torch.equal(data["color"], expected["color"])
