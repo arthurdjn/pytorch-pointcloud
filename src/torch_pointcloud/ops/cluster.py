@@ -268,7 +268,12 @@ def fps(
 
     # FPS is greedy: the first `req_nodes` indices of a sample are the ones an exact count returns.
     sample_ratio = req_nodes.double() / node_counts.clamp(min=1).double()
-    idx = pool.fps(src, batch, ratio=sample_ratio.float(), random_start=random_start, batch_size=batch_size)
+    try:
+        idx = pool.fps(src, batch, ratio=sample_ratio.float(), random_start=random_start, batch_size=batch_size)
+    except (RuntimeError, TypeError):
+        # backends that take one ratio for the whole batch
+        max_ratio = sample_ratio.max().item()
+        idx = pool.fps(src, batch, ratio=max_ratio, random_start=random_start, batch_size=batch_size)
 
     sampled_batch = torch.searchsorted(ptr, idx, right=True) - 1
     sampled_counts = sampled_batch.bincount(minlength=batch_size)

@@ -689,6 +689,7 @@ def test_divisible_pad_random_fill_draws_on_the_generator_device() -> None:
     assert padded_batch.tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_voxelize_random_first_draws_on_the_generator_device() -> None:
     transform = T.Voxelize(pos_key="pos", pos_reduce="first", size=1.0, random_first=True, seed=0)
     transform.R = Mock(spec=torch.Generator)

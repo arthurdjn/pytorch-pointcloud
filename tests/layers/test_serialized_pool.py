@@ -5,6 +5,7 @@ import torch
 
 from torch_pointcloud.layers.serialized_pool import SerializedPool, SerializedUpsample
 from torch_pointcloud.ops.serialization import serialization_depth, serialize
+from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
 
 
 def test_serialized_pool_forward() -> None:
@@ -77,6 +78,7 @@ def test_serialized_upsample_forward() -> None:
     assert out.shape == (20, 24)
 
 
+@pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
 @pytest.mark.parametrize(
     "extent, stride, batch_ids, num_points",
     [
@@ -109,6 +111,7 @@ def test_serialized_pool_with_depth_never_merges_samples(
     assert batch.bincount().tolist() == num_points
 
 
+@pytest.mark.skipif(not _OCNN_AVAILABLE, reason="OCNN is not installed")
 def test_serialized_pool_depth_leaves_a_deep_enough_code_unchanged() -> None:
     torch.manual_seed(0)
     pos_grid = torch.randint(0, 16, (64, 3))

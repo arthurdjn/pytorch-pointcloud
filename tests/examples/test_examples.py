@@ -1400,6 +1400,7 @@ def test_semantickitti_validation_scores_each_batched_scan_with_its_own_voxels(s
     assert metrics["OA"] == 1.0
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 @pytest.mark.parametrize(
     "script",
     [

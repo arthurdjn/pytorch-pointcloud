@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 from unittest.mock import Mock, patch, sentinel
 
 import pytest
@@ -77,7 +77,33 @@ def test_fps_num_nodes_samples_each_cloud_at_its_own_ratio() -> None:
         out = fps(src, batch, num_nodes=8, random_start=False)
 
     assert torch.equal(batch[out].bincount(), torch.tensor([8, 8]))
-    assert torch.allclose(mock_fps.call_args.kwargs["ratio"], torch.tensor([8 / 16, 8 / 400]))
+    assert torch.allclose(mock_fps.call_args_list[0].kwargs["ratio"], torch.tensor([8 / 16, 8 / 400]))
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_fps_num_nodes_with_a_single_ratio_backend_matches_per_sample_ratios() -> None:
+    torch.manual_seed(0)
+    sizes = [16, 400]
+    src = torch.randn(sum(sizes), 3)
+    batch = torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes))
+    expected = torch.cat(
+        [
+            pool.fps(src[:16], ratio=8 / 16, random_start=False),
+            pool.fps(src[16:], ratio=8 / 400, random_start=False) + 16,
+        ]
+    )
+
+    pool_fps = pool.fps
+
+    def single_ratio_fps(src: Tensor, batch: Tensor, ratio: Any, **kwargs: Any) -> Tensor:
+        if isinstance(ratio, Tensor):
+            raise RuntimeError("Expected a value of type 'float' for argument 'ratio'")
+        return pool_fps(src, batch, ratio=ratio, **kwargs)
+
+    with patch("torch_pointcloud.ops.cluster.pool.fps", side_effect=single_ratio_fps):
+        out = fps(src, batch, num_nodes=8, random_start=False)
+
+    assert torch.equal(out, expected)
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
