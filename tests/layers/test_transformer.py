@@ -10,6 +10,7 @@ from torch_pointcloud.layers.transformer import (
     CrossAttention,
     PackedAttention,
     PackedTransformerBlock,
+    TransformerBlock,
     TransformerDecoderLayer,
     TransformerEncoderLayer,
 )
@@ -224,3 +225,31 @@ def test_packed_transformer_block_keeps_samples_independent(norm: Any) -> None:
     out_changed = block(changed, cu_seqlens, max_seqlen)
 
     torch.testing.assert_close(out[:10], out_changed[:10])
+
+
+@pytest.mark.parametrize(
+    "norm",
+    [
+        pytest.param("layer_norm", id="string"),
+        pytest.param("LayerNorm", id="class-name"),
+        pytest.param(nn.LayerNorm, id="class"),
+    ],
+)
+def test_transformer_block_keeps_samples_independent(norm: Any) -> None:
+    torch.manual_seed(0)
+    block = TransformerBlock(32, 2, norm=norm).eval()
+    x = torch.randn(2, 10, 32)
+    changed = x.clone()
+    changed[1] = changed[1] * 5 + 3
+
+    torch.testing.assert_close(block(x)[0], block(changed)[0])
+
+
+def test_transformer_block_layer_norm_string_matches_class() -> None:
+    torch.manual_seed(0)
+    block = TransformerBlock(32, 2, norm=nn.LayerNorm).eval()
+    block_string = TransformerBlock(32, 2, norm="layer_norm").eval()
+    block_string.load_state_dict(block.state_dict())
+    x = torch.randn(2, 10, 32)
+
+    torch.testing.assert_close(block_string(x), block(x), atol=1e-6, rtol=1e-5)

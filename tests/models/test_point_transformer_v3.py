@@ -10,6 +10,7 @@ from torch_pointcloud.models.point_transformer_v3 import (
     PointTransformerV3Classification,
     PointTransformerV3Decoder,
     PointTransformerV3DecoderBlock,
+    PointTransformerV3Encoder,
     PointTransformerV3Segmentation,
     encoder_checkpoint_filter_fn,
     segmentation_checkpoint_filter_fn,
@@ -451,3 +452,37 @@ def test_segmentation_registered_transform_runs_without_labels(name: str) -> Non
     assert DataKeys.SEGMENT not in out
     assert out[DataKeys.X].size(0) == out[DataKeys.POS_GRID].size(0)
     assert out[DataKeys.INVERSE].shape == (500,)
+
+
+@pytest.mark.parametrize(
+    "extent, strides, batch_ids, num_points",
+    [
+        pytest.param(1, (2, 2), [0, 2], [1, 0, 1], id="no-sample-with-index-one"),
+        pytest.param(6, (4, 4), [0, 1], [1, 1], id="stride-larger-than-remaining-depth"),
+        pytest.param(6, (4, 4), [0], [1], id="single-sample"),
+        pytest.param(8, (2, 2), [0, 1], [8, 8], id="deep-enough-code"),
+    ],
+)
+def test_pt_v3_encoder_serialized_pooling_never_merges_samples(
+    extent: int,
+    strides: Tuple[int, ...],
+    batch_ids: List[int],
+    num_points: List[int],
+) -> None:
+    num_stages = len(strides) + 1
+    encoder = PointTransformerV3Encoder(
+        in_channels=3,
+        strides=strides,
+        encoder_depths=(0,) * num_stages,
+        encoder_channels=(8,) * num_stages,
+        encoder_num_heads=(2,) * num_stages,
+        encoder_patch_size=(4,) * num_stages,
+        norm="layer_norm",
+        stem_type="linear",
+    ).eval()
+    cells = torch.cartesian_prod(torch.arange(extent), torch.arange(extent), torch.arange(extent))
+    pos_grid = cells.repeat(len(batch_ids), 1)
+    batch = torch.tensor(batch_ids).repeat_interleave(cells.size(0))
+
+    _, _, pooled_batch = encoder(pos_grid.float(), pos_grid, batch)
+    assert pooled_batch.bincount().tolist() == num_points

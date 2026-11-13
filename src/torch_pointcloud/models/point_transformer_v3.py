@@ -369,6 +369,7 @@ class PointTransformerV3EncoderBlock(nn.Module):
         return_inverse: Literal[True] = True,
         pos: OptTensor = None,
         condition: Optional[str] = None,
+        serialized_depth: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, OptTensor]: ...
 
     @overload
@@ -383,6 +384,7 @@ class PointTransformerV3EncoderBlock(nn.Module):
         return_inverse: Literal[False] = False,
         pos: OptTensor = None,
         condition: Optional[str] = None,
+        serialized_depth: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, OptTensor]: ...
 
     def forward(
@@ -396,6 +398,7 @@ class PointTransformerV3EncoderBlock(nn.Module):
         return_inverse: bool = False,
         pos: OptTensor = None,
         condition: Optional[str] = None,
+        serialized_depth: Optional[int] = None,
     ) -> Any:
         if not serialized_code.shape == serialized_order.shape == serialized_inverse.shape:
             raise ValueError(
@@ -426,6 +429,7 @@ class PointTransformerV3EncoderBlock(nn.Module):
                     return_inverse=True,
                     pos=pos,
                     condition=condition,
+                    serialized_depth=serialized_depth,
                 )
                 serialized_order = torch.argsort(serialized_code, dim=1)
                 serialized_inverse = torch.argsort(serialized_order, dim=1)
@@ -860,11 +864,13 @@ class PointTransformerV3Encoder(nn.Module):
     ) -> Any:
         x = x if x is not None else pos_grid.float()
 
+        serialized_depth = serialization.serialization_depth(pos_grid)
         serialized_code, serialized_order, serialized_inverse = serialization.serialize(
             pos_grid,
             batch,
             orders=self.serialization_orders,
             shuffle=self.shuffle_serialization_orders and self.training,
+            depth=serialized_depth,
         )
 
         x = self.stem(x, pos_grid, batch, condition=condition)
@@ -901,7 +907,10 @@ class PointTransformerV3Encoder(nn.Module):
                 return_inverse=True,
                 pos=pos,
                 condition=condition,
+                serialized_depth=serialized_depth,
             )
+            if isinstance(block.downsample, SerializedPool):
+                serialized_depth = max(serialized_depth - block.downsample.pooling_depth, 0)
 
             if return_intermediates and i > 0:
                 intermediate["pooling_inverse"] = inverse

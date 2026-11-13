@@ -156,6 +156,24 @@ def test_exponential_split_overwrites_radial_column_only() -> None:
 
 
 @requires_spconv
+def test_sphereformer_negative_pos_grid_raises() -> None:
+    model = SphereFormerSegmentation(
+        in_channels=4,
+        num_classes=5,
+        stem_channels=8,
+        channels=(8, 16),
+        depth=1,
+        sphere_layers=(),
+        min_spatial_shape=32,
+    )
+    pos_grid = torch.tensor([[0, 0, 0], [3, -1, 2], [5, 5, 5]])
+    x = torch.randn(3, 4)
+    batch = torch.zeros(3, dtype=torch.long)
+    with pytest.raises(ValueError, match="non-negative"):
+        model(x, pos_grid.float(), pos_grid, batch)
+
+
+@requires_spconv
 def test_sphereformer_ublock_head_dim_validation() -> None:
     window = torch.tensor([0.3, 0.3, 0.3])
     with pytest.raises(ValueError, match="must be divisible by `head_dim`"):

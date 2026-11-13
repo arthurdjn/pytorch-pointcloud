@@ -266,10 +266,9 @@ def fps(
         elif req_nodes.size(0) != batch_size:
             raise ValueError(f"Size of `num_nodes` ({req_nodes.size(0)}) must match batch size ({batch_size}).")
 
-    # FPS takes one ratio for the whole batch. It is greedy, so sampling every sample at the largest requested
-    # ratio and keeping the first `req_nodes` indices of each gives the same indices as a per-sample ratio.
-    max_ratio = (req_nodes.double() / node_counts.clamp(min=1).double()).max().item()
-    idx = pool.fps(src, batch, ratio=max_ratio, random_start=random_start, batch_size=batch_size)
+    # FPS is greedy: the first `req_nodes` indices of a sample are the ones an exact count returns.
+    sample_ratio = req_nodes.double() / node_counts.clamp(min=1).double()
+    idx = pool.fps(src, batch, ratio=sample_ratio.float(), random_start=random_start, batch_size=batch_size)
 
     sampled_batch = torch.searchsorted(ptr, idx, right=True) - 1
     sampled_counts = sampled_batch.bincount(minlength=batch_size)
@@ -413,6 +412,41 @@ def radius(
         empty = torch.empty(0, dtype=torch.long, device=device)
         return empty, empty
     return torch.cat(rows_out), torch.cat(cols_out)
+
+
+def radius_graph(
+    x: Tensor,
+    r: float,
+    batch: OptTensor = None,
+    loop: bool = False,
+    max_num_neighbors: int = 32,
+    flow: str = "source_to_target",
+) -> Tensor:
+    r"""Compute the graph connecting every point of $x$ to the points within distance $r$.
+
+    A wrapper around `torch_geometric.nn.pool.radius_graph` that checks its inputs.
+
+    Important:
+        If provided, the `batch` tensor must be sorted in non-decreasing order; an unsorted batch raises a
+        `ValueError`.
+
+    Args:
+        x: The input tensor of shape $(N, D)$.
+        r: The radius of the ball query.
+        batch: The batch tensor of shape $(N,)$.
+        loop: Whether to include self-edges.
+        max_num_neighbors: The maximum number of neighbors kept for each point.
+        flow: Either `"source_to_target"` (`edge_index = (src, dst)` where `src` is the neighbor and `dst` is the
+            central point) or `"target_to_source"`.
+
+    Returns:
+        Edge index of shape $(2, E)$.
+    """
+    _check_packed_2d(x, "x")
+    if batch is not None:
+        _check_sorted_batch(batch, "batch")
+
+    return pool.radius_graph(x, r, batch, loop=loop, max_num_neighbors=max_num_neighbors, flow=flow)
 
 
 @overload
@@ -574,6 +608,10 @@ def knn_interpolate(
         diff = pos_x[x_idx] - pos_y[y_idx]
         squared_distance = (diff * diff).sum(dim=-1, keepdim=True)
 
+        # `eps` underflows to zero in half precision
+        if squared_distance.dtype in (torch.float16, torch.bfloat16):
+            squared_distance = squared_distance.float()
+
         if weighting == "squared":
             weights = 1.0 / (squared_distance + eps)
         else:
@@ -582,7 +620,7 @@ def knn_interpolate(
 
     y = scatter(x[x_idx] * weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
     y = y / scatter(weights, y_idx, dim=0, dim_size=pos_y.size(0), reduce="sum")
-    return y
+    return y.to(x.dtype)
 
 
 @torch.no_grad()

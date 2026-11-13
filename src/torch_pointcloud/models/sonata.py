@@ -12,6 +12,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES
+from torch_pointcloud.layers.norms import is_layer_norm_name
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.models.point_transformer_v3 import (
@@ -74,7 +75,7 @@ class SonataSegmentation(SemanticSegmentationModel):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
         # PyG's LayerNorm defaults to graph mode, which normalizes across the whole packed batch and
         # leaks features between samples; node mode matches nn.LayerNorm semantics.
-        if norm == "layer_norm":
+        if is_layer_norm_name(norm):
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
         self.serialization_orders = serialization_orders
         self.shuffle_serialization_orders = shuffle_serialization_orders

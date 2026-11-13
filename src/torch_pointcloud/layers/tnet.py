@@ -105,6 +105,11 @@ class TNet(nn.Module):
         nn.init.zeros_(self.transform.weight)
         nn.init.zeros_(self.transform.bias)
 
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        state["running_transform"] = None
+        return state
+
     def forward(self, x: Tensor, batch: Tensor, features: OptTensor = None) -> Tensor:
         r"""Forward pass of the T-Net.
 
@@ -217,6 +222,11 @@ class DynamicTNet(nn.Module):
     def reset_parameters(self) -> None:
         nn.init.zeros_(self.transform.weight)
         nn.init.zeros_(self.transform.bias)
+
+    def __getstate__(self) -> Dict[str, Any]:
+        state = self.__dict__.copy()
+        state["running_transform"] = None
+        return state
 
     def forward(self, x: Tensor, batch: Tensor) -> Tensor:
         """

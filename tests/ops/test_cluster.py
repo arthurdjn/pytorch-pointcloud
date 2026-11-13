@@ -1,7 +1,9 @@
+from typing import Literal
 from unittest.mock import Mock, patch, sentinel
 
 import pytest
 import torch
+import torch_geometric.nn.pool as pool
 from torch import Tensor
 
 from torch_pointcloud.ops.cluster import (
@@ -14,6 +16,7 @@ from torch_pointcloud.ops.cluster import (
     knn_interpolate,
     knn_table,
     radius,
+    radius_graph,
 )
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
@@ -61,6 +64,20 @@ def test_fps_num_nodes_matches_per_sample_fps() -> None:
     expected = [fps(src[ptr[i] : ptr[i + 1]], num_nodes=32, random_start=False) + ptr[i] for i in range(len(sizes))]
     assert torch.equal(out, torch.cat(expected))
     assert torch.equal(fps(src, ptr=ptr, num_nodes=32, random_start=False), out)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_fps_num_nodes_samples_each_cloud_at_its_own_ratio() -> None:
+    torch.manual_seed(0)
+    sizes = [16, 400]
+    src = torch.randn(sum(sizes), 3)
+    batch = torch.repeat_interleave(torch.arange(len(sizes)), torch.tensor(sizes))
+
+    with patch("torch_pointcloud.ops.cluster.pool.fps", wraps=pool.fps) as mock_fps:
+        out = fps(src, batch, num_nodes=8, random_start=False)
+
+    assert torch.equal(batch[out].bincount(), torch.tensor([8, 8]))
+    assert torch.allclose(mock_fps.call_args.kwargs["ratio"], torch.tensor([8 / 16, 8 / 400]))
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -235,11 +252,46 @@ def test_knn_interpolate_unsorted_batch_raises() -> None:
         knn_interpolate(x, pos, pos, batch_x=torch.zeros(6, dtype=torch.long), batch_y=batch, k=1)
 
 
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize("weighting", [pytest.param("squared", id="squared"), pytest.param("inverse", id="inverse")])
+@pytest.mark.parametrize(
+    "dtype", [pytest.param(torch.float16, id="float16"), pytest.param(torch.bfloat16, id="bfloat16")]
+)
+def test_knn_interpolate_half_precision_is_finite(dtype: torch.dtype, weighting: Literal["squared", "inverse"]) -> None:
+    torch.manual_seed(0)
+    x, pos = torch.randn(20, 4), torch.rand(20, 3)
+    out = knn_interpolate(x.to(dtype), pos.to(dtype), pos.to(dtype), k=3, weighting=weighting)
+
+    assert out.dtype == dtype
+    assert torch.allclose(out.float(), x, atol=5e-2)
+
+
 def test_radius_unsorted_batch_raises() -> None:
     pos = torch.randn(6, 3)
     batch = torch.tensor([0, 1, 0, 1, 0, 1])
     with pytest.raises(ValueError, match="`batch_x` must be sorted"):
         radius(pos, pos, r=1.0, batch_x=batch, batch_y=torch.zeros(6, dtype=torch.long))
+
+
+def test_radius_graph_unsorted_batch_raises() -> None:
+    pos = torch.randn(6, 3)
+    batch = torch.tensor([0, 1, 0, 1, 0, 1])
+    with pytest.raises(ValueError, match="`batch` must be sorted"):
+        radius_graph(pos, r=1.0, batch=batch)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_radius_graph_keeps_edges_inside_each_sample() -> None:
+    torch.manual_seed(0)
+    pos = torch.rand(40, 3)
+    batch = torch.arange(40) // 20
+    edge_index = radius_graph(pos, r=0.5, batch=batch, loop=True, max_num_neighbors=64)
+
+    assert torch.equal(batch[edge_index[0]], batch[edge_index[1]])
+    distance = (pos[edge_index[0]] - pos[edge_index[1]]).norm(dim=1)
+    expected = (torch.cdist(pos, pos) <= 0.5) & (batch[:, None] == batch[None, :])
+    assert bool((distance <= 0.5).all())
+    assert edge_index.size(1) == int(expected.sum())
 
 
 def test_cluster_ops_reject_padded_input() -> None:
