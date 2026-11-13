@@ -241,7 +241,8 @@ class RandomApply(Compose):
 
         super().__init__(transforms, allow_missing_keys=allow_missing_keys)
         self.p = p
-        self.set_random_state(seed)
+        if seed is not None:
+            self.set_random_state(seed)
 
     def transform(self, data: Any) -> Any:
         """Apply the transforms to the input data with probability `p`."""

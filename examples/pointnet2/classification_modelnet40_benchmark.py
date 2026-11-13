@@ -40,7 +40,7 @@ def main() -> None:
     dataloader = configure_dataloader(args)
 
     print(f"Test set: {len(dataloader.dataset)} shapes")  # type: ignore[arg-type]
-    metrics = evaluate(model, dataloader, args.device, num_classes(dataloader.dataset), args.model)
+    metrics = evaluate(model, dataloader, args.device, num_classes(dataloader.dataset))
     print("\nResults:")
     for key, value in metrics.items():
         print(f"  {key:<24} {value:.4f}")
@@ -96,18 +96,14 @@ def num_classes(dataset: Dataset) -> int:
 
 
 @torch.no_grad()
-def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: int, model_name: str) -> Dict[str, Any]:
+def evaluate(model: Module, dataloader: DataLoader, device: str, num_classes: int) -> Dict[str, Any]:
     model.to(device).eval()
     cm = torch.zeros(num_classes, num_classes, dtype=torch.long)
 
     pbar = tqdm(dataloader, total=len(dataloader), desc="Testing")
     for data in pbar:
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
-        logits = model(
-            data[DataKeys.NORMAL] if "msg" in model_name else data.get(DataKeys.X),
-            data[DataKeys.POS],
-            data[DataKeys.BATCH],
-        )
+        logits = model(data.get(DataKeys.X), data[DataKeys.POS], data[DataKeys.BATCH])
         preds = logits.argmax(dim=1)
         cm += confusion_matrix(preds.cpu(), data[DataKeys.LABEL].cpu(), num_classes)
         oa = accuracy(cm)

@@ -4,6 +4,7 @@
 """
 
 import math
+import re
 from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
@@ -24,7 +25,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike, ValueCollection
 
 from .pointcloud import PointCloudDataset
-from .utils import check_terms_accepted, download_url, extract_zip, is_hash_valid
+from .utils import atomic_path, check_terms_accepted, download_url, extract_zip, is_hash_valid
 
 # Areas available in the S3DIS dataset.
 S3DISArea = Literal["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"]
@@ -103,6 +104,29 @@ def _check_classes(classes: Sequence[str]) -> None:
             raise ValueError(f"Unknown class: {cls_name!r}. Must be one of {available_classes}.")
 
 
+DUPLICATED_FILE_STEM = re.compile(r".+ \(\d+\)")
+
+
+def load_s3dis_object(file_path: PathLike) -> np.ndarray:
+    """Load the points of one annotated S3DIS object, reading a NUL byte between two values as a separator.
+
+    Args:
+        file_path: Path to the object's `Annotations/<class>_<index>.txt` file.
+
+    Returns:
+        The object's points $(N, 6)$ as `x y z r g b`.
+    """
+    try:
+        return np.loadtxt(file_path, dtype=np.float32, delimiter=" ")
+    except ValueError:
+        text = Path(file_path).read_text()
+        if "\x00" not in text:
+            raise
+
+    lines = text.replace("\x00", " ").splitlines()
+    return np.loadtxt(lines, dtype=np.float32, delimiter=" ")
+
+
 def load_s3dis_room(room_dir: PathLike, alignment_angle: float | None = None) -> S3DISRoomData:
     """Load the full S3DIS room from a given directory and (optionally) apply an alignment angle.
 
@@ -126,11 +150,13 @@ def load_s3dis_room(room_dir: PathLike, alignment_angle: float | None = None) ->
     """
     room = defaultdict(list)
 
-    for obj_idx, obj_path in enumerate(sorted(Path(room_dir).rglob("./Annotations/*.txt"))):
+    annotation_paths = sorted(Path(room_dir).rglob("./Annotations/*.txt"))
+    object_paths = [path for path in annotation_paths if DUPLICATED_FILE_STEM.fullmatch(path.stem) is None]
+    for obj_idx, obj_path in enumerate(object_paths):
         class_name, *_ = obj_path.stem.split("_")
         class_idx = S3DIS_CLASS_TO_IDX.get(class_name, S3DIS_UNK_IDX)
 
-        data = np.loadtxt(obj_path, dtype=np.float32, delimiter=" ")
+        data = load_s3dis_object(obj_path)
         points = torch.from_numpy(data)
         N, _ = points.shape
 
@@ -595,10 +621,8 @@ class S3DIS(PointCloudDataset):
                 ("offset.npy", offsets),
             ]
             for name, array in arrays:
-                tmp_path = area_dir / (name + ".tmp")
-                with open(tmp_path, "wb") as f:
+                with atomic_path(area_dir / name) as tmp_path, open(tmp_path, "wb") as f:
                     np.save(f, array)
-                tmp_path.replace(area_dir / name)
 
         return True
 

@@ -720,6 +720,12 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
     ) -> "SparseConvTensor":
+        if pos_grid.numel() > 0 and bool((pos_grid < 0).any()):
+            raise ValueError(
+                f"`pos_grid` must be non-negative, got a minimum of {int(pos_grid.min())}. "
+                "Shift it by the per-axis minimum, as `Voxelize` does."
+            )
+
         indices = torch.cat([batch.unsqueeze(-1), pos_grid], dim=1).int()
         spatial_shape = np.clip((pos_grid.max(0).values + 1).cpu().numpy(), self.min_spatial_shape, None)
         batch_size = int(batch.max().item()) + 1

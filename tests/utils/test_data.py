@@ -12,6 +12,7 @@ from torch_pointcloud.utils.data import (
     PointCloudDataLoader,
     collate,
     offset_index,
+    seed_worker,
     select_inputs,
     set_random_states,
 )
@@ -458,3 +459,16 @@ def test_collate_octrees_in_workers_keeps_the_lookup_table_cache() -> None:
     pytest.importorskip("ocnn")
     loader = PointCloudDataLoader(_OctreeDataset(), batch_size=2, num_workers=1)
     assert [batch["cache_shared"].tolist() for batch in loader] == [[0, 0]] * 6
+
+
+def test_seed_worker_gives_consecutive_workers_disjoint_seeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    seeds: List[int] = []
+    for worker_seed in (1000, 1001):
+        transforms = [T.RandomJitter(keys="pos", seed=0), T.RandomJitter(keys="pos", seed=1)]
+        info = SimpleNamespace(dataset={"transform": transforms}, seed=worker_seed)
+        monkeypatch.setattr("torch_pointcloud.utils.data.get_worker_info", lambda info=info: info)
+        seed_worker(0)
+        generators = [transform.R for transform in transforms]
+        seeds.extend(generator.initial_seed() for generator in generators if generator is not None)
+
+    assert len(set(seeds)) == 4

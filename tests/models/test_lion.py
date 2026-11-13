@@ -1,11 +1,9 @@
-from pathlib import Path
-from typing import Any, Dict, Sequence
+from typing import Any, Callable, Dict, Sequence
 
 import pytest
 import torch
 import torch.nn as nn
 
-from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.layers.transfusion_head import TransFusionHead, TransFusionHeadOutput
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.lion import (
@@ -25,7 +23,6 @@ RANGE = (-54.0, -54.0, -5.0, 54.0, 54.0, 3.0)
 DEVICE = "cuda" if _CUDA_AVAILABLE else "cpu"
 
 _FULL_STACK = _CUDA_AVAILABLE and _MAMBA_SSM_AVAILABLE and _SPCONV_AVAILABLE
-_WEIGHTS = Path(MODELS_DIR, "lion", "lion-mamba.nuscenes.zhe-liu.safetensors")
 
 
 def test_lion_registered_variant() -> None:
@@ -130,6 +127,23 @@ def test_lion_patch_merging_invalid_diffusion_scale_raises() -> None:
         merge(x, diffusion_scale=3)
 
 
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_lion_patch_merging_keeps_distinct_cells_apart_on_an_odd_grid(
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
+    import spconv.pytorch as spconv
+
+    merge = PatchMerging3D(4, down_scale=[2, 2, 2]).eval()
+    spconv_to_device(merge, "cpu")
+    indices = torch.tensor([[0, 4, 0, 0], [0, 0, 2, 0], [0, 0, 0, 8]], dtype=torch.int32)
+    x = spconv.SparseConvTensor(torch.randn(3, 4), indices, [5, 9, 9], batch_size=1)
+
+    out, inverse = merge(x)
+
+    assert out.spatial_shape == [3, 5, 5]
+    assert out.indices[inverse].tolist() == [[0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 4]]
+
+
 def test_lion_backbone_3d_num_layers_mismatch_raises() -> None:
     with pytest.raises(ValueError, match="num_layers"):
         LION3DBackbone((360, 360, 32), num_layers=2, depths=(2, 2, 2))
@@ -176,7 +190,7 @@ def test_lion_forward_and_decode() -> None:
 
 
 @pytest.mark.skipif(not _FULL_STACK, reason="LION forward needs CUDA + mamba_ssm + spconv")
-@pytest.mark.skipif(not _WEIGHTS.exists(), reason="LION nuScenes weights not in local cache")
+@pytest.mark.pretrained
 def test_lion_pretrained_smoke() -> None:
     """Pretrained LION strict-loads and produces finite, in-range detections on a random scene."""
     model = create_model("lion-mamba.nuscenes.zhe-liu", task="detection", pretrained=True).to(DEVICE).eval()

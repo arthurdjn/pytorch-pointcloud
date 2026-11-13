@@ -744,6 +744,8 @@ class PointM2AEPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x_vis_list, centers = self.forward_features(x, pos, batch)
         x = self.forward_decoder(x_vis_list, centers, pos, batch)
         return self.forward_head(x, category)
@@ -920,7 +922,7 @@ class PointM2AEPretraining(PretrainingModel):
                 mask_vis = mask_vis_list[i]
                 B, N, _ = center.shape
                 _, _, C = x_vis.shape
-                x_full_en = torch.zeros(B, N, C, device=pos.device)
+                x_full_en = x_vis.new_zeros(B, N, C)
                 x_full_en[bool_vis_pos] = x_vis[mask_vis]
 
                 anchor = center_0 if i == 1 else centers[i - 1]
@@ -1082,9 +1084,9 @@ class HierarchicalEncoderMAE(nn.Module):
 
             vis_tokens_len = bool_vis_pos.long().sum(dim=1)
             max_tokens_len = int(torch.max(vis_tokens_len).item())
-            x_vis = torch.zeros(batch_size, max_tokens_len, C, device=group_input_tokens.device)
-            masked_center = torch.zeros(batch_size, max_tokens_len, 3, device=group_input_tokens.device)
-            mask_vis = torch.ones(batch_size, max_tokens_len, max_tokens_len, device=group_input_tokens.device)
+            x_vis = group_input_tokens.new_zeros(batch_size, max_tokens_len, C)
+            masked_center = centers[i].new_zeros(batch_size, max_tokens_len, 3)
+            mask_vis = centers[i].new_ones(batch_size, max_tokens_len, max_tokens_len)
 
             for bz in range(batch_size):
                 vis_tokens = group_input_tokens[bz][bool_vis_pos[bz]]
@@ -1105,6 +1107,7 @@ class HierarchicalEncoderMAE(nn.Module):
             mask_vis_list.append(~(mask_vis[:, :, 0].bool()))
 
             if i != len(centers) - 1:
+                group_input_tokens = group_input_tokens.to(x_vis.dtype)
                 group_input_tokens[bool_vis_pos] = x_vis[~(mask_vis[:, :, 0].bool())]
                 x_vis = group_input_tokens
 

@@ -1,5 +1,6 @@
 """Run every example script end to end on the dummy datasets shipped under `tests/data/datasets`."""
 
+import ast
 import importlib.util
 import shutil
 import subprocess
@@ -7,11 +8,13 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 from types import ModuleType
-from typing import Iterator, Tuple
+from typing import Any, Dict, Iterator, List, Tuple
 
 import pytest
+import torch
+from torch import Tensor, nn
 
-from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.data import DataKeys, collate
 from torch_pointcloud.utils.imports import (
     _CUDA_AVAILABLE,
     _DWCONV_AVAILABLE,
@@ -44,6 +47,7 @@ _GPU_TORCHSPARSE = (_REQUIRES_TORCHSPARSE, _REQUIRES_CUDA)
 _GPU_OCTREE = (_REQUIRES_OCNN, _REQUIRES_DWCONV, _REQUIRES_CUDA)
 _GPU_MAMBA = (_REQUIRES_MAMBA, _REQUIRES_CUDA, _REQUIRES_PYG_LIB)
 _GPU_FLASH_ATTN = (_REQUIRES_FLASH_ATTN, _REQUIRES_CUDA)
+_LOADS_PRETRAINED_ENCODER = pytest.mark.pretrained
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
 # dataset here (SUN RGB-D, ScanNet200, the KITTI split files) and the unreleased SphereFormer weights have no row.
@@ -677,62 +681,62 @@ TRAININGS = [
     ),
     pytest.param(
         "point_mae/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_mae/finetune",
     ),
     pytest.param(
         "recon/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="recon/finetune",
     ),
     pytest.param(
         "act/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="act/finetune",
     ),
     pytest.param(
         "pcp_mae/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="pcp_mae/finetune",
     ),
     pytest.param(
         "point2vec/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point2vec/finetune",
     ),
     pytest.param(
         "point_bert/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_bert/finetune",
     ),
     pytest.param(
         "point_m2ae/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_m2ae/finetune",
     ),
     pytest.param(
         "point_mamba/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_GPU_MAMBA,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_MAMBA, _LOADS_PRETRAINED_ENCODER),
         id="point_mamba/finetune",
     ),
     pytest.param(
         "pointgpt/classification_scanobjectnn_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="pointgpt/scanobjectnn",
     ),
     pytest.param(
         "pointgpt/part_segmentation_shapenetpart_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="pointgpt/shapenetpart-train",
     ),
     pytest.param(
@@ -832,20 +836,20 @@ TRAININGS = [
     ),
     pytest.param(
         "sonata/segmentation_scannet_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_GPU_SPCONV,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_SPCONV, _LOADS_PRETRAINED_ENCODER),
         id="sonata/scannet-train",
     ),
     pytest.param(
         "concerto/segmentation_scannet_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_GPU_SPCONV,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_SPCONV, _LOADS_PRETRAINED_ENCODER),
         id="concerto/scannet-train",
     ),
     pytest.param(
         "utonia/segmentation_scannet_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_GPU_SPCONV,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_SPCONV, _LOADS_PRETRAINED_ENCODER),
         id="utonia/scannet-train",
     ),
     pytest.param(
@@ -980,50 +984,50 @@ TRAININGS = [
     ),
     pytest.param(
         "point_bert/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_bert/modelnet40",
     ),
     pytest.param(
         "point_m2ae/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_m2ae/modelnet40",
     ),
     pytest.param(
         "point_mae/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_mae/modelnet40",
     ),
     pytest.param(
         "recon/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="recon/modelnet40",
     ),
     pytest.param(
         "act/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="act/modelnet40",
     ),
     pytest.param(
         "pcp_mae/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="pcp_mae/modelnet40",
     ),
     pytest.param(
         "point2vec/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point2vec/modelnet40",
     ),
     pytest.param(
         "point_mamba/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_GPU_MAMBA,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_GPU_MAMBA, _LOADS_PRETRAINED_ENCODER),
         id="point_mamba/modelnet40",
     ),
     pytest.param(
@@ -1034,8 +1038,8 @@ TRAININGS = [
     ),
     pytest.param(
         "pointgpt/classification_modelnet40_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="pointgpt/modelnet40",
     ),
     pytest.param(
@@ -1106,26 +1110,26 @@ TRAININGS = [
     ),
     pytest.param(
         "point_mae/part_segmentation_shapenetpart_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_mae/shapenetpart-train",
     ),
     pytest.param(
         "recon/part_segmentation_shapenetpart_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="recon/shapenetpart-train",
     ),
     pytest.param(
         "point2vec/part_segmentation_shapenetpart_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point2vec/shapenetpart-train",
     ),
     pytest.param(
         "point_m2ae/part_segmentation_shapenetpart_train.py",
-        (*_SMOKE_RECIPE, "--from-scratch", "--batch-size", "2"),
-        marks=_CLUSTER,
+        (*_SMOKE_RECIPE, "--batch-size", "2"),
+        marks=(*_CLUSTER, _LOADS_PRETRAINED_ENCODER),
         id="point_m2ae/shapenetpart-train",
     ),
     pytest.param(
@@ -1298,3 +1302,212 @@ def test_kitti_training_scripts_cache_the_objects_of_their_own_classes(tmp_path:
     objects = second.configure_objects(args)
     assert len(expected) > 0
     assert [int(obj[DataKeys.LABEL]) for obj in objects] == [int(obj[DataKeys.LABEL]) for obj in expected]
+
+
+class FirstInput(nn.Module):
+    """Returns its first input, so a batch carries the logits a script scores."""
+
+    def forward(self, x: Tensor, *args: Tensor) -> Tensor:
+        return x
+
+
+@pytest.mark.parametrize(
+    "script, args",
+    [
+        pytest.param(
+            "pointnet/classification_modelnet40_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pointnet/modelnet40",
+        ),
+        pytest.param("pointnet/segmentation_s3dis_train.py", ("--batch-size", "2"), id="pointnet/s3dis"),
+        pytest.param(
+            "pvcnn/part_segmentation_shapenetpart_train.py",
+            ("--batch-size", "2"),
+            marks=_CLUSTER,
+            id="pvcnn/shapenetpart",
+        ),
+    ],
+)
+def test_training_script_keeps_the_checkpoint_of_the_best_validation_score(
+    script: str,
+    args: Tuple[str, ...],
+    examples_datasets_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _import(script)
+    scores = {2: 0.9, 4: 0.5, 5: 0.7}
+    epochs: List[int] = []
+
+    def train_one_epoch(model: nn.Module, *args: Any, **kwargs: Any) -> float:
+        epochs.append(len(epochs) + 1)
+        for tensor in model.state_dict().values():
+            tensor.fill_(epochs[-1])
+        return 1.0 / epochs[-1]
+
+    def evaluate(*args: Any, **kwargs: Any) -> Dict[str, float]:
+        score = scores[epochs[-1]]
+        return {"acc": score, "mean_acc": score, "mIoU": score, "ins_mIoU": score}
+
+    monkeypatch.setattr(module, "train_one_epoch", train_one_epoch)
+    monkeypatch.setattr(module, "evaluate", evaluate)
+    recipe = ("--limit-train-batches", "1", "--limit-val-batches", "1", "--epochs", "5", "--eval-every", "2")
+    root = ("--root", str(examples_datasets_dir), "--num-workers", "0", "--device", "cpu")
+    monkeypatch.setattr(sys, "argv", [script, *root, *recipe, "--output", str(tmp_path), *args])
+    module.main()
+
+    best = torch.load(tmp_path / "best.pt")
+    last = torch.load(tmp_path / "last.pt")
+    assert {float(tensor.flatten()[0]) for tensor in best.values()} == {2.0}
+    assert {float(tensor.flatten()[0]) for tensor in last.values()} == {5.0}
+
+
+def test_training_scripts_save_best_checkpoint_on_a_validation_score() -> None:
+    for path in sorted(EXAMPLES_DIR.glob("*/*_train.py")):
+        tree = ast.parse(path.read_text())
+        conditions = [
+            ast.unparse(node.test)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.If) and "best.pt" in ast.unparse(node) and "best_" in ast.unparse(node.test)
+        ]
+        assert all("val[" in condition for condition in conditions), (path.name, conditions)
+        assert "best.pt" not in path.read_text() or conditions, path.name
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        pytest.param("spvcnn/segmentation_semantickitti_train.py", id="spvcnn"),
+        pytest.param("sphereformer/segmentation_semantickitti_train.py", id="sphereformer"),
+    ],
+)
+def test_semantickitti_validation_scores_each_batched_scan_with_its_own_voxels(script: str) -> None:
+    module = _import(script)
+    voxel_labels = [torch.tensor([0, 1]), torch.tensor([2, 3, 4])]
+    inverses = [torch.tensor([0, 1, 1]), torch.tensor([2, 0, 1, 1])]
+    scans: List[Dict[str, Any]] = [
+        {
+            DataKeys.X: nn.functional.one_hot(labels, module.NUM_CLASSES).float(),
+            DataKeys.POS: torch.zeros(len(labels), 3),
+            DataKeys.POS_GRID: torch.zeros(len(labels), 3, dtype=torch.long),
+            DataKeys.INVERSE: inverse,
+            DataKeys.ORIGIN_SEGMENT: labels[inverse],
+        }
+        for labels, inverse in zip(voxel_labels, inverses)
+    ]
+    batch = collate(scans, cat_keys=[DataKeys.INVERSE])
+    metrics = module.evaluate(FirstInput(), [batch], "cpu")
+    assert metrics["OA"] == 1.0
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.parametrize(
+    "script",
+    [
+        pytest.param("spvcnn/segmentation_semantickitti_train.py", id="spvcnn"),
+        pytest.param("sphereformer/segmentation_semantickitti_train.py", id="sphereformer"),
+    ],
+)
+def test_semantickitti_validation_loader_indexes_the_inverse_map_per_scan(
+    script: str, examples_datasets_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _import(script)
+    sequences = ("--train-sequences", "00", "--val-sequences", "08")
+    monkeypatch.setattr(sys, "argv", [script, "--root", str(examples_datasets_dir), "--num-workers", "0", *sequences])
+    _, val_loader = module.configure_dataloaders(module.parse_args())
+    assert f"batch_{DataKeys.INVERSE}" in next(iter(val_loader))
+
+
+def test_point_bert_scanobjectnn_validation_counts_a_prediction_past_the_classes_as_an_error() -> None:
+    module = _import("point_bert/classification_scanobjectnn_train.py")
+
+    class PastTheClasses(nn.Module):
+        def forward(self, x: None, pos: Tensor, batch: Tensor) -> Tensor:
+            return nn.functional.one_hot(torch.tensor([3, 20]), 40).float()
+
+    batch = {
+        DataKeys.POS: torch.zeros(2, 3),
+        DataKeys.BATCH: torch.tensor([0, 1]),
+        DataKeys.LABEL: torch.tensor([3, 5]),
+    }
+    metrics = module.evaluate(PastTheClasses(), [batch], "cpu")
+    assert metrics["acc"] == 0.5
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        pytest.param("kpconv/segmentation_semantickitti_benchmark.py", id="kpconv"),
+        pytest.param("minkunet/segmentation_semantickitti_benchmark.py", id="minkunet"),
+        pytest.param("randlanet/segmentation_semantickitti_benchmark.py", id="randlanet"),
+        pytest.param("sphereformer/segmentation_semantickitti_benchmark.py", id="sphereformer"),
+        pytest.param("spvcnn/segmentation_semantickitti_benchmark.py", marks=_GPU_TORCHSPARSE, id="spvcnn"),
+    ],
+)
+def test_semantickitti_benchmark_rejects_the_unlabeled_test_split(script: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _import(script)
+    monkeypatch.setattr(sys, "argv", [script, "--split", "test"])
+    with pytest.raises(SystemExit):
+        module.parse_args()
+
+
+def test_randlanet_semantickitti_training_merges_bus_on_rails_and_lane_marking() -> None:
+    module = _import("randlanet/segmentation_semantickitti_train.py")
+    raw = torch.tensor([13, 16, 256, 257, 60, 20, 40, 0])
+    for transform in (module.TRAIN_TRANSFORM, module.VAL_TRANSFORM):
+        relabel = transform.transforms[1]
+        segment = relabel({DataKeys.SEGMENT: raw.clone()})[DataKeys.SEGMENT]
+        assert segment.tolist() == [4, 4, 4, 4, 8, 4, 8, 255]
+
+
+def test_kpconv_s3dis_training_decays_every_parameter_group(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _import("kpconv/segmentation_s3dis_train.py")
+    monkeypatch.setattr(sys, "argv", ["kpconv/segmentation_s3dis_train.py"])
+    model = nn.ModuleDict({"conv": nn.Linear(2, 2), "offset": nn.Linear(2, 2)})
+    optimizer, _ = module.configure_optimizers(module.parse_args(), model)
+    assert [group["weight_decay"] for group in optimizer.param_groups] == [1e-3, 1e-3]
+    assert [group["lr"] for group in optimizer.param_groups] == [1e-2, 1e-3]
+
+
+def test_readme_training_command_parses(monkeypatch: pytest.MonkeyPatch) -> None:
+    readme = (EXAMPLES_DIR / "README.md").read_text()
+    commands = [line.split() for line in readme.splitlines() if line.startswith("uv run --no-sync python examples/")]
+    assert len(commands) == 2
+    for command in commands:
+        script = command[4].removeprefix("examples/")
+        monkeypatch.setattr(sys, "argv", [script, *command[5:]])
+        _import(script).parse_args()
+
+
+@pytest.mark.parametrize(
+    ("script", "model", "expected"),
+    [
+        pytest.param(
+            "pointnext/segmentation_s3dis_benchmark.py",
+            "pointnext-xl.s3dis-area2.openpoints",
+            ["Area_2"],
+            id="pointnext-area2",
+        ),
+        pytest.param(
+            "pointnext/segmentation_s3dis_benchmark.py",
+            "pointnext-sm.s3dis-area5.openpoints",
+            ["Area_5"],
+            id="pointnext-area5",
+        ),
+        pytest.param(
+            "pointnet2/segmentation_s3dis_benchmark.py",
+            "pointnet2.s3dis-area3.openpoints",
+            ["Area_3"],
+            id="pointnet2-area3",
+        ),
+    ],
+)
+def test_s3dis_benchmark_defaults_to_the_held_out_area_of_the_checkpoint(
+    script: str,
+    model: str,
+    expected: List[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _import(script)
+    monkeypatch.setattr(sys, "argv", [script, "--model", model])
+    assert module.parse_args().areas == expected

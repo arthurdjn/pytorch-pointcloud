@@ -6,7 +6,7 @@
 
 import io
 import math
-import shutil
+import os
 import zipfile
 from functools import cached_property
 from pathlib import Path
@@ -23,7 +23,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import download_url, is_hash_valid
+from .utils import atomic_path, download_url, is_hash_valid, remove_stale_temporaries
 
 SUNRGBD_BASE_URL = "https://rgbd.cs.princeton.edu/data"
 
@@ -218,6 +218,33 @@ def parse_boxes(gt: Any, class_to_idx: Dict[str, int]) -> np.ndarray:
     return np.stack(rows, axis=0)
 
 
+_RELEASE_ZIP_CACHE: Dict[Tuple[str, int, int, int, int], zipfile.ZipFile] = {}
+
+
+def open_release_zip(path: str, process_id: int) -> zipfile.ZipFile:
+    """Open the release archive once per process, so its member index is parsed a single time.
+
+    Args:
+        path: Path to the `SUNRGBD.zip` release archive.
+        process_id: Id of the calling process, so a forked worker never shares its parent's file handle.
+
+    Returns:
+        The opened archive, kept open until another archive is opened or the file at `path` changes.
+    """
+    stat = os.stat(path)
+    key = (path, process_id, stat.st_ino, stat.st_size, stat.st_mtime_ns)
+    release_zip = _RELEASE_ZIP_CACHE.get(key)
+    if release_zip is not None:
+        return release_zip
+
+    for stale_zip in _RELEASE_ZIP_CACHE.values():
+        stale_zip.close()
+    _RELEASE_ZIP_CACHE.clear()
+    release_zip = zipfile.ZipFile(path)
+    _RELEASE_ZIP_CACHE[key] = release_zip
+    return release_zip
+
+
 class SunRGBD(PointCloudDataset):
     r"""The SUN RGB-D dataset for 3D object detection, as described in the paper
     :arxiv: [SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite](https://openaccess.thecvf.com/content_cvpr_2015/html/Song_SUN_RGB-D_A_2015_CVPR_paper.html).
@@ -410,11 +437,7 @@ class SunRGBD(PointCloudDataset):
 
         split_dir = Path(self.processed_dir, self._split)
         split_dir.mkdir(parents=True, exist_ok=True)
-        for stale in split_dir.glob("*.tmp"):
-            if stale.is_dir():
-                shutil.rmtree(stale)
-            else:
-                stale.unlink()
+        remove_stale_temporaries(split_dir)
 
         sequences = self.read_split()
         meta = self.read_meta()
@@ -443,15 +466,12 @@ class SunRGBD(PointCloudDataset):
         classes = np.asarray(boxes[:, 7], dtype=np.int64)
 
         scene_dir = Path(split_dir, sequence_id.replace("/", "_"))
-        tmp_dir = scene_dir.with_name(f"{scene_dir.name}.tmp")
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        np.save(Path(tmp_dir, "pos.npy"), pos.astype(np.float16))
-        np.save(Path(tmp_dir, "color.npy"), colors)
-        np.save(Path(tmp_dir, "box.npy"), boxes)
-        np.save(Path(tmp_dir, "class.npy"), classes)
-        if scene_dir.exists():
-            shutil.rmtree(scene_dir)
-        tmp_dir.replace(scene_dir)
+        with atomic_path(scene_dir) as tmp_dir:
+            tmp_dir.mkdir()
+            np.save(Path(tmp_dir, "pos.npy"), pos.astype(np.float16))
+            np.save(Path(tmp_dir, "color.npy"), colors)
+            np.save(Path(tmp_dir, "box.npy"), boxes)
+            np.save(Path(tmp_dir, "class.npy"), classes)
 
     def read_scene_cloud(self, entry: Any) -> Tuple[np.ndarray, np.ndarray]:
         r"""Unproject one scene's depth and RGB images into a colored point cloud.
@@ -465,9 +485,10 @@ class SunRGBD(PointCloudDataset):
         """
         depth_member = f"SUNRGBD/{rebase_sequence(str(entry.depthpath))}"
         rgb_member = f"SUNRGBD/{rebase_sequence(str(entry.rgbpath))}"
-        with zipfile.ZipFile(self.release_zip_path) as z:
-            depth_png = np.array(Image.open(io.BytesIO(z.read(depth_member))))
-            rgb = np.array(Image.open(io.BytesIO(z.read(rgb_member))).convert("RGB"))
+        release_zip = open_release_zip(self.release_zip_path, os.getpid())
+        depth_png = np.array(Image.open(io.BytesIO(release_zip.read(depth_member))))
+        rgb_image = Image.open(io.BytesIO(release_zip.read(rgb_member)))
+        rgb = np.array(rgb_image.convert("RGB"))
 
         k = np.asarray(entry.K, dtype=np.float32)
         rtilt = np.asarray(entry.Rtilt, dtype=np.float32)

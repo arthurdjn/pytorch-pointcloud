@@ -1,3 +1,5 @@
+from unittest.mock import Mock, patch
+
 import pytest
 import torch
 from torch import Tensor
@@ -483,6 +485,15 @@ def test_divisible_pad() -> None:
     assert torch.equal(batch, padded_batch[padded_inverse])
 
 
+def test_divisible_pad_grouped_non_ascending_batch() -> None:
+    batch = torch.tensor([2, 2, 2, 0, 0, 0, 0, 0])
+    indices, inverse, padded_batch = F.divisible_pad(batch, 4, return_inverse=True)
+
+    assert torch.equal(padded_batch, torch.tensor([2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0]))
+    assert torch.equal(batch[indices], padded_batch)
+    assert torch.equal(indices[inverse], torch.arange(8))
+
+
 def test_divisible_pad_no_inverse() -> None:
     """Test that the divisible pad functions pads the batch correctly without returning inverse indices."""
     batch = torch.tensor([0, 0, 0, 1, 1, 2, 3, 3, 3, 3])
@@ -663,3 +674,30 @@ def test_voxelize_accepts_pos_key_in_keys() -> None:
     out = T.Voxelize(pos_key="pos", pos_reduce="mean", size=0.5, keys=("pos", "x"))(data)
     assert torch.equal(out["pos"], expected["pos"])
     assert torch.equal(out["x"], expected["x"])
+
+
+def test_divisible_pad_random_fill_draws_on_the_generator_device() -> None:
+    generator = Mock(spec=torch.Generator)
+    generator.device = torch.device("meta")
+    batch = torch.tensor([0, 0, 0, 1, 1])
+
+    with patch.object(torch, "rand", side_effect=lambda *size, **kwargs: torch.full(size, 0.5)) as rand:
+        indices, padded_batch = F.divisible_pad(batch, 4, pad_fill="random", generator=generator)
+
+    assert rand.call_args.kwargs["device"] == generator.device
+    assert indices.tolist() == [0, 1, 2, 1, 3, 4, 4, 4]
+    assert padded_batch.tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_voxelize_random_first_draws_on_the_generator_device() -> None:
+    transform = T.Voxelize(pos_key="pos", pos_reduce="first", size=1.0, random_first=True, seed=0)
+    transform.R = Mock(spec=torch.Generator)
+    transform.R.device = torch.device("meta")
+    pos = torch.tensor([[0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [1.5, 0.1, 0.1]])
+
+    with patch.object(torch, "rand", side_effect=lambda *size, **kwargs: torch.full(size, 0.5)) as rand:
+        data = transform({"pos": pos})
+
+    assert rand.call_args.kwargs["device"] == transform.R.device
+    assert data["pos"].device == pos.device

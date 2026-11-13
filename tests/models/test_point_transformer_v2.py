@@ -106,6 +106,14 @@ def test_pt_v2_segmentation_forward(model_seg: PointTransformerV2Segmentation, d
     assert logits.dtype == data["x"].dtype
 
 
+def test_pt_v2_segmentation_unsorted_batch_raises(
+    model_seg: PointTransformerV2Segmentation, data: Dict[str, Tensor]
+) -> None:
+    perm = torch.randperm(data["pos"].size(0))
+    with pytest.raises(ValueError, match="must be sorted"):
+        model_seg(data["x"][perm], data["pos"][perm], data["batch"][perm])
+
+
 def test_pt_v2_segmentation_reset_classifier(
     model_seg: PointTransformerV2Segmentation,
     data: Dict[str, Tensor],

@@ -2,11 +2,13 @@ import pytest
 import torch
 from torch_geometric.nn import MLP
 
+from torch_pointcloud.models import model_info
 from torch_pointcloud.models.point_mae import (
     PointMAEClassification,
     PointMAEPartSegmentation,
     PointMAEPretraining,
 )
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _PYG_LIB_AVAILABLE,
 )
@@ -259,3 +261,26 @@ def test_point_mae_segmentation_num_classes_zero_head_is_identity() -> None:
 def test_point_mae_segmentation_validates_fetch_idx_against_depth() -> None:
     with pytest.raises(ValueError, match="fetch_idx"):
         PointMAEPartSegmentation(in_channels=0, num_classes=5, depth=6, embed_dim=96, num_heads=2)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("point-mae-base.modelnet40.yatian-pang", id="point-mae"),
+        pytest.param("recon.modelnet40.zekun-qi", id="recon"),
+        pytest.param("act.modelnet40.runpei-dong", id="act"),
+        pytest.param("pcp-mae.modelnet40.xiangdong-zhang", id="pcp-mae"),
+    ],
+)
+def test_modelnet40_transform_normalizes_the_cloud_before_sampling_it(name: str) -> None:
+    torch.manual_seed(0)
+    pos = torch.rand(4096, 3) * torch.tensor([3.0, 1.0, 0.5]) + 2.0
+    pos[:2048] = pos[:2048] * 0.2
+    sample = {DataKeys.POS: pos.clone(), DataKeys.NORMAL: torch.zeros_like(pos)}
+    transform = model_info(name)["transform"]
+    assert transform is not None
+    data = transform(sample)
+    centered = pos - pos.mean(dim=0)
+    normalized = centered / centered.norm(dim=1).max()
+    assert data[DataKeys.POS].shape == (1024, 3)
+    assert torch.allclose(data[DataKeys.POS], normalized[data[DataKeys.INDEX]], atol=1e-6)

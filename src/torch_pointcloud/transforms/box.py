@@ -372,6 +372,13 @@ class PasteBoxes(DictTransform, Randomizable):
         labels = torch.tensor([int(obj[label_key]) for obj in self.objects])
         self._members = {label: (labels == label).nonzero(as_tuple=True)[0] for label in self.num_samples}
 
+    def extra_repr(self) -> str:
+        return (
+            f"keys={self.keys!r}, num_objects={len(self.objects)}, num_samples={self.num_samples!r}, "
+            f"box_key={self.box_key!r}, label_key={self.label_key!r}, attribute_keys={self.attribute_keys!r}, "
+            f"count_existing={self.count_existing!r}"
+        )
+
     def _draw(self, label: int, count: int) -> Tensor:
         """Indices of `count` objects of `label`, drawn without replacement."""
         members = self._members[label]

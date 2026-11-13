@@ -95,8 +95,8 @@ class PartSegmentationDecoder(nn.Module):
         B, G, C = x.shape
         if category.shape != (B, self.num_categories):
             raise ValueError(
-                f"`category` must be a one-hot of shape ({B}, {self.num_categories}), one row per shape of `x`; "
-                f"got {tuple(category.shape)}."
+                f"`category` must be one-hot of shape ({B}, {self.num_categories}), got shape "
+                f"{tuple(category.shape)}; pass `F.one_hot(category, num_categories).float()` for category indices."
             )
 
         x_global = torch.cat([x.amax(dim=1), x.mean(dim=1), self.category_embed(category)], dim=1)

@@ -75,14 +75,15 @@ def random_sample(
         ValueError: If `num_samples > 0` and the input is empty.
     """
     n = tensor.size(0)
+    draw_device = tensor.device if generator is None else generator.device
     if num_samples == 0:
         indices = torch.empty(0, dtype=torch.long, device=tensor.device)
     elif n == 0:
         raise ValueError(f"Cannot sample {num_samples} values from an empty tensor (N=0).")
     elif replace or num_samples > n:
-        indices = torch.randint(0, n, (num_samples,), generator=generator, device=tensor.device)
+        indices = torch.randint(0, n, (num_samples,), generator=generator, device=draw_device).to(tensor.device)
     else:
-        indices = torch.randperm(n, generator=generator, device=tensor.device)[:num_samples]
+        indices = torch.randperm(n, generator=generator, device=draw_device)[:num_samples].to(tensor.device)
 
     if return_indices:
         return tensor[indices], indices
@@ -232,10 +233,11 @@ def random_sample_face_vertices(
     areas = areas.norm(p=2, dim=1).abs() / 2
 
     probs = areas / areas.sum()
-    samples = torch.multinomial(probs, num_samples, replacement=True, generator=generator)
-    face = face[samples]
+    draw_device = vertices.device if generator is None else generator.device
+    samples = torch.multinomial(probs.to(draw_device), num_samples, replacement=True, generator=generator)
+    face = face[samples.to(face.device)]
 
-    frac = torch.rand(num_samples, 2, device=vertices.device, generator=generator)
+    frac = torch.rand(num_samples, 2, device=draw_device, generator=generator).to(vertices.device)
     mask = frac.sum(dim=-1) > 1
     frac[mask] = 1 - frac[mask]
 
@@ -450,7 +452,8 @@ def random_dropout_mask(
         raise ValueError(f"drop_ratio must be in [0, 1); got {drop_ratio}.")
 
     device = device or torch.device("cpu")
-    rand = torch.rand(n, device=device, generator=generator)
+    draw_device = device if generator is None else generator.device
+    rand = torch.rand(n, device=draw_device, generator=generator).to(device)
     return rand >= drop_ratio
 
 
@@ -638,11 +641,8 @@ class SphereCrop(DictTransform, Randomizable):
         if self.dst_center_key is not None:
             data[self.dst_center_key] = center.clone()
         mask = sphere_mask(pos, center, self.radius, dim=-1)
-        caps = [
-            cap
-            for cap in (self.max_nodes, None if self.max_ratio is None else int(self.max_ratio * pos.shape[0]))
-            if cap is not None
-        ]
+        ratio_cap = None if self.max_ratio is None else max(1, int(self.max_ratio * pos.shape[0]))
+        caps = [cap for cap in (self.max_nodes, ratio_cap) if cap is not None]
         max_nodes = min(caps) if caps else None
         if max_nodes is not None and int(mask.sum()) > max_nodes:
             dist = (pos - center).norm(dim=-1)
@@ -841,7 +841,8 @@ def shuffle_indices(
         Long tensor of shape $(n,)$.
     """
     device = device or torch.device("cpu")
-    return torch.randperm(n, device=device, generator=generator)
+    draw_device = device if generator is None else generator.device
+    return torch.randperm(n, device=draw_device, generator=generator).to(device)
 
 
 class ShufflePoint(DictTransform, Randomizable):

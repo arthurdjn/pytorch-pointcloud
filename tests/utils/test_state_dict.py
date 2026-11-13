@@ -363,3 +363,52 @@ def test_read_state_dict_allows_numpy_1_scalars(tmp_path: Path) -> None:
             target.writestr(item, content)
 
     assert torch.equal(read_state_dict(path)["weight"], torch.ones(2))
+
+
+def _rename_former_keys(module: nn.Module, state_dict: Dict[str, Any], prefix: str, *args: Any) -> None:
+    for key in [key for key in state_dict if key.startswith(f"{prefix}former.")]:
+        state_dict[f"{prefix}{key[len(prefix) + len('former.') :]}"] = state_dict.pop(key)
+
+
+class _ModelAcceptingFormerKeys(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.layer = nn.Linear(3, 4)
+        self.layer.register_load_state_dict_pre_hook(_rename_former_keys)
+        self.head = nn.Linear(4, 2)
+
+
+@pytest.mark.filterwarnings("error::UserWarning")
+def test_load_state_dict_applies_the_key_renames_of_module_hooks() -> None:
+    source = nn.Linear(3, 4)
+    model = _ModelAcceptingFormerKeys()
+    checkpoint = {f"layer.former.{key}": value for key, value in source.state_dict().items()}
+    checkpoint.update({f"head.{key}": value for key, value in model.head.state_dict().items()})
+
+    load_state_dict(model, checkpoint, source="former.ckpt")
+
+    assert torch.equal(model.layer.weight, source.weight)
+    assert torch.equal(model.layer.bias, source.bias)
+
+
+def test_load_state_dict_skips_mismatched_shapes_of_renamed_keys() -> None:
+    model = _ModelAcceptingFormerKeys()
+    weight = model.layer.weight.detach().clone()
+    checkpoint = {"layer.former.weight": torch.zeros(4, 6), "layer.former.bias": torch.ones(4)}
+    checkpoint.update({f"head.{key}": value for key, value in model.head.state_dict().items()})
+
+    load_state_dict(model, checkpoint, source="former.ckpt")
+
+    assert torch.equal(model.layer.weight, weight)
+    assert torch.equal(model.layer.bias, torch.ones(4))
+
+
+def test_load_state_dict_missing_keys_error_leaves_the_model_unchanged() -> None:
+    model = _ModelAcceptingFormerKeys()
+    expected = {key: value.clone() for key, value in model.state_dict().items()}
+
+    with pytest.raises(RuntimeError, match="missing model keys"):
+        load_state_dict(model, {"layer.former.weight": torch.zeros(4, 3)}, source="partial.ckpt")
+
+    for key, value in model.state_dict().items():
+        assert torch.equal(value, expected[key])

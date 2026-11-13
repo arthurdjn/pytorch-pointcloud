@@ -395,6 +395,113 @@ def test_nuscenes_detection_all_or_none_guard_leaves_metric_usable() -> None:
     assert out["mAP"] == pytest.approx(1.0)
 
 
+def test_nuscenes_detection_counts_radar_points_of_a_box() -> None:
+    """A ground-truth box without LiDAR points but with radar points is still scored."""
+    preds: Detection3D = {
+        "boxes": torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    target: Boxes3D = {
+        "boxes": torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    lidar_only = NuScenesDetection(class_names=("car",))
+    lidar_only.update(preds, target, num_points=torch.tensor([0]))
+    lidar_and_radar = NuScenesDetection(class_names=("car",))
+    lidar_and_radar.update(preds, target, num_points=torch.tensor([0]), num_radar_points=torch.tensor([2]))
+
+    assert lidar_only.compute()["mAP"] == pytest.approx(0.0)
+    assert lidar_and_radar.compute()["mAP"] == pytest.approx(1.0)
+
+
+def test_nuscenes_detection_radar_points_require_lidar_points() -> None:
+    preds: Detection3D = {
+        "boxes": torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "scores": torch.tensor([0.9]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    target: Boxes3D = {
+        "boxes": torch.tensor([[1.0, 2.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    metric = NuScenesDetection(class_names=("car",))
+    with pytest.raises(ValueError, match="num_radar_points"):
+        metric.update(preds, target, num_radar_points=torch.tensor([2]))
+    assert metric.gt_boxes == []
+
+
+def test_nuscenes_detection_measures_class_ranges_from_ego_pos() -> None:
+    """The second update's box is 49 m from the frame origin but 54 m from its ego position, past the 50 m car range."""
+    preds: List[Detection3D] = [
+        {
+            "boxes": torch.tensor([[49.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+            "scores": torch.tensor([0.9]),
+            "labels": torch.tensor([0]),
+            "batch": torch.tensor([0]),
+        },
+        {
+            "boxes": torch.zeros((0, 7)),
+            "scores": torch.zeros((0,)),
+            "labels": torch.zeros((0,), dtype=torch.long),
+            "batch": torch.zeros((0,), dtype=torch.long),
+        },
+    ]
+    target: Boxes3D = {
+        "boxes": torch.tensor([[49.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    ego_pos = [torch.tensor([[0.0, 0.0, 0.0]]), torch.tensor([[-5.0, 0.0, 0.0]])]
+
+    frame_origin = NuScenesDetection(class_names=("car",))
+    ego_origin = NuScenesDetection(class_names=("car",))
+    for i in range(2):
+        frame_origin.update(preds[i], target)
+        ego_origin.update(preds[i], target, ego_pos=ego_pos[i])
+    out = ego_origin.compute()
+
+    expected = nuscenes_detection_metrics(
+        {
+            "boxes": preds[0]["boxes"],
+            "scores": preds[0]["scores"],
+            "labels": preds[0]["labels"],
+            "batch": preds[0]["batch"],
+        },
+        {"boxes": target["boxes"].repeat(2, 1), "labels": torch.tensor([0, 0]), "batch": torch.tensor([0, 1])},
+        class_names=("car",),
+        origin=torch.cat(ego_pos),
+    )
+    assert out == expected
+    assert out["mAP"] == pytest.approx(1.0)
+    assert frame_origin.compute()["mAP"] < 1.0
+
+
+def test_nuscenes_detection_ego_pos_counts_samples_without_boxes() -> None:
+    """A trailing sample with no box on either side still takes its `ego_pos` row, so the next update stays aligned."""
+    empty_preds: Detection3D = {
+        "boxes": torch.zeros((0, 7)),
+        "scores": torch.zeros((0,)),
+        "labels": torch.zeros((0,), dtype=torch.long),
+        "batch": torch.zeros((0,), dtype=torch.long),
+    }
+    target: Boxes3D = {
+        "boxes": torch.tensor([[49.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]]),
+        "labels": torch.tensor([0]),
+        "batch": torch.tensor([0]),
+    }
+    metric = NuScenesDetection(class_names=("car",))
+    metric.update(empty_preds, target, ego_pos=torch.zeros((2, 3)))
+    metric.update(empty_preds, target, ego_pos=torch.tensor([[-5.0, 0.0, 0.0]]))
+
+    assert metric.gt_batch[1].tolist() == [2]
+    assert int(metric.num_samples) == 3
+
+
 def test_instance_part_mean_iou_compute_before_update_returns_zeros() -> None:
     metric = InstancePartMeanIntersectionOverUnion()
     with pytest.warns(UserWarning):

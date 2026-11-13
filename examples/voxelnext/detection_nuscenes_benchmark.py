@@ -26,6 +26,9 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
+NMS_MAX_CANDIDATES = 1000
+NMS_MAX_KEEP = 83
+HEAD_CLASS_GROUPS = ((0,), (1, 2), (3, 4), (5,), (6, 7), (8, 9))
 
 
 def main() -> None:
@@ -99,6 +102,23 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
+def head_nms(boxes: Tensor, scores: Tensor, labels: Tensor, batch: Tensor) -> Tensor:
+    """Rotated BEV NMS among the classes of every head of every scene."""
+    head = labels.new_empty(len(NUSCENES_DETECTION_CLASSES))
+    for index, group in enumerate(HEAD_CLASS_GROUPS):
+        head[list(group)] = index
+
+    return nms3d(
+        boxes,
+        scores,
+        NMS_IOU,
+        batch=batch * len(HEAD_CLASS_GROUPS) + head[labels],
+        rotated=True,
+        max_keep=NMS_MAX_KEEP,
+        max_candidates=NMS_MAX_CANDIDATES,
+    )
+
+
 @torch.no_grad()
 def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
     model.to(device).eval()
@@ -106,6 +126,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
     targets: list[Boxes3D] = []
     gt_velocities: list[Tensor] = []
     gt_num_points: list[Tensor] = []
+    ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
 
@@ -120,7 +141,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         det = model.decode(output)
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
+        idx = head_nms(boxes, scores, labels, batch)
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),
@@ -138,7 +159,8 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -161,6 +183,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 

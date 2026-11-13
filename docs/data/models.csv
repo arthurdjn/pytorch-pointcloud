@@ -31,7 +31,7 @@ point-mamba-base.modelnet40.dingkang-liang,point_mamba,classification,modelnet40
 point-mamba-base.scanobjectnn-hardest.dingkang-liang,point_mamba,classification,scanobjectnn-hardest,true,Apache-2.0,12.29,OA,89.31,89.28,OA 89.28 · mAcc 88.06
 point-mamba-base.scanobjectnn-objbg.dingkang-liang,point_mamba,classification,scanobjectnn-objbg,true,Apache-2.0,12.29,OA,94.32,94.32,OA 94.32 · mAcc 92.66
 point-mamba-base.scanobjectnn-objonly.dingkang-liang,point_mamba,classification,scanobjectnn-objonly,true,Apache-2.0,12.29,OA,92.60,92.60,OA 92.60 · mAcc 92.40
-point-transformer.modelnet40,point_transformer,classification,modelnet40,false,,4.92,OA,,,
+point-transformer.modelnet40,point_transformer,classification,modelnet40,false,,4.93,OA,,,
 point2vec.modelnet40.karim-knaebel,point2vec,classification,modelnet40,true,MIT,22.11,OA,94.65,94.33,OA 94.33 · mAcc 92.14
 point2vec.scanobjectnn-hardest.karim-knaebel,point2vec,classification,scanobjectnn-hardest,true,MIT,22.11,OA,87.47,86.92,OA 86.92 · mAcc 85.23
 pointcnn-base,pointcnn,classification,,false,,,OA,,,
@@ -121,7 +121,7 @@ octformer-base.scannet200.octree-nn,octformer,semantic-segmentation,scannet200,t
 octformer-lg,octformer,semantic-segmentation,,false,,,mIoU,,,
 octformer-sm,octformer,semantic-segmentation,,false,,,mIoU,,,
 point-transformer.s3dis-area5.open3d,point_transformer,semantic-segmentation,s3dis-area5,true,MIT,7.78,mIoU,69.2,67.72,mIoU 67.72 · OA 88.78
-point-transformer.scannet20,point_transformer,semantic-segmentation,scannet20,false,,5.61,mIoU,,,
+point-transformer.scannet20,point_transformer,semantic-segmentation,scannet20,false,,7.78,mIoU,,,
 pointcnn-base,pointcnn,semantic-segmentation,,false,,,mIoU,,,
 pointmlp-base,pointmlp,semantic-segmentation,,false,,,mIoU,,,
 pointmlp-elite,pointmlp,semantic-segmentation,,false,,,mIoU,,,

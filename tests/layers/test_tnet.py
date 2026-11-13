@@ -1,5 +1,8 @@
+import copy
+
 import pytest
 import torch
+from torch import nn
 
 from torch_pointcloud.layers.tnet import DynamicTNet, TNet
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -78,3 +81,28 @@ def test_dynamic_tnet_forward() -> None:
     batch = torch.cat([torch.zeros(8), torch.ones(12)]).long()
     out = tnet(x, batch)
     assert out.shape == x.shape
+
+
+@pytest.mark.parametrize(
+    "tnet",
+    [
+        pytest.param(TNet(local_channels=[16], global_channels=[8], k=3), id="tnet"),
+        pytest.param(
+            DynamicTNet(edge_channels=[16], local_channels=[16], global_channels=[8], k=3, num_neighbors=4),
+            id="dynamic-tnet",
+        ),
+    ],
+)
+def test_tnet_copies_after_a_training_forward(tnet: nn.Module) -> None:
+    x = torch.randn(20, 3)
+    batch = torch.cat([torch.zeros(8), torch.ones(12)]).long()
+    tnet.train()
+    tnet(x, batch)
+
+    copied = copy.deepcopy(tnet)
+    averaged = torch.optim.swa_utils.AveragedModel(tnet)
+
+    assert tnet.running_transform is not None and tnet.running_transform.requires_grad
+    assert copied.running_transform is None
+    assert averaged.module.running_transform is None
+    torch.testing.assert_close(copied.transform.weight, tnet.transform.weight)

@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.ops.serialization import serialize, serialize_pos
+from torch_pointcloud.ops.serialization import serialization_depth, serialize, serialize_pos
 from torch_pointcloud.utils.imports import _OCNN_AVAILABLE
 
 
@@ -105,7 +105,6 @@ def test_z_order_depth_above_max_raises() -> None:
 
 
 def test_serialize_single_voxel_scene() -> None:
-    """An all-zero grid has `bit_length() == 0`; the depth floor keeps the encoders valid."""
     grid = torch.zeros(6, 3, dtype=torch.long)
     batch = torch.zeros(6, dtype=torch.long)
     code, order, inverse = serialize(grid, batch, orders=["hilbert"])
@@ -124,7 +123,31 @@ def test_serialize_negative_grid_raises() -> None:
 def test_serialize_single_point() -> None:
     code, order, inverse = serialize(torch.tensor([[1, 2, 3]]), torch.zeros(1, dtype=torch.long), orders=["hilbert"])
     assert code.shape == order.shape == inverse.shape == (1, 1)
-    assert torch.equal(serialize_pos(torch.tensor([[1, 2, 3]]), None, depth=2, order="hilbert"), code[0])
+    assert torch.equal(serialize_pos(torch.tensor([[1, 2, 3]]), None, depth=3, order="hilbert"), code[0])
+
+
+@pytest.mark.parametrize(
+    ("max_coordinate", "depth"),
+    [
+        pytest.param(0, 1, id="single-voxel"),
+        pytest.param(6, 3, id="below-power-of-two"),
+        pytest.param(7, 4, id="power-of-two-minus-one"),
+        pytest.param(8, 4, id="power-of-two"),
+    ],
+)
+def test_serialize_depth_is_bit_length_of_max_plus_one(max_coordinate: int, depth: int) -> None:
+    grid = torch.tensor([[0, 0, 0], [max_coordinate, 0, max_coordinate]])
+    batch = torch.zeros(2, dtype=torch.long)
+    code, _, _ = serialize(grid, batch, orders=["hilbert"])
+    assert torch.equal(code[0], serialize_pos(grid, batch, depth=depth, order="hilbert"))
+    assert serialization_depth(grid) == depth
+
+
+def test_serialize_uses_the_given_depth() -> None:
+    grid = torch.tensor([[0, 0, 0], [5, 1, 2]])
+    batch = torch.tensor([0, 1])
+    code, _, _ = serialize(grid, batch, orders=["hilbert"], depth=6)
+    assert torch.equal(code[0], serialize_pos(grid, batch, depth=6, order="hilbert"))
 
 
 def test_serialize_empty_cloud() -> None:

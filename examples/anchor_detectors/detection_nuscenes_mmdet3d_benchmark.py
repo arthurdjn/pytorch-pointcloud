@@ -54,7 +54,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--split", default="val", choices=("val", "mini"), help="nuScenes `val`, or the mini release.")
-    parser.add_argument("--max-sweeps", default=10, type=int, help="nuScenes LiDAR sweeps per keyframe.")
+    parser.add_argument("--max-sweeps", default=11, type=int, help="LiDAR sweeps per keyframe, the keyframe included.")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
@@ -148,6 +148,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
     targets: list[Boxes3D] = []
     gt_velocities: list[Tensor] = []
     gt_num_points: list[Tensor] = []
+    ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
 
@@ -172,7 +173,8 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -195,6 +197,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 

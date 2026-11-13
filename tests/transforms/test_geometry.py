@@ -6,6 +6,7 @@ import torch
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.transforms import Voxelize
+from torch_pointcloud.transforms.geometry import cast_like
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
@@ -339,3 +340,47 @@ def test_translate_adds_a_constant_offset() -> None:
 def test_rotate_vectors_empty(shape: tuple[int, int]) -> None:
     rotated = F.rotate_vectors(torch.zeros(shape), F.rotation_matrix(0.5, axis=2))
     assert rotated.shape == shape
+
+
+def test_translate_fractional_offset_promotes_integer_input() -> None:
+    data = {"pos": torch.zeros(4, 3, dtype=torch.long)}
+    out = T.Translate(keys="pos", offset=0.9)(data)["pos"]
+    assert out.is_floating_point()
+    assert torch.allclose(out, torch.full((4, 3), 0.9))
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param(torch.long, id="int64"),
+        pytest.param(torch.int32, id="int32"),
+    ],
+)
+def test_translate_integral_offset_keeps_integer_dtype(dtype: torch.dtype) -> None:
+    data = {"pos_grid": torch.tensor([[0, 1, 2], [3, 4, 5]], dtype=dtype)}
+    out = T.Translate(keys="pos_grid", offset=(1, 0, 0))(data)["pos_grid"]
+    assert out.dtype == dtype
+    assert out.tolist() == [[1, 1, 2], [4, 4, 5]]
+
+
+@pytest.mark.parametrize(
+    "value, x, dtype",
+    [
+        pytest.param([2.0, -1.0], torch.zeros(2, dtype=torch.long), torch.long, id="integral-on-integer"),
+        pytest.param([2.5, -1.0], torch.zeros(2, dtype=torch.long), torch.float32, id="fractional-on-integer"),
+        pytest.param([2.0, -1.0], torch.zeros(2, dtype=torch.float64), torch.float64, id="integral-on-float"),
+        pytest.param([2.5, -1.0], torch.zeros(2, dtype=torch.float64), torch.float64, id="fractional-on-float"),
+    ],
+)
+def test_cast_like_keeps_integer_dtype_for_integral_values(value: list, x: torch.Tensor, dtype: torch.dtype) -> None:
+    out = cast_like(torch.tensor(value), x)
+    assert out.dtype == dtype
+    assert out.tolist() == value
+
+
+def test_rotate_vectors_promotes_integer_input() -> None:
+    x = torch.tensor([[10, 0, 0], [0, 10, 0]])
+    rotation = F.rotation_matrix(math.pi / 4, axis=2)
+    out = F.rotate_vectors(x, rotation)
+    assert out.is_floating_point()
+    assert torch.allclose(out, F.rotate_vectors(x.float(), rotation))

@@ -1,6 +1,7 @@
 r"""Stepwise exponential decay of the BatchNorm momentum over the epochs."""
 
 from torch import nn
+from torch.nn.modules.batchnorm import _BatchNorm
 
 __all__ = ["BNMomentumScheduler", "bn_momentum", "set_bn_momentum"]
 
@@ -40,9 +41,9 @@ def bn_momentum(
 
 
 def set_bn_momentum(model: nn.Module, momentum: float) -> None:
-    r"""Set the momentum of every `BatchNorm1d` / `2d` / `3d` layer of `model`."""
+    r"""Set the momentum of every batch normalization layer of `model`, `SyncBatchNorm` and lazy variants included."""
     for module in model.modules():
-        if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+        if isinstance(module, _BatchNorm):
             module.momentum = momentum
 
 

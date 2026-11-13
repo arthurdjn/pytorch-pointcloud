@@ -18,7 +18,7 @@ from torch_pointcloud.datasets.scannet import SCANNET20_CLASSES, SCANNET200_CLAS
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_CLASSES, SEMANTIC_KITTI_LEARNING_MAP
 from torch_pointcloud.layers import AxialRoPE, PackedTransformerBlock, VoxelPatchEmbed, VoxelPatchExpand
 from torch_pointcloud.layers.act import create_act
-from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.layers.norms import create_norm, is_layer_norm_name
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import WeightsDict, register_model
 from torch_pointcloud.ops.voxelization import voxel_patch_partition
@@ -168,7 +168,7 @@ class VoltDecoder(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]],
     ) -> None:
         super().__init__()
-        if norm == "layer_norm":
+        if is_layer_norm_name(norm):
             # PyG resolves "layer_norm" to a graph LayerNorm, which normalizes over every sample of the packed batch.
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
 

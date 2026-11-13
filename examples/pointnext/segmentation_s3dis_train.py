@@ -33,15 +33,12 @@ VOXEL_SIZE = 0.04
 VOXEL_MAX = 24_000
 LOOP = 30
 POINT_KEYS = [DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT]
-# The released checkpoints order two class pairs differently from the dataset (chair / table, bookcase / sofa).
-S3DIS_LABEL_ORDER = [0, 1, 2, 3, 4, 5, 6, 8, 7, 10, 9, 11, 12]
 COLOR_MEAN = [0.5136457, 0.49523646, 0.44921124]
 COLOR_STD = [0.18308958, 0.18415008, 0.19252081]
 
 TRAIN_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=POINT_KEYS),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=S3DIS_LABEL_ORDER),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),  # colors in [0, 1]; the chromatic ops below are linear
         T.Shift(keys=DataKeys.POS, method="min"),
         T.Voxelize(  # `voxelize(mode=0)`: one random point per voxel keeps its own coordinates
@@ -76,7 +73,6 @@ TRAIN_TRANSFORM = T.Compose(
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=POINT_KEYS),
-        T.Relabel(keys=DataKeys.SEGMENT, labels=S3DIS_LABEL_ORDER),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),
         T.Shift(keys=DataKeys.POS, method="min"),
         T.Voxelize(
@@ -108,7 +104,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} room crops per epoch, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device, args.grad_clip_norm)
         lr = optimizer.param_groups[0]["lr"]
@@ -118,13 +114,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mIoU"] > best_miou:
+                best_miou = val["mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:

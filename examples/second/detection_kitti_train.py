@@ -73,7 +73,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} frames, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_map = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, scheduler, train_loader, args.device)
         lr = optimizer.param_groups[0]["lr"]
@@ -81,14 +81,15 @@ def main() -> None:
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
-            print("  " + " | ".join(f"val/{key} {value:.2f}" for key, value in val.items()))
+            print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mAP"] > best_map:
+                best_map = val["mAP"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:
@@ -97,9 +98,11 @@ def parse_args() -> Namespace:
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument(
-        "--train-split-file", default=None, help="Frame ids of the training split (ImageSets/train.txt)."
+        "--train-split-file", default=None, help="Frame ids of the training split (default: ImageSets/train.txt)."
     )
-    parser.add_argument("--val-split-file", default=None, help="Frame ids of the validation split (ImageSets/val.txt).")
+    parser.add_argument(
+        "--val-split-file", default=None, help="Frame ids of the validation split (default: ImageSets/val.txt)."
+    )
     parser.add_argument("--output", default=None, help="Directory for the checkpoints (default: none saved).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--epochs", default=80, type=int)
@@ -112,7 +115,23 @@ def parse_args() -> Namespace:
     parser.add_argument("--limit-train-batches", default=None, type=int)
     parser.add_argument("--limit-val-batches", default=None, type=int)
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.train_split_file is None:
+        args.train_split_file = default_split_file(args.root, "train")
+    if args.val_split_file is None:
+        args.val_split_file = default_split_file(args.root, "val")
+
+    return args
+
+
+def default_split_file(root: str, split: str) -> Optional[str]:
+    """`ImageSets/<split>.txt` of the KITTI raw directory, or `None` (every training frame) when it is missing."""
+    split_file = Path(root, "KITTI", "raw", "ImageSets", f"{split}.txt")
+    if split_file.exists():
+        return split_file.as_posix()
+
+    print(f"No split file at {split_file.as_posix()!r}: using every frame of the KITTI training set.")
+    return None
 
 
 def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:

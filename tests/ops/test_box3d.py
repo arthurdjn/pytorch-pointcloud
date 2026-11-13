@@ -460,7 +460,7 @@ def _greedy_nms3d(
     keep: List[int] = []
     for scene in torch.unique(batch).tolist():
         index = (batch == scene).nonzero().squeeze(-1)
-        order = index[scores[index].argsort(descending=True)][:max_candidates]
+        order = index[scores[index].argsort(descending=True, stable=True)][:max_candidates]
         iou = _nms3d_iou_matrix(boxes[order], rotated)
         same_class = torch.ones_like(iou, dtype=torch.bool)
         if labels is not None:
@@ -842,3 +842,23 @@ def test_roi_aware_pool3d_is_deprecated() -> None:
     with pytest.warns(FutureWarning, match="ops.roi.roi_aware_pool3d"):
         pooled = box3d.roi_aware_pool3d(x, pos, boxes, 2, reduce="mean")
     assert torch.equal(pooled, roi.roi_aware_pool3d(x, pos, boxes, 2, reduce="mean"))
+
+
+@pytest.mark.parametrize(
+    "side",
+    [pytest.param(1.0, id="1m"), pytest.param(5e-3, id="5mm"), pytest.param(1e-3, id="1mm")],
+)
+def test_boxes_iou_of_a_box_with_itself_is_one_at_any_scale(side: float) -> None:
+    box = _boxes([[0.0, 0.0, 0.0, side, side, side, 0.3]])
+    assert boxes_iou3d(box, box).item() == pytest.approx(1.0, abs=1e-4)
+    assert boxes_iou_bev(box, box).item() == pytest.approx(1.0, abs=1e-4)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_tied_scores_keep_the_first_box_in_input_order(rotated: bool) -> None:
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]]).repeat(200, 1)
+    scores = torch.full((200,), 0.5)
+    batch = torch.arange(200) % 2
+
+    assert nms3d(boxes, scores, 0.5, rotated=rotated).tolist() == [0]
+    assert nms3d(boxes, scores, 0.5, batch=batch, rotated=rotated).tolist() == [0, 1]

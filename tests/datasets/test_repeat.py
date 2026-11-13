@@ -23,6 +23,16 @@ def test_repeat_dataset_len_multiplies_by_k() -> None:
     assert len(dataset) == 12
 
 
+def test_repeat_dataset_index_out_of_range_raises() -> None:
+    dataset = RepeatDataset(DummyIndexDataset(4), k=3)
+    assert dataset[-1] == 3
+    with pytest.raises(IndexError):
+        dataset[12]
+    with pytest.raises(IndexError):
+        dataset[-13]
+    assert list(dataset) == [0, 1, 2, 3] * 3  # type: ignore[call-overload]
+
+
 def test_repeat_dataset_k_one_is_identity() -> None:
     dataset = RepeatDataset(DummyIndexDataset(5), k=1)
     assert len(dataset) == 5

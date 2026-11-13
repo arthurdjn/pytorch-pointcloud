@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the inputs and class order of registered checkpoints: `pointnet2-msg.modelnet40.xu-yan` reads its normals, the DGCNN S3DIS and ScanNet entries read `norm_pos`, the PointNeXt S3DIS heads follow `S3DIS_CLASSES` (no `Relabel`), and the RandLA-Net and MinkUNet SemanticKITTI transforms follow the authors' label map and voxel rounding.
+- Fixed grid pooling on int32 grids, batch-dependent `VoxelGridPool` cells, serialized pooling merging samples, `majority_label` on small label types, the speed of `fps(num_nodes=...)`, and KPConv and Point Transformer V2 on unsorted batches.
+- Fixed the 3DETR rotated GIoU heading, VoteNet `reset_classifier`, `boxes_iou3d` on small boxes, the tie order of `nms3d`, and the nuScenes evaluation (lidar and radar point filter, ranges from the ego origin, speed threshold 0.2). nuScenes caches must be rebuilt with `force_process=True`.
+- Fixed concurrent dataset downloads and cache writes, `RenameItems` swaps, transforms on integer inputs, seeded transforms on CUDA inputs, and `create_model(checkpoint_path=...)` with former PointNet keys.
+- Changed the weightless `pointnext-{sm,base,lg,xl}` segmentation configs to the released architectures, and `PointMambaClassification(dropout=...)` to a token dropout after every block (default 0.0).
+- Changed the training scripts to keep `best.pt` on the validation score.
+- Added `SlidingWindowInferer(shift_last_block=...)`, `Quantize(rounding=...)`, `ops.cluster.radius_graph`, `ops.serialization.serialization_depth`, `DataKeys.NUM_RADAR_POINTS`, `DataKeys.EGO_POS` and the top-level `model_info`.
 - Fixed the test of the registered weight URLs, whose requests the Hub counted as downloads: it reads the Hub API, needs `--run-hub` and runs in one CI job.
 
 ## 0.0.21 (2026-11-11)

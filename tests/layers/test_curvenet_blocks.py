@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pytest
 import torch
 from torch import Tensor
@@ -47,6 +49,19 @@ def test_lpfa_geometry_only_and_with_features() -> None:
     assert block(x, pos, table).shape == (32, 16)
 
 
+def test_lpfa_geometry_stacks_center_neighbor_and_offset() -> None:
+    torch.manual_seed(0)
+    block = LocalPointFeatureAggregation(0, 9, num_layers=1, act=None, norm=None)
+    with torch.no_grad():
+        block.mlp.lins[0].weight.copy_(torch.eye(9))
+    pos = torch.randn(12, 3)
+    table = _ring_table(12, 3)
+    out = block(None, pos, table)
+    neighbors = pos[table].mean(dim=1)
+    expected = torch.cat([pos, neighbors, neighbors - pos], dim=1)
+    assert torch.allclose(out, expected, atol=1e-6)
+
+
 def test_lpfa_rejects_unknown_aggr() -> None:
     with pytest.raises(ValueError):
         LocalPointFeatureAggregation(0, 8, aggr="sum")  # type: ignore[arg-type]
@@ -84,6 +99,54 @@ def test_curve_walk_visits_table_neighbors() -> None:
             assert int(match.nonzero()[0]) in reachable
 
 
+def _walk_step_by_step(walk: CurveWalk, x: Tensor, table: Tensor, start: Tensor) -> Tensor:
+    batch_size, num_curves = start.shape
+    current = start.reshape(-1).tolist()
+    descriptor = [x[index] for index in current]
+    feature = list(descriptor)
+    curves = []
+    for step in range(walk.curve_length):
+        if step > 0:
+            pairs = torch.stack([torch.cat([f, d]) for f, d in zip(feature, descriptor)])
+            scores = walk.momentum(pairs).softmax(dim=1)
+            # one channels-first (2, n) block per sample, read as n consecutive pairs
+            blocks = scores.view(batch_size, num_curves, 2).transpose(1, 2).reshape(batch_size, 2 * num_curves)
+            for m in range(len(current)):
+                sample, curve = divmod(m, num_curves)
+                weight_feature, weight_descriptor = blocks[sample, 2 * curve : 2 * curve + 2]
+                descriptor[m] = feature[m] * weight_feature + descriptor[m] * weight_descriptor
+        for m in range(len(current)):
+            neighbors = table[current[m]]
+            candidates = x[neighbors]
+            edge = torch.cat([candidates, descriptor[m].expand(candidates.size(0), -1)], dim=1)
+            logits = walk.agent(edge).squeeze(1)
+            if step > 0:
+                direction = feature[m] - descriptor[m]
+                cosine = torch.nn.functional.cosine_similarity(candidates - feature[m], direction.unsqueeze(0), dim=1)
+                logits = logits * (1.0 + cosine).clamp(0.0, 1.0)
+            choice = int(logits.argmax())
+            feature[m] = candidates[choice]
+            current[m] = int(neighbors[choice])
+        curves.append(torch.stack(feature))
+    return torch.stack(curves, dim=1).view(batch_size, num_curves, walk.curve_length, -1)
+
+
+@pytest.mark.parametrize(
+    "seed", [pytest.param(0, id="seed0"), pytest.param(1, id="seed1"), pytest.param(2, id="seed2")]
+)
+def test_curve_walk_matches_step_by_step_walk(seed: int) -> None:
+    torch.manual_seed(seed)
+    num_points, k = 40, 4
+    x = torch.randn(2 * num_points, 6)
+    table = torch.cat([_ring_table(num_points, k), _ring_table(num_points, k) + num_points])
+    start = torch.tensor([[0, 7, 19, 33], [41, 52, 60, 78]])
+    walk = CurveWalk(6, curve_length=6, norm=None).eval()
+    with torch.no_grad():
+        curves = walk(x, table, start)
+        expected = _walk_step_by_step(walk, x, table, start)
+    assert torch.allclose(curves, expected, atol=1e-5)
+
+
 def test_curve_grouping_starts_per_sample() -> None:
     x, _, batch = _cloud(num_points=30, batch_size=2, channels=8)
     table = torch.cat([_ring_table(30, 4), _ring_table(30, 4) + 30])
@@ -109,6 +172,22 @@ def test_curve_aggregation_shape() -> None:
     x, _, batch = _cloud(num_points=30, batch_size=2, channels=8)
     aggregation = CurveAggregation(8).eval()
     assert aggregation(x, batch, torch.randn(2, 5, 3, 8)).shape == (60, 8)
+
+
+def test_curve_aggregation_pools_curves_along_length_and_positions_across_curves() -> None:
+    torch.manual_seed(0)
+    aggregation = CurveAggregation(8).eval()
+    with torch.no_grad():
+        aggregation.curve_att.weight.zero_()
+    pooled: Dict[str, Tensor] = {}
+    aggregation.inter.register_forward_pre_hook(lambda module, args: pooled.__setitem__("inter", args[0]))
+    aggregation.intra.register_forward_pre_hook(lambda module, args: pooled.__setitem__("intra", args[0]))
+    x = torch.randn(20, 8)
+    batch = torch.arange(2).repeat_interleave(10)
+    curves = torch.randn(2, 3, 5, 8)
+    aggregation(x, batch, curves)
+    assert torch.allclose(pooled["inter"], curves.mean(dim=2), atol=1e-6)
+    assert torch.allclose(pooled["intra"], curves.mean(dim=1), atol=1e-6)
 
 
 def test_curve_aggregation_follows_point_order() -> None:
@@ -157,6 +236,21 @@ def test_curve_intervention_conv_forward(
     out, pos_out, batch_out = block(x, pos, batch)
     assert out.shape == (2 * out_points, 32)
     assert pos_out.shape == (2 * out_points, 3) and batch_out.shape == (2 * out_points,)
+
+
+@_REQUIRES_PYG_LIB
+def test_curve_intervention_conv_walk_skips_the_point_and_local_aggregation_keeps_it() -> None:
+    x, pos, batch = _cloud(num_points=32, batch_size=2, channels=16)
+    block = CurveInterventionConv(16, 32, num_neighbors=4, num_curves=3, curve_length=2).eval()
+    assert block.curve_grouping is not None
+    tables: Dict[str, Tensor] = {}
+    block.curve_grouping.register_forward_pre_hook(lambda module, args: tables.__setitem__("walk", args[2]))
+    block.lpfa.register_forward_pre_hook(lambda module, args: tables.__setitem__("lpfa", args[2]))
+    block(x, pos, batch)
+    index = torch.arange(pos.size(0))
+    assert tables["walk"].shape == tables["lpfa"].shape == (pos.size(0), 4)
+    assert torch.equal(tables["lpfa"][:, 0], index)
+    assert not (tables["walk"] == index.unsqueeze(1)).any()
 
 
 @_REQUIRES_PYG_LIB

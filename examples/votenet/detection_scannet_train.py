@@ -31,7 +31,7 @@ CPU_COUNT = os.cpu_count()
 DEVICE = "cuda" if CUDA_AVAILABLE else "cpu"
 NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
-NUM_POINTS = 20000
+NUM_POINTS = 40000
 SCORE_THRESHOLD = 0.05
 NMS_IOU = 0.25
 MIN_POINTS = 5
@@ -68,7 +68,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scenes, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_map = float("-inf")
     for epoch in range(args.epochs):
         # The BatchNorm momentum decays by half every 20 epochs, down to 0.001.
         momentum = bn_momentum(epoch, init=0.5, decay_rate=0.5, decay_step=20, clip=0.001)
@@ -82,13 +82,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mAP@0.25"] > best_map:
+                best_map = val["mAP@0.25"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:

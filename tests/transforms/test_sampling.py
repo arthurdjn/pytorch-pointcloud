@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 from unittest.mock import Mock, patch, sentinel
 
 import pytest
@@ -549,3 +549,64 @@ def test_sphere_crop_integer_positions() -> None:
     pos = torch.tensor([[0, 0, 0], [1, 0, 0], [5, 5, 5]])
     out = T.SphereCrop(pos_key="pos", radius=2.0, center=(0, 0, 0))({"pos": pos})
     assert out["pos"].dtype == torch.long and out["pos"].tolist() == [[0, 0, 0], [1, 0, 0]]
+
+
+def test_sphere_crop_small_max_ratio_keeps_one_point() -> None:
+    torch.manual_seed(0)
+    data = {"pos": torch.randn(50, 3)}
+    out = T.SphereCrop(pos_key="pos", radius=100.0, max_ratio=0.01, center="random_point")(data)
+    assert out["pos"].shape[0] == 1
+
+
+@pytest.mark.parametrize(
+    "draw",
+    [
+        pytest.param(
+            lambda device, generator: F.random_sample(torch.zeros(8, 3, device=device), 4, generator=generator),
+            id="random_sample",
+        ),
+        pytest.param(
+            lambda device, generator: F.random_sample(
+                torch.zeros(8, 3, device=device),
+                4,
+                replace=True,
+                generator=generator,
+            ),
+            id="random_sample-replace",
+        ),
+        pytest.param(
+            lambda device, generator: F.random_dropout_mask(8, 0.5, device=device, generator=generator),
+            id="random_dropout_mask",
+        ),
+        pytest.param(
+            lambda device, generator: F.shuffle_indices(8, device=device, generator=generator),
+            id="shuffle_indices",
+        ),
+    ],
+)
+def test_seeded_sampling_draws_on_the_generator_device(draw: Callable[[torch.device, torch.Generator], Tensor]) -> None:
+    """A `meta` device has no random stream: the CPU generator only advances when the draw runs on its own device."""
+    generator = torch.Generator().manual_seed(0)
+    initial_state = generator.get_state()
+
+    output = draw(torch.device("meta"), generator)
+
+    assert output.device.type == "meta"
+    assert not torch.equal(generator.get_state(), initial_state)
+
+
+def test_random_sample_face_vertices_draws_on_the_generator_device() -> None:
+    generator = Mock(spec=torch.Generator)
+    generator.device = torch.device("meta")
+    vertices = torch.tensor([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    face = torch.tensor([[0, 1, 2], [0, 1, 3]])
+
+    with (
+        patch.object(torch, "multinomial", return_value=torch.zeros(5, dtype=torch.long)) as multinomial,
+        patch.object(torch, "rand", return_value=torch.full((5, 2), 0.25)) as rand,
+    ):
+        points = F.random_sample_face_vertices(vertices, face, 5, generator=generator)
+
+    assert multinomial.call_args.args[0].device == generator.device
+    assert rand.call_args.kwargs["device"] == generator.device
+    assert points.device == vertices.device

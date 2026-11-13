@@ -604,11 +604,20 @@ def convert_to_spconv_tensor(
     Returns:
         The `spconv.SparseConvTensor` sparse tensor.
 
+    Raises:
+        ValueError: If `pos` holds a negative coordinate, which lies outside every spatial shape.
+
     Shape:
         - `x`: $(N, C)$
         - `pos`: $(N, 3)$
         - `batch`: $(N,)$
     """
+    if pos.numel() > 0 and bool((pos < 0).any()):
+        raise ValueError(
+            f"Voxel coordinates must be non-negative, got a minimum of {int(pos.min())}. "
+            "Shift them by the per-axis minimum, as `Voxelize` does."
+        )
+
     if spatial_shape is None:
         if pos.size(0) == 0:
             raise ValueError("`spatial_shape` cannot be inferred from zero points; pass it explicitly.")

@@ -46,6 +46,9 @@ SCALE_RANGE = (0.95, 1.05)
 GRAD_CLIP_NORM = 35.0
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
+NMS_MAX_CANDIDATES = 1000
+NMS_MAX_KEEP = 83
+HEAD_CLASS_GROUPS = ((0,), (1, 2), (3, 4), (5,), (6, 7), (8, 9))
 
 
 def main() -> None:
@@ -60,7 +63,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} keyframes, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_nds = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, scheduler, train_loader, args.device)
         lr = optimizer.param_groups[0]["lr"]
@@ -69,13 +72,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print(f"  val/mAP {val['mAP']:.4f} | val/NDS {val['NDS']:.4f}")
+            if output is not None and val["NDS"] > best_nds:
+                best_nds = val["NDS"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:
@@ -216,7 +220,8 @@ def configure_train_transform(args: Namespace, objects: list[dict[str, Tensor]])
     point_keys = [DataKeys.POS, DataKeys.INTENSITY, DataKeys.TIMESTAMP]
     return T.Compose(
         [
-            # The boxes without a LiDAR point stay as targets, where the reference drops them.
+            T.LabelMask(keys=DataKeys.NUM_POINTS, labels=[0], dst_keys="box_mask", invert=True),
+            T.ApplyMask(keys=[DataKeys.BOX, DataKeys.LABEL, DataKeys.VELOCITY], mask_key="box_mask"),
             T.KeepItems(keys=[*point_keys, DataKeys.BOX, DataKeys.LABEL, DataKeys.VELOCITY]),
             T.PasteBoxes(objects, num_samples=SAMPLES_PER_CLASS, keys=point_keys, attribute_keys=DataKeys.VELOCITY),
             # The velocity rides in the last two box columns, where the augmentations and the loss read it.
@@ -331,6 +336,23 @@ def train_one_epoch(
     return total_loss / len(loader)
 
 
+def head_nms(boxes: Tensor, scores: Tensor, labels: Tensor, batch: Tensor) -> Tensor:
+    """Rotated BEV NMS among the classes of every head of every scene."""
+    head = labels.new_empty(len(NUSCENES_DETECTION_CLASSES))
+    for index, group in enumerate(HEAD_CLASS_GROUPS):
+        head[list(group)] = index
+
+    return nms3d(
+        boxes,
+        scores,
+        NMS_IOU,
+        batch=batch * len(HEAD_CLASS_GROUPS) + head[labels],
+        rotated=True,
+        max_keep=NMS_MAX_KEEP,
+        max_candidates=NMS_MAX_CANDIDATES,
+    )
+
+
 @torch.no_grad()
 def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
@@ -338,6 +360,7 @@ def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str
     targets: list[Boxes3D] = []
     gt_velocities: list[Tensor] = []
     gt_num_points: list[Tensor] = []
+    ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
 
@@ -346,7 +369,7 @@ def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str
         det = model.decode(forward(model, data))
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
+        idx = head_nms(boxes, scores, labels, batch)
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),
@@ -364,7 +387,8 @@ def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -387,6 +411,7 @@ def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 

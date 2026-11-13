@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.models.pointrcnn  # noqa: F401  (registers the model)
-from torch_pointcloud.config import DATA_DIR, MODELS_DIR
+from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.pointrcnn import (
     PointHeadBox,
@@ -241,11 +241,10 @@ def test_pointrcnn_create_model_hparams() -> None:
     assert len(model.roi_head.sa_modules) == 3
 
 
-_WEIGHTS = Path(MODELS_DIR, "pointrcnn", "pointrcnn.kitti.openpcdet.safetensors")
 _KITTI_DIR = Path(DATA_DIR, "KITTI")
 
 
-@pytest.mark.skipif(not _WEIGHTS.exists(), reason="PointRCNN KITTI weights not downloaded")
+@pytest.mark.pretrained
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="PointRCNN backbone exercised on CUDA")
 def test_pointrcnn_pretrained_loads_strict() -> None:
     model = create_model("pointrcnn.kitti.openpcdet", task="detection", pretrained=True).to(DEVICE).eval()

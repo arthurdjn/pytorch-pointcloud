@@ -684,6 +684,8 @@ class PointMAEPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x_feat, center, batch = self.forward_features(x, pos, batch)
         x = self.forward_decoder(x_feat, pos, batch, center, category)
         return self.forward_head(x)
@@ -849,6 +851,7 @@ class PointMAEPretraining(PretrainingModel):
 _MODELNET_TRANSFORM = T.Compose(
     [
         T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+        T.Rescale(keys=DataKeys.POS, method="centroid"),
         T.FarthestPointSample(
             pos_key=DataKeys.POS,
             keys=[DataKeys.NORMAL],
@@ -856,7 +859,6 @@ _MODELNET_TRANSFORM = T.Compose(
             random_start=False,
             dst_index_key=DataKeys.INDEX,
         ),
-        T.Rescale(keys=DataKeys.POS, method="centroid"),
     ]
 )
 

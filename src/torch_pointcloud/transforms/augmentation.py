@@ -11,7 +11,7 @@ from torch_pointcloud.utils.random import Randomizable
 from torch_pointcloud.utils.types import KeyCollection
 
 from .base import DictTransform
-from .geometry import rotate_vectors, rotation_matrix
+from .geometry import cast_like, rotate_vectors, rotation_matrix
 
 __all__ = [
     "RandomColorAutoContrast",
@@ -302,9 +302,9 @@ class RandomScale(DictTransform, Randomizable):
                     f"({scale.numel()}); key '{key}' has {x.shape[-1]} channels."
                 )
 
-            factor = scale.to(x.dtype).to(x.device)
+            factor = cast_like(scale, x)
             if self.axes is not None:
-                factor = torch.ones(x.shape[-1], dtype=x.dtype, device=x.device).index_fill(
+                factor = torch.ones(x.shape[-1], dtype=factor.dtype, device=x.device).index_fill(
                     0, torch.tensor(self.axes, device=x.device), factor.squeeze()
                 )
 
@@ -457,7 +457,9 @@ def random_jitter(
     Returns:
         Jittered tensor with the same shape as `x`.
     """
-    noise = torch.empty_like(x).normal_(mean=0.0, std=sigma, generator=generator)
+    draw_device = x.device if generator is None else generator.device
+    noise = torch.empty(x.shape, dtype=x.dtype, device=draw_device).normal_(mean=0.0, std=sigma, generator=generator)
+    noise = noise.to(x.device)
     if clip is not None:
         noise = noise.clamp(min=-clip, max=clip)
     return x + noise
@@ -629,7 +631,7 @@ class RandomTranslate(DictTransform, Randomizable):
                     f"key '{key}' has {x.shape[-1]} channels."
                 )
 
-            data[dst_key] = x + translation.to(x.dtype).to(x.device)
+            data[dst_key] = x + cast_like(translation, x)
         return data
 
 
@@ -1203,10 +1205,9 @@ def random_elastic_distortion(
     grid_x, grid_y, grid_z = (int(grid_int[i].item()) for i in range(3))
 
     # Sample noise on the coarse grid: (N, C, D, H, W) for grid_sample input
-    noise = (
-        torch.randn(1, 3, grid_z, grid_y, grid_x, generator=generator, device=pos.device, dtype=torch.float32)
-        * magnitude
-    )
+    draw_device = pos.device if generator is None else generator.device
+    noise = torch.randn(1, 3, grid_z, grid_y, grid_x, generator=generator, device=draw_device, dtype=torch.float32)
+    noise = noise.to(pos.device) * magnitude
 
     # Smooth via two passes of 3x3x3 mean filter
     for _ in range(2):
@@ -1308,5 +1309,5 @@ class RandomElasticDistortion(DictTransform, Randomizable):
         displacement = distorted - reference
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            data[dst_key] = x + displacement.to(x.dtype).to(x.device)
+            data[dst_key] = x + cast_like(displacement, x)
         return data

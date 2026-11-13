@@ -467,3 +467,8 @@ def test_relabel_narrow_dtype_in_range() -> None:
 def test_set_value_stores_single_value_as_is(value: object) -> None:
     result = T.SetValue(keys="x", values=value)({})
     assert result["x"] is value
+
+
+def test_rename_items_swaps_two_keys() -> None:
+    out = T.RenameItems(keys=("a", "b"), dst_keys=("b", "a"))({"a": 1, "b": 2, "c": 3})
+    assert out == {"a": 2, "b": 1, "c": 3}

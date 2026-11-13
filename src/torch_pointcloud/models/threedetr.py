@@ -339,7 +339,8 @@ class PositionEmbeddingFourier(nn.Module):
         bsize, npoints, d_in = pos.shape
         d_out = self.d_pos // 2
         lo, hi = input_range
-        diff = (hi - lo).unsqueeze(1)
+        # A scene flat along one axis has no extent there.
+        diff = (hi - lo).clamp(min=1e-6).unsqueeze(1)
         pos_normalized = (pos - lo.unsqueeze(1)) / diff
         pos_normalized = pos_normalized * (2 * math.pi)
         proj = torch.mm(pos_normalized.reshape(-1, d_in), self.gauss_b[:, :d_out]).view(bsize, npoints, d_out)
@@ -764,7 +765,7 @@ class ThreeDETRDetection(DetectionModel):
         lo, hi = point_cloud_dims
         scene_scale = (hi - lo).clamp(min=1e-1)
         center_unnormalized = query_xyz + center_offset
-        center_normalized = (center_unnormalized - lo.unsqueeze(1)) / (hi - lo).unsqueeze(1)
+        center_normalized = (center_unnormalized - lo.unsqueeze(1)) / (hi - lo).clamp(min=1e-6).unsqueeze(1)
         size_unnormalized = size_normalized * scene_scale.unsqueeze(1)
         angle_continuous = self._angle_from_logits(angle_logits, angle_residual)
 

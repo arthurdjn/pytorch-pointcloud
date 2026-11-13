@@ -1,5 +1,6 @@
 """The `create_model` factory, `register_model` and `deprecated_model` decorators, and pretrained weight registry."""
 
+import copy
 import difflib
 import fnmatch
 import warnings
@@ -542,10 +543,10 @@ def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
     return {
         "name": name,
         "task": task,
-        "weights": entry["weights"],
+        "weights": copy.deepcopy(entry["weights"]),
         "transform": entry["transform"],
         "input_keys": entry["input_keys"],
-        "hparams": dict(entry["hparams"]),
+        "hparams": copy.deepcopy(entry["hparams"]),
         "deprecated_names": entry["deprecated_names"],
     }
 
@@ -828,10 +829,10 @@ def create_model(
         info: ModelInfoDict = {
             "name": name,
             "task": task,
-            "weights": entry["weights"],
+            "weights": copy.deepcopy(entry["weights"]),
             "transform": entry["transform"],
             "input_keys": entry["input_keys"],
-            "hparams": hparams,
+            "hparams": copy.deepcopy(hparams),
             "deprecated_names": entry["deprecated_names"],
         }
         return model, info

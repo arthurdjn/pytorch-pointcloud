@@ -7,7 +7,7 @@ from torch import Tensor
 from torch_geometric.nn import InstanceNorm
 
 from torch_pointcloud.models import create_model
-from torch_pointcloud.models.fcaf3d import FCAF3DDetection, FCAF3DEncoder, FCAF3DOutput
+from torch_pointcloud.models.fcaf3d import FCAF3DDetection, FCAF3DEncoder, FCAF3DHead, FCAF3DOutput
 from torch_pointcloud.ops.voxelization import lookup_coordinates, voxelize_to_spconv_tensor
 from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
 
@@ -79,6 +79,40 @@ def test_fcaf3d_defaults_build_the_registered_architecture() -> None:
         key: value.shape for key, value in registered.state_dict().items()
     }
     assert isinstance(model.encoder.norm1, InstanceNorm) and model.encoder.norm1.eps == 1e-8
+
+
+@SPCONV
+@pytest.mark.parametrize(
+    "stem_norm",
+    [pytest.param("batch_norm", id="batch_norm"), pytest.param("graph_norm", id="graph_norm")],
+)
+def test_fcaf3d_instance_norm_defaults_stay_out_of_other_stem_norms(stem_norm: str) -> None:
+    model = FCAF3DDetection(
+        3,
+        4,
+        voxel_size=0.02,
+        oriented_boxes=False,
+        max_voxels_per_scene=1000,
+        encoder_depths=(1, 1, 1, 1),
+        stem_norm=stem_norm,
+    )
+    assert model.stem_norm_kwargs is None
+    assert "eps=1e-08" not in repr(model.encoder.norm1)
+
+
+@SPCONV
+def test_fcaf3d_head_prunes_at_exact_positions_in_half_precision() -> None:
+    import spconv.pytorch as spconv
+
+    head = FCAF3DHead((8, 8), 8, 2, num_box_outputs=6, max_voxels_per_scene=1)
+    indices = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 2049]], dtype=torch.int32)
+    x = spconv.SparseConvTensor(torch.zeros(2, 8, dtype=torch.half), indices, [1, 1, 4096], batch_size=1)
+    coarse = torch.tensor([[0, 0, 0, 0], [0, 0, 0, 1025]], dtype=torch.int32)
+    scores = spconv.SparseConvTensor(torch.tensor([[2.0], [8.0]], dtype=torch.half), coarse, [1, 1, 2048], batch_size=1)
+
+    pruned = head.prune(x, scores)
+
+    assert pruned.indices.tolist() == [[0, 0, 0, 2049]]
 
 
 @SPCONV

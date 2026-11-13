@@ -24,6 +24,24 @@ _INSTANCE_NORM_NDS: Dict[int, Type[nn.Module]] = {
 }
 
 
+def is_layer_norm_name(norm: Union[str, Callable, None]) -> bool:
+    """Whether `norm` is a name that `create_norm` resolves to the graph `LayerNorm` for `dim == 1`.
+
+    That layer normalizes over every node of a graph unless it is built with `mode="node"`.
+
+    Args:
+        norm: Norm name, class, instance, or `None`.
+
+    Returns:
+        `True` for the spellings of the layer normalization name, such as `"layer_norm"` or `"LayerNorm"`.
+    """
+    if not isinstance(norm, str):
+        return False
+
+    key = norm.lower().replace("_", "").replace("-", "").replace(" ", "")
+    return key in ("layernorm", "layer")
+
+
 def create_norm(
     norm: Union[str, Callable, None],
     channels: int,

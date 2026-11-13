@@ -110,9 +110,14 @@ def test_votenet_eval_is_deterministic() -> None:
 def test_votenet_reset_classifier() -> None:
     model = create_model("votenet.scannet.fair", task="detection")
     assert isinstance(model, VoteNetDetection)
+    box_dim = 2 + 3 + 1 * 2 + 18 * 4
+    weight = model.proposal.mlp.lins[-1].weight.detach().clone()
+    bias = model.proposal.mlp.lins[-1].bias.detach().clone()
     model.reset_classifier(num_classes=5)
     assert model.num_classes == 5
-    assert model.proposal.mlp.lins[-1].out_features == 2 + 3 + 1 * 2 + 18 * 4 + 5
+    assert model.proposal.mlp.lins[-1].out_features == box_dim + 5
+    assert torch.equal(model.proposal.mlp.lins[-1].weight[:box_dim], weight[:box_dim])
+    assert torch.equal(model.proposal.mlp.lins[-1].bias[:box_dim], bias[:box_dim])
     model = model.to(DEVICE).eval()
     data = _make_inputs()
     with torch.no_grad():

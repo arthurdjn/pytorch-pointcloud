@@ -53,6 +53,7 @@ class CPE(nn.Module):
         # OCNN expects the kernel size to be a list, otherwise assertion error will be raised.
         kernel_size = ensure_list(kernel_size)
 
+        self.use_dwconv = use_dwconv
         if use_dwconv:
             self.conv = dwconv.OctreeDWConv(
                 in_channels,
@@ -75,7 +76,12 @@ class CPE(nn.Module):
         self.norm = nn.BatchNorm1d(in_channels)
 
     def forward(self, x: Tensor, octree: "Octree", depth: int) -> Tensor:
-        x = self.conv(x, octree, depth)
+        if self.use_dwconv and not x.is_cuda:
+            # The accelerated depthwise kernel is CUDA-only
+            x = ocnn.nn.OctreeDWConv.forward(self.conv, x, octree, depth)
+        else:
+            x = self.conv(x, octree, depth)
+
         return self.norm(x)
 
 
@@ -676,7 +682,8 @@ class OctFormerClassification(ClassificationModel):
     def forward_head(self, x: Tensor, octree: "Octree", depth: int, pre_logits: bool = False) -> Tensor:
         batch = octree.batch_id(depth, self.nempty)
         x = self.global_pool(x, batch)
-        if self.dropout:
+        # The head applies the dropout itself after each hidden layer
+        if self.dropout and not self.head_channels:
             x = F.dropout(x, p=float(self.dropout), training=self.training)
         return x if pre_logits else self.head(x)
 

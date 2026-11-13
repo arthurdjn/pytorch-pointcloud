@@ -60,7 +60,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.sampler), len(val_loader.sampler)  # type: ignore[arg-type]
     print(f"Training {args.model!r} (radius {args.radius}) on {num_train} spheres per epoch, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(
             model, criterion, regularizer, optimizer, train_loader, args.device, args.grad_clip_value
@@ -72,13 +72,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mIoU"] > best_miou:
+                best_miou = val["mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:
@@ -94,6 +95,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=6, type=int)
     parser.add_argument("--lr", default=1e-2, type=float)
     parser.add_argument("--momentum", default=0.98, type=float)
+    parser.add_argument("--weight-decay", default=1e-3, type=float)
     parser.add_argument("--lr-decay", default=0.1 ** (1 / 150), type=float, help="Learning-rate factor per epoch.")
     parser.add_argument("--grad-clip-value", default=100.0, type=float)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
@@ -221,7 +223,11 @@ def configure_model(args: Namespace) -> nn.Module:
 
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
-    groups = generate_param_groups(model, overrides=[dict(keyword="offset", lr=args.lr * 0.1)])  # deform_lr_factor
+    groups = generate_param_groups(
+        model,
+        weight_decay=args.weight_decay,
+        overrides=[dict(keyword="offset", lr=args.lr * 0.1)],  # deform_lr_factor
+    )
     optimizer = torch.optim.SGD(groups, lr=args.lr, momentum=args.momentum)
 
     # Stepped once per epoch: lr x 0.1^(1/150) per epoch.

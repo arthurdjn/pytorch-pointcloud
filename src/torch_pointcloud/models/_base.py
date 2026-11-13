@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Any
 
 import torch.nn as nn
+from torch import Tensor
 
 
 class PretrainingModel(nn.Module, metaclass=ABCMeta):
@@ -208,6 +209,18 @@ class PartSegmentationModel(nn.Module, metaclass=ABCMeta):
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.num_categories = num_categories
+
+    def check_category(self, category: Tensor) -> None:
+        r"""Check that `category` is a one-hot $(B, \text{num\_categories})$ rather than category indices.
+
+        Raises:
+            ValueError: If `category` is not two-dimensional.
+        """
+        if category.dim() != 2:
+            raise ValueError(
+                f"`category` must be one-hot of shape (B, num_categories), got shape {tuple(category.shape)}; "
+                "pass `F.one_hot(category, num_categories).float()` for category indices."
+            )
 
     @property
     @abstractmethod

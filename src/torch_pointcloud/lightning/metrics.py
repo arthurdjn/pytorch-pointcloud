@@ -165,7 +165,7 @@ class NuScenesDetection(Metric):
     r"""The official nuScenes detection metrics as a `torchmetrics` metric.
 
     A stateful wrapper of `nuscenes_detection_metrics`: each `update` appends one batch's packed
-    predictions and ground truth together with the optional velocity, attribute and point-count extras,
+    predictions and ground truth together with the optional velocity, attribute, point-count and ego-position extras,
     and `compute` returns the functional's flat dict (`AP/<class>`, `mAP`, the five TP errors and the
     `NDS`). The predictions' `velocity` entry and the `velocity` argument are appended to the boxes as
     $(v_x, v_y)$ columns, the $(M, 9)$ layout the functional scores; prediction attributes are derived
@@ -196,6 +196,7 @@ class NuScenesDetection(Metric):
     gt_batch: List[Tensor]
     gt_num_points: List[Tensor]
     gt_attributes: List[Tensor]
+    origin: List[Tensor]
     num_samples: Tensor
     higher_is_better = True
     full_state_update = False
@@ -222,7 +223,7 @@ class NuScenesDetection(Metric):
         self.min_precision = min_precision
         for state in ("pred_boxes", "pred_scores", "pred_labels", "pred_batch"):
             self.add_state(state, default=[], dist_reduce_fx=None)
-        for state in ("gt_boxes", "gt_labels", "gt_batch", "gt_num_points", "gt_attributes"):
+        for state in ("gt_boxes", "gt_labels", "gt_batch", "gt_num_points", "gt_attributes", "origin"):
             self.add_state(state, default=[], dist_reduce_fx=None)
         self.add_state("num_samples", default=torch.tensor(0), dist_reduce_fx="sum")
 
@@ -234,12 +235,14 @@ class NuScenesDetection(Metric):
         velocity: OptTensor = None,
         num_points: OptTensor = None,
         attribute: OptTensor = None,
+        num_radar_points: OptTensor = None,
+        ego_pos: OptTensor = None,
     ) -> None:
         r"""Append one batch's packed predictions and ground truth with the optional nuScenes extras.
 
-        The keyword names match the dataset's ground-truth keys (`velocity`, `num_points`, `attribute`),
-        so a Lightning module's `metric_input_keys` passthrough feeds them directly; the prediction-side
-        velocity lives inside `preds`.
+        The keyword names match the dataset's ground-truth keys (`velocity`, `num_points`, `attribute`,
+        `num_radar_points`, `ego_pos`), so a Lightning module's `metric_input_keys` passthrough feeds them
+        directly; the prediction-side velocity lives inside `preds`.
 
         Args:
             preds: Packed predictions (one `decode` output), `{"boxes", "scores", "labels", "batch"}`; an
@@ -251,13 +254,21 @@ class NuScenesDetection(Metric):
                 points are removed (unknown counts of $-1$ are kept).
             attribute: Optional ground-truth per-box attribute id, shape $(K,)$; a negative id marks a
                 box without an attribute.
+            num_radar_points: Optional ground-truth per-box radar point count, shape $(K,)$, added to
+                `num_points`.
+            ego_pos: Optional per-sample position the class ranges are measured from, shape $(B, 2)$ or
+                $(B, 3)$; the origin of the box frame when omitted.
         """
+        if num_radar_points is not None and num_points is None:
+            raise ValueError("`num_radar_points` requires `num_points`.")
+
         # Validate the all-or-none rule before touching any state, so a raising update leaves the
         # metric usable instead of permanently length-mismatched until `reset()`.
         num_updates = len(self.gt_boxes) + 1
         for name, state, value in (
             ("num_points", self.gt_num_points, num_points),
             ("attribute", self.gt_attributes, attribute),
+            ("ego_pos", self.origin, ego_pos),
         ):
             count = len(state) + (value is not None)
             if count not in (0, num_updates):
@@ -280,13 +291,19 @@ class NuScenesDetection(Metric):
         self.gt_boxes.append(boxes)
         self.gt_labels.append(target["labels"])
         self.gt_batch.append(target["batch"] + offset)
+        if num_points is not None and num_radar_points is not None:
+            num_points = num_points + num_radar_points
         if num_points is not None:
             self.gt_num_points.append(num_points)
         if attribute is not None:
             self.gt_attributes.append(attribute)
         pred_samples = int(preds["batch"].max().item()) + 1 if preds["batch"].numel() else 0
         gt_samples = int(target["batch"].max().item()) + 1 if target["batch"].numel() else 0
-        self.num_samples += max(pred_samples, gt_samples)
+        num_samples = max(pred_samples, gt_samples)
+        if ego_pos is not None:
+            num_samples = max(num_samples, ego_pos.shape[0])
+            self.origin.append(ego_pos)
+        self.num_samples += num_samples
 
     def compute(self) -> Dict[str, float]:
         """Score the accumulated samples and return the official nuScenes metrics, `NDS` included."""
@@ -317,6 +334,7 @@ class NuScenesDetection(Metric):
             gt_num_points=torch.cat(self.gt_num_points) if self.gt_num_points else None,
             pred_attributes=pred_attributes,
             gt_attributes=torch.cat(self.gt_attributes) if self.gt_attributes else None,
+            origin=torch.cat(self.origin) if self.origin else None,
             class_ranges=self.class_ranges,
             dist_thresholds=self.dist_thresholds,
             tp_threshold=self.tp_threshold,
