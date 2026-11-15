@@ -4,8 +4,8 @@ import hashlib
 import json
 import shutil
 import tarfile
+import tempfile
 import time
-import uuid
 import warnings
 import zipfile
 from contextlib import contextmanager
@@ -91,16 +91,16 @@ def urlsize(
 
 @contextmanager
 def atomic_path(path: PathLike, suffix: str = ".tmp") -> Iterator[Path]:
-    """Write a file or a directory under a unique temporary name, then move it to its final path.
+    """Write a file or a directory inside a unique temporary directory, then move it to its final path.
 
-    The temporary path is a sibling of `path`, so the final move is a rename on the same filesystem: readers never
-    see a partially written `path`, and concurrent writers of the same `path` never share a temporary. An existing
-    file is replaced atomically, an existing directory is moved aside first and removed once the new one is in
-    place. If the block raises, the temporary is removed and `path` is left untouched.
+    The temporary directory is a sibling of `path`, so the final move is a rename on the same filesystem: readers
+    never see a partially written `path`, and concurrent writers of the same `path` never share a temporary. An
+    existing file is replaced atomically, an existing directory is moved aside first and removed once the new one is
+    in place. If the block raises, the temporary is removed and `path` is left untouched.
 
     Args:
         path: The final path of the file or directory.
-        suffix: The suffix of the temporary name.
+        suffix: The suffix of the temporary directory name.
 
     Yields:
         The temporary path to write to. It does not exist yet: open it as a file or create it as a directory.
@@ -117,9 +117,9 @@ def atomic_path(path: PathLike, suffix: str = ".tmp") -> Iterator[Path]:
         ```
     """
     path = Path(path)
-    tmp_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}{suffix}")
-    old_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}.old{suffix}")
-    try:
+    with tempfile.TemporaryDirectory(dir=path.parent, prefix=f"{path.name}.", suffix=suffix) as tmp_dir:
+        tmp_path = Path(tmp_dir, path.name)
+        old_path = Path(tmp_dir, f"{path.name}.old")
         yield tmp_path
         if tmp_path.is_dir() and path.is_dir():
             try:
@@ -135,12 +135,6 @@ def atomic_path(path: PathLike, suffix: str = ".tmp") -> Iterator[Path]:
                 if old_path.is_dir() and not path.exists():
                     old_path.replace(path)
                 raise
-    finally:
-        shutil.rmtree(old_path, ignore_errors=True)
-        if tmp_path.is_dir():
-            shutil.rmtree(tmp_path, ignore_errors=True)
-        else:
-            tmp_path.unlink(missing_ok=True)
 
 
 def remove_stale_temporaries(directory: PathLike, suffix: str = ".tmp", max_age: float = 24 * 3600) -> None:
