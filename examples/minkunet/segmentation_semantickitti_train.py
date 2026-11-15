@@ -51,7 +51,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scans, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, scheduler, train_loader, args.device, scaler)
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={scheduler.get_last_lr()[0]:.2e}  train/loss {loss:.4f}")
@@ -59,13 +59,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mIoU"] > best_miou:
+                best_miou = val["mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:
@@ -103,14 +104,13 @@ def configure_train_transform(args: Namespace) -> T.Transform:
             T.RandomRotate(keys=DataKeys.POS, axis=2, angle_range=(0.0, 360.0)),
             T.RandomScale(keys=DataKeys.POS, scale_range=(0.95, 1.05)),
             T.Cat(keys=[DataKeys.POS, DataKeys.INTENSITY], dst_key=DataKeys.X, dim=1),  # the augmented coordinates
-            T.Translate(keys=DataKeys.POS, offset=VOXEL_SIZE / 2),  # round to the grid instead of flooring
+            T.Quantize(keys=DataKeys.POS, size=VOXEL_SIZE, dst_keys=DataKeys.POS_GRID, rounding="nearest"),
             T.Voxelize(
-                pos_key=DataKeys.POS,
+                pos_key=DataKeys.POS_GRID,
                 pos_reduce="first",
-                dst_pos_grid_key=DataKeys.POS_GRID,
-                keys=[DataKeys.X, DataKeys.SEGMENT],
+                keys=[DataKeys.POS, DataKeys.X, DataKeys.SEGMENT],
                 reduce="first",
-                size=VOXEL_SIZE,
+                size=1.0,
             ),
             T.RandomSample(
                 keys=[DataKeys.POS, DataKeys.POS_GRID, DataKeys.X, DataKeys.SEGMENT],

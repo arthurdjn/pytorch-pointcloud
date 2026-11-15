@@ -70,7 +70,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scans, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_miou = -1.0
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, scheduler, train_loader, args.device)
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={scheduler.get_last_lr()[0]:.2e}  train/loss {loss:.4f}")

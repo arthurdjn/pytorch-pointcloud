@@ -20,7 +20,7 @@ from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_UNMERGED_LEARNING_MAP
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
-from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
+from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader, offset_index
 from torch_pointcloud.utils.random import seed_everything
 
 CPU_COUNT = os.cpu_count()
@@ -90,7 +90,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} scans, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, scheduler, train_loader, args.device, scaler)
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={scheduler.get_last_lr()[0]:.2e}  train/loss {loss:.4f}")
@@ -98,13 +98,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mIoU"] > best_miou:
+                best_miou = val["mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:
@@ -161,7 +162,11 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
         num_workers=args.num_workers,
     )
     val_loader = PointCloudDataLoader(
-        val_dataset, batch_size=args.val_batch_size, shuffle=False, num_workers=args.num_workers
+        val_dataset,
+        batch_size=args.val_batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        cat_keys=[DataKeys.INVERSE],
     )
 
     return train_loader, val_loader
@@ -232,7 +237,8 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, flo
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         preds = model(data[DataKeys.X], data[DataKeys.POS], data[DataKeys.BATCH]).argmax(dim=1)
-        preds = preds[data[DataKeys.INVERSE]]
+        inverse = offset_index(data[DataKeys.INVERSE], data[f"batch_{DataKeys.INVERSE}"], data[DataKeys.BATCH])
+        preds = preds[inverse]
         target = data[DataKeys.ORIGIN_SEGMENT]
         confusion += confusion_matrix(preds, target, NUM_CLASSES, ignore_index=IGNORE_INDEX)
 

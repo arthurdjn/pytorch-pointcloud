@@ -84,7 +84,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--model", default="pointnet2.s3dis-area5.xu-yan", choices=sorted(PROTOCOLS))
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--areas", nargs="+", default=["Area_5"])
+    parser.add_argument("--areas", nargs="+", default=None, help="Areas to score (default: the held-out one).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument(
         "--sw-batch-size",
@@ -96,7 +96,20 @@ def parse_args() -> Namespace:
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.areas is None:
+        args.areas = [held_out_area(args.model)]
+    return args
+
+
+def held_out_area(model: str) -> str:
+    """Area a checkpoint was not trained on, read from its registered dataset (`s3dis-area5` gives `Area_5`)."""
+    weights = model_info(model, task="semantic-segmentation")["weights"]
+    if weights is None:
+        raise ValueError(f"Model {model!r} has no registered weights.")
+
+    index = weights["dataset"].removeprefix("s3dis-area")
+    return f"Area_{index}"
 
 
 def configure_dataset(args: Namespace) -> Dataset:
@@ -133,6 +146,7 @@ def configure_inferer(args: Namespace) -> Inferer:
             overlap=0.5,
             dims=(0, 1),
             padding=0.001,
+            shift_last_block=True,
             roi_num_points=BLOCK_NUM_POINTS,
             sw_batch_size=args.sw_batch_size or BLOCK_SW_BATCH_SIZE,
             softmax=True,

@@ -13,7 +13,12 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
 from torch_pointcloud.metrics import nuscenes_detection_metrics
-from torch_pointcloud.models import DetectionModel, create_model, model_info
+from torch_pointcloud.models import (
+    CenterPointDetection,
+    CenterPointPillarsDetection,
+    create_model,
+    model_info,
+)
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -31,6 +36,8 @@ MODELS = (
 )
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
+NMS_MAX_CANDIDATES = 1000
+NMS_MAX_KEEP = 83
 
 
 def main() -> None:
@@ -90,9 +97,9 @@ def configure_dataloader(args: Namespace) -> DataLoader:
     )
 
 
-def configure_model(args: Namespace) -> DetectionModel:
+def configure_model(args: Namespace) -> CenterPointDetection | CenterPointPillarsDetection:
     model = create_model(args.model, task="detection", pretrained=True)
-    assert isinstance(model, DetectionModel)
+    assert isinstance(model, (CenterPointDetection, CenterPointPillarsDetection))
     return model
 
 
@@ -104,14 +111,21 @@ def configure_transform(args: Namespace) -> T.Transform:
 
 
 @torch.no_grad()
-def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(
+    model: CenterPointDetection | CenterPointPillarsDetection, dataloader: DataLoader, device: str
+) -> dict[str, float]:
     model.to(device).eval()
     preds: list[Detection3D] = []
     targets: list[Boxes3D] = []
     gt_velocities: list[Tensor] = []
     gt_num_points: list[Tensor] = []
+    ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
+    # Head of every class: the boxes of a head suppress each other.
+    head_index = torch.empty(model.num_classes, dtype=torch.long, device=device)
+    for index, group in enumerate(model.head_class_groups):
+        head_index[list(group)] = index
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
@@ -124,7 +138,17 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         det = model.decode(output)
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
+        idx = nms3d(
+            boxes,
+            scores,
+            NMS_IOU,
+            labels=head_index[labels],
+            batch=batch,
+            rotated=True,
+            max_keep=NMS_MAX_KEEP,
+            max_candidates=NMS_MAX_CANDIDATES,
+            cap_per_label=True,
+        )
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),
@@ -142,7 +166,8 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -165,6 +190,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 

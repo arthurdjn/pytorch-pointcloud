@@ -99,7 +99,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.sampler), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} blocks per epoch, validating on {num_val} scenes.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         momentum = bn_momentum(
             epoch, init=BN_MOMENTUM, decay_rate=BN_DECAY_RATE, decay_step=BN_DECAY_STEP, clip=BN_MOMENTUM_CLIP
@@ -113,13 +113,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, inferer, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["mIoU"] > best_miou:
+                best_miou = val["mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:

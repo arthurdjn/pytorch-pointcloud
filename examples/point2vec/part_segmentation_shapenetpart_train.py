@@ -77,7 +77,7 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} shapes, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
-    best_loss = float("inf")
+    best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device, scaler)
         lr = optimizer.param_groups[0]["lr"]
@@ -87,13 +87,14 @@ def main() -> None:
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
             val = evaluate(model, val_loader, args.device)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
+            if output is not None and val["ins_mIoU"] > best_miou:
+                best_miou = val["ins_mIoU"]
+                output.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
             output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
-            if loss < best_loss:
-                best_loss = loss
-                torch.save(model.state_dict(), output / "best.pt")
 
 
 def parse_args() -> Namespace:

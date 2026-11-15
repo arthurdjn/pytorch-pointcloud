@@ -54,7 +54,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--checkpoint", default=None, help="Path to a local checkpoint of the ported architecture.")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--split", default="val", choices=["train", "val", "test"])
+    parser.add_argument("--split", default="val", choices=["train", "val"])
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many scans.")
