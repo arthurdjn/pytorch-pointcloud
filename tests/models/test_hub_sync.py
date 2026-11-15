@@ -7,12 +7,15 @@ The organisation may hold more repositories than the registry: the weights of a 
 registry entry lands on main.
 
 The tests run with `--run-hub` only: they query the Hub API, one request per repository and revision, with the token of
-the environment when there is one. `config.json` is never fetched (its requests are what the Hub counts as downloads);
-the served file is compared by git blob id with a fresh render.
+the environment when there is one. The API quota (500 requests per 5 minutes without a token) is smaller than one run,
+so a request over it waits for the window to reset. `config.json` is never fetched (its requests are what the Hub
+counts as downloads); the served file is compared by git blob id with a fresh render.
 """
 
 import hashlib
 import json
+import re
+import time
 import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,6 +28,7 @@ from torch_pointcloud.utils.hub import HF_ENDPOINT, HF_URL_RE, load_hub_token
 pytestmark = pytest.mark.hub
 
 HF_NAMESPACE = "torch-pointcloud"
+RATE_LIMIT_RETRIES = 3
 FORMER_KEPT_REPOSITORIES: Dict[str, str] = {
     "sonata-lp.scannet20.fair": "sonata-base-lp.scannet20.fair",
     "utonia.pretrain.pointcept": "utonia-base.pretrain.pointcept",
@@ -34,19 +38,31 @@ FORMER_KEPT_REPOSITORIES: Dict[str, str] = {
 weights are registered under today."""
 
 
+def rate_limit_reset(headers: Any) -> float:
+    """The seconds until the Hub API quota resets, read from the `RateLimit` header of a response
+    (`"api";r=<remaining>;t=<seconds>`), 60 when the header is missing."""
+    match = re.search(r"\bt=(\d+)", headers.get("RateLimit") or "")
+    return float(match[1]) if match else 60.0
+
+
 def hub_json(path: str) -> Any:
     """The JSON the Hub API answers at `api/<path>`, `None` for a missing repository or revision (the Hub answers 401
-    instead of 404 for a missing or private repository when the request carries no token)."""
+    instead of 404 for a missing or private repository when the request carries no token). A request over the API
+    quota (429) waits for the quota window to reset and is sent again."""
     token = load_hub_token()
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     request = urllib.request.Request(f"{HF_ENDPOINT}/api/{path}", headers=headers)
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as error:
-        if error.code in (401, 404):
-            return None
-        raise
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code in (401, 404):
+                return None
+            if error.code != 429 or attempt == RATE_LIMIT_RETRIES:
+                raise
+            time.sleep(rate_limit_reset(error.headers) + 1.0)
+    return None
 
 
 def hub_api(path: str) -> Optional[Dict[str, Any]]:
@@ -200,6 +216,8 @@ def test_pinned_revisions_serve_the_head_weights(hub_heads: Dict[str, Optional[D
         match = HF_URL_RE.fullmatch(weights["url"])
         assert match is not None, (name, weights["url"])
         revision = match["revision"]
+        if head.get("sha") == revision:
+            continue
         pinned = hub_api(f"models/{HF_NAMESPACE}/{name}/revision/{revision}?blobs=true")
         if pinned is None:
             problems.append(f"{name}: pinned revision {revision[:10]} does not exist")
