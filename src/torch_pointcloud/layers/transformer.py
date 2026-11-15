@@ -9,7 +9,7 @@ from torch_geometric.nn import MLP
 
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.dropouts import DropPath
-from torch_pointcloud.layers.norms import create_norm, is_layer_norm_name
+from torch_pointcloud.layers.norms import create_norm, is_graph_layer_norm
 from torch_pointcloud.utils.imports import _FLASH_ATTN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -215,7 +215,7 @@ class TransformerBlock(nn.Module):
         norm_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
-        if is_layer_norm_name(norm):
+        if is_graph_layer_norm(norm):
             # PyG resolves "layer_norm" to a graph LayerNorm, which normalizes over every token of the batch.
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
 
@@ -410,7 +410,7 @@ class PackedTransformerBlock(nn.Module):
         use_flash_attn: bool = True,
     ) -> None:
         super().__init__()
-        if is_layer_norm_name(norm):
+        if is_graph_layer_norm(norm):
             # PyG resolves "layer_norm" to a graph LayerNorm, which normalizes over every sample of the packed batch.
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
 

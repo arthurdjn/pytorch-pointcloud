@@ -28,7 +28,7 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.dropouts import DropPath
-from torch_pointcloud.layers.norms import is_layer_norm_name
+from torch_pointcloud.layers.norms import is_graph_layer_norm
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.ops.cluster import fps, knn, local_grid
 from torch_pointcloud.ops.masking import random_mask
@@ -182,7 +182,7 @@ class PointPatchEmbedding(nn.Module):
         aggr: PoolLike = "max",
     ):
         super().__init__()
-        if is_layer_norm_name(norm):
+        if is_graph_layer_norm(norm):
             # per-point statistics instead of the graph-wide default
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
         # Common parameters for all MLPs and associated blocks
@@ -711,7 +711,7 @@ class PointMambaClassification(ClassificationModel):
         self.act_first = act_first
         self.norm = norm
         # per-token statistics instead of the graph-wide default
-        self.norm_kwargs = {"mode": "node", **(norm_kwargs or {})} if is_layer_norm_name(norm) else norm_kwargs
+        self.norm_kwargs = {"mode": "node", **(norm_kwargs or {})} if is_graph_layer_norm(norm) else norm_kwargs
         self.bias = bias
         self.dropout = dropout
         self.head_channels = ensure_list(head_channels, none_as_empty=True)

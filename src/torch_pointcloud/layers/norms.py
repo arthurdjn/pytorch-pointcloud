@@ -10,7 +10,8 @@ PyG's resolver otherwise.
 from typing import Any, Callable, Dict, Optional, Sequence, Type, Union
 
 import torch.nn as nn
-from torch_geometric.nn.resolver import normalization_resolver
+from torch_geometric.nn.norm import LayerNorm as GraphLayerNorm
+from torch_geometric.nn.resolver import normalization_resolver, normalize_string
 
 _BATCH_NORM_NDS: Dict[int, Type[nn.Module]] = {
     1: nn.BatchNorm1d,
@@ -24,8 +25,8 @@ _INSTANCE_NORM_NDS: Dict[int, Type[nn.Module]] = {
 }
 
 
-def is_layer_norm_name(norm: Union[str, Callable, None]) -> bool:
-    """Whether `norm` is a name that `create_norm` resolves to the graph `LayerNorm` for `dim == 1`.
+def is_graph_layer_norm(norm: Union[str, Callable, None]) -> bool:
+    """Whether `norm` is the graph `LayerNorm`, given as a name, a class or an instance.
 
     That layer normalizes over every node of a graph unless it is built with `mode="node"`.
 
@@ -33,13 +34,17 @@ def is_layer_norm_name(norm: Union[str, Callable, None]) -> bool:
         norm: Norm name, class, instance, or `None`.
 
     Returns:
-        `True` for the spellings of the layer normalization name, such as `"layer_norm"` or `"LayerNorm"`.
+        `True` for a name `create_norm` resolves to the graph `LayerNorm` with `dim == 1`, such as `"layer_norm"`,
+        and for that class, its subclasses and their instances. `False` otherwise, `nn.LayerNorm` included.
     """
-    if not isinstance(norm, str):
-        return False
+    if isinstance(norm, str):
+        name = normalize_string(GraphLayerNorm.__name__)
+        return normalize_string(norm) in (name, name.removesuffix("norm"))
 
-    key = norm.lower().replace("_", "").replace("-", "").replace(" ", "")
-    return key in ("layernorm", "layer")
+    if isinstance(norm, type):
+        return issubclass(norm, GraphLayerNorm)
+
+    return isinstance(norm, GraphLayerNorm)
 
 
 def create_norm(
