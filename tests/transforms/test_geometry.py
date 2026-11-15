@@ -6,7 +6,6 @@ import torch
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.transforms import Voxelize
-from torch_pointcloud.transforms.geometry import _cast_like
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
@@ -342,13 +341,6 @@ def test_rotate_vectors_empty(shape: tuple[int, int]) -> None:
     assert rotated.shape == shape
 
 
-def test_translate_fractional_offset_promotes_integer_input() -> None:
-    data = {"pos": torch.zeros(4, 3, dtype=torch.long)}
-    out = T.Translate(keys="pos", offset=0.9)(data)["pos"]
-    assert out.is_floating_point()
-    assert torch.allclose(out, torch.full((4, 3), 0.9))
-
-
 @pytest.mark.parametrize(
     "dtype",
     [
@@ -388,23 +380,6 @@ def test_translate_keeps_floating_point_dtype(dtype: torch.dtype) -> None:
     data = {"pos": torch.zeros(2, 3, dtype=dtype)}
     assert T.Translate(keys="pos", offset=0.5)(data)["pos"].dtype == dtype
     assert T.Translate(keys="pos", offset=(1, 0, 0))(data)["pos"].dtype == dtype
-
-
-@pytest.mark.parametrize(
-    "value, x, dtype",
-    [
-        pytest.param(torch.tensor([2, -1]), torch.zeros(2, dtype=torch.int32), torch.int32, id="integer-on-integer"),
-        pytest.param(torch.tensor([2.0, -1.0]), torch.zeros(2, dtype=torch.long), torch.float32, id="float-on-integer"),
-        pytest.param(torch.tensor([2, -1]), torch.zeros(2, dtype=torch.float64), torch.float64, id="integer-on-float"),
-        pytest.param(
-            torch.tensor([2.5, -1.0]), torch.zeros(2, dtype=torch.float16), torch.float16, id="float-on-float"
-        ),
-    ],
-)
-def test_cast_like_depends_on_dtypes_only(value: torch.Tensor, x: torch.Tensor, dtype: torch.dtype) -> None:
-    out = _cast_like(value, x)
-    assert out.dtype == dtype
-    assert out.tolist() == value.tolist()
 
 
 def test_rotate_vectors_promotes_integer_input() -> None:

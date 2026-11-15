@@ -162,7 +162,7 @@ def _block_lower_bounds(block_idx: Tensor, *, lo: Tensor, last_lo: Optional[Tens
     if last_lo is None:
         return block_lo
 
-    return torch.minimum(block_lo, last_lo.to(block_lo.dtype))
+    return torch.minimum(block_lo, last_lo)
 
 
 def _point_block_pairs(

@@ -583,18 +583,7 @@ def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] 
 
 
 def _cast_like(value: Tensor, x: Tensor) -> Tensor:
-    """Move `value` to the device and dtype of `x`, except that a floating point `value` is never made integer.
-
-    Next to an integer `x`, a floating point `value` keeps its own dtype, so their sum or product is promoted to
-    floating point instead of the value being truncated.
-
-    Args:
-        value: The parameter of a transform, such as an offset, a scale or a rotation.
-        x: The tensor the parameter is applied to.
-
-    Returns:
-        `value` on the device of `x`, in the dtype of `x` unless `value` is floating point and `x` is not.
-    """
+    """Move `value` to the device and dtype of `x`, keeping a floating point `value` next to an integer `x`."""
     if value.is_floating_point() and not x.is_floating_point():
         return value.to(x.device)
     return value.to(x)
