@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the nuScenes evaluation (lidar and radar point filter, ranges from the ego origin, speed threshold 0.2). nuScenes caches must be rebuilt with `force_process=True`.
 - Fixed the 3DETR rotated GIoU heading, VoteNet `reset_classifier`, `boxes_iou3d` on small boxes and the tie order of `nms3d`.
 - Added `nms3d(cap_per_label=...)`.
 - Changed `FCAF3DDetection` to take its stem norm options only from `stem_norm_kwargs`.
