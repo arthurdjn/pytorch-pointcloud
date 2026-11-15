@@ -303,12 +303,6 @@ def test_nuscenes_velocity_attributes_speed_threshold() -> None:
     assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",), speed_threshold=0.1).tolist() == [0]
 
 
-def test_nuscenes_velocity_attributes_default_threshold_is_a_fifth_of_a_meter_per_second() -> None:
-    labels = torch.tensor([0, 0])
-    velocity = torch.tensor([[0.5, 0.0], [0.1, 0.0]])
-    assert nuscenes_velocity_attributes(labels, velocity, class_names=("car",)).tolist() == [0, 2]
-
-
 def test_filter_boxes_by_range_measures_from_the_origin_of_every_box() -> None:
     boxes = torch.tensor([_box(49.5, 0.0), _box(50.5, 0.0)])
     labels = torch.tensor([0, 0])

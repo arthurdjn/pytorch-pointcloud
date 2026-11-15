@@ -291,9 +291,9 @@ class NuScenesDetection(Metric):
         self.gt_boxes.append(boxes)
         self.gt_labels.append(target["labels"])
         self.gt_batch.append(target["batch"] + offset)
-        if num_points is not None and num_radar_points is not None:
-            num_points = num_points + num_radar_points
         if num_points is not None:
+            if num_radar_points is not None:
+                num_points = num_points + num_radar_points
             self.gt_num_points.append(num_points)
         if attribute is not None:
             self.gt_attributes.append(attribute)

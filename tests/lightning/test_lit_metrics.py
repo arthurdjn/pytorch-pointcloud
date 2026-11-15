@@ -466,12 +466,7 @@ def test_nuscenes_detection_measures_class_ranges_from_ego_pos() -> None:
     out = ego_origin.compute()
 
     expected = nuscenes_detection_metrics(
-        {
-            "boxes": preds[0]["boxes"],
-            "scores": preds[0]["scores"],
-            "labels": preds[0]["labels"],
-            "batch": preds[0]["batch"],
-        },
+        preds[0],
         {"boxes": target["boxes"].repeat(2, 1), "labels": torch.tensor([0, 0]), "batch": torch.tensor([0, 1])},
         class_names=("car",),
         origin=torch.cat(ego_pos),

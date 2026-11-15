@@ -160,7 +160,7 @@ def filter_boxes_by_range(
         ```
     """
     limits = boxes.new_tensor(list(ranges))[labels.long()]
-    centers = boxes[:, :2] if origin is None else boxes[:, :2] - origin[:, :2].to(boxes)
+    centers = boxes[:, :2] if origin is None else boxes[:, :2] - origin[:, :2]
     return torch.linalg.norm(centers, dim=1) < limits
 
 
