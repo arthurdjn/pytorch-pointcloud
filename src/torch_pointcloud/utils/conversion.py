@@ -591,7 +591,7 @@ def check_non_negative_grid(pos_grid: Tensor, name: str) -> None:
     Raises:
         ValueError: If `pos_grid` holds a negative coordinate.
     """
-    if pos_grid.numel() > 0 and bool((pos_grid < 0).any()):
+    if bool((pos_grid < 0).any()):
         raise ValueError(
             f"`{name}` must be non-negative, got a minimum of {int(pos_grid.min())}. "
             "Shift it by the per-axis minimum, as `Voxelize` does."

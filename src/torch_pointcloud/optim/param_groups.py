@@ -1,7 +1,7 @@
 r"""Optimizer parameter groups: weight-decay rules (none on biases, other 1-D parameters or named parameters)
 and per-keyword overrides of the optimizer options, such as a lower learning rate for one sub-module."""
 
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple, Union
 
 from torch import Tensor, nn
 
@@ -41,7 +41,7 @@ def generate_param_groups(
     model: nn.Module,
     *,
     weight_decay: float = 0.0,
-    no_decay: Optional[NoDecayRule] = False,
+    no_decay: NoDecayRule = False,
     overrides: Sequence[Mapping[str, Any]] = (),
 ) -> List[Dict[str, Any]]:
     r"""Split a model's trainable parameters into optimizer groups with weight-decay rules and keyword overrides.
@@ -50,9 +50,8 @@ def generate_param_groups(
     (or whose `match(name, param)` returns `True`), else to the base group. Each group then carries `weight_decay` and the override's other options (`lr`, `momentum`, ...).
     With `no_decay`, every group is further split into a decaying and a non-decaying part: `True` excludes
     biases and 1-D parameters, a keyword or a list of keywords (possibly empty) extends that rule to the names
-    containing them, and a callable
-    decides per `(name, param)`. An override that sets its own
-    `weight_decay` is not split.
+    containing them, and a callable decides per `(name, param)`. An override that sets its own `weight_decay` is
+    not split.
 
     The groups come out base first, then the overrides in order, each as (decay, no-decay) when split; empty
     groups are dropped. That order is what a per-group `max_lr` list of `OneCycleLR` refers to.
@@ -60,7 +59,7 @@ def generate_param_groups(
     Args:
         model: Source model.
         weight_decay: Weight decay of the base group (and of overrides that do not set their own).
-        no_decay: Rule selecting the parameters that get no weight decay (see above). `None` is `False`.
+        no_decay: Rule selecting the parameters that get no weight decay (see above).
         overrides: Dicts, each with `keyword` (substring of the parameter name) or `match`
             (callable `(name, param) -> bool`) plus the optimizer options of that group.
 
@@ -97,7 +96,7 @@ def generate_param_groups(
         index = next((i + 1 for i, matcher in enumerate(matchers) if matcher(name, param)), 0)
         buckets[index].append((name, param))
 
-    predicate = None if no_decay is None or no_decay is False else _no_decay_rule(no_decay)
+    predicate = None if no_decay is False else _no_decay_rule(no_decay)
     groups: List[Dict[str, Any]] = []
     for index, bucket in enumerate(buckets):
         options = {k: v for k, v in (overrides[index - 1].items() if index else ()) if k not in ("keyword", "match")}

@@ -119,10 +119,3 @@ def test_param_groups_no_decay_keyword_forms_keep_the_bias_and_one_dim_rule(no_d
     decay, skipped = generate_param_groups(model, weight_decay=0.05, no_decay=no_decay)
     assert skipped["weight_decay"] == 0.0 and decay["weight_decay"] == 0.05
     assert _names(model, skipped) == _names(model, reference) | extra
-
-
-def test_param_groups_no_decay_none_is_a_single_decaying_group() -> None:
-    model = _Model()
-    groups = generate_param_groups(model, weight_decay=0.05, no_decay=None)
-    assert [group["weight_decay"] for group in groups] == [0.05]
-    assert _names(model, groups[0]) == {n for n, p in model.named_parameters() if p.requires_grad}

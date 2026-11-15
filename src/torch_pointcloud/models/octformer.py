@@ -87,7 +87,10 @@ class CPE(nn.Module):
         """Apply the weights of the depthwise convolution with the accelerated CUDA kernel."""
         neighbors = octree.get_neigh(depth, self.conv.kernel, 1, self.nempty)
         x = dwconv.octree_dwconv(x, self.conv.weights, neighbors)
-        return x + self.conv.bias if self.bias else x
+        if self.bias:
+            x = x + self.conv.bias
+
+        return x
 
     def forward(self, x: Tensor, octree: "Octree", depth: int) -> Tensor:
         # The accelerated depthwise kernel is CUDA-only

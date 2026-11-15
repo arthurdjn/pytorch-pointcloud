@@ -711,9 +711,13 @@ def majority_label(
     """
     if num_clusters is None:
         num_clusters = int(cluster.max().item()) + 1 if cluster.numel() > 0 else 0
-    votes = labels.long() if ignore_index is None else labels.long().masked_fill(labels == ignore_index, num_classes)
-    num_votes = num_classes if ignore_index is None else num_classes + 1
-    if votes.numel() > 0 and bool(((votes < 0) | (votes >= num_votes)).any()):
+    votes = labels.long()
+    num_votes = num_classes
+    if ignore_index is not None:
+        votes = votes.masked_fill(labels == ignore_index, num_classes)
+        num_votes = num_classes + 1
+
+    if bool(((votes < 0) | (votes >= num_votes)).any()):
         raise ValueError(
             f"`labels` must be in [0, {num_classes}) or equal to `ignore_index`, "
             f"got range [{int(labels.min())}, {int(labels.max())}]."
