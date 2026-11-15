@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Literal
 from unittest.mock import Mock, patch, sentinel
 
 import pytest
@@ -7,6 +7,7 @@ import torch_geometric.nn.pool as pool
 from torch import Tensor
 
 from torch_pointcloud.ops.cluster import (
+    FPS_TAKES_SAMPLE_RATIOS,
     dense_neighbors,
     fps,
     gather_neighbors,
@@ -67,6 +68,7 @@ def test_fps_num_nodes_matches_per_sample_fps() -> None:
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+@pytest.mark.skipif(not FPS_TAKES_SAMPLE_RATIOS, reason="the fps kernel takes a single ratio")
 def test_fps_num_nodes_samples_each_cloud_at_its_own_ratio() -> None:
     torch.manual_seed(0)
     sizes = [16, 400]
@@ -77,7 +79,7 @@ def test_fps_num_nodes_samples_each_cloud_at_its_own_ratio() -> None:
         out = fps(src, batch, num_nodes=8, random_start=False)
 
     assert torch.equal(batch[out].bincount(), torch.tensor([8, 8]))
-    assert torch.allclose(mock_fps.call_args_list[0].kwargs["ratio"], torch.tensor([8 / 16, 8 / 400]))
+    assert torch.allclose(mock_fps.call_args.kwargs["ratio"], torch.tensor([8 / 16, 8 / 400]))
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
@@ -93,16 +95,13 @@ def test_fps_num_nodes_with_a_single_ratio_backend_matches_per_sample_ratios() -
         ]
     )
 
-    pool_fps = pool.fps
-
-    def single_ratio_fps(src: Tensor, batch: Tensor, ratio: Any, **kwargs: Any) -> Tensor:
-        if isinstance(ratio, Tensor):
-            raise RuntimeError("Expected a value of type 'float' for argument 'ratio'")
-        return pool_fps(src, batch, ratio=ratio, **kwargs)
-
-    with patch("torch_pointcloud.ops.cluster.pool.fps", side_effect=single_ratio_fps):
+    with (
+        patch("torch_pointcloud.ops.cluster.FPS_TAKES_SAMPLE_RATIOS", False),
+        patch("torch_pointcloud.ops.cluster.pool.fps", wraps=pool.fps) as mock_fps,
+    ):
         out = fps(src, batch, num_nodes=8, random_start=False)
 
+    assert mock_fps.call_args.kwargs["ratio"] == pytest.approx(8 / 16)
     assert torch.equal(out, expected)
 
 

@@ -4,11 +4,15 @@ from typing import List, Literal, Optional, Tuple, Union, overload
 
 import torch
 import torch_geometric.nn.pool as pool
+import torch_geometric.typing
 from torch import Tensor
 from torch_geometric.utils import scatter
 
 from torch_pointcloud.utils.conversion import ensure_option
 from torch_pointcloud.utils.types import OptTensor
+
+# The torch-cluster kernel samples every cloud at its own ratio, the pyg-lib kernel takes one ratio for the batch.
+FPS_TAKES_SAMPLE_RATIOS = not hasattr(torch_geometric.typing, "WITH_FPS")
 
 
 def _check_sorted_batch(batch: Tensor, name: str) -> None:
@@ -268,10 +272,9 @@ def fps(
 
     # FPS is greedy: the first `req_nodes` indices of a sample are the ones an exact count returns.
     sample_ratio = req_nodes.double() / node_counts.clamp(min=1).double()
-    try:
+    if FPS_TAKES_SAMPLE_RATIOS:
         idx = pool.fps(src, batch, ratio=sample_ratio.float(), random_start=random_start, batch_size=batch_size)
-    except (RuntimeError, TypeError):
-        # backends that take one ratio for the whole batch
+    else:
         max_ratio = sample_ratio.max().item()
         idx = pool.fps(src, batch, ratio=max_ratio, random_start=random_start, batch_size=batch_size)
 
