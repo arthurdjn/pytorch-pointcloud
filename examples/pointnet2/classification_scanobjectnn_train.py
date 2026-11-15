@@ -65,6 +65,8 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} objects, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
+    if output is not None:
+        output.mkdir(parents=True, exist_ok=True)
     best_accuracy = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, train_loader, args.device, args.grad_clip_norm)
@@ -77,11 +79,9 @@ def main() -> None:
             print(f"  val/OA {val['acc'] * 100:.2f} | val/mAcc {val['mean_acc'] * 100:.2f}")
             if output is not None and val["acc"] > best_accuracy:
                 best_accuracy = val["acc"]
-                output.mkdir(parents=True, exist_ok=True)
                 torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
-            output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
 
 

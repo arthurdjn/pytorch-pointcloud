@@ -1469,7 +1469,7 @@ def test_kpconv_s3dis_training_decays_every_parameter_group(monkeypatch: pytest.
     assert [group["lr"] for group in optimizer.param_groups] == [1e-2, 1e-3]
 
 
-def test_readme_training_command_parses(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_readme_commands_parse(monkeypatch: pytest.MonkeyPatch) -> None:
     readme = (EXAMPLES_DIR / "README.md").read_text()
     commands = [line.split() for line in readme.splitlines() if line.startswith("uv run --no-sync python examples/")]
     assert len(commands) == 2

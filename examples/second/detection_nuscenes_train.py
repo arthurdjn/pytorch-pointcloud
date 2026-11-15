@@ -62,6 +62,8 @@ def main() -> None:
     num_train, num_val = len(train_loader.dataset), len(val_loader.dataset)  # type: ignore[arg-type]
     print(f"Training {args.model!r} on {num_train} keyframes, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
+    if output is not None:
+        output.mkdir(parents=True, exist_ok=True)
     best_nds = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(model, criterion, optimizer, scheduler, train_loader, args.device)
@@ -73,11 +75,9 @@ def main() -> None:
             print(f"  val/mAP {val['mAP']:.4f} | val/NDS {val['NDS']:.4f}")
             if output is not None and val["NDS"] > best_nds:
                 best_nds = val["NDS"]
-                output.mkdir(parents=True, exist_ok=True)
                 torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
-            output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
 
 

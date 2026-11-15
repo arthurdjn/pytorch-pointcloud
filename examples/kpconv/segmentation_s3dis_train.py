@@ -60,6 +60,8 @@ def main() -> None:
     num_train, num_val = len(train_loader.sampler), len(val_loader.sampler)  # type: ignore[arg-type]
     print(f"Training {args.model!r} (radius {args.radius}) on {num_train} spheres per epoch, validating on {num_val}.")
     output: Optional[Path] = Path(args.output) if args.output else None
+    if output is not None:
+        output.mkdir(parents=True, exist_ok=True)
     best_miou = float("-inf")
     for epoch in range(args.epochs):
         loss = train_one_epoch(
@@ -74,11 +76,9 @@ def main() -> None:
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["mIoU"] > best_miou:
                 best_miou = val["mIoU"]
-                output.mkdir(parents=True, exist_ok=True)
                 torch.save(model.state_dict(), output / "best.pt")
 
         if output is not None:
-            output.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), output / "last.pt")
 
 
