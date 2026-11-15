@@ -339,3 +339,52 @@ def test_translate_adds_a_constant_offset() -> None:
 def test_rotate_vectors_empty(shape: tuple[int, int]) -> None:
     rotated = F.rotate_vectors(torch.zeros(shape), F.rotation_matrix(0.5, axis=2))
     assert rotated.shape == shape
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param(torch.long, id="int64"),
+        pytest.param(torch.int32, id="int32"),
+    ],
+)
+def test_translate_integral_offset_keeps_integer_dtype(dtype: torch.dtype) -> None:
+    data = {"pos_grid": torch.tensor([[0, 1, 2], [3, 4, 5]], dtype=dtype)}
+    out = T.Translate(keys="pos_grid", offset=(1, 0, 0))(data)["pos_grid"]
+    assert out.dtype == dtype
+    assert out.tolist() == [[1, 1, 2], [4, 4, 5]]
+
+
+@pytest.mark.parametrize(
+    "offset",
+    [
+        pytest.param(1.0, id="integral-float"),
+        pytest.param(0.5, id="fractional-float"),
+    ],
+)
+def test_translate_float_offset_promotes_integer_input_whatever_its_value(offset: float) -> None:
+    data = {"pos_grid": torch.zeros(2, 3, dtype=torch.long)}
+    out = T.Translate(keys="pos_grid", offset=offset)(data)["pos_grid"]
+    assert out.dtype == torch.float32
+    assert torch.equal(out, torch.full((2, 3), offset))
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param(torch.float16, id="float16"),
+        pytest.param(torch.float64, id="float64"),
+    ],
+)
+def test_translate_keeps_floating_point_dtype(dtype: torch.dtype) -> None:
+    data = {"pos": torch.zeros(2, 3, dtype=dtype)}
+    assert T.Translate(keys="pos", offset=0.5)(data)["pos"].dtype == dtype
+    assert T.Translate(keys="pos", offset=(1, 0, 0))(data)["pos"].dtype == dtype
+
+
+def test_rotate_vectors_promotes_integer_input() -> None:
+    x = torch.tensor([[10, 0, 0], [0, 10, 0]])
+    rotation = F.rotation_matrix(math.pi / 4, axis=2)
+    out = F.rotate_vectors(x, rotation)
+    assert out.is_floating_point()
+    assert torch.allclose(out, F.rotate_vectors(x.float(), rotation))
