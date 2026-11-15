@@ -378,6 +378,8 @@ class Point2VecPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x_feat, center = self.forward_features(x, pos, batch)
         x = self.forward_decoder(x_feat, pos, batch, center, category)
         return self.forward_head(x)

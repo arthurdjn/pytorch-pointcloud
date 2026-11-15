@@ -421,7 +421,8 @@ class PointBERTPretraining(PretrainingModel):
 
     Shape:
         - Input: $(N, 3)$ and $(N,)$.
-        - Output: a dict with `cls_feature` $(B, \text{cls\_dim})$ and `logits` $(B, G, \text{num\_tokens})$.
+        - Output: a dict with `cls_feature` $(B, \text{cls\_dim})$, `logits` $(B, G, \text{num\_tokens})$ and the
+          boolean `mask` $(B, G)$, `True` where the token was masked (all `False` at eval).
 
     Example:
         ```python
@@ -581,10 +582,12 @@ class PointBERTPretraining(PretrainingModel):
         tokens = self.encoder(neighborhood)
         tokens = self.reduce_dim(tokens)
 
-        B = tokens.size(0)
+        B, G, _ = tokens.shape
+        mask = torch.zeros(B, G, dtype=torch.bool, device=tokens.device)
         if self.training:
-            mask = self._mask_center_block(center).unsqueeze(-1).type_as(tokens)
-            tokens = tokens * (1 - mask) + self.mask_token.expand(B, tokens.size(1), -1) * mask
+            mask = self._mask_center_block(center)
+            weight = mask.unsqueeze(-1).type_as(tokens)
+            tokens = tokens * (1 - weight) + self.mask_token.expand(B, G, -1) * weight
         cls_tokens = self.cls_token.expand(B, -1, -1)
         cls_pos = self.cls_pos.expand(B, -1, -1)
         pos_embed = self.pos_embed(center)
@@ -598,7 +601,7 @@ class PointBERTPretraining(PretrainingModel):
 
         cls_feature = self.cls_head(x_seq[:, 0])
         logits = self.lm_head(x_seq[:, 1:])
-        return {"cls_feature": cls_feature, "logits": logits}
+        return {"cls_feature": cls_feature, "logits": logits, "mask": mask}
 
 
 class TokenDGCNN(nn.Module):

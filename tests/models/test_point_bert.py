@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pytest
 import torch
 from torch_geometric.nn import MLP
@@ -232,6 +234,28 @@ def test_point_bert_masked_transformer_masks_only_in_training() -> None:
     out_b = unmasked(None, pos, batch)
     assert torch.equal(out_a["logits"], out_b["logits"])
     assert torch.equal(out_a["cls_feature"], out_b["cls_feature"])
+
+
+def test_point_bert_masked_transformer_returns_the_mask() -> None:
+    model = _small_masked_transformer(mask_ratio=(0.25, 0.45))
+    with torch.no_grad():
+        model.mask_token.normal_()
+    pos, batch = _packed_batch()
+    captured: Dict[str, torch.Tensor] = {}
+    model.pos_embed.register_forward_hook(lambda module, args, output: captured.__setitem__("pos", output))
+    model.blocks[0].register_forward_pre_hook(lambda module, args: captured.__setitem__("tokens", args[0][:, 1:]))
+
+    model.train()
+    mask = model(None, pos, batch)["mask"]
+    assert mask.shape == (2, 16) and mask.dtype == torch.bool
+    num_masked = mask.sum(dim=1)
+    assert ((num_masked >= 4) & (num_masked <= 7)).all()
+    tokens = captured["tokens"] - captured["pos"]
+    is_mask_token = (tokens - model.mask_token).abs().amax(dim=-1) < 1e-5
+    assert torch.equal(is_mask_token, mask)
+
+    model.eval()
+    assert not model(None, pos, batch)["mask"].any()
 
 
 def test_point_bert_dvae_basic() -> None:

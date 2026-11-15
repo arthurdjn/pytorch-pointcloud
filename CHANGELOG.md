@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the inputs of registered checkpoints: `pointnet2-msg.modelnet40.xu-yan` reads its normals and the DGCNN S3DIS and ScanNet entries read `norm_pos`.
 - Fixed the PointNeXt S3DIS heads to follow `S3DIS_CLASSES` (no `Relabel`).
 - Changed the weightless `pointnext-{sm,base,lg,xl}` segmentation configs to the released architectures, and `PointMambaClassification(dropout=...)` to a token dropout after every block (default 0.0).
 - Fixed the nuScenes evaluation (lidar and radar point filter, ranges from the ego origin, speed threshold 0.2). nuScenes caches must be rebuilt with `force_process=True`.

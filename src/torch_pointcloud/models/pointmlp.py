@@ -436,7 +436,7 @@ class PointMLPDecoder(nn.Module):
         return ResidualFeaturePropagation(
             in_channels=in_channels,
             out_channel=self.channels[index + 1],
-            k=1 if index == 0 else self.spatial_dim,
+            k=self.spatial_dim,
             num_layers=self.depths[index],
             act=self.act,
             act_kwargs=self.act_kwargs,
