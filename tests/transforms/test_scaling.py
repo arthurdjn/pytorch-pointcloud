@@ -1,4 +1,5 @@
 import math
+from typing import Any
 from unittest.mock import sentinel
 
 import pytest
@@ -7,6 +8,7 @@ from torch import Tensor
 
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
+from torch_pointcloud.transforms import scaling
 
 
 def test_rescale_centroid_default() -> None:
@@ -262,3 +264,22 @@ def test_standardize_channels_keeps_the_others() -> None:
     assert torch.equal(out[:, 1], x[:, 1])
     assert torch.allclose(out[:, [0, 2]], torch.tensor([[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0]]), atol=1e-5)
     assert torch.equal(x[:, 0], torch.tensor([0.0, 2.0, 4.0]))
+
+
+def test_minimal_enclosing_ball_sorted_points_stay_linear(monkeypatch: pytest.MonkeyPatch) -> None:
+    torch.manual_seed(0)
+    points = torch.randn(400, 3)
+    points = points[points.norm(dim=1).argsort()]
+
+    calls = []
+    circumsphere = scaling._circumsphere
+
+    def counting_circumsphere(support: Any) -> Any:
+        calls.append(len(support))
+        return circumsphere(support)
+
+    monkeypatch.setattr(scaling, "_circumsphere", counting_circumsphere)
+    center, radius = F.minimal_enclosing_ball(points)
+
+    assert len(calls) < 2 * points.shape[0]
+    assert torch.isclose((points - center).norm(dim=1).max(), radius, atol=1e-5)

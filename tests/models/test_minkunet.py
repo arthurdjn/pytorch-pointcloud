@@ -210,3 +210,23 @@ def test_minkunet_registered_transform_runs_without_labels() -> None:
     assert DataKeys.SEGMENT not in data
     assert data[DataKeys.X].shape == (data[DataKeys.POS_GRID].shape[0], 4)
     assert data[DataKeys.INVERSE].shape == (64,)
+
+
+def test_minkunet_registered_transform_matches_round_half_to_even_cells() -> None:
+    transform = model_info("minkunet18-w32.semantickitti.mmdet3d", task="semantic-segmentation")["transform"]
+    assert transform is not None
+    torch.manual_seed(0)
+    num_points = 20000
+    pos = torch.cat([(torch.rand(num_points, 2) - 0.5) * 160, torch.rand(num_points, 1) * 6 - 4], dim=1)
+    pos = (torch.round(pos.double() / 1e-3) * 1e-3).float()
+    data = transform({DataKeys.POS: pos.clone(), DataKeys.INTENSITY: torch.rand(num_points, 1)})
+
+    cells = torch.round(pos / torch.tensor([0.05, 0.05, 0.05])).long()
+    cells = cells - cells.min(dim=0).values
+    inverse = data[DataKeys.INVERSE]
+    assert torch.equal(data[DataKeys.POS_GRID][inverse], cells)
+
+    first = torch.full((data[DataKeys.POS_GRID].shape[0],), num_points, dtype=torch.long)
+    first = first.scatter_reduce(0, inverse, torch.arange(num_points), reduce="amin")
+    assert torch.equal(data[DataKeys.POS], pos[first])
+    assert torch.equal(data[DataKeys.X][:, :3], pos[first])

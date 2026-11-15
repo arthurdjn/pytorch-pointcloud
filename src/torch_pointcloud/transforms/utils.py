@@ -300,8 +300,10 @@ class RenameItems(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = data.pop(key)
+        renames = list(self.iter_keys(data, self.dst_keys))
+        values = [data.pop(key) for key, _ in renames]
+        for (_, dst_key), value in zip(renames, values):
+            data[dst_key] = value
         return data
 
 

@@ -47,6 +47,7 @@ def _assign_point_blocks(
     sigma_scale: float,
     dims: Optional[Sequence[int]] = None,
     padding: float = 0.0,
+    shift_last_block: bool = False,
 ) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
     r"""Group point indices by the overlapping blocks that contain them.
 
@@ -74,6 +75,8 @@ def _assign_point_blocks(
         dims: Axes (indices into `pos`'s last dim) to tile. `None` tiles every axis (current behavior).
         padding: Extra margin (in `pos` units) added to each block's extent on every
             tiled axis. Useful when a thin boundary of context should be included.
+        shift_last_block: Whether the last block of each tiled axis is shifted back to end at the upper
+            bound of `pos`, so every block spans a full `block_size` of the scene.
 
     Returns:
         `(point_groups, weight_groups, bbox_groups)`: equal-length lists with one
@@ -102,8 +105,16 @@ def _assign_point_blocks(
     lo_full = pos.amin(dim=0)
     hi_full = pos.amax(dim=0)
     lo = pos_tiled.amin(dim=0)
+    extent = pos_tiled.amax(dim=0) - lo
     K = math.ceil((block_size + 2.0 * padding) / step)
-    n_per_dim = (((pos_tiled.amax(dim=0) - lo) / step).ceil().long() + 1).clamp_min(1)
+    last_lo: Optional[Tensor] = None
+    if shift_last_block:
+        # A point of the shifted block also lies in up to K regular blocks below it.
+        K += 1
+        last_lo = lo + (extent - block_size).clamp_min(0)
+        n_per_dim = (((extent - block_size) / step).ceil().long() + 1).clamp_min(1)
+    else:
+        n_per_dim = ((extent / step).ceil().long() + 1).clamp_min(1)
 
     strides = torch.ones(n_tiled, device=pos.device, dtype=torch.long)
     for d in range(n_tiled - 2, -1, -1):
@@ -112,6 +123,7 @@ def _assign_point_blocks(
     point_ids, block_flat, weights = _point_block_pairs(
         pos_tiled,
         lo=lo,
+        last_lo=last_lo,
         step=step,
         block_size=block_size,
         padding=padding,
@@ -130,7 +142,7 @@ def _assign_point_blocks(
 
     # The grid coordinates of each block come back from its flat id.
     block_idx = torch.stack([(unique_flat // strides[j]) % n_per_dim[j] for j in range(n_tiled)], dim=1)
-    block_lo_tiled = lo + block_idx.to(pos.dtype) * step
+    block_lo_tiled = _block_lower_bounds(block_idx, lo=lo, last_lo=last_lo, step=step)
     block_hi_tiled = block_lo_tiled + block_size
     num_blocks = block_idx.size(0)
     bbox_lo = lo_full.expand(num_blocks, -1).clone()
@@ -144,10 +156,20 @@ def _assign_point_blocks(
     return point_groups, weight_groups, bbox_groups
 
 
+def _block_lower_bounds(block_idx: Tensor, *, lo: Tensor, last_lo: Optional[Tensor], step: float) -> Tensor:
+    """Lower bound of the blocks at grid indices `block_idx`, capped at `last_lo` when the last block is shifted."""
+    block_lo = lo + block_idx.to(lo.dtype) * step
+    if last_lo is None:
+        return block_lo
+
+    return torch.minimum(block_lo, last_lo.to(block_lo.dtype))
+
+
 def _point_block_pairs(
     pos_tiled: Tensor,
     *,
     lo: Tensor,
+    last_lo: Optional[Tensor],
     step: float,
     block_size: float,
     padding: float,
@@ -164,13 +186,26 @@ def _point_block_pairs(
     """
     # Block indices are int32: the grids stay far below 2^31 blocks per axis.
     i_hi = ((pos_tiled - lo + padding) / step).floor().to(torch.int32).clamp_min(0)  # (N, D_t)
-    i_hi = torch.minimum(i_hi, (n_per_dim - 1).to(torch.int32))
+    i_last = (n_per_dim - 1).to(torch.int32)
+    i_hi = torch.minimum(i_hi, i_last)
+    if last_lo is not None:
+        i_hi = torch.where(pos_tiled >= last_lo - padding, i_last, i_hi)
     i_lo = (i_hi - num_offsets + 1).clamp_min(0)  # (N, D_t)
 
     masks: List[Tuple[Tensor, Tensor]] = []
     for offsets in itertools.product(range(num_offsets), repeat=pos_tiled.size(1)):
         off = i_lo.new_tensor(offsets)
-        mask = _block_mask(pos_tiled, i_lo, i_hi, off, lo=lo, step=step, block_size=block_size, padding=padding)
+        mask = _block_mask(
+            pos_tiled,
+            i_lo,
+            i_hi,
+            off,
+            lo=lo,
+            last_lo=last_lo,
+            step=step,
+            block_size=block_size,
+            padding=padding,
+        )
         if mask.any():
             masks.append((off, mask))
     bounds = [0] + list(itertools.accumulate(int(mask.sum()) for _, mask in masks))
@@ -182,7 +217,7 @@ def _point_block_pairs(
         block_idx = i_lo[point_ids[start:end]] + off  # (M, D_t)
         block_flat[start:end] = (block_idx.long() * strides).sum(dim=1)
         if mode == "gaussian":
-            centers = lo + (block_size / 2.0) + block_idx.to(pos_tiled.dtype) * step  # (M, D_t)
+            centers = _block_lower_bounds(block_idx, lo=lo, last_lo=last_lo, step=step) + (block_size / 2.0)
             dist = torch.linalg.norm(pos_tiled[point_ids[start:end]] - centers, dim=-1)
             # exp underflows to exactly 0 in float32 beyond ~13 sigma; the floor keeps every
             # covered point at a nonzero blend weight so its predictions survive the division.
@@ -200,6 +235,7 @@ def _block_mask(
     off: Tensor,
     *,
     lo: Tensor,
+    last_lo: Optional[Tensor],
     step: float,
     block_size: float,
     padding: float,
@@ -210,14 +246,18 @@ def _block_mask(
     if not valid.any():
         return valid
 
-    block_lo = lo + i.to(pos_tiled.dtype) * step
+    block_lo = _block_lower_bounds(i, lo=lo, last_lo=last_lo, step=step)
     # Blocks are half-open at the top so a no-overlap tiling predicts every point exactly once and the
     # membership test agrees with the K = ceil(width / step) enumeration when width is a step multiple.
     # The float bound test alone is not enough: on grid-aligned coordinates `(p - lo) / step` can round
     # across an integer in fp32, landing `p` exactly on a bound of its own `i_hi` block on either side.
     # Membership of that block is forced by index identity so every point keeps at least one block.
-    inside = ((pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)).all(dim=1)
-    inside |= (i == i_hi).all(dim=1)
+    within = (pos_tiled >= block_lo - padding) & (pos_tiled < block_lo + block_size + padding)  # (N, D_t)
+    if last_lo is None:
+        inside = within.all(dim=1) | (i == i_hi).all(dim=1)
+    else:
+        # A shifted last block ends on the upper bound of the cloud, which it contains on that axis.
+        inside = (within | (i == i_hi)).all(dim=1)
     return valid & inside
 
 
@@ -277,6 +317,7 @@ def sliding_window_inference(
     transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     dims: Optional[Sequence[int]] = None,
     padding: float = 0.0,
+    shift_last_block: bool = False,
     cloud_keys: KeyCollection = (),
     pos_key: str = DataKeys.POS,
     batch_key: str = DataKeys.BATCH,
@@ -308,7 +349,7 @@ def sliding_window_inference(
             the first call.
         block_size: Side length of each cubic block, in the same units as
             `data[pos_key]`. `None` makes every cloud a single block, and then
-            `overlap`, `mode`, `dims` and `padding` must keep their defaults.
+            `overlap`, `mode`, `dims`, `padding` and `shift_last_block` must keep their defaults.
         overlap: Fraction of `block_size` shared between adjacent blocks, in
             $[0, 1)$. `0.0` gives a strict non-overlapping partition;
             `0.5` means adjacent block centers are spaced half a block apart.
@@ -357,6 +398,9 @@ def sliding_window_inference(
             the third axis spanning the full scene height.
         padding: Extra margin (in `pos` units) extending each block's membership
             on every tiled axis. Useful for including a thin context guard band.
+        shift_last_block: Whether the last block of each tiled axis is shifted back to end at the
+            upper bound of the cloud, so every block spans a full `block_size` instead of the border
+            blocks being truncated (the PointNet++ scene tiling). The shifted block overlaps its neighbor.
         cloud_keys: Keys of per-cloud tensors of shape $(B, \ldots)$, such as a
             one-hot `category` or a `label`. Every element of cloud $b$ gets row
             $b$, of shape $(1, \ldots)$, which collation concatenates once per element.
@@ -414,10 +458,12 @@ def sliding_window_inference(
     if padding < 0.0:
         raise ValueError(f"`padding` must be >= 0, got {padding}.")
 
-    if block_size is None and (overlap != 0.0 or mode != "constant" or dims is not None or padding != 0.0):
+    if block_size is None and (
+        overlap != 0.0 or mode != "constant" or dims is not None or padding != 0.0 or shift_last_block
+    ):
         raise ValueError(
-            "`block_size=None` predicts each cloud as one block: `overlap`, `mode`, `dims` and `padding` need a "
-            "`block_size`."
+            "`block_size=None` predicts each cloud as one block: `overlap`, `mode`, `dims`, `padding` and "
+            "`shift_last_block` need a `block_size`."
         )
 
     pos = data[pos_key]
@@ -454,6 +500,7 @@ def sliding_window_inference(
                 sigma_scale=sigma_scale,
                 dims=dims,
                 padding=padding,
+                shift_last_block=shift_last_block,
             )
 
         scores_b: Optional[Tensor] = None
@@ -591,6 +638,7 @@ class SlidingWindowInferer(Inferer):
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
         dims: Optional[Sequence[int]] = None,
         padding: float = 0.0,
+        shift_last_block: bool = False,
         cloud_keys: KeyCollection = (),
         pos_key: str = DataKeys.POS,
         batch_key: str = DataKeys.BATCH,
@@ -610,6 +658,7 @@ class SlidingWindowInferer(Inferer):
         self.transform = transform
         self.dims = dims
         self.padding = padding
+        self.shift_last_block = shift_last_block
         self.cloud_keys = cloud_keys
         self.pos_key = pos_key
         self.batch_key = batch_key
@@ -640,6 +689,7 @@ class SlidingWindowInferer(Inferer):
             transform=self.transform,
             dims=self.dims,
             padding=self.padding,
+            shift_last_block=self.shift_last_block,
             cloud_keys=self.cloud_keys,
             pos_key=self.pos_key,
             batch_key=self.batch_key,

@@ -760,33 +760,7 @@ class RandLANetSegmentation(SemanticSegmentationModel):
         [
             T.Relabel(
                 keys=DataKeys.SEGMENT,
-                labels={
-                    10: 0,  # car
-                    252: 0,  # moving-car
-                    11: 1,  # bicycle
-                    15: 2,  # motorcycle
-                    18: 3,  # truck
-                    258: 3,  # moving-truck
-                    20: 4,  # other-vehicle
-                    259: 4,  # moving-other-vehicle
-                    30: 5,  # person
-                    254: 5,  # moving-person
-                    31: 6,  # bicyclist
-                    253: 6,  # moving-bicyclist
-                    32: 7,  # motorcyclist
-                    255: 7,  # moving-motorcyclist
-                    40: 8,  # road
-                    44: 9,  # parking
-                    48: 10,  # sidewalk
-                    49: 11,  # other-ground
-                    50: 12,  # building
-                    51: 13,  # fence
-                    70: 14,  # vegetation
-                    71: 15,  # trunk
-                    72: 16,  # terrain
-                    80: 17,  # pole
-                    81: 18,  # traffic-sign
-                },
+                labels=SEMANTIC_KITTI_LEARNING_MAP,
                 default=255,
             ),
             T.CopyItems(

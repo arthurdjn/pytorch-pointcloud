@@ -13,6 +13,7 @@ from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 from .base import DictTransform
 
 ShiftMethod = Literal["bbox", "centroid", "min"]
+QuantizeRounding = Literal["floor", "nearest"]
 
 
 __all__ = [
@@ -350,7 +351,7 @@ class BBoxCenter(DictTransform):
         return data
 
 
-def quantize(pos: Tensor, size: float) -> Tensor:
+def quantize(pos: Tensor, size: float, rounding: QuantizeRounding = "floor") -> Tensor:
     r"""Integer voxel-grid coordinates of every point, without reducing the cloud.
 
     Each point maps to $\lfloor p / s \rfloor$ shifted so the per-axis minimum is $0$; points sharing a voxel
@@ -361,6 +362,7 @@ def quantize(pos: Tensor, size: float) -> Tensor:
     Args:
         pos: Point positions of shape $(N, D)$.
         size: Voxel side length in the units of `pos`.
+        rounding: How $p / s$ becomes an integer: `floor` (the default) or `nearest`, which rounds halves to even.
 
     Returns:
         Long tensor of shape $(N, D)$ (empty input returns an empty $(0, D)$ tensor).
@@ -377,7 +379,11 @@ def quantize(pos: Tensor, size: float) -> Tensor:
     if size <= 0.0:
         raise ValueError(f"`size` must be > 0, got {size}.")
 
-    pos_grid = torch.floor(pos / size).long()
+    if rounding not in get_args(QuantizeRounding):
+        raise ValueError(f"Invalid rounding: {rounding!r}. Expected one of {get_args(QuantizeRounding)}.")
+
+    scaled = pos / size
+    pos_grid = torch.round(scaled).long() if rounding == "nearest" else torch.floor(scaled).long()
     if pos_grid.shape[0] == 0:
         return pos_grid
     return pos_grid - pos_grid.min(dim=0).values
@@ -405,6 +411,7 @@ class Quantize(DictTransform):
         size: Voxel side length in the units of the positions.
         dst_keys: Keys under which the grid coordinates are stored. Defaults to `keys` (in-place overwrite).
         allow_missing_keys: If `True`, missing keys are skipped.
+        rounding: How $p / s$ becomes an integer: `floor` (the default) or `nearest`, which rounds halves to even.
 
     Example:
         ```python
@@ -423,18 +430,23 @@ class Quantize(DictTransform):
         size: float,
         dst_keys: Optional[KeyCollection] = None,
         allow_missing_keys: bool = False,
+        rounding: QuantizeRounding = "floor",
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         if size <= 0.0:
             raise ValueError(f"`size` must be > 0, got {size}.")
 
+        if rounding not in get_args(QuantizeRounding):
+            raise ValueError(f"Invalid rounding: {rounding!r}. Expected one of {get_args(QuantizeRounding)}.")
+
         self.size = size
+        self.rounding = rounding
         self.dst_keys = ensure_tuple_size(dst_keys, len(self.keys)) if dst_keys is not None else self.keys
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
-            data[dst_key] = quantize(data[key], self.size)
+            data[dst_key] = quantize(data[key], self.size, rounding=self.rounding)
         return data
 
 
@@ -570,6 +582,24 @@ def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] 
     return R
 
 
+def _cast_like(value: Tensor, x: Tensor) -> Tensor:
+    """Move `value` to the device and dtype of `x`, except that a floating point `value` is never made integer.
+
+    Next to an integer `x`, a floating point `value` keeps its own dtype, so their sum or product is promoted to
+    floating point instead of the value being truncated.
+
+    Args:
+        value: The parameter of a transform, such as an offset, a scale or a rotation.
+        x: The tensor the parameter is applied to.
+
+    Returns:
+        `value` on the device of `x`, in the dtype of `x` unless `value` is floating point and `x` is not.
+    """
+    if value.is_floating_point() and not x.is_floating_point():
+        return value.to(x.device)
+    return value.to(x)
+
+
 def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
     r"""Rotate a packed field of 3D vectors by a rotation matrix.
 
@@ -584,8 +614,9 @@ def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
     Returns:
         The rotated tensor with the same shape as `x`.
     """
+    rotation = _cast_like(rotation, x)
     triples = x.reshape(*x.shape[:-1], x.shape[-1] // 3, 3)
-    triples = triples @ rotation.to(x).transpose(-1, -2)
+    triples = triples.to(rotation.dtype) @ rotation.transpose(-1, -2)
     return triples.reshape(x.shape)
 
 
@@ -601,6 +632,10 @@ class Translate(DictTransform):
         offset: Offset added to every row, a scalar or one value per channel of the last dimension.
         dst_keys: The keys to store the translated data in.
         allow_missing_keys: If `True`, skip missing keys silently.
+
+    Note:
+        The output dtype follows the type of `offset`, not its value: on integer data, `offset=1` keeps the data
+        integer and `offset=1.0` promotes it to floating point.
 
     Example:
         ```python
@@ -618,14 +653,14 @@ class Translate(DictTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.offset = torch.as_tensor(offset, dtype=torch.float32)
+        self.offset = torch.as_tensor(offset)
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            data[dst_key] = x + self.offset.to(device=x.device, dtype=x.dtype)
+            data[dst_key] = x + _cast_like(self.offset, x)
         return data
 
     def extra_repr(self) -> str:

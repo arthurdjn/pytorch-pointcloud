@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from unittest.mock import Mock
@@ -766,3 +767,94 @@ def test_sliding_window_non_representable_grid_covers_every_point_exactly_once()
     out = sliding_window_inference(data, predictor=predictor, block_size=1.0, overlap=0.0, softmax=False)
     assert torch.allclose(out, torch.ones_like(out))
     assert torch.equal(counts, torch.ones_like(counts))
+
+
+@pytest.mark.parametrize(
+    "extent,block_size,overlap,padding",
+    [
+        pytest.param((10.0, 7.3, 3.0), 1.0, 0.5, 0.001, id="half-overlap-padded"),
+        pytest.param((6.2, 4.9, 3.0), 1.0, 0.5, 0.0, id="half-overlap"),
+        pytest.param((5.3, 2.0, 3.0), 2.0, 0.0, 0.0, id="no-overlap"),
+        pytest.param((0.6, 3.1, 3.0), 1.0, 0.25, 0.0, id="axis-shorter-than-block"),
+        pytest.param((7.7, 4.4, 3.0), 1.5, 0.7, 0.01, id="dense-overlap-padded"),
+    ],
+)
+def test_sliding_window_shift_last_block_tiles_full_blocks_up_to_the_bounds(
+    extent: Tuple[float, float, float], block_size: float, overlap: float, padding: float
+) -> None:
+    torch.manual_seed(0)
+    pos = torch.rand(4000, 3, dtype=torch.float64) * torch.tensor(extent, dtype=torch.float64)
+    step = block_size * (1.0 - overlap)
+    point_groups, _, bbox_groups = _assign_point_blocks(
+        pos,
+        block_size=block_size,
+        overlap=overlap,
+        mode="constant",
+        sigma_scale=0.125,
+        dims=(0, 1),
+        padding=padding,
+        shift_last_block=True,
+    )
+
+    lo = pos.amin(dim=0)
+    hi = pos.amax(dim=0)
+    num_x = max(math.ceil((hi[0] - lo[0] - block_size) / step) + 1, 1)
+    num_y = max(math.ceil((hi[1] - lo[1] - block_size) / step) + 1, 1)
+    expected = set()
+    for index_x in range(num_x):
+        for index_y in range(num_y):
+            start_x = min(lo[0] + index_x * step, max(hi[0] - block_size, lo[0]))
+            start_y = min(lo[1] + index_y * step, max(hi[1] - block_size, lo[1]))
+            inside_x = (pos[:, 0] >= start_x - padding) & (pos[:, 0] < start_x + block_size + padding)
+            inside_y = (pos[:, 1] >= start_y - padding) & (pos[:, 1] < start_y + block_size + padding)
+            inside_x |= (index_x == num_x - 1) & (pos[:, 0] == hi[0])
+            inside_y |= (index_y == num_y - 1) & (pos[:, 1] == hi[1])
+            inside = inside_x & inside_y
+            if inside.any():
+                expected.add(tuple(inside.nonzero().flatten().tolist()))
+
+    blocks = {tuple(sorted(point_ids.tolist())) for point_ids in point_groups}
+    assert blocks == expected
+    for bbox in bbox_groups:
+        assert torch.allclose(bbox[3:5] - bbox[0:2], torch.full((2,), block_size, dtype=bbox.dtype))
+        assert (bbox[3:5] <= torch.maximum(hi[:2], lo[:2] + block_size) + 1e-9).all()
+
+
+def test_sliding_window_shift_last_block_leaves_no_truncated_border_block() -> None:
+    torch.manual_seed(0)
+    num_points = 20000
+    pos = torch.rand(num_points, 3) * torch.tensor([10.0, 7.3, 3.0])
+    full_block = num_points / (10.0 * 7.3)
+
+    sizes = {}
+    for shift_last_block in (False, True):
+        point_groups, _, _ = _assign_point_blocks(
+            pos,
+            block_size=1.0,
+            overlap=0.5,
+            mode="constant",
+            sigma_scale=0.125,
+            dims=(0, 1),
+            shift_last_block=shift_last_block,
+        )
+        sizes[shift_last_block] = torch.tensor([point_ids.numel() for point_ids in point_groups])
+
+    assert (sizes[False] < 0.5 * full_block).any()
+    assert (sizes[True] > 0.5 * full_block).all()
+
+
+def test_sliding_window_shift_last_block_keeps_integer_and_gaussian_predictions() -> None:
+    torch.manual_seed(0)
+    data: Dict[str, Any] = {
+        DataKeys.POS: torch.randint(0, 37, (600, 3)),
+        DataKeys.BATCH: torch.zeros(600, dtype=torch.long),
+    }
+    out = sliding_window_inference(
+        data,
+        predictor=_constant_predictor(1.0, num_classes=2),
+        block_size=8,
+        overlap=0.25,
+        mode="gaussian",
+        shift_last_block=True,
+    )
+    assert torch.allclose(out, torch.ones_like(out))

@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from torch_pointcloud.utils.random import max_seed_value, min_seed_value, seed_everything
+from torch_pointcloud.utils.random import generator_device, max_seed_value, min_seed_value, seed_everything
 
 
 def test_seed_everything() -> None:
@@ -50,3 +50,12 @@ def test_seed_everything_different_seeds_give_different_draws() -> None:
 def test_seed_everything_none_picks_valid_seed() -> None:
     seed = seed_everything(None)
     assert min_seed_value <= seed <= max_seed_value
+
+
+def test_generator_device_without_generator_is_the_target_device() -> None:
+    assert generator_device(None, torch.device("meta")) == torch.device("meta")
+
+
+def test_generator_device_is_the_device_of_the_generator() -> None:
+    generator = torch.Generator(device="cpu")
+    assert generator_device(generator, torch.device("meta")) == torch.device("cpu")

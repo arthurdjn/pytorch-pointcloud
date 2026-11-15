@@ -77,8 +77,10 @@ def minimal_enclosing_ball(points: Tensor) -> Tuple[Tensor, Tensor]:
     if points.dim() != 2 or points.shape[0] == 0:
         raise ValueError(f"Expected a non-empty (N, C) tensor, got shape {tuple(points.shape)}.")
 
-    rows = list(points.detach().to("cpu", torch.float64))
-    center, radius = _welzl(rows, [], points.shape[1])
+    rows = points.detach().to("cpu", torch.float64)
+    # Welzl's expected linear time holds for a random order: sorted points make it quadratic or worse.
+    order = torch.randperm(rows.shape[0], generator=torch.Generator().manual_seed(0))
+    center, radius = _welzl(list(rows[order]), [], points.shape[1])
     return center.to(points.device, points.dtype), radius.to(points.device, points.dtype)
 
 

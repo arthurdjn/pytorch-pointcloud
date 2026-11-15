@@ -425,16 +425,19 @@ def _semantickitti_transform(learning_map: Dict[int, int]) -> T.Compose:
                 dst_keys=[DataKeys.ORIGIN_POS, DataKeys.ORIGIN_SEGMENT],
                 allow_missing_keys=True,
             ),
-            # The checkpoints round the coordinates to the grid: shifting by half a voxel turns the floor of
-            # `Voxelize` into a round.
-            T.Translate(keys=DataKeys.POS, offset=_SEMANTICKITTI_VOXEL_SIZE / 2),
-            T.Voxelize(
-                pos_key=DataKeys.POS,
-                pos_reduce="first",
-                dst_pos_grid_key=DataKeys.POS_GRID,
-                keys=[DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
-                reduce="first",
+            # The checkpoints round the coordinates to the grid, then keep the first point of every cell.
+            T.Quantize(
+                keys=DataKeys.POS,
                 size=_SEMANTICKITTI_VOXEL_SIZE,
+                dst_keys=DataKeys.POS_GRID,
+                rounding="nearest",
+            ),
+            T.Voxelize(
+                pos_key=DataKeys.POS_GRID,
+                pos_reduce="first",
+                keys=[DataKeys.POS, DataKeys.X, DataKeys.SEGMENT, DataKeys.INTENSITY, DataKeys.INSTANCE],
+                reduce="first",
+                size=1.0,
                 allow_missing_keys=True,
                 dst_inverse_key=DataKeys.INVERSE,
             ),
