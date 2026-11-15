@@ -3,6 +3,7 @@
 {{ paper("s3dis-2016") }}
 """
 
+import io
 import math
 import re
 from collections import defaultdict
@@ -116,15 +117,9 @@ def load_s3dis_object(file_path: PathLike) -> np.ndarray:
     Returns:
         The object's points $(N, 6)$ as `x y z r g b`.
     """
-    try:
-        return np.loadtxt(file_path, dtype=np.float32, delimiter=" ")
-    except ValueError:
-        text = Path(file_path).read_text()
-        if "\x00" not in text:
-            raise
-
-    lines = text.replace("\x00", " ").splitlines()
-    return np.loadtxt(lines, dtype=np.float32, delimiter=" ")
+    content = Path(file_path).read_bytes()
+    content = content.replace(b"\x00", b" ")
+    return np.loadtxt(io.BytesIO(content), dtype=np.float32, delimiter=" ")
 
 
 def load_s3dis_room(room_dir: PathLike, alignment_angle: float | None = None) -> S3DISRoomData:

@@ -1,7 +1,6 @@
 # mypy: disable-error-code="arg-type,call-overload"
 import json
 import math
-import os
 import shutil
 import zipfile
 from pathlib import Path
@@ -19,7 +18,6 @@ from torch_pointcloud.datasets.sunrgbd import (
     SUNRGBD_CLASSES,
     SUNRGBD_MEAN_SIZES,
     decode_depth,
-    open_release_zip,
     parse_boxes,
     rebase_sequence,
     unproject,
@@ -454,38 +452,43 @@ def test_sunrgbd_incomplete_cache_is_not_stamped(
     assert not meta_path.exists()
 
 
-def test_sunrgbd_dataset_process_opens_release_archive_once(datasets_dir_factory: Callable[..., Path]) -> None:
+def test_sunrgbd_dataset_process_opens_release_archive_once_and_closes_it(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
     datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
 
     opened = []
     zip_file_cls = zipfile.ZipFile
 
-    def counting_zip_file(path: Any, *args: Any, **kwargs: Any) -> zipfile.ZipFile:
-        opened.append(Path(path).name)
-        return zip_file_cls(path, *args, **kwargs)
+    def recording_zip_file(path: Any, *args: Any, **kwargs: Any) -> zipfile.ZipFile:
+        archive = zip_file_cls(path, *args, **kwargs)
+        opened.append(archive)
+        return archive
 
-    with patch("torch_pointcloud.datasets.sunrgbd.zipfile.ZipFile", counting_zip_file):
+    with patch("torch_pointcloud.datasets.sunrgbd.zipfile.ZipFile", recording_zip_file):
         dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False)
 
     assert len(dataset) == 3
-    assert opened.count("SUNRGBD.zip") == 1
+    release_archives = [archive for archive in opened if Path(str(archive.filename)).name == "SUNRGBD.zip"]
+    assert len(release_archives) == 1
+    assert release_archives[0].fp is None
 
 
-def test_open_release_zip_reopens_a_replaced_archive(tmp_path: Path) -> None:
-    archive_path = tmp_path / "SUNRGBD.zip"
-    with zipfile.ZipFile(archive_path, "w") as archive:
-        archive.writestr("scene.txt", "first")
-    first = open_release_zip(archive_path.as_posix(), os.getpid())
-    assert open_release_zip(archive_path.as_posix(), os.getpid()) is first
+def test_sunrgbd_dataset_parallel_process_matches_sequential(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+    file_names = ("pos.npy", "color.npy", "box.npy", "class.npy")
 
-    replacement_path = tmp_path / "replacement.zip"
-    with zipfile.ZipFile(replacement_path, "w") as archive:
-        archive.writestr("scene.txt", "second archive")
-    replacement_path.replace(archive_path)
+    sequential = SunRGBD(root=datasets_dir, train=False, show_progress=False)
+    expected = {
+        (scene.name, name): Path(scene, name).read_bytes() for scene in sequential.scenes for name in file_names
+    }
+    shutil.rmtree(sequential.processed_dir)
 
-    second = open_release_zip(archive_path.as_posix(), os.getpid())
-    assert second.read("scene.txt") == b"second archive"
-    assert first.fp is None
+    parallel = SunRGBD(root=datasets_dir, train=False, show_progress=False, num_workers=2)
+    written = {(scene.name, name): Path(scene, name).read_bytes() for scene in parallel.scenes for name in file_names}
+
+    assert len(parallel) == 3
+    assert written == expected
 
 
 def test_sunrgbd_mean_sizes_have_one_template_per_class() -> None:

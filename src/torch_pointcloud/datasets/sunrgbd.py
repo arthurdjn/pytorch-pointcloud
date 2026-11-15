@@ -6,16 +6,17 @@
 
 import io
 import math
-import os
 import zipfile
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import scipy.io as sio
 import torch
+from joblib import effective_n_jobs
 from PIL import Image
+from tqdm import tqdm
 from typing_extensions import override
 
 from torch_pointcloud.utils.data import DataKeys
@@ -218,33 +219,6 @@ def parse_boxes(gt: Any, class_to_idx: Dict[str, int]) -> np.ndarray:
     return np.stack(rows, axis=0)
 
 
-_RELEASE_ZIP_CACHE: Dict[Tuple[str, int, int, int, int], zipfile.ZipFile] = {}
-
-
-def open_release_zip(path: str, process_id: int) -> zipfile.ZipFile:
-    """Open the release archive once per process, so its member index is parsed a single time.
-
-    Args:
-        path: Path to the `SUNRGBD.zip` release archive.
-        process_id: Id of the calling process, so a forked worker never shares its parent's file handle.
-
-    Returns:
-        The opened archive, kept open until another archive is opened or the file at `path` changes.
-    """
-    stat = os.stat(path)
-    key = (path, process_id, stat.st_ino, stat.st_size, stat.st_mtime_ns)
-    release_zip = _RELEASE_ZIP_CACHE.get(key)
-    if release_zip is not None:
-        return release_zip
-
-    for stale_zip in _RELEASE_ZIP_CACHE.values():
-        stale_zip.close()
-    _RELEASE_ZIP_CACHE.clear()
-    release_zip = zipfile.ZipFile(path)
-    _RELEASE_ZIP_CACHE[key] = release_zip
-    return release_zip
-
-
 class SunRGBD(PointCloudDataset):
     r"""The SUN RGB-D dataset for 3D object detection, as described in the paper
     :arxiv: [SUN RGB-D: A RGB-D Scene Understanding Benchmark Suite](https://openaccess.thecvf.com/content_cvpr_2015/html/Song_SUN_RGB-D_A_2015_CVPR_paper.html).
@@ -443,25 +417,43 @@ class SunRGBD(PointCloudDataset):
         meta = self.read_meta()
         records = [(sid, meta[sid], split_dir.as_posix()) for sid in sequences if sid in meta]
 
+        desc = f"Processing {self._split}"
+        if not num_workers:
+            self.process_scenes(tqdm(records, desc=desc, disable=not show_progress))
+            return True
+
+        num_chunks = effective_n_jobs(num_workers)
+        chunks = [records[worker::num_chunks] for worker in range(num_chunks)]
         parallel_map(
-            self.process_scene,
-            records,
+            self.process_scenes,
+            chunks,
             num_workers=num_workers,
-            total=len(records),
-            desc=f"Processing {self._split}",
+            total=len(chunks),
+            desc=desc,
             show_progress=show_progress,
         )
 
         return True
 
-    def process_scene(self, args: Tuple[str, Any, str]) -> None:
+    def process_scenes(self, records: Iterable[Tuple[str, Any, str]]) -> None:
+        """Process a run of scenes, reading them from the release archive opened once for the whole run.
+
+        Args:
+            records: Per scene, its sequence id, its metadata struct, and the split directory to write into.
+        """
+        with zipfile.ZipFile(self.release_zip_path) as release_zip:
+            for record in records:
+                self.process_scene(record, release_zip)
+
+    def process_scene(self, args: Tuple[str, Any, str], release_zip: zipfile.ZipFile) -> None:
         """Unproject one scene and write its packed `pos` / `color` / `box` / `class` arrays.
 
         Args:
             args: The scene's sequence id, its metadata struct, and the split directory to write into.
+            release_zip: The opened `SUNRGBD.zip` release archive.
         """
         sequence_id, entry, split_dir = args
-        pos, colors = self.read_scene_cloud(entry)
+        pos, colors = self.read_scene_cloud(entry, release_zip)
         boxes = parse_boxes(entry.groundtruth3DBB, self.class_to_idx)
         classes = np.asarray(boxes[:, 7], dtype=np.int64)
 
@@ -473,19 +465,19 @@ class SunRGBD(PointCloudDataset):
             np.save(Path(tmp_dir, "box.npy"), boxes)
             np.save(Path(tmp_dir, "class.npy"), classes)
 
-    def read_scene_cloud(self, entry: Any) -> Tuple[np.ndarray, np.ndarray]:
+    def read_scene_cloud(self, entry: Any, release_zip: zipfile.ZipFile) -> Tuple[np.ndarray, np.ndarray]:
         r"""Unproject one scene's depth and RGB images into a colored point cloud.
 
         Args:
             entry: The scene's metadata struct, holding the image paths, the intrinsics `K` and the
                 upright rotation `Rtilt`.
+            release_zip: The opened `SUNRGBD.zip` release archive.
 
         Returns:
             The upright points $(N, 3)$ and their RGB colors $(N, 3)$, with the zero-depth pixels dropped.
         """
         depth_member = f"SUNRGBD/{rebase_sequence(str(entry.depthpath))}"
         rgb_member = f"SUNRGBD/{rebase_sequence(str(entry.rgbpath))}"
-        release_zip = open_release_zip(self.release_zip_path, os.getpid())
         depth_png = np.array(Image.open(io.BytesIO(release_zip.read(depth_member))))
         rgb_image = Image.open(io.BytesIO(release_zip.read(rgb_member)))
         rgb = np.array(rgb_image.convert("RGB"))

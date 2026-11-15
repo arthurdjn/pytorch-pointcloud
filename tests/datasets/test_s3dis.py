@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pytest
 import torch
 
@@ -14,6 +15,7 @@ from torch_pointcloud.datasets.s3dis import (
     S3DIS_CLASSES,
     S3DIS_DETECTION_CLASSES,
     S3DIS_DETECTION_LABELS,
+    load_s3dis_object,
     load_s3dis_room,
     tile_s3dis_room,
 )
@@ -729,3 +731,28 @@ def test_load_s3dis_room_reads_nul_byte_as_separator(datasets_dir: Path) -> None
 
     assert torch.equal(data["pos"], expected["pos"])
     assert torch.equal(data["color"], expected["color"])
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("1.5 2.0 3.0 10 20 30\n4.0 5.0 6.5 40 50 60\n", id="clean"),
+        pytest.param("1.5 2.0 3.0 10 20\x0030\n4.0\x005.0 6.5 40 50 60\n", id="nul-separators"),
+    ],
+)
+def test_load_s3dis_object_reads_the_same_points_with_or_without_nul_bytes(tmp_path: Path, content: str) -> None:
+    object_path = tmp_path / "chair_1.txt"
+    object_path.write_text(content)
+
+    points = load_s3dis_object(object_path)
+
+    assert points.dtype == np.float32
+    assert points.tolist() == [[1.5, 2.0, 3.0, 10.0, 20.0, 30.0], [4.0, 5.0, 6.5, 40.0, 50.0, 60.0]]
+
+
+def test_load_s3dis_object_raises_on_a_malformed_value(tmp_path: Path) -> None:
+    object_path = tmp_path / "chair_1.txt"
+    object_path.write_text("1.5 2.0 3.0 10 20 3x0\n")
+
+    with pytest.raises(ValueError):
+        load_s3dis_object(object_path)
