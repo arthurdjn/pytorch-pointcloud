@@ -300,8 +300,8 @@ class SemanticKITTI(PointCloudDataset):
         To map raw labels onto the 19-class benchmark, compose a `Relabel` transform with
         `SEMANTIC_KITTI_LEARNING_MAP`, the official `semantic-kitti-api` learning map (bus and
         on-rails merge into other-vehicle, lane-marking into road). Checkpoints trained with
-        another map register their own: `randlanet.semantickitti.tsung-han-wu` sends those
-        three classes to the ignore index.
+        another map register their own: `SEMANTIC_KITTI_UNMERGED_LEARNING_MAP` sends those three
+        classes to the ignore index.
 
         ```python
         import torch_pointcloud.transforms as T

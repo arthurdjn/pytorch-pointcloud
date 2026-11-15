@@ -363,3 +363,14 @@ def test_read_state_dict_allows_numpy_1_scalars(tmp_path: Path) -> None:
             target.writestr(item, content)
 
     assert torch.equal(read_state_dict(path)["weight"], torch.ones(2))
+
+
+def test_load_state_dict_missing_keys_error_leaves_the_model_unchanged() -> None:
+    model = nn.Sequential(nn.Linear(3, 4), nn.Linear(4, 2))
+    expected = {key: value.clone() for key, value in model.state_dict().items()}
+
+    with pytest.raises(RuntimeError, match="missing model keys"):
+        load_state_dict(model, {"0.weight": torch.zeros(4, 3)}, source="partial.ckpt")
+
+    for key, value in model.state_dict().items():
+        assert torch.equal(value, expected[key])

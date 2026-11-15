@@ -27,6 +27,9 @@ class RepeatDataset(Dataset):
         return len(self.dataset) * self.k  # type: ignore[arg-type]
 
     def __getitem__(self, index: int) -> Any:
+        if not -len(self) <= index < len(self):
+            raise IndexError(f"Index {index} is out of range for a dataset of length {len(self)}.")
+
         return self.dataset[index % len(self.dataset)]  # type: ignore[arg-type]
 
 

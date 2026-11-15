@@ -60,7 +60,9 @@ class DataKeys(StrEnum):
     BOX_INDEX = "box_index"
     VELOCITY = "velocity"
     NUM_POINTS = "num_points"
+    NUM_RADAR_POINTS = "num_radar_points"
     ATTRIBUTE = "attribute"
+    EGO_POS = "ego_pos"
     TRUNCATION = "truncation"
     OCCLUSION = "occlusion"
     BBOX_HEIGHT = "bbox_height"
@@ -361,7 +363,10 @@ def seed_worker(worker_id: int) -> None:
     """
     info = get_worker_info()
     if info is not None:
-        set_random_states(info.dataset, seed=info.seed)
+        # Worker seeds are consecutive: a draw from each spreads them, so the seeds of two workers' objects differ.
+        generator = torch.Generator().manual_seed(info.seed)
+        seed = int(torch.randint(2**62, (1,), generator=generator).item())
+        set_random_states(info.dataset, seed=seed)
 
 
 def _worker_init_fn(worker_init_fn: Optional[Callable[[int], None]], worker_id: int) -> None:

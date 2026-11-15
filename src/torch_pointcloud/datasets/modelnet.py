@@ -24,6 +24,7 @@ from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
 from .utils import (
+    atomic_path,
     compute_hash,
     download_url,
     extract_tar,
@@ -125,6 +126,20 @@ def load_modelnet_normal_resampled_data(file_path: PathLike, target: int) -> Dic
         DataKeys.NORMAL: torch.from_numpy(data[:, 3:]).float(),
         DataKeys.LABEL: torch.tensor(target, dtype=torch.long),
     }
+
+
+def is_archive_metadata(file_path: PathLike, raw_dir: PathLike) -> bool:
+    """Whether a raw file is a macOS resource fork stored by the archive rather than a mesh.
+
+    Args:
+        file_path: Path to a file under `raw_dir`.
+        raw_dir: The raw dataset directory.
+
+    Returns:
+        `True` for a file under a `__MACOSX` directory or named `._*`.
+    """
+    relative_path = Path(file_path).relative_to(raw_dir)
+    return "__MACOSX" in relative_path.parts or relative_path.name.startswith("._")
 
 
 class _ModelNet(PointCloudDataset):
@@ -230,7 +245,8 @@ class _ModelNet(PointCloudDataset):
                 f"and extract it under {self.raw_dir!r}."
             )
 
-        file_paths = sorted(list(Path(self.raw_dir).rglob(f"**/{self._split}/*.off")))
+        split_paths = Path(self.raw_dir).rglob(f"**/{self._split}/*.off")
+        file_paths = sorted(path for path in split_paths if not is_archive_metadata(path, self.raw_dir))
 
         pbar = tqdm(file_paths, desc="Processing", disable=not show_progress)
         func = partial(self._process_data, class_to_idx=self.class_to_idx)
@@ -239,9 +255,8 @@ class _ModelNet(PointCloudDataset):
 
         dst_path = Path(self.processed_dir, f"{self._split}.pt")
         dst_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = dst_path.with_name(dst_path.name + ".tmp")
-        torch.save(data_list, tmp_path)
-        tmp_path.replace(dst_path)
+        with atomic_path(dst_path) as tmp_path:
+            torch.save(data_list, tmp_path)
         return True
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:
@@ -495,9 +510,8 @@ class ModelNetNormalResampled(PointCloudDataset):
 
         dst_path = Path(self.processed_dir, f"modelnet{self.variant}_{self._split}.dat")
         dst_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = dst_path.with_name(dst_path.name + ".tmp")
-        torch.save(data_list, tmp_path)
-        tmp_path.replace(dst_path)
+        with atomic_path(dst_path) as tmp_path:
+            torch.save(data_list, tmp_path)
         return True
 
     def _process_data(self, file_path: PathLike, class_to_idx: Dict[str, int]) -> Optional[Dict[str, Any]]:

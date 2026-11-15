@@ -1018,3 +1018,18 @@ def test_modelnet_normal_resampled_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(ModelNetNormalResampled, "write_processed_files", incomplete)
     ModelNetNormalResampled(root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_modelnet_dataset_process_ignores_archive_metadata(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
+    raw_dir = datasets_dir / "ModelNet10" / "raw"
+    mesh_paths = sorted(raw_dir.rglob("test/*.off"))
+    mesh_path = mesh_paths[0]
+    resource_fork = b"\x00\x05\x16\x07\x00\x02\x00\x00Mac OS X        "
+    macosx_path = raw_dir / "__MACOSX" / mesh_path.relative_to(raw_dir).parent / f"._{mesh_path.name}"
+    macosx_path.parent.mkdir(parents=True)
+    macosx_path.write_bytes(resource_fork)
+    mesh_path.with_name(f"._{mesh_path.name}").write_bytes(resource_fork)
+
+    dataset = ModelNet10(root=datasets_dir, train=False, show_progress=False)
+    assert len(dataset) == len(mesh_paths)
