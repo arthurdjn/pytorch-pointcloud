@@ -1,11 +1,13 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from unittest.mock import patch
 
 import pytest
 import torch
+import torch.nn.functional as F
 
-from torch_pointcloud.models.octformer import OctFormerBlock, OctFormerClassification, OctFormerSegmentation
+from torch_pointcloud.models.octformer import CPE, OctFormerBlock, OctFormerClassification, OctFormerSegmentation
 from torch_pointcloud.ops.octree import build_octree
-from torch_pointcloud.utils.imports import _DWCONV_AVAILABLE, _OCNN_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _DWCONV_AVAILABLE, _OCNN_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
@@ -187,3 +189,73 @@ def test_octformer_reset_classifier_keeps_head_act(model_clf: OctFormerClassific
     assert type(model_clf.head.act).__name__ == "ReLU"
     model_clf.reset_classifier(5)
     assert type(model_clf.head.act).__name__ == "ReLU"
+
+
+@pytest.mark.parametrize("nempty", [pytest.param(True, id="non-empty-nodes"), pytest.param(False, id="all-nodes")])
+def test_cpe_depthwise_conv_on_cpu_matches_neighbor_sum(data: Dict[str, Any], nempty: bool) -> None:
+    torch.manual_seed(0)
+    octree, depth = data["octree"], data["depth"]
+    cpe = CPE(8, kernel_size=3, nempty=nempty, use_dwconv=True).eval()
+    num_nodes = int(octree.nnum_nempty[depth] if nempty else octree.nnum[depth])
+    x = torch.randn(num_nodes, 8)
+
+    neighbors = octree.get_neigh(depth, cpe.conv.kernel, 1, nempty)
+    padded = torch.cat([x, x.new_zeros(1, 8)])
+    expected = (padded[neighbors] * cpe.conv.weights[:, 0, :]).sum(dim=1)
+    with torch.no_grad():
+        out = cpe(x, octree, depth)
+
+    torch.testing.assert_close(out, cpe.norm(expected), atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize("bias", [pytest.param(False, id="no-bias"), pytest.param(True, id="bias")])
+def test_cpe_depthwise_conv_keeps_the_checkpoint_keys(bias: bool) -> None:
+    cpe = CPE(8, kernel_size=3, bias=bias, use_dwconv=True)
+    expected = {"conv.weights", "conv.bias"} if bias else {"conv.weights"}
+    assert {key for key in cpe.state_dict() if key.startswith("conv.")} == expected
+    assert cpe.conv.weights.shape == (27, 1, 8)
+
+
+@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="the accelerated depthwise kernel requires CUDA")
+@pytest.mark.parametrize("bias", [pytest.param(False, id="no-bias"), pytest.param(True, id="bias")])
+def test_cpe_depthwise_conv_on_cuda_matches_cpu(data: Dict[str, Any], bias: bool) -> None:
+    torch.manual_seed(0)
+    octree, depth = data["octree"], data["depth"]
+    cpe = CPE(8, kernel_size=3, bias=bias, use_dwconv=True).eval()
+    if bias:
+        torch.nn.init.uniform_(cpe.conv.bias, -0.5, 0.5)
+    x = torch.randn(int(octree.nnum[depth]), 8)
+
+    with torch.no_grad():
+        expected = cpe(x, octree, depth)
+        out = cpe.cuda()(x.cuda(), octree.to("cuda"), depth)
+
+    torch.testing.assert_close(out.cpu(), expected, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "head_channels",
+    [pytest.param(None, id="linear-head"), pytest.param(16, id="one-hidden-layer")],
+)
+def test_octformer_classification_head_applies_dropout_once(data: Dict[str, Any], head_channels: Optional[int]) -> None:
+    model = OctFormerClassification(
+        in_channels=4,
+        num_classes=10,
+        stem_channels=(8, 16),
+        encoder_channels=(16, 32),
+        head_channels=head_channels,
+        encoder_depths=(1, 1),
+        num_heads=(2, 4),
+        patch_size=4,
+        dilation=2,
+        nempty=False,
+        dropout=0.5,
+    ).train()
+    head_depth = model.get_head_depth(data["depth"])
+    x = torch.randn(int(data["octree"].nnum[head_depth]), 32)
+
+    with patch.object(F, "dropout", wraps=F.dropout) as dropout:
+        model.forward_head(x, data["octree"], head_depth)
+
+    rates = [call.kwargs["p"] for call in dropout.call_args_list]
+    assert [rate for rate in rates if rate > 0] == [0.5]

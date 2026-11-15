@@ -139,34 +139,51 @@ def test_segmentation_subclass_with_full_contract_instantiates() -> None:
     assert model(x).shape == (4, model.num_features)
 
 
+class _MinimalPartSegmentation(PartSegmentationModel):
+    def __init__(self, in_channels: int, num_classes: int, num_categories: int) -> None:
+        super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
+        self.head = self.configure_head()
+
+    @property
+    def num_features(self) -> int:
+        return self.in_channels + self.num_categories
+
+    def configure_head(self) -> nn.Module:
+        return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
+
+    def reset_classifier(self, num_classes: int) -> None:
+        self.num_classes = num_classes
+        self.head = self.configure_head()
+
+    def forward_features(self, x: Tensor, category: Tensor) -> Tensor:
+        return torch.cat([x, category.expand(x.size(0), -1)], dim=1)
+
+    def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
+        return x if pre_logits else self.head(x)
+
+    def forward(self, x: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
+        features = self.forward_features(x, category)
+        return self.forward_head(features)
+
+
 def test_part_segmentation_subclass_stores_num_categories() -> None:
-    class MinimalPartSegmentation(PartSegmentationModel):
-        def __init__(self, in_channels: int, num_classes: int, num_categories: int) -> None:
-            super().__init__(in_channels=in_channels, num_classes=num_classes, num_categories=num_categories)
-            self.head = self.configure_head()
-
-        @property
-        def num_features(self) -> int:
-            return self.in_channels + self.num_categories
-
-        def configure_head(self) -> nn.Module:
-            return nn.Identity() if self.num_classes == 0 else nn.Linear(self.num_features, self.num_classes)
-
-        def reset_classifier(self, num_classes: int) -> None:
-            self.num_classes = num_classes
-            self.head = self.configure_head()
-
-        def forward_features(self, x: Tensor, category: Tensor) -> Tensor:
-            return torch.cat([x, category.expand(x.size(0), -1)], dim=1)
-
-        def forward_head(self, x: Tensor, pre_logits: bool = False) -> Tensor:
-            return x if pre_logits else self.head(x)
-
-        def forward(self, x: Tensor, category: Tensor) -> Tensor:
-            features = self.forward_features(x, category)
-            return self.forward_head(features)
-
-    model = MinimalPartSegmentation(in_channels=3, num_classes=5, num_categories=16)
+    model = _MinimalPartSegmentation(in_channels=3, num_classes=5, num_categories=16)
     assert model.num_categories == 16
     category = torch.nn.functional.one_hot(torch.tensor([2]), 16).float()
     assert model(torch.randn(4, 3), category).shape == (4, 5)
+
+
+@pytest.mark.parametrize(
+    "category",
+    [
+        pytest.param(torch.tensor([2]), id="index"),
+        pytest.param(torch.nn.functional.one_hot(torch.tensor([[2]]), 16).float(), id="extra-dim"),
+        pytest.param(torch.nn.functional.one_hot(torch.tensor([2]), 8).float(), id="other-width"),
+    ],
+)
+def test_part_segmentation_check_category_rejects_a_misshaped_category(category: Tensor) -> None:
+    model = _MinimalPartSegmentation(in_channels=3, num_classes=5, num_categories=16)
+    with pytest.raises(ValueError, match=r"one-hot of shape \(B, 16\)"):
+        model(torch.randn(4, 3), category)

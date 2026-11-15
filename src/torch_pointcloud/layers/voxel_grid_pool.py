@@ -78,8 +78,8 @@ class VoxelGridPool(nn.Module):
         return_inverse: bool = False,
     ) -> Tuple[Tensor, ...]:
         if self.origin == "grid":
-            start = torch.floor(pos.min(dim=0).values / self.grid_size) * self.grid_size
-            cluster = voxel_grid(pos, size=self.grid_size, batch=batch, start=start)
+            cell = torch.floor(pos / self.grid_size)
+            cluster = voxel_grid(cell - cell.min(dim=0).values, size=1.0, batch=batch, start=0.0)
         else:
             start = scatter(pos, batch, dim=0, reduce="min")
             cluster = voxel_grid(pos - start[batch], size=self.grid_size, batch=batch, start=0)

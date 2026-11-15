@@ -1,17 +1,14 @@
-from typing import Dict
+from typing import Callable, Dict
 
 import pytest
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from torch_pointcloud.models.spunet import SparseUNetSegmentation
-from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _SPCONV_AVAILABLE
+from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
-pytestmark = [
-    pytest.mark.skipif(not _CUDA_AVAILABLE, reason="CUDA is not available"),
-    pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed"),
-]
+pytestmark = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 spconv = pytest.importorskip("spconv.pytorch")
 
 
@@ -22,16 +19,12 @@ def data() -> Dict[str, Tensor]:
     pos_grid = torch.randint(0, 64, (int(lengths.sum()), 3))
     x = torch.randn(int(lengths.sum()), 6)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
-    return dict(
-        x=x.cuda(),
-        pos_grid=pos_grid.cuda(),
-        batch=batch.cuda(),
-    )
+    return dict(x=x, pos_grid=pos_grid, batch=batch)
 
 
 @pytest.fixture
-def model_seg() -> SparseUNetSegmentation:
-    return SparseUNetSegmentation(
+def model_seg(spconv_to_device: Callable[[nn.Module, str], None]) -> SparseUNetSegmentation:
+    model = SparseUNetSegmentation(
         in_channels=6,
         num_classes=10,
         stem_channels=16,
@@ -46,7 +39,9 @@ def model_seg() -> SparseUNetSegmentation:
         act_kwargs=None,
         norm="batch_norm",
         norm_kwargs=None,
-    ).cuda()
+    )
+    spconv_to_device(model, "cpu")
+    return model
 
 
 def test_spunet_segmentation_forward(model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]) -> None:
@@ -54,9 +49,13 @@ def test_spunet_segmentation_forward(model_seg: SparseUNetSegmentation, data: Di
     assert logits.shape == (data["pos_grid"].shape[0], model_seg.num_classes)
 
 
-def test_spunet_segmentation_reset_classifier(model_seg: SparseUNetSegmentation, data: Dict[str, Tensor]) -> None:
+def test_spunet_segmentation_reset_classifier(
+    model_seg: SparseUNetSegmentation,
+    data: Dict[str, Tensor],
+    spconv_to_device: Callable[[nn.Module, str], None],
+) -> None:
     model_seg.reset_classifier(num_classes=42)
-    model_seg.cuda()
+    spconv_to_device(model_seg, "cpu")
     logits = model_seg(data["x"], data["pos_grid"], data["batch"])
     assert logits.shape == (data["pos_grid"].shape[0], 42)
 

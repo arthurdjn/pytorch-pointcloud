@@ -30,6 +30,7 @@ from torch_pointcloud.layers.dropouts import DropPath
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.models._base import SemanticSegmentationModel
 from torch_pointcloud.models._registry import register_model
+from torch_pointcloud.utils.conversion import check_non_negative_grid
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _SPCONV_GITHUB_URL,
@@ -720,6 +721,8 @@ class SphereFormerSegmentation(SemanticSegmentationModel):
         pos_grid: Tensor,
         batch: Tensor,
     ) -> "SparseConvTensor":
+        check_non_negative_grid(pos_grid, "pos_grid")
+
         indices = torch.cat([batch.unsqueeze(-1), pos_grid], dim=1).int()
         spatial_shape = np.clip((pos_grid.max(0).values + 1).cpu().numpy(), self.min_spatial_shape, None)
         batch_size = int(batch.max().item()) + 1

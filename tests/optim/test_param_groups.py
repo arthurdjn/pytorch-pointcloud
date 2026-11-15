@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 import torch
 from torch import nn
@@ -101,3 +103,26 @@ def test_param_groups_feed_a_torch_optimizer() -> None:
     optimizer = torch.optim.AdamW(groups, lr=6e-3)
     assert [g["lr"] for g in optimizer.param_groups] == [6e-3, 6e-3, 6e-4, 6e-4]
     assert sum(len(g["params"]) for g in optimizer.param_groups) == sum(p.requires_grad for p in model.parameters())
+
+
+@pytest.mark.parametrize(
+    "no_decay, extra",
+    [
+        pytest.param("cls_token", {"cls_token"}, id="single-keyword"),
+        pytest.param([], set(), id="empty-list"),
+        pytest.param((), set(), id="empty-tuple"),
+    ],
+)
+def test_param_groups_no_decay_keyword_forms_keep_the_bias_and_one_dim_rule(no_decay: Any, extra: set) -> None:
+    model = _Model()
+    _, reference = generate_param_groups(model, weight_decay=0.05, no_decay=True)
+    decay, skipped = generate_param_groups(model, weight_decay=0.05, no_decay=no_decay)
+    assert skipped["weight_decay"] == 0.0 and decay["weight_decay"] == 0.05
+    assert _names(model, skipped) == _names(model, reference) | extra
+
+
+def test_param_groups_no_decay_none_is_a_single_decaying_group() -> None:
+    model = _Model()
+    groups = generate_param_groups(model, weight_decay=0.05, no_decay=None)
+    assert [group["weight_decay"] for group in groups] == [0.05]
+    assert _names(model, groups[0]) == {n for n, p in model.named_parameters() if p.requires_grad}

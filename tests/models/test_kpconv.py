@@ -10,6 +10,7 @@ from torch_pointcloud.models.kpconv import (
     KPFCNNEncoderBlock,
     KPFCNNSegmentation,
 )
+from torch_pointcloud.ops.cluster import radius_graph
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -23,7 +24,7 @@ pytestmark = pytest.mark.skipif(
 def data() -> Dict[str, Tensor]:
     torch.manual_seed(42)
     lengths = torch.tensor([256, 512])
-    pos = torch.randn(int(lengths.sum()), 3)
+    pos = torch.rand(int(lengths.sum()), 3) * 0.3
     features = torch.randn(int(lengths.sum()), 3)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
 
@@ -255,3 +256,30 @@ def test_kpconv_seg_reset_classifier_keeps_head_channels() -> None:
     hidden = model.head[0]
     assert isinstance(hidden, torch.nn.Sequential)
     assert hidden[0].out_features == 8
+
+
+def test_kpconv_fixture_has_neighbors_within_the_first_radius(data: Dict[str, Tensor]) -> None:
+    edge_index = radius_graph(data["pos"], r=0.1, batch=data["batch"], max_num_neighbors=16, loop=False)
+    num_neighbors = edge_index[1].bincount(minlength=data["pos"].size(0))
+    assert num_neighbors.float().mean() > 8
+
+
+def test_kpconv_seg_logits_depend_on_neighbors_of_the_same_cloud_only(
+    model_seg: KPFCNNSegmentation, data: Dict[str, Tensor]
+) -> None:
+    model_seg.eval()
+    features = data["features"].clone()
+    features[0] += 10.0
+    with torch.no_grad():
+        logits = model_seg(data["features"], data["pos"], data["batch"])
+        logits_changed = model_seg(features, data["pos"], data["batch"])
+
+    changed = (logits - logits_changed).abs().amax(dim=1) > 1e-6
+    assert changed[1:256].any()
+    assert not changed[256:].any()
+
+
+def test_kpconv_encoder_unsorted_batch_raises(model_seg: KPFCNNSegmentation, data: Dict[str, Tensor]) -> None:
+    perm = torch.randperm(data["pos"].size(0))
+    with pytest.raises(ValueError, match="must be sorted"):
+        model_seg.forward_features(data["features"][perm], data["pos"][perm], data["batch"][perm])
