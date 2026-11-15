@@ -930,7 +930,7 @@ _KITTI_MEAN_SIZES = [[3.9, 1.6, 1.56], [0.8, 0.6, 1.73], [1.76, 0.6, 1.73]]
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointrcnn.kitti.openpcdet/resolve/fabc65a24dc9a90aed2d435a901b63e96fe426d8/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 69.29, "AP/Car": 78.67, "AP/Pedestrian": 56.94, "AP/Cyclist": 72.27},
+        metrics={"mAP": 68.19, "AP/Car": 78.51, "AP/Pedestrian": 55.06, "AP/Cyclist": 71.00},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",
@@ -990,7 +990,7 @@ def pointrcnn_openpcdet_kitti(**hparams: Any) -> PointRCNNDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointrcnn-iou.kitti.openpcdet/resolve/bdbdbbe73852f1639b17fa48fe8dd533878d41da/model.safetensors",
         dataset="kitti",
-        metrics={"mAP": 68.50, "AP/Car": 78.57, "AP/Pedestrian": 55.02, "AP/Cyclist": 71.92},
+        metrics={"mAP": 69.72, "AP/Car": 78.72, "AP/Pedestrian": 58.48, "AP/Cyclist": 71.96},
         classes=("Car", "Pedestrian", "Cyclist"),
         author="openpcdet",
         license="Apache-2.0",

@@ -2068,7 +2068,7 @@ _SHAPENETPART_VARIANT_HPARAMS = {
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm.shapenetpart.openpoints/resolve/5149d99e21da44d3fd24e67b6fb2a612f2c92a3e/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.88, "cls_mIoU": 84.48},
+        metrics={"ins_mIoU": 86.90, "cls_mIoU": 84.51},
         author="openpoints",
         license="MIT",
     ),
@@ -2086,7 +2086,7 @@ def pointnext_sm_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c64.shapenetpart.openpoints/resolve/030359b2b0af6a03f70bbe27f7e719177ced3581/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 86.93, "cls_mIoU": 85.24},
+        metrics={"ins_mIoU": 87.01, "cls_mIoU": 85.29},
         author="openpoints",
         license="MIT",
     ),
@@ -2104,7 +2104,7 @@ def pointnext_sm_c64_shapenetpart(**hparams: Any) -> PointNeXtPartSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnext-sm-c160.shapenetpart.openpoints/resolve/87f26001939b4553c8977ea9bfa73e1124a96921/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 87.11, "cls_mIoU": 85.25},
+        metrics={"ins_mIoU": 87.12, "cls_mIoU": 85.27},
         author="openpoints",
         license="MIT",
     ),

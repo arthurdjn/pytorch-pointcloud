@@ -1029,7 +1029,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-objbg.dingkang-liang/resolve/fc9ed92b71b2af6425df7c766f42e00a564f7362/model.safetensors",
         dataset="scanobjectnn-objbg",
-        metrics={"OA": 94.32, "mAcc": 92.66},
+        metrics={"OA": 94.15, "mAcc": 92.42},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
         license="Apache-2.0",
@@ -1080,7 +1080,7 @@ def point_mamba_base_scanobjectnn_objbg_clf(**kwargs: Any) -> PointMambaClassifi
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-objonly.dingkang-liang/resolve/ddf45a0c372c84566a0dd0f17137b88f95f2c82e/model.safetensors",
         dataset="scanobjectnn-objonly",
-        metrics={"OA": 92.60, "mAcc": 92.40},
+        metrics={"OA": 92.43, "mAcc": 92.24},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
         license="Apache-2.0",
@@ -1131,7 +1131,7 @@ def point_mamba_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMambaClassi
     weights=WeightsDict(
         url="hf://torch-pointcloud/point-mamba-base.scanobjectnn-hardest.dingkang-liang/resolve/a9fa499b294c8675cca40419834deb1759d997ef/model.safetensors",
         dataset="scanobjectnn-hardest",
-        metrics={"OA": 89.28, "mAcc": 88.06},
+        metrics={"OA": 89.24, "mAcc": 88.05},
         classes=SCANOBJECTNN_CLASSES,
         author="dingkang-liang",
         license="Apache-2.0",

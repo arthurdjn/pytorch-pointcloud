@@ -820,7 +820,7 @@ def pointnet_openpoints_scanobjectnn(**hparams: Any) -> PointNetClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet.s3dis-area5.xu-yan/resolve/b929f375f615cf4b50139907e3afd7be41c7fe4e/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 43.88, "OA": 79.39},
+        metrics={"mIoU": 43.79, "OA": 79.06},
         classes=S3DIS_CLASSES,
         author="xu-yan",
         license="MIT",
