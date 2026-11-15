@@ -12,7 +12,7 @@ argparse only: `--help` lists its flags.
 
 ```bash
 uv run --no-sync python examples/pointnext/segmentation_s3dis_benchmark.py --root data --model pointnext-sm.s3dis-area5.openpoints
-uv run --no-sync python examples/pointnext/segmentation_s3dis_train.py --root data --model pointnext-sm.s3dis-area5.openpoints --epochs 100 --output runs/pointnext
+uv run --no-sync python examples/pointnext/segmentation_s3dis_train.py --root data --model pointnext-sm --area 5 --epochs 100 --output runs/pointnext
 ```
 
 ## Flags
@@ -24,7 +24,7 @@ uv run --no-sync python examples/pointnext/segmentation_s3dis_train.py --root da
 | `--device`, `--seed`, `--batch-size`, `--num-workers` | all   | Runtime                                                                     |
 | `--download`, `--force-process`                 | datasets with a download or a cache | Fetch the release, rebuild the `processed/` cache  |
 | `--limit N`                                     | benchmarks | Evaluate at most `N` samples                                                |
-| `--epochs`, `--lr`, `--eval-every`, `--output`  | training   | Schedule, validation period, directory for `last.pt` and `best.pt`         |
+| `--epochs`, `--lr`, `--eval-every`, `--output`  | training   | Schedule, validation period, directory for `last.pt` and `best.pt` (best validation score) |
 | `--limit-train-batches`, `--limit-val-batches`  | training   | Shorten an epoch                                                            |
 
 Protocol knobs are per script (`--sw-batch-size`, `--areas`, `--split-file`, `--max-sweeps`, ...).

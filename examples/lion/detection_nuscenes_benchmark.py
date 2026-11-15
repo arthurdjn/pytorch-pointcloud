@@ -126,6 +126,7 @@ def evaluate(model: LIONDetection, dataloader: DataLoader, device: str) -> Dict[
     targets: List[Boxes3D] = []
     gt_velocities: List[Tensor] = []
     gt_num_points: List[Tensor] = []
+    ego_pos: List[Tensor] = []
     gt_attributes: List[Tensor] = []
     offsets: List[int] = [0]
 
@@ -150,7 +151,8 @@ def evaluate(model: LIONDetection, dataloader: DataLoader, device: str) -> Dict[
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -172,6 +174,7 @@ def evaluate(model: LIONDetection, dataloader: DataLoader, device: str) -> Dict[
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 

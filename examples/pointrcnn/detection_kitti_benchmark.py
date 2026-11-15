@@ -9,6 +9,8 @@ per frame at random.
 
 import os
 from argparse import ArgumentParser, Namespace
+from pathlib import Path
+from typing import Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -65,12 +67,26 @@ def parse_args() -> Namespace:
     parser.add_argument("--model", default="pointrcnn.kitti.openpcdet", help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--split-file", default=None, help="KITTI frame-id list (e.g. ImageSets/val.txt).")
+    parser.add_argument("--split-file", default=None, help="KITTI frame-id list (default: ImageSets/val.txt).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--batch-size", default=2, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.split_file is None:
+        args.split_file = default_split_file(args.root, "val")
+
+    return args
+
+
+def default_split_file(root: str, split: str) -> Optional[str]:
+    """`ImageSets/<split>.txt` of the KITTI raw directory, or `None` (every training frame) when it is missing."""
+    split_file = Path(root, "KITTI", "raw", "ImageSets", f"{split}.txt")
+    if split_file.exists():
+        return split_file.as_posix()
+
+    print(f"No split file at {split_file.as_posix()!r}: using every frame of the KITTI training set.")
+    return None
 
 
 def configure_dataset(args: Namespace) -> Dataset:

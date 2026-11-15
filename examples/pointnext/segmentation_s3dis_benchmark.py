@@ -14,7 +14,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.inferers import Inferer, VoxelPartitionInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
-from torch_pointcloud.models import create_model
+from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
 
@@ -26,12 +26,7 @@ SEED = 42
 VOXEL_SIZE = 0.04
 SW_BATCH_SIZE = 8
 
-TRANSFORM = T.Compose(
-    [
-        T.Relabel(keys=DataKeys.SEGMENT, labels=[0, 1, 2, 3, 4, 5, 6, 8, 7, 10, 9, 11, 12]),
-        T.Shift(keys=DataKeys.POS, method="min"),
-    ]
-)
+TRANSFORM = T.Shift(keys=DataKeys.POS, method="min")
 INFERER_TRANSFORM = T.Compose(
     [
         T.AxisMinOffset(keys=DataKeys.POS, axis=2, dst_keys="height"),
@@ -70,14 +65,27 @@ def parse_args() -> Namespace:
     )
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--areas", nargs="+", default=["Area_5"])
+    parser.add_argument("--areas", nargs="+", default=None, help="Areas to score (default: the held-out one).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Voxel fragments per forward.")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.areas is None:
+        args.areas = [held_out_area(args.model)]
+    return args
+
+
+def held_out_area(model: str) -> str:
+    """Area a checkpoint was not trained on, read from its registered dataset (`s3dis-area5` gives `Area_5`)."""
+    weights = model_info(model, task="semantic-segmentation")["weights"]
+    if weights is None:
+        raise ValueError(f"Model {model!r} has no registered weights.")
+
+    index = weights["dataset"].removeprefix("s3dis-area")
+    return f"Area_{index}"
 
 
 def configure_dataset(args: Namespace) -> Dataset:

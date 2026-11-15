@@ -28,6 +28,8 @@ MODELS = ("pointpillars-multihead.nuscenes.openpcdet", "second-multihead.nuscene
 
 SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
+NMS_MAX_CANDIDATES = 1000
+NMS_MAX_KEEP = 83
 
 
 def main() -> None:
@@ -118,6 +120,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
     targets: list[Boxes3D] = []
     gt_velocities: list[Tensor] = []
     gt_num_points: list[Tensor] = []
+    ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
 
@@ -126,7 +129,17 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         det = forward(model, data)
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = nms3d(boxes, scores, NMS_IOU, labels=labels, batch=batch)
+        idx = nms3d(
+            boxes,
+            scores,
+            NMS_IOU,
+            labels=labels,
+            batch=batch,
+            rotated=True,
+            max_keep=NMS_MAX_KEEP,
+            max_candidates=NMS_MAX_CANDIDATES,
+            cap_per_label=True,
+        )
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),
@@ -144,7 +157,8 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
             }
         )
         gt_velocities.append(data[DataKeys.VELOCITY].cpu())
-        gt_num_points.append(data[DataKeys.NUM_POINTS].cpu())
+        gt_num_points.append((data[DataKeys.NUM_POINTS] + data[DataKeys.NUM_RADAR_POINTS]).cpu())
+        ego_pos.append(data[DataKeys.EGO_POS].cpu())
         gt_attributes.append(data[DataKeys.ATTRIBUTE].cpu())
         offsets.append(offsets[-1] + len(data[DataKeys.TOKEN]))
 
@@ -167,6 +181,7 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         gt_num_points=torch.cat(gt_num_points),
         pred_attributes=velocity_attributes(pred_labels, pred_velocity),
         gt_attributes=torch.cat(gt_attributes),
+        origin=torch.cat(ego_pos),
     )
 
 
