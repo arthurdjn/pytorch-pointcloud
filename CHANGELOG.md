@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the Hub Sync check failing with `429 Too Many Requests`: a request over the Hub API quota waits for the quota window and is sent again.
 - Changed the registered metrics to the values measured on a rerun of the benchmarks.
 - Changed the training scripts to keep `best.pt` on the validation score.
 - Added the top-level `model_info`.
