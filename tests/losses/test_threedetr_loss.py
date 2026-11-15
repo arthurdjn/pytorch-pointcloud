@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.losses import ThreeDETRLoss
-from torch_pointcloud.ops.box3d import angle_to_class
+from torch_pointcloud.ops.box3d import angle_to_class, boxes_iou3d
 from torch_pointcloud.utils.data import DataKeys
 
 _NUM_CLASSES = 3
@@ -194,3 +194,33 @@ def test_threedetr_loss_scores_all_positive_ccw_headings_as_rotated(monkeypatch:
     monkeypatch.setattr(ThreeDETRLoss, "_giou3d_layers", spy)
     loss_fn(_output(layer), _batch(_CENTERS, _SIZES, headings, _LABELS))
     assert seen == [True]
+
+
+def test_threedetr_loss_rotated_giou_ranks_queries_like_the_decoded_boxes() -> None:
+    gt = torch.tensor([[0.0, 0.0, 0.0, 4.0, 0.5, 1.0, math.pi / 4]])
+    offset = 1.0 / math.sqrt(2)
+    queries = torch.tensor(
+        [
+            [offset, offset, 0.0, 4.0, 0.5, 1.0, math.pi / 4],
+            [offset, -offset, 0.0, 4.0, 0.5, 1.0, math.pi / 4],
+        ]
+    )
+    layer = {
+        "center_unnormalized": queries[None, :, :3],
+        "size_unnormalized": queries[None, :, 3:6],
+        "angle_continuous": -queries[None, :, 6],
+    }
+    criterion = ThreeDETRLoss(num_classes=_NUM_CLASSES, num_heading_bins=12)
+    lo, hi = torch.full((1, 3), -5.0), torch.full((1, 3), 5.0)
+    data: Dict[str, Any] = {
+        DataKeys.BOX: gt,
+        DataKeys.LABEL: torch.tensor([0]),
+        DataKeys.BATCH_BOX: torch.tensor([0]),
+    }
+    targets = criterion._densify(data, (lo, hi))
+
+    giou = criterion._giou3d_rotated([layer], targets)[0][0, :, 0]
+
+    iou = boxes_iou3d(queries, gt).view(-1)
+    assert iou[0] > 0.5 and iou[1] == 0
+    assert giou[0] > giou[1]

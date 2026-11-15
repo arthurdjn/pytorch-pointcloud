@@ -236,3 +236,22 @@ def test_transfusion_loss_rejects_an_unknown_height_code() -> None:
             feature_map_stride=_STRIDE,
             height_code="bottom",  # type: ignore[arg-type]
         )
+
+
+def test_transfusion_loss_half_precision_logits_match_single_precision() -> None:
+    output, data = _data()
+    expected = _loss()(output, data)
+
+    out = _loss()({key: value.half() for key, value in output.items()}, data)
+
+    assert torch.isfinite(out["loss"])
+    assert out["loss"].item() == pytest.approx(expected["loss"].item(), rel=2e-2)
+
+
+def test_transfusion_loss_zero_extent_box_is_finite() -> None:
+    output, data = _data()
+    data[DataKeys.BOX][0, 5] = 0.0
+
+    out = _loss()(output, data)
+
+    assert torch.isfinite(out["loss"]) and torch.isfinite(out["box_loss"])

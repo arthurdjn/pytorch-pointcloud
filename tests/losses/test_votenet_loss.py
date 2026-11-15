@@ -246,3 +246,27 @@ def test_votenet_loss_perturbed_vote_is_larger() -> None:
     assert out["vote_loss"] > perfect["vote_loss"] + 0.01
     output["pos_vote"][4] += 5.0  # the masked far seed changes nothing
     assert torch.isclose(loss_fn(output, data)["vote_loss"], out["vote_loss"])
+
+
+def test_votenet_loss_padded_box_slots_are_never_assigned() -> None:
+    loss_fn = VoteNetLoss(num_heading_bins=12, num_size_clusters=10, num_classes=10, mean_sizes=_mean_size())
+    output, _ = _create_data()
+    output["pos_vote_aggr"] = torch.full_like(output["pos_vote_aggr"], 0.05)
+    data: Dict[str, Any] = {
+        DataKeys.BOX: torch.tensor(
+            [
+                [5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 0.0],
+                [6.0, 6.0, 6.0, 1.0, 1.0, 1.0, 0.0],
+                [5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 0.0],
+            ]
+        ),
+        DataKeys.LABEL: torch.tensor([1, 1, 1]),
+        DataKeys.BATCH_BOX: torch.tensor([0, 0, 1]),
+    }
+    batch_size = output["pos_vote_aggr"].shape[0]
+    targets = loss_fn._densify(data, batch_size)
+
+    _, objectness_label, _, assignment = loss_fn._objectness_loss(output, targets)  # type: ignore[arg-type]
+
+    assert objectness_label.sum() == 0
+    assert (assignment[1] == 0).all()

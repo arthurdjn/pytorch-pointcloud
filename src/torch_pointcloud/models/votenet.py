@@ -504,8 +504,14 @@ class VoteNetDetection(DetectionModel):
     def reset_classifier(self, num_classes: int) -> None:
         self.num_classes = num_classes
         self.proposal.num_classes = num_classes
-        out_dim = 2 + 3 + self.num_heading_bins * 2 + self.num_size_clusters * 4 + num_classes
-        self.proposal.mlp.lins[-1] = nn.Linear(self.proposal.aggr_dim, out_dim)
+        box_dim = 2 + 3 + self.num_heading_bins * 2 + self.num_size_clusters * 4
+        previous = self.proposal.mlp.lins[-1]
+        head = nn.Linear(self.proposal.aggr_dim, box_dim + num_classes)
+        # The class logits are the trailing rows.
+        with torch.no_grad():
+            head.weight[:box_dim] = previous.weight[:box_dim]
+            head.bias[:box_dim] = previous.bias[:box_dim]
+        self.proposal.mlp.lins[-1] = head.to(previous.weight.device)
 
     @property
     def num_features(self) -> int:

@@ -97,3 +97,20 @@ def test_fcaf3d_loss_scene_without_boxes_only_classifies() -> None:
     }
     losses = FCAF3DLoss(num_classes=3, min_points_per_level=27, num_positives=18)(output, empty)
     assert losses["center_loss"] == 0 and losses["box_loss"] == 0 and losses["cls_loss"] > 0
+
+
+def test_fcaf3d_loss_follows_the_scene_ids_of_the_predictions() -> None:
+    output = _output(_pyramid(num_scenes=2), num_classes=3)
+    data = {
+        "box": torch.tensor([[2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 0.0], [1.0, 3.0, 1.0, 0.8, 1.2, 0.6, 0.0]]),
+        "label": torch.tensor([2, 0]),
+        "batch_box": torch.tensor([0, 1]),
+    }
+    criterion = FCAF3DLoss(num_classes=3, min_points_per_level=27, num_positives=18)
+    expected = criterion(output, data)
+
+    spaced = {**output, "batch": output["batch"] * 3 + 2}
+    losses = criterion(spaced, {**data, "batch_box": data["batch_box"] * 3 + 2})
+
+    for key in ("loss", "cls_loss", "center_loss", "box_loss"):
+        assert losses[key].item() == pytest.approx(expected[key].item())

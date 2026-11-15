@@ -217,3 +217,15 @@ def test_roi_frame_boxes_moves_the_boxes_into_the_roi_frame() -> None:
     boxes = _boxes([[10.0, 7.0, 1.5, 3.0, 1.0, 1.0, math.pi / 2 + 0.2]])
     expected = _boxes([[2.0, 0.0, 0.5, 3.0, 1.0, 1.0, 0.2]])
     assert torch.allclose(roi_frame_boxes(boxes, rois), expected, atol=1e-5)
+
+
+def test_sample_rois_draws_a_non_finite_roi_as_background() -> None:
+    boxes = _boxes([[0.0, 0.0, 0.0, 4.0, 2.0, 1.5, 0.0]])
+    rois = _boxes([[1.0, 0.0, 0.0, float("nan"), 2.0, 1.5, 0.0]])
+    zero = torch.zeros(1, dtype=torch.long)
+
+    samples = _sample(rois, zero, zero, boxes, zero, zero)
+
+    assert samples["index"].tolist() == [0] * 8
+    assert samples["target_index"].tolist() == [-1] * 8
+    assert samples["iou"].tolist() == [0.0] * 8
