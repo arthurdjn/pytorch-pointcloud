@@ -313,14 +313,12 @@ def test_remove_stale_temporaries_keeps_recent_and_final_entries(tmp_path: Path)
     stale_dir = tmp_path / "scene.0a1b.tmp"
     stale_dir.mkdir()
     (stale_dir / "pos.npy").write_text("partial")
-    stale_file = tmp_path / "meta.json.0a1b.tmp"
-    stale_file.write_text("partial")
     live_dir = tmp_path / "scene.2c3d.tmp"
     live_dir.mkdir()
     final_dir = tmp_path / "scene"
     final_dir.mkdir()
     two_days_ago = time.time() - 2 * 24 * 3600
-    for old_path in (stale_dir, stale_file, final_dir):
+    for old_path in (stale_dir, final_dir):
         os.utime(old_path, (two_days_ago, two_days_ago))
 
     remove_stale_temporaries(tmp_path)

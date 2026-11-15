@@ -137,16 +137,14 @@ def atomic_path(path: PathLike, suffix: str = ".tmp") -> Iterator[Path]:
                 raise
 
 
-def remove_stale_temporaries(directory: PathLike, suffix: str = ".tmp", max_age: float = 24 * 3600) -> None:
-    """Remove the temporaries that interrupted `atomic_path` writers left in a directory.
+def remove_stale_temporaries(directory: PathLike) -> None:
+    """Remove the `*.tmp` directories that interrupted `atomic_path` writers left in a directory.
 
-    Only entries last modified more than `max_age` seconds ago are removed, so the temporary of a writer that is
-    still running is never touched.
+    Only entries last modified more than a day ago are removed, so the temporary of a writer that is still running
+    is never touched.
 
     Args:
         directory: The directory holding the temporaries, next to their final paths.
-        suffix: The suffix of the temporary names.
-        max_age: Minimum age in seconds, by modification time, of the temporaries to remove.
 
     Examples:
         ```pycon
@@ -154,18 +152,16 @@ def remove_stale_temporaries(directory: PathLike, suffix: str = ".tmp", max_age:
 
         ```
     """
-    oldest_kept = time.time() - max_age
-    for tmp_path in Path(directory).glob(f"*{suffix}"):
+    oldest_kept = time.time() - 24 * 3600
+    for tmp_path in Path(directory).glob("*.tmp"):
         try:
-            if tmp_path.lstat().st_mtime > oldest_kept:
-                continue
-
-            if tmp_path.is_dir() and not tmp_path.is_symlink():
-                shutil.rmtree(tmp_path, ignore_errors=True)
-            else:
-                tmp_path.unlink(missing_ok=True)
-        except OSError:
+            modified = tmp_path.lstat().st_mtime
+        except FileNotFoundError:
+            # A concurrent process removed it first
             continue
+
+        if modified < oldest_kept and tmp_path.is_dir():
+            shutil.rmtree(tmp_path, ignore_errors=True)
 
 
 def check_terms_accepted(accept_terms: bool, name: str, terms_url: str) -> None:
@@ -226,8 +222,7 @@ def download_url(
         overwrite: Whether to overwrite the file if it already exists. If `True`, the local file will be overwritten
             even if it already exists. If `'incomplete'`, the local file will be overwritten if it already exists and its
             size does not match the expected size (when the remote size is unknown or unreachable, the local file is
-            kept). If `False`,
-            the local file will not be overwritten if it already exists.
+            kept). If `False`, the local file will not be overwritten if it already exists.
         timeout: Timeout in seconds passed to `urlopen`, covering the connection and each blocking read, so a
             stalled server raises instead of hanging forever.
         headers: Extra request headers, such as `{"Authorization": "Bearer <token>"}` for a gated file. They are sent

@@ -252,9 +252,10 @@ class ShapeNetPart(PointCloudDataset):
         if not samples:
             raise RuntimeError(f"Found no samples in split {self.split!r}.")
 
-        split_dir = Path(self.processed_dir, self.split)
-        split_dir.parent.mkdir(parents=True, exist_ok=True)
-        remove_stale_temporaries(split_dir.parent)
+        processed_dir = Path(self.processed_dir)
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        remove_stale_temporaries(processed_dir)
+        split_dir = processed_dir / self.split
 
         sizes = np.array([s["pos"].shape[0] for s in samples], dtype=np.int64)  # type: ignore[index]
         offsets = np.concatenate(([0], np.cumsum(sizes))).astype(np.int64)

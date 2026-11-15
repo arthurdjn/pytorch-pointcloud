@@ -365,8 +365,8 @@ def seed_worker(worker_id: int) -> None:
     if info is not None:
         # Worker seeds are consecutive: a draw from each spreads them, so the seeds of two workers' objects differ.
         generator = torch.Generator().manual_seed(info.seed)
-        seed = int(torch.randint(2**62, (1,), generator=generator).item())
-        set_random_states(info.dataset, seed=seed)
+        draw = torch.randint(2**62, (1,), generator=generator)
+        set_random_states(info.dataset, seed=int(draw.item()))
 
 
 def _worker_init_fn(worker_init_fn: Optional[Callable[[int], None]], worker_id: int) -> None:
