@@ -224,9 +224,9 @@ recon.shapenetpart.zekun-qi,recon,part-segmentation,shapenetpart,true,MIT,48.54,
 3detr-m.sunrgbd.fair,threedetr,detection,sunrgbd,true,Apache-2.0,7.44,mAP,59.1,59.13,mAP@0.25 59.13 · mAP@0.5 32.26
 3detr.scannet.fair,threedetr,detection,scannet,true,Apache-2.0,7.31,mAP,62.1,61.37,mAP@0.25 61.37 · mAP@0.5 38.43
 3detr.sunrgbd.fair,threedetr,detection,sunrgbd,true,Apache-2.0,7.31,mAP,58.0,58.08,mAP@0.25 58.08 · mAP@0.5 29.64
-centerpoint-pillar02.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,5.98,mAP,49.1,49.12,mAP 49.12 · NDS 59.04
-centerpoint-voxel0075.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,57.6,57.06,mAP 57.06 · NDS 65.04
-centerpoint-voxel01.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,56.1,56.71,mAP 56.71 · NDS 64.60
+centerpoint-pillar02.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,5.98,mAP,49.1,48.40,mAP 48.40 · NDS 58.85
+centerpoint-voxel0075.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,57.6,56.42,mAP 56.42 · NDS 64.96
+centerpoint-voxel01.nuscenes.mmdet3d,centerpoint,detection,nuscenes,true,Apache-2.0,8.94,mAP,56.1,56.09,mAP 56.09 · NDS 64.52
 fcaf3d.s3dis-area5.mmdet3d,fcaf3d,detection,s3dis-area5,true,Apache-2.0,70.48,mAP,67.36,66.65,mAP@0.25 66.65 · mAP@0.5 47.29
 fcaf3d.scannet.mmdet3d,fcaf3d,detection,scannet,true,Apache-2.0,70.48,mAP,69.72,69.53,mAP@0.25 69.53 · mAP@0.5 55.23
 fcaf3d.sunrgbd.mmdet3d,fcaf3d,detection,sunrgbd,true,Apache-2.0,70.48,mAP,64.75,64.35,mAP@0.25 64.35 · mAP@0.5 47.82
@@ -239,11 +239,11 @@ groupfree3d-w2x-l12-o256.scannet.mmdet3d,groupfree3d,detection,scannet,true,Apac
 groupfree3d-w2x-l12-o256.scannet.ze-liu,groupfree3d,detection,scannet,true,MIT,29.56,mAP,68.3,68.48,mAP@0.25 68.48 · mAP@0.5 51.29
 groupfree3d-w2x-l12-o512.scannet.mmdet3d,groupfree3d,detection,scannet,true,Apache-2.0,29.56,mAP,68.22,68.10,mAP@0.25 68.10 · mAP@0.5 50.48
 groupfree3d-w2x-l12-o512.scannet.ze-liu,groupfree3d,detection,scannet,true,MIT,29.56,mAP,68.8,69.04,mAP@0.25 69.04 · mAP@0.5 52.27
-lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,68.84,mAP 68.84 · NDS 72.35
+lion-mamba.nuscenes.zhe-liu,lion,detection,nuscenes,true,Apache-2.0,16.12,mAP,68.0,67.94,mAP 67.94 · NDS 72.00
 part-a2.kitti-car.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.86,mAP,79.08,79.08,mAP 79.08 · AP/Car 79.08
 part-a2.kitti.mmdet3d,parta2,detection,kitti,true,Apache-2.0,54.89,mAP,68.33,68.34,mAP 68.34 · AP/Car 79.03 · AP/Pedestrian 55.28 · AP/Cyclist 70.70
 pointpillars-fpn.nuscenes.mmdet3d,pointpillars,detection,nuscenes,true,Apache-2.0,6.15,mAP,39.71,40.17,mAP 40.17 · NDS 52.98
-pointpillars-multihead.nuscenes.openpcdet,pointpillars,detection,nuscenes,true,Apache-2.0,6.08,mAP,44.63,44.56,mAP 44.56 · NDS 57.21
+pointpillars-multihead.nuscenes.openpcdet,pointpillars,detection,nuscenes,true,Apache-2.0,6.08,mAP,44.63,44.12,mAP 44.12 · NDS 57.07
 pointpillars.kitti-car.mmdet3d,pointpillars,detection,kitti,true,Apache-2.0,4.81,mAP,77.6,77.61,mAP 77.61 · AP/Car 77.61
 pointpillars.kitti.mmdet3d,pointpillars,detection,kitti,true,Apache-2.0,4.83,mAP,64.07,64.00,mAP 64.00 · AP/Pedestrian 52.26 · AP/Cyclist 62.10 · AP/Car 77.66
 pointpillars.kitti.openpcdet,pointpillars,detection,kitti,true,Apache-2.0,4.83,mAP,64.08,64.16,mAP 64.16 · AP/Car 77.35 · AP/Pedestrian 52.39 · AP/Cyclist 62.74
@@ -253,21 +253,21 @@ pointrcnn.kitti.openpcdet,pointrcnn,detection,kitti,true,Apache-2.0,4.04,mAP,68.
 pv-rcnn.kitti.mmdet3d,pv_rcnn,detection,kitti,true,Apache-2.0,13.12,mAP,72.14,72.15,mAP 72.15 · AP/Car 83.54 · AP/Pedestrian 59.71 · AP/Cyclist 73.20
 second-dynamic-voxel.kitti.mmdet3d,second,detection,kitti,true,Apache-2.0,5.33,mAP,65.27,65.23,mAP 65.23 · AP/Pedestrian 56.78 · AP/Cyclist 62.26 · AP/Car 76.66
 second-iou.kitti.openpcdet,second,detection,kitti,true,Apache-2.0,11.95,mAP,68.71,68.71,mAP 68.71 · AP/Car 79.09 · AP/Pedestrian 55.75 · AP/Cyclist 71.31
-second-multihead.nuscenes.openpcdet,second,detection,nuscenes,true,Apache-2.0,9.04,mAP,50.59,50.76,mAP 50.76 · NDS 61.85
+second-multihead.nuscenes.openpcdet,second,detection,nuscenes,true,Apache-2.0,9.04,mAP,50.59,50.44,mAP 50.44 · NDS 61.90
 second.kitti-car.mmdet3d,second,detection,kitti,true,Apache-2.0,5.30,mAP,78.2,78.21,mAP 78.21 · AP/Car 78.21
 second.kitti.mmdet3d,second,detection,kitti,true,Apache-2.0,5.33,mAP,65.3,65.55,mAP 65.55 · AP/Pedestrian 52.94 · AP/Cyclist 66.32 · AP/Car 77.39
 second.kitti.openpcdet,second,detection,kitti,true,Apache-2.0,5.33,mAP,66.25,66.26,mAP 66.26 · AP/Car 78.63 · AP/Pedestrian 52.98 · AP/Cyclist 67.16
 tr3d.s3dis-area5.mmdet3d,tr3d,detection,s3dis-area5,true,Apache-2.0,14.66,mAP,72.25,71.33,mAP@0.25 71.33 · mAP@0.5 48.33
 tr3d.scannet.mmdet3d,tr3d,detection,scannet,true,Apache-2.0,14.66,mAP,71.99,71.98,mAP@0.25 71.98 · mAP@0.5 58.57
 tr3d.sunrgbd.mmdet3d,tr3d,detection,sunrgbd,true,Apache-2.0,14.66,mAP,66.90,66.77,mAP@0.25 66.77 · mAP@0.5 50.15
-transfusion-lidar.nuscenes.openpcdet,transfusion,detection,nuscenes,true,Apache-2.0,8.31,mAP,64.58,65.32,mAP 65.32 · NDS 69.71
+transfusion-lidar.nuscenes.openpcdet,transfusion,detection,nuscenes,true,Apache-2.0,8.31,mAP,64.58,64.49,mAP 64.49 · NDS 69.39
 votenet.scannet.fair,votenet,detection,scannet,true,MIT,0.95,mAP,58.6,57.65,mAP@0.25 57.65 · mAP@0.5 34.10
 votenet.scannet.mmdet3d,votenet,detection,scannet,true,Apache-2.0,0.95,mAP,62.34,61.17,mAP@0.25 61.17 · mAP@0.5 39.67
 votenet.sunrgbd.fair,votenet,detection,sunrgbd,true,MIT,0.95,mAP,57.7,58.81,mAP@0.25 58.81 · mAP@0.5 34.15
 votenet.sunrgbd.mmdet3d,votenet,detection,sunrgbd,true,Apache-2.0,0.95,mAP,59.78,59.77,mAP@0.25 59.77 · mAP@0.5 36.39
 voxel-mamba.waymo,voxel_mamba,detection,waymo,false,,20.99,mAP,,,
 voxel-rcnn.kitti-car.openpcdet,voxel_rcnn,detection,kitti,true,Apache-2.0,7.59,mAP,84.54,84.53,mAP 84.53 · AP/Car 84.53
-voxelnext.nuscenes.openpcdet,voxelnext,detection,nuscenes,true,Apache-2.0,7.98,mAP,60.5,61.41,mAP 61.41 · NDS 66.92
+voxelnext.nuscenes.openpcdet,voxelnext,detection,nuscenes,true,Apache-2.0,7.98,mAP,60.5,60.43,mAP 60.43 · NDS 66.63
 act.dvae.runpei-dong,act,pretraining,shapenet55,true,MIT,116.19,,,,
 act.pretrain.runpei-dong,act,pretraining,shapenet55,true,MIT,141.76,,,,
 concerto-base-origin.pretrain.pointcept,concerto,pretraining,pretrain,true,CC-BY-NC-4.0,108.46,,,,

@@ -902,7 +902,7 @@ def checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[s
         url="hf://torch-pointcloud/lion-mamba.nuscenes.zhe-liu/resolve/cf347e7237553182ab3818056d3d7bb8843811d3/model.safetensors",
         pretrained_filter_fn=checkpoint_filter_fn,
         dataset="nuscenes",
-        metrics={"mAP": 68.84, "NDS": 72.35},
+        metrics={"mAP": 67.94, "NDS": 72.00},
         classes=NUSCENES_DETECTION_CLASSES,
         author="zhe-liu",
         license="Apache-2.0",
