@@ -604,6 +604,8 @@ class ReConPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x_feat, x_query, center = self.forward_features(x, pos, batch)
         x = self.forward_decoder(x_feat, x_query, pos, batch, center, category)
         return self.forward_head(x)
@@ -798,6 +800,7 @@ class ReConPretraining(PretrainingModel):
 _MODELNET_TRANSFORM = T.Compose(
     [
         T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.ORIGIN_POS),
+        T.Rescale(keys=DataKeys.POS, method="centroid"),
         T.FarthestPointSample(
             pos_key=DataKeys.POS,
             keys=[DataKeys.NORMAL],
@@ -806,7 +809,6 @@ _MODELNET_TRANSFORM = T.Compose(
             dst_index_key=DataKeys.INDEX,
             allow_missing_keys=True,
         ),
-        T.Rescale(keys=DataKeys.POS, method="centroid"),
     ]
 )
 

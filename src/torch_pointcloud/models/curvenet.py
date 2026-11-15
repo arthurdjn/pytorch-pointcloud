@@ -721,6 +721,8 @@ class CurveNetPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, pos, batch = self.forward_decoder(x, pos, batch, category, intermediates)
         return self.forward_head(x, batch)

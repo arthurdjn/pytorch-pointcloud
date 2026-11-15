@@ -224,3 +224,7 @@ def test_pointmlp_classification_num_classes_zero_returns_features(data: Dict[st
     assert isinstance(model.head, torch.nn.Identity)
     out = model(data["x"], data["pos"], data["batch"])
     assert out.shape == (int(data["batch"].max()) + 1, model.num_features)
+
+
+def test_pointmlp_segmentation_interpolates_every_level_from_three_neighbors(model_seg: PointMLPSegmentation) -> None:
+    assert [block.k for block in model_seg.decoder.blocks] == [3] * len(model_seg.decoder.blocks)
