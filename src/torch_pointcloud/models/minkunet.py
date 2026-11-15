@@ -533,7 +533,7 @@ def minkunet18_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentation
     weights=WeightsDict(
         url="hf://torch-pointcloud/minkunet34-w32-torchsparse.semantickitti.mmdet3d/resolve/84761d8691188e7e91dd16dfcf8c26942a149375/model.safetensors",
         dataset="semantickitti",
-        metrics={"mIoU": 68.92, "OA": 92.49},
+        metrics={"mIoU": 68.91, "OA": 92.49},
         classes=SEMANTIC_KITTI_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -587,7 +587,7 @@ def minkunet34_w32_torchsparse_amp_semantickitti_mmdet3d(**hparams: Any) -> Mink
     weights=WeightsDict(
         url="hf://torch-pointcloud/minkunet34-w32-spconv.semantickitti.mmdet3d/resolve/7d5c2e271691c01236fcb24054d0be5efb6bcddd/model.safetensors",
         dataset="semantickitti",
-        metrics={"mIoU": 68.64, "OA": 92.06},
+        metrics={"mIoU": 68.65, "OA": 92.06},
         classes=SEMANTIC_KITTI_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -641,7 +641,7 @@ def minkunet34_w32_spconv_amp_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetS
     weights=WeightsDict(
         url="hf://torch-pointcloud/minkunet34-w32-minkowski.semantickitti.mmdet3d/resolve/0b1693bf96159fb189f627d23a2b756db2ea4a0a/model.safetensors",
         dataset="semantickitti",
-        metrics={"mIoU": 69.21, "OA": 92.36},
+        metrics={"mIoU": 69.20, "OA": 92.36},
         classes=SEMANTIC_KITTI_CLASSES,
         author="mmdet3d",
         license="Apache-2.0",
@@ -696,7 +696,7 @@ def minkunet34v2_w32_semantickitti_mmdet3d(**hparams: Any) -> MinkUNetSegmentati
     weights=WeightsDict(
         url="hf://torch-pointcloud/minkunet18-w16.semantickitti.mit-han-lab/resolve/7cb5604cbc4f8f8f3537282548315d227e7a84ab/model.safetensors",
         dataset="semantickitti",
-        metrics={"mIoU": 58.90, "OA": 91.73},
+        metrics={"mIoU": 58.89, "OA": 91.73},
         classes=SEMANTIC_KITTI_CLASSES,
         author="mit-han-lab",
         license="MIT",

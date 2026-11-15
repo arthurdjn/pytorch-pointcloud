@@ -421,7 +421,7 @@ class ACTPretraining(PretrainingModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/act.modelnet40.runpei-dong/resolve/0d58e7d65cbd4e3c793c6b212796bed5149f51e4/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.19, "mAcc": 89.90},
+        metrics={"OA": 93.11, "mAcc": 89.74},
         classes=MODELNET40_CLASSES,
         author="runpei-dong",
         license="MIT",

@@ -813,7 +813,7 @@ def pointpillars_mmdet3d_kitti_car(**hparams: Any) -> PointPillarsDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointpillars-multihead.nuscenes.openpcdet/resolve/4de6b68e356558a9155b7452736d4641f198d7f6/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 44.56, "NDS": 57.21},
+        metrics={"mAP": 44.12, "NDS": 57.07},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

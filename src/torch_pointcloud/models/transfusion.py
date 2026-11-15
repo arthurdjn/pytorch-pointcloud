@@ -213,7 +213,7 @@ class TransFusionDetection(DetectionModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/transfusion-lidar.nuscenes.openpcdet/resolve/d7b98f5b95ce86619b35192bacd721fd1def70ea/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 65.32, "NDS": 69.71},
+        metrics={"mAP": 64.49, "NDS": 69.39},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

@@ -1134,7 +1134,7 @@ def pointnet2_yanx27_msg_modelnet40(**hparams: Any) -> PointNet2Classification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/pointnet2.s3dis-area5.xu-yan/resolve/bd3cc4078324b25036fe6594c198092d22fd62e9/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 54.83, "OA": 83.71},
+        metrics={"mIoU": 54.38, "OA": 83.57},
         classes=S3DIS_CLASSES,
         author="xu-yan",
         license="MIT",

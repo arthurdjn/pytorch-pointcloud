@@ -1232,7 +1232,7 @@ def _nuscenes_transforms() -> T.Compose:
     weights=WeightsDict(
         url="hf://torch-pointcloud/litept-small.scannet20.prs-eth/resolve/8481021fab8868892ed01dea56cd253df51b85f3/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 76.54, "OA": 91.42},
+        metrics={"mIoU": 76.55, "OA": 91.42},
         classes=SCANNET20_CLASSES,
         author="prs-eth",
         license="MIT",
@@ -1276,7 +1276,7 @@ def litept_small_scannet20(**hparams: Any) -> LitePTSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/litept-small.nuscenes.prs-eth/resolve/58fa9d2bbb0c34af696ded9f0b94b23f1c54e612/model.safetensors",
         dataset="nuscenes",
-        metrics={"simple/mIoU": 80.47, "simple/OA": 94.68},
+        metrics={"mIoU": 82.01, "OA": 95.02, "simple/mIoU": 80.47, "simple/OA": 94.68},
         classes=NUSCENES_LIDARSEG_CLASSES,
         author="prs-eth",
         license="MIT",

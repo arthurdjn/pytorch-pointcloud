@@ -1226,7 +1226,7 @@ def second_dynamic_voxel_mmdet3d_kitti(**hparams: Any) -> SECONDDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/second-multihead.nuscenes.openpcdet/resolve/56430268ff66a20c9ad8f8ecd239421d6dfb3742/model.safetensors",
         dataset="nuscenes",
-        metrics={"mAP": 50.76, "NDS": 61.85},
+        metrics={"mAP": 50.44, "NDS": 61.90},
         classes=NUSCENES_DETECTION_CLASSES,
         author="openpcdet",
         license="Apache-2.0",

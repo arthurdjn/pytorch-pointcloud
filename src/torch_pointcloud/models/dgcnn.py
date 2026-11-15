@@ -799,7 +799,7 @@ def dgcnn_antao_modelnet40_2048_cls(**hparams: Any) -> DGCNNClassification:
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.shapenetpart.an-tao/resolve/ec81e21de268b6aed580bc9d13c8265fa4b7c312/model.safetensors",
         dataset="shapenetpart",
-        metrics={"ins_mIoU": 85.23, "cls_mIoU": 80.92},
+        metrics={"ins_mIoU": 85.34, "cls_mIoU": 81.00},
         author="an-tao",
         license="MIT",
     ),
@@ -962,7 +962,7 @@ def dgcnn_antao_s3dis_area6_seg(**hparams: Any) -> DGCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/dgcnn.scannet20.an-tao/resolve/efb9370409b83ec80a1083f5abc41ac84ea31756/model.safetensors",
         dataset="scannet20",
-        metrics={"mIoU": 52.89, "OA": 81.76},
+        metrics={"mIoU": 52.84, "OA": 81.77},
         classes=SCANNET20_CLASSES,
         author="an-tao",
         license="MIT",

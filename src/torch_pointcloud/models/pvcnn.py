@@ -762,7 +762,7 @@ def _pvcnn_s3dis_hparams(
     weights=WeightsDict(
         url="hf://torch-pointcloud/pvcnn.s3dis-area5.mit-han-lab/resolve/9a514893b0de83953715145f8a02f2ec48aa9558/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 57.51, "OA": 86.58},
+        metrics={"mIoU": 57.50, "OA": 86.58},
         classes=S3DIS_CLASSES,
         author="mit-han-lab",
         license="MIT",

@@ -552,7 +552,7 @@ class PCPMAEPretraining(PretrainingModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/pcp-mae.modelnet40.xiangdong-zhang/resolve/80d4730c9fd023619d423f7d55e4ff488b90fc4b/model.safetensors",
         dataset="modelnet40",
-        metrics={"OA": 93.64, "mAcc": 90.60},
+        metrics={"OA": 93.52, "mAcc": 90.50},
         classes=MODELNET40_CLASSES,
         author="xiangdong-zhang",
         license="MIT",
