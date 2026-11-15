@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the 3DETR rotated GIoU heading, VoteNet `reset_classifier`, `boxes_iou3d` on small boxes and the tie order of `nms3d`.
+- Added `nms3d(cap_per_label=...)`.
+- Changed `FCAF3DDetection` to take its stem norm options only from `stem_norm_kwargs`.
 - Fixed `RenameItems` swaps, transforms on integer inputs, seeded transforms on CUDA inputs, and the RandLA-Net and MinkUNet SemanticKITTI transforms (authors' label map and voxel rounding).
 - Added `SlidingWindowInferer(shift_last_block=...)`, `Quantize(rounding=...)` and `utils.random.generator_device`.
 - Changed `Translate` to follow the dtype of `offset`: a floating point offset promotes integer data.

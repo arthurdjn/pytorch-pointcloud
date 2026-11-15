@@ -367,6 +367,7 @@ def sample_rois(
         if targets.numel() > 0:
             overlaps = boxes_iou3d(rois[scene], boxes[targets])
             overlaps = overlaps * (roi_labels[scene, None] == box_labels[None, targets])
+            overlaps = overlaps.nan_to_num(nan=0.0)
             iou, best = overlaps.max(dim=1)
             target = torch.where(iou > 0, targets[best], target)
 

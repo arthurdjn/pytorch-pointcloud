@@ -139,7 +139,7 @@ class FCAF3DLoss(nn.Module):
         gt_boxes, gt_labels, gt_batch = data[DataKeys.BOX], data[DataKeys.LABEL], data[DataKeys.BATCH_BOX]
         num_levels = int(output["level"].max()) + 1
         terms: Dict[str, List[Tensor]] = {"cls_loss": [], "center_loss": [], "box_loss": []}
-        for scene in range(int(output["batch"].max()) + 1):
+        for scene in torch.unique(output["batch"]):
             rows = output["batch"] == scene
             gt = gt_batch == scene
             center_targets, box_targets, cls_targets = self.assign(

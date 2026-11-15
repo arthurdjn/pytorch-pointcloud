@@ -382,7 +382,7 @@ class VoxelNeXtHead(nn.Module):
             if scene_hm.numel() == 0:
                 continue
 
-            k = min(top_k, scene_hm.shape[0])
+            k = min(top_k, scene_hm.numel())
             flat_scores, flat_inds = scene_hm.reshape(-1).topk(k)
             voxel_inds = flat_inds // scene_hm.shape[1]
             class_inds = flat_inds % scene_hm.shape[1]

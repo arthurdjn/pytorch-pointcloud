@@ -16,12 +16,20 @@ if TYPE_CHECKING:
 _EPS = 1e-6
 
 
-def _nn_distance(src: Tensor, dst: Tensor, *, l1: bool = False) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+def _nn_distance(
+    src: Tensor,
+    dst: Tensor,
+    *,
+    dst_mask: Tensor,
+    l1: bool = False,
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     r"""Bidirectional nearest-neighbor distances between two batched point sets.
 
     Args:
         src: Source points, shape $(B, N, 3)$.
         dst: Target points, shape $(B, M, 3)$.
+        dst_mask: Mask of the valid target points, shape $(B, M)$. A masked-out target is never the nearest
+            target of a source point; a source point without any valid target gets the largest finite distance.
         l1: If `True` use the $L_1$ (sum-of-abs) distance, otherwise the squared $L_2$ distance.
 
     Returns:
@@ -31,8 +39,9 @@ def _nn_distance(src: Tensor, dst: Tensor, *, l1: bool = False) -> Tuple[Tensor,
     diff = src.unsqueeze(2) - dst.unsqueeze(1)  # (B, N, M, 3)
     pairwise = diff.abs().sum(dim=-1) if l1 else (diff * diff).sum(dim=-1)
 
-    near = pairwise.min(dim=2)
     far = pairwise.min(dim=1)
+    pairwise = pairwise.masked_fill(dst_mask.unsqueeze(1) == 0, torch.finfo(pairwise.dtype).max)
+    near = pairwise.min(dim=2)
     return near.values, near.indices, far.values, far.indices
 
 
@@ -262,7 +271,7 @@ class VoteNetLoss(nn.Module):
     def _objectness_loss(self, output: "VoteNetOutput", targets: _Targets) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""Weighted 2-way cross-entropy with near/far proposal-to-object center assignment."""
         scores = output["objectness_scores"]
-        dist1, idx1, _, _ = _nn_distance(output["pos_vote_aggr"], targets.center)
+        dist1, idx1, _, _ = _nn_distance(output["pos_vote_aggr"], targets.center, dst_mask=targets.mask)
         euclidean = (dist1 + _EPS).sqrt()
         objectness_label: Tensor = (euclidean < self.near_threshold).long()
         objectness_mask: Tensor = ((euclidean < self.near_threshold) | (euclidean > self.far_threshold)).float()
@@ -284,7 +293,7 @@ class VoteNetLoss(nn.Module):
         denom = obj.sum() + _EPS
         nh, ns = self.num_heading_bins, self.num_size_clusters
 
-        dist1, _, dist2, _ = _nn_distance(output["center"], targets.center)
+        dist1, _, dist2, _ = _nn_distance(output["center"], targets.center, dst_mask=targets.mask)
         center_loss = (dist1 * obj).sum() / denom + (dist2 * targets.mask).sum() / (targets.mask.sum() + _EPS)
 
         heading_class_label = torch.gather(targets.heading_class, 1, assignment)

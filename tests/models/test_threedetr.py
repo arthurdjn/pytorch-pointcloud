@@ -1,11 +1,9 @@
-from pathlib import Path
 from typing import Any, Dict
 
 import pytest
 import torch
 from torch import Tensor
 
-from torch_pointcloud.config import MODELS_DIR
 from torch_pointcloud.models import create_model, list_models
 from torch_pointcloud.models.threedetr import ThreeDETRDetection, ThreeDETROutput
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -66,6 +64,15 @@ def test_threedetr_vanilla_forward_shapes() -> None:
     assert enc_features.shape[-1] == model.num_features
     _assert_output_shapes(out, batch_size=2, num_queries=16, num_classes=5, nb=1)
     assert torch.isfinite(out["center_unnormalized"]).all()
+
+
+def test_threedetr_planar_cloud_is_finite() -> None:
+    model = _small_threedetr().eval()
+    pos = torch.rand(256, 3)
+    pos[:, 2] = 0.0
+    with torch.no_grad():
+        out = model(None, pos, torch.zeros(256, dtype=torch.long))
+    assert all(torch.isfinite(value).all() for value in out.values())
 
 
 def test_threedetr_masked_forward_shapes() -> None:
@@ -158,10 +165,7 @@ def test_threedetr_masked_variant_config() -> None:
     assert model.num_heading_bins == 1
 
 
-@pytest.mark.skipif(
-    not Path(MODELS_DIR, "3detr", "3detr-m.scannet.fair.safetensors").exists(),
-    reason="3detr-m.scannet.fair pretrained weights not available",
-)
+@pytest.mark.pretrained
 def test_threedetr_pretrained_smoke() -> None:
     model = create_model("3detr-m.scannet.fair", task="detection", pretrained=True).to(DEVICE).eval()
     assert isinstance(model, ThreeDETRDetection)

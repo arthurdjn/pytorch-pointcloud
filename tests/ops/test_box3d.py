@@ -460,7 +460,7 @@ def _greedy_nms3d(
     keep: List[int] = []
     for scene in torch.unique(batch).tolist():
         index = (batch == scene).nonzero().squeeze(-1)
-        order = index[scores[index].argsort(descending=True)][:max_candidates]
+        order = index[scores[index].argsort(descending=True, stable=True)][:max_candidates]
         iou = _nms3d_iou_matrix(boxes[order], rotated)
         same_class = torch.ones_like(iou, dtype=torch.bool)
         if labels is not None:
@@ -571,6 +571,88 @@ def test_nms3d_caps_match_greedy_reference(
     )
     assert keep.dtype == torch.long
     assert keep.tolist() == expected
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+@pytest.mark.parametrize("batched", [pytest.param(False, id="one-scene"), pytest.param(True, id="three-scenes")])
+@pytest.mark.parametrize(
+    "class_groups",
+    [
+        pytest.param([0, 1, 2], id="one-group-per-class"),
+        pytest.param([0, 1, 1], id="two-classes-share-a-group"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("max_keep", "max_candidates"),
+    [
+        pytest.param(None, None, id="uncapped"),
+        pytest.param(2, None, id="keep-2"),
+        pytest.param(None, 6, id="candidates-6"),
+        pytest.param(2, 6, id="keep-2-candidates-6"),
+    ],
+)
+def test_nms3d_cap_per_label_matches_one_scene_per_label(
+    rotated: bool,
+    batched: bool,
+    class_groups: List[int],
+    max_keep: Optional[int],
+    max_candidates: Optional[int],
+) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    groups = torch.tensor(class_groups)[labels]
+    scene_batch = batch if batched else None
+    packed_batch = batch * 3 + groups if batched else groups
+    keep = nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=groups,
+        batch=scene_batch,
+        rotated=rotated,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+        cap_per_label=True,
+    )
+    expected = nms3d(
+        boxes,
+        scores,
+        0.3,
+        batch=packed_batch,
+        rotated=rotated,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+    )
+    assert torch.equal(keep, expected)
+
+
+@pytest.mark.parametrize(
+    ("max_keep", "max_candidates"),
+    [pytest.param(2, None, id="keep-2"), pytest.param(None, 6, id="candidates-6")],
+)
+def test_nms3d_cap_per_label_keeps_more_than_the_scene_caps(
+    max_keep: Optional[int],
+    max_candidates: Optional[int],
+) -> None:
+    boxes, scores, labels, batch = _nms3d_inputs()
+    per_scene = nms3d(boxes, scores, 0.3, labels=labels, batch=batch, max_keep=max_keep, max_candidates=max_candidates)
+    per_label = nms3d(
+        boxes,
+        scores,
+        0.3,
+        labels=labels,
+        batch=batch,
+        max_keep=max_keep,
+        max_candidates=max_candidates,
+        cap_per_label=True,
+    )
+    uncapped = nms3d(boxes, scores, 0.3, labels=labels, batch=batch)
+    assert len(per_scene) < len(per_label) < len(uncapped)
+
+
+def test_nms3d_cap_per_label_requires_labels() -> None:
+    boxes, scores, _, batch = _nms3d_inputs()
+    with pytest.raises(ValueError, match="cap_per_label"):
+        nms3d(boxes, scores, 0.3, batch=batch, max_keep=2, cap_per_label=True)
 
 
 @pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
@@ -842,3 +924,23 @@ def test_roi_aware_pool3d_is_deprecated() -> None:
     with pytest.warns(FutureWarning, match="ops.roi.roi_aware_pool3d"):
         pooled = box3d.roi_aware_pool3d(x, pos, boxes, 2, reduce="mean")
     assert torch.equal(pooled, roi.roi_aware_pool3d(x, pos, boxes, 2, reduce="mean"))
+
+
+@pytest.mark.parametrize(
+    "side",
+    [pytest.param(1.0, id="1m"), pytest.param(5e-3, id="5mm"), pytest.param(1e-3, id="1mm")],
+)
+def test_boxes_iou_of_a_box_with_itself_is_one_at_any_scale(side: float) -> None:
+    box = _boxes([[0.0, 0.0, 0.0, side, side, side, 0.3]])
+    assert boxes_iou3d(box, box).item() == pytest.approx(1.0, abs=1e-4)
+    assert boxes_iou_bev(box, box).item() == pytest.approx(1.0, abs=1e-4)
+
+
+@pytest.mark.parametrize("rotated", [pytest.param(False, id="axis-aligned"), pytest.param(True, id="rotated")])
+def test_nms3d_tied_scores_keep_the_first_box_in_input_order(rotated: bool) -> None:
+    boxes = _boxes([[0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]]).repeat(200, 1)
+    scores = torch.full((200,), 0.5)
+    batch = torch.arange(200) % 2
+
+    assert nms3d(boxes, scores, 0.5, rotated=rotated).tolist() == [0]
+    assert nms3d(boxes, scores, 0.5, batch=batch, rotated=rotated).tolist() == [0, 1]

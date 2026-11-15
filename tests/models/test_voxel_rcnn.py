@@ -62,6 +62,16 @@ def test_voxel_rcnn_box_head_shapes() -> None:
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="the voxel RoI pooling needs pyg-lib")
+def test_voxel_rcnn_box_head_without_rois_returns_empty_predictions() -> None:
+    head = _make_head()
+    features, pos, batch = _make_stages([0] * 20 + [1] * 20)
+    with torch.no_grad():
+        rcnn_cls, rcnn_reg = head(torch.zeros(0, 7), torch.zeros(0, dtype=torch.long), features, pos, batch)
+    assert rcnn_cls.shape == (0, 1)
+    assert rcnn_reg.shape == (0, 7)
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="the voxel RoI pooling needs pyg-lib")
 def test_voxel_rcnn_box_head_pools_only_the_voxels_of_its_scene() -> None:
     head = _make_head()
     roi = torch.tensor([[0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0]])

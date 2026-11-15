@@ -1,6 +1,6 @@
 import math
 import warnings
-from typing import Dict
+from typing import Callable, Dict
 
 import pytest
 import torch
@@ -19,7 +19,6 @@ from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
 SPCONV = pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 
-# The sparse 3D backbone (spconv SubM/SparseConv3d) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (0.0, -40.0, -3.0, 70.4, 40.0, 1.0)
 
@@ -58,9 +57,10 @@ def _make_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[str, Tens
 
 
 @SPCONV
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
-def test_second_forward_shapes() -> None:
-    model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
+def test_second_forward_shapes(spconv_to_device: Callable[[torch.nn.Module, str], None]) -> None:
+    model = create_model("second.kitti.openpcdet", task="detection")
+    spconv_to_device(model, DEVICE)
+    model.eval()
     assert isinstance(model, SECONDDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
@@ -81,9 +81,10 @@ def test_second_forward_shapes() -> None:
 
 
 @SPCONV
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
-def test_second_eval_is_deterministic() -> None:
-    model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
+def test_second_eval_is_deterministic(spconv_to_device: Callable[[torch.nn.Module, str], None]) -> None:
+    model = create_model("second.kitti.openpcdet", task="detection")
+    spconv_to_device(model, DEVICE)
+    model.eval()
     assert isinstance(model, SECONDDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
@@ -91,7 +92,7 @@ def test_second_eval_is_deterministic() -> None:
         a = model(voxels, pos_voxel, num_points, vbatch)
         b = model(voxels, pos_voxel, num_points, vbatch)
     for key in ("cls", "box", "batch_box"):
-        assert torch.allclose(a[key], b[key], atol=1e-5), f"{key} drifted beyond float-atomics on CUDA"
+        assert torch.allclose(a[key], b[key], atol=1e-5), f"{key} drifted beyond float-atomics"
 
 
 def test_second_registered_variant() -> None:
@@ -231,9 +232,10 @@ def test_second_iou_heads_score_the_proposals_of_a_bev_map() -> None:
 
 
 @SPCONV
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
-def test_second_iou_forward_and_decode() -> None:
-    model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=16).to(DEVICE).eval()
+def test_second_iou_forward_and_decode(spconv_to_device: Callable[[torch.nn.Module, str], None]) -> None:
+    model = create_model("second-iou.kitti.openpcdet", task="detection", proposal_post_maxsize=16)
+    spconv_to_device(model, DEVICE)
+    model.eval()
     assert isinstance(model, SECONDIoUDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 5, 40000)
@@ -288,7 +290,7 @@ def _make_nuscenes_inputs(n_per_scene: int = 8000, batch_size: int = 2) -> Dict[
 
 
 @SPCONV
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="spconv convolutions with a bias require CUDA")
 def test_second_multihead_forward_shapes() -> None:
     model = create_model("second-multihead.nuscenes.openpcdet", task="detection").to(DEVICE).eval()
     assert isinstance(model, SECONDMultiHeadDetection)
@@ -327,11 +329,15 @@ def test_voxel_backbone_stage_widths_and_strides_follow_the_convs() -> None:
         backbone.stage_channels = (8, 8, 8, 8)  # type: ignore[misc]
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="SECOND sparse backbone requires CUDA")
-def test_voxel_backbone_intermediates_sort_the_strided_stages() -> None:
+@SPCONV
+def test_voxel_backbone_intermediates_sort_the_strided_stages(
+    spconv_to_device: Callable[[torch.nn.Module, str], None],
+) -> None:
     import spconv.pytorch as spconv
 
-    model = create_model("second.kitti.openpcdet", task="detection").to(DEVICE).eval()
+    model = create_model("second.kitti.openpcdet", task="detection")
+    spconv_to_device(model, DEVICE)
+    model.eval()
     assert isinstance(model, SECONDDetection)
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, _make_inputs(), 5, 40000)
     features = voxels.sum(dim=1) / num_points.clamp_min(1).view(-1, 1)

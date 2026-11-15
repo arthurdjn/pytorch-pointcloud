@@ -180,10 +180,11 @@ class VoxelRCNNBoxHead(nn.Module):
         grid = roi_grid_points(rois, self.grid_size).view(-1, 3)
         grid_batch = roi_batch.repeat_interleave(num_points)
         pooled = [
-            pool(x, pos, batch, grid, grid_batch).view(rois.size(0), num_points, -1)
+            pool(x, pos, batch, grid, grid_batch)
             for pool, x, pos, batch in zip(self.grid_pools, stage_features, stage_pos, stage_batch)
         ]
-        shared = self.shared(torch.cat(pooled, dim=-1).reshape(rois.size(0), -1))
+        grid_features = torch.cat(pooled, dim=-1)
+        shared = self.shared(grid_features.view(rois.size(0), num_points * grid_features.size(-1)))
         return self.cls(shared), self.reg(shared)
 
 

@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Callable, Dict, Union
 
 import pytest
 import torch
@@ -10,7 +10,6 @@ from torch_pointcloud.models.centerpoint import CenterPointDetection, CenterPoin
 from torch_pointcloud.ops.voxelization import hard_voxelize
 from torch_pointcloud.utils.imports import _SPCONV_AVAILABLE
 
-# The sparse 3D backbone (spconv SubM/SparseConv3d) needs CUDA in this build.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RANGE = (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0)
 CLASS_GROUPS = [[0], [1, 2], [3, 4], [5], [6, 7], [8, 9]]
@@ -82,9 +81,11 @@ def test_centerpoint_pillars_create_model_hparams() -> None:
     assert len(model.head.heads) == 6
 
 
-@pytest.mark.skipif(not (_SPCONV_AVAILABLE and torch.cuda.is_available()), reason="sparse backbone requires CUDA")
-def test_centerpoint_forward_and_decode() -> None:
-    model = create_model("centerpoint-voxel01.nuscenes.mmdet3d", task="detection").to(DEVICE).eval()
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_centerpoint_forward_and_decode(spconv_to_device: Callable[[torch.nn.Module, str], None]) -> None:
+    model = create_model("centerpoint-voxel01.nuscenes.mmdet3d", task="detection")
+    spconv_to_device(model, DEVICE)
+    model.eval()
     assert isinstance(model, CenterPointDetection)
     data = _make_inputs()
     voxels, pos_voxel, num_points, vbatch = _voxelize(model, data, 10, 120000)
