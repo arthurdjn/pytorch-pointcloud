@@ -461,6 +461,44 @@ def load_nuscenes_sweeps(
     return np.concatenate(clouds, axis=0)
 
 
+def _detection_annotations(annotations: List[Dict[str, Any]], class_to_idx: Dict[str, int]) -> List[Dict[str, Any]]:
+    """Keep the annotations whose detection class has a label index."""
+    return [ann for ann in annotations if ann["detection_name"] in class_to_idx]
+
+
+def _annotations_to_boxes(
+    annotations: List[Dict[str, Any]],
+    ref_from_global: np.ndarray,
+    class_to_idx: Dict[str, int],
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Convert detection annotations to LiDAR-frame boxes, labels, BEV velocities, point counts and attribute ids."""
+    rows: List[List[float]] = []
+    labels: List[int] = []
+    velocities: List[List[float]] = []
+    num_points: List[int] = []
+    attributes: List[int] = []
+    for ann in annotations:
+        center = (ref_from_global @ np.array([*ann["translation"], 1.0]))[:3]
+        rotation = ref_from_global[:3, :3] @ _quaternion_to_rotation(ann["rotation"])
+        yaw = float(np.arctan2(rotation[1, 0], rotation[0, 0]))
+        width, length, height = ann["size"]
+        rows.append([center[0], center[1], center[2], length, width, height, yaw])
+        labels.append(class_to_idx[ann["detection_name"]])
+        velocity = ref_from_global[:3, :3] @ ann["velocity"]
+        velocities.append([velocity[0], velocity[1]])
+        num_points.append(int(ann["num_lidar_pts"]))
+        attributes.append(int(ann["attribute_id"]))
+
+    boxes = np.asarray(rows, dtype=np.float32).reshape(-1, 7)
+    return (
+        boxes,
+        np.asarray(labels, dtype=np.int64),
+        np.asarray(velocities, dtype=np.float32).reshape(-1, 2),
+        np.asarray(num_points, dtype=np.int64),
+        np.asarray(attributes, dtype=np.int64),
+    )
+
+
 def load_nuscenes_boxes(
     record: Dict[str, Any],
     ego_pose: Dict[str, Any],
@@ -484,35 +522,8 @@ def load_nuscenes_boxes(
         velocities $(K, 2)$, LiDAR point counts $(K,)$ and attribute ids $(K,)$.
     """
     ref_from_global = np.linalg.inv(_lidar_to_global(record, ego_pose, calib))
-    rows: List[List[float]] = []
-    labels: List[int] = []
-    velocities: List[List[float]] = []
-    num_points: List[int] = []
-    attributes: List[int] = []
-    for ann in annotations.get(record["sample_token"], []):
-        name = ann["detection_name"]
-        if name not in class_to_idx:
-            continue
-
-        center = (ref_from_global @ np.array([*ann["translation"], 1.0]))[:3]
-        rotation = ref_from_global[:3, :3] @ _quaternion_to_rotation(ann["rotation"])
-        yaw = float(np.arctan2(rotation[1, 0], rotation[0, 0]))
-        width, length, height = ann["size"]
-        rows.append([center[0], center[1], center[2], length, width, height, yaw])
-        labels.append(class_to_idx[name])
-        velocity = ref_from_global[:3, :3] @ ann["velocity"]
-        velocities.append([velocity[0], velocity[1]])
-        num_points.append(int(ann["num_lidar_pts"]))
-        attributes.append(int(ann["attribute_id"]))
-
-    boxes = np.asarray(rows, dtype=np.float32).reshape(-1, 7)
-    return (
-        boxes,
-        np.asarray(labels, dtype=np.int64),
-        np.asarray(velocities, dtype=np.float32).reshape(-1, 2),
-        np.asarray(num_points, dtype=np.int64),
-        np.asarray(attributes, dtype=np.int64),
-    )
+    detection_annotations = _detection_annotations(annotations.get(record["sample_token"], []), class_to_idx)
+    return _annotations_to_boxes(detection_annotations, ref_from_global, class_to_idx)
 
 
 def _keyframe_item(
@@ -553,13 +564,16 @@ def _process_keyframe(
     token."""
     record = item["record"]
     points = load_nuscenes_sweeps(raw_dir, record, item["ego_pose"], item["calib"], item["sample_data"], max_sweeps)
-    boxes, labels, velocity, num_points, attribute_ids = load_nuscenes_boxes(
-        record,
-        item["ego_pose"],
-        item["calib"],
-        {record["sample_token"]: item["annotations"]},
+    ref_from_global = np.linalg.inv(_lidar_to_global(record, item["ego_pose"], item["calib"]))
+    detection_annotations = _detection_annotations(item["annotations"], class_to_idx)
+    boxes, labels, velocity, num_points, attribute_ids = _annotations_to_boxes(
+        detection_annotations,
+        ref_from_global,
         class_to_idx,
     )
+    num_radar_points = [int(ann["num_radar_pts"]) for ann in detection_annotations]
+    ego = item["ego_pose"][record["ego_pose_token"]]
+    ego_pos = (ref_from_global @ np.array([*ego["translation"], 1.0]))[:3]
 
     token: str = record["sample_token"]
     keyframe_dir = Path(processed_dir, token)
@@ -571,6 +585,8 @@ def _process_keyframe(
     np.save(keyframe_dir / "label.npy", labels)
     np.save(keyframe_dir / "velocity.npy", velocity)
     np.save(keyframe_dir / "num_points.npy", num_points)
+    np.save(keyframe_dir / "num_radar_points.npy", np.asarray(num_radar_points, dtype=np.int64))
+    np.save(keyframe_dir / "ego_pos.npy", ego_pos.astype(np.float32).reshape(1, 3))
     np.save(keyframe_dir / "attribute.npy", attribute_ids)
     if item["lidarseg_filename"] is not None:
         np.save(keyframe_dir / "segment.npy", np.fromfile(Path(raw_dir, item["lidarseg_filename"]), dtype=np.uint8))
@@ -617,18 +633,20 @@ class NuScenes(PointCloudDataset):
 
     Each sample is a dict:
 
-    | Key          | Shape    | Dtype   | Description                                                         |
-    | ------------ | -------- | ------- | ------------------------------------------------------------------- |
-    | `pos`        | $(N, 3)$ | float32 | LiDAR XYZ (sweeps aggregated into keyframe frame)                   |
-    | `intensity`  | $(N, 1)$ | float32 | LiDAR reflectance                                                   |
-    | `timestamp`  | $(N, 1)$ | float32 | Per-point time lag to the keyframe (seconds)                        |
-    | `box`        | $(K, 7)$ | float32 | GT boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$ (`return_boxes`)     |
-    | `label`      | $(K,)$   | int64   | Detection class index into `classes` (`return_boxes`)               |
-    | `velocity`   | $(K, 2)$ | float32 | Per-box LiDAR-frame BEV velocity $(v_x, v_y)$ (`return_boxes`)      |
-    | `num_points` | $(K,)$   | int64   | Per-box LiDAR point count (`num_lidar_pts`, `return_boxes`)         |
-    | `attribute`  | $(K,)$   | int64   | Index into `NUSCENES_ATTRIBUTES`, $-1$ when unset (`return_boxes`)  |
-    | `segment`    | $(N,)$   | int64   | Raw lidarseg category id, $-1$ on prior sweeps (`return_segment`)   |
-    | `token`      | -        | str     | Source keyframe `sample_token`                                      |
+    | Key                | Shape    | Dtype   | Description                                                        |
+    | ------------------ | -------- | ------- | ------------------------------------------------------------------ |
+    | `pos`              | $(N, 3)$ | float32 | LiDAR XYZ (sweeps aggregated into keyframe frame)                  |
+    | `intensity`        | $(N, 1)$ | float32 | LiDAR reflectance                                                  |
+    | `timestamp`        | $(N, 1)$ | float32 | Per-point time lag to the keyframe (seconds)                       |
+    | `box`              | $(K, 7)$ | float32 | GT boxes $(c_x, c_y, c_z, dx, dy, dz, \theta)$ (`return_boxes`)    |
+    | `label`            | $(K,)$   | int64   | Detection class index into `classes` (`return_boxes`)              |
+    | `velocity`         | $(K, 2)$ | float32 | Per-box LiDAR-frame BEV velocity $(v_x, v_y)$ (`return_boxes`)     |
+    | `num_points`       | $(K,)$   | int64   | Per-box LiDAR point count (`num_lidar_pts`, `return_boxes`)        |
+    | `num_radar_points` | $(K,)$   | int64   | Per-box radar point count (`num_radar_pts`, `return_boxes`)        |
+    | `attribute`        | $(K,)$   | int64   | Index into `NUSCENES_ATTRIBUTES`, $-1$ when unset (`return_boxes`) |
+    | `ego_pos`          | $(1, 3)$ | float32 | Ego-vehicle origin in the keyframe LiDAR frame (`return_boxes`)    |
+    | `segment`          | $(N,)$   | int64   | Raw lidarseg category id, $-1$ on prior sweeps (`return_segment`)  |
+    | `token`            | -        | str     | Source keyframe `sample_token`                                     |
 
     Per-box velocities are the finite difference of the annotation translation across the `prev` / `next`
     annotations divided by their sample-timestamp delta, computed in the global frame, rotated into the
@@ -673,7 +691,7 @@ class NuScenes(PointCloudDataset):
         ```
     """
 
-    format_version = 3
+    format_version = 4
     data_url = "https://www.nuscenes.org/nuscenes#download"
 
     def __init__(
@@ -910,6 +928,8 @@ class NuScenes(PointCloudDataset):
             data[DataKeys.LABEL] = torch.from_numpy(np.load(keyframe_dir / "label.npy"))
             data[DataKeys.VELOCITY] = torch.from_numpy(np.load(keyframe_dir / "velocity.npy"))
             data[DataKeys.NUM_POINTS] = torch.from_numpy(np.load(keyframe_dir / "num_points.npy"))
+            data[DataKeys.NUM_RADAR_POINTS] = torch.from_numpy(np.load(keyframe_dir / "num_radar_points.npy"))
+            data[DataKeys.EGO_POS] = torch.from_numpy(np.load(keyframe_dir / "ego_pos.npy"))
             data[DataKeys.ATTRIBUTE] = torch.from_numpy(np.load(keyframe_dir / "attribute.npy"))
 
         if self.return_segment:
@@ -994,7 +1014,7 @@ class NuScenesMini(NuScenes):
         )
 
 
-def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float = 1.0) -> Tensor:
+def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float = 0.2) -> Tensor:
     r"""Attribute id of each detected box from its class and BEV speed (the nuScenes submission convention).
 
     A box faster than `speed_threshold` gets its class's moving attribute (`vehicle.moving`, `cycle.with_rider`,
@@ -1015,7 +1035,7 @@ def velocity_attributes(labels: Tensor, velocity: Tensor, speed_threshold: float
         from torch_pointcloud.datasets.nuscenes import velocity_attributes
 
         labels = torch.tensor([0, 0, 5])  # car, car, barrier
-        velocity = torch.tensor([[3.0, 0.0], [0.2, 0.0], [3.0, 0.0]])
+        velocity = torch.tensor([[3.0, 0.0], [0.1, 0.0], [3.0, 0.0]])
         velocity_attributes(labels, velocity)  # tensor([ 0,  2, -1]): vehicle.moving, vehicle.parked, none
         ```
     """

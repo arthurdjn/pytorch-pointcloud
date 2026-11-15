@@ -21,6 +21,7 @@ from torch_pointcloud.datasets.nuscenes import (
     _annotation_velocity,
     _pose_matrix,
     _remove_ego_points,
+    load_nuscenes_boxes,
     load_nuscenes_sweeps,
 )
 from torch_pointcloud.utils.data import DataKeys
@@ -126,6 +127,60 @@ def test_nuscenes_dataset_box_extras(datasets_dir_factory: Callable[..., Path]) 
     assert (attribute < len(NUSCENES_ATTRIBUTES)).all()
 
 
+def test_nuscenes_dataset_radar_point_counts_follow_the_boxes(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    annotation_path = datasets_dir / "NuScenesMini" / "raw" / "v1.0-mini" / "sample_annotation.json"
+    annotations = json.loads(annotation_path.read_text())
+    for annotation in annotations:
+        annotation["num_radar_pts"] = annotation["num_lidar_pts"] + 3
+    annotation_path.write_text(json.dumps(annotations))
+
+    sample = NuScenesMini(root=datasets_dir, show_progress=False)[0]
+
+    assert sample[DataKeys.BOX].shape[0] >= 1
+    assert torch.equal(sample[DataKeys.NUM_RADAR_POINTS], sample[DataKeys.NUM_POINTS] + 3)
+
+
+def test_nuscenes_dataset_ego_pos_is_the_ego_origin_in_the_lidar_frame(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """The fixture LiDAR sits 0.94 m ahead of and 1.84 m above the ego origin, turned a quarter turn clockwise."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    sample = NuScenesMini(root=datasets_dir, show_progress=False)[0]
+    assert torch.allclose(sample[DataKeys.EGO_POS], torch.tensor([[0.0, -0.94, -1.84]]), atol=1e-5)
+
+
+def test_load_nuscenes_boxes_moves_the_annotations_into_the_lidar_frame() -> None:
+    """The ego vehicle sits at (10, 20) heading +y: a car 5 m ahead of it, parallel to it, is on the LiDAR x axis."""
+    quarter_turn = [float(np.cos(np.pi / 4)), 0.0, 0.0, float(np.sin(np.pi / 4))]
+    identity = {"translation": [0.0, 0.0, 0.0], "rotation": [1.0, 0.0, 0.0, 0.0]}
+    record = {"sample_token": "sample", "ego_pose_token": "pose", "calibrated_sensor_token": "calib"}
+    car = {
+        "detection_name": "car",
+        "translation": [10.0, 25.0, 1.0],
+        "rotation": quarter_turn,
+        "size": [2.0, 4.0, 1.5],
+        "velocity": np.array([0.0, 3.0, 0.0]),
+        "num_lidar_pts": 7,
+        "attribute_id": 2,
+    }
+    ignored = {**car, "detection_name": None}
+
+    boxes, labels, velocity, num_points, attributes = load_nuscenes_boxes(
+        record,
+        {"pose": {"translation": [10.0, 20.0, 0.0], "rotation": quarter_turn}},
+        {"calib": identity},
+        {"sample": [ignored, car]},
+        {"pedestrian": 0, "car": 1},
+    )
+
+    assert np.allclose(boxes, [[5.0, 0.0, 1.0, 4.0, 2.0, 1.5, 0.0]], atol=1e-6)
+    assert labels.tolist() == [1]
+    assert np.allclose(velocity, [[3.0, 0.0]], atol=1e-6)
+    assert num_points.tolist() == [7]
+    assert attributes.tolist() == [2]
+
+
 def test_nuscenes_dataset_sweep_aggregation(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that the keyframe carries dt == 0 and prior sweeps add points with a positive time lag"""
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
@@ -207,7 +262,7 @@ def test_velocity_attributes_follow_class_and_speed() -> None:
     labels = torch.tensor(
         [NUSCENES_DETECTION_CLASSES.index(name) for name in ("car", "car", "bus", "bicycle", "pedestrian", "barrier")]
     )
-    velocity = torch.tensor([[3.0, 0.0], [0.2, 0.0], [0.0, 0.0], [0.0, 2.0], [0.5, 0.5], [9.0, 0.0]])
+    velocity = torch.tensor([[0.3, 0.0], [0.2, 0.0], [0.0, 0.0], [0.0, 2.0], [0.1, 0.1], [9.0, 0.0]])
     attributes = velocity_attributes(labels, velocity)
     names = [NUSCENES_ATTRIBUTES[i] if i >= 0 else None for i in attributes.tolist()]
     assert names == [
