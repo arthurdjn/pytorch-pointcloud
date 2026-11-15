@@ -4,6 +4,8 @@ import pytest
 import torch
 from torch import Tensor
 
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, S3DIS_HDF5_CLASSES
+from torch_pointcloud.models import create_model, model_info
 from torch_pointcloud.models.pointnext import (
     PointNeXtClassification,
     PointNeXtDecoder,
@@ -12,6 +14,8 @@ from torch_pointcloud.models.pointnext import (
     PointNeXtPartSegmentation,
     PointNeXtSegmentation,
 )
+from torch_pointcloud.ops.cluster import radius
+from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
@@ -25,7 +29,7 @@ pytestmark = pytest.mark.skipif(
 def data() -> Dict[str, Tensor]:
     torch.manual_seed(42)
     lengths = torch.tensor([256, 512])
-    pos = torch.randn(int(lengths.sum()), 3)
+    pos = torch.rand(int(lengths.sum()), 3) * 0.5
     features = torch.randn(int(lengths.sum()), 6)
     batch = torch.repeat_interleave(torch.arange(len(lengths)), lengths)
 
@@ -390,3 +394,87 @@ def test_pointnext_part_segmentation_headless_keeps_features_in_train_mode() -> 
     x = torch.ones(64, model.num_features // 3)
     batch = torch.zeros(64, dtype=torch.long)
     assert torch.equal(model.forward_head(x, batch, pre_logits=True), torch.ones(64, model.num_features))
+
+
+def test_pointnext_fixture_points_have_neighbors_within_the_first_radius(data: Dict[str, Tensor]) -> None:
+    row, _ = radius(data["pos"], data["pos"], 0.1, batch_x=data["batch"], batch_y=data["batch"], max_num_neighbors=16)
+    degree = torch.bincount(row, minlength=data["pos"].size(0))
+    assert degree.float().mean() > 4
+
+
+def test_pointnext_segmentation_logits_depend_on_the_neighbors(
+    model_seg: PointNeXtSegmentation, data: Dict[str, Tensor]
+) -> None:
+    model_seg.eval()
+    pos, batch = data["pos"], data["batch"]
+    features = data["features"].clone()
+    with torch.no_grad():
+        logits = model_seg(features, pos, batch)
+        features[0] += 10.0
+        perturbed = model_seg(features, pos, batch)
+    changed = (logits - perturbed).abs().amax(dim=1) > 1e-6
+    assert changed[batch == 0].sum() > 1
+    assert not changed[batch == 1].any()
+
+
+@pytest.mark.parametrize(
+    "size",
+    [
+        pytest.param("sm", id="sm"),
+        pytest.param("base", id="base"),
+        pytest.param("lg", id="lg"),
+        pytest.param("xl", id="xl"),
+    ],
+)
+def test_pointnext_segmentation_config_builds_the_released_architecture(size: str) -> None:
+    released_hparams = model_info(f"pointnext-{size}.s3dis-area5.openpoints", "semantic-segmentation")["hparams"]
+    released = create_model(f"pointnext-{size}.s3dis-area5.openpoints", task="semantic-segmentation")
+    config = create_model(
+        f"pointnext-{size}",
+        task="semantic-segmentation",
+        in_channels=released_hparams["in_channels"],
+        num_classes=released_hparams["num_classes"],
+    )
+    released_shapes = {key: tuple(value.shape) for key, value in released.state_dict().items()}
+    config_shapes = {key: tuple(value.shape) for key, value in config.state_dict().items()}
+    assert config_shapes == released_shapes
+
+
+def test_pointnext_s3dis_checkpoint_head_rows_follow_the_dataset_classes() -> None:
+    info = model_info("pointnext-sm.s3dis-area5.openpoints", "semantic-segmentation")
+    weights = info["weights"]
+    assert weights is not None
+    filter_fn = weights["pretrained_filter_fn"]
+    rows = torch.arange(13.0)
+    state_dict = {"head.lins.1.weight": rows.unsqueeze(1).repeat(1, 4), "head.lins.1.bias": rows.clone()}
+    filtered = filter_fn(state_dict, torch.nn.Identity())
+    checkpoint_classes = [S3DIS_HDF5_CLASSES[int(row)] for row in filtered["head.lins.1.bias"]]
+    assert tuple(checkpoint_classes) == tuple(S3DIS_CLASSES)
+    assert torch.equal(filtered["head.lins.1.weight"][:, 0], filtered["head.lins.1.bias"])
+    assert torch.equal(state_dict["head.lins.1.bias"], rows)
+
+
+@pytest.mark.parametrize(
+    "size, area",
+    [
+        pytest.param(size, area, id=f"{size}-area{area}")
+        for size in ("sm", "base", "lg", "xl")
+        for area in range(1, 7)
+        if (size, area) != ("xl", 6)
+    ],
+)
+def test_pointnext_s3dis_entries_keep_the_dataset_labels(size: str, area: int) -> None:
+    info = model_info(f"pointnext-{size}.s3dis-area{area}.openpoints", "semantic-segmentation")
+    weights = info["weights"]
+    assert weights is not None
+    assert "pretrained_filter_fn" in weights
+    segment = torch.arange(13).repeat(8)
+    sample = {
+        DataKeys.POS: torch.rand(104, 3) * 4.0,
+        DataKeys.COLOR: torch.randint(0, 256, (104, 3)).float(),
+        DataKeys.SEGMENT: segment.clone(),
+    }
+    transform = info["transform"]
+    assert transform is not None
+    data = transform(sample)
+    assert torch.equal(data[DataKeys.ORIGIN_SEGMENT], segment)

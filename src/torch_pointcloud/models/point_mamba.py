@@ -28,11 +28,12 @@ from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers.affine import Affine
 from torch_pointcloud.layers.dropouts import DropPath
+from torch_pointcloud.layers.norms import is_graph_layer_norm
 from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_adaptive_pool
 from torch_pointcloud.ops.cluster import fps, knn, local_grid
 from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
-from torch_pointcloud.utils.conversion import ensure_list
+from torch_pointcloud.utils.conversion import check_non_negative_grid, ensure_list
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _MAMBA_SSM_GITHUB_URL,
@@ -66,11 +67,7 @@ def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Te
     Raises:
         ValueError: If `pos_grid` holds a negative coordinate, which would silently wrap around to a valid code.
     """
-    if pos_grid.numel() and bool(pos_grid.min() < 0):
-        raise ValueError(
-            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
-            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
-        )
+    check_non_negative_grid(pos_grid, "pos_grid")
 
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
     depth = max(int(pos_grid.max()).bit_length(), 1)
@@ -181,9 +178,9 @@ class PointPatchEmbedding(nn.Module):
         aggr: PoolLike = "max",
     ):
         super().__init__()
-        # The "layer_norm" string resolves to PyG's graph-mode LayerNorm, which normalizes across the
-        # whole packed batch; the `nn.LayerNorm` class applies the intended per-point normalization.
-        norm = nn.LayerNorm if norm == "layer_norm" else norm
+        if is_graph_layer_norm(norm):
+            # per-point statistics instead of the graph-wide default
+            norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
         # Common parameters for all MLPs and associated blocks
         factory_kwargs = dict(
             act=act,
@@ -278,6 +275,7 @@ class PointMambaEncoder(nn.Module):
             norm: The normalization function to use.
             norm_kwargs: The keyword arguments to pass to the normalization function.
             bias: Whether to use bias in the MLPs.
+            dropout: The dropout rate applied to the tokens after every Mamba block.
 
         Shapes:
             - Input: $(N, C_{\text{in}})$ where $N$ is the number of nodes and $C_{\text{in}}$ is the number of input channels.
@@ -305,6 +303,7 @@ class PointMambaEncoder(nn.Module):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
+        dropout: float = 0.0,
     ):
         super().__init__()
         # Common parameters for all MLPs and associated blocks
@@ -318,6 +317,7 @@ class PointMambaEncoder(nn.Module):
         )
 
         self.embed_dim = embed_dim
+        self.dropout = dropout
         self.patch_embed = PointPatchEmbedding(
             in_channels=in_channels,
             out_channels=embed_dim,
@@ -417,6 +417,7 @@ class PointMambaEncoder(nn.Module):
             if return_intermediates:
                 intermediates.append(x_seq)
             x_seq = block(x_seq)
+            x_seq = F.dropout(x_seq, p=self.dropout, training=self.training)
 
         x_seq = self.norm_f(x_seq)
 
@@ -654,7 +655,7 @@ class PointMambaClassification(ClassificationModel):
             norm: The normalization function to use.
             norm_kwargs: The keyword arguments to pass to the normalization function.
             bias: Whether to use bias in the MLPs.
-            dropout: The dropout rate applied to the pooled global feature before the head. The head
+            dropout: The dropout rate applied to the tokens after every Mamba block. The head
                 itself uses a fixed $0.5$ dropout, matching the reference recipe.
             global_pool: The pooling function to use.
             head_channels: The number of channels in the head.
@@ -686,7 +687,7 @@ class PointMambaClassification(ClassificationModel):
         norm: Union[str, Callable, None] = "batch_norm",
         norm_kwargs: Optional[Dict[str, Any]] = None,
         bias: Union[bool, List[bool]] = True,
-        dropout: float = 0.5,
+        dropout: float = 0.0,
         global_pool: AdaptivePoolLike = "mean",
         head_channels: Optional[Union[int, Sequence[int]]] = None,
     ):
@@ -704,10 +705,9 @@ class PointMambaClassification(ClassificationModel):
         self.act = act
         self.act_kwargs = act_kwargs
         self.act_first = act_first
-        # The "layer_norm" string resolves to PyG's graph-mode LayerNorm, which normalizes across the
-        # whole batch; the `nn.LayerNorm` class applies the intended per-feature normalization.
-        self.norm = nn.LayerNorm if norm == "layer_norm" else norm
-        self.norm_kwargs = norm_kwargs
+        self.norm = norm
+        # per-token statistics instead of the graph-wide default
+        self.norm_kwargs = {"mode": "node", **(norm_kwargs or {})} if is_graph_layer_norm(norm) else norm_kwargs
         self.bias = bias
         self.dropout = dropout
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
@@ -737,6 +737,7 @@ class PointMambaClassification(ClassificationModel):
             norm=self.norm,
             norm_kwargs=self.norm_kwargs,
             bias=self.bias,
+            dropout=self.dropout,
         )
 
     @property
@@ -775,6 +776,7 @@ class PointMambaClassification(ClassificationModel):
             self.head_channels = ensure_list(head_channels)
         if dropout is not None:
             self.dropout = dropout
+            self.encoder.dropout = dropout
         self.head = self.configure_head()
 
     @overload
@@ -809,9 +811,6 @@ class PointMambaClassification(ClassificationModel):
             x_global = torch.cat([cls_token, x_pool], dim=1)
         else:
             x_global = self.global_pool(x.transpose(1, 2)).squeeze(-1)
-
-        if self.dropout > 0:
-            x_global = F.dropout(x_global, p=self.dropout, training=self.training)
 
         return x_global if pre_logits else self.head(x_global)
 
@@ -988,6 +987,7 @@ class PointMambaPretraining(PretrainingModel):
                 num_samples=1024,
                 random_start=False,
                 dst_index_key=DataKeys.INDEX,
+                allow_missing_keys=True,
             ),
         ]
     ),
@@ -1010,7 +1010,7 @@ class PointMambaPretraining(PretrainingModel):
         norm="batch_norm",
         norm_kwargs=None,
         bias=True,
-        dropout=0.5,
+        dropout=0.0,
         global_pool="mean",
         head_channels=(256, 256),
     ),
@@ -1061,7 +1061,7 @@ def point_mamba_base_modelnet40_clf(**kwargs: Any) -> PointMambaClassification:
         norm="batch_norm",
         norm_kwargs=None,
         bias=True,
-        dropout=0.1,
+        dropout=0.0,
         global_pool="mean",
         head_channels=(256, 256),
     ),
@@ -1163,7 +1163,7 @@ def point_mamba_base_scanobjectnn_objonly_clf(**kwargs: Any) -> PointMambaClassi
         norm="batch_norm",
         norm_kwargs=None,
         bias=True,
-        dropout=0.1,
+        dropout=0.0,
         global_pool="mean",
         head_channels=(256, 256),
     ),

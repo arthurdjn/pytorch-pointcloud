@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the PointNeXt S3DIS heads to follow `S3DIS_CLASSES` (no `Relabel`).
+- Changed the weightless `pointnext-{sm,base,lg,xl}` segmentation configs to the released architectures, and `PointMambaClassification(dropout=...)` to a token dropout after every block (default 0.0).
 - Fixed the nuScenes evaluation (lidar and radar point filter, ranges from the ego origin, speed threshold 0.2). nuScenes caches must be rebuilt with `force_process=True`.
 - Fixed the 3DETR rotated GIoU heading, VoteNet `reset_classifier`, `boxes_iou3d` on small boxes and the tie order of `nms3d`.
 - Added `nms3d(cap_per_label=...)`.
