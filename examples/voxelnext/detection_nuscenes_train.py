@@ -21,7 +21,8 @@ from torch_pointcloud.datasets import NuScenes, NuScenesMini, RepeatSampler
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, NuScenesSplit, velocity_attributes
 from torch_pointcloud.losses import VoxelNeXtHeadLoss
 from torch_pointcloud.metrics import nuscenes_detection_metrics
-from torch_pointcloud.models import DetectionModel, create_model, model_info
+from torch_pointcloud.models import DetectionModel, VoxelNeXtDetection, create_model, model_info
+from torch_pointcloud.models.voxelnext import VoxelNeXtHeadOutput
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
@@ -49,7 +50,6 @@ SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
 NMS_MAX_CANDIDATES = 1000
 NMS_MAX_KEEP = 83
-HEAD_CLASS_GROUPS = ((0,), (1, 2), (3, 4), (5,), (6, 7), (8, 9))
 
 
 def main() -> None:
@@ -171,9 +171,9 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     return train_loader, val_loader
 
 
-def configure_model(args: Namespace) -> DetectionModel:
+def configure_model(args: Namespace) -> VoxelNeXtDetection:
     model = create_model(args.model, task="detection", pretrained=False)
-    assert isinstance(model, DetectionModel)
+    assert isinstance(model, VoxelNeXtDetection)
     return model.to(args.device)
 
 
@@ -294,7 +294,7 @@ def keyframe_labels(dataset: Dataset, index: int) -> Tensor:
     return torch.from_numpy(np.load(Path(dataset.processed_dir, dataset.tokens[index], "label.npy")))
 
 
-def forward(model: DetectionModel, data: dict[str, Tensor]) -> dict[str, Tensor]:
+def forward(model: DetectionModel, data: dict[str, Tensor]) -> VoxelNeXtHeadOutput:
     return model(
         data[DataKeys.VOXEL],
         data[DataKeys.POS_VOXEL],
@@ -327,25 +327,8 @@ def train_one_epoch(
     return total_loss / len(loader)
 
 
-def head_nms(boxes: Tensor, scores: Tensor, labels: Tensor, batch: Tensor) -> Tensor:
-    """Rotated BEV NMS among the classes of every head of every scene."""
-    head = labels.new_empty(len(NUSCENES_DETECTION_CLASSES))
-    for index, group in enumerate(HEAD_CLASS_GROUPS):
-        head[list(group)] = index
-
-    return nms3d(
-        boxes,
-        scores,
-        NMS_IOU,
-        batch=batch * len(HEAD_CLASS_GROUPS) + head[labels],
-        rotated=True,
-        max_keep=NMS_MAX_KEEP,
-        max_candidates=NMS_MAX_CANDIDATES,
-    )
-
-
 @torch.no_grad()
-def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(model: VoxelNeXtDetection, loader: DataLoader, device: str) -> dict[str, float]:
     model.eval()
     preds: list[Detection3D] = []
     targets: list[Boxes3D] = []
@@ -354,13 +337,27 @@ def evaluate(model: DetectionModel, loader: DataLoader, device: str) -> dict[str
     ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
+    # Head of every class: the boxes of a head suppress each other.
+    head_index = torch.empty(model.num_classes, dtype=torch.long, device=device)
+    for index, group in enumerate(model.head_class_groups):
+        head_index[list(group)] = index
 
     for data in tqdm(loader, desc="Evaluating", leave=False):
         data = {key: value.to(device) if isinstance(value, Tensor) else value for key, value in data.items()}
         det = model.decode(forward(model, data))
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = head_nms(boxes, scores, labels, batch)
+        idx = nms3d(
+            boxes,
+            scores,
+            NMS_IOU,
+            labels=head_index[labels],
+            batch=batch,
+            rotated=True,
+            max_keep=NMS_MAX_KEEP,
+            max_candidates=NMS_MAX_CANDIDATES,
+            cap_per_label=True,
+        )
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),

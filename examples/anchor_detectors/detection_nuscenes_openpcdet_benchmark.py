@@ -113,19 +113,6 @@ def forward(model: DetectionModel, data: dict[str, Tensor]) -> Detection3D:
     return model.decode(output)
 
 
-def class_nms(boxes: Tensor, scores: Tensor, labels: Tensor, batch: Tensor) -> Tensor:
-    """Rotated BEV NMS within every class of every scene."""
-    return nms3d(
-        boxes,
-        scores,
-        NMS_IOU,
-        batch=batch * len(NUSCENES_DETECTION_CLASSES) + labels,
-        rotated=True,
-        max_keep=NMS_MAX_KEEP,
-        max_candidates=NMS_MAX_CANDIDATES,
-    )
-
-
 @torch.no_grad()
 def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
     model.to(device).eval()
@@ -142,7 +129,17 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         det = forward(model, data)
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = class_nms(boxes, scores, labels, batch)
+        idx = nms3d(
+            boxes,
+            scores,
+            NMS_IOU,
+            labels=labels,
+            batch=batch,
+            rotated=True,
+            max_keep=NMS_MAX_KEEP,
+            max_candidates=NMS_MAX_CANDIDATES,
+            cap_per_label=True,
+        )
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),

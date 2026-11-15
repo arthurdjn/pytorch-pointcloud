@@ -754,6 +754,7 @@ def nms3d(
     rotated: bool = False,
     max_keep: Optional[int] = None,
     max_candidates: Optional[int] = None,
+    cap_per_label: bool = False,
 ) -> Tensor:
     r"""Greedy 3D non-maximum suppression.
 
@@ -780,9 +781,13 @@ def nms3d(
             equals the first `max_keep` entries of the uncapped result.
         max_candidates: Optional cap on the boxes considered per scene: only the `max_candidates` highest-scoring
             boxes enter the suppression, the others are dropped.
+        cap_per_label: Apply `max_keep` and `max_candidates` to every label of a scene instead of every scene;
+            requires `labels`.
 
     Returns:
         Indices of the kept boxes (into the input), highest score first within each scene, shape $(K,)$ long.
+        With `cap_per_label`, the labels of a scene follow each other in increasing order, highest score first
+        within each.
 
     Shape:
         - boxes: $(N, 7)$
@@ -801,16 +806,27 @@ def nms3d(
         raise ValueError(f"`iou_threshold` must be non-negative, got {iou_threshold}.")
     if (max_keep is not None and max_keep < 0) or (max_candidates is not None and max_candidates < 0):
         raise ValueError(f"`max_keep` and `max_candidates` must be non-negative, got {max_keep} and {max_candidates}.")
+    if cap_per_label and labels is None:
+        raise ValueError("`cap_per_label` requires `labels`.")
 
     if boxes.numel() == 0:
         return boxes.new_zeros((0,), dtype=torch.long)
 
+    # With `cap_per_label`, every label of a scene is ranked and capped as a scene of its own.
+    partition = batch
+    if labels is not None and cap_per_label:
+        classes, label = torch.unique(labels, return_inverse=True)
+        partition = label
+        if batch is not None:
+            _, scene = torch.unique(batch, return_inverse=True)
+            partition = scene * len(classes) + label
+
     # Each scene sorts its own scores with a stable sort, so tied boxes rank in input order.
-    if batch is None:
+    if partition is None:
         scene = boxes.new_zeros(len(boxes), dtype=torch.long)
         orders = [scores.argsort(descending=True, stable=True)[:max_candidates]]
     else:
-        _, scene, counts = torch.unique(batch, return_inverse=True, return_counts=True)
+        _, scene, counts = torch.unique(partition, return_inverse=True, return_counts=True)
         members = scene.argsort(stable=True).split(counts.tolist())
         orders = [index[scores[index].argsort(descending=True, stable=True)][:max_candidates] for index in members]
     order = torch.cat(orders)
@@ -818,7 +834,7 @@ def nms3d(
         return order
 
     key = scene[order]
-    if labels is not None:
+    if labels is not None and not cap_per_label:
         classes, label = torch.unique(labels[order], return_inverse=True)
         key = key * len(classes) + label
     _, group, sizes = torch.unique(key, return_inverse=True, return_counts=True)

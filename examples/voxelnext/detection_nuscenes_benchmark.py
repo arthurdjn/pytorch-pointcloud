@@ -13,7 +13,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import NuScenes, NuScenesMini
 from torch_pointcloud.datasets.nuscenes import NUSCENES_DETECTION_CLASSES, velocity_attributes
 from torch_pointcloud.metrics import nuscenes_detection_metrics
-from torch_pointcloud.models import DetectionModel, create_model, model_info
+from torch_pointcloud.models import VoxelNeXtDetection, create_model, model_info
 from torch_pointcloud.ops.box3d import nms3d
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything, set_determinism
@@ -28,7 +28,6 @@ SCORE_THRESHOLD = 0.1
 NMS_IOU = 0.2
 NMS_MAX_CANDIDATES = 1000
 NMS_MAX_KEEP = 83
-HEAD_CLASS_GROUPS = ((0,), (1, 2), (3, 4), (5,), (6, 7), (8, 9))
 
 
 def main() -> None:
@@ -89,9 +88,9 @@ def configure_dataloader(args: Namespace) -> DataLoader:
     )
 
 
-def configure_model(args: Namespace) -> DetectionModel:
+def configure_model(args: Namespace) -> VoxelNeXtDetection:
     model = create_model(args.model, task="detection", pretrained=True)
-    assert isinstance(model, DetectionModel)
+    assert isinstance(model, VoxelNeXtDetection)
     return model
 
 
@@ -102,25 +101,8 @@ def configure_transform(args: Namespace) -> T.Transform:
     return transform
 
 
-def head_nms(boxes: Tensor, scores: Tensor, labels: Tensor, batch: Tensor) -> Tensor:
-    """Rotated BEV NMS among the classes of every head of every scene."""
-    head = labels.new_empty(len(NUSCENES_DETECTION_CLASSES))
-    for index, group in enumerate(HEAD_CLASS_GROUPS):
-        head[list(group)] = index
-
-    return nms3d(
-        boxes,
-        scores,
-        NMS_IOU,
-        batch=batch * len(HEAD_CLASS_GROUPS) + head[labels],
-        rotated=True,
-        max_keep=NMS_MAX_KEEP,
-        max_candidates=NMS_MAX_CANDIDATES,
-    )
-
-
 @torch.no_grad()
-def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(model: VoxelNeXtDetection, dataloader: DataLoader, device: str) -> dict[str, float]:
     model.to(device).eval()
     preds: list[Detection3D] = []
     targets: list[Boxes3D] = []
@@ -129,6 +111,10 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
     ego_pos: list[Tensor] = []
     gt_attributes: list[Tensor] = []
     offsets: list[int] = [0]
+    # Head of every class: the boxes of a head suppress each other.
+    head_index = torch.empty(model.num_classes, dtype=torch.long, device=device)
+    for index, group in enumerate(model.head_class_groups):
+        head_index[list(group)] = index
 
     for data in tqdm(dataloader, total=len(dataloader), desc="Testing"):
         data = {key: value.to(device) if torch.is_tensor(value) else value for key, value in data.items()}
@@ -141,7 +127,17 @@ def evaluate(model: DetectionModel, dataloader: DataLoader, device: str) -> dict
         det = model.decode(output)
         keep = det["scores"] > SCORE_THRESHOLD
         boxes, scores, labels, batch = det["boxes"][keep], det["scores"][keep], det["labels"][keep], det["batch"][keep]
-        idx = head_nms(boxes, scores, labels, batch)
+        idx = nms3d(
+            boxes,
+            scores,
+            NMS_IOU,
+            labels=head_index[labels],
+            batch=batch,
+            rotated=True,
+            max_keep=NMS_MAX_KEEP,
+            max_candidates=NMS_MAX_CANDIDATES,
+            cap_per_label=True,
+        )
         preds.append(
             {
                 "boxes": boxes[idx].cpu(),
