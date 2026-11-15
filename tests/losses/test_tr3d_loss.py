@@ -24,6 +24,17 @@ def _pyramid(num_scenes: int = 1, extent: float = 4.0) -> Dict[str, Tensor]:
     return {"pos": torch.cat(pos), "level": torch.cat(level), "batch": torch.cat(batch)}
 
 
+def _output(pyramid: Dict[str, Tensor]) -> Dict[str, Tensor]:
+    m = len(pyramid["pos"])
+    generator = torch.Generator().manual_seed(0)
+    boxes = torch.cat([pyramid["pos"], torch.full((m, 3), 0.5), torch.zeros(m, 1)], dim=1)
+    return {
+        "cls_logits": torch.randn(m, 2, generator=generator),
+        "boxes": boxes + 0.05 * torch.randn(m, 7, generator=generator),
+        **pyramid,
+    }
+
+
 def test_tr3d_loss_assigns_the_nearest_locations_of_the_class_level() -> None:
     pyramid = _pyramid()
     criterion = TR3DLoss(num_classes=2, label_levels=[0, 1], num_positives=6)
@@ -103,19 +114,8 @@ def test_tr3d_loss_distance_dims_select_the_columns_of_the_center_distance() -> 
     assert not torch.isclose(width["box_loss"], default)
 
 
-def _tr3d_output(pyramid: Dict[str, Tensor]) -> Dict[str, Tensor]:
-    m = len(pyramid["pos"])
-    generator = torch.Generator().manual_seed(0)
-    boxes = torch.cat([pyramid["pos"], torch.full((m, 3), 0.5), torch.zeros(m, 1)], dim=1)
-    return {
-        "cls_logits": torch.randn(m, 2, generator=generator),
-        "boxes": boxes + 0.05 * torch.randn(m, 7, generator=generator),
-        **pyramid,
-    }
-
-
 def test_tr3d_loss_follows_the_scene_ids_of_the_predictions() -> None:
-    output = _tr3d_output(_pyramid(num_scenes=2))
+    output = _output(_pyramid(num_scenes=2))
     data = {
         "box": torch.tensor([[2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 0.0], [1.0, 3.0, 1.0, 0.8, 1.2, 0.6, 0.0]]),
         "label": torch.tensor([1, 0]),
@@ -137,7 +137,7 @@ def test_tr3d_loss_follows_the_scene_ids_of_the_predictions() -> None:
 
 
 def test_tr3d_loss_int32_labels_match_int64() -> None:
-    output = _tr3d_output(_pyramid())
+    output = _output(_pyramid())
     data = {
         "box": torch.tensor([[2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 0.0]]),
         "label": torch.tensor([1]),
