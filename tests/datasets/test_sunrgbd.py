@@ -2,6 +2,7 @@
 import json
 import math
 import shutil
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Optional
@@ -449,6 +450,45 @@ def test_sunrgbd_incomplete_cache_is_not_stamped(
     monkeypatch.setattr(SunRGBD, "write_processed_files", incomplete)
     SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
     assert not meta_path.exists()
+
+
+def test_sunrgbd_dataset_process_opens_release_archive_once_and_closes_it(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+
+    opened = []
+    zip_file_cls = zipfile.ZipFile
+
+    def recording_zip_file(path: Any, *args: Any, **kwargs: Any) -> zipfile.ZipFile:
+        archive = zip_file_cls(path, *args, **kwargs)
+        opened.append(archive)
+        return archive
+
+    with patch("torch_pointcloud.datasets.sunrgbd.zipfile.ZipFile", recording_zip_file):
+        dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False)
+
+    assert len(dataset) == 3
+    release_archives = [archive for archive in opened if Path(str(archive.filename)).name == "SUNRGBD.zip"]
+    assert len(release_archives) == 1
+    assert release_archives[0].fp is None
+
+
+def test_sunrgbd_dataset_parallel_process_matches_sequential(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("SunRGBD/raw/**/*")
+    file_names = ("pos.npy", "color.npy", "box.npy", "class.npy")
+
+    sequential = SunRGBD(root=datasets_dir, train=False, show_progress=False)
+    expected = {
+        (scene.name, name): Path(scene, name).read_bytes() for scene in sequential.scenes for name in file_names
+    }
+    shutil.rmtree(sequential.processed_dir)
+
+    parallel = SunRGBD(root=datasets_dir, train=False, show_progress=False, num_workers=2)
+    written = {(scene.name, name): Path(scene, name).read_bytes() for scene in parallel.scenes for name in file_names}
+
+    assert len(parallel) == 3
+    assert written == expected
 
 
 def test_sunrgbd_mean_sizes_have_one_template_per_class() -> None:

@@ -101,7 +101,7 @@ def load_state_dict(model: nn.Module, state_dict: Dict[str, Any], source: str, s
     Checkpoint keys absent from the model are ignored with a warning, keys with mismatched tensor shapes are
     skipped and keep their fresh initialization (e.g. the stem after an `in_channels` override), and model keys
     missing from the checkpoint raise. A checkpoint matching the model exactly loads completely, as with a
-    strict load.
+    strict load. The model is left untouched when the load raises.
 
     Args:
         model: Module to load the parameters into.

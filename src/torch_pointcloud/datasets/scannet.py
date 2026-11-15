@@ -6,7 +6,6 @@
 
 import math
 import re
-import shutil
 import warnings
 from collections import defaultdict
 from functools import cached_property
@@ -31,7 +30,7 @@ from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
 
 from .pointcloud import PointCloudDataset
-from .utils import check_terms_accepted, download_url
+from .utils import atomic_path, check_terms_accepted, download_url, remove_stale_temporaries
 
 SCANNET_UNK_CLS = "<unk>"
 SCANNET_UNK_IDX = 0
@@ -1266,11 +1265,7 @@ class ScanNet(PointCloudDataset):
 
         split_dir = Path(self.processed_dir, self.split)
         split_dir.mkdir(parents=True, exist_ok=True)
-        for stale in split_dir.glob("*.tmp"):
-            if stale.is_dir():
-                shutil.rmtree(stale)
-            else:
-                stale.unlink()
+        remove_stale_temporaries(split_dir)
 
         def process_scene(scene_id: str) -> bool:
             meta_path = next(scans_dir.glob(f"{scene_id}/{scene_id}.txt"), None)
@@ -1304,18 +1299,15 @@ class ScanNet(PointCloudDataset):
                 return False
 
             scene_dir = split_dir / scene_id
-            tmp_dir = split_dir / f"{scene_id}.tmp"
-            tmp_dir.mkdir(parents=True, exist_ok=True)
-            np.save(tmp_dir / "pos.npy", data["pos"].numpy())
-            np.save(tmp_dir / "color.npy", data["color"].numpy())
-            np.save(tmp_dir / "normal.npy", data["normal"].numpy())
-            if "segment" in data:
-                np.save(tmp_dir / "segment.npy", data["segment"].numpy())
-            if "instance" in data:
-                np.save(tmp_dir / "instance.npy", data["instance"].numpy())
-            if scene_dir.exists():
-                shutil.rmtree(scene_dir)
-            tmp_dir.replace(scene_dir)
+            with atomic_path(scene_dir) as tmp_dir:
+                tmp_dir.mkdir()
+                np.save(tmp_dir / "pos.npy", data["pos"].numpy())
+                np.save(tmp_dir / "color.npy", data["color"].numpy())
+                np.save(tmp_dir / "normal.npy", data["normal"].numpy())
+                if "segment" in data:
+                    np.save(tmp_dir / "segment.npy", data["segment"].numpy())
+                if "instance" in data:
+                    np.save(tmp_dir / "instance.npy", data["instance"].numpy())
             return True
 
         results = parallel_map(
@@ -1421,7 +1413,7 @@ class ScanNet(PointCloudDataset):
             scene[DataKeys.INSTANCE] = torch.from_numpy(np.load(path / "instance.npy")).long()
         if self.return_superpoint:
             scene[DataKeys.SUPERPOINT] = self._load_superpoint(path.name, scene[DataKeys.POS].shape[0])
-        if self.relabel is not None:
+        if self.relabel is not None and DataKeys.SEGMENT in scene:
             scene = self.relabel(scene)
         return scene
 
