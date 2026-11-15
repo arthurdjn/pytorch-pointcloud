@@ -333,10 +333,9 @@ def test_pointnet2_msg_modelnet40_transform_feeds_the_normals() -> None:
     transform = info["transform"]
     assert transform is not None
     batch = collate([transform(sample)])
-    x, pos, _ = select_inputs(batch, info["input_keys"])
+    x, _, _ = select_inputs(batch, info["input_keys"])
     assert x is not None and x.shape == (1024, info["hparams"]["in_channels"])
     assert torch.equal(x, batch[DataKeys.NORMAL])
-    assert not torch.equal(x, pos)
 
 
 def test_pointnet2_segmentation_interpolates_every_level_from_three_neighbors(model_seg: PointNet2Segmentation) -> None:

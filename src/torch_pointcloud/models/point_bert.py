@@ -583,11 +583,12 @@ class PointBERTPretraining(PretrainingModel):
         tokens = self.reduce_dim(tokens)
 
         B, G, _ = tokens.shape
-        mask = torch.zeros(B, G, dtype=torch.bool, device=tokens.device)
         if self.training:
             mask = self._mask_center_block(center)
             weight = mask.unsqueeze(-1).type_as(tokens)
             tokens = tokens * (1 - weight) + self.mask_token.expand(B, G, -1) * weight
+        else:
+            mask = torch.zeros(B, G, dtype=torch.bool, device=tokens.device)
         cls_tokens = self.cls_token.expand(B, -1, -1)
         cls_pos = self.cls_pos.expand(B, -1, -1)
         pos_embed = self.pos_embed(center)
