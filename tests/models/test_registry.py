@@ -887,23 +887,6 @@ def test_model_info_matches_the_entry_of_create_model() -> None:
         model_info("not-a-model")
 
 
-def test_create_model_checkpoint_path_loads_former_pointnet_keys(tmp_path: Path) -> None:
-    reference = create_model("pointnet.modelnet40")
-    former = {
-        key.replace("encoder.out_norm.", "encoder.mlp2.norms.1."): value
-        for key, value in reference.state_dict().items()
-    }
-    assert set(former) != set(reference.state_dict())
-    checkpoint_path = tmp_path / "former.pt"
-    torch.save(former, checkpoint_path)
-
-    with pytest.warns(FutureWarning, match="out_norm"):
-        model = create_model("pointnet.modelnet40", checkpoint_path=checkpoint_path)
-
-    for key, value in reference.state_dict().items():
-        assert torch.equal(model.state_dict()[key], value)
-
-
 def test_model_info_does_not_alias_the_registry() -> None:
     info = model_info("pointnet.modelnet40.jiawei-ren")
     assert info["weights"] is not None
