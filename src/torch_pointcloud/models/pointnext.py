@@ -13,7 +13,7 @@ from torch_geometric.nn import MLP, global_max_pool, global_mean_pool
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.datasets.modelnet import MODELNET40_CLASSES
-from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES
+from torch_pointcloud.datasets.s3dis import S3DIS_CLASSES, S3DIS_HDF5_CLASSES
 from torch_pointcloud.datasets.scanobjectnn import SCANOBJECTNN_CLASSES
 from torch_pointcloud.layers import PoolLike, create_pool
 from torch_pointcloud.layers.pointnet2_blocks import PointNet2FeaturePropagation
@@ -651,6 +651,8 @@ class PointNeXtPartSegmentation(PartSegmentationModel):
         return x if pre_logits else self.head(x)
 
     def forward(self, x: OptTensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
+        self.check_category(category)
+
         x, pos, batch, intermediates = self.forward_features(x, pos, batch, return_intermediates=True)
         x, pos, batch = self.forward_decoder(x, pos, batch, category, intermediates)
         return self.forward_head(x, batch)
@@ -1338,8 +1340,10 @@ def pointnext_sm_c64_modelnet40_clf(**hparams: Any) -> PointNeXtClassification:
         encoder_expansion=4,
         sa_layers=2,
         sa_use_res=True,
-        decoder_channels=[512, 256, 128, 64],
+        decoder_channels=[256, 128, 64, 32],
         decoder_depths=[2, 2, 2, 2],
+        decoder_plain_last=False,
+        head_channels=[32],
         ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
@@ -1366,8 +1370,10 @@ def pointnext_sm_seg(**hparams: Any) -> PointNeXtSegmentation:
         encoder_expansion=4,
         sa_layers=1,
         sa_use_res=False,
-        decoder_channels=[512, 256, 128, 64],
+        decoder_channels=[256, 128, 64, 32],
         decoder_depths=[2, 2, 2, 2],
+        decoder_plain_last=False,
+        head_channels=[32],
         ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
@@ -1394,8 +1400,10 @@ def pointnext_base_seg(**hparams: Any) -> PointNeXtSegmentation:
         encoder_expansion=4,
         sa_layers=1,
         sa_use_res=False,
-        decoder_channels=[512, 256, 128, 64],
+        decoder_channels=[256, 128, 64, 32],
         decoder_depths=[2, 2, 2, 2],
+        decoder_plain_last=False,
+        head_channels=[32],
         ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
@@ -1422,8 +1430,10 @@ def pointnext_lg_seg(**hparams: Any) -> PointNeXtSegmentation:
         encoder_expansion=4,
         sa_layers=1,
         sa_use_res=False,
-        decoder_channels=[1024, 512, 256, 128],
+        decoder_channels=[512, 256, 128, 64],
         decoder_depths=[2, 2, 2, 2],
+        decoder_plain_last=False,
+        head_channels=[64],
         ratios=[0.25, 0.25, 0.25, 0.25],
         radiuses=[0.1, 0.2, 0.4, 0.8, 1.6],
         num_neighbors=[32, 32, 32, 32, 32],
@@ -1438,14 +1448,28 @@ def pointnext_xl_seg(**hparams: Any) -> PointNeXtSegmentation:
     return PointNeXtSegmentation(**hparams)
 
 
+def s3dis_checkpoint_filter_fn(state_dict: Dict[str, Any], model: nn.Module) -> Dict[str, Any]:
+    """Reorder the classifier rows of a released S3DIS checkpoint to `S3DIS_CLASSES`, as the `pretrained_filter_fn`
+    of a `WeightsDict`.
+
+    The released heads predict the classes in `S3DIS_HDF5_CLASSES` order: table before chair, sofa before bookcase.
+
+    Args:
+        state_dict: State dict keyed as in the released checkpoint file.
+        model: Model the state dict is loaded into.
+
+    Returns:
+        The state dict whose last head layer predicts the classes in `S3DIS_CLASSES` order.
+    """
+    order = torch.tensor([S3DIS_HDF5_CLASSES.index(name) for name in S3DIS_CLASSES])
+    state_dict = dict(state_dict)
+    for key in ("head.lins.1.weight", "head.lins.1.bias"):
+        state_dict[key] = state_dict[key][order]
+    return state_dict
+
+
 _S3DIS_TRANSFORMS = T.Compose(
     [
-        # The PointNeXt benchmark dataset uses a slightly different label mapping than the original S3DIS dataset
-        # used by other papers.
-        T.Relabel(
-            keys=DataKeys.SEGMENT,
-            labels=[0, 1, 2, 3, 4, 5, 6, 8, 7, 10, 9, 11, 12],
-        ),
         T.Shift(keys=DataKeys.POS, method="min"),
         T.CopyItems(
             keys=[DataKeys.POS, DataKeys.SEGMENT],
@@ -1550,6 +1574,7 @@ _S3DIS_VARIANT_HPARAMS: Dict[str, Dict[str, Any]] = {
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
@@ -1568,6 +1593,7 @@ def pointnext_sm_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
@@ -1586,6 +1612,7 @@ def pointnext_sm_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
@@ -1604,6 +1631,7 @@ def pointnext_sm_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
@@ -1622,6 +1650,7 @@ def pointnext_sm_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
@@ -1640,6 +1669,7 @@ def pointnext_sm_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["sm"]},
@@ -1658,6 +1688,7 @@ def pointnext_sm_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
@@ -1676,6 +1707,7 @@ def pointnext_base_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
@@ -1694,6 +1726,7 @@ def pointnext_base_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
@@ -1712,6 +1745,7 @@ def pointnext_base_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
@@ -1730,6 +1764,7 @@ def pointnext_base_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
@@ -1748,6 +1783,7 @@ def pointnext_base_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["base"]},
@@ -1766,6 +1802,7 @@ def pointnext_base_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
@@ -1784,6 +1821,7 @@ def pointnext_lg_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
@@ -1802,6 +1840,7 @@ def pointnext_lg_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
@@ -1820,6 +1859,7 @@ def pointnext_lg_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
@@ -1838,6 +1878,7 @@ def pointnext_lg_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
@@ -1856,6 +1897,7 @@ def pointnext_lg_s3dis_area5_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["lg"]},
@@ -1874,6 +1916,7 @@ def pointnext_lg_s3dis_area6_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
@@ -1892,6 +1935,7 @@ def pointnext_xl_s3dis_area1_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
@@ -1910,6 +1954,7 @@ def pointnext_xl_s3dis_area2_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
@@ -1928,6 +1973,7 @@ def pointnext_xl_s3dis_area3_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
@@ -1946,6 +1992,7 @@ def pointnext_xl_s3dis_area4_seg(**hparams: Any) -> PointNeXtSegmentation:
         classes=S3DIS_CLASSES,
         author="openpoints",
         license="MIT",
+        pretrained_filter_fn=s3dis_checkpoint_filter_fn,
     ),
     transform=_S3DIS_TRANSFORMS,
     hparams={**_S3DIS_COMMON_HPARAMS, **_S3DIS_VARIANT_HPARAMS["xl"]},
