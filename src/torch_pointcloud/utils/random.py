@@ -37,6 +37,21 @@ def seed_everything(seed: Optional[int] = None) -> int:
     return seed
 
 
+def generator_device(generator: Optional[torch.Generator], device: torch.device) -> torch.device:
+    """Device random numbers must be drawn on: the generator's own device, or `device` without a generator.
+
+    Args:
+        generator: Generator the numbers are drawn from, or `None` for the global generator.
+        device: Device the drawn numbers are used on.
+
+    Returns:
+        The device to draw on; the draw is then moved to `device`.
+    """
+    if generator is None:
+        return device
+    return generator.device
+
+
 def set_determinism(*, tf32: bool = False) -> None:
     """Set the TensorFloat-32 flags for fp32 CUDA matmul and cuDNN convolutions.
 

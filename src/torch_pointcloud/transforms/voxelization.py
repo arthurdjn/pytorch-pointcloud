@@ -11,7 +11,7 @@ from torch_geometric.utils import scatter
 from torch_pointcloud.ops.voxelization import dynamic_voxelize, first_permutation, hard_voxelize, voxel_grid_fnv
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
 from torch_pointcloud.utils.data import DataKeys
-from torch_pointcloud.utils.random import Randomizable
+from torch_pointcloud.utils.random import Randomizable, generator_device
 from torch_pointcloud.utils.types import KeyCollection, ValueCollection
 
 from .base import DictTransform
@@ -180,7 +180,7 @@ def divisible_pad(
     position = torch.arange(total, device=device) - new_start[group]
     size, first = counts[group], start[group]
     if pad_fill == "random":
-        draw_device = device if generator is None else generator.device
+        draw_device = generator_device(generator, device)
         draw = torch.rand(total, generator=generator, device=draw_device).to(device)
         source = first + torch.minimum((draw * size).long(), size - 1)
     else:
@@ -729,7 +729,7 @@ class Voxelize(DictTransform, Randomizable):
         sort_idx = torch.argsort(cluster, stable=True)
         counts = torch.bincount(cluster, minlength=num_clusters)
         idx_ptr = torch.cat([counts.new_zeros(1), counts.cumsum(0)[:-1]])
-        draw_device = cluster.device if self.R is None else self.R.device
+        draw_device = generator_device(self.R, cluster.device)
         rand = torch.rand(num_clusters, device=draw_device, generator=self.R).to(cluster.device)
         offsets = torch.minimum((rand * counts.float()).long(), counts - 1)
         return sort_idx[idx_ptr + offsets]

@@ -582,24 +582,22 @@ def rotation_matrix(angle: float, axis: int = 2, device: Optional[torch.device] 
     return R
 
 
-def cast_like(value: Tensor, x: Tensor) -> Tensor:
-    """Move `value` to the device of `x`, and to its dtype when that loses nothing.
+def _cast_like(value: Tensor, x: Tensor) -> Tensor:
+    """Move `value` to the device and dtype of `x`, except that a floating point `value` is never made integer.
 
-    A fractional `value` keeps its own dtype next to an integer `x`, so their product or sum is promoted to
-    floating point instead of the value being truncated. An integral `value` takes the integer dtype of `x`.
+    Next to an integer `x`, a floating point `value` keeps its own dtype, so their sum or product is promoted to
+    floating point instead of the value being truncated.
 
     Args:
-        value: The floating point parameter of a transform, such as an offset or a scale.
+        value: The parameter of a transform, such as an offset, a scale or a rotation.
         x: The tensor the parameter is applied to.
 
     Returns:
-        `value` on the device of `x`.
+        `value` on the device of `x`, in the dtype of `x` unless `value` is floating point and `x` is not.
     """
-    if x.is_floating_point() or not value.is_floating_point():
-        return value.to(x)
-
-    is_integral = bool((value == value.round()).all())
-    return value.to(x) if is_integral else value.to(x.device)
+    if value.is_floating_point() and not x.is_floating_point():
+        return value.to(x.device)
+    return value.to(x)
 
 
 def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
@@ -616,7 +614,7 @@ def rotate_vectors(x: Tensor, rotation: Tensor) -> Tensor:
     Returns:
         The rotated tensor with the same shape as `x`.
     """
-    rotation = cast_like(rotation, x)
+    rotation = _cast_like(rotation, x)
     triples = x.reshape(*x.shape[:-1], x.shape[-1] // 3, 3)
     triples = triples.to(rotation.dtype) @ rotation.transpose(-1, -2)
     return triples.reshape(x.shape)
@@ -635,6 +633,10 @@ class Translate(DictTransform):
         dst_keys: The keys to store the translated data in.
         allow_missing_keys: If `True`, skip missing keys silently.
 
+    Note:
+        The output dtype follows the type of `offset`, not its value: on integer data, `offset=1` keeps the data
+        integer and `offset=1.0` promotes it to floating point.
+
     Example:
         ```python
         import torch
@@ -651,14 +653,14 @@ class Translate(DictTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.offset = torch.as_tensor(offset, dtype=torch.float32)
+        self.offset = torch.as_tensor(offset)
         self.dst_keys = ensure_tuple_size(dst_keys or self.keys, len(self.keys))
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             x = data[key]
-            data[dst_key] = x + cast_like(self.offset, x)
+            data[dst_key] = x + _cast_like(self.offset, x)
         return data
 
     def extra_repr(self) -> str:

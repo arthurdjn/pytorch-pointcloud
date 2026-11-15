@@ -7,7 +7,7 @@ from torch import Tensor
 
 from torch_pointcloud.ops.cluster import fps
 from torch_pointcloud.utils.conversion import ensure_tuple, ensure_tuple_size
-from torch_pointcloud.utils.random import Randomizable
+from torch_pointcloud.utils.random import Randomizable, generator_device
 from torch_pointcloud.utils.types import KeyCollection
 
 from .base import DictTransform
@@ -75,7 +75,7 @@ def random_sample(
         ValueError: If `num_samples > 0` and the input is empty.
     """
     n = tensor.size(0)
-    draw_device = tensor.device if generator is None else generator.device
+    draw_device = generator_device(generator, tensor.device)
     if num_samples == 0:
         indices = torch.empty(0, dtype=torch.long, device=tensor.device)
     elif n == 0:
@@ -233,7 +233,7 @@ def random_sample_face_vertices(
     areas = areas.norm(p=2, dim=1).abs() / 2
 
     probs = areas / areas.sum()
-    draw_device = vertices.device if generator is None else generator.device
+    draw_device = generator_device(generator, vertices.device)
     samples = torch.multinomial(probs.to(draw_device), num_samples, replacement=True, generator=generator)
     face = face[samples.to(face.device)]
 
@@ -452,7 +452,7 @@ def random_dropout_mask(
         raise ValueError(f"drop_ratio must be in [0, 1); got {drop_ratio}.")
 
     device = device or torch.device("cpu")
-    draw_device = device if generator is None else generator.device
+    draw_device = generator_device(generator, device)
     rand = torch.rand(n, device=draw_device, generator=generator).to(device)
     return rand >= drop_ratio
 
@@ -841,7 +841,7 @@ def shuffle_indices(
         Long tensor of shape $(n,)$.
     """
     device = device or torch.device("cpu")
-    draw_device = device if generator is None else generator.device
+    draw_device = generator_device(generator, device)
     return torch.randperm(n, device=draw_device, generator=generator).to(device)
 
 

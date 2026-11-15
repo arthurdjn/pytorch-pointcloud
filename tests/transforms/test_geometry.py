@@ -6,7 +6,7 @@ import torch
 import torch_pointcloud.transforms as T
 import torch_pointcloud.transforms.functional as F
 from torch_pointcloud.transforms import Voxelize
-from torch_pointcloud.transforms.geometry import cast_like
+from torch_pointcloud.transforms.geometry import _cast_like
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
 
 
@@ -364,18 +364,47 @@ def test_translate_integral_offset_keeps_integer_dtype(dtype: torch.dtype) -> No
 
 
 @pytest.mark.parametrize(
-    "value, x, dtype",
+    "offset",
     [
-        pytest.param([2.0, -1.0], torch.zeros(2, dtype=torch.long), torch.long, id="integral-on-integer"),
-        pytest.param([2.5, -1.0], torch.zeros(2, dtype=torch.long), torch.float32, id="fractional-on-integer"),
-        pytest.param([2.0, -1.0], torch.zeros(2, dtype=torch.float64), torch.float64, id="integral-on-float"),
-        pytest.param([2.5, -1.0], torch.zeros(2, dtype=torch.float64), torch.float64, id="fractional-on-float"),
+        pytest.param(1.0, id="integral-float"),
+        pytest.param(0.5, id="fractional-float"),
     ],
 )
-def test_cast_like_keeps_integer_dtype_for_integral_values(value: list, x: torch.Tensor, dtype: torch.dtype) -> None:
-    out = cast_like(torch.tensor(value), x)
+def test_translate_float_offset_promotes_integer_input_whatever_its_value(offset: float) -> None:
+    data = {"pos_grid": torch.zeros(2, 3, dtype=torch.long)}
+    out = T.Translate(keys="pos_grid", offset=offset)(data)["pos_grid"]
+    assert out.dtype == torch.float32
+    assert torch.equal(out, torch.full((2, 3), offset))
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param(torch.float16, id="float16"),
+        pytest.param(torch.float64, id="float64"),
+    ],
+)
+def test_translate_keeps_floating_point_dtype(dtype: torch.dtype) -> None:
+    data = {"pos": torch.zeros(2, 3, dtype=dtype)}
+    assert T.Translate(keys="pos", offset=0.5)(data)["pos"].dtype == dtype
+    assert T.Translate(keys="pos", offset=(1, 0, 0))(data)["pos"].dtype == dtype
+
+
+@pytest.mark.parametrize(
+    "value, x, dtype",
+    [
+        pytest.param(torch.tensor([2, -1]), torch.zeros(2, dtype=torch.int32), torch.int32, id="integer-on-integer"),
+        pytest.param(torch.tensor([2.0, -1.0]), torch.zeros(2, dtype=torch.long), torch.float32, id="float-on-integer"),
+        pytest.param(torch.tensor([2, -1]), torch.zeros(2, dtype=torch.float64), torch.float64, id="integer-on-float"),
+        pytest.param(
+            torch.tensor([2.5, -1.0]), torch.zeros(2, dtype=torch.float16), torch.float16, id="float-on-float"
+        ),
+    ],
+)
+def test_cast_like_depends_on_dtypes_only(value: torch.Tensor, x: torch.Tensor, dtype: torch.dtype) -> None:
+    out = _cast_like(value, x)
     assert out.dtype == dtype
-    assert out.tolist() == value
+    assert out.tolist() == value.tolist()
 
 
 def test_rotate_vectors_promotes_integer_input() -> None:
