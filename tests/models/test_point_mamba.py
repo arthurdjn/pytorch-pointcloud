@@ -234,15 +234,15 @@ def test_point_mamba_mae_accepts_features() -> None:
     assert torch.equal(pred_batch, target_batch)
 
 
-class _CausalScan(torch.nn.Module):
-    """CPU stand-in for the selective-scan kernel: a GRU reads the tokens left to right."""
+class _LinearScan(torch.nn.Module):
+    """CPU stand-in for the selective-scan kernel."""
 
     def __init__(self, d_model: int, **kwargs: object) -> None:
         super().__init__()
-        self.gru = torch.nn.GRU(d_model, d_model, batch_first=True)
+        self.linear = torch.nn.Linear(d_model, d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.gru(x)[0]
+        return self.linear(x)
 
 
 @pytest.mark.parametrize(
@@ -264,17 +264,12 @@ def test_point_mamba_layer_norm_normalizes_every_point_on_its_own(norm: str) -> 
     assert torch.allclose(both[:8], first, atol=1e-6)
 
 
-@pytest.mark.parametrize(
-    "model_cls, kwargs",
-    [
-        pytest.param(PointMambaClassification, dict(num_classes=5, depth=1), id="classification"),
-        pytest.param(PointMambaPretraining, dict(encoder_depth=1, decoder_depth=1), id="pretraining"),
-    ],
-)
-def test_point_mamba_builds_with_layer_norm(model_cls: type, kwargs: dict, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(point_mamba, "Mamba", _CausalScan)
-    model = model_cls(0, embed_dim=32, norm="layer_norm", **kwargs)
-    assert isinstance(model, torch.nn.Module)
+def test_point_mamba_pretraining_layer_norm_is_per_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(point_mamba, "Mamba", _LinearScan)
+    model = PointMambaPretraining(0, embed_dim=32, encoder_depth=1, decoder_depth=1, norm="layer_norm")
+    layer_norms = [module for module in model.modules() if isinstance(module, GraphLayerNorm)]
+    assert layer_norms
+    assert all(layer_norm.mode == "node" for layer_norm in layer_norms)
 
 
 @pytest.mark.parametrize(
@@ -286,7 +281,7 @@ def test_point_mamba_builds_with_layer_norm(model_cls: type, kwargs: dict, monke
     ],
 )
 def test_point_mamba_classification_layer_norm_names_are_per_token(norm: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(point_mamba, "Mamba", _CausalScan)
+    monkeypatch.setattr(point_mamba, "Mamba", _LinearScan)
     model = PointMambaClassification(0, num_classes=5, depth=1, embed_dim=32, norm=norm, head_channels=[16])
     layer_norms = [module for module in model.modules() if isinstance(module, GraphLayerNorm)]
     assert layer_norms
@@ -294,7 +289,7 @@ def test_point_mamba_classification_layer_norm_names_are_per_token(norm: str, mo
 
 
 def test_point_mamba_classification_drops_tokens_after_every_block(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(point_mamba, "Mamba", _CausalScan)
+    monkeypatch.setattr(point_mamba, "Mamba", _LinearScan)
     functional_dropout = torch.nn.functional.dropout
     calls = []
 

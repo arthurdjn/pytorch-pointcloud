@@ -181,6 +181,7 @@ class PointPatchEmbedding(nn.Module):
         if is_graph_layer_norm(norm):
             # per-point statistics instead of the graph-wide default
             norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
+
         # Common parameters for all MLPs and associated blocks
         factory_kwargs = dict(
             act=act,
@@ -692,6 +693,10 @@ class PointMambaClassification(ClassificationModel):
         head_channels: Optional[Union[int, Sequence[int]]] = None,
     ):
         super().__init__(in_channels=in_channels, num_classes=num_classes)
+        if is_graph_layer_norm(norm):
+            # per-token statistics instead of the graph-wide default
+            norm_kwargs = {"mode": "node", **(norm_kwargs or {})}
+
         self.embed_dim = embed_dim
         self.depth = depth
         self.num_groups = num_groups
@@ -706,8 +711,7 @@ class PointMambaClassification(ClassificationModel):
         self.act_kwargs = act_kwargs
         self.act_first = act_first
         self.norm = norm
-        # per-token statistics instead of the graph-wide default
-        self.norm_kwargs = {"mode": "node", **(norm_kwargs or {})} if is_graph_layer_norm(norm) else norm_kwargs
+        self.norm_kwargs = norm_kwargs
         self.bias = bias
         self.dropout = dropout
         self.head_channels = ensure_list(head_channels, none_as_empty=True)
