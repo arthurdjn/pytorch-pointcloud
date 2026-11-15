@@ -108,6 +108,10 @@ def gaussian_focal_loss(
 
         ```
     """
+    # `1 - eps` rounds to 1 in half precision
+    if pred.dtype in (torch.float16, torch.bfloat16):
+        pred = pred.float()
+
     pred = pred.clamp(min=eps, max=1 - eps)
     pos = target.eq(1).to(pred.dtype)
     neg_weights = (1 - target).pow(gamma)

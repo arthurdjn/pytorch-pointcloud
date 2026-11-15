@@ -30,3 +30,18 @@ def test_bn_momentum_scheduler_step_sets_and_returns() -> None:
     assert scheduler.step(0) == 0.5 and bn.momentum == 0.5
     assert scheduler.step(45) == 0.125 and bn.momentum == 0.125
     assert scheduler.step(1000) == 0.001 and bn.momentum == 0.001
+
+
+@pytest.mark.parametrize(
+    "layer",
+    [
+        pytest.param(nn.SyncBatchNorm(2), id="sync"),
+        pytest.param(nn.LazyBatchNorm1d(), id="lazy-1d"),
+        pytest.param(nn.LazyBatchNorm2d(), id="lazy-2d"),
+        pytest.param(nn.LazyBatchNorm3d(), id="lazy-3d"),
+    ],
+)
+def test_set_bn_momentum_touches_sync_and_lazy_batchnorm(layer: nn.Module) -> None:
+    model = nn.Sequential(nn.Linear(2, 2), layer)
+    set_bn_momentum(model, 0.03)
+    assert layer.momentum == 0.03

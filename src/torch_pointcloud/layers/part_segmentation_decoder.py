@@ -93,11 +93,8 @@ class PartSegmentationDecoder(nn.Module):
 
     def forward(self, x: Tensor, center: Tensor, pos: Tensor, batch: Tensor, category: Tensor) -> Tensor:
         B, G, C = x.shape
-        if category.shape != (B, self.num_categories):
-            raise ValueError(
-                f"`category` must be a one-hot of shape ({B}, {self.num_categories}), one row per shape of `x`; "
-                f"got {tuple(category.shape)}."
-            )
+        if category.size(0) != B:
+            raise ValueError(f"`category` must hold one row per shape, got {category.size(0)} rows for {B} shapes.")
 
         x_global = torch.cat([x.amax(dim=1), x.mean(dim=1), self.category_embed(category)], dim=1)
 

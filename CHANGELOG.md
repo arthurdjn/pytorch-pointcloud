@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed grid pooling on int32 grids, batch-dependent `VoxelGridPool` cells, serialized pooling merging samples, `majority_label` on small label types, the speed of `fps(num_nodes=...)`, and KPConv and Point Transformer V2 on unsorted batches.
+- Added `ops.cluster.radius_graph`, `ops.serialization.serialization_depth` and `utils.conversion.check_non_negative_grid`.
 - Fixed the test of the registered weight URLs, whose requests the Hub counted as downloads: it reads the Hub API, needs `--run-hub` and runs in one CI job.
 
 ## 0.0.21 (2026-11-11)

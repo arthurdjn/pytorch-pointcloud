@@ -17,7 +17,8 @@ class SerializedPool(nn.Module):
 
     Truncating the serialization code by $3 \cdot \log_2(\text{stride})$ bits is exactly a grid subsampling,
     so no neighbor search is needed. Features are projected then reduced, positions are averaged, and the
-    coarsened code is returned so the next stage can pool again.
+    coarsened code is returned so the next stage can pool again. Given the depth of the code, the truncation stops at
+    its coordinate bits, so samples are never merged.
 
     Args:
         in_channels: Input channel count.
@@ -29,6 +30,17 @@ class SerializedPool(nn.Module):
         act_kwargs: Extra kwargs for the activation.
         norm_kwargs: Extra kwargs for the normalization.
         reduce: Reduction applied within a cell: `"sum"`, `"mean"`, `"min"`, or `"max"`.
+
+    Inputs:
+        x: Point features, shape $(N, C_{in})$.
+        pos_grid: Integer grid coordinates, shape $(N, 3)$.
+        batch: Per-point batch index, shape $(N,)$.
+        serialized_code: Serialization codes, shape $(L, N)$, one row per order.
+        return_inverse: Whether to also return the cell index of every input point.
+        pos: Optional point positions, shape $(N, 3)$, averaged within a cell.
+        condition: Optional condition name forwarded to a conditional normalization.
+        serialized_depth: Coordinate bits per axis left in `serialized_code`. The pooled code has
+            `max(serialized_depth - pooling_depth, 0)` left. `None` truncates by the stride without a limit.
     """
 
     def __init__(
@@ -53,6 +65,7 @@ class SerializedPool(nn.Module):
             raise ValueError(f"Invalid stride: {stride}. Must be a power of 2.")
 
         self.stride = stride
+        self.pooling_depth = (math.ceil(stride) - 1).bit_length()
         self.reduce = reduce
         self.proj = nn.Linear(in_channels, out_channels, bias=bias)
         self.norm: Optional[nn.Module] = create_norm(norm, out_channels, **norm_kwargs)
@@ -68,6 +81,7 @@ class SerializedPool(nn.Module):
         return_inverse: Literal[True],
         pos: Optional[Tensor] = None,
         condition: Optional[str] = None,
+        serialized_depth: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Optional[Tensor]]: ...
 
     @overload
@@ -80,6 +94,7 @@ class SerializedPool(nn.Module):
         return_inverse: Literal[False] = False,
         pos: Optional[Tensor] = None,
         condition: Optional[str] = None,
+        serialized_depth: Optional[int] = None,
     ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Optional[Tensor]]: ...
 
     def forward(
@@ -91,8 +106,12 @@ class SerializedPool(nn.Module):
         return_inverse: bool = False,
         pos: Optional[Tensor] = None,
         condition: Optional[str] = None,
+        serialized_depth: Optional[int] = None,
     ) -> Tuple[Any, ...]:
-        pooling_depth = (math.ceil(self.stride) - 1).bit_length()
+        pooling_depth = self.pooling_depth
+        if serialized_depth is not None:
+            pooling_depth = min(pooling_depth, serialized_depth)
+
         pooled_code = serialized_code >> (pooling_depth * 3)
         _, cluster, counts = torch.unique(pooled_code[0], sorted=True, return_inverse=True, return_counts=True)
 

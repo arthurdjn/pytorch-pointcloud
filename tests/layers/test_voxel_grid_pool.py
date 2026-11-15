@@ -30,16 +30,23 @@ def test_voxel_grid_pool_forward(origin: Literal["grid", "min"]) -> None:
 
 
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
-def test_voxel_grid_pool_grid_origin_is_extent_independent() -> None:
+def test_voxel_grid_pool_grid_origin_is_independent_of_other_clouds() -> None:
     torch.manual_seed(0)
-    pos = torch.rand(100, 3)
-    batch = torch.zeros(100, dtype=torch.long)
-    pool = VoxelGridPool(grid_size=0.25)
-    _, _, _, inverse = pool(pos, pos, batch, return_inverse=True)
-    _, _, _, inverse_shifted = pool(
-        pos, torch.cat([pos, pos.new_tensor([[0.9, 0.9, 0.9]])]).roll(1, 0)[1:], batch, return_inverse=True
+    pos = torch.randint(0, 300, (2000, 3)).float() / 100.0
+    x = torch.randn(2000, 4)
+    batch = torch.zeros(2000, dtype=torch.long)
+    pool = VoxelGridPool(grid_size=0.06)
+    _, pos_alone, _, inverse_alone = pool(x, pos, batch, return_inverse=True)
+
+    other = torch.rand(100, 3) - 3.37
+    _, pos_batched, _, inverse_batched = pool(
+        torch.cat([x, torch.randn(100, 4)]),
+        torch.cat([pos, other]),
+        torch.cat([batch, torch.ones(100, dtype=torch.long)]),
+        return_inverse=True,
     )
-    assert torch.equal(inverse, inverse_shifted)
+
+    assert torch.allclose(pos_batched[inverse_batched[:2000]], pos_alone[inverse_alone], atol=1e-6)
 
 
 def test_voxel_grid_pool_rejects_bad_arguments() -> None:

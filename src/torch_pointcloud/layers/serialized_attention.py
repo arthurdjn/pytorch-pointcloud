@@ -84,7 +84,7 @@ def patch_layout(batch: Tensor, patch_size: int, mode: PadMode) -> PatchLayout:
 
     Flash attention handles a sample smaller than the patch as a short variable-length patch, so it only pads
     samples at or above the patch size (`mode="above"`); the dense reshape needs every sample padded to a full
-    patch (`mode="all"`). Padding, never shrinking, keeps one sample's output independent of its co-batched
+    patch (`mode="all"`). Padding, never shrinking, keeps the patches of one sample independent of its co-batched
     neighbors.
 
     Args:

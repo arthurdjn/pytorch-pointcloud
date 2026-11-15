@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -12,6 +12,7 @@ from torch_pointcloud.utils.conversion import (
     bincount_to_batch,
     bincount_to_cu_seqlens,
     bincount_to_offset,
+    check_non_negative_grid,
     convert_from_spconv_tensor,
     convert_to_numpy,
     convert_to_spconv_tensor,
@@ -290,6 +291,35 @@ def test_convert_to_spconv_tensor_explicit_batch_size_keeps_trailing_empty_scene
     batch = torch.zeros(4, dtype=torch.long)
     assert convert_to_spconv_tensor(x, pos, batch).batch_size == 1
     assert convert_to_spconv_tensor(x, pos, batch, batch_size=3).batch_size == 3
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+@pytest.mark.parametrize(
+    "spatial_shape",
+    [pytest.param(None, id="inferred-shape"), pytest.param([8, 8, 8], id="explicit-shape")],
+)
+def test_convert_to_spconv_tensor_negative_coordinates_raise(spatial_shape: Optional[List[int]]) -> None:
+    x = torch.randn(3, 2)
+    pos = torch.tensor([[0, 0, 0], [1, -1, 3], [4, 5, 6]])
+    batch = torch.zeros(3, dtype=torch.long)
+    with pytest.raises(ValueError, match="non-negative"):
+        convert_to_spconv_tensor(x, pos, batch, spatial_shape=spatial_shape)
+
+
+def test_check_non_negative_grid_names_the_argument_and_its_minimum() -> None:
+    with pytest.raises(ValueError, match=r"`pos_grid` must be non-negative, got a minimum of -2\. .*`Voxelize`"):
+        check_non_negative_grid(torch.tensor([[0, 0, 0], [1, -2, 3]]), "pos_grid")
+
+
+@pytest.mark.parametrize(
+    "pos_grid",
+    [
+        pytest.param(torch.tensor([[0, 0, 0], [1, 2, 3]]), id="non-negative"),
+        pytest.param(torch.empty(0, 3, dtype=torch.long), id="empty"),
+    ],
+)
+def test_check_non_negative_grid_accepts_a_valid_grid(pos_grid: Tensor) -> None:
+    check_non_negative_grid(pos_grid, "pos_grid")
 
 
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")

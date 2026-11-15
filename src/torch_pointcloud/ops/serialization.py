@@ -1,11 +1,12 @@
 """Space-filling curve serialization of voxel coordinates using Z-order and Hilbert encodings."""
 
-from typing import TYPE_CHECKING, Literal, Sequence, Tuple
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Tuple
 
 import torch
 from torch import Tensor
 
 from torch_pointcloud.ops.hilbert import encode as hilbert_encode
+from torch_pointcloud.utils.conversion import check_non_negative_grid
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -111,19 +112,44 @@ def serialize_pos(
     return serialized_code
 
 
+def serialization_depth(pos_grid: Tensor) -> int:
+    r"""Depth of the serialization cube holding every grid coordinate: the bit length of the largest coordinate plus
+    one.
+
+    Args:
+        pos_grid: Non-negative integer grid coordinates of shape $(N, 3)$.
+
+    Returns:
+        The number of code bits per axis, at least $1$.
+
+    Example:
+        ```pycon
+        >>> serialization_depth(torch.tensor([[0, 0, 0], [5, 1, 2]]))
+        3
+
+        ```
+    """
+    return (int(pos_grid.max()) + 1).bit_length() if pos_grid.numel() else 1
+
+
 def serialize(
     pos_grid: Tensor,
     batch: Tensor,
     orders: Sequence[SerializationOrder],
     shuffle: bool = False,
+    depth: Optional[int] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     r"""Encode voxel-grid coordinates along one or more space-filling curves and sort the points by each code.
+
+    The curve depth is the bit length of the largest coordinate of the batch plus one, shared by every sample: the
+    Hilbert order of a sample therefore depends on the extent of the largest sample it is batched with.
 
     Args:
         pos_grid: Non-negative integer grid coordinates of shape $(N, 3)$.
         batch: Per-point batch index of shape $(N,)$.
         orders: The $L$ space-filling curves to encode along, one code row per order.
         shuffle: Whether to permute `orders` before encoding, so consecutive blocks pick different curves.
+        depth: Depth of the serialization cube. `None` uses `serialization_depth(pos_grid)`.
 
     Returns:
         The serialization codes, the permutation sorting the points by code, and its inverse.
@@ -152,14 +178,11 @@ def serialize(
         perm = torch.randperm(len(orders))
         orders = [orders[i] for i in perm]
 
-    if pos_grid.numel() and bool(pos_grid.min() < 0):
-        raise ValueError(
-            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
-            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
-        )
+    check_non_negative_grid(pos_grid, "pos_grid")
 
-    # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
-    depth = max(int(pos_grid.max()).bit_length(), 1) if pos_grid.numel() else 1
+    if depth is None:
+        depth = serialization_depth(pos_grid)
+
     serialized_code = torch.stack([serialize_pos(pos_grid, batch, depth=depth, order=order) for order in orders])
     serialized_order = torch.argsort(serialized_code, dim=1)
     serialized_inverse = torch.argsort(serialized_order, dim=1)

@@ -12,6 +12,8 @@ import torch.nn as nn
 from torch import Tensor
 from torch_geometric.utils import segment
 
+from torch_pointcloud.utils.conversion import check_non_negative_grid
+
 from .act import create_act
 from .norms import create_norm
 
@@ -85,15 +87,16 @@ class GridPool(nn.Module):
             `pooling_inverse` maps each input point to its pooled cluster index.
             `pos_pooled` is `None` when `pos` is not provided.
         """
-        pos_grid_pooled = torch.div(pos_grid, self.stride, rounding_mode="trunc")
-        if pos_grid.numel() > 0 and bool(((pos_grid < 0) | (pos_grid_pooled >= 1 << 16)).any()):
+        check_non_negative_grid(pos_grid, "pos_grid")
+
+        pos_grid_pooled = torch.div(pos_grid.long(), self.stride, rounding_mode="trunc")
+        if bool((pos_grid_pooled >= 1 << 16).any()):
             raise ValueError(
-                f"`pos_grid` must be non-negative and pool to coordinates below 65536, "
-                f"got range [{int(pos_grid.min())}, {int(pos_grid.max())}] with stride {self.stride}: "
-                f"out-of-range coordinates corrupt the bit-packed cluster key."
+                f"`pos_grid` must pool to coordinates below 65536, got a maximum of {int(pos_grid.max())} with "
+                f"stride {self.stride}: out-of-range coordinates corrupt the bit-packed cluster key."
             )
 
-        key = batch << 48 | pos_grid_pooled[:, 0] << 32 | pos_grid_pooled[:, 1] << 16 | pos_grid_pooled[:, 2]
+        key = batch.long() << 48 | pos_grid_pooled[:, 0] << 32 | pos_grid_pooled[:, 1] << 16 | pos_grid_pooled[:, 2]
         key, cluster, counts = torch.unique(key, sorted=True, return_inverse=True, return_counts=True)
         pos_grid_pooled = torch.stack([key >> 32 & 0xFFFF, key >> 16 & 0xFFFF, key & 0xFFFF], dim=1)
 

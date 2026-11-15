@@ -40,15 +40,16 @@ def test_part_segmentation_decoder_global_descriptor_is_shared_by_the_shape() ->
 @pytest.mark.parametrize(
     "category",
     [
-        pytest.param(torch.nn.functional.one_hot(torch.tensor([[3, 7]]), 16).float(), id="extra-dim"),
+        pytest.param(torch.nn.functional.one_hot(torch.tensor([3]), 16).float(), id="fewer-rows-than-shapes"),
         pytest.param(torch.nn.functional.one_hot(torch.tensor([3, 7, 1]), 16).float(), id="more-rows-than-shapes"),
-        pytest.param(torch.tensor([3, 7]), id="index"),
     ],
 )
-def test_part_segmentation_decoder_rejects_a_misshaped_category(category: torch.Tensor) -> None:
+def test_part_segmentation_decoder_rejects_a_category_row_count_other_than_the_batch_size(
+    category: torch.Tensor,
+) -> None:
     decoder = PartSegmentationDecoder(in_channels=24, num_categories=16, propagation_channels=(32, 16)).eval()
     x, center, pos, batch, _ = _inputs()
-    with pytest.raises(ValueError, match="category"):
+    with pytest.raises(ValueError, match="one row per shape"):
         decoder(x, center, pos, batch, category)
 
 

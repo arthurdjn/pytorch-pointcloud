@@ -426,3 +426,14 @@ def test_bn_momentum_scheduler_decays_batchnorm_momentum(epoch: int, expected: f
     assert model[1].momentum == pytest.approx(expected)
     assert model[2].momentum == pytest.approx(expected)
     assert model[3].momentum == pytest.approx(expected)
+
+
+def test_bn_momentum_scheduler_decays_sync_and_lazy_batchnorm_momentum() -> None:
+    callback = BNMomentumScheduler(bn_momentum_init=0.5, bn_decay_rate=0.5, bn_decay_step=20, bn_momentum_clip=0.001)
+    model = nn.Sequential(nn.Linear(3, 4), nn.SyncBatchNorm(4), nn.LazyBatchNorm1d())
+    pl_module = Mock(model=model)
+
+    callback.on_train_epoch_start(Mock(current_epoch=20), pl_module)
+
+    assert model[1].momentum == pytest.approx(0.25)
+    assert model[2].momentum == pytest.approx(0.25)

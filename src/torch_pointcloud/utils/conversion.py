@@ -581,6 +581,23 @@ def cu_seqlens_to_batch(cu_seqlens: Tensor) -> Tensor:
     return offset_to_batch(offset)
 
 
+def check_non_negative_grid(pos_grid: Tensor, name: str) -> None:
+    """Check that the integer grid coordinates `pos_grid` hold no negative value.
+
+    Args:
+        pos_grid: Integer grid coordinates of shape $(N, 3)$.
+        name: Name of the argument, used in the error.
+
+    Raises:
+        ValueError: If `pos_grid` holds a negative coordinate.
+    """
+    if bool((pos_grid < 0).any()):
+        raise ValueError(
+            f"`{name}` must be non-negative, got a minimum of {int(pos_grid.min())}. "
+            "Shift it by the per-axis minimum, as `Voxelize` does."
+        )
+
+
 def convert_to_spconv_tensor(
     x: Tensor,
     pos: Tensor,
@@ -604,11 +621,16 @@ def convert_to_spconv_tensor(
     Returns:
         The `spconv.SparseConvTensor` sparse tensor.
 
+    Raises:
+        ValueError: If `pos` holds a negative coordinate, which lies outside every spatial shape.
+
     Shape:
         - `x`: $(N, C)$
         - `pos`: $(N, 3)$
         - `batch`: $(N,)$
     """
+    check_non_negative_grid(pos, "pos")
+
     if spatial_shape is None:
         if pos.size(0) == 0:
             raise ValueError("`spatial_shape` cannot be inferred from zero points; pass it explicitly.")

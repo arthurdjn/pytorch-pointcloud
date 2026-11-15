@@ -316,6 +316,25 @@ def test_majority_label(labels: list, cluster: list, ignore_index: Optional[int]
     assert torch.equal(result, torch.tensor(expected))
 
 
+def test_majority_label_counts_above_label_dtype_range() -> None:
+    labels = torch.cat([torch.full((256,), 1), torch.full((200,), 2)]).to(torch.uint8)
+    result = majority_label(labels, torch.zeros(456, dtype=torch.long), num_classes=3)
+    assert torch.equal(result, torch.tensor([1]))
+
+
+@pytest.mark.parametrize(
+    "labels, ignore_index",
+    [
+        pytest.param([0, 3, 1], None, id="above-num-classes"),
+        pytest.param([0, -1, 1], None, id="negative"),
+        pytest.param([0, 4, 255], 255, id="above-num-classes-with-ignore-index"),
+    ],
+)
+def test_majority_label_out_of_range_labels_raise(labels: list, ignore_index: Optional[int]) -> None:
+    with pytest.raises(ValueError, match="labels"):
+        majority_label(torch.tensor(labels), torch.tensor([0, 0, 1]), num_classes=3, ignore_index=ignore_index)
+
+
 @pytest.mark.parametrize(
     "ignore_index, expected",
     [

@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 import torch
 import torch.nn as nn
@@ -5,7 +7,7 @@ from torch_geometric.nn.norm import BatchNorm as GraphBatchNorm
 from torch_geometric.nn.norm import InstanceNorm as GraphInstanceNorm
 from torch_geometric.nn.norm import LayerNorm as GraphLayerNorm
 
-from torch_pointcloud.layers.norms import create_norm
+from torch_pointcloud.layers.norms import create_norm, is_graph_layer_norm
 from torch_pointcloud.layers.pdnorm import PDNorm
 
 
@@ -99,3 +101,25 @@ def test_layer_norm_raises_for_spatial_dim(norm: str, dim: int) -> None:
 def test_conditions_wrap_in_pdnorm() -> None:
     norm = create_norm("batch_norm", 8, conditions=["scannet", "s3dis"])
     assert isinstance(norm, PDNorm)
+
+
+@pytest.mark.parametrize(
+    "norm, expected",
+    [
+        pytest.param("layer_norm", True, id="string"),
+        pytest.param("LayerNorm", True, id="class-name"),
+        pytest.param("layernorm", True, id="lowercase"),
+        pytest.param("layer-norm", True, id="hyphen"),
+        pytest.param("layer", True, id="short"),
+        pytest.param("batch_norm", False, id="batch-norm"),
+        pytest.param(GraphLayerNorm, True, id="graph-class"),
+        pytest.param(GraphLayerNorm(8), True, id="graph-instance"),
+        pytest.param(nn.LayerNorm, False, id="torch-class"),
+        pytest.param(nn.LayerNorm(8), False, id="torch-instance"),
+        pytest.param(GraphBatchNorm, False, id="other-graph-class"),
+        pytest.param(None, False, id="none"),
+    ],
+)
+def test_is_graph_layer_norm_matches_what_create_norm_builds(norm: Any, expected: bool) -> None:
+    assert is_graph_layer_norm(norm) is expected
+    assert isinstance(create_norm(norm, 8), GraphLayerNorm) is expected
