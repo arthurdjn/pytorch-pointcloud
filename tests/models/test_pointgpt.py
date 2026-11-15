@@ -245,6 +245,8 @@ def test_pointgpt_part_segmentation_basic(depth: int, fetch_idx: tuple) -> None:
     out = model(None, pos, batch, category)
     assert out.shape == (512, 50)
     assert model.num_features == 32 + 2 * len(fetch_idx) * 96 + 64
+    with pytest.raises(ValueError, match="must be one-hot"):
+        model(None, pos, batch, category.argmax(dim=1))
     assert model.head.channel_list == [model.num_features, 32, 16, 50]
 
 

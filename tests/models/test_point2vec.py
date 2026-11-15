@@ -59,6 +59,8 @@ def test_point2vec_part_segmentation_accepts_a_ragged_batch() -> None:
 
     assert out.shape == (300, 5)
     assert model.num_features == 32 + 2 * 48 + 64
+    with pytest.raises(ValueError, match="must be one-hot"):
+        model(None, pos, batch, category.argmax(dim=1))
 
 
 def test_point2vec_checkpoint_filter_fn_maps_the_lightning_layout() -> None:

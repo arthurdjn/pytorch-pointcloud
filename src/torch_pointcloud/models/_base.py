@@ -214,12 +214,12 @@ class PartSegmentationModel(nn.Module, metaclass=ABCMeta):
         r"""Check that `category` is a one-hot $(B, \text{num\_categories})$ rather than category indices.
 
         Raises:
-            ValueError: If `category` is not two-dimensional.
+            ValueError: If `category` is not two-dimensional, or if its width is not `num_categories`.
         """
-        if category.dim() != 2:
+        if category.dim() != 2 or category.size(1) != self.num_categories:
             raise ValueError(
-                f"`category` must be one-hot of shape (B, num_categories), got shape {tuple(category.shape)}; "
-                "pass `F.one_hot(category, num_categories).float()` for category indices."
+                f"`category` must be one-hot of shape (B, {self.num_categories}), got shape "
+                f"{tuple(category.shape)}; pass `F.one_hot(category, num_categories).float()` for category indices."
             )
 
     @property

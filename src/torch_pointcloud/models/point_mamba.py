@@ -33,7 +33,7 @@ from torch_pointcloud.layers.pools import AdaptivePoolLike, PoolLike, create_ada
 from torch_pointcloud.ops.cluster import fps, knn, local_grid
 from torch_pointcloud.ops.masking import random_mask
 from torch_pointcloud.ops.serialization import SerializationOrder, serialize_pos
-from torch_pointcloud.utils.conversion import ensure_list
+from torch_pointcloud.utils.conversion import check_non_negative_grid, ensure_list
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import (
     _MAMBA_SSM_GITHUB_URL,
@@ -67,11 +67,7 @@ def order_sort(pos_grid: Tensor, batch: Tensor, order: SerializationOrder) -> Te
     Raises:
         ValueError: If `pos_grid` holds a negative coordinate, which would silently wrap around to a valid code.
     """
-    if pos_grid.numel() and bool(pos_grid.min() < 0):
-        raise ValueError(
-            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
-            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
-        )
+    check_non_negative_grid(pos_grid, "pos_grid")
 
     # An all-zero grid (single-voxel scene) has bit_length 0, which the encoders reject.
     depth = max(int(pos_grid.max()).bit_length(), 1)

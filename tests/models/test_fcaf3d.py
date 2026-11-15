@@ -72,32 +72,28 @@ def test_fcaf3d_registered_variants() -> None:
 
 
 @SPCONV
-def test_fcaf3d_defaults_build_the_registered_architecture() -> None:
-    model = FCAF3DDetection(3, 18, voxel_size=0.01, oriented_boxes=False, max_voxels_per_scene=100000)
-    registered = create_model("fcaf3d.scannet.mmdet3d", task="detection")
-    assert {key: value.shape for key, value in model.state_dict().items()} == {
-        key: value.shape for key, value in registered.state_dict().items()
-    }
-    assert isinstance(model.encoder.norm1, InstanceNorm) and model.encoder.norm1.eps == 1e-8
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("fcaf3d.scannet.mmdet3d", id="scannet"),
+        pytest.param("fcaf3d.sunrgbd.mmdet3d", id="sunrgbd"),
+        pytest.param("fcaf3d.s3dis-area5.mmdet3d", id="s3dis-area5"),
+    ],
+)
+def test_fcaf3d_registered_models_build_an_affine_stem_instance_norm(name: str) -> None:
+    model = create_model(name, task="detection")
+    assert isinstance(model, FCAF3DDetection)
+    norm = model.encoder.norm1
+    assert isinstance(norm, InstanceNorm) and norm.eps == 1e-8
+    assert norm.weight is not None and norm.bias is not None
 
 
 @SPCONV
-@pytest.mark.parametrize(
-    "stem_norm",
-    [pytest.param("batch_norm", id="batch_norm"), pytest.param("graph_norm", id="graph_norm")],
-)
-def test_fcaf3d_instance_norm_defaults_stay_out_of_other_stem_norms(stem_norm: str) -> None:
-    model = FCAF3DDetection(
-        3,
-        4,
-        voxel_size=0.02,
-        oriented_boxes=False,
-        max_voxels_per_scene=1000,
-        encoder_depths=(1, 1, 1, 1),
-        stem_norm=stem_norm,
-    )
+def test_fcaf3d_stem_norm_takes_only_the_passed_kwargs() -> None:
+    model = FCAF3DDetection(3, 18, voxel_size=0.01, oriented_boxes=False, max_voxels_per_scene=100000)
+    norm = model.encoder.norm1
     assert model.stem_norm_kwargs is None
-    assert "eps=1e-08" not in repr(model.encoder.norm1)
+    assert isinstance(norm, InstanceNorm) and norm.eps == 1e-5 and norm.weight is None
 
 
 @SPCONV

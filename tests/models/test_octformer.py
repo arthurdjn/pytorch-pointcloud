@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from torch_pointcloud.models.octformer import CPE, OctFormerBlock, OctFormerClassification, OctFormerSegmentation
 from torch_pointcloud.ops.octree import build_octree
-from torch_pointcloud.utils.imports import _DWCONV_AVAILABLE, _OCNN_AVAILABLE
+from torch_pointcloud.utils.imports import _CUDA_AVAILABLE, _DWCONV_AVAILABLE, _OCNN_AVAILABLE
 
 # See: https://docs.pytest.org/en/stable/how-to/skipping.html#summary
 pytestmark = pytest.mark.skipif(
@@ -206,6 +206,31 @@ def test_cpe_depthwise_conv_on_cpu_matches_neighbor_sum(data: Dict[str, Any], ne
         out = cpe(x, octree, depth)
 
     torch.testing.assert_close(out, cpe.norm(expected), atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.parametrize("bias", [pytest.param(False, id="no-bias"), pytest.param(True, id="bias")])
+def test_cpe_depthwise_conv_keeps_the_checkpoint_keys(bias: bool) -> None:
+    cpe = CPE(8, kernel_size=3, bias=bias, use_dwconv=True)
+    expected = {"conv.weights", "conv.bias"} if bias else {"conv.weights"}
+    assert {key for key in cpe.state_dict() if key.startswith("conv.")} == expected
+    assert cpe.conv.weights.shape == (27, 1, 8)
+
+
+@pytest.mark.skipif(not _CUDA_AVAILABLE, reason="the accelerated depthwise kernel requires CUDA")
+@pytest.mark.parametrize("bias", [pytest.param(False, id="no-bias"), pytest.param(True, id="bias")])
+def test_cpe_depthwise_conv_on_cuda_matches_cpu(data: Dict[str, Any], bias: bool) -> None:
+    torch.manual_seed(0)
+    octree, depth = data["octree"], data["depth"]
+    cpe = CPE(8, kernel_size=3, bias=bias, use_dwconv=True).eval()
+    if bias:
+        torch.nn.init.uniform_(cpe.conv.bias, -0.5, 0.5)
+    x = torch.randn(int(octree.nnum[depth]), 8)
+
+    with torch.no_grad():
+        expected = cpe(x, octree, depth)
+        out = cpe.cuda()(x.cuda(), octree.to("cuda"), depth)
+
+    torch.testing.assert_close(out.cpu(), expected, atol=1e-5, rtol=1e-5)
 
 
 @pytest.mark.parametrize(

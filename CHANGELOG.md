@@ -13,6 +13,8 @@ All notable changes to this project are documented in this file. The format is b
 - Changed the weightless `pointnext-{sm,base,lg,xl}` segmentation configs to the released architectures, and `PointMambaClassification(dropout=...)` to a token dropout after every block (default 0.0).
 - Changed the training scripts to keep `best.pt` on the validation score.
 - Added `SlidingWindowInferer(shift_last_block=...)`, `Quantize(rounding=...)`, `ops.cluster.radius_graph`, `ops.serialization.serialization_depth`, `DataKeys.NUM_RADAR_POINTS`, `DataKeys.EGO_POS` and the top-level `model_info`.
+- Added `nms3d(cap_per_label=...)`, `utils.random.generator_device` and `utils.conversion.check_non_negative_grid`.
+- Changed `FCAF3DDetection` to take its stem norm options only from `stem_norm_kwargs`, and `Translate` to follow the dtype of `offset`: a floating point offset promotes integer data.
 - Fixed the test of the registered weight URLs, whose requests the Hub counted as downloads: it reads the Hub API, needs `--run-hub` and runs in one CI job.
 
 ## 0.0.21 (2026-11-11)

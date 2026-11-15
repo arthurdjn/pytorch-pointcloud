@@ -6,6 +6,7 @@ import torch
 from torch import Tensor
 
 from torch_pointcloud.ops.hilbert import encode as hilbert_encode
+from torch_pointcloud.utils.conversion import check_non_negative_grid
 from torch_pointcloud.utils.imports import _OCNN_GITHUB_URL, optional_import
 from torch_pointcloud.utils.types import OptTensor
 
@@ -177,11 +178,7 @@ def serialize(
         perm = torch.randperm(len(orders))
         orders = [orders[i] for i in perm]
 
-    if pos_grid.numel() and bool(pos_grid.min() < 0):
-        raise ValueError(
-            "Grid coordinates must be non-negative for serialization: negative values silently wrap around to "
-            "valid codes. Shift by the per-axis minimum, as `Voxelize` does."
-        )
+    check_non_negative_grid(pos_grid, "pos_grid")
 
     if depth is None:
         depth = serialization_depth(pos_grid)

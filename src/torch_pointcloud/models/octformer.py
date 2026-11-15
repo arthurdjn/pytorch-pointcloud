@@ -39,7 +39,12 @@ Points, _ = optional_import("ocnn.octree", "Points", url=_OCNN_GITHUB_URL)
 
 
 class CPE(nn.Module):
-    """Conditional positional encoding: a depthwise octree convolution followed by batch normalization."""
+    """Conditional positional encoding: a depthwise octree convolution followed by batch normalization.
+
+    Note:
+        `use_dwconv` builds a depthwise convolution whose weights run through the accelerated CUDA kernel on CUDA
+        inputs, and through the convolution itself on CPU inputs; `False` builds a grouped convolution.
+    """
 
     def __init__(
         self,
@@ -54,10 +59,13 @@ class CPE(nn.Module):
         kernel_size = ensure_list(kernel_size)
 
         self.use_dwconv = use_dwconv
+        self.nempty = nempty
+        self.bias = bias
         if use_dwconv:
-            self.conv = dwconv.OctreeDWConv(
+            self.conv = ocnn.nn.OctreeDWConv(
                 in_channels,
                 kernel_size=kernel_size,
+                stride=1,
                 nempty=nempty,
                 use_bias=bias,
             )
@@ -75,10 +83,16 @@ class CPE(nn.Module):
 
         self.norm = nn.BatchNorm1d(in_channels)
 
+    def forward_dwconv(self, x: Tensor, octree: "Octree", depth: int) -> Tensor:
+        """Apply the weights of the depthwise convolution with the accelerated CUDA kernel."""
+        neighbors = octree.get_neigh(depth, self.conv.kernel, 1, self.nempty)
+        x = dwconv.octree_dwconv(x, self.conv.weights, neighbors)
+        return x + self.conv.bias if self.bias else x
+
     def forward(self, x: Tensor, octree: "Octree", depth: int) -> Tensor:
-        if self.use_dwconv and not x.is_cuda:
-            # The accelerated depthwise kernel is CUDA-only
-            x = ocnn.nn.OctreeDWConv.forward(self.conv, x, octree, depth)
+        # The accelerated depthwise kernel is CUDA-only
+        if self.use_dwconv and x.is_cuda:
+            x = self.forward_dwconv(x, octree, depth)
         else:
             x = self.conv(x, octree, depth)
 

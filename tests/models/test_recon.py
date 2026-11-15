@@ -79,6 +79,8 @@ def test_recon_part_segmentation_accepts_a_ragged_batch() -> None:
 
     assert out.shape == (300, 5)
     assert model.num_features == 1024 + 3 * 48 * 2 + 48 + 64
+    with pytest.raises(ValueError, match="must be one-hot"):
+        model(None, pos, batch, category.argmax(dim=1))
     assert isinstance(model.head, MLP)
     assert model.head.channel_list[0] == model.num_features
 
