@@ -238,6 +238,9 @@
         <loc>https://pytorch-pointcloud.org/latest/api/layers/octree_blocks/</loc>
       </url>
       <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/layers/part_segmentation_decoder/</loc>
+      </url>
+      <url>
         <loc>https://pytorch-pointcloud.org/latest/api/layers/pct_blocks/</loc>
       </url>
       <url>
@@ -368,6 +371,9 @@
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/pointrcnn/</loc>
+      </url>
+      <url>
+        <loc>https://pytorch-pointcloud.org/latest/api/losses/roi_head/</loc>
       </url>
       <url>
         <loc>https://pytorch-pointcloud.org/latest/api/losses/sum/</loc>
