@@ -948,7 +948,7 @@ _BASE_S3DIS_TRANSFORMS = T.Compose(
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-sm.s3dis-area5.hugues-thomas/resolve/2162b440c28ddcf97e130a3cdfbf6cf740db5388/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 65.27, "OA": 88.93},
+        metrics={"mIoU": 65.34, "OA": 88.94},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -991,7 +991,7 @@ def kpfcnn_base_sm_seg(**hparams: Any) -> KPFCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base.s3dis-area5.hugues-thomas/resolve/7b241427afada125eb8e0dcedd30d8352e2e7d7a/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 66.60, "OA": 89.63},
+        metrics={"mIoU": 66.60, "OA": 89.64},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -1034,7 +1034,7 @@ def kpfcnn_base_seg(**hparams: Any) -> KPFCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-deform.s3dis-area5.hugues-thomas/resolve/bbeeb89dc1b1f5bc72ed713d47e90a84f263aa59/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 67.05, "OA": 89.93},
+        metrics={"mIoU": 67.08, "OA": 89.92},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -1077,7 +1077,7 @@ def kpfcnn_base_deform_seg(**hparams: Any) -> KPFCNNSegmentation:
     weights=WeightsDict(
         url="hf://torch-pointcloud/kpfcnn-base-sm-deform.s3dis-area5.hugues-thomas/resolve/ebb67bd500167d5ec7249a63a68eae2b76b72f53/model.safetensors",
         dataset="s3dis-area5",
-        metrics={"mIoU": 66.01, "OA": 89.53},
+        metrics={"mIoU": 66.03, "OA": 89.52},
         classes=S3DIS_CLASSES,
         author="hugues-thomas",
         license="MIT",
@@ -1191,7 +1191,7 @@ def kpfcnn_open3d_s3dis_area3_seg(**hparams: Any) -> KPFCNNSegmentation:
         dataset="semantickitti",
         # NOTE: first 200 scans of sequence 08. Open3D-ML's 58.0 is its 2020 best-epoch statistic; its current code
         # gives this checkpoint 30.1 (sphere-relative height); the absolute height used here recovers most of the gap.
-        metrics={"mIoU": 51.04, "OA": 91.22},
+        metrics={"mIoU": 51.03, "OA": 91.21},
         classes=SEMANTIC_KITTI_CLASSES,
         author="open3d",
         license="MIT",
@@ -1261,7 +1261,7 @@ def kpfcnn_open3d_semantickitti_seg(**hparams: Any) -> KPFCNNSegmentation:
         url="hf://torch-pointcloud/kpfcnn.toronto3d.open3d/resolve/2aa7ce38ff91fe9fec5b88a43971f16820118192/model.safetensors",
         dataset="toronto3d",
         # NOTE: Open3D-ML's 65.6 is the best epoch over ten random patches; this is the whole L002 tile.
-        metrics={"mIoU": 62.73, "OA": 94.11},
+        metrics={"mIoU": 62.77, "OA": 94.11},
         classes=TORONTO3D_CLASSES[1:],
         author="open3d",
         license="MIT",
@@ -1326,7 +1326,7 @@ def kpfcnn_open3d_toronto3d_seg(**hparams: Any) -> KPFCNNSegmentation:
         dataset="parislille3d",
         # NOTE: Lille2 was a training tile of this checkpoint (it scores the same on its other training tiles): not a
         # held-out figure. Open3D-ML's 76.7 comes from its validation pass.
-        metrics={"mIoU": 91.83, "OA": 99.42},
+        metrics={"mIoU": 91.78, "OA": 99.42},
         classes=PARISLILLE3D_CLASSES[1:],
         author="open3d",
         license="MIT",

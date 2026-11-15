@@ -751,7 +751,7 @@ class RandLANetSegmentation(SemanticSegmentationModel):
     weights=WeightsDict(
         url="hf://torch-pointcloud/randlanet.semantickitti.tsung-han-wu/resolve/dc47307d49653d40e7e5450c1bf4ae2012992b93/model.safetensors",
         dataset="semantickitti",
-        metrics={"mIoU": 55.39, "OA": 90.05},
+        metrics={"mIoU": 55.33, "OA": 90.06},
         classes=SEMANTIC_KITTI_CLASSES,
         author="tsung-han-wu",
         license="MIT",

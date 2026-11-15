@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changed the registered metrics to the values measured on a rerun of the benchmarks.
 - Changed the training scripts to keep `best.pt` on the validation score.
 - Added the top-level `model_info`.
 - Fixed the inputs of registered checkpoints: `pointnet2-msg.modelnet40.xu-yan` reads its normals and the DGCNN S3DIS and ScanNet entries read `norm_pos`.

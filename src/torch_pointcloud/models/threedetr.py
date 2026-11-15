@@ -1028,7 +1028,7 @@ def threedetr_sunrgbd(**hparams: Any) -> ThreeDETRDetection:
     weights=WeightsDict(
         url="hf://torch-pointcloud/3detr-m.sunrgbd.fair/resolve/79f523a1c1fef4a7294ef0020230895999e6bcab/model.safetensors",
         dataset="sunrgbd",
-        metrics={"mAP@0.25": 59.70, "mAP@0.5": 31.29},
+        metrics={"mAP@0.25": 59.13, "mAP@0.5": 32.26},
         classes=SUNRGBD_CLASSES,
         author="fair",
         license="Apache-2.0",
