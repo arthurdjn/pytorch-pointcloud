@@ -1,0 +1,8 @@
+{% extends "_base/function.html.jinja" %}
+
+{% block labels scoped %}
+  {{ super() }}
+  {% if function.source_link %}
+    <a class="doc-source-link" href="{{ function.source_link }}" title="View source on GitHub">[source]</a>
+  {% endif %}
+{% endblock labels %}
