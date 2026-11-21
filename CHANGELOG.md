@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Changed `KITTI` to take a required `split` in place of `train`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing, `"test"` reads the `testing` directory, and `split_file` replaces the `ImageSets` list.
+- Changed `KITTI` to take a required `split` in place of `train`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing, and `"test"` reads the `testing` directory. The `split_file` argument is removed.
 - Fixed the KITTI benchmark and training scripts falling back to every frame of `training` when an `ImageSets` split file is missing: they raise.
 - Changed the deprecation warnings and their docstrings to say that a deprecated name or argument will be removed in a future release, without naming that release.
 - Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.

@@ -1296,8 +1296,8 @@ def test_kitti_training_scripts_cache_the_objects_of_their_own_classes(tmp_path:
     shutil.copytree(DATASETS_DIR / "KITTI", alone / "KITTI")
     shutil.copytree(DATASETS_DIR / "KITTI", after_cars / "KITTI")
     second = _import("second/detection_kitti_train.py")
-    expected = second.configure_objects(Namespace(root=str(alone), train_split_file=None, force_process=False))
-    args = Namespace(root=str(after_cars), train_split_file=None, force_process=False)
+    expected = second.configure_objects(Namespace(root=str(alone), force_process=False))
+    args = Namespace(root=str(after_cars), force_process=False)
     _import("voxel_rcnn/detection_kitti_train.py").configure_objects(args)
     objects = second.configure_objects(args)
     assert len(expected) > 0

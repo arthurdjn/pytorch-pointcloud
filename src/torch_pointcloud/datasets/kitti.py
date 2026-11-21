@@ -313,9 +313,9 @@ class KITTI(PointCloudDataset):
 
     The raw object split is read from `<root>/KITTI/raw/<directory>/` (`training` or `testing`) and processed once
     into a per-frame `.npy` cache (`<root>/KITTI/processed_fov/<directory>/` when `fov=True`, else
-    `<root>/KITTI/processed/`), so each `__getitem__` is a flat array read. The whole directory is processed;
-    `split` and `split_file` only select which cached frames to load. Frames are loaded lazily from the cache, so a
-    full split does not need to fit in host memory.
+    `<root>/KITTI/processed/`), so each `__getitem__` is a flat array read. The whole directory is processed; `split`
+    only selects which cached frames to load. Frames are loaded lazily from the cache, so a full split does not need
+    to fit in host memory.
 
     KITTI requires manual download (a license must be accepted), so `download=True` raises with the
     download URL rather than fetching anything. The download has no validation set: the standard train / val split
@@ -328,8 +328,6 @@ class KITTI(PointCloudDataset):
         split: `"train"` or `"val"` loads the frames of the `training` directory listed in
             `<root>/KITTI/raw/ImageSets/<split>.txt` and raises a `FileNotFoundError` when that file is missing.
             `"test"` loads every frame of the unlabelled `testing` directory.
-        split_file: Optional text file of frame ids (one per line) loaded in place of the `ImageSets` list of
-            `split`, from the directory of `split`.
         fov: Restrict points to the front-camera field of view (requires `image_2/`). Baked into the cache.
         return_calib: Also emit the `calib` (the composed $(3, 4)$ LiDAR-to-image matrix
             $P_2 [R_0 T_\text{velo}]$ with the perspective-divide row from $R_0 T_\text{velo}$, the
@@ -372,7 +370,6 @@ class KITTI(PointCloudDataset):
         root: PathLike,
         *,
         split: Literal["train", "val", "test"],
-        split_file: Optional[PathLike] = None,
         fov: bool = True,
         return_calib: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -385,18 +382,14 @@ class KITTI(PointCloudDataset):
         super().__init__(root)
         ensure_option(split, ("train", "val", "test"), name="split")
         self.split = split
-        self._split = "testing" if split == "test" else "training"
-        if split in ("train", "val") and split_file is None:
-            split_file = Path(self.raw_dir, "ImageSets", f"{split}.txt")
-            if not split_file.exists() and self.raw_split_dir.is_dir():
-                raise FileNotFoundError(
-                    f"No {split!r} split file at {split_file.as_posix()!r}. The KITTI download does not include the "
-                    "standard train / val split: copy `train.txt` (3712 frame ids) and `val.txt` (3769 frame ids), "
-                    "one id per line, from the `ImageSets` folder of a KITTI detection codebase into "
-                    f"{split_file.parent.as_posix()!r}, or pass your own list as `split_file`."
-                )
+        if self.split_file is not None and not self.split_file.exists() and self.raw_split_dir.is_dir():
+            raise FileNotFoundError(
+                f"No {split!r} split file at {self.split_file.as_posix()!r}. The KITTI download does not include the "
+                "standard train / val split: copy `train.txt` (3712 frame ids) and `val.txt` (3769 frame ids), one "
+                "id per line, from the `ImageSets` folder of a KITTI detection codebase into "
+                f"{self.split_file.parent.as_posix()!r}."
+            )
 
-        self.split_file = split_file
         self.fov = fov
         self.return_calib = return_calib
         self.transform = transform
@@ -416,13 +409,18 @@ class KITTI(PointCloudDataset):
 
     @property
     def raw_split_dir(self) -> Path:
-        """Path to the split's raw directory."""
-        return Path(self.raw_dir, self._split)
+        """Path to the split's raw directory, `testing` for `"test"`, else `training`."""
+        return Path(self.raw_dir, "testing" if self.split == "test" else "training")
 
     @property
     def processed_split_dir(self) -> Path:
         """Path to the split's processed cache directory."""
-        return Path(self.processed_dir, self._split)
+        return Path(self.processed_dir, self.raw_split_dir.name)
+
+    @property
+    def split_file(self) -> Optional[Path]:
+        """Path to the `ImageSets` list of frame ids of the split, `None` for `"test"`."""
+        return None if self.split == "test" else Path(self.raw_dir, "ImageSets", f"{self.split}.txt")
 
     @property
     def frame_ids(self) -> List[str]:
@@ -506,7 +504,7 @@ class KITTI(PointCloudDataset):
             frames,
             num_workers=num_workers,
             total=len(frames),
-            desc=f"Processing {self._split}",
+            desc=f"Processing {self.raw_split_dir.name}",
             show_progress=show_progress,
         )
 
@@ -547,19 +545,19 @@ class KITTI(PointCloudDataset):
             np.save(tmp_dir / "bbox_height.npy", annotations[DataKeys.BBOX_HEIGHT])
 
     def load(self) -> None:
-        r"""Enumerate the cached frames to load, honoring `split_file` when given.
+        r"""Enumerate the cached frames to load, those listed in `split_file` unless `split` is `"test"`.
 
         Raises a `RuntimeError` listing the missing frame ids when `split_file` references frames
         absent from the processed cache.
         """
         if self.split_file is not None:
-            frame_ids = [line.strip() for line in Path(self.split_file).read_text().splitlines() if line.strip()]
+            frame_ids = [line.strip() for line in self.split_file.read_text().splitlines() if line.strip()]
             missing = [
                 frame for frame in frame_ids if not (self.processed_split_dir / frame / f"{DataKeys.POS}.npy").exists()
             ]
             if missing:
                 raise RuntimeError(
-                    f"{len(missing)} frame(s) listed in {Path(self.split_file).as_posix()!r} are missing from the "
+                    f"{len(missing)} frame(s) listed in {self.split_file.as_posix()!r} are missing from the "
                     f"processed cache at {self.processed_split_dir.as_posix()!r}: {missing[:10]}. "
                     "Pass `force_process=True` to reprocess the raw data."
                 )

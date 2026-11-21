@@ -242,22 +242,13 @@ def test_kitti_dataset_fov_filter(datasets_dir_factory: Callable[..., Path]) -> 
     assert sample[DataKeys.POS].shape == (5, 3)
 
 
-def test_kitti_dataset_split_file(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Test that a split file restricts the loaded frames to the listed ids"""
-    datasets_dir = datasets_dir_factory("KITTI/**/*")
-    split_file = datasets_dir / "val.txt"
-    split_file.write_text("000000\n000002\n")
-    dataset = KITTI(root=datasets_dir, split="val", split_file=split_file, fov=False)
-    assert [dataset[i]["frame"] for i in range(len(dataset))] == ["000000", "000002"]
-
-
 def test_kitti_dataset_split_file_missing_frames_raise(datasets_dir_factory: Callable[..., Path]) -> None:
     """A split file referencing frames absent from the cache raises listing the missing ids."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    split_file = datasets_dir / "val.txt"
+    split_file = datasets_dir / "KITTI" / "raw" / "ImageSets" / "val.txt"
     split_file.write_text("000000\n000099\n")
     with pytest.raises(RuntimeError, match="000099"):
-        _ = KITTI(root=datasets_dir, split="val", split_file=split_file, fov=False)
+        _ = KITTI(root=datasets_dir, split="val", fov=False)
 
 
 @pytest.mark.parametrize(
@@ -286,16 +277,6 @@ def test_kitti_dataset_split_without_its_file_raises(datasets_dir_factory: Calla
     with pytest.raises(FileNotFoundError, match=re.escape(split_file.as_posix())):
         _ = KITTI(root=datasets_dir, split="val", fov=False)
     assert not (datasets_dir / "KITTI" / "processed").exists()
-
-
-def test_kitti_dataset_split_file_replaces_the_image_sets_list(datasets_dir_factory: Callable[..., Path]) -> None:
-    """`split_file` is loaded in place of the `ImageSets` list of `split`, which then need not exist."""
-    datasets_dir = datasets_dir_factory("KITTI/**/*")
-    split_file = datasets_dir / "frames.txt"
-    split_file.write_text("000001\n000002\n")
-    shutil.rmtree(datasets_dir / "KITTI" / "raw" / "ImageSets")
-    dataset = KITTI(root=datasets_dir, split="val", split_file=split_file, fov=False)
-    assert dataset.frame_ids == ["000001", "000002"]
 
 
 def test_kitti_dataset_test_split_reads_the_testing_directory(datasets_dir_factory: Callable[..., Path]) -> None:

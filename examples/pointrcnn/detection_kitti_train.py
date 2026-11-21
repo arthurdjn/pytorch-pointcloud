@@ -93,12 +93,6 @@ def parse_args() -> Namespace:
     parser.add_argument("--model", default=MODEL, choices=[MODEL])
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument(
-        "--train-split-file", default=None, help="Frame ids of the training split (default: ImageSets/train.txt)."
-    )
-    parser.add_argument(
-        "--val-split-file", default=None, help="Frame ids of the validation split (default: ImageSets/val.txt)."
-    )
     parser.add_argument("--output", default=None, help="Directory for the checkpoints (default: none saved).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--epochs", default=80, type=int)
@@ -122,7 +116,6 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_dataset = KITTI(
         root=args.root,
         split="train",
-        split_file=args.train_split_file,
         fov=True,
         transform=train_transform,
         force_process=args.force_process,
@@ -131,7 +124,6 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     val_dataset = KITTI(
         root=args.root,
         split="val",
-        split_file=args.val_split_file,
         fov=True,
         return_calib=True,
         transform=val_transform,
@@ -152,13 +144,11 @@ def configure_objects(args: Namespace) -> list[dict[str, Tensor]]:
     dataset = KITTI(
         root=args.root,
         split="train",
-        split_file=args.train_split_file,
         fov=True,
         transform=KITTI_TRAIN_TRANSFORM,
         force_process=args.force_process,
     )
-    split = Path(args.train_split_file).stem if args.train_split_file else "train"
-    path = Path(dataset.processed_split_dir).parent / f"objects_{split}.pt"
+    path = Path(dataset.processed_split_dir).parent / "objects_train.pt"
     if path.exists() and not args.force_process:
         objects = torch.load(path, weights_only=True)
     else:

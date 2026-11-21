@@ -27,7 +27,7 @@ uv run --no-sync python examples/pointnext/segmentation_s3dis_train.py --root da
 | `--epochs`, `--lr`, `--eval-every`, `--output`  | training   | Schedule, validation period, directory for `last.pt` and `best.pt` (best validation score) |
 | `--limit-train-batches`, `--limit-val-batches`  | training   | Shorten an epoch                                                            |
 
-Protocol knobs are per script (`--sw-batch-size`, `--areas`, `--split-file`, `--max-sweeps`, ...).
+Protocol knobs are per script (`--sw-batch-size`, `--areas`, `--max-sweeps`, ...).
 
 `benchmark.sh` runs every pretrained checkpoint of the zoo, one line per checkpoint:
 

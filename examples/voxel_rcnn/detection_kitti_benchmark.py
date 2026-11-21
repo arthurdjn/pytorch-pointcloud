@@ -51,7 +51,6 @@ def parse_args() -> Namespace:
     parser.add_argument("--model", default="voxel-rcnn.kitti-car.openpcdet", help="Registered detection model name")
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
-    parser.add_argument("--split-file", default=None, help="KITTI frame-id list (default: ImageSets/val.txt).")
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
@@ -89,7 +88,6 @@ def configure_dataset(args: Namespace) -> Dataset:
     dataset = KITTI(
         root=args.root,
         split="val",
-        split_file=args.split_file,
         fov=True,
         return_calib=True,
         transform=transform,
