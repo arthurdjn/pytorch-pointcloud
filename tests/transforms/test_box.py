@@ -262,11 +262,11 @@ def test_relabel_boxes_difficulty_to_ignore() -> None:
     assert out["ignore_mask"].tolist() == [False, True]
 
 
-def test_relabel_boxes_missing_label_key_allowed() -> None:
+def test_relabel_boxes_missing_label_key_raises_even_when_allowed() -> None:
     data: Dict[str, Any] = {DataKeys.POS: torch.rand(4, 3)}
-    out = T.RelabelBoxes(keys=(DataKeys.BOX, DataKeys.LABEL), mapping={0: 0}, allow_missing_keys=True)(data)
-    assert set(out) == {DataKeys.POS}
-    assert out[DataKeys.POS] is data[DataKeys.POS]
+    transform = T.RelabelBoxes(keys=(DataKeys.BOX, DataKeys.LABEL), mapping={0: 0}, allow_missing_keys=True)
+    with pytest.raises(KeyError, match="label"):
+        transform(data)
 
 
 def test_relabel_boxes_missing_ignore_field_allowed_skips_its_rule() -> None:
@@ -453,31 +453,20 @@ def test_paste_boxes_missing_optional_key_allowed_pastes_the_other_keys(missing_
         pytest.param(DataKeys.LABEL, id="label"),
     ],
 )
-def test_paste_boxes_missing_required_key_allowed_returns_the_scene(missing_key: str) -> None:
+@pytest.mark.parametrize(
+    "allow_missing_keys",
+    [
+        pytest.param(False, id="strict"),
+        pytest.param(True, id="allowed"),
+    ],
+)
+def test_paste_boxes_missing_required_key_raises(missing_key: str, allow_missing_keys: bool) -> None:
     scene = _scene_with_boxes()
     del scene[missing_key]
     transform = T.PasteBoxes(
-        [_object_on_free_ground()], num_samples={0: 1}, count_existing=False, allow_missing_keys=True
+        [_object_on_free_ground()], num_samples={0: 1}, count_existing=False, allow_missing_keys=allow_missing_keys
     )
-    out = transform(scene)
-
-    assert set(out) == set(scene)
-    assert all(out[key] is scene[key] for key in scene)
-
-
-@pytest.mark.parametrize(
-    "missing_key",
-    [
-        pytest.param(DataKeys.POS, id="pos"),
-        pytest.param(DataKeys.BOX, id="box"),
-        pytest.param(DataKeys.LABEL, id="label"),
-    ],
-)
-def test_paste_boxes_missing_required_key_raises(missing_key: str) -> None:
-    scene = _scene_with_boxes()
-    del scene[missing_key]
-    transform = T.PasteBoxes([_object_on_free_ground()], num_samples={0: 1}, count_existing=False)
-    with pytest.raises(KeyError, match=f"requires '{missing_key}'"):
+    with pytest.raises(KeyError, match=f"'{missing_key}'"):
         transform(scene)
 
 

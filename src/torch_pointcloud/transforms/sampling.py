@@ -271,7 +271,7 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
         dst_normal_key: The key to store the computed normals in.
         num_samples: The number of vertices to sample.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
-        allow_missing_keys: If `True`, silently skip a mesh whose vertex or face key is absent.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
     """
 
     def __init__(
@@ -293,9 +293,6 @@ class RandomSampleFaceVertices(DictTransform, Randomizable):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, face_key, dst_normal_key in self.iter_keys(data, self.face_key, self.dst_normal_key):
-            if face_key not in data and self.allow_missing_keys:
-                continue
-
             pos, normal = random_sample_face_vertices(
                 data[key],
                 data[face_key],

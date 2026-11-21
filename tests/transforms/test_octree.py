@@ -77,10 +77,8 @@ def test_build_octree_missing_label_key_allowed() -> None:
     assert isinstance(out["octree"], ocnn.octree.Octree)
 
 
-def test_build_octree_missing_pos_key_allowed() -> None:
+def test_build_octree_missing_pos_key_raises_even_when_allowed() -> None:
     pytest.importorskip("ocnn")
     transform = T.BuildOctree(pos_key="pos", dst_octree_key="octree", depth=3, allow_missing_keys=True)
-    data = {"normal": torch.rand(32, 3)}
-    out = transform(data)
-    assert set(out) == {"normal"}
-    assert out["normal"] is data["normal"]
+    with pytest.raises(KeyError, match="'pos'"):
+        transform({"normal": torch.rand(32, 3)})

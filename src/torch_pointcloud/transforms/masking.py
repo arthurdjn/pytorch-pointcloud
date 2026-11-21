@@ -339,8 +339,7 @@ class MaskedFill(DictTransform):
         mask_key: The key of the boolean mask.
         value: The fill value.
         dst_keys: Where to store the result. Defaults to `keys` (in-place overwrite).
-        allow_missing_keys: If `True`, skip absent keys and return the data unchanged when `mask_key` is missing,
-            instead of raising.
+        allow_missing_keys: If `True`, the transform will not raise an error if the keys are not present in the data.
 
     Example:
         ```python
@@ -368,12 +367,6 @@ class MaskedFill(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        if self.mask_key not in data:
-            if self.allow_missing_keys:
-                return data
-
-            raise KeyError(f"Mask key {self.mask_key!r} not found in data.")
-
         for key, dst_key in self.iter_keys(data, self.dst_keys):
             data[dst_key] = data[key].masked_fill(data[self.mask_key], self.value)
         return data

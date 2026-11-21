@@ -346,8 +346,8 @@ class HardVoxelize(DictTransform):
         dst_voxel_key: Output key for the per-voxel point stack.
         dst_pos_voxel_key: Output key for the integer voxel grid indices.
         dst_num_points_key: Output key for the per-voxel point counts.
-        allow_missing_keys: If `True`, return the data unchanged when `pos_key` is missing and voxelize the
-            positions alone when `feature_key` is missing, instead of raising.
+        allow_missing_keys: If `True`, voxelize the positions alone when `feature_key` is missing, instead of
+            raising. `pos_key` is always required.
 
     Shape:
         - `dst_voxel_key`: $(V, \text{max\_num\_points}, 3 + C)$.
@@ -399,17 +399,9 @@ class HardVoxelize(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
-        if self.pos_key not in d:
-            if self.allow_missing_keys:
-                return d
-
-            raise KeyError(f"`HardVoxelize` requires {self.pos_key!r} in data.")
-
         pos = d[self.pos_key]
-        if self.feature_key is None or (self.allow_missing_keys and self.feature_key not in d):
-            feat = None
-        else:
-            feat = d[self.feature_key]
+        feature_key = next(self.iter_keys(d, keys=self.feature_key or ()), None)
+        feat = d[feature_key] if feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = hard_voxelize(
@@ -445,8 +437,8 @@ class DynamicVoxelize(DictTransform):
         dst_pos_voxel_key: Output key for the integer voxel grid indices.
         dst_num_points_key: Output key for the per-voxel point counts: one for every voxel on purpose, since the
             voxel already holds the mean and a mean voxel encoder divides by this count.
-        allow_missing_keys: If `True`, return the data unchanged when `pos_key` is missing and voxelize the
-            positions alone when `feature_key` is missing, instead of raising.
+        allow_missing_keys: If `True`, voxelize the positions alone when `feature_key` is missing, instead of
+            raising. `pos_key` is always required.
 
     Shape:
         - `dst_voxel_key`: $(V, 1, 3 + C)$.
@@ -492,17 +484,9 @@ class DynamicVoxelize(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
-        if self.pos_key not in d:
-            if self.allow_missing_keys:
-                return d
-
-            raise KeyError(f"`DynamicVoxelize` requires {self.pos_key!r} in data.")
-
         pos = d[self.pos_key]
-        if self.feature_key is None or (self.allow_missing_keys and self.feature_key not in d):
-            feat = None
-        else:
-            feat = d[self.feature_key]
+        feature_key = next(self.iter_keys(d, keys=self.feature_key or ()), None)
+        feat = d[feature_key] if feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
         voxels, voxel_indices, num_points = dynamic_voxelize(points, batch, self.voxel_size, self.point_cloud_range)

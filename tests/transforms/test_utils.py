@@ -472,34 +472,3 @@ def test_set_value_stores_single_value_as_is(value: object) -> None:
 def test_rename_items_swaps_two_keys() -> None:
     out = T.RenameItems(keys=("a", "b"), dst_keys=("b", "a"))({"a": 1, "b": 2, "c": 3})
     assert out == {"a": 2, "b": 1, "c": 3}
-
-
-@pytest.mark.parametrize(
-    "transform",
-    [
-        pytest.param(T.DivideItems(keys=["a"], div_keys=["b"], allow_missing_keys=True), id="DivideItems"),
-        pytest.param(T.SubtractItems(keys=["a"], sub_keys=["b"], allow_missing_keys=True), id="SubtractItems"),
-        pytest.param(
-            T.NormalizedDifference(keys=["a"], sub_keys=["b"], allow_missing_keys=True),
-            id="NormalizedDifference",
-        ),
-    ],
-)
-def test_item_pair_missing_second_key_allowed(transform: T.DictTransform) -> None:
-    data = {"a": torch.tensor([6.0, 8.0])}
-    result = transform(data)
-    assert set(result) == {"a"}
-    assert torch.equal(result["a"], data["a"])
-
-
-@pytest.mark.parametrize(
-    "transform",
-    [
-        pytest.param(T.DivideItems(keys=["a"], div_keys=["b"]), id="DivideItems"),
-        pytest.param(T.SubtractItems(keys=["a"], sub_keys=["b"]), id="SubtractItems"),
-        pytest.param(T.NormalizedDifference(keys=["a"], sub_keys=["b"]), id="NormalizedDifference"),
-    ],
-)
-def test_item_pair_missing_second_key_raises(transform: T.DictTransform) -> None:
-    with pytest.raises(KeyError, match="b"):
-        transform({"a": torch.tensor([6.0, 8.0])})

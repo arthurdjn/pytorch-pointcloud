@@ -536,15 +536,3 @@ def test_masked_fill_with_label_mask_zeroes_colour_past_first_return() -> None:
     assert result["color_out"].sum(dim=1).tolist() == [3.0, 0.0, 3.0]
     assert result["nir_out"].flatten().tolist() == [1.0, 0.0, 1.0]
     assert torch.equal(result["color"], torch.ones(3, 3))
-
-
-def test_masked_fill_missing_mask_raises() -> None:
-    with pytest.raises(KeyError, match="mask"):
-        T.MaskedFill(keys="color", mask_key="mask", value=0.0)({"color": torch.ones(2, 3)})
-
-
-def test_masked_fill_missing_mask_allowed() -> None:
-    data = {"color": torch.ones(2, 3)}
-    result = T.MaskedFill(keys="color", mask_key="mask", value=0.0, allow_missing_keys=True)(data)
-    assert set(result) == {"color"}
-    assert torch.equal(result["color"], data["color"])

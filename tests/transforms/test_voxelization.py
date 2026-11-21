@@ -365,7 +365,7 @@ def test_voxelize_for_detectors_requires_the_named_feature_key(transform: T.Tran
     ],
 )
 def test_voxelize_for_detectors_missing_pos_key_raises(transform: T.Transform) -> None:
-    with pytest.raises(KeyError, match="requires 'pos'"):
+    with pytest.raises(KeyError, match="'pos'"):
         transform({"x": torch.rand(4, 1)})
 
 
@@ -394,11 +394,9 @@ def test_voxelize_for_detectors_missing_pos_key_raises(transform: T.Transform) -
         ),
     ],
 )
-def test_voxelize_for_detectors_missing_pos_key_allowed(transform: T.Transform) -> None:
-    data = {"x": torch.rand(4, 1)}
-    out = transform(data)
-    assert set(out) == {"x"}
-    assert out["x"] is data["x"]
+def test_voxelize_for_detectors_missing_pos_key_raises_even_when_allowed(transform: T.Transform) -> None:
+    with pytest.raises(KeyError, match="'pos'"):
+        transform({"x": torch.rand(4, 1)})
 
 
 def test_dynamic_voxelize_missing_feature_key_allowed_voxelizes_the_positions() -> None:
