@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from ssl import SSLContext, create_default_context
 from typing import Any, Callable, Dict, Iterator, Literal, Optional, Union
+from urllib.error import ContentTooShortError
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
@@ -231,6 +232,10 @@ def download_url(
     Returns:
         The local path to the downloaded file.
 
+    Raises:
+        ContentTooShortError: If the connection closes before the announced `Content-Length` is received. Nothing is
+            written to `file_path`.
+
     Examples:
         ```pycon
         >>> download_url("https://example.com/file.zip")  # doctest: +SKIP
@@ -259,8 +264,10 @@ def download_url(
         request.add_unredirected_header(key, value)
     with atomic_path(file_path, suffix=".part") as part_path:
         with urlopen(request, timeout=timeout) as response, open(part_path, "wb") as fh:
+            total = response.length
+            written = 0
             with tqdm(
-                total=response.length,
+                total=total,
                 desc=description,
                 unit="B",
                 unit_scale=True,
@@ -269,7 +276,14 @@ def download_url(
             ) as pbar:
                 while chunk := response.read(chunk_size):
                     fh.write(chunk)
+                    written += len(chunk)
                     pbar.update(len(chunk))
+            # A connection closed before the end of the body ends the reads without an error.
+            if total is not None and written != total:
+                raise ContentTooShortError(
+                    f"Incomplete download of {url!r}: received {written} of {total} bytes.",
+                    (file_path.as_posix(), response.headers),
+                )
 
     return file_path.as_posix()
 

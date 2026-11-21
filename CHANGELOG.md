@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed `download_url` keeping a download cut before its announced `Content-Length` as a complete file: it raises `ContentTooShortError` and writes nothing, and `create_model(pretrained=True)` names an unreadable cached weight file to delete.
+- Fixed `KPConv` and `create_kernel_points` failing when the cache directory is read-only.
+
 ## 0.0.22 (2026-11-18)
 
 - Fixed the Hub Sync check failing with `429 Too Many Requests`: a request over the Hub API quota waits for the quota window and is sent again.
