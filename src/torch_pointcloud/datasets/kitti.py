@@ -3,7 +3,6 @@
 {{ paper("kitti-2012") }}
 """
 
-import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TypedDict
 
@@ -11,6 +10,7 @@ import numpy as np
 import torch
 from typing_extensions import override
 
+from torch_pointcloud.utils.conversion import ensure_option
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
@@ -327,11 +327,9 @@ class KITTI(PointCloudDataset):
         root: Dataset root; raw data is read from `<root>/KITTI/raw/<directory>/`.
         split: `"train"` or `"val"` loads the frames of the `training` directory listed in
             `<root>/KITTI/raw/ImageSets/<split>.txt` and raises a `FileNotFoundError` when that file is missing.
-            `"test"` loads the unlabelled `testing` directory. `None` (the default) loads every frame of `training`.
-        split_file: Optional text file of frame ids (one per line) selecting which cached frames to load from the
-            `training` directory, or from `testing` with `split="test"`. It replaces the `ImageSets` list, so it
-            cannot be combined with `split="train"` or `"val"`.
-        train: Deprecated, use `split`: `True` is `split=None`, `False` is `split="test"`.
+            `"test"` loads every frame of the unlabelled `testing` directory.
+        split_file: Optional text file of frame ids (one per line) loaded in place of the `ImageSets` list of
+            `split`, from the directory of `split`.
         fov: Restrict points to the front-camera field of view (requires `image_2/`). Baked into the cache.
         return_calib: Also emit the `calib` (the composed $(3, 4)$ LiDAR-to-image matrix
             $P_2 [R_0 T_\text{velo}]$ with the perspective-divide row from $R_0 T_\text{velo}$, the
@@ -351,7 +349,7 @@ class KITTI(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import KITTI
 
-        dataset = KITTI(root="data")
+        dataset = KITTI(root="data", split="train")
         sample = dataset[0]
         sample["pos"].shape  # (N, 3)
         sample["box"].shape  # (K, 7)
@@ -373,9 +371,8 @@ class KITTI(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        split: Optional[Literal["train", "val", "test"]] = None,
+        split: Literal["train", "val", "test"],
         split_file: Optional[PathLike] = None,
-        train: Optional[bool] = None,
         fov: bool = True,
         return_calib: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -386,34 +383,19 @@ class KITTI(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        if train is not None and split is not None:
-            raise ValueError("`train` is a deprecated spelling of `split`: pass only `split`.")
-
-        if train is not None:
-            replacement = "split=None" if train else 'split="test"'
-            warnings.warn(
-                f"`KITTI(train={train})` is deprecated and will be removed in a future release; pass `{replacement}`.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            split = None if train else "test"
-
-        if split in ("train", "val") and split_file is not None:
-            raise ValueError(f"`split={split!r}` and `split_file` both select the frames to load: pass only one.")
-
-        if split in ("train", "val"):
+        ensure_option(split, ("train", "val", "test"), name="split")
+        self.split = split
+        self._split = "testing" if split == "test" else "training"
+        if split in ("train", "val") and split_file is None:
             split_file = Path(self.raw_dir, "ImageSets", f"{split}.txt")
-            if not split_file.exists():
+            if not split_file.exists() and self.raw_split_dir.is_dir():
                 raise FileNotFoundError(
                     f"No {split!r} split file at {split_file.as_posix()!r}. The KITTI download does not include the "
                     "standard train / val split: copy `train.txt` (3712 frame ids) and `val.txt` (3769 frame ids), "
                     "one id per line, from the `ImageSets` folder of a KITTI detection codebase into "
-                    f"{split_file.parent.as_posix()!r}, pass your own list as `split_file`, or pass `split=None` "
-                    "to load every frame."
+                    f"{split_file.parent.as_posix()!r}, or pass your own list as `split_file`."
                 )
 
-        self.split = split
-        self._split = "testing" if split == "test" else "training"
         self.split_file = split_file
         self.fov = fov
         self.return_calib = return_calib

@@ -78,7 +78,7 @@ def configure_dataset(args: Namespace) -> Dataset:
     transform = T.Compose([KITTI_TRANSFORM, model_transform])
     dataset: Dataset = KITTI(
         root=args.root,
-        split=None if args.split_file else "val",
+        split="val",
         split_file=args.split_file,
         fov=True,
         return_calib=True,
