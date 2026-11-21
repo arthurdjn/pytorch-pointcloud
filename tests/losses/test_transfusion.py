@@ -205,7 +205,7 @@ def test_transfusion_loss_last_scene_without_boxes_is_finite() -> None:
 
 
 def test_transfusion_loss_without_height_code_is_deprecated() -> None:
-    with pytest.warns(FutureWarning, match="height_code"):
+    with pytest.warns(FutureWarning, match="`height_code` .* will be an error in a future release"):
         loss_fn = TransFusionHeadLoss(
             _NUM_CLASSES,
             point_cloud_range=_POINT_CLOUD_RANGE,
@@ -216,7 +216,7 @@ def test_transfusion_loss_without_height_code_is_deprecated() -> None:
 
 
 def test_transfusion_loss_num_proposals_is_deprecated() -> None:
-    with pytest.warns(FutureWarning, match="num_proposals"):
+    with pytest.warns(FutureWarning, match="`num_proposals` .* will be removed in a future release"):
         TransFusionHeadLoss(
             _NUM_CLASSES,
             point_cloud_range=_POINT_CLOUD_RANGE,

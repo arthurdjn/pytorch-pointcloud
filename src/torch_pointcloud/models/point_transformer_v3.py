@@ -127,7 +127,7 @@ def serialize(
     """Deprecated alias of `torch_pointcloud.ops.serialization.serialize`."""
     warnings.warn(
         "`torch_pointcloud.models.point_transformer_v3.serialize` is deprecated since 0.0.20 and will be removed in "
-        "0.0.21; use `torch_pointcloud.ops.serialization.serialize` instead.",
+        "a future release; use `torch_pointcloud.ops.serialization.serialize` instead.",
         FutureWarning,
         stacklevel=2,
     )

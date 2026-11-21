@@ -194,7 +194,7 @@ class SECONDDetection(DetectionModel):
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the head.
         dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
-            warns and uses $0.78539$) and an error from 0.0.20.
+            warns and uses $0.78539$) and will be an error in a future release.
         dir_limit_offset: Heading wrap offset used during decoding.
         act: Activation type or callable for the 3D/2D backbones.
         act_kwargs: Extra activation arguments.
@@ -228,8 +228,8 @@ class SECONDDetection(DetectionModel):
     ) -> None:
         if dir_offset is None:
             warnings.warn(
-                "Omitting `dir_offset` of `SECONDDetection` is deprecated since 0.0.19 and an error from 0.0.20; "
-                "pass the direction offset the weights were trained with (0.78539 was the default).",
+                "Omitting `dir_offset` of `SECONDDetection` is deprecated since 0.0.19 and will be an error in a "
+                "future release; pass the direction offset the weights were trained with (0.78539 was the default).",
                 FutureWarning,
                 stacklevel=2,
             )

@@ -132,7 +132,7 @@ def test_anchor_head_shares_templates_across_classes_and_decodes_velocity() -> N
 
 
 def test_anchor_head_without_dir_offset_warns_and_keeps_the_former_default() -> None:
-    with pytest.warns(FutureWarning, match="dir_offset"):
+    with pytest.warns(FutureWarning, match="`dir_offset` of `AnchorHead` .* will be an error in a future release"):
         head = AnchorHead(
             8, 1, (4, 4), RANGE, anchor_sizes=[[4.0, 2.0, 1.5]], anchor_bottom_heights=[0.0], feature_map_stride=1
         )

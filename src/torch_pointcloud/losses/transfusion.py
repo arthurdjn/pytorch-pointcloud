@@ -44,9 +44,10 @@ class TransFusionHeadLoss(nn.Module):
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         feature_map_stride: Stride from the voxel grid to the BEV feature map.
         height_code: Box point the head's `height` code regresses: the gravity center, or the top face
-            ($z + d_z / 2$). Omitting it is accepted until 0.0.20 for the top face, with a `FutureWarning`.
-        num_proposals: Unused, the query count comes from the head output; accepted until 0.0.20, with a
-            `FutureWarning`.
+            ($z + d_z / 2$). Omitting it is deprecated since 0.0.19 (it warns and uses the top face) and will be an
+            error in a future release.
+        num_proposals: Unused, the query count comes from the head output; deprecated since 0.0.19 and will be
+            removed in a future release.
         gaussian_overlap: Min-overlap passed to the Gaussian-radius solver.
         min_radius: Lower clamp on the integer splat radius.
         matcher_cls_cost: Weight of the focal classification term in the matching cost.
@@ -93,8 +94,9 @@ class TransFusionHeadLoss(nn.Module):
 
         if height_code is None:
             warnings.warn(
-                "Omitting `height_code` from `TransFusionHeadLoss` is deprecated in 0.0.19 and raises in 0.0.20; until "
-                'then the box-top code is used, so pass `height_code="top"` to keep that behaviour.',
+                "Omitting `height_code` from `TransFusionHeadLoss` is deprecated since 0.0.19 and will be an error in "
+                'a future release; until then the box-top code is used, so pass `height_code="top"` to keep that '
+                "behaviour.",
                 FutureWarning,
                 stacklevel=2,
             )
@@ -102,7 +104,7 @@ class TransFusionHeadLoss(nn.Module):
         if num_proposals is not None:
             warnings.warn(
                 "`num_proposals` of `TransFusionHeadLoss` is unused (the query count comes from the head output) and "
-                "will be removed in 0.0.20.",
+                "will be removed in a future release.",
                 FutureWarning,
                 stacklevel=2,
             )

@@ -262,7 +262,7 @@ def test_second_without_dir_offset_warns() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         create_model("second.kitti.openpcdet", task="detection")
-    with pytest.warns(FutureWarning, match="SECONDDetection"):
+    with pytest.warns(FutureWarning, match="`SECONDDetection` .* will be an error in a future release"):
         model = create_model("second.kitti.openpcdet", task="detection", dir_offset=None)
     assert isinstance(model, SECONDDetection)
     assert model.dir_offset == 0.78539

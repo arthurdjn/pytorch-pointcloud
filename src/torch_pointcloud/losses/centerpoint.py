@@ -177,7 +177,8 @@ class CenterHeadLoss(nn.Module):
 
     Args:
         class_groups: Zero-based global class-index groups, one per head (e.g. `[[0], [1, 2], ...]`). A class
-            count is accepted until 0.0.20 for one group of every class, with a `FutureWarning`.
+            count still works for one group of every class, with a `FutureWarning`, and will be removed in a future
+            release.
         point_cloud_range: Range $(x_\min, y_\min, z_\min, x_\max, y_\max, z_\max)$.
         voxel_size: Voxel size $(v_x, v_y, v_z)$.
         feature_map_stride: Stride from the voxel grid to the BEV feature map.
@@ -214,7 +215,7 @@ class CenterHeadLoss(nn.Module):
         if isinstance(class_groups, int):
             warnings.warn(
                 "Passing the class count to `CenterHeadLoss` was replaced by `class_groups` in 0.0.19 and will be "
-                f"removed in 0.0.20; pass `[list(range({class_groups}))]` for one group of every class.",
+                f"removed in a future release; pass `[list(range({class_groups}))]` for one group of every class.",
                 FutureWarning,
                 stacklevel=2,
             )
