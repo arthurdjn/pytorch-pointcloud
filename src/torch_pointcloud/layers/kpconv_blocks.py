@@ -30,7 +30,8 @@ def create_kernel_points(
 ) -> torch.Tensor:
     r"""Builds the kernel point positions of a KPConv kernel, randomly rotated and jittered.
 
-    Positions are optimized on the unit sphere, cached under `CACHE_DIR` and reused across calls.
+    Positions are optimized on the unit sphere, cached under `CACHE_DIR` and reused across calls. When the cache
+    directory cannot be written, they are optimized again on every call.
 
     Args:
         radius: Radius of the sphere the kernel points are scaled to.
@@ -62,11 +63,15 @@ def create_kernel_points(
                 return_grad_norms=True,
             )
 
-        kernel_path.parent.mkdir(parents=True, exist_ok=True)
-        # A concurrent process must never load a partially written file: write aside, then rename atomically.
-        with tempfile.NamedTemporaryFile(dir=kernel_path.parent, suffix=".tmp", delete=False) as tmp_file:
-            torch.save(kernel_points, tmp_file)
-        os.replace(tmp_file.name, kernel_path)
+        try:
+            kernel_path.parent.mkdir(parents=True, exist_ok=True)
+            # A concurrent process must never load a partially written file: write aside, then rename atomically.
+            with tempfile.NamedTemporaryFile(dir=kernel_path.parent, suffix=".tmp", delete=False) as tmp_file:
+                torch.save(kernel_points, tmp_file)
+            os.replace(tmp_file.name, kernel_path)
+        except OSError:
+            # The cache only saves the optimization of later calls: a read-only cache directory is not an error.
+            pass
 
     # Random rotations for the kernel
     R = torch.eye(3)
