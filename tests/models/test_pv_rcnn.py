@@ -57,7 +57,7 @@ def test_pv_rcnn_without_dir_offset_warns() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         create_model("pv-rcnn.kitti.mmdet3d", task="detection")
-    with pytest.warns(FutureWarning, match="PVRCNNDetection"):
+    with pytest.warns(FutureWarning, match="`PVRCNNDetection` .* will be an error in a future release"):
         model = create_model("pv-rcnn.kitti.mmdet3d", task="detection", dir_offset=None)
     assert isinstance(model, PVRCNNDetection)
     assert model.dir_offset == 0.78539

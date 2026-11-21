@@ -74,7 +74,7 @@ class AnchorHead(nn.Module):
         code_size: Length of the box code: $7$ for the box, or $9$ with its BEV velocity $(v_x, v_y)$ after it.
         num_dir_bins: Number of direction bins.
         dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
-            warns and uses $0.78539$) and an error from 0.0.20.
+            warns and uses $0.78539$) and will be an error in a future release.
         dir_limit_offset: Offset used when wrapping the decoded heading before snapping.
     """
 
@@ -108,8 +108,8 @@ class AnchorHead(nn.Module):
             raise ValueError(f"The box code is the 7 box parameters, or 9 with the BEV velocity, got {code_size}.")
         if dir_offset is None:
             warnings.warn(
-                "Omitting `dir_offset` of `AnchorHead` is deprecated since 0.0.19 and an error from 0.0.20; pass the "
-                "direction offset the weights were trained with (0.78539 was the default).",
+                "Omitting `dir_offset` of `AnchorHead` is deprecated since 0.0.19 and will be an error in a future "
+                "release; pass the direction offset the weights were trained with (0.78539 was the default).",
                 FutureWarning,
                 stacklevel=2,
             )

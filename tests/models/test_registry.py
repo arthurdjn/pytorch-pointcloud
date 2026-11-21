@@ -313,7 +313,7 @@ def test_deprecated_model_stacks_one_decorator_per_former_name() -> None:
         with pytest.warns(
             FutureWarning,
             match=r"'dummy-former.classification' was renamed to 'dummy-renamed.classification' in 0.0.17; the former "
-            r"name will be removed in 0.1.0\.$",
+            r"name will be removed in a future release\.$",
         ):
             assert model_info("dummy-former.classification")["name"] == "dummy-renamed.classification"
         with pytest.warns(

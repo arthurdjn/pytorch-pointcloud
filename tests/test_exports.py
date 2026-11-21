@@ -92,9 +92,9 @@ def test_ops_namespace_in_fresh_interpreter() -> None:
     assert stdout.split("\n")[:2] == [" ".join(OPS_MODULES), "nms3d"]
 
 
-def test_api_nav_lists_every_public_module() -> None:
+def test_api_nav_matches_the_public_modules() -> None:
     source = REPO_DIR / "src" / "torch_pointcloud"
-    pages = set()
+    pages = {"api/index.md"}
     for path in source.rglob("*.py"):
         module = path.relative_to(source)
         if module.name == "__init__.py" and module.parent != Path("."):
@@ -103,4 +103,4 @@ def test_api_nav_lists_every_public_module() -> None:
             pages.add(f"api/{module.with_suffix('.md').as_posix()}")
 
     nav = set(re.findall(r'"(api/[^"]+\.md)"', (REPO_DIR / "zensical.toml").read_text()))
-    assert pages - nav == set()
+    assert nav == pages

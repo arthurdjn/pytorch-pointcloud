@@ -49,7 +49,7 @@ def test_parta2_without_dir_offset_warns() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         create_model("part-a2.kitti.mmdet3d", task="detection")
-    with pytest.warns(FutureWarning, match="PartA2Detection"):
+    with pytest.warns(FutureWarning, match="`PartA2Detection` .* will be an error in a future release"):
         model = create_model("part-a2.kitti.mmdet3d", task="detection", dir_offset=None)
     assert isinstance(model, PartA2Detection)
     assert model.dir_offset == 0.78539

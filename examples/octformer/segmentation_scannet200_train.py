@@ -19,6 +19,7 @@ from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet200
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model, model_info
+from torch_pointcloud.optim import generate_param_groups
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
 from torch_pointcloud.utils.random import seed_everything
 
@@ -189,11 +190,12 @@ def configure_criterion(args: Namespace) -> nn.Module:
 
 def configure_optimizers(args: Namespace, model: nn.Module) -> tuple[Optimizer, LRScheduler]:
     # `adamw_attn`: the transformer blocks run at a tenth of the learning rate, every parameter decays.
-    blocks = [param for name, param in model.named_parameters() if "blocks" in name]
-    others = [param for name, param in model.named_parameters() if "blocks" not in name]
-    optimizer = torch.optim.AdamW(
-        [{"params": others}, {"params": blocks, "lr": args.lr / 10}], lr=args.lr, weight_decay=args.weight_decay
+    groups = generate_param_groups(
+        model,
+        weight_decay=args.weight_decay,
+        overrides=[dict(match=lambda name, param: name.startswith("encoder.") and ".blocks." in name, lr=args.lr / 10)],
     )
+    optimizer = torch.optim.AdamW(groups, lr=args.lr, weight_decay=args.weight_decay)
 
     # `step_warmup`, stepped once per epoch: linear warm-up from a thousandth, then x0.1 at each milestone.
     def factor(epoch: int) -> float:
