@@ -16,7 +16,7 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
-from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.conversion import ensure_options
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.io import load_off
 from torch_pointcloud.utils.misc import parallel_map
@@ -142,14 +142,6 @@ def is_archive_metadata(file_path: PathLike, raw_dir: PathLike) -> bool:
     return "__MACOSX" in relative_path.parts or relative_path.name.startswith("._")
 
 
-def _check_classes(classes: Sequence[str], original_classes: Sequence[str]) -> None:
-    r"""Verify that the provided classes are valid, and raises a ValueError if not."""
-    for cls_name in classes:
-        if cls_name not in original_classes:
-            available_classes = ", ".join(original_classes)
-            raise ValueError(f"Unknown class: {cls_name!r}. Must be one of {available_classes}.")
-
-
 class _ModelNet(PointCloudDataset):
     data_url: str
     resource: str
@@ -170,8 +162,9 @@ class _ModelNet(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        classes = self.original_classes if classes == "all" else ensure_tuple(classes)
-        _check_classes(classes, self.original_classes)
+        classes = (
+            self.original_classes if classes == "all" else ensure_options(classes, self.original_classes, name="class")
+        )
         self.train = train
         self._split = "train" if train else "test"
         self.classes = tuple(sorted(classes))
@@ -425,8 +418,9 @@ class ModelNetNormalResampled(PointCloudDataset):
         self.variant = variant
         self.train = train
         self._split = "train" if train else "test"
-        classes = self.original_classes if classes == "all" else ensure_tuple(classes)
-        _check_classes(classes, self.original_classes)
+        classes = (
+            self.original_classes if classes == "all" else ensure_options(classes, self.original_classes, name="class")
+        )
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.show_progress = show_progress

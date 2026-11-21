@@ -471,7 +471,7 @@ def test_modelnet_dataset_unknown_class_raises(
     """An unknown class name raises before anything is processed, instead of building an empty cache."""
     datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
 
-    with pytest.raises(ValueError, match="Unknown class: 'Chair'"):
+    with pytest.raises(ValueError, match="Invalid class: 'Chair'"):
         _ = dataset_cls(root=datasets_dir, classes=["chair", "Chair"], show_progress=False)
     assert not (datasets_dir / dataset_cls.__name__ / "processed").exists()
 

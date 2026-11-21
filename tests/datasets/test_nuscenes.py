@@ -233,7 +233,7 @@ def test_nuscenes_dataset_unknown_class_raises(datasets_dir_factory: Callable[..
     """An unknown class name raises before anything is processed, instead of dropping every box of that class."""
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
 
-    with pytest.raises(ValueError, match="Unknown class: 'Car'"):
+    with pytest.raises(ValueError, match="Invalid class: 'Car'"):
         _ = NuScenesMini(root=datasets_dir, classes=("pedestrian", "Car"), show_progress=False)
     assert not (datasets_dir / "NuScenesMini" / "processed").exists()
 

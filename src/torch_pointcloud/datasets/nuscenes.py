@@ -14,7 +14,7 @@ import torch
 from torch import Tensor
 from typing_extensions import override
 
-from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.conversion import ensure_options
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
@@ -725,11 +725,7 @@ class NuScenes(PointCloudDataset):
         if max_sweeps < 1:
             raise ValueError(f"`max_sweeps` must be at least 1 (the keyframe itself), got {max_sweeps}.")
 
-        classes = ensure_tuple(classes)
-        for cls_name in classes:
-            if cls_name not in NUSCENES_DETECTION_CLASSES:
-                available_classes = ", ".join(NUSCENES_DETECTION_CLASSES)
-                raise ValueError(f"Unknown class: {cls_name!r}. Must be one of {available_classes}.")
+        classes = ensure_options(classes, NUSCENES_DETECTION_CLASSES, name="class")
 
         self.split = split
         self.version = version

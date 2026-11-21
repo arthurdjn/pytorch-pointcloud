@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file. The format is b
 - Changed the ScanNet errors to name the missing raw path or split list and to point at `download=True` when scans are missing, and documented the `raw/` layout in the ScanNet docstrings.
 - Changed `ModelNet10`, `ModelNet40`, `ModelNetNormalResampled` and `NuScenes` to raise on an unknown class name, and `NuScenes` on `max_sweeps` below 1.
 - Added `datasets.utils.is_cache_incomplete` and `write_cache_meta(complete=...)`.
+- Added `utils.conversion.ensure_options`, which checks that every value of a sequence is one of the given options.
 
 ## 0.0.22 (2026-11-18)
 
