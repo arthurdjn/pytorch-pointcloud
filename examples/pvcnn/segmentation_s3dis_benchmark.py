@@ -24,7 +24,14 @@ NUM_WORKERS = CPU_COUNT // 2 if CPU_COUNT is not None else 0
 SEED = 42
 BLOCK_SIZE = 1.5
 SW_BATCH_SIZE = 8
-BLOCK_NUM_POINTS = 4096
+# Points per block of each model.
+MODELS = {
+    "pvcnn.s3dis-area5.mit-han-lab": 4096,
+    "pvcnn-c0p25.s3dis-area5.mit-han-lab": 4096,
+    "pvcnn-c0p125.s3dis-area5.mit-han-lab": 4096,
+    "pvcnn2.s3dis-area5.mit-han-lab": 8192,
+    "pvcnn2-c0p5.s3dis-area5.mit-han-lab": 8192,
+}
 
 TRANSFORM = T.Compose(
     [
@@ -55,18 +62,21 @@ def main() -> None:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description="Benchmark PVCNN semantic segmentation on S3DIS Area 5.")
-    parser.add_argument("--model", default="pvcnn.s3dis-area5.mit-han-lab", help="Registered segmentation model name")
+    parser.add_argument("--model", default=next(iter(MODELS)), choices=list(MODELS))
     parser.add_argument("--device", default=DEVICE)
     parser.add_argument("--root", default=DATA_DIR, help="Dataset root directory.")
     parser.add_argument("--areas", nargs="+", default=["Area_5"])
     parser.add_argument("--seed", default=SEED, type=int)
     parser.add_argument("--sw-batch-size", default=SW_BATCH_SIZE, type=int, help="Blocks per forward.")
-    parser.add_argument("--num-points", default=BLOCK_NUM_POINTS, type=int, help="Points per block.")
+    parser.add_argument("--num-points", default=None, type=int, help="Points per block (default: the checkpoint's).")
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many rooms.")
     parser.add_argument("--download", action="store_true", help="Download S3DIS if missing.")
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.num_points is None:
+        args.num_points = MODELS[args.model]
+    return args
 
 
 def configure_dataset(args: Namespace) -> Dataset:

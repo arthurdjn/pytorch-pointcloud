@@ -7,6 +7,9 @@ All notable changes to this project are documented in this file. The format is b
 ## Unreleased
 
 - Changed the deprecation warnings and their docstrings to say that a deprecated name or argument will be removed in a future release, without naming that release.
+- Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.
+- Fixed example scripts feeding inputs their benchmark protocol does not: the KPConv S3DIS height above the room floor, the PointMLP ScanObjectNN validation batches (shuffled once), the OctFormer ModelNet40 normalization and ScanNet learning-rate groups, the PVCNN++ S3DIS points per block and the Utonia ScanNet coordinate scale.
+- Fixed the stored test outputs of the MinkUNet SemanticKITTI and DGCNN S3DIS checkpoints, which no longer matched their registered transforms on the GPU.
 
 ## 0.0.22 (2026-11-18)
 
