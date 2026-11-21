@@ -2,8 +2,6 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from pathlib import Path
-from typing import Optional
 
 import torch
 from torch import Tensor
@@ -67,11 +65,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--batch-size", default=4, type=int)
     parser.add_argument("--num-workers", default=NUM_WORKERS, type=int)
     parser.add_argument("--limit", default=None, type=int, help="Evaluate at most this many frames.")
-    args = parser.parse_args()
-    if args.split_file is None:
-        args.split_file = default_split_file(args.root, "val")
-
-    return args
+    return parser.parse_args()
 
 
 def configure_classes(args: Namespace) -> tuple[str, ...]:
@@ -79,16 +73,6 @@ def configure_classes(args: Namespace) -> tuple[str, ...]:
     weights = model_info(args.model, task="detection")["weights"]
     assert weights is not None and weights["classes"] is not None
     return tuple(weights["classes"])
-
-
-def default_split_file(root: str, split: str) -> Optional[str]:
-    """`ImageSets/<split>.txt` of the KITTI raw directory, or `None` (every training frame) when it is missing."""
-    split_file = Path(root, "KITTI", "raw", "ImageSets", f"{split}.txt")
-    if split_file.exists():
-        return split_file.as_posix()
-
-    print(f"No split file at {split_file.as_posix()!r}: using every frame of the KITTI training set.")
-    return None
 
 
 def configure_dataset(args: Namespace) -> Dataset:
@@ -114,6 +98,7 @@ def configure_dataset(args: Namespace) -> Dataset:
     dataset = KITTI(
         root=args.root,
         train=True,
+        split=None if args.split_file else "val",
         split_file=args.split_file,
         fov=True,
         return_calib=True,

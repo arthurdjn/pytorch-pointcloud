@@ -1,8 +1,9 @@
 # mypy: disable-error-code="arg-type,call-overload"
 import json
+import re
 import shutil
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -257,6 +258,60 @@ def test_kitti_dataset_split_file_missing_frames_raise(datasets_dir_factory: Cal
     split_file.write_text("000000\n000099\n")
     with pytest.raises(RuntimeError, match="000099"):
         _ = KITTI(root=datasets_dir, train=True, split_file=split_file, fov=False)
+
+
+@pytest.mark.parametrize(
+    "split, frame_ids",
+    [
+        pytest.param("train", ["000001", "000002"], id="train"),
+        pytest.param("val", ["000000"], id="val"),
+    ],
+)
+def test_kitti_dataset_split_reads_its_image_sets_file(
+    datasets_dir_factory: Callable[..., Path],
+    split: str,
+    frame_ids: List[str],
+) -> None:
+    """`split` loads the frames listed in `raw/ImageSets/<split>.txt`."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, split=split, fov=False)
+    assert dataset.frame_ids == frame_ids
+
+
+def test_kitti_dataset_split_without_its_file_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A missing `ImageSets` file raises with its path before anything is processed, never loading every frame."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    split_file = datasets_dir / "KITTI" / "raw" / "ImageSets" / "val.txt"
+    split_file.unlink()
+    with pytest.raises(FileNotFoundError, match=re.escape(split_file.as_posix())):
+        _ = KITTI(root=datasets_dir, train=True, split="val", fov=False)
+    assert not (datasets_dir / "KITTI" / "processed").exists()
+
+
+def test_kitti_dataset_split_none_loads_every_frame(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`split=None` loads every frame, whether the `ImageSets` files are there or not."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, train=True, split=None, fov=False)
+    assert dataset.frame_ids == ["000000", "000001", "000002"]
+
+    shutil.rmtree(datasets_dir / "KITTI" / "raw" / "ImageSets")
+    dataset = KITTI(root=datasets_dir, train=True, split=None, fov=False)
+    assert dataset.frame_ids == ["000000", "000001", "000002"]
+
+
+def test_kitti_dataset_split_with_split_file_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`split` and `split_file` both select the frames, so passing the two raises."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    split_file = datasets_dir / "KITTI" / "raw" / "ImageSets" / "train.txt"
+    with pytest.raises(ValueError, match="split_file"):
+        _ = KITTI(root=datasets_dir, train=True, split="val", split_file=split_file, fov=False)
+
+
+def test_kitti_dataset_split_of_the_testing_directory_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """The train / val lists hold frames of the `training` directory only."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    with pytest.raises(ValueError, match="train=True"):
+        _ = KITTI(root=datasets_dir, train=False, split="val", fov=False)
 
 
 def test_kitti_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> None:

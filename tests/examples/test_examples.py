@@ -50,7 +50,7 @@ _GPU_FLASH_ATTN = (_REQUIRES_FLASH_ATTN, _REQUIRES_CUDA)
 _LOADS_PRETRAINED_ENCODER = pytest.mark.pretrained
 
 # Benchmarks load registry weights, so they also carry the `pretrained` marker. Checkpoints without a dummy
-# dataset here (SUN RGB-D, ScanNet200, the KITTI split files) and the unreleased SphereFormer weights have no row.
+# dataset here (SUN RGB-D, ScanNet200) and the unreleased SphereFormer weights have no row.
 BENCHMARKS = [
     pytest.param("spunet/segmentation_scannet_benchmark.py", ("--limit", "1"), marks=_GPU_SPCONV, id="spunet/scannet"),
     pytest.param(
@@ -1302,6 +1302,43 @@ def test_kitti_training_scripts_cache_the_objects_of_their_own_classes(tmp_path:
     objects = second.configure_objects(args)
     assert len(expected) > 0
     assert [int(obj[DataKeys.LABEL]) for obj in objects] == [int(obj[DataKeys.LABEL]) for obj in expected]
+
+
+@pytest.mark.parametrize(
+    "script, configure",
+    [
+        pytest.param(
+            "anchor_detectors/detection_kitti_openpcdet_benchmark.py",
+            "configure_dataset",
+            id="anchor_detectors/openpcdet-benchmark",
+        ),
+        pytest.param(
+            "anchor_detectors/detection_kitti_mmdet3d_benchmark.py",
+            "configure_dataset",
+            id="anchor_detectors/mmdet3d-benchmark",
+        ),
+        pytest.param("pointrcnn/detection_kitti_benchmark.py", "configure_dataset", id="pointrcnn/benchmark"),
+        pytest.param("parta2/detection_kitti_benchmark.py", "configure_dataset", id="parta2/benchmark"),
+        pytest.param("pv_rcnn/detection_kitti_benchmark.py", "configure_dataset", id="pv_rcnn/benchmark"),
+        pytest.param("voxel_rcnn/detection_kitti_benchmark.py", "configure_dataset", id="voxel_rcnn/benchmark"),
+        pytest.param("second/detection_kitti_train.py", "configure_datasets", id="second/train"),
+        pytest.param("pointpillars/detection_kitti_train.py", "configure_datasets", id="pointpillars/train"),
+        pytest.param("pointrcnn/detection_kitti_train.py", "configure_datasets", id="pointrcnn/train"),
+        pytest.param("voxel_rcnn/detection_kitti_train.py", "configure_datasets", id="voxel_rcnn/train"),
+    ],
+)
+def test_kitti_scripts_raise_without_the_split_files(
+    script: str,
+    configure: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shutil.copytree(DATASETS_DIR / "KITTI" / "raw" / "training", tmp_path / "KITTI" / "raw" / "training")
+    module = _import(script)
+    monkeypatch.setattr(sys, "argv", [script, "--root", str(tmp_path)])
+    args = module.parse_args()
+    with pytest.raises(FileNotFoundError, match="ImageSets"):
+        getattr(module, configure)(args)
 
 
 class FirstInput(nn.Module):
