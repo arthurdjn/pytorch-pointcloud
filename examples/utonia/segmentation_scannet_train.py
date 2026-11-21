@@ -37,6 +37,7 @@ TILT = 180.0 / 64
 
 TRAIN_TRANSFORM = T.Compose(
     [
+        T.Scale(keys=DataKeys.POS, scale=0.5),  # RandomScale(scale=[0.5, 0.5])
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, NUM_CLASSES + 1), default=-1),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),  # NormalizeColor; the chromatic ratios below are relative
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),  # CenterShift(apply_z=True)
@@ -51,8 +52,8 @@ TRAIN_TRANSFORM = T.Compose(
         ),
         T.RandomScale(keys=DataKeys.POS, scale_range=(0.9, 1.1)),
         T.RandomFlip(keys=[DataKeys.POS, DataKeys.NORMAL], axes=(0, 1), p=0.5),
-        T.RandomJitter(keys=DataKeys.POS, sigma=0.005, clip=0.02),
-        T.RandomElasticDistortion(keys=DataKeys.POS, granularity=(0.2, 0.8), magnitude=(0.4, 1.6), p=1.0),
+        T.RandomJitter(keys=DataKeys.POS, sigma=0.0025, clip=0.01),
+        T.RandomElasticDistortion(keys=DataKeys.POS, granularity=(0.1, 0.4), magnitude=(0.2, 0.8), p=1.0),
         T.RandomColorAutoContrast(keys=DataKeys.COLOR, blend=None, p=0.2),
         T.RandomColorShift(keys=DataKeys.COLOR, shift_range=(-0.05, 0.05), p=0.95),  # ChromaticTranslation
         T.RandomJitter(keys=DataKeys.COLOR, sigma=0.05, clip=None, p=0.95),  # ChromaticJitter
@@ -81,6 +82,7 @@ TRAIN_TRANSFORM = T.Compose(
 
 VAL_TRANSFORM = T.Compose(
     [
+        T.Scale(keys=DataKeys.POS, scale=0.5),
         T.Relabel(keys=DataKeys.SEGMENT, labels=range(1, NUM_CLASSES + 1), default=-1),
         T.Divide(keys=DataKeys.COLOR, divisor=255.0),
         T.Shift(keys=DataKeys.POS, method="bbox", axes=[0, 1]),

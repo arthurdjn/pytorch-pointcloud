@@ -39,9 +39,8 @@ SPHERES_PER_EPOCH = 500 * 6  # epoch_steps x batch_num
 VAL_SPHERES = 50 * 6  # validation_size x batch_num
 POINT_KEYS = [DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT]
 
-# Features = ones + rgb + z of the (augmented) sphere.
+# Features = ones + rgb + height above the lowest point of the room.
 FEATURE_TRANSFORMS = [
-    T.Slice(keys=DataKeys.POS, start=2, stop=3, dim=1, dst_keys="height"),
     T.OnesLike(keys="height", dst_keys="ones"),
     T.Cat(keys=["ones", DataKeys.COLOR, "height"], dst_key=DataKeys.X),
 ]
@@ -126,10 +125,11 @@ def configure_train_transform(args: Namespace) -> T.Transform:
                 method="grid",
             ),
             T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
+            T.AxisMinOffset(keys=DataKeys.POS, dst_keys="height", axis=2),
             T.SphereCrop(
                 pos_key=DataKeys.POS,
                 radius=args.radius,
-                keys=[DataKeys.COLOR, DataKeys.SEGMENT],
+                keys=[DataKeys.COLOR, DataKeys.SEGMENT, "height"],
                 center="random_point",
                 dst_center_key="center",
                 seed=None,
@@ -159,10 +159,11 @@ def configure_val_transform(args: Namespace) -> T.Transform:
                 method="grid",
             ),
             T.Scale(keys=DataKeys.COLOR, scale=1.0 / 255),
+            T.AxisMinOffset(keys=DataKeys.POS, dst_keys="height", axis=2),
             T.SphereCrop(
                 pos_key=DataKeys.POS,
                 radius=args.radius,
-                keys=[DataKeys.COLOR, DataKeys.SEGMENT],
+                keys=[DataKeys.COLOR, DataKeys.SEGMENT, "height"],
                 center="random_point",
                 dst_center_key="center",
                 seed=0,

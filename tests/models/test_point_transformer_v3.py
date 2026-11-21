@@ -303,7 +303,7 @@ def test_pt_v3_segmentation_condition_is_keyword_only(
 def test_serialize_is_deprecated() -> None:
     grid = torch.tensor([[0, 0, 0], [1, 2, 3]], dtype=torch.long)
     batch = torch.zeros(2, dtype=torch.long)
-    with pytest.warns(FutureWarning, match="ops.serialization.serialize"):
+    with pytest.warns(FutureWarning, match="will be removed in a future release; use .*ops.serialization.serialize"):
         code, _, _ = serialize(grid, batch, orders=["hilbert"])
     assert torch.equal(code, serialization.serialize(grid, batch, orders=["hilbert"])[0])
 

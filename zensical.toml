@@ -644,6 +644,11 @@ generic = true
 # Zensical extensions
 [project.markdown_extensions.zensical.extensions.macros]
 module_name = "docs/plugins/macros"
+on_error_fail = true
+on_undefined = "strict"
+# The default Jinja comment opener `{#` is also how an `attr_list` anchor starts (`[](){#module.path}`).
+j2_comment_start_string = "{##"
+j2_comment_end_string = "##}"
 
 # ----------------------------------------------------------------------------
 # Dynamically generate API documentation

@@ -111,7 +111,7 @@ def test_pointpillars_without_dir_offset_warns() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         create_model("pointpillars.kitti.openpcdet", task="detection")
-    with pytest.warns(FutureWarning, match="PointPillarsDetection"):
+    with pytest.warns(FutureWarning, match="`PointPillarsDetection` .* will be an error in a future release"):
         model = create_model("pointpillars.kitti.openpcdet", task="detection", dir_offset=None)
     assert isinstance(model, PointPillarsDetection)
     assert model.dir_offset == 0.78539
