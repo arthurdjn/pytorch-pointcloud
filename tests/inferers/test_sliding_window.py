@@ -8,7 +8,7 @@ import torch
 from torch import Tensor
 
 import torch_pointcloud.transforms as T
-from torch_pointcloud.inferers import SlidingWindowInferer, sliding_window_inference
+from torch_pointcloud.inferers import SlidingWindowSegmentationInferer, sliding_window_segmentation_inference
 from torch_pointcloud.inferers.sliding_window import _assign_point_blocks
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.imports import _PYG_LIB_AVAILABLE
@@ -73,7 +73,7 @@ def test_sliding_window_no_overlap_constant_predictor_equals_constant() -> None:
     """
     data = _grid_data(steps=4)
     pred = _constant_predictor(3.0, num_classes=4)
-    out = sliding_window_inference(data, predictor=pred, block_size=2.0, overlap=0.0, softmax=False)
+    out = sliding_window_segmentation_inference(data, predictor=pred, block_size=2.0, overlap=0.0, softmax=False)
     assert out.shape == (64, 4)
     assert torch.allclose(out, torch.full_like(out, 3.0))
 
@@ -87,7 +87,7 @@ def test_sliding_window_no_overlap_each_point_predicted_once() -> None:
     """
     data = _grid_data(steps=4)
     predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
-    sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.0, softmax=False)
+    sliding_window_segmentation_inference(data, predictor=predictor, block_size=2.0, overlap=0.0, softmax=False)
 
     assert predictor.call_count == 8  # (4/2)^3 non-overlapping blocks
     all_pos = torch.cat([c.args[0][DataKeys.POS] for c in predictor.call_args_list])
@@ -106,7 +106,7 @@ def test_sliding_window_overlap_each_boundary_point_predicted_multiple_times() -
     """
     data = _grid_data(steps=4)
     predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
-    sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, softmax=False)
+    sliding_window_segmentation_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, softmax=False)
 
     assert predictor.call_count == 64  # 4 block positions per dim → 4^3 non-empty blocks
     all_pos = torch.cat([c.args[0][DataKeys.POS] for c in predictor.call_args_list])
@@ -132,7 +132,7 @@ def test_sliding_window_no_overlap_correct_block_membership() -> None:
     block_size = 2.0
     data = _grid_data(steps=4)
     predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
-    sliding_window_inference(data, predictor=predictor, block_size=block_size, overlap=0.0, softmax=False)
+    sliding_window_segmentation_inference(data, predictor=predictor, block_size=block_size, overlap=0.0, softmax=False)
 
     assert predictor.call_count == 8
     seen_blocks: set = set()
@@ -151,7 +151,7 @@ def test_sliding_window_overlap_constant_predictor_still_equals_constant() -> No
     """A weighted average of identical values equals that value for any weight scheme."""
     data = _grid_data(steps=4)
     pred = _constant_predictor(1.5, num_classes=3)
-    out = sliding_window_inference(data, predictor=pred, block_size=2.0, overlap=0.5, softmax=False)
+    out = sliding_window_segmentation_inference(data, predictor=pred, block_size=2.0, overlap=0.5, softmax=False)
     assert out.shape == (64, 3)
     assert torch.allclose(out, torch.full_like(out, 1.5))
 
@@ -168,7 +168,7 @@ def test_sliding_window_overlap_blends_blocks_by_exact_weighted_mean() -> None:
     """
     data = _line_data()
     predictor = Mock(side_effect=_mean_pos_predictor)
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data, predictor=predictor, block_size=2.0, overlap=0.5, mode="constant", softmax=False
     )
 
@@ -189,7 +189,7 @@ def test_sliding_window_aggregate_max_keeps_the_elementwise_maximum() -> None:
     """`aggregate="max"` keeps, per class, the highest probability of the blocks covering a point: x=0 sees block 0
     only, x=1 blocks 0 and 1, x=2 blocks 1 and 2."""
     data = _line_data()
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data, predictor=_block_confidence_predictor, block_size=2.0, overlap=0.5, aggregate="max"
     )
     block_probs = [torch.softmax(torch.tensor([0.0, m * 4.0]), dim=0) for m in (0.5, 1.5, 2.0)]
@@ -208,7 +208,7 @@ def test_sliding_window_aggregate_max_restricted_argmax_follows_the_most_confide
         probs = [0.10, 0.20, 0.69, 0.01] if pos[:, 0].mean() < 1.0 else [0.45, 0.15, 0.20, 0.20]
         return torch.tensor(probs).log().expand(pos.size(0), -1)
 
-    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="max")
+    out = sliding_window_segmentation_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="max")
     assert int(out[1, :2].argmax()) == 0
 
 
@@ -237,7 +237,7 @@ def test_sliding_window_without_block_size_takes_each_cloud_as_one_block(
         calls.append(window[DataKeys.POS].size(0))
         return window[DataKeys.POS][:, :2]
 
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         {DataKeys.POS: pos, DataKeys.BATCH: batch},
         predictor=predictor,
         block_size=None,
@@ -268,7 +268,7 @@ def test_sliding_window_cloud_keys_give_each_element_its_own_cloud_row(
     category = torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
     data: Dict[str, Any] = {DataKeys.POS: torch.rand(12, 3), DataKeys.BATCH: batch, DataKeys.CATEGORY: category}
 
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data,
         predictor=lambda d: d[DataKeys.CATEGORY][d[DataKeys.BATCH]],
         block_size=block_size,
@@ -286,7 +286,7 @@ def test_sliding_window_cloud_keys_follow_the_rank_of_non_contiguous_batch_ids()
     category = torch.nn.functional.one_hot(torch.tensor([1, 3]), num_classes=4).float()
     data: Dict[str, Any] = {DataKeys.POS: torch.rand(7, 3), DataKeys.BATCH: batch, DataKeys.CATEGORY: category}
 
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data,
         predictor=lambda d: d[DataKeys.CATEGORY][d[DataKeys.BATCH]],
         block_size=None,
@@ -309,7 +309,9 @@ def test_sliding_window_block_bbox_reaches_the_transform_only() -> None:
         assert DataKeys.BLOCK_BBOX not in window
         return torch.ones(window[DataKeys.POS].size(0), 2)
 
-    out = sliding_window_inference(data, predictor=predictor, block_size=None, roi_num_points=4, transform=spy, seed=0)
+    out = sliding_window_segmentation_inference(
+        data, predictor=predictor, block_size=None, roi_num_points=4, transform=spy, seed=0
+    )
     assert [tuple(bbox.shape) for bbox in bboxes] == [(6,)]
     assert torch.equal(out, torch.ones(6, 2))
 
@@ -327,7 +329,9 @@ def test_sliding_window_aggregate_vote_counts_hard_votes() -> None:
         logits[:, cls] = 1.0
         return logits
 
-    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="vote")
+    out = sliding_window_segmentation_inference(
+        data, predictor=predictor, block_size=2.0, overlap=0.5, aggregate="vote"
+    )
     assert torch.allclose(out, torch.tensor([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]))
     assert out.argmax(dim=1).tolist() == [0, 0, 1]
 
@@ -340,7 +344,9 @@ def test_sliding_window_softmax_outputs_probabilities() -> None:
         g = torch.Generator().manual_seed(window[DataKeys.POS].size(0))
         return torch.randn(window[DataKeys.POS].size(0), 5, generator=g)
 
-    out = sliding_window_inference(data, predictor=random_logits, block_size=2.0, overlap=0.5, softmax=True)
+    out = sliding_window_segmentation_inference(
+        data, predictor=random_logits, block_size=2.0, overlap=0.5, softmax=True
+    )
     assert (out >= 0).all()
     sums = out.sum(dim=1)
     assert torch.allclose(sums, torch.ones_like(sums), atol=1e-4)
@@ -359,8 +365,10 @@ def test_sliding_window_gaussian_pulls_shared_points_toward_nearer_block() -> No
     """
     data = _line_data()
     kw: Dict[str, Any] = dict(block_size=2.0, overlap=0.5, softmax=False)
-    out_const = sliding_window_inference(data, predictor=_mean_pos_predictor, mode="constant", **kw)
-    out_gauss = sliding_window_inference(data, predictor=_mean_pos_predictor, mode="gaussian", sigma_scale=1.0, **kw)
+    out_const = sliding_window_segmentation_inference(data, predictor=_mean_pos_predictor, mode="constant", **kw)
+    out_gauss = sliding_window_segmentation_inference(
+        data, predictor=_mean_pos_predictor, mode="gaussian", sigma_scale=1.0, **kw
+    )
 
     assert torch.allclose(out_gauss[0], out_const[0])  # single-block point: mode irrelevant
     assert out_const[1, 0].item() == pytest.approx(1.0)
@@ -388,7 +396,7 @@ def test_sliding_window_gaussian_small_sigma_divides_by_true_weight() -> None:
         return window[DataKeys.POS] * torch.tensor([1.0, 2.0, 3.0])
 
     ref = torch.softmax(predictor(data), dim=-1)
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data, predictor=predictor, block_size=3.0, overlap=0.5, mode="gaussian", sigma_scale=0.05, softmax=True
     )
     sums = out.sum(dim=1)
@@ -412,7 +420,7 @@ def test_sliding_window_overlap_without_padding_blocks_contain_their_points() ->
         return window
 
     pred = _constant_predictor(1.0, num_classes=2)
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data, predictor=pred, block_size=2.0, overlap=0.3, padding=0.0, transform=spy, softmax=False
     )
 
@@ -442,7 +450,9 @@ def test_sliding_window_covers_all_points() -> None:
     data = _grid_data(steps=4)
     pred = _constant_predictor(1.0, num_classes=2)
     for overlap in (0.0, 0.25, 0.5):
-        out = sliding_window_inference(data, predictor=pred, block_size=2.0, overlap=overlap, softmax=False)
+        out = sliding_window_segmentation_inference(
+            data, predictor=pred, block_size=2.0, overlap=overlap, softmax=False
+        )
         assert (out != 0).all(), f"overlap={overlap}: some points have zero output"
 
 
@@ -451,7 +461,7 @@ def test_sliding_window_accepts_integer_grid_coordinates() -> None:
     data = _grid_data(steps=4)
     data[DataKeys.POS] = data[DataKeys.POS].long()
     pred = _constant_predictor(3.0, num_classes=4)
-    out = sliding_window_inference(data, predictor=pred, block_size=2.0, overlap=0.0, softmax=False)
+    out = sliding_window_segmentation_inference(data, predictor=pred, block_size=2.0, overlap=0.0, softmax=False)
     assert out.shape == (64, 4)
     assert torch.allclose(out, torch.full_like(out, 3.0))
 
@@ -462,8 +472,8 @@ def test_sliding_window_gaussian_accepts_float64_positions() -> None:
     data_float64 = {**data, DataKeys.POS: data[DataKeys.POS].double()}
     kwargs: Dict[str, Any] = dict(block_size=2.0, overlap=0.5, mode="gaussian", softmax=False)
 
-    out = sliding_window_inference(data, predictor=_mean_pos_predictor, **kwargs)
-    out_float64 = sliding_window_inference(data_float64, predictor=_mean_pos_predictor, **kwargs)
+    out = sliding_window_segmentation_inference(data, predictor=_mean_pos_predictor, **kwargs)
+    out_float64 = sliding_window_segmentation_inference(data_float64, predictor=_mean_pos_predictor, **kwargs)
 
     assert out_float64.dtype == torch.float32
     assert torch.allclose(out_float64, out)
@@ -479,10 +489,10 @@ def test_sliding_window_batch_of_two_scenes_matches_each_scene_alone() -> None:
     }
     kwargs: Dict[str, Any] = dict(block_size=1.5, overlap=0.5, mode="gaussian", softmax=False)
 
-    out = sliding_window_inference(data, predictor=_mean_pos_predictor, **kwargs)
+    out = sliding_window_segmentation_inference(data, predictor=_mean_pos_predictor, **kwargs)
 
-    assert torch.equal(out[:64], sliding_window_inference(first, predictor=_mean_pos_predictor, **kwargs))
-    assert torch.equal(out[64:], sliding_window_inference(second, predictor=_mean_pos_predictor, **kwargs))
+    assert torch.equal(out[:64], sliding_window_segmentation_inference(first, predictor=_mean_pos_predictor, **kwargs))
+    assert torch.equal(out[64:], sliding_window_segmentation_inference(second, predictor=_mean_pos_predictor, **kwargs))
 
 
 def test_sliding_window_roi_num_points_splits_block_into_capped_chunks() -> None:
@@ -494,7 +504,7 @@ def test_sliding_window_roi_num_points_splits_block_into_capped_chunks() -> None
     """
     data = _grid_data(steps=4)
     predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
-    sliding_window_inference(
+    sliding_window_segmentation_inference(
         data, predictor=predictor, block_size=100.0, overlap=0.0, roi_num_points=20, softmax=False, seed=0
     )
 
@@ -514,7 +524,7 @@ def test_sliding_window_roi_num_points_seed_is_reproducible() -> None:
 
     def run(seed: int) -> List[Tensor]:
         predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
-        sliding_window_inference(
+        sliding_window_segmentation_inference(
             data, predictor=predictor, block_size=100.0, overlap=0.0, roi_num_points=20, softmax=False, seed=seed
         )
         return [c.args[0][DataKeys.POS] for c in predictor.call_args_list]
@@ -532,7 +542,7 @@ def test_sliding_window_sw_batch_size_packs_blocks_without_changing_output() -> 
 
     def run(sw_batch_size: int) -> Tuple[Tensor, int]:
         predictor = Mock(side_effect=_per_point_predictor)
-        out = sliding_window_inference(
+        out = sliding_window_segmentation_inference(
             data,
             predictor=predictor,
             block_size=1.0,
@@ -556,7 +566,7 @@ def test_sliding_window_sw_batch_size_keeps_roi_num_points_per_element() -> None
     none of them larger than the cap."""
     data = _grid_data(steps=4)
     predictor = Mock(side_effect=lambda w: torch.zeros(w[DataKeys.POS].size(0), 2))
-    sliding_window_inference(
+    sliding_window_segmentation_inference(
         data,
         predictor=predictor,
         block_size=100.0,
@@ -582,25 +592,25 @@ def test_sliding_window_validates_args() -> None:
         return torch.zeros(w[DataKeys.POS].size(0), 2)
 
     with pytest.raises(KeyError, match="pos"):
-        sliding_window_inference({DataKeys.BATCH: batch}, predictor=fake, block_size=1.0)
+        sliding_window_segmentation_inference({DataKeys.BATCH: batch}, predictor=fake, block_size=1.0)
     with pytest.raises(KeyError, match="batch"):
-        sliding_window_inference({DataKeys.POS: pos}, predictor=fake, block_size=1.0)
+        sliding_window_segmentation_inference({DataKeys.POS: pos}, predictor=fake, block_size=1.0)
     with pytest.raises(ValueError, match="`block_size`"):
-        sliding_window_inference(data, predictor=fake, block_size=0.0)
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=0.0)
     with pytest.raises(ValueError, match="need a `block_size`"):
-        sliding_window_inference(data, predictor=fake, block_size=None, overlap=0.5)
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=None, overlap=0.5)
     with pytest.raises(ValueError, match="need a `block_size`"):
-        sliding_window_inference(data, predictor=fake, block_size=None, dims=(0, 1))
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=None, dims=(0, 1))
     with pytest.raises(ValueError, match="`overlap`"):
-        sliding_window_inference(data, predictor=fake, block_size=1.0, overlap=1.0)
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=1.0, overlap=1.0)
     with pytest.raises(ValueError, match="`mode`"):
-        sliding_window_inference(data, predictor=fake, block_size=1.0, mode="other")  # type: ignore[arg-type]
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=1.0, mode="other")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="`roi_num_points`"):
-        sliding_window_inference(data, predictor=fake, block_size=1.0, roi_num_points=0)
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=1.0, roi_num_points=0)
     with pytest.raises(ValueError, match="`aggregate`"):
-        sliding_window_inference(data, predictor=fake, block_size=1.0, aggregate="sum")  # type: ignore[arg-type]
+        sliding_window_segmentation_inference(data, predictor=fake, block_size=1.0, aggregate="sum")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="aligned to the positions"):
-        sliding_window_inference({**data, DataKeys.BATCH: batch[:2]}, predictor=fake, block_size=1.0)
+        sliding_window_segmentation_inference({**data, DataKeys.BATCH: batch[:2]}, predictor=fake, block_size=1.0)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a second device to move predictions off")
@@ -611,7 +621,7 @@ def test_sliding_window_gathers_predictions_from_another_device() -> None:
     def fake(window: Dict[str, Any]) -> Tensor:
         return torch.zeros(window[DataKeys.POS].size(0), 2, device="cuda")
 
-    out = sliding_window_inference(data, predictor=fake, block_size=1.0, softmax=False)
+    out = sliding_window_segmentation_inference(data, predictor=fake, block_size=1.0, softmax=False)
     assert out.device == data[DataKeys.POS].device
 
 
@@ -620,8 +630,8 @@ def test_sliding_window_inferer_class_matches_function() -> None:
     data = _grid_data(steps=4)
     pred = _constant_predictor(2.0, num_classes=3)
     kwargs: Dict[str, Any] = dict(block_size=2.0, overlap=0.5, softmax=False, seed=7)
-    out_fn = sliding_window_inference(data, predictor=pred, **kwargs)
-    out_cls = SlidingWindowInferer(**kwargs)(data, predictor=pred)
+    out_fn = sliding_window_segmentation_inference(data, predictor=pred, **kwargs)
+    out_cls = SlidingWindowSegmentationInferer(**kwargs)(data, predictor=pred)
     assert torch.equal(out_fn, out_cls)
 
 
@@ -637,7 +647,7 @@ def test_sliding_window_with_divisible_pad_recovers_per_point_input() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data,
         predictor=predictor,
         block_size=2.0,
@@ -661,7 +671,7 @@ def test_sliding_window_drops_scene_level_inverse_before_window_transform() -> N
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data,
         predictor=predictor,
         block_size=2.0,
@@ -692,7 +702,7 @@ def test_sliding_window_with_voxelize_gathers_predictions_back_to_source() -> No
     def predictor(window: Dict[str, Any]) -> Tensor:
         return window[DataKeys.POS][:, :1].clone()
 
-    out = sliding_window_inference(
+    out = sliding_window_segmentation_inference(
         data,
         predictor=predictor,
         block_size=2.0,
@@ -726,7 +736,7 @@ def test_sliding_window_empty_scene_returns_zero_by_zero() -> None:
     def predictor(window: Dict[str, Any]) -> Tensor:
         raise AssertionError("predictor must not be called for an empty scene")
 
-    out = sliding_window_inference(data, predictor=predictor, block_size=1.0)
+    out = sliding_window_segmentation_inference(data, predictor=predictor, block_size=1.0)
     assert out.shape == (0, 0)
 
 
@@ -742,7 +752,7 @@ def test_sliding_window_integer_boundary_points_match_interior_vote_count() -> N
         counts[block["idx"]] += 1
         return torch.zeros(block["pos"].size(0), 4)
 
-    out = sliding_window_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, dims=(0, 1))
+    out = sliding_window_segmentation_inference(data, predictor=predictor, block_size=2.0, overlap=0.5, dims=(0, 1))
     assert out.shape == (len(pos), 4)
     boundary = counts[(pos[:, 0] == 2.0) & (pos[:, 1] == 2.0)]
     interior = counts[(pos[:, 0] == 1.0) & (pos[:, 1] == 1.0)]
@@ -764,7 +774,7 @@ def test_sliding_window_non_representable_grid_covers_every_point_exactly_once()
         counts[block["idx"]] += 1
         return torch.ones(block["pos"].size(0), 4)
 
-    out = sliding_window_inference(data, predictor=predictor, block_size=1.0, overlap=0.0, softmax=False)
+    out = sliding_window_segmentation_inference(data, predictor=predictor, block_size=1.0, overlap=0.0, softmax=False)
     assert torch.allclose(out, torch.ones_like(out))
     assert torch.equal(counts, torch.ones_like(counts))
 

@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import ScanNet20
-from torch_pointcloud.inferers import Inferer, SlidingWindowInferer
+from torch_pointcloud.inferers import Inferer, SlidingWindowSegmentationInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -110,7 +110,7 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    return SlidingWindowInferer(
+    return SlidingWindowSegmentationInferer(
         block_size=BLOCK_SIZE,
         overlap=0.5,
         dims=(0, 1),

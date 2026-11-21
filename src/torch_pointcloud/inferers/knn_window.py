@@ -18,9 +18,10 @@ from torch import Tensor
 from tqdm import tqdm
 
 from torch_pointcloud.utils.data import DataKeys
+from torch_pointcloud.utils.deprecation import renamed_attribute
 
 from ._utils import apply_transform, check_batch_alignment, gaussian_weights, index_select_dict
-from .inferer import Inferer
+from .inferer import SegmentationInferer
 
 WindowMode = Literal["constant", "gaussian"]
 AggregateMode = Literal["mean", "ema"]
@@ -52,7 +53,7 @@ def _gaussian_window_weights(distances: Tensor, sigma_scale: float, eps: float =
 
 
 @torch.no_grad()
-def knn_window_inference(
+def knn_window_segmentation_inference(
     data: Dict[str, Any],
     *,
     predictor: Callable[[Dict[str, Any]], Tensor],
@@ -301,23 +302,23 @@ def knn_window_inference(
     return output
 
 
-class KNNWindowInferer(Inferer):
+class KNNWindowSegmentationInferer(SegmentationInferer):
     """Iterative KNN-window inferer for large-scale point cloud segmentation.
 
     Maintains a per-point coverage score and iteratively crops KNN windows around
     the least-covered points until all points are covered. Reuse the same instance
-    across scenes; compose with `TTAInferer` for multi-augmentation averaging.
+    across scenes; compose with `TTASegmentationInferer` for multi-augmentation averaging.
 
-    All parameters are forwarded verbatim to `knn_window_inference`, except `seed`, which is offset by
-    the number of calls the instance has made: repeated calls (e.g. `TTAInferer` votes) draw different random
-    numbers, and a fresh instance replays the same sequence.
+    All parameters are forwarded verbatim to `knn_window_segmentation_inference`, except `seed`, which is offset by the
+    number of calls the instance has made: repeated calls (e.g. `TTASegmentationInferer` votes) draw different
+    random numbers, and a fresh instance replays the same sequence.
 
     Example:
         ```python
         import torch
 
         import torch_pointcloud as tp
-        from torch_pointcloud.inferers import KNNWindowInferer
+        from torch_pointcloud.inferers import KNNWindowSegmentationInferer
 
         model = tp.create_model("pointnet.s3dis-area5").eval()
         data = {
@@ -327,7 +328,7 @@ class KNNWindowInferer(Inferer):
         }
 
         # EMA aggregation: each row is a probability vector scaled by how often the point was predicted.
-        inferer = KNNWindowInferer(roi_num_points=65_536, overlap=0.5, aggregate="ema")
+        inferer = KNNWindowSegmentationInferer(roi_num_points=65_536, overlap=0.5, aggregate="ema")
         scores = inferer(data, predictor=lambda d: model(d["x"], d["pos"], d["batch"]))
         ```
     """
@@ -372,7 +373,7 @@ class KNNWindowInferer(Inferer):
     ) -> Tensor:
         seed = None if self.seed is None else self.seed + self._num_calls
         self._num_calls += 1
-        return knn_window_inference(
+        return knn_window_segmentation_inference(
             data,
             predictor=predictor,
             roi_num_points=self.roi_num_points,
@@ -390,3 +391,13 @@ class KNNWindowInferer(Inferer):
             progress=self.progress,
             seed=seed,
         )
+
+
+_RENAMED = {
+    "KNNWindowInferer": "KNNWindowSegmentationInferer",
+    "knn_window_inference": "knn_window_segmentation_inference",
+}
+
+
+def __getattr__(name: str) -> Any:
+    return globals()[renamed_attribute(name, _RENAMED, __name__)]

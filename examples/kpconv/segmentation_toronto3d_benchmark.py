@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from torch_pointcloud.config import DATA_DIR
 from torch_pointcloud.datasets import Toronto3D
-from torch_pointcloud.inferers import Inferer, PotentialSphereInferer
+from torch_pointcloud.inferers import Inferer, PotentialSphereSegmentationInferer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
 from torch_pointcloud.models import SemanticSegmentationModel, create_model, model_info
 from torch_pointcloud.utils.data import DataKeys, PointCloudDataLoader
@@ -72,7 +72,7 @@ def configure_model(args: Namespace) -> SemanticSegmentationModel:
 
 
 def configure_inferer(args: Namespace) -> Inferer:
-    return PotentialSphereInferer(
+    return PotentialSphereSegmentationInferer(
         radius=SPHERE_RADIUS,
         num_votes=NUM_VOTES,
         inner_ratio=1.0,
