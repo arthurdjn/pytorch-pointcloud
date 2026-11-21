@@ -48,6 +48,7 @@ TRAIN_TRANSFORM = T.Compose(
         T.ToTensor(keys=POINT_KEYS, dtype=torch.float32),
         T.Shift(keys=DataKeys.POS, method="bbox"),
         T.Rescale(keys=DataKeys.POS, method="bbox"),
+        T.Rescale(keys=DataKeys.POS, method="min_sphere"),
         T.RandomRotateChoice(keys=POINT_KEYS, angles=ROTATION_DEGREES, axis=2),
         T.RandomTranslate(keys=DataKeys.POS, translation_range=JITTER_RANGE),
         T.RandomScale(keys=DataKeys.POS, scale_range=SCALE_RANGE, anisotropic=True),
