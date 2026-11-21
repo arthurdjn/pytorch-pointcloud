@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed example scripts feeding inputs their benchmark protocol does not: the KPConv S3DIS height above the room floor, the PointMLP ScanObjectNN validation batches (shuffled once), the OctFormer ModelNet40 normalization and ScanNet learning-rate groups, the PVCNN++ S3DIS points per block and the Utonia ScanNet coordinate scale.
+
 ## 0.0.22 (2026-11-18)
 
 - Fixed the Hub Sync check failing with `429 Too Many Requests`: a request over the Hub API quota waits for the quota window and is sent again.
