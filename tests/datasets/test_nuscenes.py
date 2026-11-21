@@ -229,6 +229,30 @@ def test_nuscenes_dataset_stale_format_version_raises(datasets_dir_factory: Call
     assert reprocessed[0][DataKeys.VELOCITY].shape[1] == 2
 
 
+def test_nuscenes_dataset_unknown_class_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """An unknown class name raises before anything is processed, instead of dropping every box of that class."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+
+    with pytest.raises(ValueError, match="Unknown class: 'Car'"):
+        _ = NuScenesMini(root=datasets_dir, classes=("pedestrian", "Car"), show_progress=False)
+    assert not (datasets_dir / "NuScenesMini" / "processed").exists()
+
+
+def test_nuscenes_dataset_single_class_name_is_one_class(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A class passed as a bare string selects that class instead of being split into its characters."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+    dataset = NuScenesMini(root=datasets_dir, classes="car", show_progress=False)
+    assert dataset.classes == ("car",)
+
+
+def test_nuscenes_dataset_max_sweeps_below_one_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`max_sweeps=0` raises instead of failing on a sample token while processing."""
+    datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
+
+    with pytest.raises(ValueError, match="max_sweeps"):
+        _ = NuScenesMini(root=datasets_dir, max_sweeps=0, show_progress=False)
+
+
 def test_nuscenes_dataset_legacy_cache_without_meta_loads(datasets_dir_factory: Callable[..., Path]) -> None:
     """A processed cache from before cache metadata existed is accepted as-is."""
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
@@ -504,10 +528,10 @@ def test_nuscenes_mini_stamp_without_format_version_is_version_one(datasets_dir_
         NuScenesMini(root=datasets_dir, show_progress=False, force_process=False)
 
 
-def test_nuscenes_mini_interrupted_rebuild_leaves_no_stamp(
+def test_nuscenes_mini_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
     dataset = NuScenesMini(root=datasets_dir, show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "meta.json")
@@ -518,13 +542,13 @@ def test_nuscenes_mini_interrupted_rebuild_leaves_no_stamp(
     monkeypatch.setattr(NuScenesMini, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
         NuScenesMini(root=datasets_dir, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_nuscenes_mini_incomplete_cache_is_not_stamped(
+def test_nuscenes_mini_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("NuScenesMini/**/*")
     dataset = NuScenesMini(root=datasets_dir, show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "meta.json")
@@ -534,4 +558,4 @@ def test_nuscenes_mini_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(NuScenesMini, "write_processed_files", incomplete)
     NuScenesMini(root=datasets_dir, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}

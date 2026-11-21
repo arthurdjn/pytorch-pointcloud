@@ -3,7 +3,7 @@ import io
 import json
 import shutil
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -343,16 +343,42 @@ def test_scannet_dataset_missing_scene_detected(datasets_dir_factory: Callable[.
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_scannet_dataset_skipped_scene_not_marked_complete(datasets_dir_factory: Callable[..., Path]) -> None:
-    """A processing run that skips a scene writes no completion marker, so the next construction raises"""
+    """A processing run that skips a scene stamps the cache as incomplete, so the next construction raises"""
     datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
     for mesh_file in datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"):
         mesh_file.unlink()
 
     dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
-    assert not (Path(dataset.processed_dir) / "train" / "meta.json").exists()
+    meta = json.loads((Path(dataset.processed_dir) / "train" / "meta.json").read_text())
+    assert meta == {**dataset.cache_meta, "complete": False}
 
     with pytest.raises(RuntimeError, match="force_process"):
         _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_missing_raw_scene_error_points_at_download(datasets_dir_factory: Callable[..., Path]) -> None:
+    """The error of a cache missing scenes names `download=True` when their raw meshes are not on disk"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    for mesh_file in datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"):
+        mesh_file.unlink()
+
+    _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    with pytest.raises(RuntimeError, match="1 of the missing scene.*download=True"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet_dataset_forced_rebuild_drops_a_failed_scene(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A scene that fails in a forced rebuild is not served from the cache of the earlier build"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    dataset = ScanNet(root=datasets_dir, split="train", show_progress=False)
+    for mesh_file in datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"):
+        mesh_file.unlink()
+
+    rebuilt = ScanNet(root=datasets_dir, split="train", show_progress=False, force_process=True)
+    assert len(rebuilt) == len(dataset) - 1
+    assert "scene0191_00" not in [data[DataKeys.SCENE] for data in rebuilt]
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
@@ -381,6 +407,140 @@ def test_scannet_dataset_download_rejects_malicious_scan_id(
 
     with pytest.raises(RuntimeError, match="Invalid scan id"):
         dataset.download(force=True)
+
+
+def _copy_from(server_dir: Path, raw_dir: Path) -> Callable[..., str]:
+    def download_url(url: str, file_path: Path, overwrite: bool = False, **kwargs: Any) -> str:
+        source_path = server_dir / Path(file_path).relative_to(raw_dir)
+        if source_path.exists() and (overwrite or not Path(file_path).exists()):
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_path, file_path)
+        return Path(file_path).as_posix()
+
+    return download_url
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+def test_scannet_download_resumes_missing_scans(
+    datasets_dir_factory: Callable[..., Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`download=True` on a tree missing scans of the split fetches them without touching the files on disk"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    raw_dir = datasets_dir / "ScanNet" / "raw"
+    server_dir = tmp_path / "server"
+    shutil.copytree(raw_dir, server_dir)
+    shutil.rmtree(raw_dir / "v2" / "scans" / "scene0119_00")
+    (raw_dir / "v2" / "scans" / "scene0230_00" / "scene0230_00_vh_clean_2.ply").unlink()
+
+    download_mock = Mock(side_effect=_copy_from(server_dir, raw_dir))
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", download_mock)
+    urlopen_mock = MagicMock()
+    scan_ids = b"scene0119_00\nscene0191_00\nscene0191_01\nscene0191_02\nscene0230_00\n"
+    urlopen_mock.return_value.__enter__.return_value = io.BytesIO(scan_ids)
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.urlopen", urlopen_mock)
+
+    dataset = ScanNet(root=datasets_dir, split="train", download=True, accept_terms=True, show_progress=False)
+    assert len(dataset) == 5
+    assert urlopen_mock.call_count == 1
+    scan_calls = [call for call in download_mock.call_args_list if "/scans/" in call.args[0]]
+    assert len(scan_calls) == 5 * len(ScanNet.scan_resources)
+    assert all(call.kwargs["overwrite"] is False for call in scan_calls)
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+def test_scannet_download_fetches_another_split(
+    datasets_dir_factory: Callable[..., Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`download=True` fetches the test scans into a tree that already holds the train scans"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    raw_dir = datasets_dir / "ScanNet" / "raw"
+    server_dir = tmp_path / "server"
+    shutil.copytree(raw_dir, server_dir)
+    test_ids = (raw_dir / "metadata" / "scannetv2_test.txt").read_text().split()
+    for scene_id in test_ids:
+        shutil.rmtree(raw_dir / "v2" / "scans" / scene_id)
+
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", _copy_from(server_dir, raw_dir))
+    urlopen_mock = MagicMock()
+    urlopen_mock.return_value.__enter__.return_value = io.BytesIO("\n".join(test_ids).encode())
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.urlopen", urlopen_mock)
+
+    dataset = ScanNet(root=datasets_dir, split="test", download=True, accept_terms=True, show_progress=False)
+    assert len(dataset) == len(test_ids)
+    assert urlopen_mock.call_args.args[0] == ScanNet.data_url + ScanNet.test_scan_ids_resource
+
+
+def test_scannet_download_complete_split_makes_no_request(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`download=True` on a tree holding the whole split asks nothing and requests nothing"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    prompt_mock = Mock(side_effect=AssertionError("must not prompt"))
+    monkeypatch.setattr("builtins.input", prompt_mock)
+    download_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", download_mock)
+    urlopen_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.urlopen", urlopen_mock)
+
+    dataset = ScanNet(root=datasets_dir, split="train", download=True, show_progress=False)
+    assert len(dataset) == 5
+    prompt_mock.assert_not_called()
+    download_mock.assert_not_called()
+    urlopen_mock.assert_not_called()
+
+
+def test_scannet_download_fetches_missing_split_lists(
+    datasets_dir_factory: Callable[..., Path], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`download=True` adds the split lists to a tree of scans without requesting the ScanNet server"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    raw_dir = datasets_dir / "ScanNet" / "raw"
+    server_dir = tmp_path / "server"
+    shutil.copytree(raw_dir, server_dir)
+    shutil.rmtree(raw_dir / "metadata")
+
+    download_mock = Mock(side_effect=_copy_from(server_dir, raw_dir))
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.download_url", download_mock)
+    urlopen_mock = Mock()
+    monkeypatch.setattr("torch_pointcloud.datasets.scannet.urlopen", urlopen_mock)
+
+    dataset = ScanNet(root=datasets_dir, split="train", download=True, accept_terms=True, show_progress=False)
+    assert len(dataset) == 5
+    urlopen_mock.assert_not_called()
+    assert [call.args[0] for call in download_mock.call_args_list] == [
+        ScanNet.meta_url + "scannetv2-labels.combined.tsv",
+        ScanNet.meta_url + "scannetv2_train.txt",
+        ScanNet.meta_url + "scannetv2_test.txt",
+        ScanNet.meta_url + "scannetv2_val.txt",
+    ]
+
+
+def test_scannet_dataset_missing_split_list_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A raw tree without the split list raises an error naming the file and where it comes from"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    (datasets_dir / "ScanNet" / "raw" / "metadata" / "scannetv2_train.txt").unlink()
+
+    with pytest.raises(RuntimeError, match=r"Split list not found at .*metadata/scannetv2_train\.txt.*download=True"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+
+def test_scannet_dataset_not_found_names_the_missing_path(datasets_dir_factory: Callable[..., Path]) -> None:
+    """Scans and labels left at the top of `raw/` raise an error naming the path that is expected"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    raw_dir = datasets_dir / "ScanNet" / "raw"
+    shutil.move(raw_dir / "v2" / "scans", raw_dir / "scans")
+    shutil.move(raw_dir / "v2" / "tasks" / "scannetv2-labels.combined.tsv", raw_dir / "scannetv2-labels.combined.tsv")
+
+    with pytest.raises(RuntimeError, match=r"Dataset not found.*raw/v2/tasks/scannetv2-labels\.combined\.tsv"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
+
+    shutil.move(raw_dir / "scannetv2-labels.combined.tsv", raw_dir / "v2" / "tasks" / "scannetv2-labels.combined.tsv")
+    with pytest.raises(RuntimeError, match=r"Dataset not found.*raw/v2/scans/scene\*"):
+        _ = ScanNet(root=datasets_dir, split="train", show_progress=False)
 
 
 def test_scannet20_classes_align_with_remapped_labels(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -455,6 +615,54 @@ def test_scannet200_legacy_cache_relabels_raw_ids(datasets_dir_factory: Callable
     dataset = ScanNet200(root=datasets_dir, split="train", show_progress=False)
     expected = [0, SCANNET200_LABELS.index(1), SCANNET200_LABELS.index(2), SCANNET200_LABELS.index(1163)]
     assert dataset[0]["segment"].tolist() == expected
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet200_partial_build_serves_the_labels_of_a_full_build(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A build that skips a scene serves the other scenes with the labels of a full build, forced or not"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    full = ScanNet200(root=datasets_dir, split="train", show_progress=False)
+    expected = {data[DataKeys.SCENE]: data[DataKeys.SEGMENT] for data in full}
+
+    shutil.rmtree(full.processed_dir)
+    for mesh_file in datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"):
+        mesh_file.unlink()
+
+    partial = ScanNet200(root=datasets_dir, split="train", show_progress=False)
+    assert len(partial) == len(full) - 1
+    for data in partial:
+        assert torch.equal(data[DataKeys.SEGMENT], expected[data[DataKeys.SCENE]])
+
+    rebuilt = ScanNet200(root=datasets_dir, split="train", show_progress=False, force_process=True)
+    assert len(rebuilt) == len(full) - 1
+    for data in rebuilt:
+        assert torch.equal(data[DataKeys.SEGMENT], expected[data[DataKeys.SCENE]])
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_scannet200_forced_rebuild_of_a_legacy_cache_drops_a_failed_scene(
+    datasets_dir_factory: Callable[..., Path],
+) -> None:
+    """A scene that fails in the forced rebuild of a raw-id cache is dropped instead of relabeled as positional ids"""
+    datasets_dir = datasets_dir_factory("ScanNet/raw/**/*")
+    full = ScanNet200(root=datasets_dir, split="train", show_progress=False)
+    expected = {data[DataKeys.SCENE]: data[DataKeys.SEGMENT] for data in full}
+
+    shutil.rmtree(full.processed_dir)
+    for scene_id in expected:
+        scene_dir = datasets_dir / "ScanNet" / "processed_200" / "train" / scene_id
+        scene_dir.mkdir(parents=True)
+        np.save(scene_dir / "pos.npy", np.zeros((4, 3), dtype=np.float32))
+        np.save(scene_dir / "color.npy", np.zeros((4, 3), dtype=np.float32))
+        np.save(scene_dir / "normal.npy", np.zeros((4, 3), dtype=np.float32))
+        np.save(scene_dir / "segment.npy", np.array([0, 1, 2, 1163], dtype=np.int32))
+    for mesh_file in datasets_dir.glob("**/scene0191_00_vh_clean_2.ply"):
+        mesh_file.unlink()
+
+    rebuilt = ScanNet200(root=datasets_dir, split="train", show_progress=False, force_process=True)
+    assert sorted(data[DataKeys.SCENE] for data in rebuilt) == sorted(set(expected) - {"scene0191_00"})
+    for data in rebuilt:
+        assert torch.equal(data[DataKeys.SEGMENT], expected[data[DataKeys.SCENE]])
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
@@ -727,10 +935,10 @@ def test_scannet20_stamp_without_format_version_is_version_one(datasets_dir_fact
         ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=False)
 
 
-def test_scannet20_interrupted_rebuild_leaves_no_stamp(
+def test_scannet20_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("ScanNet/**/*")
     dataset = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "val/meta.json")
@@ -741,13 +949,13 @@ def test_scannet20_interrupted_rebuild_leaves_no_stamp(
     monkeypatch.setattr(ScanNet20, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
         ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_scannet20_incomplete_cache_is_not_stamped(
+def test_scannet20_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("ScanNet/**/*")
     dataset = ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "val/meta.json")
@@ -757,7 +965,7 @@ def test_scannet20_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(ScanNet20, "write_processed_files", incomplete)
     ScanNet20(root=datasets_dir, split="val", show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
 def test_scannet_detection_mean_sizes_have_one_template_per_class() -> None:

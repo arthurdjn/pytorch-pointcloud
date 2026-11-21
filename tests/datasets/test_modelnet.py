@@ -22,6 +22,7 @@ from torch_pointcloud.datasets.modelnet import (
     load_modelnet_data,
     load_modelnet_normal_resampled_data,
 )
+from torch_pointcloud.utils.data import DataKeys
 
 ModelNet10NormalResampled = functools.partial(ModelNetNormalResampled, variant="10")
 ModelNet10NormalResampled.__name__ = "ModelNetNormalResampled"  # type: ignore[attr-defined]
@@ -454,6 +455,45 @@ def test_modelnet_dataset_cache_meta_mismatch_raises(
     assert dataset.classes == (classes_b,)
 
 
+@pytest.mark.parametrize(
+    "dataset_cls",
+    [
+        pytest.param(ModelNet10, id="modelnet10"),
+        pytest.param(ModelNet40, id="modelnet40"),
+        pytest.param(ModelNet10NormalResampled, id="modelnet10-normal-resampled"),
+        pytest.param(ModelNet40NormalResampled, id="modelnet40-normal-resampled"),
+    ],
+)
+def test_modelnet_dataset_unknown_class_raises(
+    datasets_dir_factory: Callable[..., Path],
+    dataset_cls: Type[ModelNetDataset],
+) -> None:
+    """An unknown class name raises before anything is processed, instead of building an empty cache."""
+    datasets_dir = datasets_dir_factory(f"{dataset_cls.__name__}/raw/**/*")
+
+    with pytest.raises(ValueError, match="Unknown class: 'Chair'"):
+        _ = dataset_cls(root=datasets_dir, classes=["chair", "Chair"], show_progress=False)
+    assert not (datasets_dir / dataset_cls.__name__ / "processed").exists()
+
+
+def test_modelnet10_interrupted_rebuild_is_rebuilt_under_the_requested_classes(
+    datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A forced rebuild interrupted over a cache of other classes is rebuilt by the next construction, not served."""
+    datasets_dir = datasets_dir_factory("ModelNet10/raw/**/*")
+    subset = ModelNet10(root=datasets_dir, classes="chair", show_progress=False)
+
+    with monkeypatch.context() as context:
+        context.setattr("torch_pointcloud.datasets.modelnet.load_modelnet_data", Mock(side_effect=KeyboardInterrupt))
+        with pytest.raises(KeyboardInterrupt):
+            _ = ModelNet10(root=datasets_dir, show_progress=False, force_process=True)
+
+    dataset = ModelNet10(root=datasets_dir, show_progress=False)
+    assert len(dataset) > len(subset)
+    labels = {int(dataset[index][DataKeys.LABEL]) for index in range(len(dataset))}
+    assert labels == set(range(len(dataset.classes)))
+
+
 def test_modelnet_dataset_force_download_implies_download(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -880,10 +920,10 @@ def test_modelnet10_stamp_without_format_version_is_version_one(datasets_dir_fac
     assert len(legacy) == len(dataset)
 
 
-def test_modelnet10_interrupted_rebuild_leaves_no_stamp(
+def test_modelnet10_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("ModelNet10/**/*")
     dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "train.meta.json")
@@ -894,13 +934,13 @@ def test_modelnet10_interrupted_rebuild_leaves_no_stamp(
     monkeypatch.setattr(ModelNet10, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
         ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_modelnet10_incomplete_cache_is_not_stamped(
+def test_modelnet10_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("ModelNet10/**/*")
     dataset = ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "train.meta.json")
@@ -910,7 +950,7 @@ def test_modelnet10_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(ModelNet10, "write_processed_files", incomplete)
     ModelNet10(root=datasets_dir, train=True, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
 def test_modelnet_normal_resampled_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
@@ -979,10 +1019,10 @@ def test_modelnet_normal_resampled_stamp_without_format_version_is_version_one(
     assert len(legacy) == len(dataset)
 
 
-def test_modelnet_normal_resampled_interrupted_rebuild_leaves_no_stamp(
+def test_modelnet_normal_resampled_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
     dataset = ModelNetNormalResampled(
         root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
@@ -997,13 +1037,13 @@ def test_modelnet_normal_resampled_interrupted_rebuild_leaves_no_stamp(
     monkeypatch.setattr(ModelNetNormalResampled, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
         ModelNetNormalResampled(root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_modelnet_normal_resampled_incomplete_cache_is_not_stamped(
+def test_modelnet_normal_resampled_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("ModelNetNormalResampled/**/*")
     dataset = ModelNetNormalResampled(
         root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True
@@ -1017,7 +1057,7 @@ def test_modelnet_normal_resampled_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(ModelNetNormalResampled, "write_processed_files", incomplete)
     ModelNetNormalResampled(root=datasets_dir, variant="10", train=True, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
 def test_modelnet_dataset_process_ignores_archive_metadata(datasets_dir_factory: Callable[..., Path]) -> None:
