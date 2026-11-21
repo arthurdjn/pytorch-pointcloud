@@ -90,7 +90,7 @@ def test_randlanet_random_max_pool_is_deprecated(data: Dict[str, Tensor]) -> Non
     torch.manual_seed(0)
     expected = random_pool(data["features"], data["pos"], data["batch"], factor=4, num_neighbors=8)
     torch.manual_seed(0)
-    with pytest.warns(FutureWarning, match="random_pool"):
+    with pytest.warns(FutureWarning, match="will be removed in a future release; use `random_pool`"):
         actual = random_max_pool(data["features"], data["pos"], data["batch"], factor=4, num_neighbors=8)
     for a, e in zip(actual, expected):
         assert torch.equal(a, e)

@@ -59,7 +59,7 @@ class AnchorHeadLoss(nn.Module):
         dir_weight: Weight of the direction term in the total.
         num_dir_bins: Number of direction bins.
         dir_offset: Direction-target angle offset, the head's. Omitting it is deprecated since 0.0.19 (it warns and
-            uses $0.78539$) and an error from 0.0.20.
+            uses $0.78539$) and will be an error in a future release.
         dir_limit_offset: Offset used when wrapping the heading before binning.
         focal_alpha: Focal-loss positive/negative balance.
         focal_gamma: Focal-loss focusing exponent.
@@ -107,8 +107,8 @@ class AnchorHeadLoss(nn.Module):
 
         if dir_offset is None:
             warnings.warn(
-                "Omitting `dir_offset` of `AnchorHeadLoss` is deprecated since 0.0.19 and an error from 0.0.20; pass "
-                "the direction offset of the head (0.78539 was the default).",
+                "Omitting `dir_offset` of `AnchorHeadLoss` is deprecated since 0.0.19 and will be an error in a future "
+                "release; pass the direction offset of the head (0.78539 was the default).",
                 FutureWarning,
                 stacklevel=2,
             )
