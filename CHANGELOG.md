@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.
+
 ## 0.0.22 (2026-11-18)
 
 - Fixed the Hub Sync check failing with `429 Too Many Requests`: a request over the Hub API quota waits for the quota window and is sent again.
