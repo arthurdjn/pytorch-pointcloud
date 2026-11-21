@@ -72,10 +72,10 @@ class BuildOctree(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        normal_key = next(self.iter_keys(data, keys=self.normal_key or ()), None)
-        feature_key = next(self.iter_keys(data, keys=self.feature_key or ()), None)
-        batch_key = next(self.iter_keys(data, keys=self.batch_key or ()), None)
-        label_key = next(self.iter_keys(data, keys=self.label_key or ()), None)
+        normal_key, feature_key, batch_key, label_key = (
+            None if key not in data and self.allow_missing_keys else key
+            for key in (self.normal_key, self.feature_key, self.batch_key, self.label_key)
+        )
 
         pos = data[self.pos_key]
         normal = data[normal_key] if normal_key is not None else None

@@ -265,9 +265,9 @@ class DictTransform(Transform, metaclass=ABCMeta):
     and implements utility methods for key iteration and error handling.
 
     Note:
-        `allow_missing_keys` covers the keys a transform can do without: `self.keys` and its optional inputs (e.g.
-        `vector_keys` in `RandomRotate`, `box_key` in `RandomFlip`, `feature_key` in `HardVoxelize`), all iterated
-        by `iter_keys`. With `True`, an absent key is skipped; with `False`, it raises a `KeyError`. A key the
+        `allow_missing_keys` covers the keys a transform can do without: `self.keys`, iterated by `iter_keys`, and
+        its optional inputs (e.g. `vector_keys` in `RandomRotate`, `box_key` in `RandomFlip`, `feature_key` in
+        `HardVoxelize`). With `True`, an absent key is skipped; with `False`, it raises a `KeyError`. A key the
         transform cannot run without (`pos_key` in `Voxelize`, `mask_key` in `MaskedFill`) raises whatever the
         flag.
 
@@ -297,16 +297,13 @@ class DictTransform(Transform, metaclass=ABCMeta):
         self,
         data: Dict[str, Any],
         *extra_iterables: Iterable[Any],
-        keys: Optional[KeyCollection] = None,
         extra_msg: str = "",
     ) -> Generator[Any, None, None]:
-        """Iterate over the keys present in the data, honoring `allow_missing_keys`.
+        """Iterate over `self.keys` present in the data, honoring `allow_missing_keys`.
 
         Args:
             data: The dictionary data the transform is applied to.
-            *extra_iterables: Per-key values (e.g. one output key per input key) zipped with the keys.
-            keys: The keys to iterate over, `self.keys` by default. Pass an auxiliary key or keys of the transform
-                (e.g. a `box_key`) to apply the same missing-key rule to them; `None` iterates over `self.keys`.
+            *extra_iterables: Per-key values (e.g. one output key per input key) zipped with `self.keys`.
             extra_msg: Message appended to the `KeyError` raised on a missing key.
 
         Returns:
@@ -314,12 +311,11 @@ class DictTransform(Transform, metaclass=ABCMeta):
             `extra_iterables` when any is given.
         """
         # inspired by: https://github.com/Project-MONAI/MONAI/blob/main/monai/transforms/transform.py#L456
-        keys = self.keys if keys is None else ensure_tuple(keys)
         # if no extra iterables given, create a dummy list of Nones
-        ex_iters: Iterable[Any] = extra_iterables or [[None] * len(keys)]
+        ex_iters: Iterable[Any] = extra_iterables or [[None] * len(self.keys)]
         ex_iters = [ensure_tuple(ex_iter) for ex_iter in ex_iters]
 
-        for key, *_ex_iters in zip(keys, *ex_iters):
+        for key, *_ex_iters in zip(self.keys, *ex_iters):
             if key in data:
                 # all normal, yield (what we yield depends on whether extra iterables were given)
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key

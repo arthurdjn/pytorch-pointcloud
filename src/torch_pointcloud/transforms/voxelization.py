@@ -400,7 +400,9 @@ class HardVoxelize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feature_key = next(self.iter_keys(d, keys=self.feature_key or ()), None)
+        feature_key = self.feature_key
+        if feature_key not in d and self.allow_missing_keys:
+            feature_key = None
         feat = d[feature_key] if feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)
@@ -485,7 +487,9 @@ class DynamicVoxelize(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         pos = d[self.pos_key]
-        feature_key = next(self.iter_keys(d, keys=self.feature_key or ()), None)
+        feature_key = self.feature_key
+        if feature_key not in d and self.allow_missing_keys:
+            feature_key = None
         feat = d[feature_key] if feature_key is not None else None
         points = pos if feat is None else torch.cat([pos, feat], dim=1)
         batch = pos.new_zeros(points.shape[0], dtype=torch.long)

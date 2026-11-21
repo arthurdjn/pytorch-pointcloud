@@ -123,22 +123,6 @@ def test_allow_missing_keys_false_raises(transform: T.DictTransform) -> None:
         transform({"pos": torch.randn(5, 3)})
 
 
-def test_iter_keys_walks_the_given_keys_instead_of_its_own() -> None:
-    transform = T.Cat(keys=["a"], dst_key="feat")
-    assert list(transform.iter_keys({"a": 0, "b": 1, "c": 2}, keys=("b", "c"))) == ["b", "c"]
-
-
-def test_iter_keys_skips_an_absent_given_key_when_allowed() -> None:
-    transform = T.Cat(keys=["a"], dst_key="feat", allow_missing_keys=True)
-    assert list(transform.iter_keys({"b": 1}, keys=("b", "c"))) == ["b"]
-
-
-def test_iter_keys_raises_on_an_absent_given_key() -> None:
-    transform = T.Cat(keys=["a"], dst_key="feat")
-    with pytest.raises(KeyError, match="'c'"):
-        list(transform.iter_keys({"b": 1}, keys=("b", "c")))
-
-
 def test_transforms_do_not_mutate_input_dict(sample_scene: dict) -> None:
     original = copy.copy(sample_scene)
     for transform in [

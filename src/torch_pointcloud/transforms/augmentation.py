@@ -156,7 +156,9 @@ class RandomRotate(DictTransform, Randomizable):
         angle = math.radians(torch.empty(1).uniform_(lo, hi, generator=self.R).item())
         rotation = rotation_matrix(angle, self.axis)
         center = self._center(data)
-        box_key = next(self.iter_keys(data, keys=self.box_key or ()), None)
+        box_key = self.box_key
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
 
         if box_key is not None:
             assert self.dst_box_key is not None
@@ -177,7 +179,10 @@ class RandomRotate(DictTransform, Randomizable):
             else:
                 data[dst_key] = rotate_vectors(value, rotation)
 
-        for key in self.iter_keys(data, keys=self.vector_keys):
+        for key in self.vector_keys:
+            if key not in data and self.allow_missing_keys:
+                continue
+
             data[key] = rotate_vectors(data[key], rotation)
         return data
 
@@ -281,7 +286,9 @@ class RandomScale(DictTransform, Randomizable):
             return data
 
         lo, hi = self.scale_range
-        box_key = next(self.iter_keys(data, keys=self.box_key or ()), None)
+        box_key = self.box_key
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
         first_key = next(self.iter_keys(data), None)
         if first_key is None and box_key is None:
             return data
@@ -416,7 +423,9 @@ class RandomFlip(DictTransform, Randomizable):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        box_key = next(self.iter_keys(data, keys=self.box_key or ()), None)
+        box_key = self.box_key
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
         if next(self.iter_keys(data), None) is None and box_key is None:
             return data
 
@@ -607,7 +616,9 @@ class RandomTranslate(DictTransform, Randomizable):
             return data
 
         lo, hi = self.translation_range
-        box_key = next(self.iter_keys(data, keys=self.box_key or ()), None)
+        box_key = self.box_key
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
         first_key = next(self.iter_keys(data), None)
         if first_key is None and box_key is None:
             return data
