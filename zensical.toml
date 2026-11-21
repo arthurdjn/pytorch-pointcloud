@@ -142,6 +142,7 @@ nav = [
             { "s3dis" = "api/datasets/s3dis.md" },
             { "scannet" = "api/datasets/scannet.md" },
             { "scanobjectnn" = "api/datasets/scanobjectnn.md" },
+            { "seeded" = "api/datasets/seeded.md" },
             { "semantic3d" = "api/datasets/semantic3d.md" },
             { "semantickitti" = "api/datasets/semantickitti.md" },
             { "shapenetpart" = "api/datasets/shapenetpart.md" },

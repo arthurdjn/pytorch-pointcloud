@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import SemanticKITTI
+from torch_pointcloud.datasets import SeededDataset, SemanticKITTI
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_LEARNING_MAP
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
@@ -53,7 +53,7 @@ TRAIN_TRANSFORM = T.Compose(
         T.ShufflePoint(keys=[DataKeys.POS, DataKeys.SEGMENT]),
     ]
 )
-# The validation crops are drawn from a fixed seed, so every validation scores the same crops.
+# `SeededDataset` replays the seeded draws of a scan, so every validation scores the same crops.
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=[DataKeys.POS, DataKeys.SEGMENT]),
@@ -133,7 +133,9 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_dataset = SemanticKITTI(
         root=args.root, split="train", sequences=args.train_sequences, transform=TRAIN_TRANSFORM
     )
-    val_dataset = SemanticKITTI(root=args.root, split="val", sequences=args.val_sequences, transform=VAL_TRANSFORM)
+    val_dataset = SeededDataset(
+        SemanticKITTI(root=args.root, split="val", sequences=args.val_sequences, transform=VAL_TRANSFORM)
+    )
 
     # An epoch draws `TRAIN_STEPS` batches of scans at random (see `configure_dataloaders`); the validation scans are
     # a fixed random subset.

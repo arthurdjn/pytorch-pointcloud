@@ -85,7 +85,9 @@ class Randomizable:
     `R` is the object's generator. It is `None` by default, and the draws then come from the global generator,
     which PyTorch seeds per `DataLoader` worker and per epoch: one `torch.manual_seed` makes a run reproducible. A
     seeded `R` is copied as is into every `DataLoader` worker; `PointCloudDataLoader` re-seeds it per worker (see
-    `torch_pointcloud.utils.data.seed_worker`), so that workers and epochs draw different numbers.
+    `torch_pointcloud.utils.data.seed_worker`), so that workers and epochs draw different numbers. To give a sample
+    the same draws at every epoch instead (a fixed validation set), wrap the dataset in
+    `torch_pointcloud.datasets.SeededDataset`.
 
     Example:
         ```python

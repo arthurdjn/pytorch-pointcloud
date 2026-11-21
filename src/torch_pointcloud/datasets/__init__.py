@@ -14,6 +14,7 @@ from .repeat import RepeatDataset, RepeatSampler
 from .s3dis import S3DIS, S3DISHdf5
 from .scannet import ScanNet, ScanNet20, ScanNet200
 from .scanobjectnn import ScanObjectNN
+from .seeded import SeededDataset
 from .semantic3d import Semantic3D
 from .semantickitti import SemanticKITTI
 from .shapenetpart import ShapeNetPart
@@ -44,6 +45,7 @@ __all__ = [
     "ScanNet20",
     "ScanNet200",
     "ScanObjectNN",
+    "SeededDataset",
     "Semantic3D",
     "SemanticKITTI",
     "ShapeNetPart",

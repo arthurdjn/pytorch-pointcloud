@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Added `datasets.SeededDataset`, which re-seeds the seeded random transforms of a dataset from the index of the sample being read.
+- Fixed the PointNet, PointNet++, PVCNN, KPConv and RandLA-Net training scripts validating on new random points, blocks and spheres at every epoch.
+
 ## 0.0.22 (2026-11-18)
 
 - Fixed the Hub Sync check failing with `429 Too Many Requests`: a request over the Hub API quota waits for the quota window and is sent again.

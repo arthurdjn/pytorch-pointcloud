@@ -1375,6 +1375,70 @@ def test_training_scripts_save_best_checkpoint_on_a_validation_score() -> None:
 
 
 @pytest.mark.parametrize(
+    "num_workers",
+    [
+        pytest.param(0, id="main-process"),
+        pytest.param(2, id="two-workers"),
+    ],
+)
+@pytest.mark.parametrize(
+    "script, args",
+    [
+        pytest.param("pointnet/segmentation_s3dis_train.py", ("--batch-size", "2"), id="pointnet/s3dis"),
+        pytest.param("pointnet2/segmentation_s3dis_train.py", ("--batch-size", "2"), id="pointnet2/s3dis"),
+        pytest.param(
+            "kpconv/segmentation_s3dis_train.py",
+            ("--batch-size", "2"),
+            marks=_CLUSTER,
+            id="kpconv/s3dis",
+        ),
+        pytest.param(
+            "pvcnn/segmentation_s3dis_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pvcnn/s3dis",
+        ),
+        pytest.param(
+            "pvcnn/part_segmentation_shapenetpart_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pvcnn/shapenetpart",
+        ),
+        pytest.param(
+            "pointnet2/part_segmentation_shapenetpart_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pointnet2/shapenetpart",
+        ),
+        pytest.param(
+            "randlanet/segmentation_semantickitti_train.py",
+            ("--train-sequences", "00", "--val-sequences", "08", "--batch-size", "2", "--val-batch-size", "2"),
+            marks=_CLUSTER,
+            id="randlanet/semantickitti",
+        ),
+    ],
+)
+def test_training_script_scores_the_same_validation_samples_at_every_pass(
+    script: str,
+    args: Tuple[str, ...],
+    num_workers: int,
+    examples_datasets_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _import(script)
+    root = ("--root", str(examples_datasets_dir), "--num-workers", str(num_workers), "--device", "cpu")
+    recipe = ("--limit-train-batches", "2", "--limit-val-batches", "2")
+    monkeypatch.setattr(sys, "argv", [script, *root, *recipe, *args])
+    train_loader, val_loader = module.configure_dataloaders(module.parse_args())
+
+    first = [batch[DataKeys.POS] for batch in val_loader]
+    second = [batch[DataKeys.POS] for batch in val_loader]
+    assert len(first) > 0
+    assert all(torch.equal(a, b) for a, b in zip(first, second))
+
+    first = [batch[DataKeys.POS] for batch in train_loader]
+    second = [batch[DataKeys.POS] for batch in train_loader]
+    assert not all(torch.equal(a, b) for a, b in zip(first, second))
+
+
+@pytest.mark.parametrize(
     "script",
     [
         pytest.param("spvcnn/segmentation_semantickitti_train.py", id="spvcnn"),

@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import ConcatDataset, ShapeNetPart
+from torch_pointcloud.datasets import ConcatDataset, SeededDataset, ShapeNetPart
 from torch_pointcloud.metrics import (
     part_intersection_over_union,
     part_mean_intersection_over_union,
@@ -42,7 +42,7 @@ TRAIN_TRANSFORM = T.Compose(
     ]
 )
 
-# The validation points are drawn from a fixed seed, so every validation scores the same points.
+# `SeededDataset` replays the seeded draws of a shape, so every validation scores the same points.
 VAL_TRANSFORM = T.Compose(
     [
         T.Rescale(keys=DataKeys.POS, method="centroid"),
@@ -116,7 +116,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
             ShapeNetPart(split="val", transform=TRAIN_TRANSFORM, **common),
         ]
     )
-    val_dataset = ShapeNetPart(split="test", transform=VAL_TRANSFORM, **common)
+    val_dataset = SeededDataset(ShapeNetPart(split="test", transform=VAL_TRANSFORM, **common))
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(
