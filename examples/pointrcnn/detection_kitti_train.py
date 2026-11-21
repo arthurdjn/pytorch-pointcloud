@@ -111,23 +111,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--limit-train-batches", default=None, type=int)
     parser.add_argument("--limit-val-batches", default=None, type=int)
     parser.add_argument("--force-process", action="store_true", help="Force re-processing the dataset.")
-    args = parser.parse_args()
-    if args.train_split_file is None:
-        args.train_split_file = default_split_file(args.root, "train")
-    if args.val_split_file is None:
-        args.val_split_file = default_split_file(args.root, "val")
-
-    return args
-
-
-def default_split_file(root: str, split: str) -> Optional[str]:
-    """`ImageSets/<split>.txt` of the KITTI raw directory, or `None` (every training frame) when it is missing."""
-    split_file = Path(root, "KITTI", "raw", "ImageSets", f"{split}.txt")
-    if split_file.exists():
-        return split_file.as_posix()
-
-    print(f"No split file at {split_file.as_posix()!r}: using every frame of the KITTI training set.")
-    return None
+    return parser.parse_args()
 
 
 def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
@@ -137,7 +121,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_transform = configure_train_transform(args, objects)
     train_dataset = KITTI(
         root=args.root,
-        train=True,
+        split="train",
         split_file=args.train_split_file,
         fov=True,
         transform=train_transform,
@@ -146,7 +130,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     val_transform = configure_val_transform(args)
     val_dataset = KITTI(
         root=args.root,
-        train=True,
+        split="val",
         split_file=args.val_split_file,
         fov=True,
         return_calib=True,
@@ -167,13 +151,13 @@ def configure_objects(args: Namespace) -> list[dict[str, Tensor]]:
     """The training objects, cut out once and cached next to the processed split, filtered as the reference does."""
     dataset = KITTI(
         root=args.root,
-        train=True,
+        split="train",
         split_file=args.train_split_file,
         fov=True,
         transform=KITTI_TRAIN_TRANSFORM,
         force_process=args.force_process,
     )
-    split = Path(args.train_split_file).stem if args.train_split_file else "training"
+    split = Path(args.train_split_file).stem if args.train_split_file else "train"
     path = Path(dataset.processed_split_dir).parent / f"objects_{split}.pt"
     if path.exists() and not args.force_process:
         objects = torch.load(path, weights_only=True)

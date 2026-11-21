@@ -4,12 +4,13 @@
 """
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TypedDict
 
 import numpy as np
 import torch
 from typing_extensions import override
 
+from torch_pointcloud.utils.conversion import ensure_option
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
@@ -310,20 +311,25 @@ def _read_image_shape(image_path: PathLike) -> Tuple[int, int]:
 class KITTI(PointCloudDataset):
     r"""KITTI 3D object-detection dataset (LiDAR points + raw LiDAR-frame ground-truth boxes).
 
-    The raw object split is read from `<root>/KITTI/raw/<split>/` and processed once into a per-frame
-    `.npy` cache (`<root>/KITTI/processed_fov/<split>/` when `fov=True`, else `<root>/KITTI/processed/`),
-    so each `__getitem__` is a flat array read. The whole split is processed; `split_file` only selects
-    which cached frames to load. Frames are loaded lazily from the cache, so a full split does not need to
-    fit in host memory.
+    The raw object split is read from `<root>/KITTI/raw/<directory>/` (`training` or `testing`) and processed once
+    into a per-frame `.npy` cache (`<root>/KITTI/processed_fov/<directory>/` when `fov=True`, else
+    `<root>/KITTI/processed/`), so each `__getitem__` is a flat array read. The whole directory is processed;
+    `split` and `split_file` only select which cached frames to load. Frames are loaded lazily from the cache, so a
+    full split does not need to fit in host memory.
 
     KITTI requires manual download (a license must be accepted), so `download=True` raises with the
-    download URL rather than fetching anything.
+    download URL rather than fetching anything. The download has no validation set: the standard train / val split
+    of the `training` directory is two lists of frame ids, `train.txt` (3712 frames) and `val.txt` (3769 frames),
+    one id per line. They ship in the `ImageSets` folder of most KITTI detection codebases and go under
+    `<root>/KITTI/raw/ImageSets/`.
 
     Args:
-        root: Dataset root; raw data is read from `<root>/KITTI/raw/<split>/`.
-        train: If `True`, reads the `training` split directory, otherwise `testing`.
-        split_file: Optional text file of frame ids (one per line) selecting which cached frames to load;
-            defaults to every processed frame.
+        root: Dataset root; raw data is read from `<root>/KITTI/raw/<directory>/`.
+        split: `"train"` or `"val"` loads the frames of the `training` directory listed in
+            `<root>/KITTI/raw/ImageSets/<split>.txt` and raises a `FileNotFoundError` when that file is missing.
+            `"test"` loads every frame of the unlabelled `testing` directory.
+        split_file: Optional text file of frame ids (one per line) loaded in place of the `ImageSets` list of
+            `split`, from the directory of `split`.
         fov: Restrict points to the front-camera field of view (requires `image_2/`). Baked into the cache.
         return_calib: Also emit the `calib` (the composed $(3, 4)$ LiDAR-to-image matrix
             $P_2 [R_0 T_\text{velo}]$ with the perspective-divide row from $R_0 T_\text{velo}$, the
@@ -343,10 +349,19 @@ class KITTI(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import KITTI
 
-        dataset = KITTI(root="data", train=True)
+        dataset = KITTI(root="data", split="train")
         sample = dataset[0]
         sample["pos"].shape  # (N, 3)
         sample["box"].shape  # (K, 7)
+        ```
+
+        With `train.txt` and `val.txt` under `data/KITTI/raw/ImageSets/`:
+
+        ```python
+        from torch_pointcloud.datasets import KITTI
+
+        train_dataset = KITTI(root="data", split="train")
+        val_dataset = KITTI(root="data", split="val")
         ```
     """
 
@@ -356,8 +371,7 @@ class KITTI(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        train: bool = True,
-        # TODO: move to a train=bool flag for train/val split? instead of pointing to the filepath
+        split: Literal["train", "val", "test"],
         split_file: Optional[PathLike] = None,
         fov: bool = True,
         return_calib: bool = False,
@@ -369,8 +383,19 @@ class KITTI(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        self.train = train
-        self._split = "training" if train else "testing"
+        ensure_option(split, ("train", "val", "test"), name="split")
+        self.split = split
+        self._split = "testing" if split == "test" else "training"
+        if split in ("train", "val") and split_file is None:
+            split_file = Path(self.raw_dir, "ImageSets", f"{split}.txt")
+            if not split_file.exists() and self.raw_split_dir.is_dir():
+                raise FileNotFoundError(
+                    f"No {split!r} split file at {split_file.as_posix()!r}. The KITTI download does not include the "
+                    "standard train / val split: copy `train.txt` (3712 frame ids) and `val.txt` (3769 frame ids), "
+                    "one id per line, from the `ImageSets` folder of a KITTI detection codebase into "
+                    f"{split_file.parent.as_posix()!r}, or pass your own list as `split_file`."
+                )
+
         self.split_file = split_file
         self.fov = fov
         self.return_calib = return_calib
