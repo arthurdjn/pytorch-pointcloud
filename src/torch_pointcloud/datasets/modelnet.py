@@ -16,7 +16,7 @@ from torch import Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
-from torch_pointcloud.utils.conversion import ensure_tuple
+from torch_pointcloud.utils.conversion import ensure_options
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.io import load_off
 from torch_pointcloud.utils.misc import parallel_map
@@ -162,7 +162,9 @@ class _ModelNet(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        classes = self.original_classes if classes == "all" else ensure_tuple(classes)
+        classes = (
+            self.original_classes if classes == "all" else ensure_options(classes, self.original_classes, name="class")
+        )
         self.train = train
         self._split = "train" if train else "test"
         self.classes = tuple(sorted(classes))
@@ -416,7 +418,9 @@ class ModelNetNormalResampled(PointCloudDataset):
         self.variant = variant
         self.train = train
         self._split = "train" if train else "test"
-        classes = self.original_classes if classes == "all" else ensure_tuple(classes)
+        classes = (
+            self.original_classes if classes == "all" else ensure_options(classes, self.original_classes, name="class")
+        )
         self.classes = tuple(sorted(classes))
         self.transform = transform
         self.show_progress = show_progress

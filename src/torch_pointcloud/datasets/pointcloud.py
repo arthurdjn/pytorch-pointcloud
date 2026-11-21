@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 from torch_pointcloud.utils.types import PathLike
 
-from .utils import check_cache_meta, write_cache_meta
+from .utils import check_cache_meta, is_cache_incomplete, write_cache_meta
 
 
 class PointCloudDataset(Dataset):
@@ -26,7 +26,8 @@ class PointCloudDataset(Dataset):
 
     Subclasses that keep a processed cache implement `write_processed_files` and `processed_files_exist`.
     `process` calls them: it stamps every path in `cache_meta_paths` with a `meta.json` holding `cache_meta`
-    and raises when an existing stamp differs. Bump `format_version` whenever `write_processed_files` changes
+    and raises when an existing stamp differs. The stamp holds `"complete": false` while the cache is being built
+    and after a build that skipped samples. Bump `format_version` whenever `write_processed_files` changes
     the files it writes or their contents, so caches from older releases are refused instead of served.
 
     Args:
@@ -82,9 +83,9 @@ class PointCloudDataset(Dataset):
     def process(self, force: bool = False, num_workers: Optional[int] = None, show_progress: bool = True) -> None:
         """Build the processed cache unless a complete one stamped with `cache_meta` already exists.
 
-        A cache without a stamp is served as is when `processed_files_exist` accepts it. The stamps are removed
-        before `write_processed_files` runs and written back once it reports the cache complete, so an
-        interrupted or partial build is never served as complete.
+        A cache without a stamp predates the stamps and is served as is when `processed_files_exist` accepts it.
+        The stamps are marked incomplete before `write_processed_files` runs and stay so unless it reports the
+        cache complete, so an interrupted or partial build is never served as complete: the next call rebuilds it.
 
         Args:
             force: Rebuild the cache even when a matching one exists.
@@ -98,11 +99,21 @@ class PointCloudDataset(Dataset):
         if not force:
             for meta_path in meta_paths:
                 check_cache_meta(meta_path, self.cache_meta)
-            if all(meta_path.exists() for meta_path in meta_paths) or self.processed_files_exist():
+
+            stamped = all(meta_path.exists() for meta_path in meta_paths)
+            incomplete = any(is_cache_incomplete(meta_path) for meta_path in meta_paths)
+            if stamped and not incomplete:
                 return
 
-        for meta_path in meta_paths:
-            meta_path.unlink(missing_ok=True)
+            # `processed_files_exist` also audits an incomplete cache, so its error still names what the cache lacks.
+            if self.processed_files_exist() and not incomplete:
+                return
+
+        # Without the raw files `write_processed_files` raises before it touches the cache, whose stamps then stand.
+        if self.raw_files_exist():
+            for meta_path in meta_paths:
+                meta_path.parent.mkdir(parents=True, exist_ok=True)
+                write_cache_meta(meta_path, self.cache_meta, complete=False)
 
         complete = self.write_processed_files(num_workers=num_workers, show_progress=show_progress)
         if complete:
@@ -112,7 +123,8 @@ class PointCloudDataset(Dataset):
     def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         """Write the processed cache from the raw files and return whether it is complete.
 
-        Returning False leaves the cache unstamped, so the next construction audits it instead of serving it.
+        Returning False leaves the stamp marked incomplete, so the next construction audits the cache and rebuilds
+        it instead of serving it.
 
         Args:
             num_workers: Worker processes, or `None` for sequential processing.

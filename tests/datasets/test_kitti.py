@@ -351,10 +351,10 @@ def test_kitti_stamp_without_format_version_is_version_one(datasets_dir_factory:
     assert len(legacy) == len(dataset)
 
 
-def test_kitti_interrupted_rebuild_leaves_no_stamp(
+def test_kitti_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
     dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
@@ -365,13 +365,13 @@ def test_kitti_interrupted_rebuild_leaves_no_stamp(
     monkeypatch.setattr(KITTI, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
         KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_kitti_incomplete_cache_is_not_stamped(
+def test_kitti_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
     dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
@@ -381,7 +381,7 @@ def test_kitti_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(KITTI, "write_processed_files", incomplete)
     KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
 @pytest.mark.parametrize(
