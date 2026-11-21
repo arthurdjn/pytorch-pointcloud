@@ -67,6 +67,18 @@ def test_estimate_normals() -> None:
     assert torch.allclose(result["normal"][:, 2].abs(), torch.ones(400), atol=1e-5)
 
 
+def test_estimate_normals_missing_batch_key_raises() -> None:
+    with pytest.raises(KeyError, match="batch"):
+        T.EstimateNormals(keys="pos", batch_key="batch", k=4)({"pos": torch.rand(16, 3)})
+
+
+@pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
+def test_estimate_normals_missing_batch_key_allowed() -> None:
+    transform = T.EstimateNormals(keys="pos", batch_key="batch", k=4, allow_missing_keys=True)
+    result = transform({"pos": torch.rand(16, 3)})
+    assert result["normal"].shape == (16, 3)
+
+
 def test_shift_min_method() -> None:
     pos = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
     result = T.Shift(keys=["pos"], method="min")({"pos": pos})

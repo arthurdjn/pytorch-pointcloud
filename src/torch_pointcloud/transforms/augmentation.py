@@ -157,7 +157,10 @@ class RandomRotate(DictTransform, Randomizable):
         rotation = rotation_matrix(angle, self.axis)
         center = self._center(data)
         box_key = self.box_key
-        if box_key is not None and box_key in data:
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
+
+        if box_key is not None:
             assert self.dst_box_key is not None
             boxes = data[box_key]
             if center is not None:
@@ -177,8 +180,10 @@ class RandomRotate(DictTransform, Randomizable):
                 data[dst_key] = rotate_vectors(value, rotation)
 
         for key in self.vector_keys:
-            if key in data:
-                data[key] = rotate_vectors(data[key], rotation)
+            if key not in data and self.allow_missing_keys:
+                continue
+
+            data[key] = rotate_vectors(data[key], rotation)
         return data
 
 
@@ -282,16 +287,17 @@ class RandomScale(DictTransform, Randomizable):
 
         lo, hi = self.scale_range
         box_key = self.box_key
-        has_box = box_key is not None and box_key in data
-        first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None and not has_box:
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
+        first_key = next(self.iter_keys(data), None)
+        if first_key is None and box_key is None:
             return data
 
         if self.anisotropic and first_key is not None:
             scale = torch.empty(data[first_key].shape[-1]).uniform_(lo, hi, generator=self.R)
         else:
             scale = torch.empty(1).uniform_(lo, hi, generator=self.R)
-        if box_key is not None and box_key in data:
+        if box_key is not None:
             assert self.dst_box_key is not None
             data[self.dst_box_key] = scale_boxes(data[box_key], scale.to(data[box_key]))
         for key, dst_key in self.iter_keys(data, self.dst_keys):
@@ -418,15 +424,16 @@ class RandomFlip(DictTransform, Randomizable):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         box_key = self.box_key
-        has_box = box_key is not None and box_key in data
-        if next(iter(self.iter_keys(data)), None) is None and not has_box:
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
+        if next(self.iter_keys(data), None) is None and box_key is None:
             return data
 
         flipped = [axis for axis in self.axes if torch.rand(1, generator=self.R).item() < self.p]
         if not flipped:
             return data
 
-        if box_key is not None and box_key in data:
+        if box_key is not None:
             assert self.dst_box_key is not None
             box = data[box_key]
             for axis in flipped:
@@ -610,9 +617,10 @@ class RandomTranslate(DictTransform, Randomizable):
 
         lo, hi = self.translation_range
         box_key = self.box_key
-        has_box = box_key is not None and box_key in data
-        first_key = next(iter(self.iter_keys(data)), None)
-        if first_key is None and not has_box:
+        if box_key not in data and self.allow_missing_keys:
+            box_key = None
+        first_key = next(self.iter_keys(data), None)
+        if first_key is None and box_key is None:
             return data
 
         d = data[first_key].shape[-1] if first_key is not None else 3
@@ -620,7 +628,7 @@ class RandomTranslate(DictTransform, Randomizable):
             translation = (lo + hi) / 2 + torch.randn(d, generator=self.R) * (hi - lo) / 2
         else:
             translation = torch.empty(d).uniform_(lo, hi, generator=self.R)
-        if box_key is not None and box_key in data:
+        if box_key is not None:
             assert self.dst_box_key is not None
             data[self.dst_box_key] = translate_boxes(data[box_key], translation[:3])
         for key, dst_key in self.iter_keys(data, self.dst_keys):

@@ -511,3 +511,46 @@ def test_random_elastic_distortion_draws_on_the_generator_device() -> None:
 
     assert randn.call_args.kwargs["device"] == generator.device
     assert distorted.device == pos.device
+
+
+def test_random_rotate_missing_vector_key_raises() -> None:
+    transform = T.RandomRotate(keys="pos", vector_keys="normal", angle_range=(90.0, 90.0))
+    with pytest.raises(KeyError, match="normal"):
+        transform({"pos": torch.rand(4, 3)})
+
+
+def test_random_rotate_missing_vector_key_allowed() -> None:
+    pos = torch.rand(4, 3)
+    transform = T.RandomRotate(keys="pos", vector_keys="normal", angle_range=(90.0, 90.0), allow_missing_keys=True)
+    result = transform({"pos": pos})
+    assert set(result) == {"pos"}
+    assert not torch.allclose(result["pos"], pos)
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        pytest.param(T.RandomRotate(keys="pos", box_key="box"), id="RandomRotate"),
+        pytest.param(T.RandomScale(keys="pos", box_key="box"), id="RandomScale"),
+        pytest.param(T.RandomFlip(keys="pos", box_key="box", p=1.0), id="RandomFlip"),
+        pytest.param(T.RandomTranslate(keys="pos", box_key="box"), id="RandomTranslate"),
+    ],
+)
+def test_random_augmentation_missing_box_key_raises(transform: T.DictTransform) -> None:
+    with pytest.raises(KeyError, match="box"):
+        transform({"pos": torch.rand(4, 3)})
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        pytest.param(T.RandomRotate(keys="pos", box_key="box", allow_missing_keys=True), id="RandomRotate"),
+        pytest.param(T.RandomScale(keys="pos", box_key="box", allow_missing_keys=True), id="RandomScale"),
+        pytest.param(T.RandomFlip(keys="pos", box_key="box", p=1.0, allow_missing_keys=True), id="RandomFlip"),
+        pytest.param(T.RandomTranslate(keys="pos", box_key="box", allow_missing_keys=True), id="RandomTranslate"),
+    ],
+)
+def test_random_augmentation_missing_box_key_allowed(transform: T.DictTransform) -> None:
+    result = transform({"pos": torch.rand(4, 3)})
+    assert set(result) == {"pos"}
+    assert result["pos"].shape == (4, 3)

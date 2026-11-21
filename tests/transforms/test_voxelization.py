@@ -341,6 +341,91 @@ def test_voxelize_for_detectors_requires_the_named_feature_key(transform: T.Tran
         transform({"pos": torch.rand(4, 3)})
 
 
+@pytest.mark.parametrize(
+    "transform",
+    [
+        pytest.param(
+            T.DynamicVoxelize(
+                pos_key="pos",
+                voxel_size=(1.0, 1.0, 1.0),
+                point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+            ),
+            id="dynamic",
+        ),
+        pytest.param(
+            T.HardVoxelize(
+                pos_key="pos",
+                voxel_size=(1.0, 1.0, 1.0),
+                point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+                max_num_points=2,
+                max_num_voxels=10,
+            ),
+            id="hard",
+        ),
+    ],
+)
+def test_voxelize_for_detectors_missing_pos_key_raises(transform: T.Transform) -> None:
+    with pytest.raises(KeyError, match="'pos'"):
+        transform({"x": torch.rand(4, 1)})
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        pytest.param(
+            T.DynamicVoxelize(
+                pos_key="pos",
+                voxel_size=(1.0, 1.0, 1.0),
+                point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+                allow_missing_keys=True,
+            ),
+            id="dynamic",
+        ),
+        pytest.param(
+            T.HardVoxelize(
+                pos_key="pos",
+                voxel_size=(1.0, 1.0, 1.0),
+                point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+                max_num_points=2,
+                max_num_voxels=10,
+                allow_missing_keys=True,
+            ),
+            id="hard",
+        ),
+    ],
+)
+def test_voxelize_for_detectors_missing_pos_key_raises_even_when_allowed(transform: T.Transform) -> None:
+    with pytest.raises(KeyError, match="'pos'"):
+        transform({"x": torch.rand(4, 1)})
+
+
+def test_dynamic_voxelize_missing_feature_key_allowed_voxelizes_the_positions() -> None:
+    pos = torch.tensor([[0.5, 0.5, 0.5], [5.5, 5.5, 0.5]])
+    out = T.DynamicVoxelize(
+        pos_key="pos",
+        feature_key="x",
+        voxel_size=(1.0, 1.0, 1.0),
+        point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+        allow_missing_keys=True,
+    )({"pos": pos})
+    assert out["voxel"].shape == (2, 1, 3)
+
+
+@pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
+def test_hard_voxelize_missing_feature_key_allowed_voxelizes_the_positions() -> None:
+    pos = torch.tensor([[0.5, 0.5, 0.5], [5.5, 5.5, 0.5]])
+    out = T.HardVoxelize(
+        pos_key="pos",
+        feature_key="x",
+        voxel_size=(1.0, 1.0, 1.0),
+        point_cloud_range=(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+        max_num_points=2,
+        max_num_voxels=10,
+        allow_missing_keys=True,
+    )({"pos": pos})
+    assert out["voxel"].shape == (2, 2, 3)
+
+
 @pytest.mark.skipif(not _SPCONV_AVAILABLE, reason="spconv is not installed")
 def test_hard_voxelize_stacks_points_per_voxel() -> None:
     pos = torch.tensor([[0.5, 0.5, 0.5], [0.6, 0.6, 0.6], [5.5, 5.5, 0.5]])

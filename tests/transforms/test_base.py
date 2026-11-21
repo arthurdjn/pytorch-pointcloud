@@ -168,22 +168,51 @@ def test_random_transform_out_of_range_p_raises(make_transform: Callable[[float]
         make_transform(p)
 
 
-def test_compose_allow_missing_keys_propagates_to_children() -> None:
-    child = T.Abs(keys=["absent"])
-    compose = T.Compose([child], allow_missing_keys=True)
-    assert child.allow_missing_keys is True
+def test_compose_allow_missing_keys_overrides_its_children() -> None:
+    compose = T.Compose([T.Abs(keys=["absent"])], allow_missing_keys=True)
     assert compose({"pos": torch.randn(5, 3)})["pos"].shape == (5, 3)
 
 
-def test_compose_allow_missing_keys_propagates_through_nested_compose() -> None:
+def test_compose_allow_missing_keys_leaves_the_given_children_as_built() -> None:
+    child = T.Abs(keys=["absent"])
+    T.Compose([child], allow_missing_keys=True)
+    assert child.allow_missing_keys is False
+    with pytest.raises(KeyError, match="absent"):
+        child({"pos": torch.randn(5, 3)})
+
+
+def test_compose_allow_missing_keys_overrides_a_nested_compose_without_changing_it() -> None:
     child = T.Abs(keys=["absent"])
     inner = T.Compose([child])
     outer = T.Compose([inner], allow_missing_keys=True)
-    assert inner.allow_missing_keys is True
-    assert child.allow_missing_keys is True
+    assert outer({"pos": torch.randn(5, 3)})["pos"].shape == (5, 3)
+    assert inner.allow_missing_keys is None
+    with pytest.raises(KeyError, match="absent"):
+        inner({"pos": torch.randn(5, 3)})
+
     outer.allow_missing_keys = False
-    assert inner.allow_missing_keys is False
+    with pytest.raises(KeyError, match="absent"):
+        outer({"pos": torch.randn(5, 3)})
+
+
+def test_compose_allow_missing_keys_assigned_later_leaves_the_given_children_as_built() -> None:
+    child = T.Abs(keys=["absent"])
+    compose = T.Compose([child])
+    compose.allow_missing_keys = True
+    assert compose({"pos": torch.randn(5, 3)})["pos"].shape == (5, 3)
     assert child.allow_missing_keys is False
+
+
+def test_compose_allow_missing_keys_keeps_the_seed_of_its_children() -> None:
+    expected = T.RandomJitter(keys="pos", seed=0)({"pos": torch.zeros(8, 3)})["pos"]
+
+    pipeline = T.Compose([T.RandomJitter(keys="pos", seed=0)], allow_missing_keys=True)
+    assert torch.equal(pipeline({"pos": torch.zeros(8, 3)})["pos"], expected)
+
+    pipeline.set_random_state(seed=3)
+    first = pipeline({"pos": torch.zeros(8, 3)})["pos"]
+    pipeline.set_random_state(seed=3)
+    assert torch.equal(pipeline({"pos": torch.zeros(8, 3)})["pos"], first)
 
 
 def test_compose_allow_missing_keys_none_leaves_children() -> None:

@@ -1,7 +1,8 @@
 """Base classes of the dict transforms and their composition."""
 
+import copy
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Generator, Iterable, Optional, Sequence
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence
 
 import torch
 from typing_extensions import Self
@@ -126,10 +127,10 @@ class Compose(Transform, Randomizable):
 
     Args:
         transforms: The transforms to apply, in order.
-        allow_missing_keys: When set, assigned to every `DictTransform` child, recursively through nested
-            `Compose` objects, overriding what each child was built with (assigning the attribute later does the
-            same). Registered pipelines are shared objects, so setting it on one mutates its children for every
-            user. `None` leaves the children as built.
+        allow_missing_keys: When set, the pipeline runs shallow copies of its `DictTransform` children with this
+            value, recursively through nested `Compose` objects, overriding what each child was built with
+            (assigning the attribute later does the same). The transforms passed in are left as built. `None` runs
+            the children as given.
 
     Example:
         For example, to chain a random sample and a normalization transform,
@@ -154,7 +155,6 @@ class Compose(Transform, Randomizable):
 
     def __init__(self, transforms: Sequence[Transform], allow_missing_keys: Optional[bool] = None) -> None:
         self.transforms = transforms
-        # Recursively set all children's allow_missing_keys
         self.allow_missing_keys = allow_missing_keys
 
     @property
@@ -167,9 +167,13 @@ class Compose(Transform, Randomizable):
         if value is None:
             return
 
+        transforms: List[Transform] = []
         for transform in self.transforms:
             if isinstance(transform, (Compose, DictTransform)):
+                transform = copy.copy(transform)
                 transform.allow_missing_keys = value
+            transforms.append(transform)
+        self.transforms = transforms
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[torch.Generator] = None) -> Self:
         """Seed every random transform of the pipeline, each from its own draw of the pipeline's stream.
@@ -261,16 +265,16 @@ class DictTransform(Transform, metaclass=ABCMeta):
     and implements utility methods for key iteration and error handling.
 
     Note:
-        `allow_missing_keys` controls the iteration over `self.keys` performed by
-        `iter_keys`. Auxiliary keys read by individual transforms (e.g. `mask_key`
-        in `ApplyMask`, `pos_key` in `RemoveNearOrigin` / `FarthestPointSample`,
-        `face_key` in `RandomSampleFaceVertices`) document their own missing-key
-        behavior in their respective docstrings.
+        `allow_missing_keys` covers the keys a transform can do without: `self.keys`, iterated by `iter_keys`, and
+        its optional inputs (e.g. `vector_keys` in `RandomRotate`, `box_key` in `RandomFlip`, `feature_key` in
+        `HardVoxelize`). With `True`, an absent key is skipped; with `False`, it raises a `KeyError`. A key the
+        transform cannot run without (`pos_key` in `Voxelize`, `mask_key` in `MaskedFill`) raises whatever the
+        flag.
 
     Args:
         keys: The keys to apply the transform to.
-        allow_missing_keys: If `True`, the transform will not raise an error if
-            keys listed in `self.keys` are missing from the input dict.
+        allow_missing_keys: If `True`, the transform does not raise when a key it reads is missing from the
+            input dict.
 
     """
 

@@ -36,6 +36,8 @@ class BuildOctree(DictTransform):
         label_key: Key holding per-point labels.
         batch_key: Key holding batch indices.
         dst_points_key: Key under which the octree points are stored.
+        allow_missing_keys: If `True`, build the octree without a normal, feature, label or batch key that is
+            missing, instead of raising. `pos_key` is always required.
     """
 
     def __init__(
@@ -51,8 +53,9 @@ class BuildOctree(DictTransform):
         label_key: str | None = None,
         batch_key: str | None = None,
         dst_points_key: str | None = None,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__([], False)
+        super().__init__([], allow_missing_keys)
         if dst_points_key is not None and dst_points_key == dst_octree_key:
             raise ValueError(f"`dst_points_key` and `dst_octree_key` must be different, got {dst_points_key!r}.")
 
@@ -69,12 +72,16 @@ class BuildOctree(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
+        normal_key, feature_key, batch_key, label_key = (
+            None if key not in data and self.allow_missing_keys else key
+            for key in (self.normal_key, self.feature_key, self.batch_key, self.label_key)
+        )
 
         pos = data[self.pos_key]
-        normal = data[self.normal_key] if self.normal_key is not None else None
-        features = data[self.feature_key] if self.feature_key is not None else None
-        batch_id = data[self.batch_key] if self.batch_key is not None else None
-        labels = data[self.label_key] if self.label_key is not None else None
+        normal = data[normal_key] if normal_key is not None else None
+        features = data[feature_key] if feature_key is not None else None
+        batch_id = data[batch_key] if batch_key is not None else None
+        labels = data[label_key] if label_key is not None else None
 
         octree, points = build_octree(
             pos=pos,

@@ -527,7 +527,8 @@ def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
         task: Registry the model belongs to; optional when `name` is registered under a single task.
 
     Returns:
-        The entry as a `ModelInfoDict`, with the registered `hparams`.
+        The entry as a `ModelInfoDict`, with the registered `hparams`. Its `weights`, `transform` and `hparams` are
+        copies: changing them leaves the registry as it is.
 
     Raises:
         ValueError: If `task` or `name` is unknown, or if `task` is omitted for a name registered under several tasks.
@@ -545,7 +546,7 @@ def model_info(name: str, task: Optional[Task] = None) -> ModelInfoDict:
         "name": name,
         "task": task,
         "weights": copy.deepcopy(entry["weights"]),
-        "transform": entry["transform"],
+        "transform": copy.deepcopy(entry["transform"]),
         "input_keys": entry["input_keys"],
         "hparams": copy.deepcopy(entry["hparams"]),
         "deprecated_names": entry["deprecated_names"],
@@ -831,7 +832,7 @@ def create_model(
             "name": name,
             "task": task,
             "weights": copy.deepcopy(entry["weights"]),
-            "transform": entry["transform"],
+            "transform": copy.deepcopy(entry["transform"]),
             "input_keys": entry["input_keys"],
             "hparams": copy.deepcopy(hparams),
             "deprecated_names": entry["deprecated_names"],

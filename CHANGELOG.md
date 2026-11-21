@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed `Compose(allow_missing_keys=...)` changing the transforms it is given: it runs copies of them, and `model_info` and `create_model(return_info=True)` return a copy of the registered transform.
+- Fixed `allow_missing_keys=True` still raising on an absent optional key: the feature and attribute keys of `PasteBoxes`, the `ignore_fields` keys of `RelabelBoxes` and the `feature_key` of `HardVoxelize` and `DynamicVoxelize`.
+- Added `BuildOctree(allow_missing_keys=...)`.
+- Changed `RandomRotate(vector_keys=...)`, `EstimateNormals(batch_key=...)` and the `box_key` of `RandomRotate`, `RandomScale`, `RandomFlip` and `RandomTranslate` to raise a `KeyError` on an absent key unless `allow_missing_keys=True`.
+- Changed the README and the docs to describe a registered transform as the benchmark protocol of its checkpoint.
 - Changed the deprecation warnings and their docstrings to say that a deprecated name or argument will be removed in a future release, without naming that release.
 - Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.
 - Fixed example scripts feeding inputs their benchmark protocol does not: the KPConv S3DIS height above the room floor, the PointMLP ScanObjectNN validation batches (shuffled once), the OctFormer ModelNet40 normalization and ScanNet learning-rate groups, the PVCNN++ S3DIS points per block and the Utonia ScanNet coordinate scale.
