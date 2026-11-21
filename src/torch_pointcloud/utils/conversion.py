@@ -288,6 +288,36 @@ def ensure_option(value: T, options: Any, /, *, name: str = "option") -> T:
     return value
 
 
+def ensure_options(values: Any, options: Any, /, *, name: str = "option") -> Tuple[Any, ...]:
+    r"""Ensure that every provided value is one of the given options.
+
+    The values go through `ensure_tuple` first, so a single value is accepted too, and each one is checked with
+    `ensure_option`.
+
+    Args:
+        values: A value or an iterable of values to check.
+        options: The options to check against: an iterable of hashable values, an enum or a literal type.
+        name: The name of the option displayed in error messages.
+
+    Returns:
+        The values as a tuple.
+
+    Examples:
+        ```pycon
+        >>> ensure_options(["one", "two"], ["one", "two", "three"])  # Ok
+        ('one', 'two')
+        >>> ensure_options("one", Literal["one", "two"])  # Ok
+        ('one',)
+        >>> ensure_options(["one", "four"], ["one", "two"], name="class")  # Error
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid class: 'four'. Valid options are: 'one', 'two'.
+
+        ```
+    """
+    return tuple(ensure_option(value, options, name=name) for value in ensure_tuple(values))
+
+
 @torch.no_grad()
 def offset_to_bincount(offset: Tensor) -> Tensor:
     """Convert an offset tensor to a bincount tensor.

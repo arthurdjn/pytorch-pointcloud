@@ -419,10 +419,10 @@ def test_sunrgbd_stamp_without_format_version_is_version_one(datasets_dir_factor
     assert len(legacy) == len(dataset)
 
 
-def test_sunrgbd_interrupted_rebuild_leaves_no_stamp(
+def test_sunrgbd_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("SunRGBD/**/*")
     dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "val/meta.json")
@@ -433,13 +433,13 @@ def test_sunrgbd_interrupted_rebuild_leaves_no_stamp(
     monkeypatch.setattr(SunRGBD, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
         SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_sunrgbd_incomplete_cache_is_not_stamped(
+def test_sunrgbd_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("SunRGBD/**/*")
     dataset = SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "val/meta.json")
@@ -449,7 +449,7 @@ def test_sunrgbd_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(SunRGBD, "write_processed_files", incomplete)
     SunRGBD(root=datasets_dir, train=False, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
 def test_sunrgbd_dataset_process_opens_release_archive_once_and_closes_it(
