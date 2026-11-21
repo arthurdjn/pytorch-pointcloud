@@ -64,7 +64,7 @@ class DeprecatedModelDict(TypedDict):
     Attributes:
         name: The former registry name.
         deprecated_in: Release that renamed the model (e.g. `0.0.17`).
-        removed_in: Release that drops the former name, or `None` when it is not scheduled.
+        removed_in: Release planned to drop the former name, or `None`. The warning does not name it.
         message: Sentence appended to the warning the former name raises, or `None`.
     """
 
@@ -267,13 +267,14 @@ def deprecated_model(
     """Keep a renamed model reachable under its former `name`, placed above its `register_model` decorator.
 
     `create_model` and `model_info` resolve `name` to the registered name under its task with a `FutureWarning` that
-    names both releases. `list_models` never lists former names, and a model of the same name registered under
-    another task is not affected. Stack one decorator per former name, and delete it in the `removed_in` release.
+    names the release of the rename and says the former name will be removed in a future release. `list_models` never
+    lists former names, and a model of the same name registered under another task is not affected. Stack one
+    decorator per former name.
 
     Args:
         name: Former registry name of the entry, under the task it is registered for.
         deprecated_in: Release that renamed the model (e.g. `0.0.17`).
-        removed_in: Release that drops the former name, named in the warning; `None` leaves it unscheduled.
+        removed_in: Release planned to drop the former name, or `None`. The warning does not name it.
         message: Sentence appended to the warning, e.g. what else changed with the rename.
 
     Returns:
@@ -285,13 +286,13 @@ def deprecated_model(
             belongs above `register_model`), or if `name` is the registered name itself, a registered model of its
             task or already a former name under its task.
 
-    Renaming a registered model while keeping its former name loadable for one release:
+    Renaming a registered model while keeping its former name loadable:
 
     ```python
     from torch_pointcloud.models import PointNetClassification, deprecated_model, register_model
 
 
-    @deprecated_model("pointnet.scanobjectnn", deprecated_in="0.0.17", removed_in="0.0.18")
+    @deprecated_model("pointnet.scanobjectnn", deprecated_in="0.0.17")
     @register_model("pointnet-base.scanobjectnn", task="classification", hparams=dict(in_channels=0, num_classes=15))
     def pointnet_base(**hparams):
         return PointNetClassification(**hparams)
@@ -491,7 +492,7 @@ def _resolve_entry(name: str, task: Optional[Task]) -> Tuple[str, Task, ModelDic
         suffix = f" {deprecation['message']}" if deprecation["message"] else ""
         warnings.warn(
             f"Model {name!r} was renamed to {new!r} in {deprecation['deprecated_in']}; the former name will be "
-            f"removed in {deprecation['removed_in'] or 'a future release'}.{suffix}",
+            f"removed in a future release.{suffix}",
             FutureWarning,
             stacklevel=3,
         )
