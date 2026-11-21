@@ -201,7 +201,7 @@ def test_pointnet_loads_former_out_norm_keys(data: Dict[str, Tensor]) -> None:
     }
 
     loaded = PointNetClassification(in_channels=6, num_classes=10, **hparams).eval()
-    with pytest.warns(FutureWarning, match="encoder.out_norm"):
+    with pytest.warns(FutureWarning, match="encoder.out_norm.* will stop loading in a future release"):
         loaded.load_state_dict(state)
     with torch.no_grad():
         torch.testing.assert_close(

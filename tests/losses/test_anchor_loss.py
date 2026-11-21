@@ -160,7 +160,7 @@ def test_anchor_loss_validates_per_class_geometry() -> None:
 
 
 def test_anchor_loss_without_dir_offset_warns_and_keeps_the_former_default() -> None:
-    with pytest.warns(FutureWarning, match="dir_offset"):
+    with pytest.warns(FutureWarning, match="`dir_offset` of `AnchorHeadLoss` .* will be an error in a future release"):
         loss_fn = AnchorHeadLoss(
             1,
             voxel_size=_VOXEL_SIZE,

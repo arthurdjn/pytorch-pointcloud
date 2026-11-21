@@ -88,7 +88,8 @@ def random_max_pool(
 ) -> Tuple[Tensor, Tensor, Tensor]:
     """Deprecated alias of `random_pool` with `reduce="max"`."""
     warnings.warn(
-        "`random_max_pool` is deprecated since 0.0.19 and will be removed in 0.0.20; use `random_pool` instead.",
+        "`random_max_pool` is deprecated since 0.0.19 and will be removed in a future release; use `random_pool` "
+        "instead.",
         FutureWarning,
         stacklevel=2,
     )

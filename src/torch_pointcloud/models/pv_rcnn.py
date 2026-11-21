@@ -356,7 +356,7 @@ class PVRCNNDetection(DetectionModel):
         num_upsample_filters: 2D backbone upsample channels per level.
         num_dir_bins: Number of direction bins in the anchor head.
         dir_offset: Direction-classifier angle offset of the checkpoint. Omitting it is deprecated since 0.0.19 (it
-            warns and uses $0.78539$) and an error from 0.0.20.
+            warns and uses $0.78539$) and will be an error in a future release.
         dir_limit_offset: Heading wrap offset used during decoding.
         proposal_pre_maxsize: Top-scoring anchors kept per scene before the proposal NMS.
         proposal_post_maxsize: RoIs kept per scene after the proposal NMS.
@@ -435,8 +435,8 @@ class PVRCNNDetection(DetectionModel):
     ) -> None:
         if dir_offset is None:
             warnings.warn(
-                "Omitting `dir_offset` of `PVRCNNDetection` is deprecated since 0.0.19 and an error from 0.0.20; "
-                "pass the direction offset the weights were trained with (0.78539 was the default).",
+                "Omitting `dir_offset` of `PVRCNNDetection` is deprecated since 0.0.19 and will be an error in a "
+                "future release; pass the direction offset the weights were trained with (0.78539 was the default).",
                 FutureWarning,
                 stacklevel=2,
             )
