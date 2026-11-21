@@ -9,12 +9,12 @@ import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import S3DIS, RepeatSampler
+from torch_pointcloud.datasets import S3DIS, RepeatSampler, SeededDataset
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.losses import KPConvDeformRegularizer
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
@@ -146,7 +146,7 @@ def configure_train_transform(args: Namespace) -> T.Transform:
 
 
 def configure_val_transform(args: Namespace) -> T.Transform:
-    # The validation spheres are drawn from a fixed seed, so every validation scores the same spheres.
+    # `SeededDataset` replays the seeded draws of a sample, so every validation scores the same spheres.
     return T.Compose(
         [
             T.KeepItems(keys=POINT_KEYS),
@@ -201,6 +201,9 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     if args.limit_val_batches is not None:
         val_draws = first_draws(val_draws, args.limit_val_batches * args.batch_size)
 
+    # One validation sample per draw of a room, so that every draw has its own seed.
+    val_dataset = SeededDataset(Subset(val_dataset, list(RepeatSampler(val_draws, shuffle=False))))
+
     train_loader = PointCloudDataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -210,7 +213,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     val_loader = PointCloudDataLoader(
         val_dataset,
         batch_size=args.batch_size,
-        sampler=RepeatSampler(val_draws, shuffle=False),
+        shuffle=False,
         num_workers=args.num_workers,
     )
 

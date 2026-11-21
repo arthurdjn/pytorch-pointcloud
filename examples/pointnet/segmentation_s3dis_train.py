@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import S3DIS, RepeatSampler
+from torch_pointcloud.datasets import S3DIS, RepeatSampler, SeededDataset
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.losses import TNetOrthogonalityRegularizer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
@@ -56,7 +56,7 @@ TRAIN_TRANSFORM = T.Compose(
         T.Cat(keys=[DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
     ]
 )
-# The validation blocks are drawn from a fixed seed, so every validation scores the same blocks.
+# `SeededDataset` replays the seeded draws of a sample, so every validation scores the same blocks.
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=POINT_KEYS),
@@ -167,6 +167,8 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     # Rooms are drawn in proportion to their size.
     train_sampler = RepeatSampler(draws_per_room(train_dataset))
     val_sampler = RepeatSampler(draws_per_room(val_dataset), shuffle=False)
+    # One validation sample per draw of a room, so that every draw has its own seed.
+    val_dataset = SeededDataset(Subset(val_dataset, list(val_sampler)))
     train_loader = PointCloudDataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -177,7 +179,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     val_loader = PointCloudDataLoader(
         val_dataset,
         batch_size=args.batch_size,
-        sampler=val_sampler,
+        shuffle=False,
         drop_last=len(val_sampler) >= args.batch_size,
         num_workers=args.num_workers,
     )

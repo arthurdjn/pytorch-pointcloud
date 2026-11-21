@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import S3DIS
+from torch_pointcloud.datasets import S3DIS, SeededDataset
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
@@ -106,7 +106,7 @@ def configure_train_transform(args: Namespace) -> T.Compose:
 
 
 def configure_val_transform(args: Namespace) -> T.Compose:
-    # The validation points are drawn from a fixed seed, so every validation scores the same points.
+    # `SeededDataset` replays the seeded draws of a block, so every validation scores the same points.
     return T.Compose(
         [
             T.KeepItems(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.SCENE_MAX]),
@@ -141,7 +141,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_transform = configure_train_transform(args)
     train_dataset = S3DIS(areas=train_areas, transform=train_transform, **common)
     val_transform = configure_val_transform(args)
-    val_dataset = S3DIS(areas=val_areas, transform=val_transform, **common)
+    val_dataset = SeededDataset(S3DIS(areas=val_areas, transform=val_transform, **common))
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(

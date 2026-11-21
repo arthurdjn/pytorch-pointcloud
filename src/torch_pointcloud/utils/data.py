@@ -287,6 +287,33 @@ def select_inputs(data: Dict[str, Any], keys: Sequence[str]) -> List[Any]:
     return inputs
 
 
+def _random_objects(obj: Any) -> List[Any]:
+    """The objects with a `set_random_state` method reachable from `obj`, a parent before the objects it holds."""
+    seen: Set[int] = set()
+    found: List[Any] = []
+
+    def visit(item: Any) -> None:
+        if id(item) in seen or isinstance(item, (Tensor, str, bytes)):
+            return
+
+        seen.add(id(item))
+        if callable(getattr(item, "set_random_state", None)):
+            found.append(item)
+
+        if isinstance(item, (list, tuple)):
+            for value in item:
+                visit(value)
+        elif isinstance(item, dict):
+            for value in item.values():
+                visit(value)
+        elif hasattr(item, "__dict__"):
+            for value in vars(item).values():
+                visit(value)
+
+    visit(obj)
+    return found
+
+
 # inspired by: https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/data/utils.py#L719
 # Unlike there, the walk does not stop at the first object with `set_random_state`, so the transforms held by a
 # random `MixDataset` are re-seeded too.
@@ -313,29 +340,11 @@ def set_random_states(obj: Any, seed: int) -> int:
         set_random_states({"transform": jitter}, seed=7)
         ```
     """
-    seen: Set[int] = set()
-
-    def visit(item: Any, seed: int) -> int:
-        if id(item) in seen or isinstance(item, (Tensor, str, bytes)):
-            return seed
-
-        seen.add(id(item))
-        if getattr(item, "R", None) is not None and callable(getattr(item, "set_random_state", None)):
+    for item in _random_objects(obj):
+        if getattr(item, "R", None) is not None:
             item.set_random_state(seed=seed % 2**63)
             seed += 1
-
-        if isinstance(item, (list, tuple)):
-            for value in item:
-                seed = visit(value, seed)
-        elif isinstance(item, dict):
-            for value in item.values():
-                seed = visit(value, seed)
-        elif hasattr(item, "__dict__"):
-            for value in vars(item).values():
-                seed = visit(value, seed)
-        return seed
-
-    return visit(obj, seed)
+    return seed
 
 
 # inspired by: https://github.com/Project-MONAI/MONAI/blob/1.4.0/monai/data/utils.py#L709
