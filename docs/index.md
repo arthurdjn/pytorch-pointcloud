@@ -62,8 +62,7 @@ title: PyTorch PointCloud
 
 ## In a few lines
 
-Every checkpoint is one `create_model` call away, and ships the transform that turns a raw point cloud into what the
-network expects:
+Every checkpoint is one `create_model` call away, and ships its transform and metrics:
 
 ```{.python notest}
 import torch_pointcloud as tp
@@ -74,11 +73,15 @@ model, info = tp.create_model(
     pretrained=True,
     return_info=True,
 )
-info["transform"]  # the preprocessing pipeline of that checkpoint
+info["transform"]  # the benchmark protocol of that checkpoint on its dataset
 info["weights"]["metrics"]  # {"mIoU": 77.42, "OA": 92.00}
 
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```
+
+To run the transform on your own data, wrap it in
+`tp.transforms.Compose([info["transform"]], allow_missing_keys=True)`, which skips the steps on keys your cloud lacks,
+or drop its label steps.
 
 ## Why torch-pointcloud?
 

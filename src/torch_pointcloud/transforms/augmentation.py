@@ -157,6 +157,9 @@ class RandomRotate(DictTransform, Randomizable):
         rotation = rotation_matrix(angle, self.axis)
         center = self._center(data)
         box_key = self.box_key
+        if box_key is not None and box_key not in data and not self.allow_missing_keys:
+            raise KeyError(f"Key {box_key!r} was missing in the data and `allow_missing_keys==False`.")
+
         if box_key is not None and box_key in data:
             assert self.dst_box_key is not None
             boxes = data[box_key]
@@ -179,6 +182,8 @@ class RandomRotate(DictTransform, Randomizable):
         for key in self.vector_keys:
             if key in data:
                 data[key] = rotate_vectors(data[key], rotation)
+            elif not self.allow_missing_keys:
+                raise KeyError(f"Key {key!r} was missing in the data and `allow_missing_keys==False`.")
         return data
 
 
@@ -282,6 +287,9 @@ class RandomScale(DictTransform, Randomizable):
 
         lo, hi = self.scale_range
         box_key = self.box_key
+        if box_key is not None and box_key not in data and not self.allow_missing_keys:
+            raise KeyError(f"Key {box_key!r} was missing in the data and `allow_missing_keys==False`.")
+
         has_box = box_key is not None and box_key in data
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and not has_box:
@@ -418,6 +426,9 @@ class RandomFlip(DictTransform, Randomizable):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         box_key = self.box_key
+        if box_key is not None and box_key not in data and not self.allow_missing_keys:
+            raise KeyError(f"Key {box_key!r} was missing in the data and `allow_missing_keys==False`.")
+
         has_box = box_key is not None and box_key in data
         if next(iter(self.iter_keys(data)), None) is None and not has_box:
             return data
@@ -610,6 +621,9 @@ class RandomTranslate(DictTransform, Randomizable):
 
         lo, hi = self.translation_range
         box_key = self.box_key
+        if box_key is not None and box_key not in data and not self.allow_missing_keys:
+            raise KeyError(f"Key {box_key!r} was missing in the data and `allow_missing_keys==False`.")
+
         has_box = box_key is not None and box_key in data
         first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and not has_box:

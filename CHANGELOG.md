@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed `Compose(allow_missing_keys=...)` changing the transforms it is given: it runs copies of them, and `model_info` and `create_model(return_info=True)` return a copy of the registered transform.
+- Fixed `allow_missing_keys=True` still raising on an absent key in `MaskedFill`, `PasteBoxes`, `RelabelBoxes`, `HardVoxelize`, `DynamicVoxelize`, `DivideItems`, `SubtractItems`, `NormalizedDifference` and `RandomSampleFaceVertices`.
+- Added `BuildOctree(allow_missing_keys=...)`.
+- Changed `RandomRotate(vector_keys=...)`, `EstimateNormals(batch_key=...)` and the `box_key` of `RandomRotate`, `RandomScale`, `RandomFlip` and `RandomTranslate` to raise a `KeyError` on an absent key unless `allow_missing_keys=True`.
+- Changed the README and the docs to describe a registered transform as the benchmark protocol of its checkpoint.
+
 ## 0.0.22 (2026-11-18)
 
 - Fixed the Hub Sync check failing with `429 Too Many Requests`: a request over the Hub API quota waits for the quota window and is sent again.

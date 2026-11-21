@@ -80,18 +80,20 @@ with torch.no_grad():
     logits = model(x, pos, batch)  # (1, 15)
 ```
 
-Each checkpoint ships information about the model, such as the transform used to preprocess the input, metrics, license and more.
+Each checkpoint ships information about the model, such as its transform, metrics, license and more.
 
 ```python
 import torch_pointcloud as tp
 
 model, info = tp.create_model("randlanet.semantickitti.tsung-han-wu", task="semantic-segmentation", pretrained=True, return_info=True)
-info["transform"]  # the preprocessing pipeline of that checkpoint
+info["transform"]  # the benchmark protocol of that checkpoint on its dataset
 info["weights"]["metrics"]  # {"mIoU": 55.39, "OA": 90.05}
 
 tp.list_models("pointnext*")  # every registered PointNeXt config
 tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```
+
+To run the transform on your own data, wrap it in `tp.transforms.Compose([info["transform"]], allow_missing_keys=True)`, which skips the steps on keys your cloud lacks, or drop its label steps.
 
 See the [examples](https://github.com/arthurdjn/pytorch-pointcloud/tree/main/examples) directory for benchmarks and training recipes.
 

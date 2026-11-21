@@ -86,6 +86,20 @@ def test_random_sample_face_vertices_determinism() -> None:
     assert torch.equal(a["vertices"], b["vertices"])
 
 
+def test_random_sample_face_vertices_missing_face_key_raises() -> None:
+    transform = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4)
+    with pytest.raises(KeyError, match="face"):
+        transform({"vertices": torch.randn(8, 3)})
+
+
+def test_random_sample_face_vertices_missing_face_key_allowed() -> None:
+    data = {"vertices": torch.randn(8, 3)}
+    transform = T.RandomSampleFaceVertices(keys=["vertices"], face_key="face", num_samples=4, allow_missing_keys=True)
+    result = transform(data)
+    assert set(result) == {"vertices"}
+    assert result["vertices"] is data["vertices"]
+
+
 @pytest.mark.skipif(not _PYG_LIB_AVAILABLE, reason="pyg-lib is not installed")
 def test_farthest_point_sample_num_samples() -> None:
     pos = torch.randn(20, 3)

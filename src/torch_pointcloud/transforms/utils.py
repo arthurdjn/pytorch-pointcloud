@@ -763,7 +763,7 @@ class DivideItems(DictTransform):
         keys: Keys whose tensors are divided.
         div_keys: Keys whose values are used as the divisors.
         dst_keys: Where to store results. Defaults to `keys`.
-        allow_missing_keys: If `True`, silently skip absent target keys.
+        allow_missing_keys: If `True`, silently skip a pair whose target or divisor key is absent.
     """
 
     def __init__(
@@ -780,6 +780,9 @@ class DivideItems(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, div_key, dst_key in self.iter_keys(data, self.div_keys, self.dst_keys):
+            if div_key not in data and self.allow_missing_keys:
+                continue
+
             data[dst_key] = data[key] / data[div_key]
         return data
 
@@ -805,7 +808,7 @@ class SubtractItems(DictTransform):
         dst_keys: Where to store results. Defaults to `keys`.
         axes: Optional indices into the last dim restricting which components are
             subtracted. `None` (default) subtracts every component.
-        allow_missing_keys: If `True`, silently skip absent target keys.
+        allow_missing_keys: If `True`, silently skip a pair whose target or subtracted key is absent.
     """
 
     def __init__(
@@ -824,6 +827,9 @@ class SubtractItems(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, sub_key, dst_key in self.iter_keys(data, self.sub_keys, self.dst_keys):
+            if sub_key not in data and self.allow_missing_keys:
+                continue
+
             if self.axes is None:
                 data[dst_key] = data[key] - data[sub_key]
             else:
@@ -844,7 +850,7 @@ class NormalizedDifference(DictTransform):
         sub_keys: Keys of the second operand $b$, one per key.
         dst_keys: Where to store results. Defaults to `keys`.
         eps: Added to the denominator, $\epsilon$.
-        allow_missing_keys: If `True`, silently skip absent target keys.
+        allow_missing_keys: If `True`, silently skip a pair whose first or second operand key is absent.
 
     Example:
         ```python
@@ -873,6 +879,9 @@ class NormalizedDifference(DictTransform):
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
         for key, sub_key, dst_key in self.iter_keys(data, self.sub_keys, self.dst_keys):
+            if sub_key not in data and self.allow_missing_keys:
+                continue
+
             a, b = data[key], data[sub_key]
             data[dst_key] = (a - b) / (a + b + self.eps)
         return data

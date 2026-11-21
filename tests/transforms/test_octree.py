@@ -55,3 +55,32 @@ def test_octree_features_nd() -> None:
     # ocnn's get_input_feature returns (C, K) where C is channels and K is num nodes.
     assert out["feat"].ndim == 2
     assert 4 in out["feat"].shape
+
+
+def test_build_octree_missing_label_key_raises() -> None:
+    pytest.importorskip("ocnn")
+    transform = T.BuildOctree(pos_key="pos", dst_octree_key="octree", label_key="segment", depth=3)
+    with pytest.raises(KeyError, match="segment"):
+        transform({"pos": torch.rand(32, 3) * 2 - 1})
+
+
+def test_build_octree_missing_label_key_allowed() -> None:
+    ocnn = pytest.importorskip("ocnn")
+    transform = T.BuildOctree(
+        pos_key="pos",
+        dst_octree_key="octree",
+        label_key="segment",
+        depth=3,
+        allow_missing_keys=True,
+    )
+    out = transform({"pos": torch.rand(32, 3) * 2 - 1})
+    assert isinstance(out["octree"], ocnn.octree.Octree)
+
+
+def test_build_octree_missing_pos_key_allowed() -> None:
+    pytest.importorskip("ocnn")
+    transform = T.BuildOctree(pos_key="pos", dst_octree_key="octree", depth=3, allow_missing_keys=True)
+    data = {"normal": torch.rand(32, 3)}
+    out = transform(data)
+    assert set(out) == {"normal"}
+    assert out["normal"] is data["normal"]

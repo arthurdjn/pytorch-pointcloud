@@ -131,6 +131,9 @@ class EstimateNormals(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
+        if self.batch_key is not None and self.batch_key not in d and not self.allow_missing_keys:
+            raise KeyError(f"Key {self.batch_key!r} was missing in the data and `allow_missing_keys==False`.")
+
         batch = d.get(self.batch_key) if self.batch_key is not None else None
         for key, dst_key in self.iter_keys(d, self.dst_keys):
             d[dst_key] = estimate_normals(
