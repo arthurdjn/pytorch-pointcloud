@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed `ScanNet200` serving wrong labels from a cache in which a scene failed to process, and every dataset serving the previous cache after an interrupted or failed `force_process=True`: the cache stamp is marked incomplete while the cache is built and after a partial build, and an incomplete cache is rebuilt instead of served.
+- Fixed `ScanNet(download=True)` on a partial raw tree: it resumes an interrupted download, adds the scans of another split and fetches missing split lists, and a complete split still makes no request.
+- Changed the ScanNet errors to name the missing raw path or split list and to point at `download=True` when scans are missing, and documented the `raw/` layout in the ScanNet docstrings.
+- Changed `ModelNet10`, `ModelNet40`, `ModelNetNormalResampled` and `NuScenes` to raise on an unknown class name, and `NuScenes` on `max_sweeps` below 1.
+- Added `datasets.utils.is_cache_incomplete` and `write_cache_meta(complete=...)`.
+- Added `utils.conversion.ensure_options`, which checks that every value of a sequence is one of the given options.
 - Changed the deprecation warnings and their docstrings to say that a deprecated name or argument will be removed in a future release, without naming that release.
 - Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.
 - Fixed example scripts feeding inputs their benchmark protocol does not: the KPConv S3DIS height above the room floor, the PointMLP ScanObjectNN validation batches (shuffled once), the OctFormer ModelNet40 normalization and ScanNet learning-rate groups, the PVCNN++ S3DIS points per block and the Utonia ScanNet coordinate scale.
