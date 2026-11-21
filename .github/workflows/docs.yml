@@ -84,7 +84,7 @@ jobs:
       - name: Install mike
         # The Zensical-compatible fork is not on PyPI, and it drives `zensical build` as a
         # subprocess, so it has to share the venv that carries the plugins.
-        run: uv pip install git+https://github.com/squidfunk/mike.git
+        run: uv pip install git+https://github.com/squidfunk/mike.git@2d4ad799442f4592db8ad53b179bfb33db8c69ac
 
       - name: Render the model catalog, the notebooks, the API reference and the changelog
         # The development version keeps the unreleased section of the changelog, a release drops it.

@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file. The format is b
 
 - Changed `KITTI` to select its frames with `split`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing, `"test"` reads the `testing` directory, and `None` loads every frame of `training`. `train` still works with a `FutureWarning`.
 - Fixed the KITTI benchmark and training scripts falling back to every frame of `training` when an `ImageSets` split file is missing: they raise.
+- Changed the deprecation warnings and their docstrings to say that a deprecated name or argument will be removed in a future release, without naming that release.
+- Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.
+- Fixed example scripts feeding inputs their benchmark protocol does not: the KPConv S3DIS height above the room floor, the PointMLP ScanObjectNN validation batches (shuffled once), the OctFormer ModelNet40 normalization and ScanNet learning-rate groups, the PVCNN++ S3DIS points per block and the Utonia ScanNet coordinate scale.
+- Fixed the stored test outputs of the MinkUNet SemanticKITTI and DGCNN S3DIS checkpoints, which no longer matched their registered transforms on the GPU.
 
 ## 0.0.22 (2026-11-18)
 
@@ -32,6 +36,8 @@ All notable changes to this project are documented in this file. The format is b
 - Fixed grid pooling on int32 grids, batch-dependent `VoxelGridPool` cells, serialized pooling merging samples, `majority_label` on small label types, the speed of `fps(num_nodes=...)`, and KPConv and Point Transformer V2 on unsorted batches.
 - Added `ops.cluster.radius_graph`, `ops.serialization.serialization_depth` and `utils.conversion.check_non_negative_grid`.
 - Fixed the test of the registered weight URLs, whose requests the Hub counted as downloads: it reads the Hub API, needs `--run-hub` and runs in one CI job.
+- Added Group-Free 3D (`GroupFree3DDetection`, `GroupFree3DLoss`) with the authors' ScanNet and SUN RGB-D checkpoints and the MMDetection3D ScanNet ones, and its benchmark and training scripts.
+- Added `InstanceToBox(dst_box_index_key=...)`, which writes each point's box row to `DataKeys.BOX_INDEX`.
 
 ## 0.0.21 (2026-11-11)
 
@@ -48,8 +54,6 @@ All notable changes to this project are documented in this file. The format is b
 - Added `StridedSparseConv3d`, strided `SparseBasicBlock`s, transposed `SparseConvBlock`s, `voxelize_to_spconv_tensor`, `sparse_voxelize(origin="grid", reduce="first")` and the S3DIS detection classes.
 - Added PCT (`PCTClassification`) and CurveNet (`CurveNetClassification`, `CurveNetPartSegmentation`) with their ModelNet40 and ShapeNetPart checkpoints, and their benchmark and training scripts.
 - Added `ops.cluster.knn_table`, `ops.math.hard_softmax`, the `AttentionGate` and `RadiusMaxPool` layers and the PCT and CurveNet blocks.
-- Added Group-Free 3D (`GroupFree3DDetection`, `GroupFree3DLoss`) with the authors' ScanNet and SUN RGB-D checkpoints and the MMDetection3D ScanNet ones, and its benchmark and training scripts.
-- Added `InstanceToBox(dst_box_index_key=...)`, which writes each point's box row to `DataKeys.BOX_INDEX`.
 
 ## 0.0.20 (2026-11-10)
 
@@ -60,7 +64,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `NUSCENES_LIDARSEG_LEARNING_MAP`.
 - Added `layers.spconv_blocks.SubMConv3d`, a `spconv.SubMConv3d` that casts its features to the weight dtype; it fixes Point Transformer V3 inference under `torch.autocast` failing in the sparse convolutions.
 - Added `segmentation_transforms` and `nuscenes_segmentation_transforms` to `models.point_transformer_v3`, the inference pipelines of its indoor and nuScenes checkpoints.
-- Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works until 0.0.21, with a `FutureWarning`.
+- Moved `serialize` from `models.point_transformer_v3` to `ops.serialization`; the former location still works with a `FutureWarning` and will be removed in a future release.
 - Fixed `PointTransformerV3Decoder` failing to build when `decoder_depths` is not symmetric.
 - Added ReCon (`ReConClassification`, `ReConPartSegmentation`), PCP-MAE (`PCPMAEClassification`), point2vec (`Point2VecClassification`, `Point2VecPartSegmentation`) and the ACT checkpoints, with their benchmark and training scripts.
 - Added the pretraining models `ReConPretraining`, `PCPMAEPretraining`, `Point2VecPretraining`, `ACTDiscreteVAE` and `ACTPretraining`.
@@ -107,6 +111,11 @@ All notable changes to this project are documented in this file. The format is b
 - `KNNWindowInferer` rejects an `overlap` of `1e-3` or less, which left points unpredicted.
 - Fixed `SlidingWindowInferer` giving an empty `cloud_keys` row to clouds with non-contiguous batch ids.
 - `SlidingWindowInferer` no longer passes the `block_bbox_key` entry to the predictor; it was sliced like a per-point tensor in blocks with as many points as the box has values.
+- Added Volt (`VoltSegmentation`) with the authors' ScanNet, ScanNet200, nuScenes and SemanticKITTI checkpoints, and their benchmark scripts.
+- Added the `PackedAttention`, `PackedTransformerBlock`, `AxialRoPE` and voxel patch layers, `ops.voxelization.voxel_patch_partition` and the `ClampNorm` transform.
+- Added `inferers.scale_flip_tta_transforms`, the scaled and mirrored test-time views of the outdoor and S3DIS benchmarks.
+- Added `datasets.structured3d.STRUCTURED3D_CLASSES`, the 25 class names of Structured3D.
+- `convert_to_spconv_tensor` raises a `ValueError` when `spatial_shape` cannot be inferred from zero points.
 
 ## 0.0.19 (2026-11-08)
 
@@ -127,7 +136,7 @@ All notable changes to this project are documented in this file. The format is b
 - Added `Voxelize(origin="min")`, which starts the voxel grid at the minimum of the points instead of a multiple of `size`.
 - Added CenterPoint (`CenterPointDetection`, `CenterPointPillarsDetection`) with the nuScenes checkpoints `centerpoint-voxel01.nuscenes.mmdet3d`, `centerpoint-voxel0075.nuscenes.mmdet3d` and `centerpoint-pillar02.nuscenes.mmdet3d`, and their benchmark and training scripts.
 - Moved `CenterHead`, `SeparateHead` and `CenterHeadOutput` from `models.voxel_mamba` to `layers.center_head`; `CenterHead` takes `class_groups` and optional velocity and IoU branches.
-- `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works until 0.0.20, with a `FutureWarning`.
+- `CenterHeadLoss` takes `class_groups` instead of the class count; the class count still works with a `FutureWarning` and will be removed in a future release.
 - Voxel Mamba's head outputs are one-element lists, its head parameters are `head.heads.0.*` instead of `head.prediction_head.*`, and its head starts from the `CenterHead` initialization.
 - Fixed the IoU term of `CenterHeadLoss` sending gradients into the box maps.
 - Added `center_regression_loss`, the box-code term of `CenterHeadLoss` and `VoxelNeXtHeadLoss`.
@@ -149,17 +158,14 @@ All notable changes to this project are documented in this file. The format is b
 - Added nine MMDetection3D checkpoints for PointPillars, SECOND and VoteNet, and the SECOND-IoU, PointRCNN-IoU and 3DETR-m SUN RGB-D checkpoints.
 - Added `SECONDIoUDetection`, `PointPillarsFPNDetection`, `MultiLevelAnchorHead`, `BEVPyramidBackbone`, `dynamic_voxelize` and `DynamicVoxelize`; `AnchorHead` and `AnchorHeadLoss` take `anchor_range` and `align_center`.
 - Added `ops.box3d.angle_to_direction_bin` and `direction_bin_to_angle`, the direction-bin heading of the anchor heads and their loss.
-- Omitting `dir_offset` from `AnchorHead`, `AnchorHeadLoss` or the PointPillars, SECOND, Part-A2 and PV-RCNN detectors is deprecated, and an error from 0.0.20.
+- Omitting `dir_offset` from `AnchorHead`, `AnchorHeadLoss` or the PointPillars, SECOND, Part-A2 and PV-RCNN detectors is deprecated and will be an error in a future release.
 - `HardVoxelize` raises when its `feature_key` is missing, `Cat` when an input lacks the concatenation dimension, and detectors when `num_classes` is 0.
-- Added Volt (`VoltSegmentation`) with the authors' ScanNet, ScanNet200, nuScenes and SemanticKITTI checkpoints, and their benchmark scripts.
-- Added the `PackedAttention`, `PackedTransformerBlock`, `AxialRoPE` and voxel patch layers, `ops.voxelization.voxel_patch_partition` and the `ClampNorm` transform.
-- Added `inferers.scale_flip_tta_transforms`, the scaled and mirrored test-time views of the outdoor and S3DIS benchmarks.
 - Added TransFusion-L (`TransFusionDetection`) with the nuScenes checkpoint `transfusion-lidar.nuscenes.openpcdet`, and its benchmark and training scripts.
 - Moved `TransFusionHead`, `TransFusionDecoderLayer` and `TransFusionHeadOutput` from `models.lion` to `layers.transfusion_head`, and renamed `SeparateHeadTransfusion` to `TransFusionPredictionHead`.
 - `TransFusionHead` takes its grid by keyword without `grid_size`, and a required `height_code`; `hidden_channel`, `ffn_channel`, `activation` and `bn_momentum` became `embed_dim`, `mlp_dim`, `act` and `norm_kwargs`.
 - `TransFusionHead` reads the $(y, x)$ BEV layout of any size and adds `use_iou` and whole-map attention (the default); `iou_rectifier` moved to `decode`, which keeps every query, and `nms_radius` and `post_center_range` were removed.
 - `LIONDetection.decode` takes a per-class `iou_rectifier` and no longer drops boxes beyond the 61.2 m range.
-- `TransFusionHeadLoss` takes the `height_code` of its head; omitting it keeps the box-top code until 0.0.20, with a `FutureWarning`, and `num_proposals` is deprecated. Its IoU term applies only to a head with an `iou` branch.
+- `TransFusionHeadLoss` takes the `height_code` of its head; omitting it keeps the box-top code with a `FutureWarning` and will be an error in a future release, and `num_proposals` is deprecated. Its IoU term applies only to a head with an `iou` branch.
 - Added `ops.heatmap.decode_query_codes`, the box decode of the query heads.
 - Fixed LION training against a transposed heatmap target, and its attention window wrapping across BEV rows.
 - The LION scripts run the reference per-class NMS on the rotated BEV IoU; `lion-mamba.nuscenes.zhe-liu` scores 68.84 mAP / 72.35 NDS on nuScenes val.

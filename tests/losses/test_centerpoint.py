@@ -467,7 +467,7 @@ def test_center_loss_maps_a_class_onto_its_group_channel() -> None:
 
 
 def test_center_loss_class_count_is_deprecated() -> None:
-    with pytest.warns(FutureWarning, match="class_groups"):
+    with pytest.warns(FutureWarning, match="`class_groups` .* will be removed in a future release"):
         loss_fn = CenterHeadLoss(
             3,
             point_cloud_range=_POINT_CLOUD_RANGE,

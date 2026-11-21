@@ -109,6 +109,10 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
         train_dataset = Subset(
             train_dataset, range(min(args.limit_train_batches * args.batch_size, len(train_dataset)))
         )
+    # The standard deviation is taken over the batch and the test file is sorted by class: a fixed shuffle scores
+    # the same mixed batches at every validation.
+    order = torch.randperm(len(val_dataset), generator=torch.Generator().manual_seed(args.seed))
+    val_dataset = Subset(val_dataset, order.tolist())
     if args.limit_val_batches is not None:
         val_dataset = Subset(val_dataset, range(min(args.limit_val_batches * args.batch_size, len(val_dataset))))
 
