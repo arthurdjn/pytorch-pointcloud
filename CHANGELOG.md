@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Added `KITTI(split=...)`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing.
+- Changed `KITTI` to select its frames with `split`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing, `"test"` reads the `testing` directory, and `None` loads every frame of `training`. `train` still works with a `FutureWarning`.
 - Fixed the KITTI benchmark and training scripts falling back to every frame of `training` when an `ImageSets` split file is missing: they raise.
 
 ## 0.0.22 (2026-11-18)

@@ -125,7 +125,6 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_transform = configure_train_transform(args, objects)
     train_dataset = KITTI(
         root=args.root,
-        train=True,
         split=None if args.train_split_file else "train",
         split_file=args.train_split_file,
         fov=True,
@@ -135,7 +134,6 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     val_transform = configure_val_transform(args)
     val_dataset = KITTI(
         root=args.root,
-        train=True,
         split=None if args.val_split_file else "val",
         split_file=args.val_split_file,
         fov=True,
@@ -157,7 +155,6 @@ def configure_objects(args: Namespace) -> list[dict[str, Tensor]]:
     """The training objects, cut out once and cached next to the processed split, filtered as the reference does."""
     dataset = KITTI(
         root=args.root,
-        train=True,
         split=None if args.train_split_file else "train",
         split_file=args.train_split_file,
         fov=True,
