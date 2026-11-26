@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed `download_url` keeping a download cut before its announced `Content-Length` as a complete file: it raises `ContentTooShortError` and writes nothing.
+- Fixed `create_model(pretrained=True)` failing on an unreadable cached weight file without naming it: the error names the file to delete.
+- Fixed `KPConv` and `create_kernel_points` failing when the cache directory is read-only: they warn and optimize the kernel points again.
 - Changed `KITTI` to take a required `split` in place of `train`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing, and `"test"` reads the `testing` directory. The `split_file` argument is removed.
 - Fixed the KITTI benchmark and training scripts falling back to every frame of `training` when an `ImageSets` split file is missing: they raise.
 - Fixed `ScanNet200` serving wrong labels from a cache in which a scene failed to process, and every dataset serving the previous cache after an interrupted or failed `force_process=True`: the cache stamp is marked incomplete while the cache is built and after a partial build, and an incomplete cache is rebuilt instead of served.
