@@ -4,12 +4,13 @@
 """
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, TypedDict
 
 import numpy as np
 import torch
 from typing_extensions import override
 
+from torch_pointcloud.utils.conversion import ensure_option
 from torch_pointcloud.utils.data import DataKeys
 from torch_pointcloud.utils.misc import parallel_map
 from torch_pointcloud.utils.types import PathLike
@@ -310,20 +311,23 @@ def _read_image_shape(image_path: PathLike) -> Tuple[int, int]:
 class KITTI(PointCloudDataset):
     r"""KITTI 3D object-detection dataset (LiDAR points + raw LiDAR-frame ground-truth boxes).
 
-    The raw object split is read from `<root>/KITTI/raw/<split>/` and processed once into a per-frame
-    `.npy` cache (`<root>/KITTI/processed_fov/<split>/` when `fov=True`, else `<root>/KITTI/processed/`),
-    so each `__getitem__` is a flat array read. The whole split is processed; `split_file` only selects
-    which cached frames to load. Frames are loaded lazily from the cache, so a full split does not need to
-    fit in host memory.
+    The raw object split is read from `<root>/KITTI/raw/<directory>/` (`training` or `testing`) and processed once
+    into a per-frame `.npy` cache (`<root>/KITTI/processed_fov/<directory>/` when `fov=True`, else
+    `<root>/KITTI/processed/`), so each `__getitem__` is a flat array read. The whole directory is processed; `split`
+    only selects which cached frames to load. Frames are loaded lazily from the cache, so a full split does not need
+    to fit in host memory.
 
     KITTI requires manual download (a license must be accepted), so `download=True` raises with the
-    download URL rather than fetching anything.
+    download URL rather than fetching anything. The download has no validation set: the standard train / val split
+    of the `training` directory is two lists of frame ids, `train.txt` (3712 frames) and `val.txt` (3769 frames),
+    one id per line. They ship in the `ImageSets` folder of most KITTI detection codebases and go under
+    `<root>/KITTI/raw/ImageSets/`.
 
     Args:
-        root: Dataset root; raw data is read from `<root>/KITTI/raw/<split>/`.
-        train: If `True`, reads the `training` split directory, otherwise `testing`.
-        split_file: Optional text file of frame ids (one per line) selecting which cached frames to load;
-            defaults to every processed frame.
+        root: Dataset root; raw data is read from `<root>/KITTI/raw/<directory>/`.
+        split: `"train"` or `"val"` loads the frames of the `training` directory listed in
+            `<root>/KITTI/raw/ImageSets/<split>.txt` and raises a `FileNotFoundError` when that file is missing.
+            `"test"` loads every frame of the unlabelled `testing` directory.
         fov: Restrict points to the front-camera field of view (requires `image_2/`). Baked into the cache.
         return_calib: Also emit the `calib` (the composed $(3, 4)$ LiDAR-to-image matrix
             $P_2 [R_0 T_\text{velo}]$ with the perspective-divide row from $R_0 T_\text{velo}$, the
@@ -343,10 +347,19 @@ class KITTI(PointCloudDataset):
         ```python
         from torch_pointcloud.datasets import KITTI
 
-        dataset = KITTI(root="data", train=True)
+        dataset = KITTI(root="data", split="train")
         sample = dataset[0]
         sample["pos"].shape  # (N, 3)
         sample["box"].shape  # (K, 7)
+        ```
+
+        With `train.txt` and `val.txt` under `data/KITTI/raw/ImageSets/`:
+
+        ```python
+        from torch_pointcloud.datasets import KITTI
+
+        train_dataset = KITTI(root="data", split="train")
+        val_dataset = KITTI(root="data", split="val")
         ```
     """
 
@@ -356,9 +369,7 @@ class KITTI(PointCloudDataset):
         self,
         root: PathLike,
         *,
-        train: bool = True,
-        # TODO: move to a train=bool flag for train/val split? instead of pointing to the filepath
-        split_file: Optional[PathLike] = None,
+        split: Literal["train", "val", "test"],
         fov: bool = True,
         return_calib: bool = False,
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
@@ -369,9 +380,16 @@ class KITTI(PointCloudDataset):
         num_workers: Optional[int] = None,
     ) -> None:
         super().__init__(root)
-        self.train = train
-        self._split = "training" if train else "testing"
-        self.split_file = split_file
+        ensure_option(split, ("train", "val", "test"), name="split")
+        self.split = split
+        if self.split_file is not None and not self.split_file.exists() and self.raw_split_dir.is_dir():
+            raise FileNotFoundError(
+                f"No {split!r} split file at {self.split_file.as_posix()!r}. The KITTI download does not include the "
+                "standard train / val split: copy `train.txt` (3712 frame ids) and `val.txt` (3769 frame ids), one "
+                "id per line, from the `ImageSets` folder of a KITTI detection codebase into "
+                f"{self.split_file.parent.as_posix()!r}."
+            )
+
         self.fov = fov
         self.return_calib = return_calib
         self.transform = transform
@@ -391,13 +409,18 @@ class KITTI(PointCloudDataset):
 
     @property
     def raw_split_dir(self) -> Path:
-        """Path to the split's raw directory."""
-        return Path(self.raw_dir, self._split)
+        """Path to the split's raw directory, `testing` for `"test"`, else `training`."""
+        return Path(self.raw_dir, "testing" if self.split == "test" else "training")
 
     @property
     def processed_split_dir(self) -> Path:
         """Path to the split's processed cache directory."""
-        return Path(self.processed_dir, self._split)
+        return Path(self.processed_dir, self.raw_split_dir.name)
+
+    @property
+    def split_file(self) -> Optional[Path]:
+        """Path to the `ImageSets` list of frame ids of the split, `None` for `"test"`."""
+        return None if self.split == "test" else Path(self.raw_dir, "ImageSets", f"{self.split}.txt")
 
     @property
     def frame_ids(self) -> List[str]:
@@ -481,7 +504,7 @@ class KITTI(PointCloudDataset):
             frames,
             num_workers=num_workers,
             total=len(frames),
-            desc=f"Processing {self._split}",
+            desc=f"Processing {self.raw_split_dir.name}",
             show_progress=show_progress,
         )
 
@@ -522,19 +545,19 @@ class KITTI(PointCloudDataset):
             np.save(tmp_dir / "bbox_height.npy", annotations[DataKeys.BBOX_HEIGHT])
 
     def load(self) -> None:
-        r"""Enumerate the cached frames to load, honoring `split_file` when given.
+        r"""Enumerate the cached frames to load, those listed in `split_file` unless `split` is `"test"`.
 
         Raises a `RuntimeError` listing the missing frame ids when `split_file` references frames
         absent from the processed cache.
         """
         if self.split_file is not None:
-            frame_ids = [line.strip() for line in Path(self.split_file).read_text().splitlines() if line.strip()]
+            frame_ids = [line.strip() for line in self.split_file.read_text().splitlines() if line.strip()]
             missing = [
                 frame for frame in frame_ids if not (self.processed_split_dir / frame / f"{DataKeys.POS}.npy").exists()
             ]
             if missing:
                 raise RuntimeError(
-                    f"{len(missing)} frame(s) listed in {Path(self.split_file).as_posix()!r} are missing from the "
+                    f"{len(missing)} frame(s) listed in {self.split_file.as_posix()!r} are missing from the "
                     f"processed cache at {self.processed_split_dir.as_posix()!r}: {missing[:10]}. "
                     "Pass `force_process=True` to reprocess the raw data."
                 )

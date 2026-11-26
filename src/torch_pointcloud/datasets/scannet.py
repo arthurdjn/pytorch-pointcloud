@@ -6,6 +6,7 @@
 
 import math
 import re
+import shutil
 import warnings
 from collections import defaultdict
 from functools import cached_property
@@ -924,6 +925,31 @@ class ScanNet(PointCloudDataset):
         In most cases, the loaded labels are contiguous; see `class_to_idx` for the mapping from
         class name to index (indices may not match raw `nyu40id` values in the source files).
 
+    The raw data is read from `<root>/ScanNet/raw`, in the layout of the ScanNet server: the test scans sit under
+    `v2/scans` next to the train and val scans, and the labels under `v2/tasks`.
+
+    ```text
+    metadata/
+        scannetv2_train.txt
+        scannetv2_val.txt
+        scannetv2_test.txt
+    v2/
+        scans/
+            scene0000_00/
+                scene0000_00.txt
+                scene0000_00.aggregation.json
+                scene0000_00_vh_clean_2.0.010000.segs.json
+                scene0000_00_vh_clean_2.ply
+            ...
+        tasks/
+            scannetv2-labels.combined.tsv
+    ```
+
+    The split lists under `metadata/` are not part of the ScanNet release: `download=True` fetches them from
+    `meta_url`. The official download script writes `scans/`, `scans_test/` and the labels file at the top of its
+    output directory, to be moved into this layout. With `version="v1"`, the train and val scans are read from
+    `v1/scans` and the labels from `v1/tasks/scannet-labels.combined.tsv`.
+
     Args:
         root: The root directory of the dataset.
         version: The version of the dataset to use.
@@ -938,7 +964,8 @@ class ScanNet(PointCloudDataset):
         num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
         min_num_nodes: Skip blocks with fewer than this many points.
         transform: A callable that transforms the data when retrieved from the dataset.
-        download: Whether to download the raw data.
+        download: Whether to download the raw data. Only the files missing from the raw tree are fetched, so an
+            interrupted download resumes and another split adds its scans.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
@@ -948,7 +975,7 @@ class ScanNet(PointCloudDataset):
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/,
-        and extracted it under `data/ScanNet/raw`, you can load the dataset as follows:
+        and laid it out as above under `data/ScanNet/raw`, you can load the dataset as follows:
 
         ```python
         from torch_pointcloud.datasets import ScanNet
@@ -1161,16 +1188,55 @@ class ScanNet(PointCloudDataset):
             missing = sorted(expected - {d.name for d in scene_dirs})
 
         if incomplete or missing:
+            scans_dir = self.raw_scans_dir
+            absent = [scene for scene in missing if not (scans_dir / scene / f"{scene}_vh_clean_2.ply").exists()]
+            hint = "Pass `force_process=True` to reprocess the raw data."
+            if absent:
+                hint = (
+                    f"{len(absent)} of the missing scene(s) have no mesh under {scans_dir.as_posix()!r}: "
+                    "pass `download=True` to fetch them, together with `force_process=True` to reprocess the raw data."
+                )
+
             raise RuntimeError(
                 f"Incomplete processed cache at {split_dir.as_posix()!r}: {len(missing)} missing scene(s) "
-                f"{missing[:5]}, {len(incomplete)} incomplete scene(s) {incomplete[:5]}. "
-                "Pass `force_process=True` to reprocess the raw data."
+                f"{missing[:5]}, {len(incomplete)} incomplete scene(s) {incomplete[:5]}. {hint}"
             )
 
         return True
 
+    @property
+    def raw_scans_dir(self) -> Path:
+        """Path to the raw scans of the split: `raw/<version>/scans`, or `raw/v2/scans` for the test split."""
+        version_dir = self.version if self.split in ["train", "val"] else "v2"
+        return Path(self.raw_dir, version_dir, "scans")
+
+    def raw_split_files_exist(self) -> bool:
+        """Check whether the raw tree holds the labels, the split list and the mesh of every scene of the split.
+
+        Returns:
+            True if nothing of the split is left to download, False otherwise.
+        """
+        split_file = Path(self.raw_dir, "metadata", f"scannetv2_{self.split}.txt")
+        if not self.raw_files_exist() or not split_file.exists():
+            return False
+
+        scans_dir = self.raw_scans_dir
+        scene_ids = split_file.read_text().split()
+        return all((scans_dir / scene_id / f"{scene_id}_vh_clean_2.ply").exists() for scene_id in scene_ids)
+
     def download(self, force: bool = False) -> None:
-        if self.raw_files_exist() and not force:
+        """Download the split lists, the labels and the scans that the raw tree does not hold yet.
+
+        Nothing is requested when `raw_split_files_exist`. Otherwise the remote scan list is walked and the files
+        already on disk are kept, so an interrupted download resumes and a second split adds its scans.
+
+        Args:
+            force: Download every file again, replacing the ones on disk.
+
+        Raises:
+            RuntimeError: If the terms of use are not accepted.
+        """
+        if self.raw_split_files_exist() and not force:
             return
 
         check_terms_accepted(self.accept_terms, type(self).__name__, self.terms_url)
@@ -1186,8 +1252,12 @@ class ScanNet(PointCloudDataset):
                 out_path,
                 description=f"Downloading metadata {file_name!r}",
                 show_progress=self.show_progress,
-                overwrite=True if force else "incomplete",
+                overwrite=force,
             )
+
+        # A tree downloaded by hand lacks only the split lists, which are not part of the ScanNet release.
+        if self.raw_split_files_exist() and not force:
+            return
 
         # Download associated labels and categories
         resource_path = self.label_resources[int(self.version == "v2")]
@@ -1232,18 +1302,20 @@ class ScanNet(PointCloudDataset):
                     out_path,
                     description=f"Downloading scans [{i + 1}/{len(scan_ids)}] {file_name!r}",
                     show_progress=self.show_progress,
-                    overwrite=True if force else "incomplete",
+                    overwrite=force,
                 )
 
     def write_processed_files(self, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
-        if not self.raw_files_exist():
-            raise RuntimeError(
-                f"Dataset not found at {self.root!r}. "
-                f"You can download the raw dataset from {self.data_url!r}, "
-                f"and extract it under {self.raw_dir!r}."
-            )
-
         raw_dir = Path(self.raw_dir)
+        if not self.raw_files_exist():
+            labels_path = raw_dir / self.label_resources[int(self.version == "v2")]
+            missing_path = labels_path if not labels_path.exists() else self.raw_scans_dir / "scene*"
+            raise RuntimeError(
+                f"Dataset not found at {self.root!r}: {missing_path.as_posix()!r} is missing. "
+                f"You can download the raw dataset from {self.data_url!r}, "
+                f"and extract it under {self.raw_dir!r} in the layout of the `{type(self).__name__}` docstring, "
+                "or pass `download=True`."
+            )
 
         # Create the mapping between object labels (also named "raw_category" in the CSV labels) and indices
         raw_col = "raw_category" if self.version == "v2" else "category"
@@ -1260,6 +1332,12 @@ class ScanNet(PointCloudDataset):
         is_train_val = self.split in ["train", "val"]
         scans_dir = Path(raw_dir, self.version if is_train_val else "v2", "scans")
         split_file = raw_dir / "metadata" / f"scannetv2_{self.split}.txt"
+        if not split_file.exists():
+            raise RuntimeError(
+                f"Split list not found at {split_file.as_posix()!r}. It is not part of the ScanNet release: "
+                f"pass `download=True` to fetch it, or download it from {urljoin(self.meta_url, split_file.name)!r}."
+            )
+
         with open(split_file) as f:
             scene_ids = sorted([line.strip() for line in f])
 
@@ -1319,6 +1397,11 @@ class ScanNet(PointCloudDataset):
             show_progress=show_progress,
         )
 
+        # A scene that failed keeps no directory from an earlier build, whose labels may follow other columns.
+        for scene_id, written in zip(scene_ids, results):
+            if not written:
+                shutil.rmtree(split_dir / scene_id, ignore_errors=True)
+
         return all(results)
 
     def load(
@@ -1335,7 +1418,8 @@ class ScanNet(PointCloudDataset):
         if not scene_paths:
             raise RuntimeError(
                 f"No processed scenes found under {Path(self.processed_dir, self.split).as_posix()!r}. "
-                "Pass `force_process=True` to reprocess the raw data."
+                f"Check that the scans of the {self.split!r} split are under {self.raw_scans_dir.as_posix()!r} "
+                "(pass `download=True` to fetch them), then pass `force_process=True` to reprocess the raw data."
             )
         if block_size is None or block_size <= 0:
             # Whole scenes are read in `__getitem__`, so the split costs no memory and no upfront pass.
@@ -1440,6 +1524,30 @@ class ScanNet20(ScanNet):
     `<unk>`. The processed cache lives in `processed_20/` so it never collides with the base `ScanNet`
     or `ScanNet200` caches.
 
+    The raw data is read from `<root>/ScanNet/raw`, in the layout of the ScanNet server: the test scans sit under
+    `v2/scans` next to the train and val scans, and the labels under `v2/tasks`.
+
+    ```text
+    metadata/
+        scannetv2_train.txt
+        scannetv2_val.txt
+        scannetv2_test.txt
+    v2/
+        scans/
+            scene0000_00/
+                scene0000_00.txt
+                scene0000_00.aggregation.json
+                scene0000_00_vh_clean_2.0.010000.segs.json
+                scene0000_00_vh_clean_2.ply
+            ...
+        tasks/
+            scannetv2-labels.combined.tsv
+    ```
+
+    The split lists under `metadata/` are not part of the ScanNet release: `download=True` fetches them from
+    `meta_url`. The official download script writes `scans/`, `scans_test/` and the labels file at the top of its
+    output directory, to be moved into this layout.
+
     Args:
         root: The root directory of the dataset.
         version: The version of the dataset to use.
@@ -1452,7 +1560,8 @@ class ScanNet20(ScanNet):
         num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
         min_num_nodes: Skip blocks with fewer than this many points.
         transform: A callable that transforms the data when retrieved from the dataset.
-        download: Whether to download the raw data.
+        download: Whether to download the raw data. Only the files missing from the raw tree are fetched, so an
+            interrupted download resumes and another split adds its scans.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
@@ -1462,7 +1571,7 @@ class ScanNet20(ScanNet):
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
-        and extracted it under `data/ScanNet/raw`, you can load the benchmark labels as follows:
+        and laid it out as above under `data/ScanNet/raw`, you can load the benchmark labels as follows:
 
         ```python
         from torch_pointcloud.datasets import ScanNet20
@@ -1549,6 +1658,30 @@ class ScanNet200(ScanNet):
     categories outside the 200 classes map to `<unk>`. The processed cache lives in `processed_200/` so
     it never collides with the base `ScanNet` or `ScanNet20` caches.
 
+    The raw data is read from `<root>/ScanNet/raw`, in the layout of the ScanNet server: the test scans sit under
+    `v2/scans` next to the train and val scans, and the labels under `v2/tasks`.
+
+    ```text
+    metadata/
+        scannetv2_train.txt
+        scannetv2_val.txt
+        scannetv2_test.txt
+    v2/
+        scans/
+            scene0000_00/
+                scene0000_00.txt
+                scene0000_00.aggregation.json
+                scene0000_00_vh_clean_2.0.010000.segs.json
+                scene0000_00_vh_clean_2.ply
+            ...
+        tasks/
+            scannetv2-labels.combined.tsv
+    ```
+
+    The split lists under `metadata/` are not part of the ScanNet release: `download=True` fetches them from
+    `meta_url`. The official download script writes `scans/`, `scans_test/` and the labels file at the top of its
+    output directory, to be moved into this layout.
+
     Args:
         root: The root directory of the dataset.
         version: The version of the dataset to use.
@@ -1561,7 +1694,8 @@ class ScanNet200(ScanNet):
         num_nodes: Number of points sampled per block (when `block_size` is set) or per scene.
         min_num_nodes: Skip blocks with fewer than this many points.
         transform: A callable that transforms the data when retrieved from the dataset.
-        download: Whether to download the raw data.
+        download: Whether to download the raw data. Only the files missing from the raw tree are fetched, so an
+            interrupted download resumes and another split adds its scans.
         force_download: Whether to force the download of the raw data.
         force_process: Whether to force the processing of the raw data.
         show_progress: Whether to show a progress bar during processing.
@@ -1571,7 +1705,7 @@ class ScanNet200(ScanNet):
 
     Example:
         Assuming you have downloaded the raw dataset from https://kaldir.vc.in.tum.de/scannet/
-        and extracted it under `data/ScanNet/raw`, you can load the benchmark labels as follows:
+        and laid it out as above under `data/ScanNet/raw`, you can load the benchmark labels as follows:
 
         ```python
         from torch_pointcloud.datasets import ScanNet200
