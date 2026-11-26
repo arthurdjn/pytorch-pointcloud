@@ -268,7 +268,7 @@ def cut_boxes(
         from torch_pointcloud.datasets import KITTI
 
         objects = []
-        for data in KITTI(root="data"):
+        for data in KITTI(root="data", split="train"):
             objects.extend(F.cut_boxes(data, keys=["pos", "intensity"]))
         objects = [obj for obj in objects if len(obj["pos"]) >= 5]
         torch.save(objects, "objects.pt")

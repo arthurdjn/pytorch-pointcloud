@@ -668,10 +668,10 @@ def test_s3dis_stamp_without_format_version_is_version_one(datasets_dir_factory:
     assert len(legacy) == len(dataset)
 
 
-def test_s3dis_interrupted_rebuild_leaves_no_stamp(
+def test_s3dis_interrupted_rebuild_leaves_incomplete_stamp(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The stamp is removed before the cache is rewritten, so a failed forced rebuild is never served as complete."""
+    """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("S3DIS/**/*")
     dataset = S3DIS(
         root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
@@ -686,13 +686,13 @@ def test_s3dis_interrupted_rebuild_leaves_no_stamp(
         S3DIS(
             root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
         )
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
-def test_s3dis_incomplete_cache_is_not_stamped(
+def test_s3dis_incomplete_cache_is_stamped_incomplete(
     datasets_dir_factory: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`write_processed_files` returning False leaves the cache unstamped."""
+    """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("S3DIS/**/*")
     dataset = S3DIS(
         root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True
@@ -704,7 +704,7 @@ def test_s3dis_incomplete_cache_is_not_stamped(
 
     monkeypatch.setattr(S3DIS, "write_processed_files", incomplete)
     S3DIS(root=datasets_dir, areas=("Area_5",), aligned=True, download=False, show_progress=False, force_process=True)
-    assert not meta_path.exists()
+    assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
 def test_load_s3dis_room_skips_duplicated_annotation_file(datasets_dir: Path) -> None:

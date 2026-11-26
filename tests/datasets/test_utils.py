@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import subprocess
 import sys
@@ -21,15 +22,18 @@ import pytest
 
 from torch_pointcloud.datasets.utils import (
     atomic_path,
+    check_cache_meta,
     check_terms_accepted,
     compute_hash,
     download_url,
     extract_tar,
     extract_zip,
+    is_cache_incomplete,
     is_hash_valid,
     remove_stale_temporaries,
     urlsize,
     urltailname,
+    write_cache_meta,
 )
 
 
@@ -604,3 +608,33 @@ def test_check_terms_accepted_without_terminal_raises(monkeypatch: pytest.Monkey
     monkeypatch.setattr("builtins.input", Mock(side_effect=error))
     with pytest.raises(RuntimeError, match="accept_terms=True"):
         check_terms_accepted(False, "ScanObjectNN", "https://example.org/terms")
+
+
+def test_write_cache_meta_stamps_a_complete_cache_by_default(tmp_path: Path) -> None:
+    meta_path = tmp_path / "meta.json"
+    write_cache_meta(meta_path, {"format_version": 1})
+    assert json.loads(meta_path.read_text()) == {"format_version": 1}
+    assert not is_cache_incomplete(meta_path)
+
+
+def test_write_cache_meta_marks_an_incomplete_cache(tmp_path: Path) -> None:
+    meta_path = tmp_path / "meta.json"
+    write_cache_meta(meta_path, {"format_version": 1}, complete=False)
+    assert json.loads(meta_path.read_text()) == {"format_version": 1, "complete": False}
+    assert is_cache_incomplete(meta_path)
+
+
+def test_is_cache_incomplete_is_false_without_a_stamp(tmp_path: Path) -> None:
+    assert not is_cache_incomplete(tmp_path / "meta.json")
+
+
+def test_check_cache_meta_compares_the_parameters_of_an_incomplete_stamp(tmp_path: Path) -> None:
+    meta_path = tmp_path / "meta.json"
+    write_cache_meta(meta_path, {"format_version": 1, "classes": ["chair"]}, complete=False)
+    check_cache_meta(meta_path, {"format_version": 1, "classes": ["chair"]})
+    with pytest.raises(RuntimeError, match="force_process=True"):
+        check_cache_meta(meta_path, {"format_version": 1, "classes": ["table"]})
+
+
+def test_check_cache_meta_accepts_a_missing_stamp(tmp_path: Path) -> None:
+    check_cache_meta(tmp_path / "meta.json", {"format_version": 1})

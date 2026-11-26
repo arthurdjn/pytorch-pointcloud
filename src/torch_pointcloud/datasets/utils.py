@@ -408,7 +408,8 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
 
     Compares the JSON metadata stored next to a processed cache with the metadata the current
     constructor parameters would produce, and raises a `RuntimeError` on mismatch so a stale cache
-    is never silently served. A missing metadata file (legacy cache) is accepted as-is.
+    is never silently served. A missing metadata file (legacy cache) is accepted as-is. The `complete`
+    marker of an incomplete cache is not a parameter and is left out of the comparison.
 
     Args:
         meta_path: Path to the cache `meta.json` file.
@@ -425,6 +426,7 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
         return
 
     cached_meta = {"format_version": 1, **json.loads(meta_path.read_text())}
+    cached_meta.pop("complete", None)
     if cached_meta != meta:
         raise RuntimeError(
             f"Processed cache at {meta_path.parent.as_posix()!r} was created with different parameters "
@@ -432,7 +434,7 @@ def check_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
         )
 
 
-def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
+def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any], complete: bool = True) -> None:
     """Stamp a processed cache with the parameters it was built with.
 
     The file is written through a temporary path and renamed, so it marks the cache complete only once every
@@ -441,6 +443,8 @@ def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
     Args:
         meta_path: Path to the cache `meta.json` file.
         meta: The metadata of the parameters the cache was built with.
+        complete: Whether the cache holds everything `meta` describes. False adds `"complete": false` to the stamp,
+            for a cache that is being built or that skipped some of its samples.
 
     Examples:
         ```pycon
@@ -448,8 +452,36 @@ def write_cache_meta(meta_path: PathLike, meta: Dict[str, Any]) -> None:
 
         ```
     """
+    if not complete:
+        meta = {**meta, "complete": False}
+
     with atomic_path(meta_path) as tmp_path:
         tmp_path.write_text(json.dumps(meta))
+
+
+def is_cache_incomplete(meta_path: PathLike) -> bool:
+    """Whether a processed cache is stamped as incomplete.
+
+    Args:
+        meta_path: Path to the cache `meta.json` file.
+
+    Returns:
+        True if the stamp exists and holds `"complete": false`. A cache without a stamp (legacy cache) is not
+        reported as incomplete.
+
+    Examples:
+        ```pycon
+        >>> is_cache_incomplete("data/ModelNet10/processed/train.meta.json")  # doctest: +SKIP
+        False
+
+        ```
+    """
+    meta_path = Path(meta_path)
+    if not meta_path.exists():
+        return False
+
+    cached_meta: Dict[str, Any] = json.loads(meta_path.read_text())
+    return cached_meta.get("complete", True) is False
 
 
 # Adapted from https://github.com/Project-MONAI/MONAI/blob/df1ba5d1e6aa9a0a1744b7ae3ff37ca114cec7bb/monai/apps/utils.py
