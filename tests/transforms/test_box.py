@@ -470,6 +470,14 @@ def test_paste_boxes_missing_required_key_raises(missing_key: str, allow_missing
         transform(scene)
 
 
+def test_paste_boxes_missing_pos_raises_when_nothing_is_pasted() -> None:
+    scene = _scene_with_boxes()
+    del scene[DataKeys.POS]
+    transform = T.PasteBoxes([_object_on_free_ground()], num_samples={0: 0}, allow_missing_keys=True)
+    with pytest.raises(KeyError, match=f"'{DataKeys.POS}'"):
+        transform(scene)
+
+
 def test_flip_boxes_vertical_axis_keeps_velocity() -> None:
     boxes = torch.arange(1.0, 19.0).reshape(2, 9)
     flipped = F.flip_boxes(boxes, axis=2)

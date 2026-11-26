@@ -80,8 +80,8 @@ tp.list_models(task="detection", pretrained=True)  # all detection checkpoints
 ```
 
 To run the transform on your own data, wrap it in
-`tp.transforms.Compose([info["transform"]], allow_missing_keys=True)`, which skips the steps on keys your cloud lacks,
-or drop its label steps.
+`tp.transforms.Compose([info["transform"]], allow_missing_keys=True)`, which skips the optional keys your cloud lacks;
+drop the steps that need a key it lacks (labels, faces, masks).
 
 ## Why torch-pointcloud?
 

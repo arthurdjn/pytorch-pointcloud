@@ -129,8 +129,8 @@ class Compose(Transform, Randomizable):
         transforms: The transforms to apply, in order.
         allow_missing_keys: When set, the pipeline runs shallow copies of its `DictTransform` children with this
             value, recursively through nested `Compose` objects, overriding what each child was built with
-            (assigning the attribute later does the same). The transforms passed in are left as built. `None` runs
-            the children as given.
+            (assigning the attribute later does the same). The transforms passed in are left as built. `None` keeps
+            the current children.
 
     Example:
         For example, to chain a random sample and a normalization transform,
@@ -222,7 +222,7 @@ class RandomApply(Compose):
         p: Probability of applying the transforms.
         seed: Seed of the gate's random stream, which also seeds the transforms; `None` draws from the global
             generator (see `Randomizable`).
-        allow_missing_keys: Forwarded to the transforms, as `Compose` does.
+        allow_missing_keys: Applied to copies of the transforms, as `Compose` does.
 
     Example:
         ```python
@@ -268,12 +268,12 @@ class DictTransform(Transform, metaclass=ABCMeta):
         `allow_missing_keys` covers the keys a transform can do without: `self.keys`, iterated by `iter_keys`, and
         its optional inputs (e.g. `vector_keys` in `RandomRotate`, `box_key` in `RandomFlip`, `feature_key` in
         `HardVoxelize`). With `True`, an absent key is skipped; with `False`, it raises a `KeyError`. A key the
-        transform cannot run without (`pos_key` in `Voxelize`, `mask_key` in `MaskedFill`) raises whatever the
+        transform cannot run without (`pos_key` in `HardVoxelize`, `mask_key` in `MaskedFill`) raises whatever the
         flag.
 
     Args:
         keys: The keys to apply the transform to.
-        allow_missing_keys: If `True`, the transform does not raise when a key it reads is missing from the
+        allow_missing_keys: If `True`, the transform does not raise when an optional key is missing from the
             input dict.
 
     """

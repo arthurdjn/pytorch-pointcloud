@@ -289,7 +289,7 @@ class RandomScale(DictTransform, Randomizable):
         box_key = self.box_key
         if box_key not in data and self.allow_missing_keys:
             box_key = None
-        first_key = next(self.iter_keys(data), None)
+        first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and box_key is None:
             return data
 
@@ -426,7 +426,7 @@ class RandomFlip(DictTransform, Randomizable):
         box_key = self.box_key
         if box_key not in data and self.allow_missing_keys:
             box_key = None
-        if next(self.iter_keys(data), None) is None and box_key is None:
+        if next(iter(self.iter_keys(data)), None) is None and box_key is None:
             return data
 
         flipped = [axis for axis in self.axes if torch.rand(1, generator=self.R).item() < self.p]
@@ -619,7 +619,7 @@ class RandomTranslate(DictTransform, Randomizable):
         box_key = self.box_key
         if box_key not in data and self.allow_missing_keys:
             box_key = None
-        first_key = next(self.iter_keys(data), None)
+        first_key = next(iter(self.iter_keys(data)), None)
         if first_key is None and box_key is None:
             return data
 
