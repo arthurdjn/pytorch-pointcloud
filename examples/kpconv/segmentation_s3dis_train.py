@@ -71,7 +71,7 @@ def main() -> None:
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
-            val = evaluate(model, val_loader, args.device)
+            val = evaluate(model, val_loader, args.device, seed=args.seed)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["mIoU"] > best_miou:
                 best_miou = val["mIoU"]
@@ -146,7 +146,7 @@ def configure_train_transform(args: Namespace) -> T.Transform:
 
 
 def configure_val_transform(args: Namespace) -> T.Transform:
-    # The validation spheres are drawn from a fixed seed, so every validation scores the same spheres.
+    # `evaluate` restarts the random draws from `--seed`, so every validation scores the same spheres.
     return T.Compose(
         [
             T.KeepItems(keys=POINT_KEYS),
@@ -166,7 +166,6 @@ def configure_val_transform(args: Namespace) -> T.Transform:
                 keys=[DataKeys.COLOR, DataKeys.SEGMENT, "height"],
                 center="random_point",
                 dst_center_key="center",
-                seed=0,
             ),
             T.SubtractItems(keys=DataKeys.POS, sub_keys="center"),
             *FEATURE_TRANSFORMS,
@@ -270,7 +269,9 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
+@torch.random.fork_rng()
+def evaluate(model: nn.Module, loader: DataLoader, device: str, seed: int) -> dict[str, float]:
+    torch.manual_seed(seed)
     model.eval()
     confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):

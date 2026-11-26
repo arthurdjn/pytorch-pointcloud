@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed the PointNet, PointNet++, PVCNN, KPConv and RandLA-Net training scripts validating on new random points, blocks and spheres at every epoch.
 - Fixed `download_url` keeping a download cut before its announced `Content-Length` as a complete file: it raises `ContentTooShortError` and writes nothing.
 - Fixed `create_model(pretrained=True)` failing on an unreadable cached weight file without naming it: the error names the file to delete.
 - Fixed `KPConv` and `create_kernel_points` failing when the cache directory is read-only: they warn and optimize the kernel points again.
