@@ -6,6 +6,7 @@ The output mirrors the real KITTI object layout under `raw/`:
     raw/training/calib/{frame}.txt      # P0-P3, R0_rect, Tr_velo_to_cam, Tr_imu_to_velo
     raw/training/label_2/{frame}.txt    # type trunc occ alpha bbox(4) dims(h,w,l) loc(x,y,z) ry
     raw/training/image_2/{frame}.png    # blank PNG carrying the frame's (height, width) header
+    raw/ImageSets/{train,val}.txt       # frame ids of the train / val split, one per line
 
 No file of the real release is read. The calibration is a seeded near-identity rig, the annotations are
 written by this script, and every sweep is cast from a seeded generator (one ray per (beam, azimuth) pair
@@ -119,6 +120,11 @@ def generate(args: Namespace) -> None:
         pos += rng.normal(0.0, 0.02, size=pos.shape)
         scan = np.concatenate([pos, rng.uniform(0.0, 1.0, size=(len(pos), 1))], axis=1)
         scan.astype(np.float32).tofile(dst_split / "velodyne" / f"{frame}.bin")
+
+    image_sets = Path(args.dst_dir) / "raw" / "ImageSets"
+    image_sets.mkdir(parents=True, exist_ok=True)
+    (image_sets / "train.txt").write_text("000001\n000002\n")
+    (image_sets / "val.txt").write_text("000000\n")
 
     print(f"generated {len(frames)} frames ({args.num_points} pts each) into {dst_split}: {list(frames)}")
 

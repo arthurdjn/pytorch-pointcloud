@@ -1,4 +1,4 @@
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -20,6 +20,8 @@ from torch_pointcloud.utils.conversion import (
     cu_seqlens_to_batch,
     cu_seqlens_to_bincount,
     cu_seqlens_to_offset,
+    ensure_option,
+    ensure_options,
     ensure_tuple,
     offset_to_batch,
     offset_to_bincount,
@@ -151,6 +153,39 @@ def test_ensure_tuple_custom_type() -> None:
     result = ensure_tuple(value)
     assert result == (value,)
     assert result == (value,)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        pytest.param(("one", "two"), id="iterable"),
+        pytest.param(Literal["one", "two"], id="literal"),
+    ],
+)
+def test_ensure_option_returns_a_valid_value(options: Any) -> None:
+    assert ensure_option("two", options) == "two"
+
+
+def test_ensure_option_names_the_invalid_value() -> None:
+    with pytest.raises(ValueError, match="Invalid class: 'three'. Valid options are: 'one', 'two'."):
+        ensure_option("three", ("one", "two"), name="class")
+
+
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        pytest.param(["two", "one"], ("two", "one"), id="list"),
+        pytest.param("one", ("one",), id="single-value"),
+        pytest.param([], (), id="empty"),
+    ],
+)
+def test_ensure_options_returns_the_values_as_a_tuple(values: Any, expected: Tuple[str, ...]) -> None:
+    assert ensure_options(values, ("one", "two")) == expected
+
+
+def test_ensure_options_names_the_first_invalid_value() -> None:
+    with pytest.raises(ValueError, match="Invalid class: 'Two'"):
+        ensure_options(["one", "Two", "Three"], ("one", "two"), name="class")
 
 
 def test_offset_conversions(
