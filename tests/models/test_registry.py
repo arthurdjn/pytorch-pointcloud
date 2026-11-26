@@ -844,6 +844,25 @@ def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeyp
     assert not (tmp_path / "dummy-offline" / "main" / "model.pt").exists()
 
 
+def test_create_model_pretrained_unreadable_cached_weights_name_the_file(_register_pretrained_dummy: Path) -> None:
+    content = _register_pretrained_dummy.read_bytes()
+    _register_pretrained_dummy.write_bytes(content[: len(content) // 3])
+
+    with pytest.raises(RuntimeError, match="delete it and create the model again") as exc_info:
+        create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+    assert _register_pretrained_dummy.as_posix() in str(exc_info.value)
+    assert exc_info.value.__cause__ is not None
+    assert _register_pretrained_dummy.read_bytes() == content[: len(content) // 3]
+
+
+def test_create_model_pretrained_cached_file_not_a_state_dict_raises(_register_pretrained_dummy: Path) -> None:
+    torch.save(torch.zeros(3), _register_pretrained_dummy)
+
+    with pytest.raises(ValueError, match="is not a state dict"):
+        create_model("dummy-pretrained.classification", task="classification", pretrained=True)
+
+
 def test_create_model_pretrained_gated_download_names_the_token(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
