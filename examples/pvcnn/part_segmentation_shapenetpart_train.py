@@ -46,11 +46,11 @@ TRAIN_TRANSFORM = T.Compose(
     ]
 )
 
-# The validation points are drawn from a fixed seed, so every validation scores the same points.
+# `evaluate` restarts the random draws from `--seed`, so every validation scores the same points.
 VAL_TRANSFORM = T.Compose(
     [
         T.Rescale(keys=DataKeys.POS, method="centroid"),
-        T.RandomSample(keys=POINT_KEYS, num_samples=NUM_POINTS, replace=True, seed=0),
+        T.RandomSample(keys=POINT_KEYS, num_samples=NUM_POINTS, replace=True),
         T.Cat(keys=[DataKeys.POS, DataKeys.NORMAL], dst_key=DataKeys.X),
         T.OneHot(keys=DataKeys.CATEGORY, num_classes=NUM_CATEGORIES),
     ]
@@ -79,7 +79,7 @@ def main() -> None:
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
-            val = evaluate(model, val_loader, args.device)
+            val = evaluate(model, val_loader, args.device, seed=args.seed)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["ins_mIoU"] > best_miou:
                 best_miou = val["ins_mIoU"]
@@ -189,8 +189,10 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
+@torch.random.fork_rng()
+def evaluate(model: nn.Module, loader: DataLoader, device: str, seed: int) -> dict[str, float]:
     """Instance and class mIoU, each shape predicted among the parts of its own category as the reference does."""
+    torch.manual_seed(seed)
     model.eval()
     part_ids = list(ShapeNetPart.seg_ids.values())
     ious: List[Tensor] = []

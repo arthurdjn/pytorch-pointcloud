@@ -8,7 +8,7 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import pytest
 import torch
@@ -1341,6 +1341,18 @@ def test_kitti_scripts_raise_without_the_split_files(
         getattr(module, configure)(args)
 
 
+class RecordPositions(nn.Module):
+    """Records the positions of every batch it scores and predicts the first class for each point."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.positions: List[Tensor] = []
+
+    def forward(self, x: Optional[Tensor], pos: Tensor, *args: Tensor) -> Tensor:
+        self.positions.append(pos.clone())
+        return torch.zeros(pos.shape[0], 50)
+
+
 class FirstInput(nn.Module):
     """Returns its first input, so a batch carries the logits a script scores."""
 
@@ -1409,6 +1421,74 @@ def test_training_scripts_save_best_checkpoint_on_a_validation_score() -> None:
         ]
         assert all("val[" in condition for condition in conditions), (path.name, conditions)
         assert "best.pt" not in path.read_text() or conditions, path.name
+
+
+@pytest.mark.parametrize(
+    "num_workers",
+    [
+        pytest.param(0, id="main-process"),
+        pytest.param(2, id="two-workers"),
+    ],
+)
+@pytest.mark.parametrize(
+    "script, args",
+    [
+        pytest.param("pointnet/segmentation_s3dis_train.py", ("--batch-size", "2"), id="pointnet/s3dis"),
+        pytest.param("pointnet2/segmentation_s3dis_train.py", ("--batch-size", "2"), id="pointnet2/s3dis"),
+        pytest.param(
+            "kpconv/segmentation_s3dis_train.py",
+            ("--batch-size", "2"),
+            marks=_CLUSTER,
+            id="kpconv/s3dis",
+        ),
+        pytest.param(
+            "pvcnn/segmentation_s3dis_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pvcnn/s3dis",
+        ),
+        pytest.param(
+            "pvcnn/part_segmentation_shapenetpart_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pvcnn/shapenetpart",
+        ),
+        pytest.param(
+            "pointnet2/part_segmentation_shapenetpart_train.py",
+            ("--batch-size", "2", "--val-batch-size", "2"),
+            id="pointnet2/shapenetpart",
+        ),
+        pytest.param(
+            "randlanet/segmentation_semantickitti_train.py",
+            ("--train-sequences", "00", "--val-sequences", "08", "--batch-size", "2", "--val-batch-size", "2"),
+            marks=_CLUSTER,
+            id="randlanet/semantickitti",
+        ),
+    ],
+)
+def test_training_script_scores_the_same_validation_samples_at_every_pass(
+    script: str,
+    args: Tuple[str, ...],
+    num_workers: int,
+    examples_datasets_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _import(script)
+    root = ("--root", str(examples_datasets_dir), "--num-workers", str(num_workers), "--device", "cpu")
+    recipe = ("--limit-train-batches", "2", "--limit-val-batches", "2")
+    monkeypatch.setattr(sys, "argv", [script, *root, *recipe, *args])
+    _, val_loader = module.configure_dataloaders(module.parse_args())
+    model = RecordPositions()
+
+    torch.manual_seed(0)
+    expected = torch.rand(4)
+    torch.manual_seed(0)
+    module.evaluate(model, val_loader, "cpu", seed=0)
+    first, model.positions = model.positions, []
+    module.evaluate(model, val_loader, "cpu", seed=0)
+
+    assert len(first) > 0
+    assert len(model.positions) == len(first)
+    assert all(torch.equal(a, b) for a, b in zip(first, model.positions))
+    assert torch.equal(torch.rand(4), expected)
 
 
 @pytest.mark.parametrize(
