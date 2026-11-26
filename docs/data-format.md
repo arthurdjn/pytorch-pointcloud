@@ -79,6 +79,8 @@ data["box"].shape, data["batch_box"].shape  # (K, 7), (K,)
 `PointCloudDataLoader` is a `DataLoader` with this `collate` as `collate_fn`. Datasets do not set these arguments:
 a transform may add keys, so the caller does.
 
+`decollate` splits a batch back into one sample per scene, given the same `stack_keys` and `cat_keys`.
+
 ## Sampling keys
 
 A transform that changes the number of points can record how to get back to the input cloud:

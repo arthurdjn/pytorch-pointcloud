@@ -1,4 +1,4 @@
-"""Shared inferer helpers: dict indexing, per-fragment transforms, chunk splitting, and Gaussian distance weighting."""
+"""Shared inferer helpers: dict indexing, per-fragment transforms, chunk splitting and Gaussian weighting."""
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
