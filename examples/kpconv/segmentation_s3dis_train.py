@@ -213,7 +213,6 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     val_loader = PointCloudDataLoader(
         val_dataset,
         batch_size=args.batch_size,
-        shuffle=False,
         num_workers=args.num_workers,
     )
 

@@ -2,10 +2,10 @@
 
 from typing import Any
 
-import torch
+import numpy as np
 from torch.utils.data import Dataset
 
-from torch_pointcloud.utils.data import _random_objects
+from torch_pointcloud.utils.data import set_random_states
 
 
 class SeededDataset(Dataset):
@@ -17,13 +17,13 @@ class SeededDataset(Dataset):
     validation split is scored on the same crops and points at every epoch.
 
     The random objects are the ones `torch_pointcloud.utils.data.set_random_states` re-seeds (seeded transforms, a
-    seeded `MixDataset`), looked up once at construction. Those drawing from the global generator (`seed=None`) keep
-    doing so. An index read twice gets the same draws twice: to draw a sample several times per epoch, list its index
-    once per draw in a `torch.utils.data.Subset` and wrap the subset.
+    seeded `MixDataset`), re-seeded in place before every read: do not share them with another dataset. Those drawing
+    from the global generator (`seed=None`) keep doing so. An index read twice gets the same draws twice: to draw a
+    sample several times per epoch, list its index once per draw in a `torch.utils.data.Subset` and wrap the subset.
 
     Args:
         dataset: The dataset to read from, with seeded random transforms.
-        seed: Seed of the draws; sample `index` draws from `seed + index`.
+        seed: Seed of the draws, combined with the index of the sample being read.
 
     Raises:
         ValueError: If `dataset` holds no seeded random object.
@@ -31,31 +31,38 @@ class SeededDataset(Dataset):
     Example:
         ```python
         import torch
+        from torch.utils.data import Dataset
 
         import torch_pointcloud.transforms as T
-        from torch_pointcloud.datasets import SeededDataset, ShapeNetPart
+        from torch_pointcloud.datasets import SeededDataset
 
-        transform = T.RandomSample(keys=["pos", "segment"], num_samples=1024, replace=True, seed=0)
-        dataset = SeededDataset(ShapeNetPart(root="data", split="test", transform=transform))
+        class Clouds(Dataset):
+            def __init__(self) -> None:
+                self.transform = T.RandomSample(keys="pos", num_samples=16, seed=0)
+
+            def __len__(self) -> int:
+                return 4
+
+            def __getitem__(self, index: int) -> dict:
+                return self.transform({"pos": torch.arange(64 * 3.0).reshape(64, 3)})
+
+        dataset = SeededDataset(Clouds())
         assert torch.equal(dataset[0]["pos"], dataset[0]["pos"])
         ```
     """
 
     def __init__(self, dataset: Dataset, seed: int = 0) -> None:
-        random_objects = [item for item in _random_objects(dataset) if getattr(item, "R", None) is not None]
-        if not random_objects:
+        if set_random_states(dataset, seed=seed) == seed:
             raise ValueError("`dataset` holds no seeded random object: pass a `seed` to its random transforms.")
 
         self.dataset = dataset
         self.seed = seed
-        self.random_objects = random_objects
 
     def __len__(self) -> int:
         return len(self.dataset)  # type: ignore[arg-type]
 
     def __getitem__(self, index: int) -> Any:
-        generator = torch.Generator().manual_seed(self.seed + index)
-        seeds = torch.randint(2**62, (len(self.random_objects),), generator=generator)
-        for item, seed in zip(self.random_objects, seeds.tolist()):
-            item.set_random_state(seed=seed)
+        index = range(len(self))[index]
+        sample_seed = np.random.SeedSequence([self.seed, index]).generate_state(1, dtype=np.uint64)[0]
+        set_random_states(self.dataset, seed=int(sample_seed))
         return self.dataset[index]

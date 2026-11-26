@@ -106,6 +106,17 @@ def test_seeded_dataset_without_a_seeded_random_object_raises() -> None:
         SeededDataset(DummySegmentationDataset(transform))
 
 
+def test_seeded_dataset_seeds_do_not_overlap_between_neighbor_indices() -> None:
+    dataset = SeededDataset(DummySegmentationDataset(_seeded_transform()), seed=0)
+    shifted = SeededDataset(DummySegmentationDataset(_seeded_transform()), seed=1)
+    assert dataset[1][DataKeys.SEGMENT].tolist() != shifted[0][DataKeys.SEGMENT].tolist()
+
+
+def test_seeded_dataset_negative_index_draws_as_its_positive_index() -> None:
+    dataset = SeededDataset(DummySegmentationDataset(_seeded_transform()))
+    assert torch.equal(dataset[-1][DataKeys.POS], dataset[5][DataKeys.POS])
+
+
 def test_seeded_dataset_len_and_index_errors_follow_the_dataset() -> None:
     dataset = SeededDataset(DummySegmentationDataset(_seeded_transform()))
     assert len(dataset) == 6

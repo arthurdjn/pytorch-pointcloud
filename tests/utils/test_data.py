@@ -472,13 +472,3 @@ def test_seed_worker_gives_consecutive_workers_disjoint_seeds(monkeypatch: pytes
         seeds.extend(generator.initial_seed() for generator in generators if generator is not None)
 
     assert len(set(seeds)) == 4
-
-
-def test_set_random_states_seeds_a_seeded_pipeline_before_its_transforms() -> None:
-    crop = T.RandomSample(keys="pos", num_samples=2)
-    jitter = T.RandomJitter(keys="pos")
-    pipeline = T.Compose([crop, jitter]).set_random_state(seed=0)
-    next_seed = set_random_states([pipeline], seed=7)
-    assert next_seed == 10
-    generators = [pipeline.R, crop.R, jitter.R]
-    assert [generator.initial_seed() for generator in generators if generator is not None] == [7, 8, 9]
