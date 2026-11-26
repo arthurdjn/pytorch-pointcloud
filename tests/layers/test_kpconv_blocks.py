@@ -171,3 +171,16 @@ def test_create_kernel_points_gradient(tmp_path: Path, monkeypatch: pytest.Monke
     kernel_points = create_kernel_points(radius=0.05, num_points=7, method="gradient")
     assert kernel_points.shape == (7, 3)
     assert float(kernel_points.norm(dim=-1).max()) < 0.1
+
+
+def test_create_kernel_points_with_a_read_only_cache_warns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(mode=0o555)
+    monkeypatch.setattr("torch_pointcloud.layers.kpconv_blocks.CACHE_DIR", cache_dir)
+
+    with pytest.warns(UserWarning, match="Could not cache the kernel points"):
+        kernel_points = create_kernel_points(radius=0.1, num_points=15)
+
+    assert kernel_points.shape == (15, 3)
+    assert float(kernel_points.norm(dim=-1).max()) < 0.2
+    assert not list(cache_dir.iterdir())
