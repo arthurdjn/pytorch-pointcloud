@@ -809,10 +809,13 @@ def create_model(
             local_path = resolve_weights(name, url)
             try:
                 file_state_dict = read_state_dict(local_path)
+            except ValueError:
+                raise
             except Exception as err:
                 raise RuntimeError(
                     f"Could not read the weights of {name!r} cached at {local_path.as_posix()} "
-                    f"({type(err).__name__}: {err}). If the file is corrupt or incomplete, delete it to download it again."
+                    f"({type(err).__name__}: {err}). If the file is corrupt or incomplete, delete it and create the "
+                    "model again."
                 ) from err
             duplicates = sorted(key for key in file_state_dict if key in state_dict)
             if duplicates:

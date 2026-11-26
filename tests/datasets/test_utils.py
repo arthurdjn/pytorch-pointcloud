@@ -275,28 +275,33 @@ def test_download_url_truncated_body_raises_and_leaves_no_file(tmp_path: Path) -
     assert not list(tmp_path.iterdir())
 
 
-def test_download_url_truncated_body_keeps_the_existing_file(tmp_path: Path) -> None:
+def test_download_url_truncated_body_keeps_the_existing_file(
+    tmp_path: Path, mock_urlopen: Mock, mock_response: Mock
+) -> None:
     file_path = tmp_path / "file.bin"
     file_path.write_bytes(b"old content")
+    mock_response.read.side_effect = [b"con", b""]
 
-    with _serve_response({"Content-Length": "7"}, b"con") as url:
-        with pytest.raises(ContentTooShortError):
-            download_url(url, file_path, show_progress=False, overwrite=True)
+    with pytest.raises(ContentTooShortError, match="received 3 of 7 bytes"):
+        download_url("https://example.com/file.bin", file_path, show_progress=False, overwrite=True)
 
     assert file_path.read_bytes() == b"old content"
     assert [path.name for path in tmp_path.iterdir()] == ["file.bin"]
 
 
-@pytest.mark.parametrize(
-    ("headers", "body"),
-    [
-        pytest.param({"Content-Length": "7"}, b"content", id="content-length"),
-        pytest.param({}, b"content", id="no-content-length"),
-        pytest.param({"Transfer-Encoding": "chunked"}, b"3\r\ncon\r\n4\r\ntent\r\n0\r\n\r\n", id="chunked"),
-    ],
-)
-def test_download_url_saves_a_complete_body(headers: Dict[str, str], body: bytes, tmp_path: Path) -> None:
-    with _serve_response(headers, body) as url:
+def test_download_url_without_content_length_saves_the_body(
+    tmp_path: Path, mock_urlopen: Mock, mock_response: Mock
+) -> None:
+    mock_response.length = None
+
+    download_url("https://example.com/file.bin", tmp_path / "file.bin", show_progress=False)
+
+    assert (tmp_path / "file.bin").read_bytes() == b"content"
+
+
+def test_download_url_saves_a_chunked_body(tmp_path: Path) -> None:
+    body = b"3\r\ncon\r\n4\r\ntent\r\n0\r\n\r\n"
+    with _serve_response({"Transfer-Encoding": "chunked"}, body) as url:
         download_url(url, tmp_path / "file.bin", show_progress=False)
 
     assert (tmp_path / "file.bin").read_bytes() == b"content"

@@ -1,8 +1,6 @@
 """Kernel point convolution, its kernel point placement, and the normalized and residual blocks built on it."""
 
 import math
-import os
-import tempfile
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
@@ -15,6 +13,7 @@ from torch_geometric.typing import Adj, PairTensor
 from torch_geometric.utils import scatter
 
 from torch_pointcloud.config import CACHE_DIR
+from torch_pointcloud.datasets.utils import atomic_path
 from torch_pointcloud.layers.act import create_act
 from torch_pointcloud.layers.norms import create_norm
 from torch_pointcloud.ops.cluster import dense_neighbors, gather_neighbors
@@ -31,7 +30,7 @@ def create_kernel_points(
     r"""Builds the kernel point positions of a KPConv kernel, randomly rotated and jittered.
 
     Positions are optimized on the unit sphere, cached under `CACHE_DIR` and reused across calls. When the cache
-    directory cannot be written, they are optimized again on every call.
+    directory cannot be written, a warning is raised and they are optimized again on every call.
 
     Args:
         radius: Radius of the sphere the kernel points are scaled to.
@@ -65,13 +64,14 @@ def create_kernel_points(
 
         try:
             kernel_path.parent.mkdir(parents=True, exist_ok=True)
-            # A concurrent process must never load a partially written file: write aside, then rename atomically.
-            with tempfile.NamedTemporaryFile(dir=kernel_path.parent, suffix=".tmp", delete=False) as tmp_file:
-                torch.save(kernel_points, tmp_file)
-            os.replace(tmp_file.name, kernel_path)
-        except OSError:
-            # The cache only saves the optimization of later calls: a read-only cache directory is not an error.
-            pass
+            with atomic_path(kernel_path) as tmp_path:
+                torch.save(kernel_points, tmp_path)
+        except OSError as err:
+            warnings.warn(
+                f"Could not cache the kernel points in {kernel_path.parent.as_posix()!r} ({err}): they are optimized "
+                "again on every call.",
+                stacklevel=2,
+            )
 
     # Random rotations for the kernel
     R = torch.eye(3)

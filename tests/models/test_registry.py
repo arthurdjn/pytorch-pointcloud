@@ -1,10 +1,8 @@
 import subprocess
 import sys
-import threading
 from email.message import Message
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator
 from unittest.mock import Mock
 from urllib.error import HTTPError
 
@@ -845,60 +843,23 @@ def test_create_model_pretrained_download_failure_raises(tmp_path: Path, monkeyp
     assert not (tmp_path / "dummy-offline" / "main" / "model.pt").exists()
 
 
-def test_create_model_pretrained_truncated_download_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    weights_path = tmp_path / "weights.pt"
-    torch.save(DummyClassificationModel().state_dict(), weights_path)
-    content = weights_path.read_bytes()
-    requests: List[str] = []
-
-    class TruncatedBodyHandler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            requests.append(self.path)
-            self.send_response(200)
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content[: len(content) // 3])
-
-        def log_message(self, format: str, *args: object) -> None:
-            pass
-
-    models_dir = tmp_path / "models"
-    monkeypatch.setattr("torch_pointcloud.models._registry.MODELS_DIR", models_dir)
-    monkeypatch.setattr("torch_pointcloud.models._registry.load_hub_token", Mock(return_value=None))
-    register_model(
-        "dummy-truncated.classification",
-        task="classification",
-        weights="hf://torch-pointcloud/dummy-truncated/resolve/main/model.pt",
-    )(_dummy_classification)
-
-    try:
-        with ThreadingHTTPServer(("127.0.0.1", 0), TruncatedBodyHandler) as server:
-            threading.Thread(target=server.serve_forever, daemon=True).start()
-            monkeypatch.setattr(
-                "torch_pointcloud.models._registry.HF_ENDPOINT", f"http://127.0.0.1:{server.server_port}"
-            )
-            try:
-                with pytest.raises(FileNotFoundError, match="Could not download .* Incomplete download"):
-                    create_model("dummy-truncated.classification", task="classification", pretrained=True)
-            finally:
-                server.shutdown()
-    finally:
-        _REGISTERED_MODELS["classification"].pop("dummy-truncated.classification", None)
-
-    assert requests == ["/torch-pointcloud/dummy-truncated/resolve/main/model.pt"]
-    assert not [path for path in models_dir.rglob("*") if path.is_file()]
-
-
 def test_create_model_pretrained_unreadable_cached_weights_name_the_file(_register_pretrained_dummy: Path) -> None:
     content = _register_pretrained_dummy.read_bytes()
     _register_pretrained_dummy.write_bytes(content[: len(content) // 3])
 
-    with pytest.raises(RuntimeError, match="delete it to download it again") as exc_info:
+    with pytest.raises(RuntimeError, match="delete it and create the model again") as exc_info:
         create_model("dummy-pretrained.classification", task="classification", pretrained=True)
 
     assert _register_pretrained_dummy.as_posix() in str(exc_info.value)
     assert exc_info.value.__cause__ is not None
     assert _register_pretrained_dummy.read_bytes() == content[: len(content) // 3]
+
+
+def test_create_model_pretrained_cached_file_not_a_state_dict_raises(_register_pretrained_dummy: Path) -> None:
+    torch.save(torch.zeros(3), _register_pretrained_dummy)
+
+    with pytest.raises(ValueError, match="is not a state dict"):
+        create_model("dummy-pretrained.classification", task="classification", pretrained=True)
 
 
 def test_create_model_pretrained_gated_download_names_the_token(

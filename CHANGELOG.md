@@ -6,8 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
-- Fixed `download_url` keeping a download cut before its announced `Content-Length` as a complete file: it raises `ContentTooShortError` and writes nothing, and `create_model(pretrained=True)` names an unreadable cached weight file to delete.
-- Fixed `KPConv` and `create_kernel_points` failing when the cache directory is read-only.
+- Fixed `download_url` keeping a download cut before its announced `Content-Length` as a complete file: it raises `ContentTooShortError` and writes nothing.
+- Fixed `create_model(pretrained=True)` failing on an unreadable cached weight file without naming it: the error names the file to delete.
+- Fixed `KPConv` and `create_kernel_points` failing when the cache directory is read-only: they warn and optimize the kernel points again.
 - Changed the deprecation warnings and their docstrings to say that a deprecated name or argument will be removed in a future release, without naming that release.
 - Changed the docs build to fail on a macro error or an undefined variable, and the API navigation check to also flag pages without a module.
 - Fixed example scripts feeding inputs their benchmark protocol does not: the KPConv S3DIS height above the room floor, the PointMLP ScanObjectNN validation batches (shuffled once), the OctFormer ModelNet40 normalization and ScanNet learning-rate groups, the PVCNN++ S3DIS points per block and the Utonia ScanNet coordinate scale.
