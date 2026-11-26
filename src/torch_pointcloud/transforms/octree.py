@@ -72,16 +72,17 @@ class BuildOctree(DictTransform):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         data = dict(data)
-        normal_key, feature_key, batch_key, label_key = (
-            None if key not in data and self.allow_missing_keys else key
-            for key in (self.normal_key, self.feature_key, self.batch_key, self.label_key)
-        )
+
+        def read_optional(key: Optional[str]) -> Any:
+            if key is None or (key not in data and self.allow_missing_keys):
+                return None
+            return data[key]
 
         pos = data[self.pos_key]
-        normal = data[normal_key] if normal_key is not None else None
-        features = data[feature_key] if feature_key is not None else None
-        batch_id = data[batch_key] if batch_key is not None else None
-        labels = data[label_key] if label_key is not None else None
+        normal = read_optional(self.normal_key)
+        features = read_optional(self.feature_key)
+        batch_id = read_optional(self.batch_key)
+        labels = read_optional(self.label_key)
 
         octree, points = build_octree(
             pos=pos,
