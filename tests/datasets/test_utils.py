@@ -8,13 +8,14 @@ import tempfile
 import threading
 import time
 import zipfile
+from contextlib import contextmanager
 from http.client import HTTPMessage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from ssl import SSLContext
-from typing import Generator
+from typing import Dict, Generator
 from unittest.mock import Mock, patch
-from urllib.error import URLError
+from urllib.error import ContentTooShortError, URLError
 from urllib.request import HTTPRedirectHandler
 
 import pytest
@@ -64,6 +65,32 @@ def create_tar(out_dir: Path, symlink: bool = False) -> Path:
             tar_file.addfile(link)
 
     return tar_path
+
+
+@contextmanager
+def _serve_response(headers: Dict[str, str], body: bytes) -> Generator[str, None, None]:
+    """Serve `body` behind `headers` from a loopback HTTP server that closes the connection after it; yields the URL."""
+
+    class ResponseHandler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self) -> None:
+            self.send_response(200)
+            for key, value in headers.items():
+                self.send_header(key, value)
+            self.end_headers()
+            self.wfile.write(body)
+            self.close_connection = True
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), ResponseHandler) as server:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            yield f"http://127.0.0.1:{server.server_port}/file.bin"
+        finally:
+            server.shutdown()
 
 
 @pytest.fixture
@@ -241,6 +268,48 @@ def test_download_url_from_concurrent_processes(tmp_path: Path) -> None:
     assert exit_codes == [0] * num_processes
     assert file_path.read_bytes() == content
     assert [path.name for path in file_path.parent.iterdir()] == ["file.bin"]
+
+
+def test_download_url_truncated_body_raises_and_leaves_no_file(tmp_path: Path) -> None:
+    content = bytes(range(256)) * 256
+    with _serve_response({"Content-Length": str(len(content))}, content[: len(content) // 3]) as url:
+        with pytest.raises(ContentTooShortError, match=f"received {len(content) // 3} of {len(content)} bytes"):
+            download_url(url, tmp_path / "file.bin", show_progress=False)
+
+    assert not list(tmp_path.iterdir())
+
+
+def test_download_url_truncated_body_keeps_the_existing_file(
+    tmp_path: Path, mock_urlopen: Mock, mock_response: Mock
+) -> None:
+    file_path = tmp_path / "file.bin"
+    file_path.write_bytes(b"old content")
+    mock_response.read.side_effect = [b"con", b""]
+
+    with pytest.raises(ContentTooShortError, match="received 3 of 7 bytes"):
+        download_url("https://example.com/file.bin", file_path, show_progress=False, overwrite=True)
+
+    assert file_path.read_bytes() == b"old content"
+    assert [path.name for path in tmp_path.iterdir()] == ["file.bin"]
+
+
+def test_download_url_without_content_length_saves_the_body(
+    tmp_path: Path, mock_urlopen: Mock, mock_response: Mock
+) -> None:
+    mock_response.length = None
+
+    download_url("https://example.com/file.bin", tmp_path / "file.bin", show_progress=False)
+
+    assert (tmp_path / "file.bin").read_bytes() == b"content"
+
+
+def test_download_url_saves_a_chunked_body(tmp_path: Path) -> None:
+    body = b"3\r\ncon\r\n4\r\ntent\r\n0\r\n\r\n"
+    with _serve_response({"Transfer-Encoding": "chunked"}, body) as url:
+        download_url(url, tmp_path / "file.bin", show_progress=False)
+
+    assert (tmp_path / "file.bin").read_bytes() == b"content"
+    assert [path.name for path in tmp_path.iterdir()] == ["file.bin"]
 
 
 def test_atomic_path_replaces_a_file_and_keeps_it_on_failure(tmp_path: Path) -> None:

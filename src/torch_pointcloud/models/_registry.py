@@ -749,6 +749,8 @@ def create_model(
             requirement; the original error is chained.
         FileNotFoundError: If the checkpoint file does not exist, or if the registered weights are absent from
             the models cache and cannot be downloaded.
+        RuntimeError: If a registered weight file of the models cache cannot be read; the message names the file to
+            delete.
 
     Building a registered model, overriding its registered hparams, and inspecting its registry entry:
 
@@ -806,7 +808,16 @@ def create_model(
         state_dict: Dict[str, Any] = {}
         for url in urls:
             local_path = resolve_weights(name, url)
-            file_state_dict = read_state_dict(local_path)
+            try:
+                file_state_dict = read_state_dict(local_path)
+            except ValueError:
+                raise
+            except Exception as err:
+                raise RuntimeError(
+                    f"Could not read the weights of {name!r} cached at {local_path.as_posix()} "
+                    f"({type(err).__name__}: {err}). If the file is corrupt or incomplete, delete it and create the "
+                    "model again."
+                ) from err
             duplicates = sorted(key for key in file_state_dict if key in state_dict)
             if duplicates:
                 warnings.warn(
