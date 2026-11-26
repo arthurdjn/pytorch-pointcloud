@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Changed `KITTI` to take a required `split` in place of `train`: `"train"` or `"val"` loads the frames of `ImageSets/<split>.txt` and raises when the file is missing, and `"test"` reads the `testing` directory. The `split_file` argument is removed.
+- Fixed the KITTI benchmark and training scripts falling back to every frame of `training` when an `ImageSets` split file is missing: they raise.
 - Fixed `ScanNet200` serving wrong labels from a cache in which a scene failed to process, and every dataset serving the previous cache after an interrupted or failed `force_process=True`: the cache stamp is marked incomplete while the cache is built and after a partial build, and an incomplete cache is rebuilt instead of served.
 - Fixed `ScanNet(download=True)` on a partial raw tree: it resumes an interrupted download, adds the scans of another split and fetches missing split lists, and a complete split still makes no request.
 - Changed the ScanNet errors to name the missing raw path or split list and to point at `download=True` when scans are missing, and documented the `raw/` layout in the ScanNet docstrings.

@@ -1,8 +1,9 @@
 # mypy: disable-error-code="arg-type,call-overload"
 import json
+import re
 import shutil
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -68,21 +69,21 @@ def test_load_kitti_boxes_converts_a_camera_box_to_the_lidar_frame(tmp_path: Pat
 def test_kitti_dataset_not_found() -> None:
     """Raises an error if the dataset is not found"""
     with pytest.raises(RuntimeError, match="not found"):
-        _ = KITTI(root="not-found", train=True, fov=False)
+        _ = KITTI(root="not-found", split="val", fov=False)
 
 
 def test_kitti_dataset_download_unsupported(datasets_dir_factory: Callable[..., Path]) -> None:
     """download=True raises because KITTI must be downloaded manually."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
     with pytest.raises(RuntimeError, match="does not support automatic download"):
-        _ = KITTI(root=datasets_dir, train=True, fov=False, download=True)
+        _ = KITTI(root=datasets_dir, split="val", fov=False, download=True)
 
 
 def test_kitti_dataset_shapes(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that samples load with the expected keys and shapes"""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False)
-    assert len(dataset) == 3
+    dataset = KITTI(root=datasets_dir, split="val", fov=False)
+    assert len(dataset) == 1
 
     sample = dataset[0]
     assert sample[DataKeys.POS].shape == (1024, 3)
@@ -93,7 +94,7 @@ def test_kitti_dataset_shapes(datasets_dir_factory: Callable[..., Path]) -> None
 def test_kitti_dataset_dtypes(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that returned tensors have the expected dtypes"""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    sample = KITTI(root=datasets_dir, train=True, fov=False)[0]
+    sample = KITTI(root=datasets_dir, split="val", fov=False)[0]
     assert sample[DataKeys.POS].dtype == torch.float32
     assert sample[DataKeys.INTENSITY].dtype == torch.float32
     assert sample[DataKeys.BOX].dtype == torch.float32
@@ -103,7 +104,7 @@ def test_kitti_dataset_dtypes(datasets_dir_factory: Callable[..., Path]) -> None
 def test_kitti_dataset_boxes(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that ground-truth boxes are 7-DoF and labels are raw indices into the KITTI classes"""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    sample = KITTI(root=datasets_dir, train=True, fov=False)[0]
+    sample = KITTI(root=datasets_dir, split="val", fov=False)[0]
     boxes, labels = sample[DataKeys.BOX], sample[DataKeys.LABEL]
     assert boxes.shape[1] == 7
     assert boxes.shape[0] == labels.shape[0] >= 1
@@ -114,7 +115,7 @@ def test_kitti_dataset_boxes(datasets_dir_factory: Callable[..., Path]) -> None:
 def test_kitti_dataset_raw_boxes_and_fields(datasets_dir_factory: Callable[..., Path]) -> None:
     """The dataset returns raw classes (not the detection subset) plus per-box truncation/occlusion/2D height."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    sample = KITTI(root=datasets_dir, train=True, fov=False)[0]
+    sample = KITTI(root=datasets_dir, split="val", fov=False)[0]
     # Frame 000000 holds a single Pedestrian (raw index 3) with truncation 0, occlusion 0, height 307.92 - 143.00.
     assert sample[DataKeys.LABEL].tolist() == [KITTI_CLASSES.index("Pedestrian")]
     assert sample[DataKeys.TRUNCATION].tolist() == [0.0]
@@ -127,7 +128,7 @@ def test_kitti_dataset_raw_boxes_and_fields(datasets_dir_factory: Callable[..., 
 def test_kitti_dataset_return_calib_off_keys_unchanged(datasets_dir_factory: Callable[..., Path]) -> None:
     """Without `return_calib` the sample keys are exactly the pre-flag set."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    sample = KITTI(root=datasets_dir, train=True, fov=False)[0]
+    sample = KITTI(root=datasets_dir, split="val", fov=False)[0]
     assert set(sample.keys()) == {
         DataKeys.POS,
         DataKeys.INTENSITY,
@@ -143,7 +144,7 @@ def test_kitti_dataset_return_calib_off_keys_unchanged(datasets_dir_factory: Cal
 def test_kitti_dataset_return_calib(datasets_dir_factory: Callable[..., Path]) -> None:
     """`return_calib=True` adds the composed LiDAR-to-image matrix and the PNG-header image shape."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    sample = KITTI(root=datasets_dir, train=True, fov=False, return_calib=True)[0]
+    sample = KITTI(root=datasets_dir, split="val", fov=False, return_calib=True)[0]
     assert sample[DataKeys.CALIB].dtype == torch.float32
     assert sample[DataKeys.CALIB].shape == (3, 4)
     calib = load_kitti_calib(datasets_dir / "KITTI" / "raw" / "training" / "calib" / "000000.txt")
@@ -159,7 +160,7 @@ def test_kitti_dataset_return_calib(datasets_dir_factory: Callable[..., Path]) -
 def test_kitti_dataset_caches_npy(datasets_dir_factory: Callable[..., Path]) -> None:
     """Processing writes a per-frame .npy cache under processed/<split>/<frame>/ plus a completion marker."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    _ = KITTI(root=datasets_dir, train=True, fov=False)
+    _ = KITTI(root=datasets_dir, split="val", fov=False)
     processed = datasets_dir / "KITTI" / "processed" / "training"
     assert sorted(p.name for p in processed.glob("*")) == ["000000", "000001", "000002", "meta.json"]
     assert json.loads((processed / "meta.json").read_text())["format_version"] == 1
@@ -177,54 +178,54 @@ def test_kitti_dataset_caches_npy(datasets_dir_factory: Callable[..., Path]) -> 
 def test_kitti_dataset_legacy_cache_without_marker_loads(datasets_dir_factory: Callable[..., Path]) -> None:
     """A complete cache without a completion marker (legacy layout) still loads without reprocessing."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    _ = KITTI(root=datasets_dir, train=True, fov=False)
+    _ = KITTI(root=datasets_dir, split="val", fov=False)
     (datasets_dir / "KITTI" / "processed" / "training" / "meta.json").unlink()
     with patch("torch_pointcloud.datasets.kitti.parallel_map") as mock_map:
-        dataset = KITTI(root=datasets_dir, train=True, fov=False)
+        dataset = KITTI(root=datasets_dir, split="val", fov=False)
     mock_map.assert_not_called()
-    assert len(dataset) == 3
+    assert len(dataset) == 1
 
 
 def test_kitti_dataset_interrupted_cache_detected(datasets_dir_factory: Callable[..., Path]) -> None:
     """An unmarked cache with a torn frame raises instead of silently loading."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False)
     (dataset.processed_split_dir / "meta.json").unlink()
     (dataset.processed_split_dir / "000001" / "labels.npy").unlink()
 
     with pytest.raises(RuntimeError, match="force_process"):
-        _ = KITTI(root=datasets_dir, train=True, fov=False)
+        _ = KITTI(root=datasets_dir, split="val", fov=False)
 
-    reprocessed = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
-    assert len(reprocessed) == 3
+    reprocessed = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
+    assert len(reprocessed) == 1
 
 
 def test_kitti_dataset_missing_frame_detected(datasets_dir_factory: Callable[..., Path]) -> None:
     """An unmarked cache missing a raw frame raises instead of silently loading a partial split."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False)
     (dataset.processed_split_dir / "meta.json").unlink()
     shutil.rmtree(dataset.processed_split_dir / "000002")
 
     with pytest.raises(RuntimeError, match="000002"):
-        _ = KITTI(root=datasets_dir, train=True, fov=False)
+        _ = KITTI(root=datasets_dir, split="val", fov=False)
 
 
 def test_kitti_dataset_reuses_cache(datasets_dir_factory: Callable[..., Path]) -> None:
     """A second construction reuses the existing cache instead of reprocessing."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    _ = KITTI(root=datasets_dir, train=True, fov=False)
+    _ = KITTI(root=datasets_dir, split="val", fov=False)
     with patch("torch_pointcloud.datasets.kitti.parallel_map") as mock_map:
-        _ = KITTI(root=datasets_dir, train=True, fov=False)
+        _ = KITTI(root=datasets_dir, split="val", fov=False)
     mock_map.assert_not_called()
 
 
 def test_kitti_dataset_force_process(datasets_dir_factory: Callable[..., Path]) -> None:
     """force_process reprocesses the split even when a cache already exists."""
     datasets_dir = datasets_dir_factory("KITTI/**/*", symlinks=False)
-    _ = KITTI(root=datasets_dir, train=True, fov=False)
+    _ = KITTI(root=datasets_dir, split="val", fov=False)
     with patch("torch_pointcloud.datasets.kitti.parallel_map") as mock_map:
-        _ = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+        _ = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     mock_map.assert_called_once()
 
 
@@ -236,34 +237,66 @@ def test_kitti_dataset_fov_filter(datasets_dir_factory: Callable[..., Path]) -> 
     image.touch()
     mock_fov = Mock(side_effect=lambda points, image_shape, calib: np.arange(len(points)) < 5)
     with patch("torch_pointcloud.datasets.kitti.fov_flag", mock_fov):
-        sample = KITTI(root=datasets_dir, train=True, fov=True)[0]
+        sample = KITTI(root=datasets_dir, split="val", fov=True)[0]
     assert mock_fov.called
     assert sample[DataKeys.POS].shape == (5, 3)
-
-
-def test_kitti_dataset_split_file(datasets_dir_factory: Callable[..., Path]) -> None:
-    """Test that a split file restricts the loaded frames to the listed ids"""
-    datasets_dir = datasets_dir_factory("KITTI/**/*")
-    split_file = datasets_dir / "val.txt"
-    split_file.write_text("000000\n000002\n")
-    dataset = KITTI(root=datasets_dir, train=True, split_file=split_file, fov=False)
-    assert [dataset[i]["frame"] for i in range(len(dataset))] == ["000000", "000002"]
 
 
 def test_kitti_dataset_split_file_missing_frames_raise(datasets_dir_factory: Callable[..., Path]) -> None:
     """A split file referencing frames absent from the cache raises listing the missing ids."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    split_file = datasets_dir / "val.txt"
+    split_file = datasets_dir / "KITTI" / "raw" / "ImageSets" / "val.txt"
     split_file.write_text("000000\n000099\n")
     with pytest.raises(RuntimeError, match="000099"):
-        _ = KITTI(root=datasets_dir, train=True, split_file=split_file, fov=False)
+        _ = KITTI(root=datasets_dir, split="val", fov=False)
+
+
+@pytest.mark.parametrize(
+    "split, frame_ids",
+    [
+        pytest.param("train", ["000001", "000002"], id="train"),
+        pytest.param("val", ["000000"], id="val"),
+    ],
+)
+def test_kitti_dataset_split_reads_its_image_sets_file(
+    datasets_dir_factory: Callable[..., Path],
+    split: str,
+    frame_ids: List[str],
+) -> None:
+    """`split` loads the frames listed in `raw/ImageSets/<split>.txt`."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    dataset = KITTI(root=datasets_dir, split=split, fov=False)
+    assert dataset.frame_ids == frame_ids
+
+
+def test_kitti_dataset_split_without_its_file_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    """A missing `ImageSets` file raises with its path before anything is processed, never loading every frame."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    split_file = datasets_dir / "KITTI" / "raw" / "ImageSets" / "val.txt"
+    split_file.unlink()
+    with pytest.raises(FileNotFoundError, match=re.escape(split_file.as_posix())):
+        _ = KITTI(root=datasets_dir, split="val", fov=False)
+    assert not (datasets_dir / "KITTI" / "processed").exists()
+
+
+def test_kitti_dataset_test_split_reads_the_testing_directory(datasets_dir_factory: Callable[..., Path]) -> None:
+    """`split="test"` reads `raw/testing`, which the fixture does not have."""
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    with pytest.raises(RuntimeError, match=re.escape((datasets_dir / "KITTI" / "raw" / "testing").as_posix())):
+        _ = KITTI(root=datasets_dir, split="test", fov=False)
+
+
+def test_kitti_dataset_unknown_split_raises(datasets_dir_factory: Callable[..., Path]) -> None:
+    datasets_dir = datasets_dir_factory("KITTI/**/*")
+    with pytest.raises(ValueError, match="Invalid split: 'trainval'"):
+        _ = KITTI(root=datasets_dir, split="trainval", fov=False)
 
 
 def test_kitti_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> None:
     """Test that the transform is called once per sample"""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
     transform = Mock(side_effect=lambda data: data)
-    dataset = KITTI(root=datasets_dir, train=True, transform=transform, fov=False)
+    dataset = KITTI(root=datasets_dir, split="val", transform=transform, fov=False)
     _ = list(dataset)
     assert transform.call_count == len(dataset)
 
@@ -271,7 +304,7 @@ def test_kitti_dataset_transform(datasets_dir_factory: Callable[..., Path]) -> N
 def test_kitti_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Path]) -> None:
     """Processing writes `cache_meta` next to the cache, with the class's `format_version`."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta = json.loads(Path(dataset.processed_dir, "training/meta.json").read_text())
     assert meta == dataset.cache_meta
     assert meta["format_version"] == KITTI.format_version
@@ -280,27 +313,27 @@ def test_kitti_process_stamps_cache_meta(datasets_dir_factory: Callable[..., Pat
 def test_kitti_stale_format_version_raises(datasets_dir_factory: Callable[..., Path]) -> None:
     """A cache stamped with another `format_version` raises instead of being served, until it is regenerated."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
     meta = json.loads(meta_path.read_text())
     meta["format_version"] += 1
     meta_path.write_text(json.dumps(meta))
 
     with pytest.raises(RuntimeError, match="force_process=True"):
-        KITTI(root=datasets_dir, train=True, fov=False, force_process=False)
+        KITTI(root=datasets_dir, split="val", fov=False, force_process=False)
 
-    rebuilt = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    rebuilt = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     assert json.loads(meta_path.read_text()) == rebuilt.cache_meta
 
 
 def test_kitti_cache_without_meta_is_served(datasets_dir_factory: Callable[..., Path]) -> None:
     """A cache from before the stamp existed is served as is and left unstamped."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
     meta_path.unlink()
 
-    legacy = KITTI(root=datasets_dir, train=True, fov=False, force_process=False)
+    legacy = KITTI(root=datasets_dir, split="val", fov=False, force_process=False)
     assert len(legacy) == len(dataset)
     assert not meta_path.exists()
 
@@ -308,13 +341,13 @@ def test_kitti_cache_without_meta_is_served(datasets_dir_factory: Callable[..., 
 def test_kitti_stamp_without_format_version_is_version_one(datasets_dir_factory: Callable[..., Path]) -> None:
     """A stamp written before `format_version` existed counts as version 1 and is served."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
     meta = json.loads(meta_path.read_text())
     del meta["format_version"]
     meta_path.write_text(json.dumps(meta))
 
-    legacy = KITTI(root=datasets_dir, train=True, fov=False, force_process=False)
+    legacy = KITTI(root=datasets_dir, split="val", fov=False, force_process=False)
     assert len(legacy) == len(dataset)
 
 
@@ -323,7 +356,7 @@ def test_kitti_interrupted_rebuild_leaves_incomplete_stamp(
 ) -> None:
     """The stamp is marked incomplete before the cache is rewritten, so a failed forced rebuild is never served."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
 
     def interrupted(self: KITTI, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
@@ -331,7 +364,7 @@ def test_kitti_interrupted_rebuild_leaves_incomplete_stamp(
 
     monkeypatch.setattr(KITTI, "write_processed_files", interrupted)
     with pytest.raises(KeyboardInterrupt):
-        KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+        KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
@@ -340,14 +373,14 @@ def test_kitti_incomplete_cache_is_stamped_incomplete(
 ) -> None:
     """`write_processed_files` returning False leaves the stamp marked incomplete."""
     datasets_dir = datasets_dir_factory("KITTI/**/*")
-    dataset = KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    dataset = KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     meta_path = Path(dataset.processed_dir, "training/meta.json")
 
     def incomplete(self: KITTI, num_workers: Optional[int] = None, show_progress: bool = True) -> bool:
         return False
 
     monkeypatch.setattr(KITTI, "write_processed_files", incomplete)
-    KITTI(root=datasets_dir, train=True, fov=False, force_process=True)
+    KITTI(root=datasets_dir, split="val", fov=False, force_process=True)
     assert json.loads(meta_path.read_text()) == {**dataset.cache_meta, "complete": False}
 
 
@@ -382,4 +415,4 @@ def test_kitti_dataset_fov_missing_image_raises(datasets_dir_factory: Callable[.
     datasets_dir = datasets_dir_factory("KITTI/**/*")
     (datasets_dir / "KITTI" / "raw" / "training" / "image_2" / "000001.png").unlink()
     with pytest.raises(FileNotFoundError, match="000001.png"):
-        _ = KITTI(root=datasets_dir, train=True, fov=True)
+        _ = KITTI(root=datasets_dir, split="val", fov=True)
