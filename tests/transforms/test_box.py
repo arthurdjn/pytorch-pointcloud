@@ -262,6 +262,25 @@ def test_relabel_boxes_difficulty_to_ignore() -> None:
     assert out["ignore_mask"].tolist() == [False, True]
 
 
+def test_relabel_boxes_missing_label_key_raises_even_when_allowed() -> None:
+    data: Dict[str, Any] = {DataKeys.POS: torch.rand(4, 3)}
+    transform = T.RelabelBoxes(keys=(DataKeys.BOX, DataKeys.LABEL), mapping={0: 0}, allow_missing_keys=True)
+    with pytest.raises(KeyError, match="label"):
+        transform(data)
+
+
+def test_relabel_boxes_missing_ignore_field_allowed_skips_its_rule() -> None:
+    data: Dict[str, Any] = {DataKeys.BOX: torch.zeros(2, 7), DataKeys.LABEL: torch.tensor([0, 3])}
+    out = T.RelabelBoxes(
+        keys=(DataKeys.BOX, DataKeys.LABEL, DataKeys.OCCLUSION),
+        mapping={0: 0},
+        ignore_fields={DataKeys.OCCLUSION: (None, 1)},
+        allow_missing_keys=True,
+    )(data)
+    assert out[DataKeys.LABEL].tolist() == [0]
+    assert out["ignore_mask"].tolist() == [False]
+
+
 def _scene_with_boxes() -> Dict[str, Any]:
     # two boxes with four points each, one lone point outside, intensities equal to the point index
     boxes = torch.tensor([[2.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0], [10.0, 5.0, 0.0, 2.0, 2.0, 2.0, 0.5]])
@@ -388,6 +407,75 @@ def test_paste_boxes_appends_the_attributes_of_the_pasted_objects() -> None:
 
     with pytest.raises(ValueError, match="cut_boxes"):
         T.PasteBoxes(objects, num_samples={0: 2}, attribute_keys=DataKeys.OCCLUSION)
+
+
+def _object_on_free_ground() -> Dict[str, Tensor]:
+    return {
+        DataKeys.POS: torch.zeros(2, 3),
+        DataKeys.INTENSITY: torch.full((2, 1), 100.0),
+        DataKeys.BOX: torch.tensor([20.0, -5.0, 0.0, 2.0, 2.0, 2.0, 0.3]),
+        DataKeys.LABEL: torch.tensor(0),
+        DataKeys.VELOCITY: torch.tensor([20.0, 0.0]),
+    }
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    [
+        pytest.param(DataKeys.INTENSITY, id="feature"),
+        pytest.param(DataKeys.VELOCITY, id="attribute"),
+    ],
+)
+def test_paste_boxes_missing_optional_key_allowed_pastes_the_other_keys(missing_key: str) -> None:
+    scene = _scene_with_boxes()
+    scene[DataKeys.VELOCITY] = torch.tensor([[0.5, 0.0], [0.0, 0.5]])
+    del scene[missing_key]
+    transform = T.PasteBoxes(
+        [_object_on_free_ground()],
+        num_samples={0: 1},
+        keys=[DataKeys.POS, DataKeys.INTENSITY],
+        attribute_keys=DataKeys.VELOCITY,
+        count_existing=False,
+        allow_missing_keys=True,
+    )
+    out = transform(scene)
+
+    assert missing_key not in out
+    assert out[DataKeys.POS].shape[0] == 11 and out[DataKeys.BOX].shape[0] == 3
+    assert out[DataKeys.LABEL].tolist() == [0, 1, 0]
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    [
+        pytest.param(DataKeys.POS, id="pos"),
+        pytest.param(DataKeys.BOX, id="box"),
+        pytest.param(DataKeys.LABEL, id="label"),
+    ],
+)
+@pytest.mark.parametrize(
+    "allow_missing_keys",
+    [
+        pytest.param(False, id="strict"),
+        pytest.param(True, id="allowed"),
+    ],
+)
+def test_paste_boxes_missing_required_key_raises(missing_key: str, allow_missing_keys: bool) -> None:
+    scene = _scene_with_boxes()
+    del scene[missing_key]
+    transform = T.PasteBoxes(
+        [_object_on_free_ground()], num_samples={0: 1}, count_existing=False, allow_missing_keys=allow_missing_keys
+    )
+    with pytest.raises(KeyError, match=f"'{missing_key}'"):
+        transform(scene)
+
+
+def test_paste_boxes_missing_pos_raises_when_nothing_is_pasted() -> None:
+    scene = _scene_with_boxes()
+    del scene[DataKeys.POS]
+    transform = T.PasteBoxes([_object_on_free_ground()], num_samples={0: 0}, allow_missing_keys=True)
+    with pytest.raises(KeyError, match=f"'{DataKeys.POS}'"):
+        transform(scene)
 
 
 def test_flip_boxes_vertical_axis_keeps_velocity() -> None:

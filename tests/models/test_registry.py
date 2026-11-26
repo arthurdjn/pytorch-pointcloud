@@ -11,6 +11,7 @@ import torch
 from safetensors.torch import save_file
 from torch import Tensor, nn
 
+import torch_pointcloud.transforms as T
 from torch_pointcloud.models import (
     ClassificationModel,
     ModelInfoDict,
@@ -901,7 +902,9 @@ def test_cache_path_is_keyed_by_revision() -> None:
 
 def test_model_info_matches_the_entry_of_create_model() -> None:
     _, built = create_model("pointnet.modelnet40", return_info=True)
-    assert model_info("pointnet.modelnet40") == built
+    info = model_info("pointnet.modelnet40")
+    assert repr(info["transform"]) == repr(built["transform"])
+    assert {**info, "transform": None} == {**built, "transform": None}
     with pytest.raises(ValueError, match="not registered"):
         model_info("not-a-model")
 
@@ -922,3 +925,40 @@ def test_model_info_does_not_alias_the_registry() -> None:
     assert built["weights"] is not None
     built["weights"]["metrics"]["OA"] = -1.0
     assert model_info("pointnet.modelnet40.jiawei-ren")["weights"]["metrics"] == metrics  # type: ignore[index]
+
+
+def test_model_info_transform_does_not_alias_the_registry() -> None:
+    transform = model_info("pointnet.modelnet40")["transform"]
+    assert isinstance(transform, T.Compose)
+    transform.allow_missing_keys = True
+    assert transform({}) == {}
+
+    again = model_info("pointnet.modelnet40")["transform"]
+    assert again is not None
+    with pytest.raises(KeyError, match="pos"):
+        again({})
+
+
+def test_create_model_return_info_transform_does_not_alias_the_registry() -> None:
+    _, built = create_model("pointnet.modelnet40", return_info=True)
+    assert isinstance(built["transform"], T.Compose)
+    built["transform"].allow_missing_keys = True
+
+    _, again = create_model("pointnet.modelnet40", return_info=True)
+    assert again["transform"] is not None
+    with pytest.raises(KeyError, match="pos"):
+        again["transform"]({})
+
+
+def test_model_info_transform_wrapped_in_a_lenient_compose_stays_strict() -> None:
+    transform = model_info("pointnet.modelnet40")["transform"]
+    assert transform is not None
+    lenient = T.Compose([transform], allow_missing_keys=True)
+    assert lenient({}) == {}
+    with pytest.raises(KeyError, match="pos"):
+        transform({})
+
+    again = model_info("pointnet.modelnet40")["transform"]
+    assert again is not None
+    with pytest.raises(KeyError, match="pos"):
+        again({})

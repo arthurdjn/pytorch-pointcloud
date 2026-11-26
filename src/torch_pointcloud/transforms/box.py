@@ -57,7 +57,8 @@ class RelabelBoxes(DictTransform):
         ignore_fields: Per-attribute inclusive ranges `{key: (low, high)}` (use `None` for an open side);
             a foreground box outside any range becomes an ignore region.
         dst_ignore_mask_key: Output key for the written boolean ignore mask.
-        allow_missing_keys: If `True`, skip missing keys instead of raising.
+        allow_missing_keys: If `True`, leave out the rule of an absent `ignore_fields` key instead of raising.
+            `label_key` is always required.
 
     Example:
         ```python
@@ -109,6 +110,9 @@ class RelabelBoxes(DictTransform):
 
         hard = torch.zeros_like(labels, dtype=torch.bool)
         for field_key, (low, high) in self.ignore_fields.items():
+            if field_key not in d and self.allow_missing_keys:
+                continue
+
             value = d[field_key]
             in_range = torch.ones_like(labels, dtype=torch.bool)
             if low is not None:
@@ -317,7 +321,8 @@ class PasteBoxes(DictTransform, Randomizable):
         attribute_keys: Per-box keys appended with the attributes of the pasted objects (e.g. a velocity).
         count_existing: Count the objects already in the scene towards the targets.
         seed: Seed of the transform's own random stream; `None` draws from the global generator (see `Randomizable`).
-        allow_missing_keys: If `True`, silently skip absent keys.
+        allow_missing_keys: If `True`, silently skip absent feature and attribute keys. The coordinates, `box_key`
+            and `label_key` are always required.
 
     Example:
         ```python
@@ -390,8 +395,9 @@ class PasteBoxes(DictTransform, Randomizable):
 
     def transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
-        boxes, labels = d[self.box_key], d[self.label_key]
         pos_key = self.keys[0]
+        pos, boxes, labels = d[pos_key], d[self.box_key], d[self.label_key]
+        feature_keys = [key for key in self.iter_keys(d) if key != pos_key]
 
         # Draw per label, leaving out the candidates that overlap a scene box or another candidate.
         existing = boxes[:, :7].to(self._boxes)
@@ -417,15 +423,18 @@ class PasteBoxes(DictTransform, Randomizable):
         # The scene points under the pasted boxes go away; the object points come first, at their box center.
         pasted = [self.objects[i] for i in index.tolist()]
         pasted_boxes = self._boxes[index]
-        keep = ~points_in_boxes(d[pos_key], pasted_boxes[:, :7].to(d[pos_key])).any(dim=1)
-        pos = torch.cat([obj[pos_key] + obj[self.box_key][:3] for obj in pasted])
-        d[pos_key] = torch.cat([pos.to(d[pos_key]), d[pos_key][keep]])
-        for key in self.keys[1:]:
+        keep = ~points_in_boxes(pos, pasted_boxes[:, :7].to(pos)).any(dim=1)
+        pasted_pos = torch.cat([obj[pos_key] + obj[self.box_key][:3] for obj in pasted])
+        d[pos_key] = torch.cat([pasted_pos.to(pos), pos[keep]])
+        for key in feature_keys:
             features = torch.cat([obj[key] for obj in pasted])
             d[key] = torch.cat([features.to(d[key]), d[key][keep]])
         d[self.box_key] = torch.cat([boxes, pasted_boxes.to(boxes)])
         d[self.label_key] = torch.cat([labels, torch.stack([obj[self.label_key] for obj in pasted]).to(labels)])
         for key in self.attribute_keys:
+            if key not in d and self.allow_missing_keys:
+                continue
+
             attributes = torch.stack([obj[key] for obj in pasted])
             d[key] = torch.cat([d[key], attributes.to(d[key])])
         return d

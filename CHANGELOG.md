@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## Unreleased
 
+- Fixed `Compose(allow_missing_keys=...)` changing the transforms it is given: it runs copies of them, and `model_info` and `create_model(return_info=True)` return a copy of the registered transform.
+- Fixed `allow_missing_keys=True` still raising on an absent optional key: the feature and attribute keys of `PasteBoxes`, the `ignore_fields` keys of `RelabelBoxes` and the `feature_key` of `HardVoxelize` and `DynamicVoxelize`.
+- Added `BuildOctree(allow_missing_keys=...)`.
+- Changed `RandomRotate(vector_keys=...)`, `EstimateNormals(batch_key=...)` and the `box_key` of `RandomRotate`, `RandomScale`, `RandomFlip` and `RandomTranslate` to raise a `KeyError` on an absent key unless `allow_missing_keys=True`.
+- Changed the README and the docs to describe a registered transform as the benchmark protocol of its checkpoint.
 - Fixed the PointNet, PointNet++, PVCNN, KPConv and RandLA-Net training scripts validating on new random points, blocks and spheres at every epoch.
 - Fixed `download_url` keeping a download cut before its announced `Content-Length` as a complete file: it raises `ContentTooShortError` and writes nothing.
 - Fixed `create_model(pretrained=True)` failing on an unreadable cached weight file without naming it: the error names the file to delete.
