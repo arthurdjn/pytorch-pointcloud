@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import ConcatDataset, SeededDataset, ShapeNetPart
+from torch_pointcloud.datasets import ConcatDataset, ShapeNetPart
 from torch_pointcloud.metrics import (
     part_intersection_over_union,
     part_mean_intersection_over_union,
@@ -42,11 +42,11 @@ TRAIN_TRANSFORM = T.Compose(
     ]
 )
 
-# `SeededDataset` replays the seeded draws of a shape, so every validation scores the same points.
+# `evaluate` restarts the random draws from `--seed`, so every validation scores the same points.
 VAL_TRANSFORM = T.Compose(
     [
         T.Rescale(keys=DataKeys.POS, method="centroid"),
-        T.RandomSample(keys=POINT_KEYS, num_samples=NUM_POINTS, replace=True, seed=0),
+        T.RandomSample(keys=POINT_KEYS, num_samples=NUM_POINTS, replace=True),
         T.CopyItems(keys=DataKeys.NORMAL, dst_keys=DataKeys.X),
         T.OneHot(keys=DataKeys.CATEGORY, num_classes=NUM_CATEGORIES),
     ]
@@ -75,7 +75,7 @@ def main() -> None:
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
-            val = evaluate(model, val_loader, args.device)
+            val = evaluate(model, val_loader, args.device, seed=args.seed)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["ins_mIoU"] > best_miou:
                 best_miou = val["ins_mIoU"]
@@ -116,7 +116,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
             ShapeNetPart(split="val", transform=TRAIN_TRANSFORM, **common),
         ]
     )
-    val_dataset = SeededDataset(ShapeNetPart(split="test", transform=VAL_TRANSFORM, **common))
+    val_dataset = ShapeNetPart(split="test", transform=VAL_TRANSFORM, **common)
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(
@@ -185,8 +185,10 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
+@torch.random.fork_rng()
+def evaluate(model: nn.Module, loader: DataLoader, device: str, seed: int) -> dict[str, float]:
     """Instance and class mIoU, each shape predicted among the parts of its own category as the reference does."""
+    torch.manual_seed(seed)
     model.eval()
     part_ids = list(ShapeNetPart.seg_ids.values())
     ious: List[Tensor] = []

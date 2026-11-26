@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import S3DIS, SeededDataset
+from torch_pointcloud.datasets import S3DIS
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
@@ -54,7 +54,7 @@ def main() -> None:
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
-            val = evaluate(model, val_loader, args.device)
+            val = evaluate(model, val_loader, args.device, seed=args.seed)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["mIoU"] > best_miou:
                 best_miou = val["mIoU"]
@@ -106,13 +106,13 @@ def configure_train_transform(args: Namespace) -> T.Compose:
 
 
 def configure_val_transform(args: Namespace) -> T.Compose:
-    # `SeededDataset` replays the seeded draws of a block, so every validation scores the same points.
+    # `evaluate` restarts the random draws from `--seed`, so every validation scores the same points.
     return T.Compose(
         [
             T.KeepItems(keys=[DataKeys.POS, DataKeys.COLOR, DataKeys.SEGMENT, DataKeys.SCENE_MAX]),
             T.CopyItems(keys=DataKeys.POS, dst_keys=DataKeys.NORM_POS),
             T.DivideItems(keys=DataKeys.NORM_POS, div_keys=DataKeys.SCENE_MAX),  # xyz / room extent
-            T.RandomSample(keys=POINT_KEYS, num_samples=MODELS[args.model], seed=0),
+            T.RandomSample(keys=POINT_KEYS, num_samples=MODELS[args.model]),
             T.Shift(keys=DataKeys.POS, method="min", axes=[0, 1]),
             T.Translate(keys=DataKeys.POS, offset=(-BLOCK_SIZE / 2, -BLOCK_SIZE / 2, 0.0)),  # x - (min x + size / 2)
             T.ToFloat(keys=DataKeys.COLOR),
@@ -141,7 +141,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_transform = configure_train_transform(args)
     train_dataset = S3DIS(areas=train_areas, transform=train_transform, **common)
     val_transform = configure_val_transform(args)
-    val_dataset = SeededDataset(S3DIS(areas=val_areas, transform=val_transform, **common))
+    val_dataset = S3DIS(areas=val_areas, transform=val_transform, **common)
 
     if args.limit_train_batches is not None:
         train_dataset = Subset(
@@ -208,7 +208,9 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
+@torch.random.fork_rng()
+def evaluate(model: nn.Module, loader: DataLoader, device: str, seed: int) -> dict[str, float]:
+    torch.manual_seed(seed)
     model.eval()
     confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):

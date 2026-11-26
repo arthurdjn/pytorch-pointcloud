@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import S3DIS, RepeatSampler, SeededDataset
+from torch_pointcloud.datasets import S3DIS, RepeatSampler
 from torch_pointcloud.datasets.s3dis import S3DIS_AREAS, S3DISArea
 from torch_pointcloud.losses import TNetOrthogonalityRegularizer
 from torch_pointcloud.metrics import accuracy, confusion_matrix, intersection_over_union
@@ -56,7 +56,7 @@ TRAIN_TRANSFORM = T.Compose(
         T.Cat(keys=[DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
     ]
 )
-# `SeededDataset` replays the seeded draws of a sample, so every validation scores the same blocks.
+# `evaluate` restarts the random draws from `--seed`, so every validation scores the same blocks.
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=POINT_KEYS),
@@ -71,9 +71,8 @@ VAL_TRANSFORM = T.Compose(
             block_size=BLOCK_SIZE,
             min_nodes=MIN_BLOCK_POINTS,
             dst_center_key=DataKeys.BLOCK_CENTER,
-            seed=0,
         ),
-        T.RandomSample(keys=[*POINT_KEYS, DataKeys.NORM_POS], num_samples=NUM_POINTS, seed=0),
+        T.RandomSample(keys=[*POINT_KEYS, DataKeys.NORM_POS], num_samples=NUM_POINTS),
         T.SubtractItems(keys=DataKeys.POS, sub_keys=DataKeys.BLOCK_CENTER, axes=[0, 1]),
         T.Cat(keys=[DataKeys.COLOR, DataKeys.NORM_POS], dst_key=DataKeys.X),
     ]
@@ -105,7 +104,7 @@ def main() -> None:
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
-            val = evaluate(model, val_loader, args.device)
+            val = evaluate(model, val_loader, args.device, seed=args.seed)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["mIoU"] > best_miou:
                 best_miou = val["mIoU"]
@@ -167,8 +166,6 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     # Rooms are drawn in proportion to their size.
     train_sampler = RepeatSampler(draws_per_room(train_dataset))
     val_sampler = RepeatSampler(draws_per_room(val_dataset), shuffle=False)
-    # One validation sample per draw of a room, so that every draw has its own seed.
-    val_dataset = SeededDataset(Subset(val_dataset, list(val_sampler)))
     train_loader = PointCloudDataLoader(
         train_dataset,
         batch_size=args.batch_size,
@@ -179,6 +176,7 @@ def configure_dataloaders(args: Namespace) -> tuple[DataLoader, DataLoader]:
     val_loader = PointCloudDataLoader(
         val_dataset,
         batch_size=args.batch_size,
+        sampler=val_sampler,
         drop_last=len(val_sampler) >= args.batch_size,
         num_workers=args.num_workers,
     )
@@ -238,7 +236,9 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
+@torch.random.fork_rng()
+def evaluate(model: nn.Module, loader: DataLoader, device: str, seed: int) -> dict[str, float]:
+    torch.manual_seed(seed)
     model.eval()
     cm = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):

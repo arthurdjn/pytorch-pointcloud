@@ -8,7 +8,7 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import pytest
 import torch
@@ -1341,6 +1341,18 @@ def test_kitti_scripts_raise_without_the_split_files(
         getattr(module, configure)(args)
 
 
+class RecordPositions(nn.Module):
+    """Records the positions of every batch it scores and predicts the first class for each point."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.positions: List[Tensor] = []
+
+    def forward(self, x: Optional[Tensor], pos: Tensor, *args: Tensor) -> Tensor:
+        self.positions.append(pos.clone())
+        return torch.zeros(pos.shape[0], 50)
+
+
 class FirstInput(nn.Module):
     """Returns its first input, so a batch carries the logits a script scores."""
 
@@ -1463,16 +1475,20 @@ def test_training_script_scores_the_same_validation_samples_at_every_pass(
     root = ("--root", str(examples_datasets_dir), "--num-workers", str(num_workers), "--device", "cpu")
     recipe = ("--limit-train-batches", "2", "--limit-val-batches", "2")
     monkeypatch.setattr(sys, "argv", [script, *root, *recipe, *args])
-    train_loader, val_loader = module.configure_dataloaders(module.parse_args())
+    _, val_loader = module.configure_dataloaders(module.parse_args())
+    model = RecordPositions()
 
-    first = [batch[DataKeys.POS] for batch in val_loader]
-    second = [batch[DataKeys.POS] for batch in val_loader]
+    torch.manual_seed(0)
+    expected = torch.rand(4)
+    torch.manual_seed(0)
+    module.evaluate(model, val_loader, "cpu", seed=0)
+    first, model.positions = model.positions, []
+    module.evaluate(model, val_loader, "cpu", seed=0)
+
     assert len(first) > 0
-    assert all(torch.equal(a, b) for a, b in zip(first, second))
-
-    first = [batch[DataKeys.POS] for batch in train_loader]
-    second = [batch[DataKeys.POS] for batch in train_loader]
-    assert not all(torch.equal(a, b) for a, b in zip(first, second))
+    assert len(model.positions) == len(first)
+    assert all(torch.equal(a, b) for a, b in zip(first, model.positions))
+    assert torch.equal(torch.rand(4), expected)
 
 
 @pytest.mark.parametrize(

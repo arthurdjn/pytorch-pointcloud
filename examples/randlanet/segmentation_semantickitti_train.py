@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 import torch_pointcloud.transforms as T
 from torch_pointcloud.config import DATA_DIR
-from torch_pointcloud.datasets import SeededDataset, SemanticKITTI
+from torch_pointcloud.datasets import SemanticKITTI
 from torch_pointcloud.datasets.semantickitti import SEMANTIC_KITTI_LEARNING_MAP
 from torch_pointcloud.metrics import confusion_matrix, intersection_over_union
 from torch_pointcloud.models import create_model
@@ -53,7 +53,7 @@ TRAIN_TRANSFORM = T.Compose(
         T.ShufflePoint(keys=[DataKeys.POS, DataKeys.SEGMENT]),
     ]
 )
-# `SeededDataset` replays the seeded draws of a scan, so every validation scores the same crops.
+# `evaluate` restarts the random draws from `--seed`, so every validation scores the same crops.
 VAL_TRANSFORM = T.Compose(
     [
         T.KeepItems(keys=[DataKeys.POS, DataKeys.SEGMENT]),
@@ -65,9 +65,8 @@ VAL_TRANSFORM = T.Compose(
             max_nodes=NUM_POINTS,
             keys=DataKeys.SEGMENT,
             center="random_point",
-            seed=0,
         ),
-        T.ShufflePoint(keys=[DataKeys.POS, DataKeys.SEGMENT], seed=0),
+        T.ShufflePoint(keys=[DataKeys.POS, DataKeys.SEGMENT]),
     ]
 )
 
@@ -95,7 +94,7 @@ def main() -> None:
         print(f"Epoch {epoch + 1}/{args.epochs}  lr={lr:.2e}  train/loss {loss:.4f}")
 
         if (epoch + 1) % args.eval_every == 0 or epoch + 1 == args.epochs:
-            val = evaluate(model, val_loader, args.device)
+            val = evaluate(model, val_loader, args.device, seed=args.seed)
             print("  " + " | ".join(f"val/{key} {value * 100:.2f}" for key, value in val.items()))
             if output is not None and val["mIoU"] > best_miou:
                 best_miou = val["mIoU"]
@@ -133,9 +132,7 @@ def configure_datasets(args: Namespace) -> tuple[Dataset, Dataset]:
     train_dataset = SemanticKITTI(
         root=args.root, split="train", sequences=args.train_sequences, transform=TRAIN_TRANSFORM
     )
-    val_dataset = SeededDataset(
-        SemanticKITTI(root=args.root, split="val", sequences=args.val_sequences, transform=VAL_TRANSFORM)
-    )
+    val_dataset = SemanticKITTI(root=args.root, split="val", sequences=args.val_sequences, transform=VAL_TRANSFORM)
 
     # An epoch draws `TRAIN_STEPS` batches of scans at random (see `configure_dataloaders`); the validation scans are
     # a fixed random subset.
@@ -203,7 +200,9 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: str) -> dict[str, float]:
+@torch.random.fork_rng()
+def evaluate(model: nn.Module, loader: DataLoader, device: str, seed: int) -> dict[str, float]:
+    torch.manual_seed(seed)
     model.eval()
     confusion = torch.zeros(NUM_CLASSES, NUM_CLASSES, dtype=torch.long, device=device)
     for data in tqdm(loader, desc="Evaluating", leave=False):
